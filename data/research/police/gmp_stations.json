@@ -1,0 +1,211 @@
+{
+  "$comment": "Greater Manchester Police stations used in The Watch Room. Divisional headquarters + force-wide specialist units. Coordinates from published GMP estate / OSM. Names and divisions track the real 10-district GMP structure (2025) — operator patches map onto the same Southern/Eastern/Western groupings as GMFRS. Verified where possible; approximate flagged otherwise. Specialist GMP resources (ARV base, Dog Unit, OPU, CID SIO cars) live under the ForceWide area so they're dispatchable across the whole patch pool.",
+  "verifiedSource": false,
+  "areas": [
+    {
+      "name": "Southern",
+      "stations": [
+        {
+          "id": "MP-MCR",
+          "name": "Manchester Central",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "4x Police_Response",
+            "1x Police_TraffMot"
+          ],
+          "address": "Bootle Street",
+          "town": "Manchester",
+          "postcode": "M2 5GU",
+          "coords": { "lat": 53.4795, "lng": -2.2487 }
+        },
+        {
+          "id": "MP-TRA",
+          "name": "Trafford",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response",
+            "1x Police_Dog"
+          ],
+          "address": "Talbot Road",
+          "town": "Stretford",
+          "postcode": "M32 0TR",
+          "coords": { "lat": 53.4598, "lng": -2.2842 }
+        },
+        {
+          "id": "MP-STK",
+          "name": "Stockport",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response"
+          ],
+          "address": "Lee Street",
+          "town": "Stockport",
+          "postcode": "SK1 1RU",
+          "coords": { "lat": 53.4073, "lng": -2.1573 }
+        }
+      ]
+    },
+    {
+      "name": "Eastern",
+      "stations": [
+        {
+          "id": "MP-RCH",
+          "name": "Rochdale",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response"
+          ],
+          "address": "The Esplanade",
+          "town": "Rochdale",
+          "postcode": "OL16 1AA",
+          "coords": { "lat": 53.6145, "lng": -2.1575 }
+        },
+        {
+          "id": "MP-OLD",
+          "name": "Oldham",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response"
+          ],
+          "address": "Barn Street",
+          "town": "Oldham",
+          "postcode": "OL1 1LP",
+          "coords": { "lat": 53.5413, "lng": -2.1156 }
+        },
+        {
+          "id": "MP-TAM",
+          "name": "Tameside",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response"
+          ],
+          "address": "Manchester Road",
+          "town": "Ashton-under-Lyne",
+          "postcode": "OL7 0BH",
+          "coords": { "lat": 53.4833, "lng": -2.0980 }
+        },
+        {
+          "id": "MP-BUR",
+          "name": "Bury",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "2x Police_Response"
+          ],
+          "address": "Irwell Street",
+          "town": "Bury",
+          "postcode": "BL9 0SU",
+          "coords": { "lat": 53.5942, "lng": -2.2988 }
+        }
+      ]
+    },
+    {
+      "name": "Western",
+      "stations": [
+        {
+          "id": "MP-BOL",
+          "name": "Bolton",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response"
+          ],
+          "address": "Scholey Street",
+          "town": "Bolton",
+          "postcode": "BL2 1BU",
+          "coords": { "lat": 53.5820, "lng": -2.4285 }
+        },
+        {
+          "id": "MP-WIG",
+          "name": "Wigan",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response"
+          ],
+          "address": "Harrogate Street",
+          "town": "Wigan",
+          "postcode": "WN1 1TD",
+          "coords": { "lat": 53.5435, "lng": -2.6302 }
+        },
+        {
+          "id": "MP-SAL",
+          "name": "Salford",
+          "staffing": "24/7 divisional HQ",
+          "resources": [
+            "3x Police_Response",
+            "1x Police_TraffMot"
+          ],
+          "address": "The Crescent",
+          "town": "Salford",
+          "postcode": "M5 4NY",
+          "coords": { "lat": 53.4857, "lng": -2.2719 }
+        }
+      ]
+    },
+    {
+      "name": "ForceWide",
+      "stations": [
+        {
+          "id": "MP-TAC",
+          "name": "Tactical Aid — Openshaw",
+          "staffing": "Force ARV / TAU base",
+          "resources": [
+            "4x Police_ARV",
+            "1x Police_Dog"
+          ],
+          "address": "Openshaw Complex",
+          "town": "Manchester",
+          "postcode": "M11 2NX",
+          "coords": { "lat": 53.4675, "lng": -2.1855, "approximate": true }
+        },
+        {
+          "id": "MP-RPU",
+          "name": "Roads Policing — Eccles",
+          "staffing": "Force Roads Policing Unit",
+          "resources": [
+            "2x Police_Response",
+            "2x Police_TraffMot"
+          ],
+          "address": "Gilda Brook Road",
+          "town": "Eccles",
+          "postcode": "M30 0TU",
+          "coords": { "lat": 53.4855, "lng": -2.3423, "approximate": true }
+        },
+        {
+          "id": "MP-NPAS",
+          "name": "NPAS Barton — North-West Helicopter Base",
+          "staffing": "NPAS 15 — shared airframe (NWAA Barton site)",
+          "resources": [
+            "1x Police_NPAS"
+          ],
+          "address": "Barton Aerodrome, Liverpool Road",
+          "town": "Eccles",
+          "postcode": "M30 7RU",
+          "coords": { "lat": 53.4719, "lng": -2.3896 }
+        },
+        {
+          "id": "MP-SIO",
+          "name": "Major Investigation Team — Nexus House",
+          "staffing": "CID SIO on-call",
+          "resources": [
+            "1x Police_SIO"
+          ],
+          "address": "Nexus House, Central Park",
+          "town": "Manchester",
+          "postcode": "M40 5BP",
+          "coords": { "lat": 53.4900, "lng": -2.2108, "approximate": true }
+        },
+        {
+          "id": "MP-POLSA",
+          "name": "Specialist Search — Force HQ",
+          "staffing": "POLSA-led search team",
+          "resources": [
+            "1x Police_Search"
+          ],
+          "address": "Force Headquarters, Central Park",
+          "town": "Manchester",
+          "postcode": "M40 5BP",
+          "coords": { "lat": 53.4905, "lng": -2.2112, "approximate": true }
+        }
+      ]
+    }
+  ]
+}

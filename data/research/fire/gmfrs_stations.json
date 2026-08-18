@@ -1,0 +1,919 @@
+{
+  "$comment": "GMFRS station and appliance complement. Inventory (staffing + appliances) extracted verbatim from Wikipedia oldid=998453378 (2021-01-05) — see source S1. Addresses + current-station verification taken from the official GMFRS station directory at manchesterfire.gov.uk/your-area (provided by user 2026-04-17) — see source S3. Appliance abbreviations defined in abbreviations.md. Stations marked closedSince2021 are absent from the current directory and should be excluded from sim use unless running a 2021 historical scenario.",
+  "service": "GMFRS",
+  "inventorySnapshotDate": "2021-01-05",
+  "addressSnapshotDate": "2026-04-17",
+  "sources": [
+    "S1",
+    "S3"
+  ],
+  "areas": [
+    {
+      "name": "Southern",
+      "stations": [
+        {
+          "id": "G10",
+          "name": "Stretford",
+          "staffing": "Wholetime/Jump Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x TL",
+            "1x PM",
+            "pods: 2x HVP/HVHL"
+          ],
+          "address": "Park Road",
+          "town": "Stretford",
+          "postcode": "M32 8RJ",
+          "coords": {
+            "lat": 53.455013,
+            "lng": -2.317078
+          },
+          "admin": {
+            "district": "Trafford",
+            "ward": "Gorse Hill & Cornbrook",
+            "parliamentary_constituency": "Stretford and Urmston",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G11",
+          "name": "Sale",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x BFU"
+          ],
+          "address": "Cranleigh Drive",
+          "town": "Sale",
+          "postcode": "M33 7NT",
+          "coords": {
+            "lat": 53.425681,
+            "lng": -2.327951
+          },
+          "admin": {
+            "district": "Trafford",
+            "ward": "Ashton upon Mersey",
+            "parliamentary_constituency": "Altrincham and Sale West",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G12",
+          "name": "Altrincham",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "43 Manchester Road",
+          "town": "Altrincham",
+          "postcode": "WA14 4RQ",
+          "coords": {
+            "lat": 53.394294,
+            "lng": -2.352671
+          },
+          "admin": {
+            "district": "Trafford",
+            "ward": "Altrincham",
+            "parliamentary_constituency": "Altrincham and Sale West",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G13",
+          "name": "Moss Side",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Denhill Road",
+          "town": "Moss Side",
+          "postcode": "M15 5NR",
+          "coords": {
+            "lat": 53.460034,
+            "lng": -2.246237
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Hulme",
+            "parliamentary_constituency": "Manchester Rusholme",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G14",
+          "name": "Withington",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Wilmslow Road",
+          "town": "Withington",
+          "postcode": "M20 4AW",
+          "coords": {
+            "lat": 53.432061,
+            "lng": -2.228014
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Withington",
+            "parliamentary_constituency": "Manchester Withington",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G15",
+          "name": "Wythenshawe",
+          "staffing": "Wholetime",
+          "appliances": [
+            "2x WrL"
+          ],
+          "address": "Brownley Road",
+          "town": "Wythenshawe",
+          "postcode": "M22 5FG",
+          "coords": {
+            "lat": 53.381559,
+            "lng": -2.256729
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Woodhouse Park",
+            "parliamentary_constituency": "Wythenshawe and Sale East",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G16",
+          "name": "Manchester Central",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL",
+            "1x TL"
+          ],
+          "address": "Thompson Street",
+          "town": "Manchester",
+          "postcode": "M4 5FP",
+          "coords": {
+            "lat": 53.487102,
+            "lng": -2.230614
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Piccadilly",
+            "parliamentary_constituency": "Manchester Central",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G17",
+          "name": "Blackley",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Rochdale Road",
+          "town": "Blackley",
+          "postcode": "M9 7EQ",
+          "coords": {
+            "lat": 53.527981,
+            "lng": -2.21118
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Charlestown",
+            "parliamentary_constituency": "Blackley and Middleton South",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G18",
+          "name": "Philips Park",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Briscoe Lane",
+          "town": "Philips Park",
+          "postcode": "M40 2XG",
+          "coords": {
+            "lat": 53.491618,
+            "lng": -2.19846
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Miles Platting & Newton Heath",
+            "parliamentary_constituency": "Manchester Central",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G19",
+          "name": "Gorton",
+          "staffing": "Wholetime",
+          "appliances": [
+            "2x WrL"
+          ],
+          "address": "Birch Street West",
+          "town": "Gorton",
+          "postcode": "M12 5NS",
+          "coords": {
+            "lat": 53.466577,
+            "lng": -2.192499
+          },
+          "admin": {
+            "district": "Manchester",
+            "ward": "Gorton & Abbey Hey",
+            "parliamentary_constituency": "Gorton and Denton",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G20",
+          "name": "Whitehill",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL",
+            "1x HVP"
+          ],
+          "address": "Whitehill Street West",
+          "town": "Stockport",
+          "postcode": "SK4 1NR",
+          "coords": {
+            "lat": 53.424461,
+            "lng": -2.165853
+          },
+          "admin": {
+            "district": "Stockport",
+            "ward": "Reddish South",
+            "parliamentary_constituency": "Stockport",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G21",
+          "name": "Stockport",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "closedSince2021": true
+        },
+        {
+          "id": "G22",
+          "name": "Cheadle",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x HLL"
+          ],
+          "address": "Turves Road",
+          "town": "Cheadle Hulme",
+          "postcode": "SK8 6AY",
+          "coords": {
+            "lat": 53.375941,
+            "lng": -2.195742
+          },
+          "admin": {
+            "district": "Stockport",
+            "ward": "Cheadle Hulme South",
+            "parliamentary_constituency": "Cheadle",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G23",
+          "name": "Offerton",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Lisburne Lane",
+          "town": "Stockport",
+          "postcode": "SK2 5NP",
+          "coords": {
+            "lat": 53.393383,
+            "lng": -2.125898
+          },
+          "admin": {
+            "district": "Stockport",
+            "ward": "Offerton",
+            "parliamentary_constituency": "Hazel Grove",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G24",
+          "name": "Marple",
+          "staffing": "Day Crewed",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "10 Hollins Lane",
+          "town": "Marple",
+          "postcode": "SK6 6AT",
+          "coords": {
+            "lat": 53.396282,
+            "lng": -2.063317
+          },
+          "admin": {
+            "district": "Stockport",
+            "ward": "Marple North",
+            "parliamentary_constituency": "Hazel Grove",
+            "police_force_area": "Greater Manchester"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Eastern",
+      "stations": [
+        {
+          "id": "G30",
+          "name": "Rochdale",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "2x WrL",
+            "1x ICU"
+          ],
+          "address": "Halifax Road",
+          "town": "Rochdale",
+          "postcode": "OL16 2LR",
+          "coords": {
+            "lat": 53.624104,
+            "lng": -2.143277
+          },
+          "admin": {
+            "district": "Rochdale",
+            "ward": "Central Rochdale",
+            "parliamentary_constituency": "Rochdale",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G31",
+          "name": "Littleborough",
+          "staffing": "Day Crewed/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x BASU",
+            "1x WFU"
+          ],
+          "address": "Whitelees Road",
+          "town": "Littleborough",
+          "postcode": "OL15 8DU",
+          "coords": {
+            "lat": 53.645681,
+            "lng": -2.102977
+          },
+          "admin": {
+            "district": "Rochdale",
+            "ward": "Wardle, Shore & West Littleborough",
+            "parliamentary_constituency": "Rochdale",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G32",
+          "name": "Heywood",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x WIU"
+          ],
+          "address": "Middleton Road",
+          "town": "Heywood",
+          "postcode": "OL10 2LU",
+          "coords": {
+            "lat": 53.580784,
+            "lng": -2.208182
+          },
+          "admin": {
+            "district": "Rochdale",
+            "ward": "Hopwood Hall",
+            "parliamentary_constituency": "Heywood and Middleton North",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G33",
+          "name": "Oldham",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x HVP"
+          ],
+          "address": "Lees Road",
+          "town": "Oldham",
+          "postcode": "OL4 1JN",
+          "coords": {
+            "lat": 53.542125,
+            "lng": -2.095465
+          },
+          "admin": {
+            "district": "Oldham",
+            "ward": "St Mary's",
+            "parliamentary_constituency": "Oldham East and Saddleworth",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G34",
+          "name": "Hollins",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Hollins Road",
+          "town": "Hollins",
+          "postcode": "OL8 3BD",
+          "coords": {
+            "lat": 53.522946,
+            "lng": -2.122617
+          },
+          "admin": {
+            "district": "Oldham",
+            "ward": "Hollinwood",
+            "parliamentary_constituency": "Oldham West, Chadderton and Royton",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G35",
+          "name": "Chadderton",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL",
+            "1x SACU"
+          ],
+          "address": "Broadway",
+          "town": "Chadderton",
+          "postcode": "OL9 0JX",
+          "coords": {
+            "lat": 53.548458,
+            "lng": -2.143835
+          },
+          "admin": {
+            "district": "Oldham",
+            "ward": "Chadderton Central",
+            "parliamentary_constituency": "Oldham West, Chadderton and Royton",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G36",
+          "name": "Bury",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x PM+EPU",
+            "1x WFU"
+          ],
+          "address": "Magdalene Road",
+          "town": "Bury",
+          "postcode": "BL9 0ES",
+          "coords": {
+            "lat": 53.598177,
+            "lng": -2.300484
+          },
+          "admin": {
+            "district": "Bury",
+            "ward": "Moorside",
+            "parliamentary_constituency": "Bury North",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G37",
+          "name": "Whitefield",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Bury New Road",
+          "town": "Whitefield",
+          "postcode": "M45 7SY",
+          "coords": {
+            "lat": 53.555549,
+            "lng": -2.295789
+          },
+          "admin": {
+            "district": "Bury",
+            "ward": "Unsworth",
+            "parliamentary_constituency": "Bury South",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G38",
+          "name": "Ramsbottom",
+          "staffing": "Day Crewed/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x DIM"
+          ],
+          "address": "Stubbins Lane",
+          "town": "Ramsbottom",
+          "postcode": "BL0 0PS",
+          "coords": {
+            "lat": 53.654098,
+            "lng": -2.316149
+          },
+          "admin": {
+            "district": "Bury",
+            "ward": "Ramsbottom",
+            "parliamentary_constituency": "Bury North",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G39",
+          "name": "Ashton-Under-Lyne",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL",
+            "1x TRU",
+            "1x TRU_van",
+            "1x USAR"
+          ],
+          "address": "Slate Lane (off Ashton Moss Way)",
+          "town": "Audenshaw",
+          "postcode": "M34 5FS",
+          "coords": {
+            "lat": 53.47781,
+            "lng": -2.11851
+          },
+          "admin": {
+            "district": "Tameside",
+            "ward": "St Peter's",
+            "parliamentary_constituency": "Ashton-under-Lyne",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G40",
+          "name": "Stalybridge",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x WFU"
+          ],
+          "address": "Rassbottom Street",
+          "town": "Stalybridge",
+          "postcode": "SK15 1RF",
+          "coords": {
+            "lat": 53.484342,
+            "lng": -2.063886
+          },
+          "admin": {
+            "district": "Tameside",
+            "ward": "Stalybridge North",
+            "parliamentary_constituency": "Stalybridge and Hyde",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G41",
+          "name": "Mossley",
+          "staffing": "Day Crewed/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x WFU"
+          ],
+          "address": "Stamford Street",
+          "town": "Mossley",
+          "postcode": "OL5 0LN",
+          "notes": "Joint Fire and Police station",
+          "coords": {
+            "lat": 53.51794,
+            "lng": -2.047134
+          },
+          "admin": {
+            "district": "Tameside",
+            "ward": "Mossley",
+            "parliamentary_constituency": "Stalybridge and Hyde",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G42",
+          "name": "Hyde",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x CSU",
+            "1x WU"
+          ],
+          "address": "Railway Street",
+          "town": "Hyde",
+          "postcode": "SK14 1DF",
+          "coords": {
+            "lat": 53.448861,
+            "lng": -2.08306
+          },
+          "admin": {
+            "district": "Tameside",
+            "ward": "Hyde Werneth",
+            "parliamentary_constituency": "Stalybridge and Hyde",
+            "police_force_area": "Greater Manchester"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Western",
+      "stations": [
+        {
+          "id": "G50",
+          "name": "Bolton Central",
+          "staffing": "Wholetime/Jump Crewed",
+          "appliances": [
+            "2x WrL",
+            "1x HLP",
+            "2x PM",
+            "pods: 1x HVP, 1x HVHL"
+          ],
+          "address": "Moor Lane",
+          "town": "Bolton",
+          "postcode": "BL3 5DB",
+          "coords": {
+            "lat": 53.575392,
+            "lng": -2.435002
+          },
+          "admin": {
+            "district": "Bolton",
+            "ward": "Queens Park & Central",
+            "parliamentary_constituency": "Bolton South and Walkden",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G51",
+          "name": "Bolton North",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x L6P",
+            "1x HLL"
+          ],
+          "address": "Crompton Way",
+          "town": "Bolton",
+          "postcode": "BL1 8UP",
+          "coords": {
+            "lat": 53.597502,
+            "lng": -2.415224
+          },
+          "admin": {
+            "district": "Bolton",
+            "ward": "Tonge with the Haulgh",
+            "parliamentary_constituency": "Bolton North East",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G52",
+          "name": "Horwich",
+          "staffing": "Day Crewed",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Chorley New Road",
+          "town": "Horwich",
+          "postcode": "BL6 5NP",
+          "coords": {
+            "lat": 53.594496,
+            "lng": -2.545721
+          },
+          "admin": {
+            "district": "Bolton",
+            "ward": "Horwich South & Blackrod",
+            "parliamentary_constituency": "Bolton West",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G53",
+          "name": "Farnworth",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "2x WrL",
+            "1x BFU",
+            "1x PM (UTC pod)"
+          ],
+          "address": "Albert Road",
+          "town": "Farnworth",
+          "postcode": "BL4 9HF",
+          "coords": {
+            "lat": 53.545983,
+            "lng": -2.398677
+          },
+          "admin": {
+            "district": "Bolton",
+            "ward": "Farnworth South",
+            "parliamentary_constituency": "Bolton South and Walkden",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G54",
+          "name": "Wigan",
+          "staffing": "Wholetime",
+          "appliances": [
+            "2x WrL"
+          ],
+          "address": "Robin Park Road",
+          "town": "Wigan",
+          "postcode": "WN5 0UU",
+          "notes": "Joint Fire and Ambulance station",
+          "coords": {
+            "lat": 53.540983,
+            "lng": -2.650829
+          },
+          "admin": {
+            "district": "Wigan",
+            "ward": "Douglas",
+            "parliamentary_constituency": "Wigan",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G55",
+          "name": "Hindley",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Borsdane Avenue",
+          "town": "Hindley",
+          "postcode": "WN2 3QB",
+          "coords": {
+            "lat": 53.531969,
+            "lng": -2.567803
+          },
+          "admin": {
+            "district": "Wigan",
+            "ward": "Hindley",
+            "parliamentary_constituency": "Makerfield",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G56",
+          "name": "Atherton",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x CSU"
+          ],
+          "address": "Gloucester Street",
+          "town": "Atherton",
+          "postcode": "M46 0JT",
+          "coords": {
+            "lat": 53.526583,
+            "lng": -2.495777
+          },
+          "admin": {
+            "district": "Wigan",
+            "ward": "Atherton North",
+            "parliamentary_constituency": "Leigh and Atherton",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G57",
+          "name": "Leigh",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL",
+            "1x TRU",
+            "1x TRU_van",
+            "1x HLP"
+          ],
+          "address": "St Helens Road",
+          "town": "Leigh",
+          "postcode": "WN7 3PA",
+          "coords": {
+            "lat": 53.479861,
+            "lng": -2.538989
+          },
+          "admin": {
+            "district": "Wigan",
+            "ward": "Lowton East",
+            "parliamentary_constituency": "Leigh and Atherton",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G58",
+          "name": "Salford",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrT (Trial Basis)",
+            "1x WrL",
+            "1x SACU"
+          ],
+          "address": "Liverpool Street",
+          "town": "Salford",
+          "postcode": "M5 4LT",
+          "coords": {
+            "lat": 53.480591,
+            "lng": -2.270887
+          },
+          "admin": {
+            "district": "Salford",
+            "ward": "Ordsall",
+            "parliamentary_constituency": "Salford",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G59",
+          "name": "Broughton",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL"
+          ],
+          "address": "Bury New Road",
+          "town": "Broughton",
+          "postcode": "M7 4LE",
+          "coords": {
+            "lat": 53.511032,
+            "lng": -2.263842
+          },
+          "admin": {
+            "district": "Salford",
+            "ward": "Kersal & Broughton Park",
+            "parliamentary_constituency": "Bury South",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G60",
+          "name": "Agecroft",
+          "staffing": "Wholetime",
+          "appliances": [
+            "1x WrL",
+            "1x SDU"
+          ],
+          "address": "Bolton Road",
+          "town": "Pendlebury",
+          "postcode": "M27 8XS",
+          "coords": {
+            "lat": 53.504683,
+            "lng": -2.310407
+          },
+          "admin": {
+            "district": "Salford",
+            "ward": "Swinton Park",
+            "parliamentary_constituency": "Salford",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G61",
+          "name": "Eccles",
+          "staffing": "Wholetime/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x WIU"
+          ],
+          "address": "Liverpool Road",
+          "town": "Eccles",
+          "postcode": "M30 0RZ",
+          "coords": {
+            "lat": 53.482128,
+            "lng": -2.356578
+          },
+          "admin": {
+            "district": "Salford",
+            "ward": "Barton & Winton",
+            "parliamentary_constituency": "Worsley and Eccles",
+            "police_force_area": "Greater Manchester"
+          }
+        },
+        {
+          "id": "G62",
+          "name": "Irlam",
+          "staffing": "Day Crewed/Dual Crewed",
+          "appliances": [
+            "1x WrL",
+            "1x WFU",
+            "1x WU"
+          ],
+          "address": "Fairhills Road",
+          "town": "Irlam",
+          "postcode": "M44 6BA",
+          "notes": "Joint Fire, Police and Ambulance station",
+          "coords": {
+            "lat": 53.440321,
+            "lng": -2.420253
+          },
+          "admin": {
+            "district": "Salford",
+            "ward": "Cadishead & Lower Irlam",
+            "parliamentary_constituency": "Worsley and Eccles",
+            "police_force_area": "Greater Manchester"
+          }
+        }
+      ]
+    }
+  ]
+}

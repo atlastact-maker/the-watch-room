@@ -1,0 +1,17 @@
+{
+  "$comment": "Major A&E (ED) sites in Greater Manchester that NWAS DCAs convey to. Coords from postcodes.io 2026-04-18. Trafford General is downgraded (not a full ED); Rochdale Infirmary is urgent care only (no ED since 2011). Both omitted.",
+  "snapshotDate": "2026-04-18",
+  "sources": ["H1"],
+  "hospitals": [
+    { "id": "H-MRI",   "name": "Manchester Royal Infirmary",        "address": "Oxford Road",        "town": "Manchester",      "postcode": "M13 9WL",  "coords": { "lat": 53.46245, "lng": -2.22771 } },
+    { "id": "H-WYT",   "name": "Wythenshawe Hospital",              "address": "Southmoor Road",     "town": "Wythenshawe",     "postcode": "M23 9LT",  "coords": { "lat": 53.38794, "lng": -2.29318 } },
+    { "id": "H-NMG",   "name": "North Manchester General Hospital", "address": "Delaunays Road",     "town": "Crumpsall",       "postcode": "M8 5RB",   "coords": { "lat": 53.51790, "lng": -2.22950 } },
+    { "id": "H-SRH",   "name": "Salford Royal Hospital",            "address": "Stott Lane",         "town": "Salford",         "postcode": "M6 8HD",   "coords": { "lat": 53.48756, "lng": -2.32342 } },
+    { "id": "H-RBH",   "name": "Royal Bolton Hospital",             "address": "Minerva Road",       "town": "Farnworth",       "postcode": "BL4 0JR",  "coords": { "lat": 53.55397, "lng": -2.42989 } },
+    { "id": "H-FGH",   "name": "Fairfield General Hospital",        "address": "Rochdale Old Road",  "town": "Bury",            "postcode": "BL9 7TD",  "coords": { "lat": 53.60044, "lng": -2.25562 } },
+    { "id": "H-ROH",   "name": "Royal Oldham Hospital",             "address": "Rochdale Road",      "town": "Oldham",          "postcode": "OL1 2JH",  "coords": { "lat": 53.55326, "lng": -2.12183 } },
+    { "id": "H-SHH",   "name": "Stepping Hill Hospital",            "address": "Poplar Grove",       "town": "Stockport",       "postcode": "SK2 7JE",  "coords": { "lat": 53.38379, "lng": -2.13202 } },
+    { "id": "H-TGH",   "name": "Tameside General Hospital",         "address": "Fountain Street",    "town": "Ashton-under-Lyne", "postcode": "OL6 9RW","coords": { "lat": 53.49155, "lng": -2.07143 } },
+    { "id": "H-RAE",   "name": "Royal Albert Edward Infirmary",     "address": "Wigan Lane",         "town": "Wigan",           "postcode": "WN1 2NN",  "coords": { "lat": 53.55776, "lng": -2.62909 } }
+  ]
+}

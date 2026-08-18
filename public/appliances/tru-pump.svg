@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 620" font-family="'Inter', 'Helvetica Neue', sans-serif">
+
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="3"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <linearGradient id="body-red" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9F1515"/>
+      <stop offset="50%" stop-color="#C01E1E"/>
+      <stop offset="100%" stop-color="#9F1515"/>
+    </linearGradient>
+
+    <linearGradient id="cab-red" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#AE1A1A"/>
+      <stop offset="50%" stop-color="#CE2424"/>
+      <stop offset="100%" stop-color="#AE1A1A"/>
+    </linearGradient>
+
+    <linearGradient id="toolbox-red" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8B1010"/>
+      <stop offset="50%" stop-color="#A81818"/>
+      <stop offset="100%" stop-color="#8B1010"/>
+    </linearGradient>
+
+    <pattern id="chequer-pattern" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect width="6" height="6" fill="#8A8A82"/>
+      <polygon points="3,1 5,3 3,5 1,3" fill="#6A6A62" opacity="0.5"/>
+      <polygon points="3,0.5 4.5,3 3,5.5 1.5,3" fill="#A8A8A0" opacity="0.3"/>
+    </pattern>
+
+    <linearGradient id="ladder-rail" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6A6A5C"/>
+      <stop offset="50%" stop-color="#B8B6A8"/>
+      <stop offset="100%" stop-color="#6A6A5C"/>
+    </linearGradient>
+
+    <linearGradient id="rung" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8A8780"/>
+      <stop offset="50%" stop-color="#C0BEB0"/>
+      <stop offset="100%" stop-color="#8A8780"/>
+    </linearGradient>
+
+    <linearGradient id="spineboard" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C8601A"/>
+      <stop offset="50%" stop-color="#E8802A"/>
+      <stop offset="100%" stop-color="#C8601A"/>
+    </linearGradient>
+
+    <linearGradient id="stretcher-metal" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5A5A52"/>
+      <stop offset="50%" stop-color="#9A9A92"/>
+      <stop offset="100%" stop-color="#5A5A52"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="280" height="620" fill="none"/>
+
+  <g transform="translate(140, 310)" filter="url(#shadow)">
+
+    <g fill="#0A0A0A">
+      <rect x="-90" y="-220" width="6" height="26" rx="1.5"/>
+      <rect x="84" y="-220" width="6" height="26" rx="1.5"/>
+      <rect x="-90" y="80" width="6" height="36" rx="1.5"/>
+      <rect x="84" y="80" width="6" height="36" rx="1.5"/>
+      <rect x="-90" y="128" width="6" height="36" rx="1.5"/>
+      <rect x="84" y="128" width="6" height="36" rx="1.5"/>
+    </g>
+
+    <rect x="-80" y="-268" width="160" height="180" rx="4" fill="url(#cab-red)" stroke="#5A0A0A" stroke-width="0.8"/>
+
+    <path d="M -80 -268 Q -80 -272 -74 -272 L 74 -272 Q 80 -272 80 -268 L 80 -252 L -80 -252 Z"
+          fill="#3A3A3A" stroke="#1A1A1A" stroke-width="0.6"/>
+
+    <g>
+      <rect x="-76" y="-252" width="152" height="18" fill="#9F1515"/>
+      <g fill="#FFFFFF">
+        <polygon points="-76,-234 -65,-252 -54,-252 -65,-234"/>
+        <polygon points="-54,-234 -43,-252 -32,-252 -43,-234"/>
+        <polygon points="-32,-234 -21,-252 -10,-252 -21,-234"/>
+        <polygon points="-10,-234 1,-252 12,-252 1,-234"/>
+        <polygon points="12,-234 23,-252 34,-252 23,-234"/>
+        <polygon points="34,-234 45,-252 56,-252 45,-234"/>
+        <polygon points="56,-234 67,-252 76,-252 67,-234"/>
+      </g>
+    </g>
+
+    <rect x="-72" y="-270" width="14" height="5" rx="1" fill="#F8F0D8" stroke="#8B8470" stroke-width="0.3"/>
+    <rect x="58" y="-270" width="14" height="5" rx="1" fill="#F8F0D8" stroke="#8B8470" stroke-width="0.3"/>
+
+    <rect x="-18" y="-270" width="36" height="7" fill="#1A1A1A"/>
+
+    <path d="M -76 -234 L -65 -194 L 65 -194 L 76 -234 Z" fill="#1A2535" stroke="#0A1520" stroke-width="0.6"/>
+    <path d="M -68 -228 L -58 -198 L 0 -198 L 0 -228 Z" fill="#4A6A8A" opacity="0.4"/>
+
+    <rect x="-76" y="-194" width="152" height="100" fill="url(#cab-red)" stroke="#5A0A0A" stroke-width="0.5"/>
+
+    <g>
+      <rect x="-62" y="-190" width="124" height="14" rx="2" fill="#1A1A2A" stroke="#000000" stroke-width="0.6"/>
+      <rect x="-59" y="-188" width="22" height="6" rx="1" fill="#4A6AFF" opacity="0.75"/>
+      <rect x="-35" y="-188" width="22" height="6" rx="1" fill="#4A6AFF" opacity="0.75"/>
+      <rect x="-10" y="-188" width="8" height="6" rx="0.5" fill="#D4A020" opacity="0.75"/>
+      <rect x="2" y="-188" width="8" height="6" rx="0.5" fill="#D4A020" opacity="0.75"/>
+      <rect x="13" y="-188" width="22" height="6" rx="1" fill="#4A6AFF" opacity="0.75"/>
+      <rect x="37" y="-188" width="22" height="6" rx="1" fill="#4A6AFF" opacity="0.75"/>
+      <rect x="-60" y="-189" width="122" height="1" fill="#5A6A8A" opacity="0.5"/>
+    </g>
+
+    <rect x="-92" y="-236" width="12" height="16" rx="1.5" fill="#2A0A0A"/>
+    <rect x="80" y="-236" width="12" height="16" rx="1.5" fill="#2A0A0A"/>
+
+    <rect x="-80" y="-190" width="4" height="32" fill="#2A3A4A"/>
+    <rect x="76" y="-190" width="4" height="32" fill="#2A3A4A"/>
+
+    <rect x="-80" y="-158" width="4" height="5" fill="#4A0A0A"/>
+    <rect x="76" y="-158" width="4" height="5" fill="#4A0A0A"/>
+
+    <rect x="-80" y="-153" width="4" height="52" fill="#2A3A4A"/>
+    <rect x="76" y="-153" width="4" height="52" fill="#2A3A4A"/>
+
+    <rect x="-80" y="-101" width="4" height="5" fill="#4A0A0A"/>
+    <rect x="76" y="-101" width="4" height="5" fill="#4A0A0A"/>
+
+    <g>
+      <rect x="-22" y="-140" width="44" height="38" rx="2" fill="#2A3A4A" stroke="#1A2530" stroke-width="0.6"/>
+      <rect x="-20" y="-138" width="40" height="34" fill="#1A2535"/>
+      <rect x="-20" y="-138" width="40" height="2" fill="#4A6A8A" opacity="0.4"/>
+    </g>
+
+    <line x1="-80" y1="-88" x2="80" y2="-88" stroke="#6A0A0A" stroke-width="0.5"/>
+
+    <rect x="-84" y="-88" width="168" height="280" rx="3" fill="url(#body-red)" stroke="#5A0A0A" stroke-width="0.8"/>
+
+    <rect x="-78" y="-84" width="156" height="270" rx="2" fill="url(#chequer-pattern)" stroke="#4A4A42" stroke-width="0.8"/>
+    <rect x="-78" y="-84" width="156" height="270" rx="2" fill="none" stroke="#1A1A1A" stroke-width="1.2"/>
+
+    <g>
+      <rect x="36" y="-82" width="40" height="4" fill="#3A3A2A" stroke="#1A1A10" stroke-width="0.3"/>
+      <rect x="36" y="180" width="40" height="4" fill="#3A3A2A" stroke="#1A1A10" stroke-width="0.3"/>
+    </g>
+
+    <g>
+      <rect x="40" y="-78" width="3" height="260" fill="url(#ladder-rail)" stroke="#3A3A30" stroke-width="0.3"/>
+      <rect x="70" y="-78" width="3" height="260" fill="url(#ladder-rail)" stroke="#3A3A30" stroke-width="0.3"/>
+
+      <g fill="url(#rung)" stroke="#3A3A30" stroke-width="0.2">
+        <rect x="43" y="-72" width="27" height="2.5"/>
+        <rect x="43" y="-60" width="27" height="2.5"/>
+        <rect x="43" y="-48" width="27" height="2.5"/>
+        <rect x="43" y="-36" width="27" height="2.5"/>
+        <rect x="43" y="-24" width="27" height="2.5"/>
+        <rect x="43" y="-12" width="27" height="2.5"/>
+        <rect x="43" y="0" width="27" height="2.5"/>
+        <rect x="43" y="12" width="27" height="2.5"/>
+        <rect x="43" y="24" width="27" height="2.5"/>
+        <rect x="43" y="36" width="27" height="2.5"/>
+        <rect x="43" y="48" width="27" height="2.5"/>
+        <rect x="43" y="60" width="27" height="2.5"/>
+        <rect x="43" y="72" width="27" height="2.5"/>
+        <rect x="43" y="84" width="27" height="2.5"/>
+        <rect x="43" y="96" width="27" height="2.5"/>
+        <rect x="43" y="108" width="27" height="2.5"/>
+        <rect x="43" y="120" width="27" height="2.5"/>
+        <rect x="43" y="132" width="27" height="2.5"/>
+        <rect x="43" y="144" width="27" height="2.5"/>
+        <rect x="43" y="156" width="27" height="2.5"/>
+        <rect x="43" y="168" width="27" height="2.5"/>
+      </g>
+    </g>
+
+    <g>
+      <rect x="-71" y="-72" width="55" height="58" fill="#000000" opacity="0.2"/>
+      <rect x="-72" y="-74" width="55" height="58" rx="2" fill="url(#toolbox-red)" stroke="#4A0606" stroke-width="0.8"/>
+      <rect x="-70" y="-72" width="51" height="2" fill="#D42828" opacity="0.6"/>
+      <rect x="-72" y="-74" width="2" height="58" fill="#8B1010" opacity="0.4"/>
+      <line x1="-44" y1="-74" x2="-44" y2="-16" stroke="#5A0A0A" stroke-width="0.4" stroke-dasharray="2,3" opacity="0.4"/>
+      <rect x="-50" y="-48" width="12" height="2.5" fill="#3A0404" rx="0.3"/>
+    </g>
+
+    <g>
+      <rect x="-71" y="-8" width="55" height="85" fill="#000000" opacity="0.2"/>
+      <path d="M -66 -10 L -20 -10 L -22 75 L -64 75 Z" fill="url(#spineboard)" stroke="#8B4010" stroke-width="0.8"/>
+      <rect x="-56" y="-8" width="26" height="12" rx="1" fill="#A85018" stroke="#6A3010" stroke-width="0.4"/>
+
+      <g fill="#6A3010" opacity="0.5">
+        <ellipse cx="-65" cy="10" rx="1.5" ry="3"/>
+        <ellipse cx="-20" cy="10" rx="1.5" ry="3"/>
+        <ellipse cx="-65" cy="30" rx="1.5" ry="3"/>
+        <ellipse cx="-21" cy="30" rx="1.5" ry="3"/>
+        <ellipse cx="-65" cy="50" rx="1.5" ry="3"/>
+        <ellipse cx="-22" cy="50" rx="1.5" ry="3"/>
+      </g>
+
+      <g stroke="#1A1A1A" stroke-width="0.6" opacity="0.7">
+        <line x1="-65" y1="15" x2="-20" y2="15"/>
+        <line x1="-65" y1="35" x2="-21" y2="35"/>
+        <line x1="-65" y1="55" x2="-22" y2="55"/>
+      </g>
+
+      <g fill="#4A4A42">
+        <rect x="-44" y="14" width="4" height="3" rx="0.3"/>
+        <rect x="-44" y="34" width="4" height="3" rx="0.3"/>
+        <rect x="-44" y="54" width="4" height="3" rx="0.3"/>
+      </g>
+
+      <path d="M -64 -8 L -22 -8" stroke="#F5A560" stroke-width="0.5" opacity="0.6"/>
+    </g>
+
+    <g>
+      <rect x="-71" y="87" width="55" height="88" fill="#000000" opacity="0.2"/>
+      <path d="M -66 92 Q -68 85 -60 85 L -22 85 Q -16 85 -17 92 L -19 168 Q -20 175 -28 175 L -58 175 Q -64 175 -64 168 Z"
+            fill="url(#stretcher-metal)" stroke="#3A3A30" stroke-width="0.8"/>
+
+      <g stroke="#3A3A30" stroke-width="0.3" fill="none" opacity="0.7">
+        <line x1="-62" y1="95" x2="-20" y2="95"/>
+        <line x1="-62" y1="105" x2="-20" y2="105"/>
+        <line x1="-62" y1="115" x2="-20" y2="115"/>
+        <line x1="-62" y1="125" x2="-20" y2="125"/>
+        <line x1="-62" y1="135" x2="-20" y2="135"/>
+        <line x1="-62" y1="145" x2="-20" y2="145"/>
+        <line x1="-62" y1="155" x2="-20" y2="155"/>
+        <line x1="-62" y1="165" x2="-20" y2="165"/>
+        <line x1="-55" y1="90" x2="-55" y2="170"/>
+        <line x1="-48" y1="90" x2="-48" y2="170"/>
+        <line x1="-41" y1="90" x2="-41" y2="170"/>
+        <line x1="-34" y1="90" x2="-34" y2="170"/>
+        <line x1="-27" y1="90" x2="-27" y2="170"/>
+      </g>
+
+      <g fill="none" stroke="#2A2A22" stroke-width="1">
+        <path d="M -65 94 Q -66 86 -60 87 L -22 87 Q -17 87 -18 93 L -20 166 Q -21 173 -28 173 L -58 173 Q -63 173 -63 166 Z"/>
+      </g>
+
+      <rect x="-56" y="87" width="32" height="4" rx="1" fill="#4A4A42" stroke="#2A2A22" stroke-width="0.3"/>
+      <rect x="-56" y="168" width="32" height="4" rx="1" fill="#4A4A42" stroke="#2A2A22" stroke-width="0.3"/>
+
+      <g fill="#6A6A5E" stroke="#3A3A30" stroke-width="0.3">
+        <circle cx="-41" cy="125" r="2"/>
+      </g>
+
+      <path d="M -60 89 Q -62 87 -58 87 L -24 87 Q -20 87 -20 90" stroke="#C8C8C0" stroke-width="0.4" opacity="0.5" fill="none"/>
+    </g>
+
+    <g>
+      <rect x="-84" y="80" width="6" height="14" fill="#F5D800"/>
+      <rect x="-84" y="94" width="6" height="14" fill="#FFFFFF"/>
+      <rect x="-84" y="108" width="6" height="14" fill="#F5D800"/>
+      <rect x="-84" y="122" width="6" height="14" fill="#FFFFFF"/>
+    </g>
+    <g>
+      <rect x="78" y="80" width="6" height="14" fill="#F5D800"/>
+      <rect x="78" y="94" width="6" height="14" fill="#FFFFFF"/>
+      <rect x="78" y="108" width="6" height="14" fill="#F5D800"/>
+      <rect x="78" y="122" width="6" height="14" fill="#FFFFFF"/>
+    </g>
+
+    <g transform="translate(0, 184)">
+      <rect x="-84" y="0" width="168" height="16" fill="#E8101C"/>
+      <g fill="#F5D800">
+        <polygon points="-82,16 -70,0 -58,0 -70,16"/>
+        <polygon points="-58,16 -46,0 -34,0 -46,16"/>
+        <polygon points="-34,16 -22,0 -10,0 -22,16"/>
+        <polygon points="-10,16 2,0 14,0 2,16"/>
+        <polygon points="14,16 26,0 38,0 26,16"/>
+        <polygon points="38,16 50,0 62,0 50,16"/>
+        <polygon points="62,16 74,0 82,0 82,6 74,16"/>
+      </g>
+    </g>
+
+  </g>
+
+</svg>

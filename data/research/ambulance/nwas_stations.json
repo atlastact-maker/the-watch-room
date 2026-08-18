@@ -1,0 +1,434 @@
+{
+  "$comment": "NWAS resources in the Greater Manchester area. Full 30-station list supplied by user 2026-04-18 with verified addresses and postcodes. Coords from postcodes.io. PTS (Patient Transport Service) stations are included for map completeness and flagged pts_only — they do not carry front-line 999 resources. HART base at BTTG Trafford Park and NWAA at Barton Aerodrome confirmed earlier. BASICS modelled as a force-wide capability.",
+  "service": "NWAS",
+  "inventorySnapshotDate": "2026-04-18",
+  "sources": ["U1", "U2", "H1", "I1"],
+  "areas": [
+    {
+      "name": "Southern",
+      "stations": [
+        {
+          "id": "A-ALT",
+          "name": "Altrincham Ambulance Station",
+          "town": "Altrincham",
+          "address": "Princes Road",
+          "postcode": "WA14 4EX",
+          "coords": { "lat": 53.39617, "lng": -2.35309, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-CEN",
+          "name": "Manchester Central Ambulance Station",
+          "town": "Manchester",
+          "address": "Site of BTS, Plymouth Grove",
+          "postcode": "M13 9LL",
+          "coords": { "lat": 53.46387, "lng": -2.22496, "approximate": false },
+          "resources": ["3x DCA", "1x RRV", "1x QR"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Southern-patch Advanced Paramedic based here."
+        },
+        {
+          "id": "A-CHE",
+          "name": "Cheadle Ambulance Station",
+          "town": "Cheadle Hulme",
+          "address": "Turves Road",
+          "postcode": "SK8 6AY",
+          "coords": { "lat": 53.37594, "lng": -2.19574, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Co-located with GMFRS G22 Cheadle."
+        },
+        {
+          "id": "A-PHP",
+          "name": "Philips Park Fire and Ambulance Station",
+          "town": "Manchester",
+          "address": "Briscoe Lane",
+          "postcode": "M40 2XG",
+          "coords": { "lat": 53.49162, "lng": -2.19846, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Co-located with GMFRS G18 Philips Park."
+        },
+        {
+          "id": "A-SAL",
+          "name": "Sale Ambulance Station",
+          "town": "Sale",
+          "address": "Cranleigh Drive",
+          "postcode": "M33 7NT",
+          "coords": { "lat": 53.42568, "lng": -2.32795, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Co-located with GMFRS G11 Sale."
+        },
+        {
+          "id": "A-SHA",
+          "name": "Sharston (Wythenshawe) Ambulance Station",
+          "town": "Wythenshawe",
+          "address": "Leestone Road, Sharston",
+          "postcode": "M22 4RN",
+          "coords": { "lat": 53.39711, "lng": -2.25388, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-STK",
+          "name": "Stockport Ambulance Station",
+          "town": "Stockport",
+          "address": "Hope Street, off Heaton Lane",
+          "postcode": "SK4 1AY",
+          "coords": { "lat": 53.41019, "lng": -2.17004, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-STP",
+          "name": "Stretford Ambulance (at Stretford Police Station)",
+          "town": "Old Trafford",
+          "address": "Talbot Road",
+          "postcode": "M32 0UX",
+          "coords": { "lat": 53.45902, "lng": -2.28748, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Ambulance response point co-located with Stretford Police Station."
+        },
+        {
+          "id": "A-STR",
+          "name": "Stretford PTS (Patient Transport Service)",
+          "town": "Stretford",
+          "address": "Unit 4 Christie Road",
+          "postcode": "M32 0XX",
+          "coords": { "lat": 53.45100, "lng": -2.30940, "approximate": true },
+          "resources": [],
+          "station_verified": true,
+          "sources": ["U2"],
+          "pts_only": true,
+          "notes": "PTS-only site (non-emergency patient transport). Coords are M32 outcode centroid — M32 0XX didn't resolve via postcodes.io."
+        },
+        {
+          "id": "A-URM",
+          "name": "Urmston Ambulance Station",
+          "town": "Urmston",
+          "address": "Bowfell Road",
+          "postcode": "M41 5RR",
+          "coords": { "lat": 53.45102, "lng": -2.37020, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        }
+      ]
+    },
+    {
+      "name": "Eastern",
+      "stations": [
+        {
+          "id": "A-ASH",
+          "name": "Ashton-under-Lyne Ambulance Station",
+          "town": "Ashton-under-Lyne",
+          "address": "Cambridge Street",
+          "postcode": "OL7 0RJ",
+          "coords": { "lat": 53.47953, "lng": -2.10666, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-AUD",
+          "name": "Audenshaw PTS",
+          "town": "Audenshaw",
+          "address": "Unit 5 Shepley Industrial Estate, Shepley Road",
+          "postcode": "M34 5DR",
+          "coords": { "lat": 53.46966, "lng": -2.10629, "approximate": false },
+          "resources": [],
+          "station_verified": true,
+          "sources": ["U2"],
+          "pts_only": true,
+          "notes": "PTS-only site."
+        },
+        {
+          "id": "A-BUR",
+          "name": "Bury Ambulance Station",
+          "town": "Bury",
+          "address": "Birch Street",
+          "postcode": "BL9 5AL",
+          "coords": { "lat": 53.59901, "lng": -2.29127, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-DUK",
+          "name": "Dukinfield Ambulance Station",
+          "town": "Dukinfield",
+          "address": "Dewsnap Lane",
+          "postcode": "SK16 5AW",
+          "coords": { "lat": 53.47012, "lng": -2.07977, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-GLO",
+          "name": "Glossop Ambulance Station",
+          "town": "Glossop",
+          "address": "Chapel Street",
+          "postcode": "SK13 8AT",
+          "coords": { "lat": 53.44279, "lng": -1.95284, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Geographically in Derbyshire (High Peak) but on the NWAS GM Eastern border — covers Tameside fringe."
+        },
+        {
+          "id": "A-HEY",
+          "name": "Heywood Ambulance Station",
+          "town": "Heywood",
+          "address": "Hind Hill Street",
+          "postcode": "OL10 1AN",
+          "coords": { "lat": 53.59022, "lng": -2.21978, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-MID",
+          "name": "Middleton Ambulance Station",
+          "town": "Middleton",
+          "address": "Highfield Street",
+          "postcode": "M24 2JR",
+          "coords": { "lat": 53.55024, "lng": -2.18437, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-OLD",
+          "name": "Oldham Ambulance Station",
+          "town": "Oldham",
+          "address": "Crofton Street",
+          "postcode": "OL8 3DA",
+          "coords": { "lat": 53.52597, "lng": -2.11303, "approximate": false },
+          "resources": ["3x DCA", "1x RRV", "1x QR"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Eastern-patch Advanced Paramedic based here."
+        },
+        {
+          "id": "A-OLP",
+          "name": "Oldham PTS",
+          "town": "Oldham",
+          "address": "Unit 5 Mount Pleasant Business Park, Jackson Street",
+          "postcode": "OL4 1HU",
+          "coords": { "lat": 53.54240, "lng": -2.09208, "approximate": false },
+          "resources": [],
+          "station_verified": true,
+          "sources": ["U2"],
+          "pts_only": true,
+          "notes": "PTS-only site."
+        },
+        {
+          "id": "A-RAM",
+          "name": "Ramsbottom Ambulance Station",
+          "town": "Ramsbottom",
+          "address": "Cemetery Road",
+          "postcode": "BL0 9PU",
+          "coords": { "lat": 53.63750, "lng": -2.32791, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-ROC",
+          "name": "Rochdale Ambulance Station",
+          "town": "Rochdale",
+          "address": "Whitehall Street",
+          "postcode": "OL12 0LE",
+          "coords": { "lat": 53.62327, "lng": -2.15762, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-WHI",
+          "name": "Whitefield Community Fire & Ambulance Station",
+          "town": "Whitefield",
+          "address": "Bury New Road",
+          "postcode": "M45 7SY",
+          "coords": { "lat": 53.55555, "lng": -2.29579, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Co-located with GMFRS G37 Whitefield."
+        }
+      ]
+    },
+    {
+      "name": "Western",
+      "stations": [
+        {
+          "id": "A-BLR",
+          "name": "Blackrod Ambulance Station",
+          "town": "Blackrod",
+          "address": "Scot Lane End",
+          "postcode": "BL6 5SG",
+          "coords": { "lat": 53.57882, "lng": -2.56810, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-BON",
+          "name": "Bolton North Ambulance Station",
+          "town": "Bolton",
+          "address": "1 Shoreswood",
+          "postcode": "BL1 7DD",
+          "coords": { "lat": 53.60805, "lng": -2.44299, "approximate": false },
+          "resources": ["3x DCA", "1x RRV", "1x QR"],
+          "station_verified": true,
+          "sources": ["U2"],
+          "notes": "Western-patch Advanced Paramedic based here."
+        },
+        {
+          "id": "A-BOP",
+          "name": "Bolton PTS (at Bolton Central Fire Station)",
+          "town": "Bolton",
+          "address": "Moor Lane",
+          "postcode": "BL3 5DB",
+          "coords": { "lat": 53.57539, "lng": -2.43500, "approximate": false },
+          "resources": [],
+          "station_verified": true,
+          "sources": ["U2"],
+          "pts_only": true,
+          "notes": "PTS-only; co-located with GMFRS G50 Bolton Central."
+        },
+        {
+          "id": "A-BOS",
+          "name": "Bolton South Ambulance Station",
+          "town": "Farnworth",
+          "address": "Redgate Way, off Plodder Lane",
+          "postcode": "BL4 0JX",
+          "coords": { "lat": 53.54970, "lng": -2.42992, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-ECC",
+          "name": "Eccles Ambulance Station",
+          "town": "Eccles",
+          "address": "130 Barton Lane",
+          "postcode": "M30 0FG",
+          "coords": { "lat": 53.48038, "lng": -2.34338, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-IRL",
+          "name": "Irlam Ambulance (joint with fire/police)",
+          "town": "Irlam",
+          "address": "Fairhills Road",
+          "postcode": "M44 6BA",
+          "coords": { "lat": 53.44032, "lng": -2.42025, "approximate": false },
+          "resources": ["1x DCA"],
+          "station_verified": true,
+          "sources": ["U2", "S3"],
+          "notes": "Joint Fire, Police and Ambulance station — co-located with GMFRS G62 Irlam."
+        },
+        {
+          "id": "A-SFD",
+          "name": "Salford Ambulance Station",
+          "town": "Pendleton",
+          "address": "Charles Street, Pendleton",
+          "postcode": "M6 7DU",
+          "coords": { "lat": 53.49422, "lng": -2.29247, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-SWI",
+          "name": "Swinton Ambulance Station",
+          "town": "Swinton",
+          "address": "Stanwell Road",
+          "postcode": "M27 5TD",
+          "coords": { "lat": 53.50888, "lng": -2.34028, "approximate": false },
+          "resources": ["2x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U2"]
+        },
+        {
+          "id": "A-WIG",
+          "name": "Wigan Ambulance (joint fire/ambulance)",
+          "town": "Wigan",
+          "address": "Robin Park Road",
+          "postcode": "WN5 0UU",
+          "coords": { "lat": 53.549, "lng": -2.6574, "approximate": false },
+          "resources": ["3x DCA", "1x RRV"],
+          "station_verified": true,
+          "sources": ["U3", "S3"],
+          "notes": "Joint Fire and Ambulance station — co-located with GMFRS G54 Wigan. Confirmed by user 2026-04-19 that NWAS still uses this site."
+        }
+      ]
+    },
+    {
+      "name": "ForceWide",
+      "stations": [
+        {
+          "id": "A-HART",
+          "name": "NWAS HART (Hazardous Area Response Team) — Manchester base",
+          "town": "Stretford",
+          "address": "BTTG Testing & Certification Ltd, 14 Wheel Forge Way, Trafford Park",
+          "postcode": "M17 1EH",
+          "coords": { "lat": 53.4697, "lng": -2.3332, "approximate": false },
+          "resources": ["3x HART vehicle", "1x IRU"],
+          "station_verified": true,
+          "sources": ["U1"],
+          "notes": "Address verbatim from user 2026-04-18. HART base for NWAS in Manchester is co-located at BTTG Testing & Certification Ltd. Covers the whole NWAS region, not just GM."
+        },
+        {
+          "id": "A-HEMS",
+          "name": "North West Air Ambulance — Barton",
+          "town": "Eccles",
+          "address": "Barton Aerodrome (City Airport Manchester), Liverpool Road",
+          "postcode": "M30 7SA",
+          "coords": { "lat": 53.4697, "lng": -2.3871, "approximate": false },
+          "resources": ["1x HEMS helicopter", "1x CCC"],
+          "station_verified": true,
+          "sources": ["U1"],
+          "notes": "NWAA base covering Greater Manchester (one of three NWAA bases — Barton, Hawarden, Blackpool). Critical Care Car (CCC) operates from the same base through the night and when weather grounds the aircraft — same doctor-paramedic team, road response."
+        },
+        {
+          "id": "A-OD",
+          "name": "NWAS Operational Duty Officer (EOC)",
+          "town": "Manchester",
+          "address": null,
+          "postcode": null,
+          "coords": { "lat": 53.48, "lng": -2.24, "approximate": true },
+          "resources": ["1x OD"],
+          "station_verified": false,
+          "notes": "Operational Delivery Manager / EOC Duty Officer — coordinates NWAS resources force-wide. Mobile from EOC (or wherever the on-duty officer is roving). Coords placeholder at central Manchester."
+        },
+        {
+          "id": "A-BASICS",
+          "name": "BASICS — Immediate Care Schemes (force-wide)",
+          "town": null,
+          "address": null,
+          "postcode": null,
+          "coords": null,
+          "resources": ["BASICS volunteer doctors (dispatched on request)"],
+          "station_verified": false,
+          "notes": "BASICS (British Association for Immediate Care) doctors are volunteer GPs / hospital doctors who self-deploy from home or work to serious incidents. No fixed base; NWAS calls them on request for trauma, paediatric arrest, or entrapment. Confirmed to be in-scope by user."
+        }
+      ]
+    }
+  ]
+}

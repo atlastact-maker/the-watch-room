@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-bg: #050507;
+  --color-surface: #0a0a0c;
+  --color-surface-raised: #111114;
+  --color-border-subtle: #1d1d22;
+  --color-border: #2a2a32;
+  --color-text: #f4f4f6;
+  --color-text-muted: #cdcdd4;
+  --color-text-dim: #a8a8b3;
+
+  --color-amber: #fbbf24;
+  --color-amber-dim: #d49416;
+  --color-critical: #f87171;
+  --color-ok: #34d399;
+  --color-info: #60a5fa;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Faint scanline texture for the control-room aesthetic */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.012) 0px,
+    rgba(255, 255, 255, 0.012) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  z-index: 0;
+}
+
+/* Pulsing dot for live status indicators */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.dot-live {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+/* Accessibility — honour reduced-motion across every animated decoration.
+   Users with prefers-reduced-motion set get static dots / scanlines and
+   no ambient canvas animations. */
+@media (prefers-reduced-motion: reduce) {
+  .dot-live,
+  .animate-pulse {
+    animation: none !important;
+  }
+  body::before {
+    background-image: none;
+  }
+}
+
+/* Focus rings — amber, clearly visible on the dark CAD surface. Honoured
+   for keyboard-focused elements only (uses :focus-visible so pointer
+   interactions don't paint the ring). */
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip link — hidden until keyboard-focused, then pops over the top-left
+   so keyboard users can jump past the header into the main content. */
+.skip-link {
+  position: fixed;
+  top: -40px;
+  left: 10px;
+  z-index: 10000;
+  padding: 8px 12px;
+  background: var(--color-amber);
+  color: black;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+  transition: top 150ms ease;
+}
+.skip-link:focus {
+  top: 10px;
+}
+
+/* High-contrast adjustments — when the OS reports forced colours (Windows
+   high-contrast / macOS Increase Contrast), switch to system colours so
+   controls remain legible. */
+@media (prefers-contrast: more) {
+  :root {
+    --color-bg: #000;
+    --color-surface: #000;
+    --color-surface-raised: #111;
+    --color-text: #fff;
+    --color-text-muted: #e0e0e0;
+    --color-text-dim: #c0c0c0;
+    --color-border-subtle: #fff;
+    --color-border: #fff;
+  }
 }
