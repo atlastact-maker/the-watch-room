@@ -30,6 +30,15 @@ const SEVERITY_COLOUR: Record<string, string> = {
   major: "#ef4444",
 };
 
+// World-covering rectangle used as the outer ring of the grey-out mask;
+// the patch's borough rings are punched into it as holes.
+const WORLD_RECT: [number, number][] = [
+  [-85, -180],
+  [-85, 180],
+  [85, 180],
+  [85, -180],
+];
+
 function stationDot(service: ServiceCode): L.DivIcon {
   const c = SERVICE_COLOUR[service];
   return L.divIcon({
@@ -143,6 +152,21 @@ export function PatchBriefingMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      {/* Everything OUTSIDE the patch greys out: one world-covering
+          polygon with a hole cut per borough. The covered ground stays
+          full-colour, so the patch reads instantly. */}
+      {rings && rings.length > 0 && (
+        <Polygon
+          positions={[WORLD_RECT, ...rings]}
+          pathOptions={{
+            color: "transparent",
+            fillColor: "#6b7280",
+            fillOpacity: 0.55,
+            stroke: false,
+          }}
+          interactive={false}
+        />
+      )}
       {rings?.map((ring, i) => (
         <Polygon
           key={i}
@@ -152,9 +176,9 @@ export function PatchBriefingMap({
             // up to cover for the shift.
             color: "#ef4444",
             weight: 2.5,
-            fillColor: "#ef4444",
-            fillOpacity: 0.05,
+            fill: false,
           }}
+          interactive={false}
         />
       ))}
       {stations.map((s) => (
