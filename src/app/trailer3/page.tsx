@@ -14,12 +14,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Scene = "call" | "turnout" | "mobilise" | "standby";
+type Scene = "call" | "allocate" | "mobilise" | "standby";
 
 const TIMELINE: { scene: Scene; ms: number }[] = [
   { scene: "call", ms: 7500 },
-  { scene: "turnout", ms: 6500 },
-  { scene: "mobilise", ms: 9000 },
+  { scene: "allocate", ms: 7500 },
+  { scene: "mobilise", ms: 8000 },
   { scene: "standby", ms: 9500 },
 ];
 const TOTAL_MS = TIMELINE.reduce((s, t) => s + t.ms, 0);
@@ -31,17 +31,33 @@ const ADDRESS_LINES = [
   "CALLER STATES CHILD UPSTAIRS",
 ];
 
-const MOBILISE_LINES: { text: string; service: "F" | "A" | "P" | "X" }[] = [
+const MOBILISE_LINES: { text: string; service: "F" | "A" | "P" }[] = [
   { text: "G15-P1 · MOBILE", service: "F" },
   { text: "G15-P2 · MOBILE", service: "F" },
   { text: "G50-P1 · MOBILE", service: "F" },
   { text: "A-547 · MOBILE", service: "A" },
-  { text: "RX-201 · MOBILE", service: "A" },
   { text: "MP66-21 · MOBILE", service: "P" },
   { text: "G50-A3 · AERIAL MOBILE", service: "F" },
   { text: "HELIMED 72 · LIFTING", service: "A" },
-  { text: "MAKE PUMPS 6", service: "X" },
   { text: "RP-07 · CLOSING THE ROAD", service: "P" },
+];
+
+// Allocation board — candidate units the cursor sweeps over. `pick`
+// units flash amber and lock in ASSIGNED; the rest stay available.
+const ALLOCATE_ROWS: {
+  callsign: string;
+  detail: string;
+  eta: string;
+  service: "F" | "A" | "P";
+  pick: boolean;
+}[] = [
+  { callsign: "G15-P1", detail: "Pump ladder · Wythenshawe", eta: "04:32", service: "F", pick: true },
+  { callsign: "G15-P2", detail: "Pump · Wythenshawe", eta: "04:32", service: "F", pick: true },
+  { callsign: "G50-P1", detail: "Pump ladder · Manchester Central", eta: "06:05", service: "F", pick: true },
+  { callsign: "A-547", detail: "Ambulance · Wythenshawe", eta: "05:10", service: "A", pick: true },
+  { callsign: "RX-201", detail: "Rapid response · Sale", eta: "07:40", service: "A", pick: false },
+  { callsign: "MP66-21", detail: "Police response · City", eta: "06:55", service: "P", pick: true },
+  { callsign: "HELIMED 72", detail: "Air ambulance · Barton", eta: "09:15", service: "A", pick: true },
 ];
 
 export default function Trailer3Page() {
@@ -107,7 +123,7 @@ export default function Trailer3Page() {
         <div className="vignette pointer-events-none absolute inset-0 z-30" />
 
         {scene === "call" && <SceneCall />}
-        {scene === "turnout" && <SceneTurnout localMs={local} />}
+        {scene === "allocate" && <SceneAllocate localMs={local} />}
         {scene === "mobilise" && <SceneMobilise localMs={local} />}
         {scene === "standby" && <SceneStandby localMs={local} />}
       </div>
@@ -148,51 +164,78 @@ function SceneCall() {
   );
 }
 
-function SceneTurnout({ localMs }: { localMs: number }) {
-  // Countdown races from 90.0 down to 0 across the scene.
-  const remain = Math.max(0, 90 * (1 - localMs / 5800));
-  const done = remain <= 0;
-  const ss = String(Math.floor(remain)).padStart(2, "0");
-  const ds = String(Math.floor((remain % 1) * 10));
+function SceneAllocate({ localMs }: { localMs: number }) {
+  // A selection cursor sweeps the board, dwelling ~650ms per row.
+  // Picked rows flash amber and lock in ASSIGNED; skipped rows stay
+  // available. After the sweep, the attendance stamp lands.
+  const STEP_MS = 650;
+  const cursor = Math.floor(localMs / STEP_MS);
+  const sweepDone = cursor >= ALLOCATE_ROWS.length;
+  const assigned = ALLOCATE_ROWS.filter((r, i) => r.pick && i < cursor).length;
+  const svcColour = (s: "F" | "A" | "P") =>
+    s === "F" ? "#ef4444" : s === "A" ? "#10b981" : "#3b82f6";
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-8 px-7">
-      {/* Phone-style alert card */}
-      <div className="w-full animate-[alertIn_0.4s_cubic-bezier(.2,.9,.3,1.4)_forwards] rounded-2xl border border-zinc-700 bg-zinc-900/95 p-5 shadow-2xl">
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-zinc-500">
-          <span>NWFC · Turnout</span>
-          <span>now</span>
-        </div>
-        <div className="mt-2 text-[17px] font-bold leading-snug">
-          G15 WYTHENSHAWE — TURN OUT
-        </div>
-        <div className="mt-1 text-[13px] text-zinc-400">
-          House fire · persons reported · pump + pump ladder
-        </div>
+    <div className="absolute inset-0 z-10 flex flex-col justify-center px-6">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">
+          Build the attendance
+        </span>
+        <span className="text-[22px] font-bold tabular-nums text-amber-400">
+          {assigned}
+        </span>
       </div>
-
-      <div className="text-center">
-        <div className="text-[10px] uppercase tracking-[0.5em] text-zinc-500">
-          Turnout target
+      <ul className="mt-4 space-y-2">
+        {ALLOCATE_ROWS.map((r, i) => {
+          const visited = i < cursor;
+          const active = i === cursor;
+          const locked = visited && r.pick;
+          return (
+            <li
+              key={r.callsign}
+              className={
+                "flex items-center justify-between gap-3 rounded-md border px-3 py-2 transition-all duration-200 " +
+                (active
+                  ? "scale-[1.02] border-amber-400 bg-amber-400/10"
+                  : locked
+                    ? "border-emerald-500/60 bg-emerald-500/10"
+                    : visited
+                      ? "border-zinc-800 opacity-45"
+                      : "border-zinc-800 bg-zinc-900/60")
+              }
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="inline-block h-3 w-3 shrink-0 rounded-[2px]"
+                  style={{ background: svcColour(r.service) }}
+                />
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold tracking-[0.06em]">
+                    {r.callsign}
+                  </span>
+                  <span className="block truncate text-[11px] text-zinc-500">
+                    {r.detail}
+                  </span>
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="text-[11px] tabular-nums text-zinc-400">
+                  ETA {r.eta}
+                </span>
+                {locked && (
+                  <span className="animate-[slideIn_0.2s_ease-out] rounded-sm bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-black">
+                    Assigned
+                  </span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {sweepDone && (
+        <div className="mt-5 animate-[fadeIn_0.4s_ease-out] text-center text-[13px] font-bold uppercase tracking-[0.3em] text-emerald-400">
+          Attendance set — {ALLOCATE_ROWS.filter((r) => r.pick).length} assigned
         </div>
-        <div
-          className={
-            "mt-2 text-[84px] font-bold leading-none tabular-nums tracking-tight " +
-            (done ? "text-emerald-400" : remain < 20 ? "text-red-400" : "text-zinc-50")
-          }
-        >
-          {done ? "GONE" : `${ss}.${ds}`}
-        </div>
-        {!done && (
-          <div className="mt-2 text-[11px] uppercase tracking-[0.4em] text-zinc-500">
-            seconds
-          </div>
-        )}
-        {done && (
-          <div className="mt-2 animate-[fadeIn_0.3s_ease-out] text-[11px] uppercase tracking-[0.4em] text-emerald-400">
-            Doors up · lights on
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -202,7 +245,7 @@ function SceneMobilise({ localMs }: { localMs: number }) {
     MOBILISE_LINES.length,
     Math.floor(localMs / 750),
   );
-  const mobile = Math.min(shown, MOBILISE_LINES.filter((l) => l.service !== "X").length);
+  const mobile = shown;
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-center px-7">
       <div className="flex items-baseline justify-between">
@@ -227,18 +270,10 @@ function SceneMobilise({ localMs }: { localMs: number }) {
                     ? "#ef4444"
                     : l.service === "A"
                       ? "#10b981"
-                      : l.service === "P"
-                        ? "#3b82f6"
-                        : "#f59e0b",
+                      : "#3b82f6",
               }}
             />
-            <span
-              className={
-                l.service === "X"
-                  ? "text-[17px] font-bold tracking-[0.1em] text-amber-400"
-                  : "text-[15px] tracking-[0.08em] text-zinc-200"
-              }
-            >
+            <span className="text-[15px] tracking-[0.08em] text-zinc-200">
               {l.text}
             </span>
           </li>
