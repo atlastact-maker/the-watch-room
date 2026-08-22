@@ -66,80 +66,119 @@ export function DraggableIncidentPanel({
 
   const resolved = !!outcome;
 
+  // Live status-bar clock, MDT style.
+  const [clock, setClock] = useState("--:--:--");
+  useEffect(() => {
+    const tick = () => setClock(fmtTime(Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <Rnd
       default={{
         x: 24,
         y: 80,
-        width: 580,
+        width: 600,
         height: typeof window !== "undefined" ? window.innerHeight - 120 : 700,
       }}
-      minWidth={400}
-      minHeight={320}
+      minWidth={420}
+      minHeight={340}
       bounds="window"
       dragHandleClassName="drag-handle"
       className="z-[1100]"
     >
-      <div
-        className={
-          "flex h-full w-full flex-col overflow-hidden rounded-sm bg-(--color-surface) shadow-2xl shadow-black/60 " +
-          (resolved ? "border border-(--color-ok)/40" : "border border-(--color-amber)/40")
-        }
-      >
-        <div
-          className={
-            "drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) px-3 py-2 font-mono text-[10px] uppercase tracking-widest " +
-            (resolved ? "bg-(--color-ok)/10" : "bg-(--color-amber)/10")
-          }
-        >
+      {/* Tablet shell — dark bezel with a camera dot, screen inside. */}
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[22px] border-[10px] border-[#17171c] bg-[#17171c] shadow-2xl shadow-black/70 ring-1 ring-[#2c2c34]">
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-[-7px] z-10 size-1.5 -translate-x-1/2 rounded-full bg-[#0b0b0e] ring-1 ring-[#33333c]"
+        />
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-[12px] bg-(--color-bg)">
+          {/* Status bar — also the drag handle. */}
+          <div className="drag-handle flex cursor-move items-center justify-between bg-black/60 px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+            <div className="flex items-center gap-2">
+              <span className="text-(--color-text)">NWRC CAD</span>
+              <span className="opacity-50">·</span>
+              <span>MDT-4</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="tabular-nums">{clock}</span>
+              {/* Signal bars */}
+              <svg viewBox="0 0 16 12" width="16" height="12" aria-hidden="true">
+                <rect x="0" y="8" width="3" height="4" rx="0.5" fill="currentColor" />
+                <rect x="4.5" y="5.5" width="3" height="6.5" rx="0.5" fill="currentColor" />
+                <rect x="9" y="3" width="3" height="9" rx="0.5" fill="currentColor" />
+                <rect x="13.5" y="0.5" width="2.5" height="11.5" rx="0.5" fill="currentColor" opacity="0.35" />
+              </svg>
+              {/* Battery */}
+              <span className="flex items-center gap-1">
+                <svg viewBox="0 0 24 12" width="22" height="11" aria-hidden="true">
+                  <rect x="0.5" y="0.5" width="20" height="11" rx="2.5" fill="none" stroke="currentColor" />
+                  <rect x="2" y="2" width="14" height="8" rx="1.5" fill="#34d399" />
+                  <rect x="21.5" y="3.5" width="2" height="5" rx="1" fill="currentColor" />
+                </svg>
+                <span>82%</span>
+              </span>
+            </div>
+          </div>
+
+          {/* App header */}
           <div
             className={
-              "flex items-center gap-2 " + (resolved ? "text-(--color-ok)" : "text-(--color-amber)")
+              "flex items-center justify-between border-b border-(--color-border-subtle) px-4 py-2 font-mono text-[10px] uppercase tracking-widest " +
+              (resolved ? "bg-(--color-ok)/10" : "bg-(--color-amber)/10")
             }
           >
-            <span
+            <div
               className={
-                "dot-live size-1.5 rounded-full " +
-                (resolved ? "bg-(--color-ok)" : "bg-(--color-critical)")
+                "flex items-center gap-2 " + (resolved ? "text-(--color-ok)" : "text-(--color-amber)")
               }
-            />
-            <span>
-              {resolved ? "Debrief" : "Incident"} · #{incident.scenario.id}
-            </span>
-            <span className="opacity-60">|</span>
-            <span>{incident.scenario.severity.toUpperCase()}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {!resolved && (
-              <button
-                type="button"
-                onClick={onResolve}
-                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
-              >
-                Resolve
-              </button>
-            )}
-            {resolved && (
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
-              >
-                End Shift Debrief
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
-              title="Close panel"
             >
-              ✕
-            </button>
+              <span
+                className={
+                  "dot-live size-1.5 rounded-full " +
+                  (resolved ? "bg-(--color-ok)" : "bg-(--color-critical)")
+                }
+              />
+              <span>
+                {resolved ? "Debrief" : "Live incident"} · #{incident.scenario.id}
+              </span>
+              <span className="opacity-60">|</span>
+              <span>{incident.scenario.severity.toUpperCase()}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {!resolved && (
+                <button
+                  type="button"
+                  onClick={onResolve}
+                  className="rounded-full border border-(--color-border) px-3 py-0.5 text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
+                >
+                  Resolve
+                </button>
+              )}
+              {resolved && (
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="rounded-full border border-(--color-border) px-3 py-0.5 text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+                >
+                  End Shift Debrief
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
+                title="Close panel"
+              >
+                ✕
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex-1 overflow-y-auto px-5 py-4">
           <h1 className="text-xl font-semibold tracking-tight">
             {incident.scenario.title}
           </h1>
@@ -248,6 +287,12 @@ export function DraggableIncidentPanel({
               )}
             </ol>
           </Section>
+          </div>
+
+          {/* Home indicator */}
+          <div className="flex items-center justify-center bg-black/40 py-1.5">
+            <span className="h-1 w-24 rounded-full bg-white/25" />
+          </div>
         </div>
       </div>
     </Rnd>
@@ -315,11 +360,12 @@ function OutcomeView({ outcome }: { outcome: IncidentOutcome }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-6">
-      <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber-dim)">
+    <section className="mt-5">
+      <h2 className="px-1 font-mono text-[11px] uppercase tracking-widest text-(--color-amber-dim)">
         {title}
       </h2>
-      <div className="mt-2 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-3 py-3">
+      {/* Tablet-app grouped card */}
+      <div className="mt-1.5 rounded-xl border border-(--color-border-subtle) bg-(--color-surface-raised)/70 px-4 py-3">
         {children}
       </div>
     </section>
