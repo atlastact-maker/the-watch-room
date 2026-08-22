@@ -88,26 +88,21 @@ function usePatchBoundary(patch: Patch): [number, number][][] | null {
   return rings;
 }
 
-function FitToPatch({
-  stations,
-  scenarios,
-  rings,
-}: {
-  stations: StationWithAppliances[];
-  scenarios: Scenario[];
-  rings: [number, number][][] | null;
-}) {
+// Fixed Greater Manchester frame — fitted ONCE on mount, never refitted.
+// Refitting per patch selection made the map lurch (stations change
+// immediately, boundary rings arrive async → two competing fits). All
+// three patches sit inside this box, so the view stays rock still and
+// only the mask/outline moves when the selection changes.
+const GM_BOUNDS = L.latLngBounds(
+  L.latLng(53.32, -2.78),
+  L.latLng(53.7, -1.9),
+);
+
+function FitGmOnce() {
   const map = useMap();
   useEffect(() => {
-    const pts: [number, number][] = [];
-    for (const s of stations) pts.push([s.coords.lat, s.coords.lng]);
-    for (const s of scenarios)
-      pts.push([s.location.coords.lat, s.location.coords.lng]);
-    if (rings) for (const ring of rings) for (const p of ring) pts.push(p);
-    if (pts.length === 0) return;
-    const bounds = L.latLngBounds(pts.map(([a, b]) => L.latLng(a, b)));
-    map.fitBounds(bounds, { padding: [24, 24] });
-  }, [map, stations, scenarios, rings]);
+    map.fitBounds(GM_BOUNDS, { animate: false, padding: [8, 8] });
+  }, [map]);
   return null;
 }
 
@@ -137,8 +132,8 @@ export function PatchBriefingMap({
     <MapContainer
       center={centre}
       zoom={10}
-      // Fixed-zoom briefing overview — FitToPatch frames the patch and
-      // the operator can't zoom in/out (pan still works).
+      // Fixed-zoom briefing overview — framed once on all of Greater
+      // Manchester; the operator can't zoom in/out (pan still works).
       zoomControl={false}
       scrollWheelZoom={false}
       doubleClickZoom={false}
@@ -220,7 +215,7 @@ export function PatchBriefingMap({
           </Popup>
         </Marker>
       ))}
-      <FitToPatch stations={stations} scenarios={scenarios} rings={rings} />
+      <FitGmOnce />
     </MapContainer>
   );
 }
