@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 104 130" width="104" height="130">
+  <!-- Top-down Airbus H145 in NWAA yellow. Origin at vehicle centre,
+       nose facing up (-Y) so the map can rotate by parking bearing. -->
+  <!-- Rotor disc -->
+  <circle cx="52" cy="52" r="49" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-dasharray="5 5"/>
+  <!-- Skids -->
+  <line x1="38" y1="30" x2="38" y2="76" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="66" y1="30" x2="66" y2="76" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="38" y1="38" x2="66" y2="38" stroke="#334155" stroke-width="2.5"/>
+  <line x1="38" y1="68" x2="66" y2="68" stroke="#334155" stroke-width="2.5"/>
+  <!-- Tail boom + fenestron -->
+  <rect x="48.5" y="80" width="7" height="34" rx="3" fill="#facc15" stroke="#0a0a0c" stroke-width="1"/>
+  <circle cx="52" cy="119" r="8" fill="#166534" stroke="#0a0a0c" stroke-width="1.2"/>
+  <circle cx="52" cy="119" r="4.5" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1"/>
+  <!-- Horizontal stabiliser -->
+  <rect x="40" y="102" width="24" height="4" rx="2" fill="#facc15" stroke="#0a0a0c" stroke-width="1"/>
+  <!-- Fuselage -->
+  <path d="M 52 14
+           C 62 14 68 24 68 38
+           L 68 66
+           C 68 78 61 84 52 84
+           C 43 84 36 78 36 66
+           L 36 38
+           C 36 24 42 14 52 14 Z"
+        fill="#facc15" stroke="#0a0a0c" stroke-width="1.5"/>
+  <!-- Cockpit glazing -->
+  <path d="M 52 16
+           C 60 16 65 25 65 36
+           L 39 36
+           C 39 25 44 16 52 16 Z"
+        fill="#1e293b" stroke="#0a0a0c" stroke-width="1"/>
+  <!-- Green NWAA cheat-line -->
+  <rect x="36" y="52" width="32" height="6" fill="#166534" opacity="0.9"/>
+  <!-- Rotor blades -->
+  <g stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" opacity="0.85">
+    <line x1="52" y1="52" x2="18" y2="18"/>
+    <line x1="52" y1="52" x2="86" y2="18"/>
+    <line x1="52" y1="52" x2="18" y2="86"/>
+    <line x1="52" y1="52" x2="86" y2="86"/>
+  </g>
+  <circle cx="52" cy="52" r="4.5" fill="#334155" stroke="#0a0a0c" stroke-width="1"/>
+</svg>

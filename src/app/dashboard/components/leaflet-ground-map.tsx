@@ -280,8 +280,11 @@ function applianceIcon(
           ? "/appliances/tru-pump.svg"
           : applianceType === "TRU_van"
             ? "/appliances/tru-van.svg"
-            : null;
+            : applianceType === "HEMS"
+              ? "/appliances/hems-h145.svg"
+              : null;
   const isIllustrated = illustratedSvg !== null;
+  const isHeli = applianceType === "HEMS";
 
   // Reference dimensions tuned for the default zoom (APPLIANCE_REF_ZOOM).
   // All other zooms scale from here by 2^(zoom - ref) — matching the
@@ -289,14 +292,18 @@ function applianceIcon(
   // stays constant on the actual ground. Min-pixel floors below keep
   // icons readable at very wide zooms.
   const isTruVan = applianceType === "TRU_van";
-  const refBodyW = isTruVan ? 30 : isIllustrated ? 36 : 18;
-  const refBodyH = isTruVan
-    ? 74
-    : applianceType === "TL" || applianceType === "HLP" || applianceType === "TRU_pump"
-      ? 92
-      : isIllustrated
-        ? 80
-        : 32;
+  // H145: ~11 m rotor disc / ~13.6 m overall — much bigger footprint
+  // than any road vehicle at the same ground scale.
+  const refBodyW = isHeli ? 104 : isTruVan ? 30 : isIllustrated ? 36 : 18;
+  const refBodyH = isHeli
+    ? 130
+    : isTruVan
+      ? 74
+      : applianceType === "TL" || applianceType === "HLP" || applianceType === "TRU_pump"
+        ? 92
+        : isIllustrated
+          ? 80
+          : 32;
   // Scale the body at the ground-truth rate but floor at a readable
   // minimum size so vehicles don't shrink into specks when zoomed out.
   const minBodyW = 10;
@@ -550,6 +557,64 @@ function MapClickHandler({
 // Curved polyline fallback when ORS doesn't return a foot route
 // -----------------------------------------------------------------------------
 
+/** Aviation-style helipad "H" with a status chip beneath. Rendered under
+ *  the aircraft sprite so a landed HELIMED sits on a marked-out pad. */
+function helipadIcon(
+  callsign: string,
+  phase: "inbound" | "walking" | "ground",
+): L.DivIcon {
+  const chipColour =
+    phase === "inbound" ? "#fbbf24" : "#34d399";
+  const chipText =
+    phase === "inbound"
+      ? `LZ SECURED · ${callsign} INBOUND`
+      : phase === "walking"
+        ? `${callsign} ON GROUND · CREW WALKING IN`
+        : `${callsign} ON GROUND`;
+  const blink =
+    phase === "inbound"
+      ? "animation: lz-blink 1.1s steps(2, start) infinite;"
+      : "";
+  return L.divIcon({
+    className: "",
+    iconSize: [220, 110],
+    iconAnchor: [110, 40],
+    html: `
+      <div style="position: relative; width: 220px; height: 110px; pointer-events: none;">
+        <div style="
+          position: absolute; left: 110px; top: 40px;
+          transform: translate(-50%, -50%);
+          font-family: var(--font-geist-sans), system-ui, sans-serif;
+          font-size: 34px; font-weight: 800; line-height: 1;
+          color: rgba(255,255,255,0.9);
+          text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9);
+          ${blink}
+        ">H</div>
+        <div style="
+          position: absolute; left: 110px; top: 78px;
+          transform: translateX(-50%);
+          padding: 2px 7px;
+          background: rgba(10,10,12,0.92);
+          border: 1px solid ${chipColour};
+          border-radius: 2px;
+          font-family: var(--font-geist-mono), ui-monospace, monospace;
+          font-size: 9px; line-height: 1.4;
+          letter-spacing: 0.12em;
+          color: ${chipColour};
+          white-space: nowrap;
+          ${blink}
+        ">${chipText}</div>
+      </div>
+      <style>
+        @keyframes lz-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      </style>
+    `,
+  });
+}
+
 /** Offset a lat/lng by `meters` along a compass bearing (deg, 0 = north).
  *  Equirectangular — plenty for the tens of metres a closure spans. */
 function offsetAlongBearing(
@@ -683,6 +748,7 @@ export function LeafletGroundMap({
   onSetParkingPos,
   rotatePendingApplianceId,
   onClearRotatePending,
+  now,
   onStartTask,
   onAbortTask,
   onSelectAppliance,
@@ -1040,6 +1106,52 @@ export function LeafletGroundMap({
           />
         );
       })()}
+
+      {/* HEMS landing zone \u2014 marked-out pad at the operator-confirmed LZ:
+          dashed touchdown circle (~28 m clear area), aviation H, and a
+          live status chip that tracks the aircraft's approach. Renders
+          from the moment the LZ is confirmed, under the aircraft sprite. */}
+      {resolved
+        .filter((r) => r.deployment.hemsFlight && r.deployment.parkingPos)
+        .map((r) => {
+          const d = r.deployment;
+          const pos = d.parkingPos!;
+          const touchdownAt = d.arrivesAt - (d.hemsFlight!.walkSec ?? 0) * 1000;
+          const phase: "inbound" | "walking" | "ground" =
+            now < touchdownAt ? "inbound" : now < d.arrivesAt ? "walking" : "ground";
+          return (
+            <Fragment key={`lz-${d.applianceId}`}>
+              <Circle
+                center={[pos.lat, pos.lng]}
+                radius={14}
+                pathOptions={{
+                  color: "#fbbf24",
+                  weight: 2,
+                  dashArray: "6 6",
+                  fillColor: "#fbbf24",
+                  fillOpacity: 0.06,
+                }}
+                interactive={false}
+              />
+              <Circle
+                center={[pos.lat, pos.lng]}
+                radius={7.5}
+                pathOptions={{
+                  color: "rgba(251,191,36,0.55)",
+                  weight: 1.2,
+                  fill: false,
+                }}
+                interactive={false}
+              />
+              <Marker
+                position={[pos.lat, pos.lng]}
+                icon={helipadIcon(r.appliance.callsign, phase)}
+                interactive={false}
+                zIndexOffset={-800}
+              />
+            </Fragment>
+          );
+        })}
 
       {/* Road closures \u2014 a cone line square across the carriageway at the
           operator-placed point, plus a red dashed stretch of closed road
