@@ -16,11 +16,17 @@ import { interpolateAlongRoute } from "@/lib/sim/eta";
 import type { AreaCode, ServiceCode } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
 
+// Service identity colours — fire engines are red, ambulances green,
+// police blue. Used for station plaques and responding movers alike.
 const SERVICE_COLOUR: Record<ServiceCode, string> = {
-  Fire: "#f59e0b",
+  Fire: "#ef4444",
   Ambulance: "#10b981",
-  Police: "#6366f1",
+  Police: "#3b82f6",
 };
+
+/** Stood-down / non-emergency movement (returning to station, offloading
+ *  at hospital, rehab) renders yellow regardless of service. */
+const STANDDOWN_COLOUR = "#eab308";
 
 // ---------------------------------------------------------------------------
 // Marker icons
@@ -157,12 +163,16 @@ const incidentIcon = L.divIcon({
 function movingIcon(
   callsign: string,
   service: ServiceCode,
-  phase: "outbound" | "return" = "outbound",
+  phase: "responding" | "standdown" = "responding",
 ): L.DivIcon {
-  const base = SERVICE_COLOUR[service];
-  const colour = phase === "return" ? "#38bdf8" : base;
-  const glow =
-    phase === "return" ? "rgba(56,189,248,0.55)" : `${base}88`;
+  // Responding units flash their service colour (blue-light run);
+  // returning / offloading units show steady yellow.
+  const colour = phase === "standdown" ? STANDDOWN_COLOUR : SERVICE_COLOUR[service];
+  const glow = `${colour}88`;
+  const anim =
+    phase === "responding"
+      ? "animation: mover-flash 0.8s steps(2, start) infinite;"
+      : "";
   return L.divIcon({
     className: "",
     iconSize: [10, 10],
@@ -175,6 +185,7 @@ function movingIcon(
           width: 10px; height: 10px; border-radius: 50%;
           background: ${colour};
           box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 0 8px ${glow};
+          ${anim}
         "></div>
         <div style="
           position: absolute; left: 10px; top: -8px;
@@ -189,6 +200,12 @@ function movingIcon(
           white-space: nowrap;
         ">${callsign}</div>
       </div>
+      <style>
+        @keyframes mover-flash {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.25; }
+        }
+      </style>
     `,
   });
 }
@@ -577,11 +594,9 @@ export function LeafletMap({
             positions={m.routeCoords}
             pathOptions={{
               color:
-                m.phase === "return"
-                  ? "#38bdf8"
-                  : m.phase === "hospital_leg"
-                    ? "#ef4444"
-                    : SERVICE_COLOUR[m.service],
+                m.phase === "return" || m.phase === "at_hospital"
+                  ? STANDDOWN_COLOUR
+                  : SERVICE_COLOUR[m.service],
               weight: 2,
               opacity: 0.45,
               dashArray: "4 6",
@@ -611,11 +626,9 @@ export function LeafletMap({
                   textTransform: "uppercase",
                   letterSpacing: "0.1em",
                   color:
-                    m.phase === "return"
-                      ? "#0284c7"
-                      : m.phase === "hospital_leg" || m.phase === "at_hospital"
-                        ? "#b91c1c"
-                        : "#b4730d",
+                    m.phase === "return" || m.phase === "at_hospital"
+                      ? "#a16207"
+                      : "#b91c1c",
                 }}
               >
                 {phaseLabel(m.phase)}
@@ -729,8 +742,8 @@ function phaseLabel(phase: "outbound" | "hospital_leg" | "at_hospital" | "return
 
 function mapPhaseToIconPhase(
   phase: "outbound" | "hospital_leg" | "at_hospital" | "return",
-): "outbound" | "return" {
-  // Existing icon only supports outbound vs return colouring. Hospital legs
-  // share outbound (amber/service colour); return shares return (cyan).
-  return phase === "return" ? "return" : "outbound";
+): "responding" | "standdown" {
+  // Outbound + hospital legs are blue-light runs → flashing service
+  // colour. At-hospital and return legs are stood down → steady yellow.
+  return phase === "return" || phase === "at_hospital" ? "standdown" : "responding";
 }

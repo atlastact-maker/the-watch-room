@@ -64,6 +64,7 @@ import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { InformantPanel } from "./components/informant-panel";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
+import { PreArrivalPanel } from "./components/pre-arrival-panel";
 import { IncidentView } from "./components/incident-view";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
@@ -2696,16 +2697,41 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }}
           />
         )}
-        {selectedAppliance && (
-          <DraggableVehiclePanel
-            appliance={selectedAppliance}
-            onClose={() => setSelectedApplianceId(null)}
-            onRefuel={refuel}
-            onRefillWater={refillWater}
-            onSendToMaintenance={sendToMaintenance}
-            onStandDownForWelfare={standDownForWelfare}
-          />
-        )}
+        {selectedAppliance && (() => {
+          // En-route units get the pre-arrival instructions panel instead
+          // of the static vehicle sheet — the operator can rig BA crews or
+          // pre-pair a medical unit to a casualty before it lands.
+          const enRoute = deployments.find(
+            (d) =>
+              d.applianceId === selectedAppliance.id &&
+              !d.returnStartedAt &&
+              !d.hospitalLegStartedAt &&
+              now < d.arrivesAt,
+          );
+          if (enRoute) {
+            return (
+              <PreArrivalPanel
+                appliance={selectedAppliance}
+                deployment={enRoute}
+                now={now}
+                casualties={incidentSim?.foundCasualties ?? []}
+                onSetPreCommitBaCrew={setPreCommitBaCrew}
+                onSetTreatingCasualty={setTreatingCasualty}
+                onClose={() => setSelectedApplianceId(null)}
+              />
+            );
+          }
+          return (
+            <DraggableVehiclePanel
+              appliance={selectedAppliance}
+              onClose={() => setSelectedApplianceId(null)}
+              onRefuel={refuel}
+              onRefillWater={refillWater}
+              onSendToMaintenance={sendToMaintenance}
+              onStandDownForWelfare={standDownForWelfare}
+            />
+          );
+        })()}
         {activeIncident && incidentPanelVisible && (
           <DraggableIncidentPanel
             incident={activeIncident}

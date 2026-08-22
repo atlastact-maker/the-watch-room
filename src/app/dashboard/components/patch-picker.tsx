@@ -39,9 +39,9 @@ const SEVERITY_COLOUR: Record<string, string> = {
 };
 
 const SERVICE_COLOUR: Record<ServiceCode, string> = {
-  Fire: "#f59e0b",
+  Fire: "#ef4444",
   Ambulance: "#10b981",
-  Police: "#6366f1",
+  Police: "#3b82f6",
 };
 
 /** Availability hints for the chosen start hour. Mirrors the sim's
