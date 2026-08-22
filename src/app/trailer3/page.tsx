@@ -83,6 +83,43 @@ export default function Trailer3Page() {
     setSoundOn(true);
     setRunId((r) => r + 1); // restart so the typing scene plays with sound
   };
+  // Radio keying blip — short pip + a squelch tail of static, played
+  // as each transmission lands on the comms screen.
+  const playBlip = () => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = 1150;
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0, t0);
+    og.gain.linearRampToValueAtTime(0.06, t0 + 0.008);
+    og.gain.linearRampToValueAtTime(0.06, t0 + 0.05);
+    og.gain.linearRampToValueAtTime(0, t0 + 0.065);
+    osc.connect(og);
+    og.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.07);
+    // Squelch tail
+    const dur = 0.09;
+    const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = "highpass";
+    nf.frequency.value = 1800;
+    const ng = ctx.createGain();
+    ng.gain.value = 0.05;
+    noise.connect(nf);
+    nf.connect(ng);
+    ng.connect(ctx.destination);
+    noise.start(t0 + 0.06);
+  };
   const playClick = () => {
     const ctx = audioRef.current;
     if (!ctx) return;
@@ -171,7 +208,9 @@ export default function Trailer3Page() {
 
         {scene === "call" && <SceneCall onType={soundOn ? playClick : undefined} />}
         {scene === "allocate" && <SceneAllocate localMs={local} />}
-        {scene === "comms" && <SceneComms localMs={local} />}
+        {scene === "comms" && (
+          <SceneComms localMs={local} onBlip={soundOn ? playBlip : undefined} />
+        )}
         {scene === "standby" && <SceneStandby localMs={local} />}
       </div>
     </div>
@@ -288,8 +327,28 @@ function SceneAllocate({ localMs }: { localMs: number }) {
   );
 }
 
-function SceneComms({ localMs }: { localMs: number }) {
+function SceneComms({
+  localMs,
+  onBlip,
+}: {
+  localMs: number;
+  onBlip?: () => void;
+}) {
   const shown = Math.min(COMMS_LINES.length, Math.floor(localMs / 950));
+  // One keying blip per transmission as it lands.
+  const prevShownRef = useRef(0);
+  const onBlipRef = useRef(onBlip);
+  useEffect(() => {
+    onBlipRef.current = onBlip;
+  }, [onBlip]);
+  useEffect(() => {
+    if (shown > prevShownRef.current) {
+      try {
+        onBlipRef.current?.();
+      } catch {}
+    }
+    prevShownRef.current = shown;
+  }, [shown]);
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-center px-6">
       <div className="flex items-center justify-between">
@@ -333,31 +392,43 @@ function SceneStandby({ localMs }: { localMs: number }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 px-7 text-center">
       {stage === 0 && (
-        <div className="animate-[fadeIn_0.5s_ease-out] text-[30px] font-bold tracking-[0.25em] text-zinc-200">
+        <div
+          className="animate-[fadeIn_0.5s_ease-out] text-[40px] font-bold tracking-[0.22em] text-white"
+          style={{ textShadow: "0 0 24px rgba(255,255,255,0.35)" }}
+        >
           STAND BY…
         </div>
       )}
       {stage === 1 && (
-        <div className="animate-[fadeIn_0.5s_ease-out] text-[26px] font-bold tracking-[0.2em] text-amber-400">
+        <div
+          className="animate-[fadeIn_0.5s_ease-out] text-[34px] font-bold tracking-[0.18em] text-amber-400"
+          style={{ textShadow: "0 0 24px rgba(251,191,36,0.45)" }}
+        >
           IN DEVELOPMENT…
         </div>
       )}
       {stage === 2 && (
-        <div className="animate-[fadeIn_0.5s_ease-out] text-[34px] font-bold tracking-[0.18em] text-zinc-50">
+        <div
+          className="animate-[fadeIn_0.5s_ease-out] text-[44px] font-bold tracking-[0.16em] text-white"
+          style={{ textShadow: "0 0 28px rgba(255,255,255,0.4)" }}
+        >
           COMING SOON
         </div>
       )}
       {stage === 3 && (
         <>
-          <div className="animate-[titleIn_1s_cubic-bezier(.2,.8,.2,1)_forwards] text-[40px] font-bold leading-tight tracking-tight">
+          <div
+            className="animate-[titleIn_1s_cubic-bezier(.2,.8,.2,1)_forwards] text-[48px] font-bold leading-tight tracking-tight text-white"
+            style={{ textShadow: "0 0 32px rgba(255,255,255,0.3)" }}
+          >
             THE WATCH
             <br />
             ROOM
           </div>
-          <div className="animate-[fadeIn_0.8s_0.7s_ease-out_both] text-[11px] uppercase tracking-[0.4em] text-zinc-400">
-            Take the chair.
+          <div className="animate-[fadeIn_0.8s_0.7s_ease-out_both] text-[15px] font-bold uppercase tracking-[0.3em] text-amber-400">
+            You&apos;re in command and control.
           </div>
-          <div className="animate-[fadeIn_0.8s_1.2s_ease-out_both] text-[10px] uppercase tracking-[0.3em] text-zinc-600">
+          <div className="animate-[fadeIn_0.8s_1.2s_ease-out_both] text-[11px] uppercase tracking-[0.3em] text-zinc-400">
             UK emergency dispatch sim
           </div>
         </>
