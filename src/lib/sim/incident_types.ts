@@ -203,6 +203,10 @@ export type Scenario = {
     access: string;
     knownHazards: string[];
     firstDueStationId: string;
+    /** Front-door construction — drives forcible-entry tool odds.
+     *  Revealed to the operator by the 360 survey. When not authored,
+     *  a heuristic on `class` picks a plausible default. */
+    doorType?: DoorType;
   };
 
   pri: {
@@ -681,6 +685,81 @@ export type TaskKind =
 export type HoseType = "45mm" | "70mm" | "LDH_150mm";
 export type KitKind = "aed" | "first_aid" | "trauma" | "extinguisher";
 
+// ---------------------------------------------------------------------------
+// Forcible entry — tool vs door matrix
+// ---------------------------------------------------------------------------
+
+/** Front-door construction classes common on UK premises. */
+export type DoorType =
+  | "timber"          // traditional timber door, rim/mortice lock
+  | "upvc"            // uPVC multi-point with euro cylinder — most UK dwellings
+  | "composite"       // modern composite slab, multi-point euro cylinder
+  | "steel_security"  // steel door-set (commercial / secured premises)
+  | "roller_shutter"; // commercial roller shutter
+
+export type EntryTool = "halligan" | "lock_snapper" | "red_key" | "recip_saw";
+
+export const DOOR_TYPE_LABEL: Record<DoorType, string> = {
+  timber: "Timber door",
+  upvc: "uPVC multi-point",
+  composite: "Composite multi-point",
+  steel_security: "Steel security door",
+  roller_shutter: "Roller shutter",
+};
+
+export const ENTRY_TOOL_LABEL: Record<EntryTool, string> = {
+  halligan: "Halligan bar",
+  lock_snapper: "Lock snapper",
+  red_key: "Red key (Enforcer)",
+  recip_saw: "Recip saw",
+};
+
+/** Setup time + chance the attempt defeats the door. Mirrors real UK
+ *  practice: snap the euro cylinder on uPVC/composite, ram timber,
+ *  cut steel and shutters. The wrong tool wastes time AND can fail. */
+export const ENTRY_TABLE: Record<EntryTool, Record<DoorType, { sec: number; pct: number }>> = {
+  halligan: {
+    timber: { sec: 45, pct: 90 },
+    upvc: { sec: 60, pct: 75 },
+    composite: { sec: 75, pct: 70 },
+    steel_security: { sec: 150, pct: 35 },
+    roller_shutter: { sec: 150, pct: 25 },
+  },
+  lock_snapper: {
+    timber: { sec: 60, pct: 40 },        // usually no euro cylinder to snap
+    upvc: { sec: 45, pct: 95 },
+    composite: { sec: 60, pct: 90 },
+    steel_security: { sec: 90, pct: 50 },
+    roller_shutter: { sec: 90, pct: 10 },
+  },
+  red_key: {
+    timber: { sec: 20, pct: 95 },
+    upvc: { sec: 40, pct: 60 },          // door flexes, multi-point holds
+    composite: { sec: 45, pct: 75 },
+    steel_security: { sec: 120, pct: 30 },
+    roller_shutter: { sec: 120, pct: 5 },
+  },
+  recip_saw: {
+    timber: { sec: 90, pct: 95 },
+    upvc: { sec: 90, pct: 85 },
+    composite: { sec: 100, pct: 85 },
+    steel_security: { sec: 180, pct: 80 },
+    roller_shutter: { sec: 150, pct: 90 },
+  },
+};
+
+/** Resolve the door type for a scenario — authored value first, else a
+ *  plausible heuristic from the property class. */
+export function doorTypeForScenario(sc: Scenario): DoorType {
+  if (sc.property.doorType) return sc.property.doorType;
+  const cls = sc.property.class.toLowerCase();
+  if (/(warehouse|industrial|unit|factory|plant)/.test(cls)) return "steel_security";
+  if (/(shop|retail|commercial)/.test(cls)) return "roller_shutter";
+  if (/(victorian|edwardian|1900s|1910s|1920s|1930s|terrace)/.test(cls)) return "timber";
+  if (/(new.?build|modern|2000s|2010s|apartment|flat)/.test(cls)) return "composite";
+  return "upvc"; // most retro-fitted UK housing stock
+}
+
 /** Tactical firefighting posture for a running jet. */
 export type HoseAttackMode = "exterior_cooling" | "exterior_attack" | "interior_attack";
 
@@ -824,6 +903,9 @@ export type Task = {
   baMode?: "search" | "firefighting";
   /** For extract_casualty: which casualty this crew is moving out. */
   casualtyId?: string;
+  /** For gain_entry: which forcible-entry tool the crew is using —
+   *  duration and success odds come from ENTRY_TABLE vs the door type. */
+  entryTool?: EntryTool;
   /** For close_carriageway / close_road: where the cone line sits,
    *  snapped to the nearest OSM road when the operator placed it. */
   closurePos?: { lat: number; lng: number };

@@ -39,7 +39,11 @@ import { simulateIncident } from "@/lib/sim/incident_sim";
 import {
   BA_BAR_PER_MINUTE,
   CAPABILITIES_BY_TYPE,
+  DOOR_TYPE_LABEL,
+  ENTRY_TABLE,
+  ENTRY_TOOL_LABEL,
   baWorkingDurationMin,
+  doorTypeForScenario,
   hasWaterSupplyChain,
   rootWaterSource,
   HOSE_FLOW_LPM,
@@ -1768,12 +1772,34 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       if (now >= t.completesAt) justCompleted.push(t);
     }
     if (justCompleted.length === 0) return;
-    const completedIds = new Set(justCompleted.map((t) => t.id));
+    // Forcible entry rolls against the tool-vs-door odds when its timer
+    // lands. The "roll" is a deterministic hash of the task id so
+    // StrictMode double-invokes, HMR replays, and save/resume all agree
+    // on the outcome. Failures flip to aborted — door held, try again.
+    const doorType = activeIncident
+      ? doorTypeForScenario(activeIncident.scenario)
+      : null;
+    const entryFailedIds = new Set(
+      justCompleted
+        .filter(
+          (t) =>
+            t.kind === "gain_entry" &&
+            t.entryTool &&
+            doorType &&
+            hashPct(t.id) >= ENTRY_TABLE[t.entryTool][doorType].pct,
+        )
+        .map((t) => t.id),
+    );
+    const completedIds = new Set(
+      justCompleted.filter((t) => !entryFailedIds.has(t.id)).map((t) => t.id),
+    );
     setTasks((prev) =>
       prev.map((t) =>
         t.state === "active" && completedIds.has(t.id)
           ? { ...t, state: "completed" as const }
-          : t,
+          : t.state === "active" && entryFailedIds.has(t.id)
+            ? { ...t, state: "aborted" as const }
+            : t,
       ),
     );
     setLog((lg) => {
@@ -1784,6 +1810,24 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       for (const t of justCompleted) {
         const id = `taskc:${t.id}`;
         if (existingIds.has(id)) continue;
+        if (entryFailedIds.has(t.id)) {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "setback",
+            message: `${applianceLabel(t.applianceId)} — ${ENTRY_TOOL_LABEL[t.entryTool!]} attempt failed, ${doorType ? DOOR_TYPE_LABEL[doorType].toLowerCase() : "door"} holding. Go again or switch tools.`,
+          });
+          continue;
+        }
+        if (t.kind === "gain_entry" && t.entryTool) {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: `${applianceLabel(t.applianceId)} — door forced with the ${ENTRY_TOOL_LABEL[t.entryTool]}${doorType ? ` (${DOOR_TYPE_LABEL[doorType].toLowerCase()})` : ""}`,
+          });
+          continue;
+        }
         if (t.kind === "kit_grab") {
           toAppend.push({
             id,
@@ -2424,12 +2468,17 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     attackMode?: import("@/lib/sim/incident_types").HoseAttackMode;
     baMode?: "search" | "firefighting";
     casualtyId?: string;
+    entryTool?: import("@/lib/sim/incident_types").EntryTool;
     closurePos?: { lat: number; lng: number };
     closureBearingDeg?: number;
   }) {
     const startedAt = Date.now();
-    // Realistic per-task timings.
-    const durationSec = taskDurationSecFor(args);
+    // Realistic per-task timings. Forcible entry gets its duration from
+    // the tool-vs-door matrix instead of the generic roll.
+    const durationSec =
+      args.kind === "gain_entry" && args.entryTool && activeIncident
+        ? ENTRY_TABLE[args.entryTool][doorTypeForScenario(activeIncident.scenario)].sec
+        : taskDurationSecFor(args);
     const task: Task = {
       id: `${args.applianceId}:${args.kind}:${startedAt}`,
       applianceId: args.applianceId,
@@ -2449,10 +2498,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       attackMode: args.attackMode,
       baMode: args.baMode,
       casualtyId: args.casualtyId,
+      entryTool: args.entryTool,
       closurePos: args.closurePos,
       closureBearingDeg: args.closureBearingDeg,
     };
     setTasks((prev) => [...prev, task]);
+
+    if (args.kind === "gain_entry" && args.entryTool) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `entry:${startedAt}`,
+          timestamp: startedAt,
+          kind: "task_started",
+          message: `${applianceLabel(args.applianceId)} working the door — ${ENTRY_TOOL_LABEL[args.entryTool!]}`,
+        },
+      ]);
+    }
 
     if (args.kind === "close_carriageway" || args.kind === "close_road") {
       setLog((prev) => [
@@ -2885,6 +2947,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       </main>
     </div>
   );
+}
+
+/** Deterministic 0–99 "percentile roll" from a string. Used where an
+ *  outcome must be random-feeling but stable across re-renders, StrictMode
+ *  double-invokes and save/resume (e.g. forcible-entry success). */
+function hashPct(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) % 100;
 }
 
 function applianceLabel(id: string): string {

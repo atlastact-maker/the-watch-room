@@ -32,6 +32,9 @@ export const scenario02: Scenario = {
       "Loft converted to bedroom (non-conforming, single staircase)",
     ],
     firstDueStationId: "G15",
+    // Council retrofit stock — uPVC multi-point front door. Snap the
+    // cylinder; the ram flexes these doors and the multi-point holds.
+    doorType: "upvc",
   },
 
   pri: {

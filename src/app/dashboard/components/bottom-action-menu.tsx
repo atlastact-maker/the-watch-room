@@ -14,11 +14,16 @@ import type { Appliance, CrewMember } from "@/lib/sim/types";
 import {
   ATTACK_EFFECTIVENESS,
   CAPABILITIES_BY_TYPE,
+  DOOR_TYPE_LABEL,
+  ENTRY_TABLE,
+  ENTRY_TOOL_LABEL,
   FIRE_MATERIAL_LABEL,
   FIRE_MATERIAL_TACTIC,
   TASK_MIN_CREW,
+  doorTypeForScenario,
   hasWaterSupplyChain,
   type CrewEquipment,
+  type EntryTool,
   type Deployment,
   type HoseAttackMode,
   type HoseType,
@@ -58,6 +63,8 @@ type Pending = {
   /** For extract_casualty: id of the casualty being moved from fire
    *  zone to safe ground / treatment area. */
   casualtyId?: string;
+  /** For gain_entry: the forcible-entry tool being used. */
+  entryTool?: EntryTool;
   /** Equipment the crew need carrying to be selectable for this task. */
   requiredEquipment?: CrewEquipment[];
 };
@@ -75,6 +82,7 @@ export type StartTaskFn = (args: {
   attackMode?: HoseAttackMode;
   baMode?: "search" | "firefighting";
   casualtyId?: string;
+  entryTool?: EntryTool;
   closurePos?: { lat: number; lng: number };
   closureBearingDeg?: number;
 }) => void;
@@ -1503,6 +1511,7 @@ function ActionsTab({
       attackMode: pending.attackMode,
       baMode: pending.baMode,
       casualtyId: pending.casualtyId,
+      entryTool: pending.entryTool,
     });
     cancel();
   }
@@ -1684,24 +1693,67 @@ function ActionsTab({
       {isBA && (
         <Section title="Entry & search">
           <div className="grid grid-cols-1 gap-1.5">
-            <BigBtn
-              label={
-                has("gain_entry")
-                  ? "✓ Entry made"
-                  : entryByOther
-                    ? "✓ Entry already made"
-                    : "Gain entry · 60–180s"
+            {(() => {
+              const entryDone = has("gain_entry") || entryByOther;
+              const entryWorking = ownActive.some((t) => t.kind === "gain_entry");
+              const surveyDone = tasks.some(
+                (t) => t.kind === "survey" && t.state === "completed",
+              );
+              const doorType = doorTypeForScenario(incident.scenario);
+              if (entryDone) {
+                return (
+                  <BigBtn
+                    label={has("gain_entry") ? "✓ Entry made" : "✓ Entry already made"}
+                    disabled
+                    title={entryByOther ? "Another BA team has already forced entry — commit BA directly" : undefined}
+                    onClick={() => {}}
+                  />
+                );
               }
-              disabled={has("gain_entry") || entryByOther}
-              title={entryByOther ? "Another BA team has already forced entry — commit BA directly" : undefined}
-              onClick={() =>
-                start({
-                  kind: "gain_entry",
-                  label: "Gain entry",
-                  requiredEquipment: ["forcible_entry"],
-                })
-              }
-            />
+              return (
+                <>
+                  <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest">
+                    {surveyDone ? (
+                      <span className="text-(--color-amber)">
+                        Door: {DOOR_TYPE_LABEL[doorType]}
+                      </span>
+                    ) : (
+                      <span className="text-(--color-text-dim)">
+                        Door type unknown — a 360 survey identifies it
+                      </span>
+                    )}
+                  </div>
+                  {entryWorking ? (
+                    <BigBtn label="Working the door…" disabled onClick={() => {}} />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(Object.keys(ENTRY_TOOL_LABEL) as EntryTool[]).map((tool) => {
+                        const cell = ENTRY_TABLE[tool][doorType];
+                        return (
+                          <Chip
+                            key={tool}
+                            label={ENTRY_TOOL_LABEL[tool]}
+                            detail={
+                              surveyDone
+                                ? `${cell.sec}s · ~${cell.pct}%`
+                                : "time & odds unknown"
+                            }
+                            onClick={() =>
+                              start({
+                                kind: "gain_entry",
+                                label: ENTRY_TOOL_LABEL[tool],
+                                entryTool: tool,
+                                requiredEquipment: ["forcible_entry"],
+                              })
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <BigBtn
               label={
                 hasActiveBaMode(ownActive, "search")
