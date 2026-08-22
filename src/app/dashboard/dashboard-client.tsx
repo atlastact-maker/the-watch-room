@@ -2202,62 +2202,96 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   function setParkingPos(applianceId: string, lat: number, lng: number, bearingDeg: number) {
     // HEMS landing-zone confirmation. The helicopter's "parking" IS its
-    // LZ — validate suitability first, then compute touchdown + the
-    // doctor/CCP's walk to the casualty, which becomes the arrival time.
+    // LZ. No minimum stand-off — a close-in LZ is fine when the surface
+    // suits (field, park, or the closed carriageway of the incident
+    // itself); suitability is surveyed against OSM (buildings, water,
+    // woodland, power lines) before the aircraft commits.
     const dep = deployments.find((d) => d.applianceId === applianceId);
     if (dep?.hemsFlight && activeIncident) {
       const inc = activeIncident.scenario.location.coords;
       const dist = haversineMeters({ lat, lng }, inc);
-      const reject = (why: string) => {
+      const logLine = (message: string) => {
         setLog((prev) => [
           ...prev,
           {
-            id: `lz:reject:${Date.now()}`,
+            id: `lz:${Date.now()}:${Math.random().toString(36).slice(2, 6)}`,
             timestamp: Date.now(),
             kind: "annotation",
-            message: `LZ rejected — ${why}`,
+            message,
           },
         ]);
       };
-      if (dist < 40) {
-        reject(
-          `${Math.round(dist)} m from the scene: too close (rotor downwash, debris and cordon conflict). Pick clear ground 40 m+ out.`,
-        );
-        return;
-      }
       if (dist > 600) {
-        reject(
-          `${Math.round(dist)} m from the scene: too far — the walk would cost the team ${Math.round(dist / 1.4 / 60)} min. Pick somewhere inside 600 m.`,
+        logLine(
+          `LZ rejected — ${Math.round(dist)} m from the scene: too far, the walk would cost the team ${Math.round(dist / 1.4 / 60)} min. Pick somewhere inside 600 m.`,
         );
         return;
       }
-      const walkSec = Math.round(dist / 1.4); // brisk walk with kit
-      const now = Date.now();
-      const touchdownAt =
-        Math.max(now, dep.hemsFlight.overheadAt) + dep.hemsFlight.landingSec * 1000;
-      const arrivesAt = touchdownAt + walkSec * 1000;
-      setDeployments((prev) =>
-        prev.map((d) =>
-          d.applianceId === applianceId
-            ? {
-                ...d,
-                parkingPos: { lat, lng },
-                parkingBearingDeg: bearingDeg,
-                arrivesAt,
-                hemsFlight: { ...d.hemsFlight!, walkSec, lzConfirmedAt: now },
-              }
-            : d,
-        ),
+      logLine(
+        `${applianceLabel(applianceId)} — surveying LZ surface ${Math.round(dist)} m from the scene…`,
       );
-      setLog((prev) => [
-        ...prev,
-        {
-          id: `lz:ok:${Date.now()}`,
-          timestamp: Date.now(),
-          kind: "annotation",
-          message: `LZ confirmed ${Math.round(dist)} m from the scene — ${applianceLabel(applianceId)} landing; doctor + CCP proceeding on foot, with casualty in ~${Math.max(1, Math.round((arrivesAt - now) / 60000))} min`,
-        },
-      ]);
+      const overheadAt = dep.hemsFlight.overheadAt;
+      const landingSec = dep.hemsFlight.landingSec;
+      void (async () => {
+        // Surface classification from OSM. On survey failure we land
+        // anyway with a "crew will visual-check" caveat — the public
+        // Overpass mirrors are not reliable enough to gate gameplay.
+        let kind: "field" | "carriageway" | "open" | "unknown" = "unknown";
+        let unsuitable: string | null = null;
+        try {
+          const res = await fetch(
+            `/api/lz-check?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
+          );
+          if (res.ok) {
+            const body = (await res.json()) as {
+              verdict?: string;
+              kind?: "field" | "carriageway" | "open";
+              reason?: string;
+            };
+            if (body.verdict === "unsuitable") {
+              unsuitable = body.reason ?? "obstructed ground";
+            } else if (body.verdict === "suitable" && body.kind) {
+              kind = body.kind;
+            }
+          }
+        } catch {
+          // fall through with kind = "unknown"
+        }
+        if (unsuitable) {
+          logLine(
+            `LZ rejected — ${unsuitable}. Pick a field, park, or the closed carriageway.`,
+          );
+          return;
+        }
+        const walkSec = Math.max(20, Math.round(dist / 1.4)); // brisk walk with kit
+        const now = Date.now();
+        const touchdownAt = Math.max(now, overheadAt) + landingSec * 1000;
+        const arrivesAt = touchdownAt + walkSec * 1000;
+        setDeployments((prev) =>
+          prev.map((d) =>
+            d.applianceId === applianceId && d.hemsFlight
+              ? {
+                  ...d,
+                  parkingPos: { lat, lng },
+                  parkingBearingDeg: bearingDeg,
+                  arrivesAt,
+                  hemsFlight: { ...d.hemsFlight, walkSec, lzConfirmedAt: now },
+                }
+              : d,
+          ),
+        );
+        const surface =
+          kind === "field"
+            ? "grass / open field"
+            : kind === "carriageway"
+              ? "the carriageway — confirm the police closure holds"
+              : kind === "open"
+                ? "open ground"
+                : "unverified ground (survey offline) — crew will visual-check on approach";
+        logLine(
+          `LZ confirmed ${Math.round(dist)} m from the scene on ${surface} — ${applianceLabel(applianceId)} landing; doctor + CCP proceeding on foot, with casualty in ~${Math.max(1, Math.round((arrivesAt - now) / 60000))} min`,
+        );
+      })();
       return;
     }
     setDeployments((prev) =>
