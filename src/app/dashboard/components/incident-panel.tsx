@@ -1,15 +1,6 @@
 "use client";
 
-// Incident MDT — styled after the rugged CAD tablets mounted in UK
-// appliance cabs (Getac/Panasonic class): landscape chassis with corner
-// screws, a green sync bar, boxy CAD tabs (active = yellow), a dense
-// incident strip, tabbed pages (Overview / Property / Prop View / PRI /
-// Targets / Log) and a persistent ALERTS row. The screen deliberately
-// runs a light "CAD app" theme so it reads as a separate device sitting
-// on top of the dark ops-room UI.
-
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { Rnd } from "react-rnd";
 import {
   type Deployment,
@@ -17,20 +8,9 @@ import {
   type IncidentOutcome,
   type LogEntry,
 } from "@/lib/sim/incident_types";
+import { blueLight, routeEta } from "@/lib/sim/eta";
 import type { StationWithAppliances } from "../page";
-
-// Aerial property view — Leaflet must not run on the server.
-const PropertyAerial = dynamic(
-  () => import("./property-aerial").then((m) => m.PropertyAerial),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full w-full items-center justify-center bg-zinc-300 font-mono text-[11px] uppercase tracking-widest text-zinc-600">
-        Loading imagery…
-      </div>
-    ),
-  },
-);
+import { type Eta } from "./deployment-board";
 
 type Props = {
   incident: Incident;
@@ -51,310 +31,223 @@ type Props = {
   onClose: () => void;
 };
 
-type TabKey =
-  | "overview"
-  | "property"
-  | "view"
-  | "pri"
-  | "targets"
-  | "log"
-  | "debrief";
-
 export function DraggableIncidentPanel({
   incident,
+  stations,
+  deployments,
   log,
   outcome,
+  onDeploy,
+  onStandDownForWelfare,
   onResolve,
   onDismiss,
   onClose,
 }: Props) {
+  const [etas, setEtas] = useState<Record<string, Eta>>({});
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    Promise.all(
+      stations.map((s) =>
+        routeEta(s.coords, incident.scenario.location.coords, ctrl.signal)
+          .then(blueLight)
+          .then((r) => ({
+            stationId: s.id,
+            ...r,
+          })),
+      ),
+    )
+      .then((rows) => {
+        setEtas(Object.fromEntries(rows.map((r) => [r.stationId, r])));
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [incident.id, stations, incident.scenario.location.coords]);
+
   const resolved = !!outcome;
-  const [tab, setTab] = useState<TabKey>("overview");
-  useEffect(() => {
-    setTab(resolved ? "debrief" : "overview");
-  }, [resolved, incident.id]);
-
-  // Clocks for the sync bar: UTC wall clock + incident elapsed.
-  const [clock, setClock] = useState("--:--:--");
-  const [elapsed, setElapsed] = useState("00:00");
-  useEffect(() => {
-    const tick = () => {
-      setClock(fmtTime(Date.now()));
-      setElapsed(fmtHms(Math.max(0, (Date.now() - incident.receivedAt) / 1000)));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [incident.receivedAt]);
-
-  const sc = incident.scenario;
-  const tabs: { key: TabKey; label: string }[] = resolved
-    ? [
-        { key: "debrief", label: "Debrief" },
-        { key: "log", label: "Log" },
-      ]
-    : [
-        { key: "overview", label: "Overview" },
-        { key: "property", label: "Property" },
-        { key: "view", label: "Prop View" },
-        { key: "pri", label: "PRI" },
-        { key: "targets", label: "Targets" },
-        { key: "log", label: "Log" },
-      ];
-
-  const alerts = [
-    ...sc.property.knownHazards,
-    ...sc.property.vulnerabilities,
-  ];
 
   return (
     <Rnd
       default={{
         x: 24,
-        y: 90,
-        width: 880,
-        height: 620,
+        y: 80,
+        width: 580,
+        height: typeof window !== "undefined" ? window.innerHeight - 120 : 700,
       }}
-      minWidth={640}
-      minHeight={460}
+      minWidth={400}
+      minHeight={320}
       bounds="window"
       dragHandleClassName="drag-handle"
       className="z-[1100]"
     >
-      {/* Rugged chassis */}
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[16px] border-[12px] border-[#26262b] bg-[#26262b] shadow-2xl shadow-black/70 ring-1 ring-[#3d3d45]">
-        {/* Corner screws */}
-        <Screw className="left-[-9px] top-[-9px]" />
-        <Screw className="right-[-9px] top-[-9px]" />
-        <Screw className="bottom-[-9px] left-[-9px]" />
-        <Screw className="bottom-[-9px] right-[-9px]" />
-        {/* Camera bar */}
-        <span
-          aria-hidden
-          className="absolute left-1/2 top-[-9px] z-10 flex h-[6px] w-16 -translate-x-1/2 items-center justify-center rounded-full bg-[#1b1b1f]"
+      <div
+        className={
+          "flex h-full w-full flex-col overflow-hidden rounded-sm bg-(--color-surface) shadow-2xl shadow-black/60 " +
+          (resolved ? "border border-(--color-ok)/40" : "border border-(--color-amber)/40")
+        }
+      >
+        <div
+          className={
+            "drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) px-3 py-2 font-mono text-[10px] uppercase tracking-widest " +
+            (resolved ? "bg-(--color-ok)/10" : "bg-(--color-amber)/10")
+          }
         >
-          <span className="size-[4px] rounded-full bg-[#0b0b0e] ring-1 ring-[#3d3d45]" />
-        </span>
-
-        {/* Screen — light CAD app */}
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-[6px] bg-[#e7e7ea] text-zinc-900">
-          {/* Sync bar (drag handle) */}
-          <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#16a34a] font-mono text-[11px] font-bold text-white">
-            <span className="flex items-center px-3 py-1 tracking-[0.15em]">
-              SYNCHRONIZED.
-            </span>
-            <span className="flex items-stretch">
-              <span className="flex items-center bg-[#dc2626] px-3 tabular-nums tracking-[0.1em]">
-                T+{elapsed}
-              </span>
-              <span className="flex items-center bg-[#15803d] px-3 tabular-nums tracking-[0.1em]">
-                {clock} UTC
-              </span>
-            </span>
-          </div>
-
-          {/* Tab row + device buttons */}
-          <div className="flex items-stretch justify-between border-b-2 border-zinc-400 bg-[#d9d9de]">
-            <div className="flex items-stretch">
-              {tabs.map((t) => {
-                const active = tab === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setTab(t.key)}
-                    className={
-                      "border-r border-zinc-400 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] transition-colors " +
-                      (active
-                        ? "bg-[#fde047] text-black"
-                        : "bg-[#e7e7ea] text-zinc-600 hover:bg-[#f1f1f4] hover:text-zinc-900")
-                    }
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-stretch">
-              {!resolved && (
-                <button
-                  type="button"
-                  onClick={onResolve}
-                  className="border-l border-zinc-400 bg-[#e7e7ea] px-3 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-800 hover:bg-green-100"
-                >
-                  Resolve
-                </button>
-              )}
-              {resolved && (
-                <button
-                  type="button"
-                  onClick={onDismiss}
-                  className="border-l border-zinc-400 bg-[#e7e7ea] px-3 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-red-700 hover:bg-red-100"
-                >
-                  End Debrief
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="border-l border-zinc-400 bg-[#e7e7ea] px-3 font-mono text-[11px] font-bold text-zinc-600 hover:bg-red-100 hover:text-red-700"
-                title="Close panel"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {/* Dense incident strip — always visible, CAD style */}
-          <div className="border-b border-zinc-400 bg-white px-3 py-1.5 font-mono text-[11px] leading-snug">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <span className="font-bold">#{sc.id}</span>
-              <span>{fmtTime(incident.receivedAt)}</span>
-              <span
-                className={
-                  "px-1.5 font-bold uppercase " +
-                  (sc.severity === "major" || sc.severity === "high"
-                    ? "bg-red-600 text-white"
-                    : "bg-amber-400 text-black")
-                }
-              >
-                {sc.severity}
-              </span>
-              <span className="uppercase text-zinc-700">
-                {sc.type.replace(/_/g, " ")}
-              </span>
-            </div>
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-zinc-800">
-              <span className="font-bold uppercase">{sc.location.address}</span>
-              <span>{sc.location.postcode}</span>
-              <span className="text-zinc-500">
-                1st due: {sc.property.firstDueStationId}
-              </span>
-            </div>
-          </div>
-
-          {/* Tab content */}
           <div
             className={
-              "min-h-0 flex-1 " +
-              (tab === "view" ? "" : "overflow-y-auto bg-[#f4f4f5] px-3 py-2.5")
+              "flex items-center gap-2 " + (resolved ? "text-(--color-ok)" : "text-(--color-amber)")
             }
           >
-            {tab === "debrief" && outcome && <OutcomeView outcome={outcome} />}
-
-            {tab === "overview" && !resolved && (
-              <>
-                <h1 className="text-lg font-bold leading-snug">{sc.title}</h1>
-                <p className="mt-1 font-mono text-[11px] text-zinc-600">
-                  Caller: &ldquo;{sc.trigger}&rdquo;
-                </p>
-                {sc.severity === "major" && (
-                  <CadCard title="METHANE · Major incident">
-                    <MethaneTable methane={sc.methane} />
-                  </CadCard>
-                )}
-                <CadCard title="Occupancy & access">
-                  <KeyVal k="Occupants" v={sc.property.occupants} />
-                  <KeyVal k="Access" v={sc.property.access} />
-                </CadCard>
-              </>
+            <span
+              className={
+                "dot-live size-1.5 rounded-full " +
+                (resolved ? "bg-(--color-ok)" : "bg-(--color-critical)")
+              }
+            />
+            <span>
+              {resolved ? "Debrief" : "Incident"} · #{incident.scenario.id}
+            </span>
+            <span className="opacity-60">|</span>
+            <span>{incident.scenario.severity.toUpperCase()}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {!resolved && (
+              <button
+                type="button"
+                onClick={onResolve}
+                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
+              >
+                Resolve
+              </button>
             )}
+            {resolved && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+              >
+                End Shift Debrief
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
+              title="Close panel"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
 
-            {tab === "property" && !resolved && (
-              <CadCard title="Property record">
-                <KeyVal k="Class" v={sc.property.class} />
-                {sc.property.size && <KeyVal k="Size" v={sc.property.size} />}
-                {sc.property.materials && (
-                  <KeyVal k="Materials" v={sc.property.materials} />
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <h1 className="text-xl font-semibold tracking-tight">
+            {incident.scenario.title}
+          </h1>
+          <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+            {incident.scenario.type.replace(/_/g, " ")} · received {fmtTime(incident.receivedAt)}
+          </p>
+          <p className="mt-4 text-sm text-(--color-text)">
+            {incident.scenario.location.address}, {incident.scenario.location.postcode}
+          </p>
+          <p className="mt-1 text-xs text-(--color-text-dim)">
+            First-due: {incident.scenario.property.firstDueStationId}
+          </p>
+
+          {resolved && outcome && <OutcomeView outcome={outcome} />}
+
+          {!resolved && (
+            <>
+              {incident.scenario.severity === "major" && (
+                <Section title="METHANE · Major incident">
+                  <MethaneTable methane={incident.scenario.methane} />
+                </Section>
+              )}
+
+              <Section title="Property">
+                <KeyVal k="Class" v={incident.scenario.property.class} />
+                {incident.scenario.property.size && (
+                  <KeyVal k="Size" v={incident.scenario.property.size} />
                 )}
-                <KeyVal k="Occupants" v={sc.property.occupants} />
-                <KeyVal k="Access" v={sc.property.access} />
-                {sc.property.vulnerabilities.length > 0 && (
-                  <ListRows
+                {incident.scenario.property.materials && (
+                  <KeyVal k="Materials" v={incident.scenario.property.materials} />
+                )}
+                <KeyVal k="Occupants" v={incident.scenario.property.occupants} />
+                <KeyVal k="Access" v={incident.scenario.property.access} />
+                {incident.scenario.property.vulnerabilities.length > 0 && (
+                  <KeyValList
                     k="Vulnerabilities"
-                    items={sc.property.vulnerabilities}
+                    items={incident.scenario.property.vulnerabilities}
                     tone="amber"
                   />
                 )}
-                {sc.property.knownHazards.length > 0 && (
-                  <ListRows
-                    k="Hazards"
-                    items={sc.property.knownHazards}
+                {incident.scenario.property.knownHazards.length > 0 && (
+                  <KeyValList
+                    k="Hazards on premises"
+                    items={incident.scenario.property.knownHazards}
                     tone="critical"
                   />
                 )}
-              </CadCard>
-            )}
+              </Section>
 
-            {tab === "view" && !resolved && (
-              <div className="relative h-full w-full bg-zinc-800">
-                <PropertyAerial
-                  lat={sc.location.coords.lat}
-                  lng={sc.location.coords.lng}
-                />
-                <div className="pointer-events-none absolute bottom-2 left-1/2 z-[500] -translate-x-1/2 border border-zinc-500 bg-white/95 px-3 py-1 font-mono text-[11px] font-bold text-zinc-900 shadow">
-                  {sc.location.address}
-                </div>
-              </div>
-            )}
-
-            {tab === "pri" && !resolved && (
-              <CadCard title="Premises risk information">
-                <p className="font-mono text-[11px] text-zinc-600">
-                  {sc.pri.hasFormalPri
-                    ? "FORMAL PRI ON FILE."
-                    : "NO FORMAL PRI (RESIDENTIAL / OPEN)."}
+              <Section title="PRI">
+                <p className="text-xs text-(--color-text-dim)">
+                  {incident.scenario.pri.hasFormalPri
+                    ? "Formal PRI on file."
+                    : "No formal PRI (residential / open)."}
                 </p>
-                {sc.pri.items.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {sc.pri.items.map((it) => (
-                      <li
-                        key={it}
-                        className="border-l-4 border-amber-400 bg-amber-50 px-2 py-1 text-[12px] leading-snug"
-                      >
-                        {it}
-                      </li>
+                {incident.scenario.pri.items.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-(--color-text)">
+                    {incident.scenario.pri.items.map((it) => (
+                      <li key={it} className="leading-snug">— {it}</li>
                     ))}
                   </ul>
                 )}
-              </CadCard>
-            )}
+              </Section>
 
-            {tab === "targets" && !resolved && (
-              <CadCard title="Dispatch targets">
-                <ul className="space-y-1 text-[12px]">
-                  {sc.evaluation.targets.map((t) => (
-                    <li key={t.metric} className="border-b border-zinc-200 pb-1">
-                      <span className="font-bold">{t.metric}</span>
-                      <span className="text-zinc-600"> — {t.target}</span>
+              <Section title="Game targets">
+                <ul className="space-y-1 text-xs text-(--color-text-muted)">
+                  {incident.scenario.evaluation.targets.map((t) => (
+                    <li key={t.metric}>
+                      <span className="text-(--color-text)">{t.metric}</span> — {t.target}
                     </li>
                   ))}
                 </ul>
-                <p className="mt-2 text-[11px] italic text-zinc-500">
-                  {sc.evaluation.lesson}
+                <p className="mt-2 text-xs italic text-(--color-text-dim)">
+                  {incident.scenario.evaluation.lesson}
                 </p>
-              </CadCard>
-            )}
-
-            {tab === "log" && <LogList log={log} />}
-          </div>
-
-          {/* Persistent ALERTS strip */}
-          {alerts.length > 0 && !resolved && (
-            <div className="flex items-stretch border-t-2 border-zinc-400 bg-[#fef08a]">
-              <span className="flex items-center bg-[#dc2626] px-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-white">
-                Alerts
-              </span>
-              <div className="max-h-12 flex-1 overflow-y-auto px-2 py-1 font-mono text-[10px] font-bold uppercase leading-snug text-zinc-900">
-                {alerts.join(" · ")}
-              </div>
-            </div>
+              </Section>
+            </>
           )}
-        </div>
 
-        {/* Bottom bezel branding */}
-        <div className="pointer-events-none absolute bottom-[-11px] left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold uppercase tracking-[0.5em] text-[#4c4c55]">
-          Watchpad
+          <Section title="Action log">
+            <ol className="space-y-1.5 text-xs">
+              {log.map((e) => (
+                <li key={e.id} className="flex gap-3">
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+                    {fmtTime(e.timestamp)}
+                  </span>
+                  <span
+                    className={
+                      e.kind === "incident_opened"
+                        ? "text-(--color-critical)"
+                        : e.kind === "mobilised"
+                          ? "text-(--color-amber)"
+                          : e.kind === "in_attendance"
+                            ? "text-(--color-info)"
+                            : e.kind === "resolved"
+                              ? "text-(--color-ok)"
+                              : "text-(--color-text)"
+                    }
+                  >
+                    {e.message}
+                  </span>
+                </li>
+              ))}
+              {log.length === 0 && (
+                <li className="text-(--color-text-dim)">No events yet.</li>
+              )}
+            </ol>
+          </Section>
         </div>
       </div>
     </Rnd>
@@ -362,113 +255,74 @@ export function DraggableIncidentPanel({
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components (light CAD theme)
+// Sub-components
 // ---------------------------------------------------------------------------
-
-function Screw({ className }: { className: string }) {
-  return (
-    <span
-      aria-hidden
-      className={
-        "absolute z-10 size-[7px] rounded-full bg-[#3d3d45] shadow-inner ring-1 ring-[#4c4c55] " +
-        className
-      }
-    >
-      <span className="absolute left-1/2 top-1/2 h-[1px] w-[5px] -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[#1b1b1f]" />
-    </span>
-  );
-}
-
-function CadCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-2.5 border border-zinc-400 bg-white first:mt-0">
-      <h2 className="border-b border-zinc-300 bg-[#e7e7ea] px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-700">
-        {title}
-      </h2>
-      <div className="px-2.5 py-2">{children}</div>
-    </section>
-  );
-}
 
 function OutcomeView({ outcome }: { outcome: IncidentOutcome }) {
   return (
-    <section>
-      <div className="flex items-center gap-4 border border-zinc-400 bg-white p-3">
-        <div className="flex size-16 items-center justify-center border-2 border-green-700 bg-green-50 font-mono text-3xl font-bold text-green-700">
+    <section className="mt-6">
+      <div className="flex items-center gap-4">
+        <div className="flex size-16 items-center justify-center rounded-sm border border-(--color-ok)/40 bg-(--color-ok)/10 font-mono text-3xl font-bold text-(--color-ok)">
           {outcome.grade}
         </div>
         <div>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-600">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
             Dispatch grade · {outcome.passedCount}/{outcome.totalCount} targets met
           </p>
-          <p className="mt-1 text-sm">{outcome.summary}</p>
+          <p className="mt-1 text-sm text-(--color-text)">{outcome.summary}</p>
         </div>
       </div>
 
-      <ul className="mt-2.5 space-y-1.5">
+      <ul className="mt-4 space-y-2">
         {outcome.metrics.map((m) => (
-          <li key={m.label} className="border border-zinc-300 bg-white px-3 py-2">
+          <li
+            key={m.label}
+            className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface-raised) px-3 py-2"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold">{m.label}</span>
+              <span className="text-sm">{m.label}</span>
               <span
                 className={
-                  "px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] " +
+                  "rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest " +
                   (m.passed === true
-                    ? "bg-green-600 text-white"
+                    ? "border-(--color-ok)/40 bg-(--color-ok)/10 text-(--color-ok)"
                     : m.passed === "partial"
-                      ? "bg-amber-400 text-black"
-                      : "bg-red-600 text-white")
+                      ? "border-(--color-amber)/40 bg-(--color-amber)/10 text-(--color-amber)"
+                      : "border-(--color-critical)/40 bg-(--color-critical)/10 text-(--color-critical)")
                 }
               >
                 {m.passed === true ? "Met" : m.passed === "partial" ? "Partial" : "Missed"}
               </span>
             </div>
-            <div className="mt-1 grid grid-cols-2 gap-2 font-mono text-[10px] uppercase tracking-[0.08em] text-zinc-500">
+            <div className="mt-1 grid grid-cols-2 gap-2 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
               <div>
-                Target <span className="text-zinc-900">{m.target}</span>
+                Target <span className="text-(--color-text)">{m.target}</span>
               </div>
               <div>
-                Actual <span className="text-zinc-900">{m.actual}</span>
+                Actual <span className="text-(--color-text)">{m.actual}</span>
               </div>
             </div>
           </li>
         ))}
       </ul>
 
-      <p className="mt-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-500">
-        Appliances returning to station — end the debrief when all are back.
+      <p className="mt-4 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+        Appliances returning to station — close this debrief when all are back.
       </p>
     </section>
   );
 }
 
-function LogList({ log }: { log: LogEntry[] }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <ol className="space-y-0.5 font-mono text-[11px] leading-snug">
-      {[...log].reverse().map((e) => (
-        <li key={e.id} className="flex gap-2 border-b border-zinc-200 py-0.5">
-          <span className="shrink-0 tabular-nums text-zinc-500">
-            {fmtTime(e.timestamp)}
-          </span>
-          <span
-            className={
-              e.kind === "incident_opened" || e.kind === "setback"
-                ? "font-bold text-red-700"
-                : e.kind === "mobilised"
-                  ? "text-amber-700"
-                  : e.kind === "in_attendance"
-                    ? "text-blue-700"
-                    : e.kind === "resolved"
-                      ? "font-bold text-green-700"
-                      : "text-zinc-800"
-            }
-          >
-            {e.message}
-          </span>
-        </li>
-      ))}
-      {log.length === 0 && <li className="text-zinc-500">No events yet.</li>}
-    </ol>
+    <section className="mt-6">
+      <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber-dim)">
+        {title}
+      </h2>
+      <div className="mt-2 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-3 py-3">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -483,17 +337,14 @@ function MethaneTable({ methane }: { methane: Incident["scenario"]["methane"] })
     ["E", "Emergency services", methane.emergencyServices],
   ];
   return (
-    <dl className="text-[12px]">
-      {rows.map(([letter, label, val], i) => (
-        <div
-          key={`${letter}-${i}`}
-          className="grid grid-cols-[1.5rem_8rem_1fr] items-baseline gap-2 border-b border-zinc-200 py-1 last:border-b-0"
-        >
-          <dt className="text-center font-mono font-bold text-red-700">{letter}</dt>
-          <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-500">
+    <dl className="space-y-1.5 text-xs">
+      {rows.map(([letter, label, val]) => (
+        <div key={label} className="grid grid-cols-[1.5rem_8rem_1fr] items-baseline gap-2">
+          <dt className="text-center font-mono font-bold text-(--color-amber)">{letter}</dt>
+          <dt className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
             {label}
           </dt>
-          <dd>{val}</dd>
+          <dd className="text-(--color-text)">{val}</dd>
         </div>
       ))}
     </dl>
@@ -502,16 +353,14 @@ function MethaneTable({ methane }: { methane: Incident["scenario"]["methane"] })
 
 function KeyVal({ k, v }: { k: string; v: string }) {
   return (
-    <div className="grid grid-cols-[8rem_1fr] items-baseline gap-2 border-b border-zinc-200 py-1 text-[12px] last:border-b-0">
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-500">
-        {k}
-      </dt>
-      <dd>{v}</dd>
+    <div className="grid grid-cols-[8rem_1fr] items-baseline gap-2 text-xs">
+      <dt className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{k}</dt>
+      <dd className="text-(--color-text)">{v}</dd>
     </div>
   );
 }
 
-function ListRows({
+function KeyValList({
   k,
   items,
   tone,
@@ -520,25 +369,21 @@ function ListRows({
   items: string[];
   tone: "amber" | "critical";
 }) {
-  const cls =
-    tone === "amber"
-      ? "border-l-4 border-amber-400 bg-amber-50"
-      : "border-l-4 border-red-500 bg-red-50";
+  const cls = tone === "amber" ? "text-(--color-amber)" : "text-(--color-critical)";
   return (
-    <div className="py-1">
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-500">
-        {k}
-      </dt>
-      <ul className="mt-1 space-y-1">
-        {items.map((it) => (
-          <li key={it} className={`px-2 py-1 text-[12px] leading-snug ${cls}`}>
-            {it}
-          </li>
-        ))}
-      </ul>
+    <div className="mt-1 grid grid-cols-[8rem_1fr] items-baseline gap-2 text-xs">
+      <dt className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{k}</dt>
+      <dd>
+        <ul className="space-y-0.5">
+          {items.map((it) => (
+            <li key={it} className={cls}>— {it}</li>
+          ))}
+        </ul>
+      </dd>
     </div>
   );
 }
+
 
 function fmtTime(ts: number): string {
   const d = new Date(ts);
@@ -547,12 +392,9 @@ function fmtTime(ts: number): string {
     .join(":");
 }
 
-function fmtHms(totalSec: number): string {
-  const s = Math.floor(totalSec);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const r = s % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`
-    : `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+function fmtSecs(s: number): string {
+  if (s < 60) return `${Math.round(s)}s`;
+  const m = Math.floor(s / 60);
+  const r = Math.round(s % 60);
+  return `${m}m ${r}s`;
 }

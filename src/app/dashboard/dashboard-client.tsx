@@ -72,6 +72,7 @@ import { PatchPicker } from "./components/patch-picker";
 import { EmbeddedMap } from "./components/map-panel";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
+import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { InformantPanel } from "./components/informant-panel";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
@@ -2856,7 +2857,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             />
           );
         })()}
-        {activeIncident && incidentPanelVisible && (
+        {/* Area view keeps the classic dark call-information box; the
+            rugged MDT tablet takes over inside ground view (rendered
+            further down so it stacks above the fullscreen overlay). */}
+        {activeIncident && incidentPanelVisible && !groundViewOpen && (
           <DraggableIncidentPanel
             incident={activeIncident}
             stations={allDeployableStations}
@@ -2917,7 +2921,24 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onSetTreatmentDestination={setTreatmentDestination}
             onSendAtmistPrealert={sendAtmistPrealert}
             onConveyCasualtyVia={conveyCasualtyVia}
+            mdtVisible={incidentPanelVisible}
+            onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
             onClose={() => setGroundViewOpen(false)}
+          />
+        )}
+        {/* Rugged MDT tablet — ground view's incident terminal. */}
+        {activeIncident && groundViewOpen && incidentPanelVisible && (
+          <DraggableIncidentMdt
+            incident={activeIncident}
+            stations={allDeployableStations}
+            deployments={deployments}
+            log={log}
+            outcome={outcome}
+            onDeploy={deployAppliance}
+            onStandDownForWelfare={standDownForWelfare}
+            onResolve={resolveIncident}
+            onDismiss={dismissIncident}
+            onClose={() => setIncidentPanelVisible(false)}
           />
         )}
         {pendingCall && (

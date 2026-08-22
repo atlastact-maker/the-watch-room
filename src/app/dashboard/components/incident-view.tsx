@@ -105,6 +105,9 @@ type Props = {
   /** Whether the NWAA airframe can fly right now (daylight + weather).
    *  False → the HEMS request row explains the night car responds. */
   hemsFlyable?: boolean;
+  /** MDT tablet visibility toggle for the mission bar. */
+  mdtVisible?: boolean;
+  onToggleMdt?: () => void;
   onSetTreatmentDestination?: (
     casualtyId: string,
     type: import("@/lib/sim/scene").HospitalDestinationType,
@@ -200,6 +203,8 @@ export function IncidentView({
   onApplyPackaging,
   onRequestClinician,
   hemsFlyable,
+  mdtVisible,
+  onToggleMdt,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -289,6 +294,8 @@ export function IncidentView({
         tacticalMode={tacticalMode ?? null}
         icAssigned={!!sceneCommanderApplianceId}
         onDeclareTacticalMode={onDeclareTacticalMode}
+        mdtVisible={mdtVisible}
+        onToggleMdt={onToggleMdt}
         onClose={onClose}
       />
 
@@ -504,6 +511,8 @@ function MissionBar({
   tacticalMode,
   icAssigned,
   onDeclareTacticalMode,
+  mdtVisible,
+  onToggleMdt,
   onClose,
 }: {
   incident: Incident;
@@ -519,6 +528,8 @@ function MissionBar({
   tacticalMode: "offensive" | "defensive" | "transitional" | null;
   icAssigned: boolean;
   onDeclareTacticalMode?: (mode: "offensive" | "defensive" | "transitional") => void;
+  mdtVisible?: boolean;
+  onToggleMdt?: () => void;
   onClose: () => void;
 }) {
   return (
@@ -570,7 +581,22 @@ function MissionBar({
         </div>
       </div>
 
-      <div className="flex flex-1 justify-end">
+      <div className="flex flex-1 items-center justify-end gap-2">
+        {onToggleMdt && (
+          <button
+            type="button"
+            onClick={onToggleMdt}
+            className={
+              "rounded-sm border px-3 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
+              (mdtVisible
+                ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
+                : "border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber-dim) hover:text-(--color-amber)")
+            }
+            title={mdtVisible ? "Hide the MDT tablet" : "Show the MDT tablet"}
+          >
+            MDT
+          </button>
+        )}
         <ViewSwitch
           mode="ground"
           groundEnabled
