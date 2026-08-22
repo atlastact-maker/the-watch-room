@@ -16,6 +16,7 @@ import {
   type VehicleCategory,
 } from "@/lib/sim/categories";
 import type { StationWithAppliances } from "../page";
+import { rescaleBlueLightSeconds } from "@/lib/sim/eta";
 
 export type Eta = {
   stationId: string;
@@ -265,7 +266,9 @@ export function DeploymentBoard({
                       <span>{r.stationName}</span>
                       <span>·</span>
                       <span className={r.eta ? "text-(--color-amber)" : ""}>
-                        {r.eta ? `ETA ${fmtSecs(r.eta.seconds)}` : "ETA …"}
+                        {r.eta
+                          ? `ETA ${fmtSecs(rescaleBlueLightSeconds(r.eta.seconds, r.appliance.type))}`
+                          : "ETA …"}
                         {r.eta?.source === "fallback" && " (est)"}
                       </span>
                     </div>

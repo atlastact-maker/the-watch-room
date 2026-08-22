@@ -2,6 +2,8 @@
 // proxies OpenRouteService), with a haversine fallback if the endpoint
 // is unreachable or returns an error.
 
+import type { ApplianceTypeCode } from "./types";
+
 type Coords = { lat: number; lng: number };
 
 const FALLBACK_AVG_MPH = 35;
@@ -9,18 +11,101 @@ const FALLBACK_AVG_MPH = 35;
 /**
  * Blue-light time reduction vs. normal driving. UK emergency vehicles save
  * ~30–40% on urban journeys thanks to filtering through junctions, using
- * bus lanes, pace through red signals, etc. We apply a single blended
- * factor everywhere a vehicle is mobilising on a 999 call so the dispatch
- * ETAs the operator sees reflect realistic blue-light road times rather
- * than Google-Maps drive times.
+ * bus lanes, pace through red signals, etc. This is the FLEET-AVERAGE
+ * baseline the station-wide ETA sweep prices with; individual vehicles
+ * rescale from it via blueLightFactorFor below.
  */
 export const BLUE_LIGHT_FACTOR = 0.65;
+
+/**
+ * Per-class blue-light factor vs normal driving. What a vehicle actually
+ * does on blues depends on what it is: a traffic bike filters through
+ * anything, a 2-tonne response car corners flat, an 18-tonne pump
+ * accelerates like a truck, and an aerial barely saves anything.
+ */
+export function blueLightFactorFor(type: ApplianceTypeCode | undefined): number {
+  switch (type) {
+    // Motorbikes — filter through stationary traffic.
+    case "Police_TraffMot":
+      return 0.52;
+    // Police cars — best power-to-weight on four wheels.
+    case "Police_Response":
+    case "Police_ARV":
+    case "Police_RPU":
+    case "Police_Dog":
+    case "Police_SIO":
+      return 0.58;
+    // Ambulance / doctor rapid-response cars.
+    case "RRV":
+    case "QR":
+    case "CCC":
+    case "BASICS":
+    case "OD":
+      return 0.6;
+    // Box-bodied ambulances and medium vans — heavy, top-heavy, cautious.
+    case "DCA":
+    case "HART_vehicle":
+    case "NWAS_IRU":
+    case "Police_Search":
+      return 0.7;
+    // Fire pumps — 12–18 t appliances.
+    case "WrL":
+    case "WrT":
+    case "L6P":
+    case "TRU_pump":
+    case "TRU_van":
+    case "WFU":
+    case "BFU":
+    case "WIU":
+      return 0.78;
+    // The heavies — aerials, prime movers, USAR, command/support units.
+    case "TL":
+    case "HLP":
+    case "PM":
+    case "USAR":
+    case "ICU":
+    case "CSU":
+    case "OSU":
+    case "FIU":
+    case "BASU":
+    case "SACU":
+    case "WU":
+    case "HLL":
+    case "SDU":
+    case "DIM":
+      return 0.85;
+    // Aircraft ETAs are computed as flight time — return the baseline so
+    // a rescale from the sweep is a no-op.
+    case "HEMS":
+    case "Police_NPAS":
+      return BLUE_LIGHT_FACTOR;
+    default:
+      return 0.72;
+  }
+}
+
+/** Rescale a baseline (fleet-average) blue-light ETA in seconds to a
+ *  specific vehicle class. */
+export function rescaleBlueLightSeconds(
+  baselineSeconds: number,
+  type: ApplianceTypeCode | undefined,
+): number {
+  return baselineSeconds * (blueLightFactorFor(type) / BLUE_LIGHT_FACTOR);
+}
 
 /** Return a route result scaled to blue-light travel time. Pass the
  *  base (normal driving) ETA result back to a copy with reduced seconds
  *  — everything else (route polyline, metres) is unchanged. */
 export function blueLight<T extends { seconds: number }>(result: T): T {
   return { ...result, seconds: result.seconds * BLUE_LIGHT_FACTOR };
+}
+
+/** Like blueLight, but for a known vehicle class. */
+export function blueLightFor<T extends { seconds: number }>(
+  result: T,
+  type: ApplianceTypeCode | undefined,
+): T {
+  return { ...result, seconds: result.seconds * blueLightFactorFor(type) };
 }
 
 export type EtaResult = {

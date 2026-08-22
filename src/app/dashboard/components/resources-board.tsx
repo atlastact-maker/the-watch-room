@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { STATUS_LABELS, type Appliance, type ServiceCode, type StatusCode } from "@/lib/sim/types";
 import { categoryOf, categoriesForService, SERVICE_LABEL, unitNoun, type VehicleCategory } from "@/lib/sim/categories";
 import type { StationWithAppliances } from "../page";
+import { rescaleBlueLightSeconds } from "@/lib/sim/eta";
 
 const SERVICE_ORDER: ServiceCode[] = ["Fire", "Ambulance", "Police"];
 
@@ -218,7 +219,7 @@ function VehicleRow({
           {stationName}
           {eta && (
             <span className="ml-2 text-(--color-amber)">
-              ETA {fmtSec(eta.seconds)}
+              ETA {fmtSec(rescaleBlueLightSeconds(eta.seconds, appliance.type))}
               {eta.source === "fallback" && " (est)"}
             </span>
           )}

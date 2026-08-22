@@ -21,7 +21,13 @@ import type {
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
-import { blueLight, haversineMeters, routeEta } from "@/lib/sim/eta";
+import {
+  blueLight,
+  blueLightFor,
+  haversineMeters,
+  rescaleBlueLightSeconds,
+  routeEta,
+} from "@/lib/sim/eta";
 import { scoreIncident } from "@/lib/sim/scoring";
 import { rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
 import { nearestHospital, rollOffloadSeconds } from "@/lib/sim/hospitals";
@@ -1273,7 +1279,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const hospital = nearestHospital(incidentCoords);
     const now = Date.now();
     const [toHosp, toStation] = await Promise.all([
-      routeEta(incidentCoords, hospital.coords).then(blueLight),
+      // Hospital leg runs on blues at ambulance (box-body) pace.
+      routeEta(incidentCoords, hospital.coords).then((r) => blueLightFor(r, "DCA")),
       routeEta(hospital.coords, station.coords),
     ]);
     const offloadSec = rollOffloadSeconds();
@@ -1348,6 +1355,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         crewEquipment[m.id] = defaultLoadoutFor(m.role);
       }
     }
+    // The board's ETAs are priced at the fleet-average blue-light factor;
+    // rescale to what THIS vehicle class actually does on blues (bike <
+    // car < ambulance < pump < aerial). Aircraft rescale as a no-op.
+    const etaSeconds = appliance
+      ? rescaleBlueLightSeconds(args.etaSeconds, appliance.type)
+      : args.etaSeconds;
     setDeployments((prev) => [
       ...prev,
       {
@@ -1355,8 +1368,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         incidentId: activeIncident.id,
         slotId: args.slotId,
         mobilisedAt,
-        etaSeconds: args.etaSeconds,
-        arrivesAt: mobilisedAt + args.etaSeconds * 1000,
+        etaSeconds,
+        arrivesAt: mobilisedAt + etaSeconds * 1000,
         routeMeters: args.routeMeters,
         routeCoords: args.routeCoords,
         lightState: "999",
@@ -1373,7 +1386,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         kind: "mobilised",
         message: `Mobilised ${applianceLabel(args.applianceId)}${
           args.selectedPodType ? ` carrying ${args.selectedPodType}` : ""
-        } · ETA ${fmtSec(args.etaSeconds)}`,
+        } · ETA ${fmtSec(etaSeconds)}`,
       },
     ]);
 
@@ -1457,10 +1470,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
         if (service === "Ambulance") {
           const hospital = nearestHospital(incidentCoords);
-          // Conveying a patient — blue lights on the incident → hospital leg.
-          // Return to station is a normal driving leg once the crew clear.
+          // Conveying a patient — blue lights on the incident → hospital leg
+          // at ambulance (box-body) pace. Return to station is a normal
+          // driving leg once the crew clear.
           const [toHosp, toStation] = await Promise.all([
-            routeEta(incidentCoords, hospital.coords).then(blueLight),
+            routeEta(incidentCoords, hospital.coords).then((r) => blueLightFor(r, "DCA")),
             routeEta(hospital.coords, station.coords),
           ]);
           return {
