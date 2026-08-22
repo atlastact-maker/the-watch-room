@@ -21,6 +21,7 @@ import { BottomActionMenu } from "./bottom-action-menu";
 import type { InformantMessage } from "./informant-panel";
 import { RadioFeed } from "./radio-feed";
 import { DraggableTreatmentPanel } from "./treatment-panel";
+import { ViewSwitch } from "./header";
 import { BaControlBoard } from "./ba-control-board";
 
 type Props = {
@@ -570,13 +571,13 @@ function MissionBar({
       </div>
 
       <div className="flex flex-1 justify-end">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-sm border border-(--color-border) px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-(--color-text) hover:border-(--color-amber-dim) hover:text-(--color-amber)"
-        >
-          ← Close
-        </button>
+        <ViewSwitch
+          mode="ground"
+          groundEnabled
+          onSelect={(m) => {
+            if (m === "area") onClose();
+          }}
+        />
       </div>
     </header>
   );

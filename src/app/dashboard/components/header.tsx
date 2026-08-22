@@ -8,6 +8,54 @@ import { SCENARIOS } from "@/lib/sim/scenarios";
 import type { WeatherState } from "@/lib/sim/weather";
 import { WeatherChip } from "./weather-chip";
 
+/** Area ↔ Ground segmented switch. Ground is only selectable while a
+ *  live incident exists; the ground view renders the same switch in its
+ *  mission bar so the operator can flip back. */
+export function ViewSwitch({
+  mode,
+  groundEnabled,
+  onSelect,
+}: {
+  mode: "area" | "ground";
+  groundEnabled: boolean;
+  onSelect: (mode: "area" | "ground") => void;
+}) {
+  const base =
+    "px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors";
+  return (
+    <div className="flex items-center overflow-hidden rounded-sm border border-(--color-border)">
+      <button
+        type="button"
+        onClick={() => onSelect("area")}
+        className={
+          base +
+          (mode === "area"
+            ? " bg-(--color-amber)/15 text-(--color-amber)"
+            : " text-(--color-text-dim) hover:text-(--color-text)")
+        }
+      >
+        Area
+      </button>
+      <button
+        type="button"
+        disabled={!groundEnabled}
+        onClick={() => groundEnabled && onSelect("ground")}
+        title={groundEnabled ? undefined : "No live incident — ground view opens when one is running"}
+        className={
+          base +
+          (mode === "ground"
+            ? " bg-(--color-amber)/15 text-(--color-amber)"
+            : groundEnabled
+              ? " text-(--color-text-dim) hover:text-(--color-text)"
+              : " cursor-not-allowed text-(--color-text-dim) opacity-40")
+        }
+      >
+        Ground
+      </button>
+    </div>
+  );
+}
+
 type Props = {
   userEmail: string;
   patch: AreaCode;
@@ -22,6 +70,10 @@ type Props = {
   onToggleIncidentPanel: () => void;
   hasActiveIncident: boolean;
   onTriggerScenario: (s: Scenario) => void;
+  /** Area ↔ Ground view switch. Ground selectable only with a live incident. */
+  viewMode?: "area" | "ground";
+  groundViewEnabled?: boolean;
+  onSelectView?: (mode: "area" | "ground") => void;
 };
 
 export function DashboardHeader({
@@ -38,6 +90,9 @@ export function DashboardHeader({
   onToggleIncidentPanel,
   hasActiveIncident,
   onTriggerScenario,
+  viewMode,
+  groundViewEnabled,
+  onSelectView,
 }: Props) {
   const [time, setTime] = useState<string>("--:--:--");
   useEffect(() => {
@@ -78,6 +133,16 @@ export function DashboardHeader({
           <span>UTC {time}</span>
           {weather && <WeatherChip weather={weather} />}
           <span className="text-(--color-border)">|</span>
+          {onSelectView && (
+            <>
+              <ViewSwitch
+                mode={viewMode ?? "area"}
+                groundEnabled={!!groundViewEnabled}
+                onSelect={onSelectView}
+              />
+              <span className="text-(--color-border)">|</span>
+            </>
+          )}
           <UserMenu
             userEmail={userEmail}
             audioMuted={audioMuted}

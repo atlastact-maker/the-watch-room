@@ -2787,6 +2787,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         onToggleIncidentPanel={() => setIncidentPanelVisible((v) => !v)}
         hasActiveIncident={!!activeIncident}
         onTriggerScenario={setPendingCall}
+        viewMode={groundViewOpen && activeIncident ? "ground" : "area"}
+        groundViewEnabled={!!activeIncident && !outcome}
+        onSelectView={(mode) => setGroundViewOpen(mode === "ground" && !!activeIncident)}
       />
 
       <main id="main-content" className="relative flex-1 overflow-hidden" aria-label="Dispatch map and panels">
@@ -2865,7 +2868,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onResolve={resolveIncident}
             onDismiss={dismissIncident}
             onClose={() => setIncidentPanelVisible(false)}
-            onOpenGroundView={() => setGroundViewOpen(true)}
           />
         )}
         {activeIncident && groundViewOpen && incidentSim && (

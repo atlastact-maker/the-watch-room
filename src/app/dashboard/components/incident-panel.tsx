@@ -29,7 +29,6 @@ type Props = {
   onResolve: () => void;
   onDismiss: () => void;
   onClose: () => void;
-  onOpenGroundView: () => void;
 };
 
 export function DraggableIncidentPanel({
@@ -43,7 +42,6 @@ export function DraggableIncidentPanel({
   onResolve,
   onDismiss,
   onClose,
-  onOpenGroundView,
 }: Props) {
   const [etas, setEtas] = useState<Record<string, Eta>>({});
 
@@ -113,22 +111,13 @@ export function DraggableIncidentPanel({
           </div>
           <div className="flex items-center gap-2">
             {!resolved && (
-              <>
-                <button
-                  type="button"
-                  onClick={onOpenGroundView}
-                  className="rounded-sm border border-(--color-info)/50 bg-(--color-info)/10 px-2 py-0.5 text-(--color-info) hover:bg-(--color-info)/20"
-                >
-                  Ground view
-                </button>
-                <button
-                  type="button"
-                  onClick={onResolve}
-                  className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
-                >
-                  Resolve
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={onResolve}
+                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
+              >
+                Resolve
+              </button>
             )}
             {resolved && (
               <button
