@@ -16,7 +16,12 @@ import {
 } from "react-leaflet";
 import { fetchOsmBuildingPolygon } from "@/lib/sim/osm_building";
 import { fetchOsmHydrants, type OsmHydrant } from "@/lib/sim/osm_hydrants";
-import { fetchOsmRoads, snapToNearestRoad, type OsmRoadWay } from "@/lib/sim/osm_roads";
+import {
+  fetchOsmRoads,
+  snapToNearestRoad,
+  snapToNearestRoadWithBearing,
+  type OsmRoadWay,
+} from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
 import type { HoseType, Incident, KitKind, Task, TaskKind } from "@/lib/sim/incident_types";
 import type { ApplianceTypeCode } from "@/lib/sim/types";
@@ -475,6 +480,8 @@ function ZoomTracker({ onZoom }: { onZoom: (z: number) => void }) {
 function MapClickHandler({
   parking,
   roads,
+  closureActive,
+  onClosureClick,
   onPickedPos,
   onPickedBearing,
 }: {
@@ -482,11 +489,33 @@ function MapClickHandler({
   /** Road polylines to snap parking clicks onto. Empty until Overpass
    *  resolves; in that case we fall through to the raw click. */
   roads: OsmRoadWay[];
+  /** True while the operator is placing a road closure — takes priority
+   *  over the parking flow for the next click. */
+  closureActive: boolean;
+  onClosureClick: (lat: number, lng: number, bearingDeg: number) => void;
   onPickedPos: (pos: { lat: number; lng: number }) => void;
   onPickedBearing: (bearingDeg: number) => void;
 }) {
   useMapEvents({
     click(e) {
+      if (closureActive) {
+        // Snap generously (60 m) — closures only make sense on a road.
+        // With no snap available, honour the raw click with bearing 0.
+        const snapped =
+          roads.length > 0
+            ? snapToNearestRoadWithBearing(
+                { lat: e.latlng.lat, lng: e.latlng.lng },
+                roads,
+                60,
+              )
+            : null;
+        onClosureClick(
+          snapped?.lat ?? e.latlng.lat,
+          snapped?.lng ?? e.latlng.lng,
+          snapped?.bearingDeg ?? 0,
+        );
+        return;
+      }
       if (parking.phase === "pos") {
         // Snap the click to the nearest drivable road if one is within
         // ~25 m, otherwise honour the operator's literal click (they may
@@ -520,6 +549,79 @@ function MapClickHandler({
 // -----------------------------------------------------------------------------
 // Curved polyline fallback when ORS doesn't return a foot route
 // -----------------------------------------------------------------------------
+
+/** Offset a lat/lng by `meters` along a compass bearing (deg, 0 = north).
+ *  Equirectangular — plenty for the tens of metres a closure spans. */
+function offsetAlongBearing(
+  lat: number,
+  lng: number,
+  bearingDeg: number,
+  meters: number,
+): [number, number] {
+  const rad = (bearingDeg * Math.PI) / 180;
+  const dLat = (meters * Math.cos(rad)) / 111_320;
+  const dLng =
+    (meters * Math.sin(rad)) / (111_320 * Math.cos((lat * Math.PI) / 180));
+  return [lat + dLat, lng + dLng];
+}
+
+/** Cone line drawn square across the road, with a status chip. Blinks
+ *  while the crew is still setting out; solid once the closure holds. */
+function closureIcon(
+  kind: "close_carriageway" | "close_road",
+  inForce: boolean,
+  roadBearingDeg: number,
+): L.DivIcon {
+  const cone = `
+    <svg viewBox="0 0 10 12" width="11" height="13" aria-hidden="true">
+      <polygon points="5,0 8.6,10.4 1.4,10.4" fill="#f97316"></polygon>
+      <rect x="2.6" y="5.6" width="4.8" height="1.7" fill="#ffffff"></rect>
+      <rect x="0.4" y="10.4" width="9.2" height="1.6" fill="#ea580c"></rect>
+    </svg>`;
+  const cones = Array.from({ length: 5 }, () => cone).join("");
+  const label = inForce
+    ? kind === "close_road"
+      ? "ROAD CLOSED"
+      : "C'WAY CLOSED"
+    : "CLOSING…";
+  const chipColour = inForce ? "#ef4444" : "#f59e0b";
+  const blink = inForce ? "" : "animation: closure-blink 1s steps(2, start) infinite;";
+  return L.divIcon({
+    className: "",
+    iconSize: [140, 64],
+    iconAnchor: [70, 20],
+    html: `
+      <div style="position: relative; width: 140px; height: 64px; pointer-events: none;">
+        <div style="
+          position: absolute; left: 70px; top: 20px;
+          transform: translate(-50%, -50%) rotate(${Math.round(roadBearingDeg + 90)}deg);
+          display: flex; gap: 5px; align-items: flex-end;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+          ${blink}
+        ">${cones}</div>
+        <div style="
+          position: absolute; left: 70px; top: 44px;
+          transform: translateX(-50%);
+          padding: 2px 6px;
+          background: rgba(10,10,12,0.92);
+          border: 1px solid ${chipColour};
+          border-radius: 2px;
+          font-family: var(--font-geist-mono), ui-monospace, monospace;
+          font-size: 9px; line-height: 1;
+          letter-spacing: 0.12em;
+          color: ${chipColour};
+          white-space: nowrap;
+        ">${label}</div>
+      </div>
+      <style>
+        @keyframes closure-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.35; }
+        }
+      </style>
+    `,
+  });
+}
 
 function curvedPolyline(
   from: { lat: number; lng: number },
@@ -584,6 +686,8 @@ export function LeafletGroundMap({
   onStartTask,
   onAbortTask,
   onSelectAppliance,
+  closurePick,
+  onPlaceClosure,
 }: {
   incident: Incident;
   resolved: ResolvedDeployment[];
@@ -603,6 +707,9 @@ export function LeafletGroundMap({
   onStartTask: StartTaskFn;
   onAbortTask: (taskId: string) => void;
   onSelectAppliance: (id: string | null) => void;
+  /** Armed by the incident view while the operator places a road closure. */
+  closurePick?: { kind: "close_carriageway" | "close_road" } | null;
+  onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
 }) {
   const centre: [number, number] = [
     incident.scenario.location.coords.lat,
@@ -867,6 +974,8 @@ export function LeafletGroundMap({
       <MapClickHandler
         parking={parking}
         roads={osmRoads}
+        closureActive={!!closurePick}
+        onClosureClick={(lat, lng, bearingDeg) => onPlaceClosure?.(lat, lng, bearingDeg)}
         onPickedPos={(pos) => {
           if (parking.phase !== "pos") return;
           setParking({
@@ -931,6 +1040,49 @@ export function LeafletGroundMap({
           />
         );
       })()}
+
+      {/* Road closures \u2014 a cone line square across the carriageway at the
+          operator-placed point, plus a red dashed stretch of closed road
+          once the closure is in force. Blinks while crews are still
+          setting out cones. */}
+      {tasks
+        .filter(
+          (t) =>
+            (t.kind === "close_carriageway" || t.kind === "close_road") &&
+            t.state !== "aborted" &&
+            t.closurePos,
+        )
+        .map((t) => {
+          const pos = t.closurePos!;
+          const bearing = t.closureBearingDeg ?? 0;
+          const inForce = t.state === "completed";
+          const stretch: [number, number][] = [
+            offsetAlongBearing(pos.lat, pos.lng, bearing, -38),
+            offsetAlongBearing(pos.lat, pos.lng, bearing, 38),
+          ];
+          return (
+            <Fragment key={`closure-${t.id}`}>
+              {inForce && (
+                <Polyline
+                  positions={stretch}
+                  pathOptions={{
+                    color: "#ef4444",
+                    weight: 5,
+                    opacity: 0.45,
+                    dashArray: "10 8",
+                    lineCap: "round",
+                  }}
+                  interactive={false}
+                />
+              )}
+              <Marker
+                position={[pos.lat, pos.lng]}
+                icon={closureIcon(t.kind as "close_carriageway" | "close_road", inForce, bearing)}
+                interactive={false}
+              />
+            </Fragment>
+          );
+        })}
 
       {/* Subtle building outline (no fill) \u2014 optional spatial hint when OSM
           has a polygon. The primary address marker is the pin below. */}

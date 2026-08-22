@@ -50,9 +50,13 @@ export function GroundSceneMap(props: {
     kitKind?: import("@/lib/sim/incident_types").KitKind;
     hazardId?: string;
     mitigationMethod?: string;
+    closurePos?: { lat: number; lng: number };
+    closureBearingDeg?: number;
   }) => void;
   onAbortTask: (taskId: string) => void;
   onSelectAppliance: (id: string | null) => void;
+  closurePick?: { kind: "close_carriageway" | "close_road" } | null;
+  onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
 }) {
   return (
     <div className="absolute inset-0">

@@ -69,6 +69,38 @@ export function snapToNearestRoad(
   return best;
 }
 
+/** Like snapToNearestRoad, but also reports the road's bearing at the
+ *  snapped segment (compass degrees, 0 = north). Used by road-closure
+ *  placement so the cone line can render square across the carriageway. */
+export function snapToNearestRoadWithBearing(
+  click: LatLng,
+  ways: OsmRoadWay[],
+  maxSnapM = 25,
+): { lat: number; lng: number; distanceM: number; bearingDeg: number } | null {
+  let best:
+    | { lat: number; lng: number; distanceM: number; bearingDeg: number }
+    | null = null;
+  for (const way of ways) {
+    for (let i = 1; i < way.coords.length; i++) {
+      const [aLat, aLng] = way.coords[i - 1];
+      const [bLat, bLng] = way.coords[i];
+      const snapped = closestPointOnSegment(
+        click,
+        { lat: aLat, lng: aLng },
+        { lat: bLat, lng: bLng },
+      );
+      const d = haversineM(click, snapped);
+      if (!best || d < best.distanceM) {
+        const bearingDeg =
+          ((Math.atan2(bLng - aLng, bLat - aLat) * 180) / Math.PI + 360) % 360;
+        best = { lat: snapped.lat, lng: snapped.lng, distanceM: d, bearingDeg };
+      }
+    }
+  }
+  if (!best || best.distanceM > maxSnapM) return null;
+  return best;
+}
+
 /** Project `p` onto segment `a`→`b`. Uses equirectangular approximation
  *  — negligible error over the metre-scale segments we care about. */
 function closestPointOnSegment(p: LatLng, a: LatLng, b: LatLng): LatLng {

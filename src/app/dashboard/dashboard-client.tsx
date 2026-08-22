@@ -2424,6 +2424,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     attackMode?: import("@/lib/sim/incident_types").HoseAttackMode;
     baMode?: "search" | "firefighting";
     casualtyId?: string;
+    closurePos?: { lat: number; lng: number };
+    closureBearingDeg?: number;
   }) {
     const startedAt = Date.now();
     // Realistic per-task timings.
@@ -2447,8 +2449,25 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       attackMode: args.attackMode,
       baMode: args.baMode,
       casualtyId: args.casualtyId,
+      closurePos: args.closurePos,
+      closureBearingDeg: args.closureBearingDeg,
     };
     setTasks((prev) => [...prev, task]);
+
+    if (args.kind === "close_carriageway" || args.kind === "close_road") {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `closure:${startedAt}`,
+          timestamp: startedAt,
+          kind: "task_started",
+          message:
+            args.kind === "close_road"
+              ? `${applianceLabel(args.applianceId)} closing the road — cones and diversion signage going out`
+              : `${applianceLabel(args.applianceId)} closing the carriageway — cones going out`,
+        },
+      ]);
+    }
 
     // Kick off a foot-route fetch for hose-laying tasks and attach when it lands.
     if (
@@ -2949,6 +2968,10 @@ function taskDurationSecFor(args: {
     }
     case "deploy_stabilisers":
       return 90; // set jacks + levels
+    case "close_carriageway":
+      return 120; // cone the running lane(s) off one carriageway
+    case "close_road":
+      return 180; // full closure — cones both ends + diversion signage
     case "rtc_extrication":
       return 600; // average "golden hour" for a full extrication evolution
     case "firebreak":
@@ -2997,6 +3020,8 @@ function taskLabel(kind: TaskKind): string {
     case "wildfire_knapsack": return "Knapsack sprayer";
     case "firebreak": return "Cut firebreak";
     case "cordon": return "Cordon";
+    case "close_carriageway": return "Carriageway closure";
+    case "close_road": return "Road closure";
     case "traffic_mgmt": return "Traffic management";
     case "scene_preservation": return "Scene preservation";
     case "triage_sieve": return "Triage sieve";

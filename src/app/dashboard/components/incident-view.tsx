@@ -57,6 +57,8 @@ type Props = {
     kitKind?: KitKind;
     hazardId?: string;
     mitigationMethod?: string;
+    closurePos?: { lat: number; lng: number };
+    closureBearingDeg?: number;
   }) => void;
   onAbortTask: (taskId: string) => void;
   onUpdateBaRemarks?: (taskId: string, text: string) => void;
@@ -204,6 +206,22 @@ export function IncidentView({
 }: Props) {
   const scene = incident.scenario.scene;
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
+  // Road-closure placement: set when the operator picks Close carriageway /
+  // Close road in the action menu (crew already chosen); the next ground-map
+  // click on a road places the cone line and starts the task. Esc cancels.
+  const [pendingClosure, setPendingClosure] = useState<{
+    applianceId: string;
+    kind: "close_carriageway" | "close_road";
+    crewIds: string[];
+  } | null>(null);
+  useEffect(() => {
+    if (!pendingClosure) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPendingClosure(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pendingClosure]);
   // Per-panel collapse state — the operator can pin any side/bottom panel to
   // reclaim screen real-estate for the map. The action menu is not collapsible
   // (the whole point is it stays fully visible when a vehicle is selected).
@@ -339,10 +357,42 @@ export function IncidentView({
             onStartTask={onStartTask}
             onAbortTask={onAbortTask}
             onSelectAppliance={setSelectedApplianceId}
+            closurePick={pendingClosure ? { kind: pendingClosure.kind } : null}
+            onPlaceClosure={(lat, lng, bearingDeg) => {
+              if (!pendingClosure) return;
+              onStartTask({
+                applianceId: pendingClosure.applianceId,
+                kind: pendingClosure.kind,
+                assignedCrewIds: pendingClosure.crewIds,
+                closurePos: { lat, lng },
+                closureBearingDeg: bearingDeg,
+              });
+              setPendingClosure(null);
+            }}
           />
           <SceneOverlay
             enRouteAwaitingParking={enRouteDeployments.filter((r) => !r.deployment.parkingPos).length}
           />
+          {/* Road-closure placement banner */}
+          {pendingClosure && (
+            <div className="pointer-events-auto absolute left-1/2 top-3 z-[650] -translate-x-1/2 rounded-sm border border-(--color-critical)/60 bg-(--color-bg)/95 px-4 py-2 shadow-lg">
+              <div className="flex items-center gap-3">
+                <span className="dot-live size-2 rounded-full bg-(--color-critical)" />
+                <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-text)">
+                  {pendingClosure.kind === "close_road"
+                    ? "Click the road to close it"
+                    : "Click the carriageway to close it"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPendingClosure(null)}
+                  className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+                >
+                  Cancel · Esc
+                </button>
+              </div>
+            </div>
+          )}
           {/* Vehicle action menu — overlays the right third of the map area
               when a vehicle is selected, so it's always fully visible and
               doesn't steal from the SITREP / right-rail panels. */}
@@ -362,6 +412,13 @@ export function IncidentView({
                 now={now}
                 onStartTask={onStartTask}
                 onAbortTask={onAbortTask}
+                onBeginRoadClosure={(kind, crewIds) =>
+                  setPendingClosure({
+                    applianceId: selectedAppliance.id,
+                    kind,
+                    crewIds,
+                  })
+                }
                 onClose={() => setSelectedApplianceId(null)}
                 onSceneSeconds={selectedOnSceneSec}
                 onSetLightState={onSetLightState}
@@ -2603,6 +2660,8 @@ function taskLabelShort(kind: TaskKind): string {
     case "wildfire_knapsack": return "Knapsack";
     case "firebreak": return "Firebreak";
     case "cordon": return "Cordon";
+    case "close_carriageway": return "C'way Closure";
+    case "close_road": return "Road Closure";
     case "traffic_mgmt": return "Traffic Mgmt";
     case "scene_preservation": return "Scene Preserve";
     case "triage_sieve": return "Triage";

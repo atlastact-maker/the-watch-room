@@ -106,6 +106,7 @@ export type CapabilityTag =
   | "Police_Air"
   | "Police_Dog"
   | "Police_Traffic"
+  | "Police_Roads"
   | "Police_Search"
   | "Police_Investigation";
 
@@ -152,7 +153,8 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
   Police_ARV: ["Police_Response", "Police_Armed"],
   Police_NPAS: ["Police_Response", "Police_Air"],
   Police_Dog: ["Police_Response", "Police_Dog"],
-  Police_TraffMot: ["Police_Response", "Police_Traffic"],
+  Police_TraffMot: ["Police_Response", "Police_Traffic", "Police_Roads"],
+  Police_RPU: ["Police_Response", "Police_Traffic", "Police_Roads"],
   Police_Search: ["Police_Search"],
   Police_SIO: ["Police_Investigation", "Command"],
 };
@@ -668,6 +670,8 @@ export type TaskKind =
   // Police
   | "cordon"              // timed — establish inner or outer cordon
   | "traffic_mgmt"        // ongoing — lane closure / traffic direction
+  | "close_carriageway"   // timed setup, then held — one carriageway coned off
+  | "close_road"          // timed setup, then held — full road closure + diversion
   | "scene_preservation"  // ongoing — evidence preservation (SIO)
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
@@ -820,6 +824,12 @@ export type Task = {
   baMode?: "search" | "firefighting";
   /** For extract_casualty: which casualty this crew is moving out. */
   casualtyId?: string;
+  /** For close_carriageway / close_road: where the cone line sits,
+   *  snapped to the nearest OSM road when the operator placed it. */
+  closurePos?: { lat: number; lng: number };
+  /** Road bearing at the closure point (compass degrees) — the cone
+   *  line renders perpendicular to this. */
+  closureBearingDeg?: number;
   // ---- BA Entry Control Board (ba_sar only) ------------------------------
   /** Entry-point label, e.g. "EP1" / "Front door" / "Stairwell A". */
   entryPoint?: string;
@@ -863,6 +873,8 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   firebreak: 2,
   cordon: 2,
   traffic_mgmt: 1,
+  close_carriageway: 1,
+  close_road: 2,
   scene_preservation: 1,
   triage_sieve: 1,
   extract_casualty: 2,
@@ -893,6 +905,8 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   firebreak: ["Fire"],
   cordon: ["Police"],
   traffic_mgmt: ["Police"],
+  close_carriageway: ["Police"],
+  close_road: ["Police"],
   scene_preservation: ["Police"],
   triage_sieve: ["Ambulance"],
   extract_casualty: ["Fire"],

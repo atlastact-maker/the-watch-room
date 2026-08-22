@@ -298,6 +298,7 @@ const COMPOSITION: Partial<Record<ApplianceTypeCode, (keyof typeof ROLES)[]>> = 
   Police_NPAS: ["npas_pilot", "npas_tfo"],
   Police_Dog: ["dog_handler"],
   Police_TraffMot: ["traffic_officer"],
+  Police_RPU: ["traffic_officer", "traffic_officer"],
   Police_Search: ["polsa", "pc_response", "pc_response"],
   Police_SIO: ["sio"],
 };

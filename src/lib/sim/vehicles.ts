@@ -43,6 +43,7 @@ export const MAKE_MODEL: Record<ApplianceTypeCode, { make: string; model: string
   Police_NPAS:      { make: "Airbus",        model: "H145 / H135 NPAS" },
   Police_Dog:       { make: "Škoda",         model: "Kodiaq Dog Van" },
   Police_TraffMot:  { make: "BMW",           model: "R 1250 RT-P Roads Policing" },
+  Police_RPU:       { make: "Volvo",         model: "V90 D5 Roads Policing" },
   Police_Search:    { make: "Ford",          model: "Transit POLSA" },
   Police_SIO:       { make: "Škoda",         model: "Superb SIO" },
 };

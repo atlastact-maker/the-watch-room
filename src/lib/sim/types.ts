@@ -21,6 +21,7 @@ export type ApplianceTypeCode =
   | "Police_NPAS"       // National Police Air Service helicopter
   | "Police_Dog"        // Dog unit — PD handler + specialist dog
   | "Police_TraffMot"   // Roads policing motorbike
+  | "Police_RPU"        // Roads policing car — closures, ANPR, collision scene
   | "Police_Search"     // POLSA-led specialist search team
   | "Police_SIO";       // Senior Investigating Officer car
 

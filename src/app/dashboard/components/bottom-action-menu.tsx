@@ -75,6 +75,8 @@ export type StartTaskFn = (args: {
   attackMode?: HoseAttackMode;
   baMode?: "search" | "firefighting";
   casualtyId?: string;
+  closurePos?: { lat: number; lng: number };
+  closureBearingDeg?: number;
 }) => void;
 
 type Tab = "vehicle" | "crew" | "water" | "treatment" | "actions";
@@ -115,6 +117,7 @@ export function BottomActionMenu({
   now,
   onStartTask,
   onAbortTask,
+  onBeginRoadClosure,
   onClose,
   onSceneSeconds,
   onSetLightState,
@@ -181,6 +184,12 @@ export function BottomActionMenu({
   now: number;
   onStartTask: StartTaskFn;
   onAbortTask: (taskId: string) => void;
+  /** Road-closure placement: crew picked here, the closure point is then
+   *  clicked on the ground map (handled by the incident view). */
+  onBeginRoadClosure?: (
+    kind: "close_carriageway" | "close_road",
+    crewIds: string[],
+  ) => void;
   onClose: () => void;
   onSceneSeconds: number | null;
   onSetLightState: (applianceId: string, state: LightState) => void;
@@ -343,6 +352,7 @@ export function BottomActionMenu({
               now={now}
               onStartTask={onStartTask}
               onAbortTask={onAbortTask}
+              onBeginRoadClosure={onBeginRoadClosure}
               onUpdateBaRemarks={onUpdateBaRemarks}
               onUpdateBaEntryPoint={onUpdateBaEntryPoint}
               onSetTreatingCasualty={onSetTreatingCasualty}
@@ -1385,6 +1395,7 @@ function ActionsTab({
   now,
   onStartTask,
   onAbortTask,
+  onBeginRoadClosure,
   onUpdateBaRemarks,
   onUpdateBaEntryPoint,
   onSetTreatingCasualty,
@@ -1402,6 +1413,10 @@ function ActionsTab({
   now: number;
   onStartTask: StartTaskFn;
   onAbortTask: (taskId: string) => void;
+  onBeginRoadClosure?: (
+    kind: "close_carriageway" | "close_road",
+    crewIds: string[],
+  ) => void;
   onUpdateBaRemarks?: (taskId: string, text: string) => void;
   onUpdateBaEntryPoint?: (taskId: string, label: string) => void;
   onSetTreatingCasualty?: (applianceId: string, casualtyId: string | null) => void;
@@ -1465,6 +1480,16 @@ function ActionsTab({
   function confirm() {
     if (!pending) return;
     if (pickedCrew.length < TASK_MIN_CREW[pending.kind]) return;
+    // Road closures need a point on the map: hand the picked crew back
+    // to the incident view, which arms click-to-place on the ground map.
+    if (
+      (pending.kind === "close_carriageway" || pending.kind === "close_road") &&
+      onBeginRoadClosure
+    ) {
+      onBeginRoadClosure(pending.kind, pickedCrew);
+      cancel();
+      return;
+    }
     onStartTask({
       applianceId: appliance.id,
       kind: pending.kind,
@@ -1969,6 +1994,72 @@ function ActionsTab({
               tone="amber"
               onClick={() => start({ kind: "cordon", label: "Cordon" })}
             />
+            {(CAPABILITIES_BY_TYPE[appliance.type] ?? []).includes("Police_Roads") &&
+              (
+                [
+                  {
+                    kind: "close_carriageway" as const,
+                    verb: "Close carriageway",
+                    done: "Carriageway closed",
+                    detail: "cone off one carriageway · 120s",
+                  },
+                  {
+                    kind: "close_road" as const,
+                    verb: "Close road",
+                    done: "Road closed",
+                    detail: "full closure + diversion signage · 180s",
+                  },
+                ]
+              ).map((c) => {
+                const existing = tasks.find(
+                  (t) =>
+                    t.applianceId === appliance.id &&
+                    t.kind === c.kind &&
+                    t.state !== "aborted",
+                );
+                if (existing?.state === "completed") {
+                  return (
+                    <div key={c.kind} className="grid grid-cols-[1fr_auto] gap-1.5">
+                      <BigBtn
+                        label={`✓ ${c.done}`}
+                        detail="closure in force"
+                        disabled
+                        tone="amber"
+                        onClick={() => {}}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onAbortTask(existing.id)}
+                        className="rounded-sm border border-(--color-border) px-3 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
+                        title="Lift the closure and recover the cones"
+                      >
+                        Reopen
+                      </button>
+                    </div>
+                  );
+                }
+                if (existing) {
+                  return (
+                    <BigBtn
+                      key={c.kind}
+                      label="Cones going out…"
+                      detail={c.verb.toLowerCase()}
+                      disabled
+                      tone="muted"
+                      onClick={() => {}}
+                    />
+                  );
+                }
+                return (
+                  <BigBtn
+                    key={c.kind}
+                    label={c.verb}
+                    detail={`${c.detail} · then click the road`}
+                    tone="amber"
+                    onClick={() => start({ kind: c.kind, label: c.verb })}
+                  />
+                );
+              })}
             <BigBtn
               label={
                 ownActive.some((t) => t.kind === "traffic_mgmt")
@@ -2473,6 +2564,10 @@ function taskShortLabel(k: TaskKind): string {
       return "Firebreak";
     case "cordon":
       return "Cordon";
+    case "close_carriageway":
+      return "C'way Closure";
+    case "close_road":
+      return "Road Closure";
     case "traffic_mgmt":
       return "Traffic Mgmt";
     case "scene_preservation":

@@ -161,7 +161,7 @@
           "name": "Roads Policing — Eccles",
           "staffing": "Force Roads Policing Unit",
           "resources": [
-            "2x Police_Response",
+            "3x Police_RPU",
             "2x Police_TraffMot"
           ],
           "address": "Gilda Brook Road",

@@ -219,6 +219,7 @@ const GMP_CALLSIGN_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
   Police_ARV: "AR",
   Police_Dog: "PD",
   Police_TraffMot: "RPU",
+  Police_RPU: "RP",
   Police_Search: "POLSA",
 };
 
