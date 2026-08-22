@@ -90,6 +90,13 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   const [patch, setPatch] = useState<Patch>("Southern");
   const [intensity, setIntensity] = useState<ShiftIntensity>("normal");
   const [startHour, setStartHour] = useState<number>(8);
+  // Which services' specialist assets are shown. All on by default;
+  // the list scrolls internally so the page itself never grows.
+  const [showServices, setShowServices] = useState<Record<ServiceCode, boolean>>({
+    Fire: true,
+    Ambulance: true,
+    Police: true,
+  });
 
   const stationsForPatch = [
     ...stationsByArea[patch],
@@ -121,15 +128,16 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   })();
 
   const hints = hintsForHour(startHour);
+  const visibleSpecialists = specialists.filter((sp) => showServices[sp.service]);
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col p-8">
-      <div className="mb-6 flex items-baseline justify-between gap-6">
+    <div className="flex h-[100dvh] w-full flex-col overflow-hidden p-6">
+      <div className="mb-4 flex items-baseline justify-between gap-6">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
             Watch Room // Pre-shift Briefing
           </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             Pick your patch
           </h1>
         </div>
@@ -202,10 +210,13 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
           </div>
         </div>
 
-        {/* --- Right rail: incidents + specialists + shift setup --- */}
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-          <section className="rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
-            <div className="mb-3 flex items-baseline justify-between">
+        {/* --- Right rail: incidents + specialists + shift setup ---
+            The rail is exactly viewport-bounded: incidents and the
+            specialist list scroll INTERNALLY, so the page itself never
+            becomes scrollable however much is shown. */}
+        <div className="flex min-h-0 flex-col gap-3">
+          <section className="flex-none rounded-sm border border-(--color-border) bg-(--color-surface) p-3">
+            <div className="mb-2 flex items-baseline justify-between">
               <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
                 Possible incidents
               </p>
@@ -214,20 +225,20 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
               </span>
             </div>
             {scenariosForPatch.length === 0 ? (
-              <p className="mt-2 text-sm text-(--color-text-muted)">
+              <p className="text-sm text-(--color-text-muted)">
                 No scenarios wired for this patch yet. The shift will run but
                 no 999 calls will come in — pick another patch to see incidents.
               </p>
             ) : (
-              <ol className="space-y-2">
+              <ol className="max-h-36 space-y-2 overflow-y-auto pr-1">
                 {scenariosForPatch.map((s, i) => (
                   <li
                     key={s.id}
-                    className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg) p-3"
+                    className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg) p-2.5"
                   >
                     <div className="flex items-baseline gap-3">
                       <span
-                        className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold text-black"
+                        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold text-black"
                         style={{
                           background:
                             SEVERITY_COLOUR[s.severity] ?? "#f59e0b",
@@ -239,7 +250,7 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
                         <p className="text-sm font-semibold leading-snug text-(--color-text)">
                           {s.title}
                         </p>
-                        <p className="mt-1 font-mono text-xs uppercase tracking-widest text-(--color-text-dim)">
+                        <p className="mt-0.5 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
                           {s.severity} · {s.type.replace(/_/g, " ")}
                         </p>
                       </div>
@@ -250,22 +261,51 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
             )}
           </section>
 
-          <section className="rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
-            <div className="mb-3 flex items-baseline justify-between">
+          <section className="flex min-h-0 flex-1 flex-col rounded-sm border border-(--color-border) bg-(--color-surface) p-3">
+            <div className="mb-2 flex items-baseline justify-between">
               <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
                 Specialist resources
               </p>
               <span className="font-mono text-xs uppercase tracking-widest text-(--color-text-dim)">
-                {specialists.reduce((s, x) => s + x.count, 0)}
+                {visibleSpecialists.reduce((s, x) => s + x.count, 0)}
               </span>
             </div>
-            {specialists.length === 0 ? (
+            {/* Service filter boxes */}
+            <div className="mb-2 grid flex-none grid-cols-3 gap-2">
+              {(["Fire", "Ambulance", "Police"] as ServiceCode[]).map((svc) => {
+                const on = showServices[svc];
+                return (
+                  <button
+                    key={svc}
+                    type="button"
+                    onClick={() =>
+                      setShowServices((prev) => ({ ...prev, [svc]: !prev[svc] }))
+                    }
+                    className={
+                      "flex items-center justify-center gap-2 rounded-sm border px-2 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors " +
+                      (on
+                        ? "border-(--color-amber) bg-(--color-amber)/10 text-(--color-text)"
+                        : "border-(--color-border) text-(--color-text-dim) opacity-60 hover:opacity-100")
+                    }
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-[1px]"
+                      style={{ background: SERVICE_COLOUR[svc] }}
+                    />
+                    {svc === "Ambulance" ? "Amb" : svc}
+                  </button>
+                );
+              })}
+            </div>
+            {visibleSpecialists.length === 0 ? (
               <p className="text-sm text-(--color-text-muted)">
-                No specialist assets in this patch.
+                {specialists.length === 0
+                  ? "No specialist assets in this patch."
+                  : "No services selected — tick a box above."}
               </p>
             ) : (
-              <ul className="space-y-1.5">
-                {specialists.map((sp) => (
+              <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+                {visibleSpecialists.map((sp) => (
                   <li
                     key={`${sp.service}|${sp.typeName}`}
                     className="flex items-center justify-between gap-3 rounded-sm border border-(--color-border-subtle) bg-(--color-bg) px-3 py-1.5"
@@ -288,7 +328,7 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
             )}
           </section>
 
-          <section className="rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
+          <section className="flex-none rounded-sm border border-(--color-border) bg-(--color-surface) p-3">
             <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
               Shift intensity
             </p>
