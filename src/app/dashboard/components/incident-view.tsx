@@ -99,6 +99,9 @@ type Props = {
     scope: "ap" | "ccc" | "basics" | "hems",
     casualtyId: string,
   ) => void;
+  /** Whether the NWAA airframe can fly right now (daylight + weather).
+   *  False → the HEMS request row explains the night car responds. */
+  hemsFlyable?: boolean;
   onSetTreatmentDestination?: (
     casualtyId: string,
     type: import("@/lib/sim/scene").HospitalDestinationType,
@@ -193,6 +196,7 @@ export function IncidentView({
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
+  hemsFlyable,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -295,6 +299,7 @@ export function IncidentView({
             onAdministerDrug={onAdministerDrug}
             onApplyPackaging={onApplyPackaging}
             onRequestClinician={onRequestClinician}
+            hemsFlyable={hemsFlyable}
             onSetTreatmentDestination={onSetTreatmentDestination}
             onSendAtmistPrealert={onSendAtmistPrealert}
             onConveyCasualtyVia={onConveyCasualtyVia}
@@ -721,6 +726,7 @@ function LeftRail({
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
+  hemsFlyable,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -747,6 +753,7 @@ function LeftRail({
   onAdministerDrug?: Props["onAdministerDrug"];
   onApplyPackaging?: Props["onApplyPackaging"];
   onRequestClinician?: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
+  hemsFlyable?: boolean;
   onSetTreatmentDestination?: Props["onSetTreatmentDestination"];
   onSendAtmistPrealert?: (casualtyId: string) => void;
   onConveyCasualtyVia?: (applianceId: string, casualtyId: string) => void;
@@ -861,6 +868,7 @@ function LeftRail({
           onAdministerDrug={onAdministerDrug}
           onApplyPackaging={onApplyPackaging}
           onRequestClinician={onRequestClinician}
+          hemsFlyable={hemsFlyable}
           onSetTreatmentDestination={onSetTreatmentDestination}
           onSendAtmistPrealert={onSendAtmistPrealert}
           onConveyCasualtyVia={onConveyCasualtyVia}
@@ -1051,6 +1059,7 @@ function CasualtiesBody({
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
+  hemsFlyable,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -1069,6 +1078,7 @@ function CasualtiesBody({
   onAdministerDrug?: Props["onAdministerDrug"];
   onApplyPackaging?: Props["onApplyPackaging"];
   onRequestClinician?: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
+  hemsFlyable?: boolean;
   onSetTreatmentDestination?: Props["onSetTreatmentDestination"];
   onSendAtmistPrealert?: (casualtyId: string) => void;
   onConveyCasualtyVia?: (applianceId: string, casualtyId: string) => void;
@@ -1282,6 +1292,7 @@ function CasualtiesBody({
             onAdministerDrug={(id, d, by) => onAdministerDrug?.(id, d, by)}
             onApplyPackaging={(id, a, by) => onApplyPackaging?.(id, a, by)}
             onRequestClinician={(s, id) => onRequestClinician?.(s, id)}
+            hemsFlyable={hemsFlyable}
             onSetDestination={(id, type, name) =>
               onSetTreatmentDestination?.(id, type, name)
             }
@@ -1982,9 +1993,16 @@ function CrewLine({
         : "text-(--color-info)";
   const caps = CAPABILITIES_BY_TYPE[r.appliance.type] ?? [];
   const isBaCapable = caps.includes("BA");
+  const hemsFlight = r.deployment.hemsFlight;
   const phaseLabel =
     r.phase === "mobile"
-      ? `Mobile · ETA ${fmtMs(r.deployment.arrivesAt - now)}`
+      ? hemsFlight && !r.deployment.parkingPos
+        ? now >= hemsFlight.overheadAt
+          ? "Overhead — LZ required"
+          : `Airborne · overhead ${fmtMs(hemsFlight.overheadAt - now)}`
+        : hemsFlight
+          ? `Landing · crew on foot · ${fmtMs(r.deployment.arrivesAt - now)}`
+          : `Mobile · ETA ${fmtMs(r.deployment.arrivesAt - now)}`
       : r.phase === "at_incident"
         ? `On scene · ${fmtMs(now - r.deployment.arrivesAt)}`
         : r.phase === "at_hospital"

@@ -755,7 +755,11 @@ export function LeafletGroundMap({
     if (r.phase !== "mobile" && r.phase !== "at_incident") continue;
     awaitingPlacement.push({
       applianceId: r.deployment.applianceId,
-      callsign: r.appliance.callsign,
+      // A helicopter's placement IS its landing zone — flag it in the
+      // panel so the operator knows they're picking an LZ, not a bay.
+      callsign: r.deployment.hemsFlight
+        ? `${r.appliance.callsign} · SELECT LZ`
+        : r.appliance.callsign,
       phase: r.phase,
     });
   }

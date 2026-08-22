@@ -140,6 +140,13 @@ function shiftDeployment(d: Deployment, offset: number): Deployment {
     welfareStartedAt: shift(d.welfareStartedAt, offset),
     welfareEndsAt: shift(d.welfareEndsAt, offset),
     lastWelfareAt: shift(d.lastWelfareAt, offset),
+    hemsFlight: d.hemsFlight
+      ? {
+          ...d.hemsFlight,
+          overheadAt: d.hemsFlight.overheadAt + offset,
+          lzConfirmedAt: shift(d.hemsFlight.lzConfirmedAt, offset),
+        }
+      : undefined,
   };
 }
 

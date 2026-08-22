@@ -40,7 +40,7 @@ function key(a: Coords, b: Coords): string {
   return `${a.lat.toFixed(5)},${a.lng.toFixed(5)}->${b.lat.toFixed(5)},${b.lng.toFixed(5)}`;
 }
 
-function haversineMeters(a: Coords, b: Coords): number {
+export function haversineMeters(a: Coords, b: Coords): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);

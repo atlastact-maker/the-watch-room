@@ -223,6 +223,7 @@ export function TreatmentTab({
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
+  hemsFlyable,
   onSetDestination,
   onSendAtmist,
   onConveyVia,
@@ -245,6 +246,9 @@ export function TreatmentTab({
   onAdministerDrug: (casualtyId: string, drug: DrugName, by: string) => void;
   onApplyPackaging: (casualtyId: string, action: PackagingAction, by: string) => void;
   onRequestClinician: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
+  /** Whether the NWAA airframe can fly right now (daylight + weather).
+   *  Undefined is treated as flyable. */
+  hemsFlyable?: boolean;
   onSetDestination: (casualtyId: string, type: HospitalDestinationType, name: string) => void;
   onSendAtmist: (casualtyId: string) => void;
   /** Kick off the hospital conveyance leg using the picked on-scene
@@ -560,6 +564,15 @@ export function TreatmentTab({
           <div className="grid grid-cols-1 gap-1.5">
             {(["ap", "ccc", "basics", "hems"] as const).map((s) => {
               const alreadyOn = scopeLvl >= SCOPE_LEVEL[s];
+              // HEMS has two response modes — the airframe (daylight,
+              // needs an LZ picked on the ground view) or the NWAA
+              // critical-care car overnight / in grounding weather.
+              const description =
+                s === "hems"
+                  ? hemsFlyable === false
+                    ? "Aircraft grounded (night/weather) — NWAA car responds by road: doctor + critical care paramedic"
+                    : "Helicopter + doctor team — select a landing zone on the ground view"
+                  : CLINICIAN_DESCRIPTION[s];
               return (
                 <button
                   key={s}
@@ -574,13 +587,16 @@ export function TreatmentTab({
                   }
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <span className="text-[12px]">{SCOPE_LABEL[s]}</span>
+                    <span className="text-[12px]">
+                      {SCOPE_LABEL[s]}
+                      {s === "hems" && hemsFlyable === false ? " · Night car" : ""}
+                    </span>
                     <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
                       {alreadyOn ? "On scene" : "Request"}
                     </span>
                   </div>
                   <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                    {CLINICIAN_DESCRIPTION[s]}
+                    {description}
                   </div>
                 </button>
               );

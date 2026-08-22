@@ -573,6 +573,27 @@ export type Deployment = {
    *  leg so the casualty arrives with the crew that treated them.
    *  One pairing per ambulance (1:1). */
   treatingCasualtyId?: string | null;
+
+  /** HEMS flight leg — set only when the NWAA airframe was dispatched
+   *  (daylight, weather permitting). The aircraft flies a straight line
+   *  to the scene, then holds overhead until the operator confirms a
+   *  landing zone on the ground view; `arrivesAt` stays far in the
+   *  future until the LZ is set, at which point it becomes
+   *  touchdown + walk time (doctor + CCP proceed on foot). */
+  hemsFlight?: {
+    /** Epoch ms the aircraft is overhead the scene. */
+    overheadAt: number;
+    /** Seconds to put the aircraft down once an LZ is confirmed. */
+    landingSec: number;
+    /** Walk time LZ → casualty in seconds. Set when the LZ is confirmed. */
+    walkSec?: number;
+    /** Epoch ms the operator confirmed the LZ. */
+    lzConfirmedAt?: number;
+  };
+  /** True when this deployment is the NWAA critical-care car standing in
+   *  for a grounded helicopter (night / weather) — same doctor + critical
+   *  care paramedic team, responding by road. */
+  hemsNightCar?: boolean;
 };
 
 // Operator-visible event log entry.

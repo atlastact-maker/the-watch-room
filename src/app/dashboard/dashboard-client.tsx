@@ -21,7 +21,7 @@ import type {
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
-import { blueLight, routeEta } from "@/lib/sim/eta";
+import { blueLight, haversineMeters, routeEta } from "@/lib/sim/eta";
 import { scoreIncident } from "@/lib/sim/scoring";
 import { rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
 import { nearestHospital, rollOffloadSeconds } from "@/lib/sim/hospitals";
@@ -1013,16 +1013,136 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     casualtyId: string,
   ) {
     if (!activeIncident) return;
-    // HEMS is grounded by weather / darkness — refuse the request with a
-    // SITREP explanation so the operator knows to escalate differently.
-    if (scope === "hems" && !hemsAvailable(weather)) {
+    // HEMS has two response modes, mirroring how NWAA actually covers
+    // the region:
+    //   • Daylight + flyable weather → the airframe launches from Barton.
+    //     It holds overhead until the operator confirms a landing zone on
+    //     the ground view; only then does it land and the doctor + CCP
+    //     walk in.
+    //   • Darkness / grounding weather → the NWAA critical-care car
+    //     responds by road from the same base — same doctor-paramedic
+    //     team, no aircraft, no LZ needed.
+    if (scope === "hems") {
+      const hemsStation = allDeployableStations.find((s) => s.id === "A-HEMS");
+      const flyable = hemsAvailable(weather);
+      const isFree = (a: Appliance) =>
+        a.status === 7 && !deployments.some((d) => d.applianceId === a.id);
+
+      if (!flyable) {
+        const car = hemsStation?.appliances.find(
+          (a) => a.type === "CCC" && isFree(a),
+        );
+        if (!car) {
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `reqc:hemsgrd:${Date.now()}`,
+              timestamp: Date.now(),
+              kind: "annotation",
+              message: `HEMS grounded (${weather.summary}) and the NWAA critical care car is unavailable — consider BASICS.`,
+            },
+          ]);
+          return;
+        }
+        const eta = etas["A-HEMS"];
+        if (!eta) {
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `reqc:noeta:${Date.now()}`,
+              timestamp: Date.now(),
+              kind: "annotation",
+              message: "NWAA car ETA not yet computed — try again in a moment",
+            },
+          ]);
+          return;
+        }
+        deployAppliance({
+          applianceId: car.id,
+          slotId: "clinician:hems",
+          etaSeconds: eta.seconds,
+          routeMeters: eta.meters,
+          routeCoords: eta.coords ?? undefined,
+        });
+        setDeployments((prev) =>
+          prev.map((d) =>
+            d.applianceId === car.id
+              ? { ...d, treatingCasualtyId: casualtyId, hemsNightCar: true }
+              : d,
+          ),
+        );
+        updateTreatment(casualtyId, (p) => ({
+          ...p,
+          events: [...p.events, { kind: "clinician_requested", scope, at: Date.now() }],
+        }));
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `reqc:hemscar:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: `HEMS aircraft grounded (${weather.summary}) — NWAA critical care car ${car.callsign} responding by road, doctor + critical care paramedic on board · ETA ${Math.round(eta.seconds / 60)} min`,
+          },
+        ]);
+        return;
+      }
+
+      const heli = hemsStation?.appliances.find(
+        (a) => a.type === "HEMS" && isFree(a),
+      );
+      if (!heli || !hemsStation) {
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `reqc:noavail:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: "No HEMS airframe available to request",
+          },
+        ]);
+        return;
+      }
+      const base = hemsStation.coords;
+      const target = activeIncident.scenario.location.coords;
+      const meters = haversineMeters(base, target);
+      // H145: ~3 min lift, ~130 kt cruise (≈67 m/s).
+      const flightSec = Math.round(180 + meters / 67);
+      const now = Date.now();
+      deployAppliance({
+        applianceId: heli.id,
+        slotId: "clinician:hems",
+        etaSeconds: flightSec,
+        routeMeters: Math.round(meters),
+        routeCoords: [
+          [base.lat, base.lng],
+          [target.lat, target.lng],
+        ],
+      });
+      setDeployments((prev) =>
+        prev.map((d) =>
+          d.applianceId === heli.id
+            ? {
+                ...d,
+                treatingCasualtyId: casualtyId,
+                // Block "in attendance" until the operator confirms an LZ —
+                // the aircraft holds overhead from overheadAt onwards.
+                arrivesAt: now + flightSec * 1000 + 6 * 3600 * 1000,
+                hemsFlight: { overheadAt: now + flightSec * 1000, landingSec: 90 },
+              }
+            : d,
+        ),
+      );
+      updateTreatment(casualtyId, (p) => ({
+        ...p,
+        events: [...p.events, { kind: "clinician_requested", scope, at: Date.now() }],
+      }));
       setLog((prev) => [
         ...prev,
         {
-          id: `reqc:hemsgrd:${Date.now()}`,
+          id: `reqc:hemsair:${Date.now()}`,
           timestamp: Date.now(),
           kind: "annotation",
-          message: `HEMS unavailable — grounded (${weather.summary}). Consider CCC or BASICS.`,
+          message: `${heli.callsign} lifting from Barton — overhead in ~${Math.max(1, Math.round(flightSec / 60))} min. Select a landing zone on the ground view before it can land.`,
         },
       ]);
       return;
@@ -1032,9 +1152,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         ? ["QR"]
         : scope === "ccc"
           ? ["CCC"]
-          : scope === "basics"
-            ? ["BASICS"]
-            : ["HEMS"]; // hems
+          : ["BASICS"]; // basics
     // Find the closest free appliance of the wanted type with an ETA.
     const candidates = allDeployableStations
       .flatMap((s) =>
@@ -2083,6 +2201,65 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }, [incidentSim, newlyFoundCasualties, newlyConfirmedHazards, lastFireStage, lastCasualtySeverity]);
 
   function setParkingPos(applianceId: string, lat: number, lng: number, bearingDeg: number) {
+    // HEMS landing-zone confirmation. The helicopter's "parking" IS its
+    // LZ — validate suitability first, then compute touchdown + the
+    // doctor/CCP's walk to the casualty, which becomes the arrival time.
+    const dep = deployments.find((d) => d.applianceId === applianceId);
+    if (dep?.hemsFlight && activeIncident) {
+      const inc = activeIncident.scenario.location.coords;
+      const dist = haversineMeters({ lat, lng }, inc);
+      const reject = (why: string) => {
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `lz:reject:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: `LZ rejected — ${why}`,
+          },
+        ]);
+      };
+      if (dist < 40) {
+        reject(
+          `${Math.round(dist)} m from the scene: too close (rotor downwash, debris and cordon conflict). Pick clear ground 40 m+ out.`,
+        );
+        return;
+      }
+      if (dist > 600) {
+        reject(
+          `${Math.round(dist)} m from the scene: too far — the walk would cost the team ${Math.round(dist / 1.4 / 60)} min. Pick somewhere inside 600 m.`,
+        );
+        return;
+      }
+      const walkSec = Math.round(dist / 1.4); // brisk walk with kit
+      const now = Date.now();
+      const touchdownAt =
+        Math.max(now, dep.hemsFlight.overheadAt) + dep.hemsFlight.landingSec * 1000;
+      const arrivesAt = touchdownAt + walkSec * 1000;
+      setDeployments((prev) =>
+        prev.map((d) =>
+          d.applianceId === applianceId
+            ? {
+                ...d,
+                parkingPos: { lat, lng },
+                parkingBearingDeg: bearingDeg,
+                arrivesAt,
+                hemsFlight: { ...d.hemsFlight!, walkSec, lzConfirmedAt: now },
+              }
+            : d,
+        ),
+      );
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `lz:ok:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "annotation",
+          message: `LZ confirmed ${Math.round(dist)} m from the scene — ${applianceLabel(applianceId)} landing; doctor + CCP proceeding on foot, with casualty in ~${Math.max(1, Math.round((arrivesAt - now) / 60000))} min`,
+        },
+      ]);
+      return;
+    }
     setDeployments((prev) =>
       prev.map((d) =>
         d.applianceId === applianceId
@@ -2550,6 +2727,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onAdministerDrug={administerDrug}
             onApplyPackaging={applyPackaging}
             onRequestClinician={requestClinician}
+            hemsFlyable={hemsAvailable(weather)}
             onSetTreatmentDestination={setTreatmentDestination}
             onSendAtmistPrealert={sendAtmistPrealert}
             onConveyCasualtyVia={conveyCasualtyVia}
