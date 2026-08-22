@@ -42,7 +42,15 @@ export function SignupForm() {
             className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber)"
           />
           <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-muted)">
-            I accept the terms &amp; conditions
+            I accept the{" "}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-(--color-amber) underline underline-offset-2 hover:text-amber-400"
+            >
+              terms &amp; conditions
+            </a>
           </span>
         </label>
         {state?.errors?.acceptTerms?.map((msg) => (
