@@ -83,6 +83,158 @@ export default function Trailer3Page() {
     setSoundOn(true);
     setRunId((r) => r + 1); // restart so the typing scene plays with sound
   };
+  // ---- background suspense bed ----
+  // Scheduled fresh at the top of every loop so it stays locked to the
+  // beats: sub drone throughout; a heartbeat that tightens through
+  // call → allocate → comms then CUTS for the STAND BY build-up;
+  // tension strings swelling under the comms; one deep boom + a D-minor
+  // swell under the title card. Mixed low so the SFX sit on top.
+  const musicNodesRef = useRef<AudioScheduledSourceNode[]>([]);
+  const musicGainRef = useRef<GainNode | null>(null);
+  const stopMusic = () => {
+    const ctx = audioRef.current;
+    if (musicGainRef.current && ctx) {
+      try {
+        const g = musicGainRef.current.gain;
+        g.cancelScheduledValues(ctx.currentTime);
+        g.setValueAtTime(g.value, ctx.currentTime);
+        g.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+      } catch {}
+    }
+    for (const n of musicNodesRef.current) {
+      try {
+        n.stop(audioRef.current ? audioRef.current.currentTime + 0.25 : 0);
+      } catch {}
+    }
+    musicNodesRef.current = [];
+    musicGainRef.current = null;
+  };
+  const startMusic = () => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const END = 33.5;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.5, t0);
+    master.gain.setValueAtTime(0.5, t0 + END - 0.4);
+    master.gain.linearRampToValueAtTime(0, t0 + END);
+    master.connect(ctx.destination);
+    musicGainRef.current = master;
+    const nodes = musicNodesRef.current;
+
+    // Sub drone — D1, two detuned saws through a breathing lowpass.
+    const droneFilter = ctx.createBiquadFilter();
+    droneFilter.type = "lowpass";
+    droneFilter.frequency.value = 260;
+    droneFilter.Q.value = 3;
+    for (const det of [0, 7]) {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.value = 36.71;
+      o.detune.value = det;
+      o.connect(droneFilter);
+      o.start(t0);
+      o.stop(t0 + END);
+      nodes.push(o);
+    }
+    const droneGain = ctx.createGain();
+    droneGain.gain.setValueAtTime(0, t0);
+    droneGain.gain.linearRampToValueAtTime(0.22, t0 + 2);
+    droneGain.gain.linearRampToValueAtTime(0.22, t0 + END - 1);
+    droneGain.gain.linearRampToValueAtTime(0, t0 + END);
+    droneFilter.connect(droneGain);
+    droneGain.connect(master);
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 0.09;
+    const lfoG = ctx.createGain();
+    lfoG.gain.value = 120;
+    lfo.connect(lfoG);
+    lfoG.connect(droneFilter.frequency);
+    lfo.start(t0);
+    lfo.stop(t0 + END);
+    nodes.push(lfo);
+
+    // Heartbeat — tightening intervals, silent through the build-up.
+    const kick = (when: number, gain: number) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(110, when);
+      o.frequency.exponentialRampToValueAtTime(38, when + 0.09);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(gain, when + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, when + 0.3);
+      o.connect(g);
+      g.connect(master);
+      o.start(when);
+      o.stop(when + 0.32);
+      nodes.push(o);
+    };
+    const plan: { until: number; interval: number; gain: number }[] = [
+      { until: 7.5, interval: 1.5, gain: 0.16 },
+      { until: 15, interval: 1.1, gain: 0.2 },
+      { until: 23.8, interval: 0.82, gain: 0.26 },
+    ];
+    let tk = 0.8;
+    for (const seg of plan) {
+      while (tk < seg.until) {
+        kick(t0 + tk, seg.gain);
+        tk += seg.interval;
+      }
+    }
+    // One deep boom under the title card.
+    kick(t0 + 30.8, 0.5);
+
+    // Tension strings — minor third, swelling under comms, hard cut
+    // as STAND BY lands.
+    const strFilter = ctx.createBiquadFilter();
+    strFilter.type = "lowpass";
+    strFilter.frequency.setValueAtTime(500, t0 + 7.5);
+    strFilter.frequency.linearRampToValueAtTime(1500, t0 + 24);
+    for (const f of [220, 261.63]) {
+      const o = ctx.createOscillator();
+      o.type = "sawtooth";
+      o.frequency.value = f;
+      o.detune.value = (Math.floor(f) % 7) - 3;
+      o.connect(strFilter);
+      o.start(t0 + 7.5);
+      o.stop(t0 + 24.2);
+      nodes.push(o);
+    }
+    const strGain = ctx.createGain();
+    strGain.gain.setValueAtTime(0, t0 + 7.5);
+    strGain.gain.linearRampToValueAtTime(0.05, t0 + 15);
+    strGain.gain.linearRampToValueAtTime(0.13, t0 + 23.9);
+    strGain.gain.linearRampToValueAtTime(0, t0 + 24.15);
+    strFilter.connect(strGain);
+    strGain.connect(master);
+
+    // D-minor swell under the title.
+    for (const f of [146.83, 174.61, 220]) {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0 + 30.8);
+      g.gain.linearRampToValueAtTime(0.09, t0 + 31.8);
+      g.gain.linearRampToValueAtTime(0.09, t0 + 32.8);
+      g.gain.linearRampToValueAtTime(0, t0 + 33.4);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0 + 30.8);
+      o.stop(t0 + 33.5);
+      nodes.push(o);
+    }
+  };
+  // Restart the bed at the top of every loop while sound is on.
+  useEffect(() => {
+    if (!soundOn || !audioRef.current) return;
+    startMusic();
+    return () => stopMusic();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, soundOn]);
+
   // ---- shared little synth helpers ----
   const tone = (
     freq: number,
