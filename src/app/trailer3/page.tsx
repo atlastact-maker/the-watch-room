@@ -83,25 +83,33 @@ export default function Trailer3Page() {
     setSoundOn(true);
     setRunId((r) => r + 1); // restart so the typing scene plays with sound
   };
-  // Radio keying blip — short pip + a squelch tail of static, played
-  // as each transmission lands on the comms screen.
-  const playBlip = () => {
+  // ---- shared little synth helpers ----
+  const tone = (
+    freq: number,
+    atSec: number,
+    durSec: number,
+    gain: number,
+    type: OscillatorType = "square",
+  ) => {
     const ctx = audioRef.current;
     if (!ctx) return;
-    const t0 = ctx.currentTime;
+    const t0 = ctx.currentTime + atSec;
     const osc = ctx.createOscillator();
-    osc.type = "square";
-    osc.frequency.value = 1150;
-    const og = ctx.createGain();
-    og.gain.setValueAtTime(0, t0);
-    og.gain.linearRampToValueAtTime(0.06, t0 + 0.008);
-    og.gain.linearRampToValueAtTime(0.06, t0 + 0.05);
-    og.gain.linearRampToValueAtTime(0, t0 + 0.065);
-    osc.connect(og);
-    og.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.008);
+    g.gain.linearRampToValueAtTime(gain, t0 + durSec - 0.012);
+    g.gain.linearRampToValueAtTime(0, t0 + durSec);
+    osc.connect(g);
+    g.connect(ctx.destination);
     osc.start(t0);
-    osc.stop(t0 + 0.07);
-    // Squelch tail
+    osc.stop(t0 + durSec + 0.01);
+  };
+  const squelch = (atSec: number, gain = 0.05) => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
     const dur = 0.09;
     const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
     const data = buf.getChannelData(0);
@@ -114,11 +122,42 @@ export default function Trailer3Page() {
     nf.type = "highpass";
     nf.frequency.value = 1800;
     const ng = ctx.createGain();
-    ng.gain.value = 0.05;
+    ng.gain.value = gain;
     noise.connect(nf);
     nf.connect(ng);
     ng.connect(ctx.destination);
-    noise.start(t0 + 0.06);
+    noise.start(ctx.currentTime + atSec);
+  };
+
+  // Radio keying — varied per service so the channel doesn't sound
+  // like one repeated sample: fire = single sharp pip, ambulance =
+  // softer lower pip, police = double chirp. All get a squelch tail.
+  const playBlip = (service: "F" | "A" | "P") => {
+    if (service === "F") {
+      tone(1150, 0, 0.055, 0.06);
+      squelch(0.06);
+    } else if (service === "A") {
+      tone(840, 0, 0.075, 0.05);
+      squelch(0.08, 0.04);
+    } else {
+      tone(960, 0, 0.035, 0.055);
+      tone(960, 0.07, 0.035, 0.055);
+      squelch(0.11);
+    }
+  };
+
+  // Allocation-board sounds: a soft tick as the cursor steps, an
+  // ascending two-note chirp when a unit locks in, and a three-note
+  // confirmation when the attendance is set.
+  const playStep = () => tone(620, 0, 0.03, 0.035, "sine");
+  const playAssign = () => {
+    tone(880, 0.09, 0.05, 0.055);
+    tone(1245, 0.15, 0.06, 0.055);
+  };
+  const playStamp = () => {
+    tone(660, 0, 0.07, 0.06);
+    tone(880, 0.1, 0.07, 0.06);
+    tone(1100, 0.2, 0.09, 0.06);
   };
   const playClick = () => {
     const ctx = audioRef.current;
@@ -207,7 +246,14 @@ export default function Trailer3Page() {
         <div className="vignette pointer-events-none absolute inset-0 z-30" />
 
         {scene === "call" && <SceneCall onType={soundOn ? playClick : undefined} />}
-        {scene === "allocate" && <SceneAllocate localMs={local} />}
+        {scene === "allocate" && (
+          <SceneAllocate
+            localMs={local}
+            onStep={soundOn ? playStep : undefined}
+            onAssign={soundOn ? playAssign : undefined}
+            onStamp={soundOn ? playStamp : undefined}
+          />
+        )}
         {scene === "comms" && (
           <SceneComms localMs={local} onBlip={soundOn ? playBlip : undefined} />
         )}
@@ -251,13 +297,45 @@ function SceneCall({ onType }: { onType?: () => void }) {
   );
 }
 
-function SceneAllocate({ localMs }: { localMs: number }) {
+function SceneAllocate({
+  localMs,
+  onStep,
+  onAssign,
+  onStamp,
+}: {
+  localMs: number;
+  onStep?: () => void;
+  onAssign?: () => void;
+  onStamp?: () => void;
+}) {
   // A selection cursor sweeps the board, dwelling ~650ms per row.
   // Picked rows flash amber and lock in ASSIGNED; skipped rows stay
   // available. After the sweep, the attendance stamp lands.
   const STEP_MS = 650;
   const cursor = Math.floor(localMs / STEP_MS);
   const sweepDone = cursor >= ALLOCATE_ROWS.length;
+
+  // Sound triggers keyed off cursor movement: tick per step, chirp
+  // when the row just passed locked in, stamp when the sweep ends.
+  const prevCursorRef = useRef(-1);
+  const soundRef = useRef({ onStep, onAssign, onStamp });
+  useEffect(() => {
+    soundRef.current = { onStep, onAssign, onStamp };
+  }, [onStep, onAssign, onStamp]);
+  useEffect(() => {
+    const prev = prevCursorRef.current;
+    if (cursor === prev) return;
+    prevCursorRef.current = cursor;
+    if (cursor <= prev) return; // remount/reset
+    try {
+      if (cursor < ALLOCATE_ROWS.length) soundRef.current.onStep?.();
+      const justPassed = ALLOCATE_ROWS[cursor - 1];
+      if (justPassed?.pick) soundRef.current.onAssign?.();
+      if (cursor >= ALLOCATE_ROWS.length && prev < ALLOCATE_ROWS.length) {
+        soundRef.current.onStamp?.();
+      }
+    } catch {}
+  }, [cursor]);
   const assigned = ALLOCATE_ROWS.filter((r, i) => r.pick && i < cursor).length;
   const svcColour = (s: "F" | "A" | "P") =>
     s === "F" ? "#ef4444" : s === "A" ? "#10b981" : "#3b82f6";
@@ -332,10 +410,10 @@ function SceneComms({
   onBlip,
 }: {
   localMs: number;
-  onBlip?: () => void;
+  onBlip?: (service: "F" | "A" | "P") => void;
 }) {
   const shown = Math.min(COMMS_LINES.length, Math.floor(localMs / 950));
-  // One keying blip per transmission as it lands.
+  // One keying blip per transmission as it lands, voiced per service.
   const prevShownRef = useRef(0);
   const onBlipRef = useRef(onBlip);
   useEffect(() => {
@@ -343,8 +421,9 @@ function SceneComms({
   }, [onBlip]);
   useEffect(() => {
     if (shown > prevShownRef.current) {
+      const line = COMMS_LINES[shown - 1];
       try {
-        onBlipRef.current?.();
+        if (line) onBlipRef.current?.(line.service);
       } catch {}
     }
     prevShownRef.current = shown;
