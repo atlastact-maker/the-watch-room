@@ -86,8 +86,14 @@ export default function TermsPage() {
             </Section>
 
             <Section n="08" title="Contact">
-              Questions about these terms or your data: [contact email — to
-              be added].
+              Questions about these terms or your data:{" "}
+              <a
+                href="mailto:atlastact@gmail.com"
+                className="text-(--color-amber) underline underline-offset-2 hover:text-amber-400"
+              >
+                atlastact@gmail.com
+              </a>
+              .
             </Section>
           </div>
         </div>
