@@ -141,10 +141,12 @@ export function PatchBriefingMap({
           key={i}
           positions={ring}
           pathOptions={{
-            color: "#f59e0b",
-            weight: 1.5,
-            fillColor: "#f59e0b",
-            fillOpacity: 0.06,
+            // Red outline — this is the ground the operator is signing
+            // up to cover for the shift.
+            color: "#ef4444",
+            weight: 2.5,
+            fillColor: "#ef4444",
+            fillOpacity: 0.05,
           }}
         />
       ))}
