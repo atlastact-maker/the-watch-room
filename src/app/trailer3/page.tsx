@@ -14,12 +14,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Scene = "call" | "allocate" | "mobilise" | "standby";
+type Scene = "call" | "allocate" | "comms" | "standby";
 
 const TIMELINE: { scene: Scene; ms: number }[] = [
   { scene: "call", ms: 7500 },
   { scene: "allocate", ms: 7500 },
-  { scene: "mobilise", ms: 8000 },
+  { scene: "comms", ms: 9000 },
   { scene: "standby", ms: 9500 },
 ];
 const TOTAL_MS = TIMELINE.reduce((s, t) => s + t.ms, 0);
@@ -31,15 +31,16 @@ const ADDRESS_LINES = [
   "CALLER STATES CHILD UPSTAIRS",
 ];
 
-const MOBILISE_LINES: { text: string; service: "F" | "A" | "P" }[] = [
-  { text: "G15-P1 · MOBILE", service: "F" },
-  { text: "G15-P2 · MOBILE", service: "F" },
-  { text: "G50-P1 · MOBILE", service: "F" },
-  { text: "A-547 · MOBILE", service: "A" },
-  { text: "MP66-21 · MOBILE", service: "P" },
-  { text: "G50-A3 · AERIAL MOBILE", service: "F" },
-  { text: "HELIMED 72 · LIFTING", service: "A" },
-  { text: "RP-07 · CLOSING THE ROAD", service: "P" },
+// Scene comms — radio traffic once crews start landing on the job.
+const COMMS_LINES: { time: string; cs: string; msg: string; service: "F" | "A" | "P" }[] = [
+  { time: "03:19:04", cs: "G15-P1", msg: "IN ATTENDANCE — SMOKE SHOWING", service: "F" },
+  { time: "03:19:31", cs: "RP-07", msg: "CARRIAGEWAY CLOSED — CONES OUT", service: "P" },
+  { time: "03:20:12", cs: "G15-P1", msg: "BA COMMITTED ×2 — EMERGENCY SEARCH", service: "F" },
+  { time: "03:20:44", cs: "A-547", msg: "ON SCENE — CASUALTY IDENTIFIED", service: "A" },
+  { time: "03:21:07", cs: "HELIMED 72", msg: "OVERHEAD — REQUEST LZ", service: "A" },
+  { time: "03:21:39", cs: "G15-P1", msg: "CASUALTY LOCATED — FIRST FLOOR", service: "F" },
+  { time: "03:22:02", cs: "HELIMED 72", msg: "ON THE GROUND — DOCTOR WALKING IN", service: "A" },
+  { time: "03:22:28", cs: "G15-P2", msg: "CASUALTY OUT — HANDING OVER", service: "F" },
 ];
 
 // Allocation board — candidate units the cursor sweeps over. `pick`
@@ -64,6 +65,45 @@ export default function Trailer3Page() {
   const [runId, setRunId] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef<number>(0);
+  // Typewriter click audio — opt-in (browsers block audio pre-gesture).
+  const [soundOn, setSoundOn] = useState(false);
+  const audioRef = useRef<AudioContext | null>(null);
+  const toggleSound = () => {
+    if (soundOn) {
+      audioRef.current?.close().catch(() => {});
+      audioRef.current = null;
+      setSoundOn(false);
+      return;
+    }
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    audioRef.current = new Ctor();
+    setSoundOn(true);
+    setRunId((r) => r + 1); // restart so the typing scene plays with sound
+  };
+  const playClick = () => {
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    const dur = 0.025;
+    const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 3200;
+    const g = ctx.createGain();
+    g.gain.value = 0.09;
+    noise.connect(filter);
+    filter.connect(g);
+    g.connect(ctx.destination);
+    noise.start();
+  };
 
   useEffect(() => {
     startRef.current = performance.now();
@@ -109,6 +149,13 @@ export default function Trailer3Page() {
         >
           ▸ replay
         </button>
+        <button
+          onClick={toggleSound}
+          className={soundOn ? "text-amber-400 hover:text-amber-300" : "text-zinc-400 hover:text-zinc-100"}
+          title={soundOn ? "Mute typing sound" : "Enable typing sound — restarts the loop"}
+        >
+          {soundOn ? "♪ sound on" : "♪ sound off"}
+        </button>
         <span className="text-zinc-700">loops auto</span>
       </div>
 
@@ -122,9 +169,9 @@ export default function Trailer3Page() {
         <div className="scan pointer-events-none absolute inset-0 z-30" />
         <div className="vignette pointer-events-none absolute inset-0 z-30" />
 
-        {scene === "call" && <SceneCall />}
+        {scene === "call" && <SceneCall onType={soundOn ? playClick : undefined} />}
         {scene === "allocate" && <SceneAllocate localMs={local} />}
-        {scene === "mobilise" && <SceneMobilise localMs={local} />}
+        {scene === "comms" && <SceneComms localMs={local} />}
         {scene === "standby" && <SceneStandby localMs={local} />}
       </div>
     </div>
@@ -133,7 +180,7 @@ export default function Trailer3Page() {
 
 /* ------------------------------ scenes ------------------------------ */
 
-function SceneCall() {
+function SceneCall({ onType }: { onType?: () => void }) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col justify-center px-7">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.4em] text-red-400">
@@ -147,6 +194,7 @@ function SceneCall() {
             text={line}
             startDelayMs={500 + i * 1500}
             charMs={38}
+            onChar={onType}
             className={
               i === 0
                 ? "text-[22px] font-bold leading-snug text-zinc-50"
@@ -240,44 +288,40 @@ function SceneAllocate({ localMs }: { localMs: number }) {
   );
 }
 
-function SceneMobilise({ localMs }: { localMs: number }) {
-  const shown = Math.min(
-    MOBILISE_LINES.length,
-    Math.floor(localMs / 750),
-  );
-  const mobile = shown;
+function SceneComms({ localMs }: { localMs: number }) {
+  const shown = Math.min(COMMS_LINES.length, Math.floor(localMs / 950));
   return (
-    <div className="absolute inset-0 z-10 flex flex-col justify-center px-7">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-500">
-          Assigned resources
+    <div className="absolute inset-0 z-10 flex flex-col justify-center px-6">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.4em] text-zinc-500">
+          <span className="size-1.5 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full bg-emerald-400" />
+          Scene comms · CH1
         </span>
-        <span className="text-[26px] font-bold tabular-nums text-amber-400">
-          {mobile}
+        <span className="text-[10px] uppercase tracking-[0.3em] text-zinc-600">
+          live
         </span>
       </div>
       <ul className="mt-4 space-y-2.5">
-        {MOBILISE_LINES.slice(0, shown).map((l) => (
-          <li
-            key={l.text}
-            className="flex items-center gap-3 animate-[slideIn_0.3s_ease-out]"
-          >
-            <span
-              className="inline-block h-3 w-3 rounded-[2px]"
-              style={{
-                background:
-                  l.service === "F"
-                    ? "#ef4444"
-                    : l.service === "A"
-                      ? "#10b981"
-                      : "#3b82f6",
-              }}
-            />
-            <span className="text-[15px] tracking-[0.08em] text-zinc-200">
-              {l.text}
-            </span>
-          </li>
-        ))}
+        {COMMS_LINES.slice(0, shown).map((l) => {
+          const colour =
+            l.service === "F" ? "#ef4444" : l.service === "A" ? "#10b981" : "#3b82f6";
+          return (
+            <li key={l.time} className="animate-[slideIn_0.3s_ease-out]">
+              <div className="flex items-baseline gap-2 text-[10px] tracking-[0.15em] text-zinc-500">
+                <span className="tabular-nums">{l.time}</span>
+                <span className="font-bold" style={{ color: colour }}>
+                  {l.cs}
+                </span>
+              </div>
+              <div className="mt-0.5 flex gap-2">
+                <span style={{ color: colour }}>▌</span>
+                <span className="text-[15px] font-bold leading-snug tracking-[0.04em] text-zinc-100">
+                  {l.msg}
+                </span>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -329,14 +373,21 @@ function TypeLine({
   startDelayMs,
   charMs,
   className,
+  onChar,
 }: {
   text: string;
   startDelayMs: number;
   charMs: number;
   className?: string;
+  /** Fired once per revealed character — drives the typing click. */
+  onChar?: () => void;
 }) {
   const [shown, setShown] = useState("");
   const [started, setStarted] = useState(false);
+  const onCharRef = useRef(onChar);
+  useEffect(() => {
+    onCharRef.current = onChar;
+  }, [onChar]);
   useEffect(() => {
     let cancelled = false;
     let i = 0;
@@ -347,6 +398,9 @@ function TypeLine({
         if (cancelled) return;
         i += 1;
         setShown(text.slice(0, i));
+        try {
+          onCharRef.current?.();
+        } catch {}
         if (i >= text.length) window.clearInterval(id);
       }, charMs);
     }, startDelayMs);
