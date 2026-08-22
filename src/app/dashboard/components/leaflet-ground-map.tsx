@@ -630,20 +630,12 @@ function offsetAlongBearing(
   return [lat + dLat, lng + dLng];
 }
 
-/** Cone line drawn square across the road, with a status chip. Blinks
- *  while the crew is still setting out; solid once the closure holds. */
-function closureIcon(
+/** Single top-down traffic cone (concentric rings on a square base) with
+ *  a small status chip. Blinks while the crew is still setting out. */
+function topDownConeIcon(
   kind: "close_carriageway" | "close_road",
   inForce: boolean,
-  roadBearingDeg: number,
 ): L.DivIcon {
-  const cone = `
-    <svg viewBox="0 0 10 12" width="11" height="13" aria-hidden="true">
-      <polygon points="5,0 8.6,10.4 1.4,10.4" fill="#f97316"></polygon>
-      <rect x="2.6" y="5.6" width="4.8" height="1.7" fill="#ffffff"></rect>
-      <rect x="0.4" y="10.4" width="9.2" height="1.6" fill="#ea580c"></rect>
-    </svg>`;
-  const cones = Array.from({ length: 5 }, () => cone).join("");
   const label = inForce
     ? kind === "close_road"
       ? "ROAD CLOSED"
@@ -653,19 +645,25 @@ function closureIcon(
   const blink = inForce ? "" : "animation: closure-blink 1s steps(2, start) infinite;";
   return L.divIcon({
     className: "",
-    iconSize: [140, 64],
-    iconAnchor: [70, 20],
+    iconSize: [120, 52],
+    iconAnchor: [60, 11],
     html: `
-      <div style="position: relative; width: 140px; height: 64px; pointer-events: none;">
+      <div style="position: relative; width: 120px; height: 52px; pointer-events: none;">
         <div style="
-          position: absolute; left: 70px; top: 20px;
-          transform: translate(-50%, -50%) rotate(${Math.round(roadBearingDeg + 90)}deg);
-          display: flex; gap: 5px; align-items: flex-end;
+          position: absolute; left: 60px; top: 11px;
+          transform: translate(-50%, -50%);
           filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
           ${blink}
-        ">${cones}</div>
+        ">
+          <svg viewBox="0 0 22 22" width="20" height="20" aria-hidden="true">
+            <rect x="1" y="1" width="20" height="20" rx="3" fill="#ea580c"></rect>
+            <circle cx="11" cy="11" r="7.5" fill="#f97316" stroke="#ffffff" stroke-width="2"></circle>
+            <circle cx="11" cy="11" r="3" fill="#fb923c" stroke="#ea580c" stroke-width="1"></circle>
+            <circle cx="11" cy="11" r="1.2" fill="#7c2d12"></circle>
+          </svg>
+        </div>
         <div style="
-          position: absolute; left: 70px; top: 44px;
+          position: absolute; left: 60px; top: 30px;
           transform: translateX(-50%);
           padding: 2px 6px;
           background: rgba(10,10,12,0.92);
@@ -1153,10 +1151,10 @@ export function LeafletGroundMap({
           );
         })}
 
-      {/* Road closures \u2014 a cone line square across the carriageway at the
-          operator-placed point, plus a red dashed stretch of closed road
-          once the closure is in force. Blinks while crews are still
-          setting out cones. */}
+      {/* Road closures \u2014 three crisp dashes drawn kerb-to-kerb across the
+          carriageway (half-width for a single-carriageway closure) with a
+          single top-down cone at the middle. Amber while the crew is
+          setting out; red once the closure is in force. */}
       {tasks
         .filter(
           (t) =>
@@ -1166,30 +1164,49 @@ export function LeafletGroundMap({
         )
         .map((t) => {
           const pos = t.closurePos!;
-          const bearing = t.closureBearingDeg ?? 0;
+          const perp = (t.closureBearingDeg ?? 0) + 90;
           const inForce = t.state === "completed";
-          const stretch: [number, number][] = [
-            offsetAlongBearing(pos.lat, pos.lng, bearing, -38),
-            offsetAlongBearing(pos.lat, pos.lng, bearing, 38),
-          ];
+          const fullRoad = t.kind === "close_road";
+          // Full road: kerb to kerb (\u00b15.5 m). Carriageway: road centre
+          // out to one kerb only.
+          const from = fullRoad ? -5.5 : 0;
+          const to = fullRoad ? 5.5 : 5.5;
+          // Exactly three dashes: split the span into 5 slots, draw
+          // slots 0/2/4 \u2014 zoom-independent, always tidy.
+          const span = to - from;
+          const step = span / 5;
+          const dashes: [number, number][][] = [0, 2, 4].map((k) => [
+            offsetAlongBearing(pos.lat, pos.lng, perp, from + k * step),
+            offsetAlongBearing(pos.lat, pos.lng, perp, from + (k + 1) * step),
+          ]);
+          const colour = inForce ? "#ef4444" : "#f59e0b";
+          const coneAt = offsetAlongBearing(
+            pos.lat,
+            pos.lng,
+            perp,
+            fullRoad ? 0 : span / 2,
+          );
           return (
             <Fragment key={`closure-${t.id}`}>
-              {inForce && (
+              {dashes.map((d, i) => (
                 <Polyline
-                  positions={stretch}
+                  key={i}
+                  positions={d}
                   pathOptions={{
-                    color: "#ef4444",
-                    weight: 5,
-                    opacity: 0.45,
-                    dashArray: "10 8",
-                    lineCap: "round",
+                    color: colour,
+                    weight: 4,
+                    opacity: inForce ? 0.95 : 0.8,
+                    lineCap: "butt",
                   }}
                   interactive={false}
                 />
-              )}
+              ))}
               <Marker
-                position={[pos.lat, pos.lng]}
-                icon={closureIcon(t.kind as "close_carriageway" | "close_road", inForce, bearing)}
+                position={coneAt}
+                icon={topDownConeIcon(
+                  t.kind as "close_carriageway" | "close_road",
+                  inForce,
+                )}
                 interactive={false}
               />
             </Fragment>
