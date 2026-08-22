@@ -1,15 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Server-side proxy for OpenRouteService driving directions. Keeps ORS_API_KEY
-// off the client and gives us a single place to cache / rate-limit / swap
-// providers later. Returns a stable shape regardless of upstream response.
+// Server-side routing proxy. Primary: OpenRouteService (keyed, 40 req/min
+// free tier). Fallback: the public OSRM demo server — keyless, so a burst
+// of station-ETA requests that blows the ORS rate limit still comes back
+// with real road geometry instead of degrading to straight lines.
 
 type Success = {
   meters: number;
   seconds: number;
   coords: [number, number][]; // [lat, lng] pairs for Leaflet
-  source: "ors";
+  source: "ors" | "osrm";
 };
 
 type Failure = { error: string; source: "ors" };
@@ -24,14 +25,6 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "unauthorized", source: "ors" } satisfies Failure, {
       status: 401,
     });
-  }
-
-  const key = process.env.ORS_API_KEY;
-  if (!key) {
-    return NextResponse.json(
-      { error: "ORS_API_KEY not configured", source: "ors" } satisfies Failure,
-      { status: 503 },
-    );
   }
 
   const sp = request.nextUrl.searchParams;
@@ -54,6 +47,33 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 
+  // Primary: ORS (when keyed and under quota).
+  const key = process.env.ORS_API_KEY;
+  if (key) {
+    const ors = await fetchOrs(key, profile, fromLat, fromLng, toLat, toLng);
+    if (ors) return NextResponse.json(ors);
+  }
+
+  // Fallback: public OSRM demo server (driving only — its foot profile
+  // isn't hosted, so foot requests estimate duration from the driving
+  // geometry at walking pace).
+  const osrm = await fetchOsrm(fromLat, fromLng, toLat, toLng, mode);
+  if (osrm) return NextResponse.json(osrm);
+
+  return NextResponse.json(
+    { error: "no routing upstream available", source: "ors" } satisfies Failure,
+    { status: 502 },
+  );
+}
+
+async function fetchOrs(
+  key: string,
+  profile: string,
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): Promise<Success | null> {
   const upstream = new URL(
     `https://api.openrouteservice.org/v2/directions/${profile}`,
   );
@@ -61,54 +81,91 @@ export async function GET(request: NextRequest): Promise<Response> {
   upstream.searchParams.set("start", `${fromLng},${fromLat}`);
   upstream.searchParams.set("end", `${toLng},${toLat}`);
 
-  let body: unknown;
   try {
     const res = await fetch(upstream.toString(), {
       // ORS responses vary little for fixed coords, so cache aggressively on
       // the server for 10 minutes to reduce quota burn from repeated shifts.
       next: { revalidate: 600 },
+      signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `ORS upstream ${res.status}`, source: "ors" } satisfies Failure,
-        { status: 502 },
-      );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      features?: {
+        geometry?: { coordinates?: [number, number][] };
+        properties?: { summary?: { distance?: number; duration?: number } };
+      }[];
+    };
+    const feature = body?.features?.[0];
+    const raw = feature?.geometry?.coordinates;
+    const meters = feature?.properties?.summary?.distance;
+    const seconds = feature?.properties?.summary?.duration;
+    if (
+      !Array.isArray(raw) ||
+      raw.length < 2 ||
+      typeof meters !== "number" ||
+      typeof seconds !== "number"
+    ) {
+      return null;
     }
-    body = await res.json();
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error: err instanceof Error ? err.message : "fetch failed",
-        source: "ors",
-      } satisfies Failure,
-      { status: 502 },
-    );
+    return {
+      meters,
+      seconds,
+      coords: raw.map(([lng, lat]) => [lat, lng] as [number, number]),
+      source: "ors",
+    };
+  } catch {
+    return null;
   }
+}
 
-  const feature = (body as {
-    features?: {
-      geometry?: { coordinates?: [number, number][] };
-      properties?: { summary?: { distance?: number; duration?: number } };
-    }[];
-  })?.features?.[0];
+const WALKING_MPS = 1.4;
 
-  const raw = feature?.geometry?.coordinates;
-  const meters = feature?.properties?.summary?.distance;
-  const seconds = feature?.properties?.summary?.duration;
-
-  if (
-    !Array.isArray(raw) ||
-    raw.length < 2 ||
-    typeof meters !== "number" ||
-    typeof seconds !== "number"
-  ) {
-    return NextResponse.json(
-      { error: "ORS returned no route", source: "ors" } satisfies Failure,
-      { status: 502 },
-    );
+async function fetchOsrm(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+  mode: "driving" | "foot",
+): Promise<Success | null> {
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${fromLng},${fromLat};${toLng},${toLat}` +
+    `?overview=full&geometries=geojson&alternatives=false&steps=false`;
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: 600 },
+      signal: AbortSignal.timeout(8_000),
+      headers: { "User-Agent": "TheWatchRoom-sim/0.1 (UK ops-room game)" },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      code?: string;
+      routes?: {
+        distance?: number;
+        duration?: number;
+        geometry?: { coordinates?: [number, number][] };
+      }[];
+    };
+    const route = body?.routes?.[0];
+    const raw = route?.geometry?.coordinates;
+    const meters = route?.distance;
+    const seconds = route?.duration;
+    if (
+      body?.code !== "Ok" ||
+      !Array.isArray(raw) ||
+      raw.length < 2 ||
+      typeof meters !== "number" ||
+      typeof seconds !== "number"
+    ) {
+      return null;
+    }
+    return {
+      meters,
+      seconds: mode === "foot" ? meters / WALKING_MPS : seconds,
+      coords: raw.map(([lng, lat]) => [lat, lng] as [number, number]),
+      source: "osrm",
+    };
+  } catch {
+    return null;
   }
-
-  const coords: [number, number][] = raw.map(([lng, lat]) => [lat, lng]);
-
-  return NextResponse.json({ meters, seconds, coords, source: "ors" } satisfies Success);
 }

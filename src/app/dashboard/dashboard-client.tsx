@@ -1372,6 +1372,32 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         } · ETA ${fmtSec(args.etaSeconds)}`,
       },
     ]);
+
+    // Just-in-time road geometry. The station-wide ETA sweep degrades to
+    // straight-line estimates when the routing provider rate-limits, so a
+    // unit could otherwise animate point-to-point across the map. Any
+    // deployment that mobilised without a real polyline fetches its own
+    // route now (a single request, so it's never rate-limited away) and
+    // patches the geometry in — timing is left untouched to avoid ETA
+    // jumps mid-run.
+    if (!args.routeCoords || args.routeCoords.length < 2) {
+      const station = findStationForAppliance(args.applianceId);
+      const target = activeIncident.scenario.location.coords;
+      if (station) {
+        void routeEta(station.coords, target)
+          .then((r) => {
+            if (!r.coords || r.coords.length < 2) return;
+            setDeployments((prev) =>
+              prev.map((d) =>
+                d.applianceId === args.applianceId && d.mobilisedAt === mobilisedAt
+                  ? { ...d, routeCoords: r.coords!, routeMeters: r.meters }
+                  : d,
+              ),
+            );
+          })
+          .catch(() => {});
+      }
+    }
   }
 
   async function resolveIncident() {
