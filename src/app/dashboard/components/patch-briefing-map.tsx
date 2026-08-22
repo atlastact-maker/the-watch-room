@@ -128,13 +128,20 @@ export function PatchBriefingMap({
     <MapContainer
       center={centre}
       zoom={10}
-      scrollWheelZoom
+      // Fixed-zoom briefing overview — FitToPatch frames the patch and
+      // the operator can't zoom in/out (pan still works).
+      zoomControl={false}
+      scrollWheelZoom={false}
+      doubleClickZoom={false}
+      touchZoom={false}
+      boxZoom={false}
+      keyboard={false}
       className="h-full w-full rounded-sm"
-      style={{ background: "#0b0f14" }}
+      style={{ background: "#e8e6e1" }}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {rings?.map((ring, i) => (
         <Polygon
