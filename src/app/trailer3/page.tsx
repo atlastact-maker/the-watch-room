@@ -367,8 +367,19 @@ export default function Trailer3Page() {
     <div className="fixed inset-0 flex items-center justify-center bg-black font-mono text-zinc-100 select-none">
       <style>{KEYFRAMES}</style>
 
-      {/* Side-gutter controls — OUTSIDE the 9:16 stage. */}
-      <div className="absolute left-4 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-3 text-[10px] uppercase tracking-[0.3em] text-zinc-600">
+      {/* Mobile sound button — tiny, and vanishes once sound is on so a
+          phone screen-recording stays clean. Desktop uses the gutter. */}
+      {!soundOn && (
+        <button
+          onClick={toggleSound}
+          className="absolute bottom-5 left-5 z-50 rounded-full border border-zinc-700 bg-black/70 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-zinc-300 md:hidden"
+        >
+          ♪ sound
+        </button>
+      )}
+
+      {/* Side-gutter controls — OUTSIDE the 9:16 stage on desktop. */}
+      <div className="absolute left-4 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-3 text-[10px] uppercase tracking-[0.3em] text-zinc-600 md:flex">
         <span>9:16</span>
         <span>tiktok cut</span>
         <button
