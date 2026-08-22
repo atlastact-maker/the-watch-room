@@ -1,34 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import {
-  MapContainer,
-  Marker,
-  Polygon,
-  Popup,
-  TileLayer,
-  useMap,
-} from "react-leaflet";
-import type { AreaCode, ServiceCode } from "@/lib/sim/types";
-import type { StationWithAppliances } from "../page";
-import type { Scenario } from "@/lib/sim/incident_types";
+import { MapContainer, Polygon, TileLayer, useMap } from "react-leaflet";
+import type { AreaCode } from "@/lib/sim/types";
 
 type Patch = Exclude<AreaCode, "ForceWide">;
-
-const SERVICE_COLOUR: Record<ServiceCode, string> = {
-  Fire: "#f59e0b",
-  Ambulance: "#10b981",
-  Police: "#6366f1",
-};
-
-const SEVERITY_COLOUR: Record<string, string> = {
-  low: "#94a3b8",
-  moderate: "#eab308",
-  high: "#f97316",
-  major: "#ef4444",
-};
 
 // World-covering rectangle used as the outer ring of the grey-out mask;
 // the patch's borough rings are punched into it as holes.
@@ -39,36 +17,12 @@ const WORLD_RECT: [number, number][] = [
   [85, -180],
 ];
 
-function stationDot(service: ServiceCode): L.DivIcon {
-  const c = SERVICE_COLOUR[service];
-  return L.divIcon({
-    className: "",
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-    html: `<div style="
-      width:10px;height:10px;border-radius:2px;background:${c};
-      border:1.5px solid rgba(255,255,255,0.85);
-      box-shadow:0 1px 2px rgba(0,0,0,0.6);
-    "></div>`,
-  });
-}
-
-function scenarioPin(index: number, severity: string): L.DivIcon {
-  const c = SEVERITY_COLOUR[severity] ?? "#f59e0b";
-  return L.divIcon({
-    className: "",
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    html: `<div style="
-      width:24px;height:24px;border-radius:999px;background:${c};
-      border:2px solid rgba(255,255,255,0.9);
-      box-shadow:0 2px 4px rgba(0,0,0,0.6);
-      display:flex;align-items:center;justify-content:center;
-      font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
-      font-size:12px;font-weight:700;color:#000;
-    ">${index}</div>`,
-  });
-}
+// Fixed Greater Manchester frame — fitted ONCE on mount, never refitted,
+// so switching patches never moves the camera. Only the mask/outline swap.
+const GM_BOUNDS = L.latLngBounds(
+  L.latLng(53.32, -2.78),
+  L.latLng(53.7, -1.9),
+);
 
 function usePatchBoundary(patch: Patch): [number, number][][] | null {
   const [rings, setRings] = useState<[number, number][][] | null>(null);
@@ -88,16 +42,6 @@ function usePatchBoundary(patch: Patch): [number, number][][] | null {
   return rings;
 }
 
-// Fixed Greater Manchester frame — fitted ONCE on mount, never refitted.
-// Refitting per patch selection made the map lurch (stations change
-// immediately, boundary rings arrive async → two competing fits). All
-// three patches sit inside this box, so the view stays rock still and
-// only the mask/outline moves when the selection changes.
-const GM_BOUNDS = L.latLngBounds(
-  L.latLng(53.32, -2.78),
-  L.latLng(53.7, -1.9),
-);
-
 function FitGmOnce() {
   const map = useMap();
   useEffect(() => {
@@ -108,29 +52,14 @@ function FitGmOnce() {
 
 type Props = {
   patch: Patch;
-  stations: StationWithAppliances[];
-  scenarios: Scenario[];
-  onSelectScenario?: (scenarioId: string) => void;
 };
 
-export function PatchBriefingMap({
-  patch,
-  stations,
-  scenarios,
-  onSelectScenario,
-}: Props) {
+export function PatchBriefingMap({ patch }: Props) {
   const rings = usePatchBoundary(patch);
-
-  const centre: [number, number] = useMemo(() => {
-    if (stations.length === 0) return [53.48, -2.24];
-    const lat = stations.reduce((s, st) => s + st.coords.lat, 0) / stations.length;
-    const lng = stations.reduce((s, st) => s + st.coords.lng, 0) / stations.length;
-    return [lat, lng];
-  }, [stations]);
 
   return (
     <MapContainer
-      center={centre}
+      center={[53.5, -2.32]}
       zoom={10}
       // Fixed-zoom briefing overview — framed once on all of Greater
       // Manchester; the operator can't zoom in/out (pan still works).
@@ -175,45 +104,6 @@ export function PatchBriefingMap({
           }}
           interactive={false}
         />
-      ))}
-      {stations.map((s) => (
-        <Marker
-          key={s.id}
-          position={[s.coords.lat, s.coords.lng]}
-          icon={stationDot(s.service)}
-        >
-          <Popup>
-            <div style={{ font: "12px ui-monospace,monospace" }}>
-              <strong>{s.name}</strong>
-              <br />
-              {s.service} · {s.id}
-              <br />
-              {s.appliances.length} appliances
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-      {scenarios.map((sc, i) => (
-        <Marker
-          key={sc.id}
-          position={[sc.location.coords.lat, sc.location.coords.lng]}
-          icon={scenarioPin(i + 1, sc.severity)}
-          eventHandlers={
-            onSelectScenario
-              ? { click: () => onSelectScenario(sc.id) }
-              : undefined
-          }
-        >
-          <Popup>
-            <div style={{ font: "12px ui-monospace,monospace", maxWidth: 240 }}>
-              <strong>{sc.title}</strong>
-              <br />
-              <em>{sc.severity}</em> · {sc.type.replace(/_/g, " ")}
-              <br />
-              {sc.location.address}
-            </div>
-          </Popup>
-        </Marker>
       ))}
       <FitGmOnce />
     </MapContainer>

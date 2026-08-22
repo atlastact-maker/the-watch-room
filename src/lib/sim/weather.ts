@@ -45,11 +45,16 @@ export type WeatherState = {
 };
 
 /** Roll a realistic Greater Manchester weather state. Seeded optionally
- *  so tests / replays can reproduce. */
-export function rollWeather(seed?: number): WeatherState {
+ *  so tests / replays can reproduce. `fixedHour` pins the shift-start
+ *  hour (operator-chosen on the briefing screen) instead of rolling it. */
+export function rollWeather(seed?: number, fixedHour?: number): WeatherState {
   const rng = mulberry32(seed ?? Math.floor(Date.now() / 1000));
 
-  const hourOfDay = Math.floor(rng() * 24);
+  const rolledHour = Math.floor(rng() * 24);
+  const hourOfDay =
+    fixedHour !== undefined && fixedHour >= 0 && fixedHour <= 23
+      ? Math.floor(fixedHour)
+      : rolledHour;
   // Wind direction weighted toward prevailing south-westerlies.
   const dirBag: WindDirection[] = [
     "SW", "SW", "SW", "W", "W", "NW", "S", "NE", "N", "E", "SE",

@@ -632,13 +632,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now, deployments]);
 
-  function selectPatch(area: Patch, newIntensity: ShiftIntensity) {
+  function selectPatch(area: Patch, newIntensity: ShiftIntensity, startHour?: number) {
     localStorage.setItem(PATCH_STORAGE_KEY, area);
     localStorage.setItem(INTENSITY_STORAGE_KEY, newIntensity);
     setPatch(area);
     setIntensity(newIntensity);
     setPreShiftStates({}); // force a re-roll on first render after selection
-    setWeather(rollWeather()); // fresh weather for the new shift
+    // Fresh weather for the new shift, pinned to the operator's chosen
+    // start time so time-of-day effects (HEMS grounding, rush hour,
+    // darkness) match the briefing hints.
+    setWeather(rollWeather(undefined, startHour));
   }
 
   function changePatch() {

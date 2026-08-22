@@ -3,8 +3,9 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { AREAS } from "@/lib/sim/areas";
-import type { AreaCode } from "@/lib/sim/types";
+import { isSpecialistAppliance, type AreaCode, type ServiceCode } from "@/lib/sim/types";
 import { INTENSITY_META, type ShiftIntensity } from "@/lib/sim/shift";
+import { timeBandForHour } from "@/lib/sim/weather";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import type { StationWithAppliances } from "../page";
 
@@ -25,7 +26,7 @@ const PatchBriefingMap = dynamic(
 
 type Props = {
   stationsByArea: Record<AreaCode, StationWithAppliances[]>;
-  onSelect: (area: Patch, intensity: ShiftIntensity) => void;
+  onSelect: (area: Patch, intensity: ShiftIntensity, startHour: number) => void;
 };
 
 const INTENSITY_ORDER: ShiftIntensity[] = ["quiet", "normal", "busy"];
@@ -37,9 +38,58 @@ const SEVERITY_COLOUR: Record<string, string> = {
   major: "#ef4444",
 };
 
+const SERVICE_COLOUR: Record<ServiceCode, string> = {
+  Fire: "#f59e0b",
+  Ambulance: "#10b981",
+  Police: "#6366f1",
+};
+
+/** Availability hints for the chosen start hour. Mirrors the sim's
+ *  actual rules where they exist (HEMS grounding hours, rush-hour ETA
+ *  multipliers); the rest is operational flavour the shift will honour. */
+function hintsForHour(hour: number): { tone: "ok" | "warn" | "dim"; text: string }[] {
+  const band = timeBandForHour(hour);
+  const heliGrounded = band === "overnight" || band === "pre_dawn"; // 22:00–06:00
+  const dark = heliGrounded || band === "night"; // 19:00 onwards
+  const rush = band === "morning" || band === "evening";
+  const out: { tone: "ok" | "warn" | "dim"; text: string }[] = [];
+
+  out.push(
+    heliGrounded
+      ? {
+          tone: "warn",
+          text: "HEMS grounded overnight — NWAA critical care car covers by road (doctor + CCP)",
+        }
+      : {
+          tone: "ok",
+          text: "HEMS flying (weather permitting) — you'll pick its landing zone on scene",
+        },
+  );
+  out.push(
+    dark
+      ? { tone: "warn", text: "Drone team — no flying in the hours of darkness" }
+      : { tone: "ok", text: "Drone team available in daylight" },
+  );
+  out.push({
+    tone: "ok",
+    text: "NPAS 15 (Barton) — day & night, weather permitting",
+  });
+  if (rush) {
+    out.push({ tone: "warn", text: "Rush-hour traffic will slow blue-light runs" });
+  } else if (band === "overnight" || band === "pre_dawn") {
+    out.push({ tone: "ok", text: "Quiet roads — fastest response times of the day" });
+  }
+  out.push({
+    tone: "dim",
+    text: "Final availability locks in with the weather roll at shift start",
+  });
+  return out;
+}
+
 export function PatchPicker({ stationsByArea, onSelect }: Props) {
   const [patch, setPatch] = useState<Patch>("Southern");
   const [intensity, setIntensity] = useState<ShiftIntensity>("normal");
+  const [startHour, setStartHour] = useState<number>(8);
 
   const stationsForPatch = [
     ...stationsByArea[patch],
@@ -52,6 +102,25 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
     Ambulance: stationsForPatch.filter((s) => s.service === "Ambulance").length,
     Police: stationsForPatch.filter((s) => s.service === "Police").length,
   };
+
+  // Specialist assets in the patch (plus force-wide), grouped by type.
+  const specialists = (() => {
+    const m = new Map<string, { typeName: string; service: ServiceCode; count: number }>();
+    for (const s of stationsForPatch) {
+      for (const a of s.appliances) {
+        if (!isSpecialistAppliance(a.type)) continue;
+        const key = `${a.service}|${a.typeName}`;
+        const cur = m.get(key);
+        if (cur) cur.count += 1;
+        else m.set(key, { typeName: a.typeName, service: a.service, count: 1 });
+      }
+    }
+    return Array.from(m.values()).sort(
+      (a, b) => a.service.localeCompare(b.service) || a.typeName.localeCompare(b.typeName),
+    );
+  })();
+
+  const hints = hintsForHour(startHour);
 
   return (
     <div className="flex min-h-[100dvh] w-full flex-col p-8">
@@ -66,8 +135,7 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
         </div>
         <p className="max-w-md text-right text-sm text-(--color-text-muted)">
           Fire, Ambulance and (later) Police resources for the area you pick.
-          The map shows stations and the incidents the sim can throw at you
-          this shift.
+          The red boundary is the ground you&apos;ll cover this shift.
         </p>
       </div>
 
@@ -118,29 +186,25 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
 
         {/* --- Centre: map --- */}
         <div className="relative min-h-0 overflow-hidden rounded-sm border border-(--color-border) bg-(--color-surface)">
-          <PatchBriefingMap
-            patch={patch}
-            stations={stationsForPatch}
-            scenarios={scenariosForPatch}
-          />
+          <PatchBriefingMap patch={patch} />
           <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-sm border border-(--color-border) bg-(--color-bg)/85 px-3 py-2 font-mono text-xs uppercase tracking-widest text-(--color-text-muted) backdrop-blur">
             <div className="flex items-center gap-4">
-              <LegendDot colour="#f59e0b" label={`Fire · ${stationCounts.Fire}`} />
+              <LegendDot colour={SERVICE_COLOUR.Fire} label={`Fire · ${stationCounts.Fire}`} />
               <LegendDot
-                colour="#10b981"
+                colour={SERVICE_COLOUR.Ambulance}
                 label={`Amb · ${stationCounts.Ambulance}`}
               />
               <LegendDot
-                colour="#6366f1"
+                colour={SERVICE_COLOUR.Police}
                 label={`Police · ${stationCounts.Police}`}
               />
             </div>
           </div>
         </div>
 
-        {/* --- Right rail: incidents + intensity + start --- */}
-        <div className="flex min-h-0 flex-col gap-4">
-          <section className="min-h-0 flex-1 rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
+        {/* --- Right rail: incidents + specialists + shift setup --- */}
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+          <section className="rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
             <div className="mb-3 flex items-baseline justify-between">
               <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
                 Possible incidents
@@ -187,6 +251,44 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
           </section>
 
           <section className="rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
+            <div className="mb-3 flex items-baseline justify-between">
+              <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
+                Specialist resources
+              </p>
+              <span className="font-mono text-xs uppercase tracking-widest text-(--color-text-dim)">
+                {specialists.reduce((s, x) => s + x.count, 0)}
+              </span>
+            </div>
+            {specialists.length === 0 ? (
+              <p className="text-sm text-(--color-text-muted)">
+                No specialist assets in this patch.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {specialists.map((sp) => (
+                  <li
+                    key={`${sp.service}|${sp.typeName}`}
+                    className="flex items-center justify-between gap-3 rounded-sm border border-(--color-border-subtle) bg-(--color-bg) px-3 py-1.5"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-[1px]"
+                        style={{ background: SERVICE_COLOUR[sp.service] }}
+                      />
+                      <span className="truncate text-sm text-(--color-text)">
+                        {sp.typeName}
+                      </span>
+                    </span>
+                    <span className="font-mono text-xs text-(--color-text-dim)">
+                      ×{sp.count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-sm border border-(--color-border) bg-(--color-surface) p-4">
             <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
               Shift intensity
             </p>
@@ -216,14 +318,47 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
                 );
               })}
             </div>
+
+            <p className="mt-4 font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
+              Shift start
+            </p>
+            <select
+              value={startHour}
+              onChange={(e) => setStartHour(Number(e.target.value))}
+              className="mt-2 h-10 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none focus:border-(--color-amber)"
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
+                </option>
+              ))}
+            </select>
+            <ul className="mt-3 space-y-1.5">
+              {hints.map((h) => (
+                <li
+                  key={h.text}
+                  className={
+                    "flex items-start gap-2 font-mono text-[11px] leading-snug " +
+                    (h.tone === "warn"
+                      ? "text-(--color-critical)"
+                      : h.tone === "ok"
+                        ? "text-(--color-ok)"
+                        : "text-(--color-text-dim)")
+                  }
+                >
+                  <span className="mt-px shrink-0">▸</span>
+                  <span>{h.text}</span>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <button
             type="button"
-            onClick={() => onSelect(patch, intensity)}
-            className="mt-1 inline-flex h-14 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-base font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
+            onClick={() => onSelect(patch, intensity, startHour)}
+            className="mt-1 inline-flex h-14 w-full shrink-0 items-center justify-center rounded-sm bg-(--color-amber) font-mono text-base font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
           >
-            Begin Shift · {patch} →
+            Begin Shift · {patch} · {String(startHour).padStart(2, "0")}:00 →
           </button>
         </div>
       </div>
