@@ -24,15 +24,29 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
 
 export async function signup(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const parsed = SignupSchema.safeParse({
+    callsign: formData.get("callsign"),
     email: formData.get("email"),
     password: formData.get("password"),
+    // Checkboxes post "on" when ticked and are absent otherwise.
+    acceptTerms: formData.get("acceptTerms") === "on",
+    newsletter: formData.get("newsletter") === "on",
   });
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp(parsed.data);
+  const { error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: {
+      // Stored as user_metadata on the Supabase auth user.
+      data: {
+        callsign: parsed.data.callsign,
+        newsletter_opt_in: parsed.data.newsletter,
+      },
+    },
+  });
   if (error) {
     return { errors: { form: [error.message] } };
   }

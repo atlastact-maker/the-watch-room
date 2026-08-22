@@ -7,12 +7,22 @@ export function SignupForm() {
   const [state, action, pending] = useActionState(signup, undefined);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="flex flex-col gap-4">
+      <Field
+        label="Callsign (username)"
+        name="callsign"
+        type="text"
+        autoComplete="username"
+        placeholder="OSCAR-21"
+        hint="Shown in the ops room. 2–24 characters."
+        errors={state?.errors?.callsign}
+      />
       <Field
         label="Email"
         name="email"
         type="email"
         autoComplete="email"
+        placeholder="you@example.com"
         errors={state?.errors?.email}
       />
       <Field
@@ -20,9 +30,37 @@ export function SignupForm() {
         name="password"
         type="password"
         autoComplete="new-password"
-        hint="At least 8 characters, with a letter and a number."
+        hint="Min 8 chars · letter + number"
         errors={state?.errors?.password}
       />
+
+      <div className="mt-0.5 flex flex-col gap-2.5">
+        <label className="flex cursor-pointer items-center gap-2.5 select-none">
+          <input
+            type="checkbox"
+            name="acceptTerms"
+            className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber)"
+          />
+          <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-muted)">
+            I accept the terms &amp; conditions
+          </span>
+        </label>
+        {state?.errors?.acceptTerms?.map((msg) => (
+          <p key={msg} className="text-xs normal-case tracking-normal text-(--color-critical)">
+            {msg}
+          </p>
+        ))}
+        <label className="flex cursor-pointer items-center gap-2.5 select-none">
+          <input
+            type="checkbox"
+            name="newsletter"
+            className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber)"
+          />
+          <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
+            Send me updates &amp; newsletters
+          </span>
+        </label>
+      </div>
 
       {state?.errors?.form?.map((msg) => (
         <p key={msg} className="text-sm text-(--color-critical)">
@@ -33,9 +71,9 @@ export function SignupForm() {
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-1 inline-flex h-12 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-[0.25em] text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {pending ? "Creating…" : "Begin Shift"}
+        {pending ? "Registering…" : "▸ Begin Shift"}
       </button>
     </form>
   );
@@ -46,6 +84,7 @@ function Field({
   name,
   type,
   autoComplete,
+  placeholder,
   hint,
   errors,
 }: {
@@ -53,14 +92,15 @@ function Field({
   name: string;
   type: string;
   autoComplete: string;
+  placeholder?: string;
   hint?: string;
   errors?: string[];
 }) {
   return (
-    <div>
+    <div className="flex flex-col gap-1.5">
       <label
         htmlFor={name}
-        className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)"
+        className="text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)"
       >
         {label}
       </label>
@@ -69,14 +109,16 @@ function Field({
         name={name}
         type={type}
         autoComplete={autoComplete}
+        placeholder={placeholder}
         required
-        className="block w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 py-2.5 text-sm text-(--color-text) outline-none transition-colors focus:border-(--color-amber)"
+        className="h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-sm text-(--color-text) outline-none transition-colors placeholder:text-(--color-text-dim)/60 focus:border-(--color-amber)"
+        style={{ caretColor: "var(--color-amber)" }}
       />
       {hint && !errors?.length && (
-        <p className="mt-1 text-xs text-(--color-text-dim)">{hint}</p>
+        <p className="text-[11px] text-(--color-text-dim)">{hint}</p>
       )}
       {errors?.map((msg) => (
-        <p key={msg} className="mt-1 text-xs text-(--color-critical)">
+        <p key={msg} className="text-xs text-(--color-critical)">
           {msg}
         </p>
       ))}
