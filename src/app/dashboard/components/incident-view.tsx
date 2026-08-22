@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Appliance, AreaCode } from "@/lib/sim/types";
 import type {
   Deployment,
@@ -1414,11 +1414,33 @@ function CallInformationBody({
     ...sc.pri.items.map((i) => ({ text: i, tone: "neutral" as const })),
   ];
 
+  // Property reference rows, skipping anything the scenario left blank.
+  const propertyRows: [string, string][] = [
+    ["Class", sc.property.class] as [string, string],
+    ...(sc.property.size ? [["Size", sc.property.size] as [string, string]] : []),
+    ...(sc.property.materials
+      ? [["Materials", sc.property.materials] as [string, string]]
+      : []),
+    ["Occupants", sc.property.occupants] as [string, string],
+    ["Access", sc.property.access] as [string, string],
+  ];
+
+  // Keep the capped caller log pinned to the newest message.
+  const callLogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = callLogRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [visibleLog.length]);
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="space-y-3 px-4 py-3 text-xs">
-        {/* Summary — type, severity, address. One card, tight. */}
-        <section className="space-y-1">
+        {/* Summary — the address IS the headline; everything else hangs
+            off it in one quiet chip row. */}
+        <section className="space-y-1.5">
+          <div className="text-base font-semibold leading-snug tracking-tight text-(--color-text)">
+            {sc.location.address}
+          </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span
               className={
@@ -1436,12 +1458,9 @@ function CallInformationBody({
             <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-muted)">
               {typeLabel}
             </span>
-          </div>
-          <div className="text-sm leading-snug text-(--color-text)">
-            {sc.location.address}
-          </div>
-          <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-            {sc.location.postcode}
+            <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+              · {sc.location.postcode}
+            </span>
           </div>
         </section>
 
@@ -1482,24 +1501,29 @@ function CallInformationBody({
               </blockquote>
             </div>
             {visibleLog.length > 0 && (
-              <ul className="divide-y divide-(--color-border-subtle)/60 bg-(--color-bg)/20">
-                {visibleLog.map((m) => {
-                  const tone =
-                    m.tone === "critical"
-                      ? "text-(--color-critical)"
-                      : m.tone === "urgent"
-                        ? "text-(--color-amber)"
-                        : "text-(--color-text)";
-                  return (
-                    <li key={m.id} className="flex gap-2 px-3 py-1.5 leading-snug">
-                      <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                        {fmtTime(m.firedAt)}
-                      </span>
-                      <span className={`text-[12px] ${tone}`}>{m.text}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div
+                ref={callLogRef}
+                className="max-h-40 overflow-y-auto bg-(--color-bg)/20"
+              >
+                <ul className="divide-y divide-(--color-border-subtle)/60">
+                  {visibleLog.map((m) => {
+                    const tone =
+                      m.tone === "critical"
+                        ? "text-(--color-critical)"
+                        : m.tone === "urgent"
+                          ? "text-(--color-amber)"
+                          : "text-(--color-text)";
+                    return (
+                      <li key={m.id} className="flex gap-2 px-3 py-1.5 leading-snug">
+                        <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                          {fmtTime(m.firedAt)}
+                        </span>
+                        <span className={`text-[12px] ${tone}`}>{m.text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             )}
             {visibleLog.length === 0 && informantOnCall && (
               <div className="border-t border-(--color-border-subtle) bg-(--color-bg)/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
@@ -1514,30 +1538,33 @@ function CallInformationBody({
           </div>
         </section>
 
-        {/* Property — single definition list. */}
-        <section>
-          <SectionTitle>Property</SectionTitle>
+        {/* Property — collapsed by default; the address card above already
+            carries the essentials, so this is reference detail. */}
+        <CollapsibleSection
+          title="Property"
+          count={propertyRows.length}
+          defaultOpen={false}
+        >
           <dl className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-3 py-1.5">
-            <CallRow label="Class" value={sc.property.class} />
-            {sc.property.size && <CallRow label="Size" value={sc.property.size} />}
-            {sc.property.materials && (
-              <CallRow label="Materials" value={sc.property.materials} />
-            )}
-            <CallRow label="Occupants" value={sc.property.occupants} />
-            <CallRow label="Access" value={sc.property.access} />
+            {propertyRows.map(([label, value]) => (
+              <CallRow key={label} label={label} value={value} />
+            ))}
           </dl>
-        </section>
+        </CollapsibleSection>
 
-        {/* Risks & intel — hazards, vulnerabilities, PRI merged; tone per line. */}
-        <section>
-          <SectionTitle>
-            Risks &amp; intel
-            {sc.pri.hasFormalPri && (
-              <span className="ml-2 rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
+        {/* Risks & intel — open by default; safety-critical. */}
+        <CollapsibleSection
+          title="Risks & intel"
+          count={riskItems.length}
+          defaultOpen
+          badge={
+            sc.pri.hasFormalPri ? (
+              <span className="rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
                 PRI on file
               </span>
-            )}
-          </SectionTitle>
+            ) : undefined
+          }
+        >
           <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-3 py-2">
             {riskItems.length === 0 ? (
               <p className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
@@ -1573,9 +1600,51 @@ function CallInformationBody({
               </ul>
             )}
           </div>
-        </section>
+        </CollapsibleSection>
       </div>
     </div>
+  );
+}
+
+/** Chevron header that shows/hides its body. Keeps the Call tab short —
+ *  reference material stays one click away instead of always expanded. */
+function CollapsibleSection({
+  title,
+  count,
+  badge,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  count?: number;
+  badge?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="mb-1 flex w-full items-center gap-2 text-left"
+        aria-expanded={open}
+      >
+        <span className="font-mono text-[9px] text-(--color-text-dim)">
+          {open ? "▾" : "▸"}
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+          {title}
+        </span>
+        {typeof count === "number" && (
+          <span className="font-mono text-[9px] text-(--color-text-dim)/70">
+            ({count})
+          </span>
+        )}
+        {badge}
+      </button>
+      {open && children}
+    </section>
   );
 }
 
