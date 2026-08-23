@@ -18,9 +18,20 @@
 // everything. Playback is a no-op when the context isn't yet unlocked or
 // the user has muted.
 
+const MUTE_KEY = "twr:sound-muted";
+
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
-let muted = false;
+// Mute preference persists across sessions (set from the Settings page).
+let muted =
+  typeof window !== "undefined" &&
+  (() => {
+    try {
+      return window.localStorage.getItem(MUTE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  })();
 
 /** Must be called from a user gesture (click/keypress) before any sound
  *  can play. Browsers block AudioContexts until a gesture occurs. Safe
@@ -50,6 +61,11 @@ export function unlockAudio() {
 
 export function setMuted(v: boolean) {
   muted = v;
+  try {
+    window.localStorage.setItem(MUTE_KEY, v ? "1" : "0");
+  } catch {
+    // preference is best-effort
+  }
   if (masterGain && ctx) {
     masterGain.gain.cancelScheduledValues(ctx.currentTime);
     masterGain.gain.setTargetAtTime(v ? 0 : 0.6, ctx.currentTime, 0.05);

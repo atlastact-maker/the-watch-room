@@ -3,9 +3,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
 import { LiveConsole } from "@/app/components/live-console";
+import { DailyOrders } from "@/app/components/daily-orders";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import type { ServiceCode } from "@/lib/sim/types";
+import { FOLLOW_URL, FOLLOW_LABEL } from "@/lib/social";
 import { MenuResumeBanner } from "./menu-resume";
+import { LastShiftCard } from "./last-shift-card";
 
 // Ops-centre main menu — operator strip up top, action tiles on the
 // left, the live NWRC console on the right, and a resume banner when a
@@ -51,6 +54,12 @@ export default async function MenuPage() {
               {callsign ? callsign.toUpperCase() : "Operator"}
             </span>
             <span className="hidden text-(--color-text-dim) sm:inline">{user.email}</span>
+            <Link
+              href="/settings"
+              className="rounded-sm border border-(--color-border) px-2.5 py-1 uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber) hover:text-(--color-amber)"
+            >
+              Settings
+            </Link>
             <form action={logout}>
               <button
                 type="submit"
@@ -76,6 +85,7 @@ export default async function MenuPage() {
           </div>
 
           <MenuResumeBanner />
+          <LastShiftCard />
 
           <Link
             href="/dashboard?new=1"
@@ -161,17 +171,42 @@ export default async function MenuPage() {
               45 sec
             </span>
           </Link>
+
+          {FOLLOW_URL && (
+            <a
+              href={FOLLOW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center justify-between rounded-sm border border-(--color-border-subtle) px-5 py-3 transition-colors hover:border-(--color-amber-dim)"
+            >
+              <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) group-hover:text-(--color-amber)">
+                ▸ {FOLLOW_LABEL}
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)/70">
+                ↗
+              </span>
+            </a>
+          )}
         </section>
 
-        {/* Right: live console */}
+        {/* Right: live console + notices */}
         <aside>
           <LiveConsole
             fire={fleet.Fire}
             ambulance={fleet.Ambulance}
             police={fleet.Police}
           />
+          <DailyOrders />
         </aside>
       </main>
+
+      {/* Build stamp */}
+      <footer className="border-t border-(--color-border-subtle)/60">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-2 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)/60">
+          <span>The Watch Room · simulation — no real emergency data</span>
+          <span>Build {process.env.NEXT_PUBLIC_BUILD_STAMP ?? "dev"}</span>
+        </div>
+      </footer>
     </div>
   );
 }

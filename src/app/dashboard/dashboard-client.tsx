@@ -89,7 +89,7 @@ import {
   writeSave,
   type ShiftSave,
 } from "@/lib/sim/save";
-import { bumpStats } from "@/lib/sim/stats";
+import { bumpStats, saveLastShift } from "@/lib/sim/stats";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
 const INTENSITY_STORAGE_KEY = "watch-room.intensity";
@@ -1651,6 +1651,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       s.targetsTotal += scored.totalCount;
       s.casualtiesSaved += stages.filter((st) => st === "at_hospital").length;
       s.casualtiesLost += stages.filter((st) => st === "expectant").length;
+    });
+    saveLastShift({
+      incidentTitle: activeIncident.scenario.title,
+      typeCode: activeIncident.scenario.type,
+      grade: scored.grade,
+      targetsMet: scored.passedCount,
+      targetsTotal: scored.totalCount,
+      casualtiesSaved: stages.filter((st) => st === "at_hospital").length,
+      casualtiesLost: stages.filter((st) => st === "expectant").length,
+      resourcesUsed: deployments.length,
+      summary: scored.summary,
+      resolvedAt,
     });
   }
 

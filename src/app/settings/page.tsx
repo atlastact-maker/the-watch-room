@@ -1,0 +1,173 @@
+"use client";
+
+// Operator settings — callsign, sound, and service-record reset, in the
+// ops-centre styling. Callsign writes to Supabase user metadata (the
+// same field signup collects); everything else is device-local.
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { isMuted, setMuted, unlockAudio } from "@/lib/audio/sim-audio";
+import { clearCareerRecord } from "@/lib/sim/stats";
+
+export default function SettingsPage() {
+  const [callsign, setCallsign] = useState("");
+  const [initialCallsign, setInitialCallsign] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [muted, setMutedState] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+
+  useEffect(() => {
+    setMutedState(isMuted());
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      const cs =
+        (data.user?.user_metadata as { callsign?: string } | null)?.callsign ?? "";
+      setCallsign(cs);
+      setInitialCallsign(cs);
+    });
+  }, []);
+
+  async function saveCallsign() {
+    const trimmed = callsign.trim();
+    if (!trimmed || trimmed === initialCallsign) return;
+    setSaving(true);
+    setSaveMsg(null);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({
+      data: { callsign: trimmed },
+    });
+    setSaving(false);
+    if (error) {
+      setSaveMsg("Could not save — try again");
+    } else {
+      setInitialCallsign(trimmed);
+      setSaveMsg("Callsign updated");
+    }
+  }
+
+  function toggleSound() {
+    unlockAudio();
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+  }
+
+  function resetRecord() {
+    if (
+      !window.confirm(
+        "Wipe your service record on this device? Calls answered, grades, casualty history — all reset to zero. This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    clearCareerRecord();
+    setResetDone(true);
+  }
+
+  return (
+    <div className="relative z-10 flex min-h-[100dvh] flex-1 flex-col">
+      <header className="border-b border-(--color-border-subtle) bg-(--color-surface)/60">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+          <div className="flex items-center gap-3">
+            <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
+            <span className="text-(--color-text)">The Watch Room</span>
+            <span className="text-(--color-border)">/</span>
+            <span>Settings</span>
+          </div>
+          <Link
+            href="/menu"
+            className="rounded-sm border border-(--color-border) px-2.5 py-1 uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber) hover:text-(--color-amber)"
+          >
+            ← Ops Centre
+          </Link>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
+        <p className="font-mono text-xs uppercase tracking-[0.3em] text-(--color-amber-dim)">
+          Operator profile · this account
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Settings.</h1>
+
+        {/* Callsign */}
+        <section className="mt-8 rounded-sm border border-(--color-border-subtle) p-5">
+          <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
+            Callsign
+          </h2>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-(--color-text-muted)">
+            Shown across the ops centre and on your service record.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <input
+              value={callsign}
+              onChange={(e) => setCallsign(e.target.value.slice(0, 20))}
+              placeholder="e.g. NW-104"
+              className="h-10 flex-1 rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm uppercase tracking-widest text-(--color-text) outline-none placeholder:normal-case placeholder:tracking-normal focus:border-(--color-amber)"
+            />
+            <button
+              type="button"
+              onClick={saveCallsign}
+              disabled={saving || !callsign.trim() || callsign.trim() === initialCallsign}
+              className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {saveMsg && (
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+              {saveMsg}
+            </p>
+          )}
+        </section>
+
+        {/* Sound */}
+        <section className="mt-4 rounded-sm border border-(--color-border-subtle) p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
+                Console audio
+              </h2>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-(--color-text-muted)">
+                Dispatch chirps, incoming-call tones and alert sounds during a
+                shift.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleSound}
+              className={
+                "shrink-0 rounded-sm border px-4 py-2 font-mono text-[11px] uppercase tracking-widest " +
+                (muted
+                  ? "border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)"
+                  : "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)")
+              }
+            >
+              {muted ? "Muted" : "On"}
+            </button>
+          </div>
+        </section>
+
+        {/* Reset */}
+        <section className="mt-4 rounded-sm border border-(--color-critical)/30 p-5">
+          <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-critical)">
+            Reset service record
+          </h2>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-(--color-text-muted)">
+            Wipes the career statistics and last-shift result stored on this
+            device. Your account and saved shift are untouched.
+          </p>
+          <button
+            type="button"
+            onClick={resetRecord}
+            disabled={resetDone}
+            className="mt-3 rounded-sm border border-(--color-critical)/60 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-critical) hover:bg-(--color-critical)/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {resetDone ? "Record wiped" : "Reset record"}
+          </button>
+        </section>
+      </main>
+    </div>
+  );
+}

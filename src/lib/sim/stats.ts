@@ -71,3 +71,52 @@ export function bumpStats(mutate: (s: CareerStats) => void): void {
     // Stats are best-effort — never let them break gameplay.
   }
 }
+
+// ---- Last shift result — the debrief card on the ops-centre menu ----------
+
+export type LastShift = {
+  incidentTitle: string;
+  typeCode: string;
+  grade: Grade;
+  targetsMet: number;
+  targetsTotal: number;
+  casualtiesSaved: number;
+  casualtiesLost: number;
+  resourcesUsed: number;
+  summary: string;
+  resolvedAt: number;
+};
+
+const LAST_KEY = "twr:last-shift:v1";
+
+export function saveLastShift(shift: LastShift): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LAST_KEY, JSON.stringify(shift));
+  } catch {
+    // best-effort
+  }
+}
+
+export function loadLastShift(): LastShift | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as LastShift;
+    return typeof s.grade === "string" && typeof s.resolvedAt === "number" ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Wipe the career record and last-shift card (Settings → reset). */
+export function clearCareerRecord(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem(LAST_KEY);
+  } catch {
+    // best-effort
+  }
+}
