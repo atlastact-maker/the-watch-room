@@ -141,9 +141,27 @@ export default async function MenuPage() {
               </p>
             </Link>
 
+            <div
+              aria-disabled
+              className="cursor-not-allowed rounded-sm border border-(--color-border-subtle) p-5 opacity-50"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[12px] uppercase tracking-widest text-(--color-text-dim)">
+                  Joint Response
+                </span>
+                <span className="rounded-sm border border-(--color-border) px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                  Multiplayer · in development
+                </span>
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed text-(--color-text-muted)">
+                Crew one shift between operators — split Fire, Ambulance and
+                Police, share the incident, coordinate the response.
+              </p>
+            </div>
+
             <Link
               href="/stats"
-              className="group rounded-sm border border-(--color-border) p-5 transition-colors hover:border-(--color-amber) sm:col-span-2"
+              className="group rounded-sm border border-(--color-border) p-5 transition-colors hover:border-(--color-amber)"
             >
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[12px] uppercase tracking-widest text-(--color-text-dim) group-hover:text-(--color-amber)">
