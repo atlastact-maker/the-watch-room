@@ -26,6 +26,26 @@ export const SignupSchema = z.object({
   newsletter: z.boolean(),
 });
 
+export const ADVISOR_SERVICES = [
+  "Fire & Rescue",
+  "Ambulance",
+  "Police",
+  "Fire Control / 999",
+  "Other",
+] as const;
+
+export const AdvisorSchema = z.object({
+  advisorService: z.enum(ADVISOR_SERVICES, {
+    error: "Pick the service you served with.",
+  }),
+  advisorBackground: z
+    .string()
+    .trim()
+    .min(2, { error: "Tell us your role — e.g. Crew Manager, 12 years." })
+    .max(120, { error: "120 characters max." }),
+  advisorNotes: z.string().trim().max(600, { error: "600 characters max." }).optional(),
+});
+
 export const ForgotPasswordSchema = z.object({
   email: z.email({ error: "Enter a valid email." }).trim(),
 });
@@ -57,6 +77,9 @@ export type AuthFormState =
         password?: string[];
         confirm?: string[];
         acceptTerms?: string[];
+        advisorService?: string[];
+        advisorBackground?: string[];
+        advisorNotes?: string[];
         form?: string[];
       };
     }

@@ -6,7 +6,12 @@ import { UtcClock } from "./utc-clock";
 // Boot-check lines, monospace prompts, and a corner HUD frame the same
 // email + password signup flow (plus callsign and consent boxes).
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ advisor?: string }>;
+}) {
+  const { advisor } = await searchParams;
   return (
     <div className="relative z-10 flex flex-1 items-center justify-center p-6 font-mono">
       {/* Vignette — darkens the page edges so the terminal frame glows. */}
@@ -48,7 +53,7 @@ export default function SignupPage() {
             Account required to save campaign progress between shifts.
           </p>
 
-          <SignupForm />
+          <SignupForm defaultAdvisorOpen={advisor === "1"} />
 
           <p className="mt-1 text-center text-[11px] uppercase tracking-[0.2em] text-(--color-text-dim)">
             Existing operator?{" "}

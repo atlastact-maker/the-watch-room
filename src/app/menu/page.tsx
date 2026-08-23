@@ -9,6 +9,7 @@ import type { ServiceCode } from "@/lib/sim/types";
 import { FOLLOW_URL, FOLLOW_LABEL } from "@/lib/social";
 import { MenuResumeBanner } from "./menu-resume";
 import { LastShiftCard } from "./last-shift-card";
+import { AdvisorSync } from "./advisor-sync";
 
 // Ops-centre main menu — operator strip up top, action tiles on the
 // left, the live NWRC console on the right, and a resume banner when a
@@ -84,6 +85,7 @@ export default async function MenuPage() {
             </h1>
           </div>
 
+          <AdvisorSync />
           <MenuResumeBanner />
           <LastShiftCard />
 

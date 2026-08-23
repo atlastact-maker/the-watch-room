@@ -4,11 +4,13 @@
 // ops-centre styling. Callsign writes to Supabase user metadata (the
 // same field signup collects); everything else is device-local.
 
-import { useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { isMuted, setMuted, unlockAudio } from "@/lib/audio/sim-audio";
 import { clearCareerRecord } from "@/lib/sim/stats";
+import { saveAdvisorProfile } from "@/lib/auth/actions";
+import { ADVISOR_SERVICES } from "@/lib/auth/schemas";
 
 export default function SettingsPage() {
   const [callsign, setCallsign] = useState("");
@@ -17,15 +19,37 @@ export default function SettingsPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [muted, setMutedState] = useState(false);
   const [resetDone, setResetDone] = useState(false);
+  const [advisorMeta, setAdvisorMeta] = useState<{
+    advisor: boolean;
+    service: string;
+    background: string;
+    notes: string;
+  } | null>(null);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [advState, advAction, advPending] = useActionState(saveAdvisorProfile, undefined);
 
   useEffect(() => {
     setMutedState(isMuted());
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      const cs =
-        (data.user?.user_metadata as { callsign?: string } | null)?.callsign ?? "";
+      const meta = data.user?.user_metadata as {
+        callsign?: string;
+        advisor?: boolean;
+        advisor_service?: string;
+        advisor_background?: string;
+        advisor_notes?: string;
+      } | null;
+      const cs = meta?.callsign ?? "";
       setCallsign(cs);
       setInitialCallsign(cs);
+      const isAdvisor = !!meta?.advisor;
+      setAdvisorMeta({
+        advisor: isAdvisor,
+        service: meta?.advisor_service ?? "",
+        background: meta?.advisor_background ?? "",
+        notes: meta?.advisor_notes ?? "",
+      });
+      setAdvisorOpen(isAdvisor);
     });
   }, []);
 
@@ -147,6 +171,91 @@ export default function SettingsPage() {
               {muted ? "Muted" : "On"}
             </button>
           </div>
+        </section>
+
+        {/* Advisor programme */}
+        <section className="mt-4 rounded-sm border border-(--color-info)/40 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-info)">
+                Advisor programme
+                {advisorMeta?.advisor && (
+                  <span className="ml-2 rounded-sm border border-(--color-info)/50 bg-(--color-info)/10 px-1.5 py-0.5 text-[9px]">
+                    Registered
+                  </span>
+                )}
+              </h2>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-(--color-text-muted)">
+                Served in the emergency services? Help keep The Watch Room
+                authentic — procedures, mobilising, kit, control-room reality.
+              </p>
+            </div>
+            {!advisorOpen && (
+              <button
+                type="button"
+                onClick={() => setAdvisorOpen(true)}
+                className="shrink-0 rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-info) hover:bg-(--color-info)/20"
+              >
+                Register
+              </button>
+            )}
+          </div>
+
+          {advisorOpen && advisorMeta && (
+            <form action={advAction} className="mt-4 flex flex-col gap-3">
+              <select
+                name="advisorService"
+                defaultValue={advisorMeta.service || ""}
+                className="h-10 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none focus:border-(--color-info)"
+              >
+                <option value="" disabled>
+                  Select your service…
+                </option>
+                {ADVISOR_SERVICES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              {advState?.errors?.advisorService?.map((msg) => (
+                <p key={msg} className="text-xs text-(--color-critical)">{msg}</p>
+              ))}
+              <input
+                name="advisorBackground"
+                defaultValue={advisorMeta.background}
+                placeholder="Role & background — e.g. Crew Manager · 12 years · GMFRS"
+                className="h-10 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)"
+              />
+              {advState?.errors?.advisorBackground?.map((msg) => (
+                <p key={msg} className="text-xs text-(--color-critical)">{msg}</p>
+              ))}
+              <textarea
+                name="advisorNotes"
+                defaultValue={advisorMeta.notes}
+                rows={3}
+                placeholder="How can you help? (optional)"
+                className="w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 py-2 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)"
+              />
+              {advState?.errors?.advisorNotes?.map((msg) => (
+                <p key={msg} className="text-xs text-(--color-critical)">{msg}</p>
+              ))}
+              {advState?.errors?.form?.map((msg) => (
+                <p key={msg} className="text-sm text-(--color-critical)">{msg}</p>
+              ))}
+              {advState?.ok && advState.message && (
+                <p className="font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
+                  ✓ {advState.message}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={advPending}
+                className="rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-info) hover:bg-(--color-info)/20 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {advPending ? "Saving…" : advisorMeta.advisor ? "Update advisor profile" : "Register as advisor"}
+              </button>
+            </form>
+          )}
         </section>
 
         {/* Reset */}

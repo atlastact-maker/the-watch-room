@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
+  AdvisorSchema,
   ForgotPasswordSchema,
   LoginSchema,
   ResetPasswordSchema,
@@ -42,20 +43,62 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
+  // Optional advisor registration — served personnel offering to help
+  // development. Validated only when the box is ticked.
+  const wantsAdvisor = formData.get("advisor") === "on";
+  let advisor: { service: string; background: string; notes: string } | null = null;
+  if (wantsAdvisor) {
+    const adv = AdvisorSchema.safeParse({
+      advisorService: formData.get("advisorService"),
+      advisorBackground: formData.get("advisorBackground"),
+      advisorNotes: formData.get("advisorNotes") ?? "",
+    });
+    if (!adv.success) {
+      return { errors: adv.error.flatten().fieldErrors };
+    }
+    advisor = {
+      service: adv.data.advisorService,
+      background: adv.data.advisorBackground,
+      notes: adv.data.advisorNotes ?? "",
+    };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      // Stored as user_metadata on the Supabase auth user.
+      // Stored as user_metadata on the Supabase auth user. Advisor info
+      // rides along here too so it survives the email-confirmation gap —
+      // the advisors table row is written on the first authenticated
+      // visit (or immediately below when a session exists).
       data: {
         callsign: parsed.data.callsign,
         newsletter_opt_in: parsed.data.newsletter,
+        ...(advisor
+          ? {
+              advisor: true,
+              advisor_service: advisor.service,
+              advisor_background: advisor.background,
+              advisor_notes: advisor.notes,
+            }
+          : {}),
       },
     },
   });
   if (error) {
     return { errors: { form: [error.message] } };
+  }
+  // Session already live (confirmations off) → write the advisor row now.
+  if (advisor && data.session && data.user) {
+    await supabase.from("advisors").upsert({
+      user_id: data.user.id,
+      callsign: parsed.data.callsign,
+      service: advisor.service,
+      background: advisor.background,
+      notes: advisor.notes,
+      updated_at: new Date().toISOString(),
+    });
   }
   // Email confirmation enabled → no session yet. Tell the operator to
   // check their inbox instead of bouncing them off the login wall.
@@ -64,6 +107,54 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   }
 
   redirect("/menu");
+}
+
+/** Join or update the advisor programme from Settings (session required). */
+export async function saveAdvisorProfile(
+  _state: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const parsed = AdvisorSchema.safeParse({
+    advisorService: formData.get("advisorService"),
+    advisorBackground: formData.get("advisorBackground"),
+    advisorNotes: formData.get("advisorNotes") ?? "",
+  });
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { errors: { form: ["Log in to register as an advisor."] } };
+  }
+
+  const callsign =
+    ((user.user_metadata as { callsign?: string } | null)?.callsign ?? "OPERATOR").slice(0, 24);
+  await supabase.auth.updateUser({
+    data: {
+      advisor: true,
+      advisor_service: parsed.data.advisorService,
+      advisor_background: parsed.data.advisorBackground,
+      advisor_notes: parsed.data.advisorNotes ?? "",
+    },
+  });
+  const { error } = await supabase.from("advisors").upsert({
+    user_id: user.id,
+    callsign,
+    service: parsed.data.advisorService,
+    background: parsed.data.advisorBackground,
+    notes: parsed.data.advisorNotes ?? "",
+    updated_at: new Date().toISOString(),
+  });
+  if (error) {
+    return {
+      errors: { form: ["Could not save — the advisors table may not be set up yet."] },
+    };
+  }
+  return { ok: true, message: "Registered — thank you. We'll be in touch as development needs you." };
 }
 
 export async function logout() {
