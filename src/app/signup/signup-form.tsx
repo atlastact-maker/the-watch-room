@@ -97,7 +97,7 @@ export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?
             className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info)"
           />
           <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
-            I&apos;ve served in the emergency services —{" "}
+            Part of the emergency services —{" "}
             <span className="text-(--color-info)">register me as a development advisor</span>
           </span>
         </label>

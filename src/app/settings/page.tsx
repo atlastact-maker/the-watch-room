@@ -186,7 +186,7 @@ export default function SettingsPage() {
                 )}
               </h2>
               <p className="mt-1.5 text-[12px] leading-relaxed text-(--color-text-muted)">
-                Served in the emergency services? Help keep The Watch Room
+                Part of the emergency services? Help keep The Watch Room
                 authentic — procedures, mobilising, kit, control-room reality.
               </p>
             </div>
