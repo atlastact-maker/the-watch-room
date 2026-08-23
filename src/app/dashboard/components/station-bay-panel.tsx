@@ -9,10 +9,12 @@
 // shadow, tyre marks, wheel chocks, BAY EMPTY) and its status word
 // flashes slowly on the apron; off the run parks a 34% ghost.
 
+import { useState } from "react";
 import { Rnd } from "react-rnd";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import type { Appliance } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
+import { VEHICLE_SPRITES, type VehicleSpriteKey } from "./vehicle-sprites";
 
 // Reference geometry (canvas units). Modules are contiguous.
 const MOD_W = 360;
@@ -30,22 +32,30 @@ const C_OFF = "#5a5a63";
 const C_TEXT = "#f4f4f5";
 const C_DIM = "#8b8b93";
 
-type BayArt = { href: string; w: number; h: number; scale: number; y: number };
+type BayArt = { key: VehicleSpriteKey; w: number; h: number; scale: number; y: number };
 
-/** Detailed bay art per appliance type, with reference placement. */
+/** Detailed bay art per appliance type, with reference placement. The
+ *  sprites are inlined (not <image>) so the tagged LED fittings can run
+ *  the emergency-light CSS when the operator flicks them on. */
 function artFor(type: Appliance["type"]): BayArt | null {
   switch (type) {
     case "WrL":
     case "WrT":
     case "L6P":
     case "TRU_pump":
-      return { href: "/appliances/twr-bay-pump.svg", w: 260, h: 540, scale: 0.711, y: 217.365 };
+      return { key: "bay_pump", w: 260, h: 540, scale: 0.711, y: 217.365 };
     case "TL":
     case "HLP":
-      return { href: "/appliances/twr-bay-alp.svg", w: 280, h: 680, scale: 0.914, y: 40.233 };
+      return { key: "bay_alp", w: 280, h: 680, scale: 0.914, y: 40.233 };
     default:
       return null;
   }
+}
+
+/** Inner markup of a sprite (outer <svg> stripped) for nesting inside the
+ *  bay panel's own SVG canvas. */
+function spriteInner(key: VehicleSpriteKey): string {
+  return VEHICLE_SPRITES[key].svg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
 }
 
 /** Whether the vehicle is physically in its bay right now. */
@@ -103,6 +113,11 @@ export function StationBayPanel({
   /** Mobilise this appliance to the live incident (one-click allocate). */
   onMobilise?: (applianceId: string) => void;
 }) {
+  // Per-appliance emergency-equipment toggle (bay-view only) — flicking
+  // the blues on a machine on the run. Cosmetic; deployment light state
+  // takes over once the vehicle is mobilised.
+  const [lightsOn, setLightsOn] = useState<Record<string, boolean>>({});
+
   const bays = station.appliances;
   const n = Math.max(1, bays.length);
   // Canvas never narrower than a 2-bay reference frame, so the header
@@ -195,6 +210,7 @@ export function StationBayPanel({
             <style>{`
               @keyframes sb-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
               .sb-blink { animation: sb-blink 2.6s ease-in-out infinite; }
+              .sb-blink-fast { animation: sb-blink 0.55s linear infinite; }
               .sb-mob rect { transition: fill-opacity 0.15s ease; }
               .sb-mob:hover rect { fill-opacity: 0.25; }
               .sb-mob:active rect { fill-opacity: 0.4; }
@@ -313,20 +329,19 @@ export function StationBayPanel({
                     {i + 1}
                   </text>
 
-                  {/* Occupied bay: vehicle art (34% ghost when off the run) */}
+                  {/* Occupied bay: vehicle art (34% ghost when off the run).
+                      Inlined sprite so the tagged lamps animate when the
+                      operator turns the emergency equipment on. */}
                   {!out &&
                     (() => {
                       if (art) {
                         const w = art.w * art.scale;
-                        const h = art.h * art.scale;
                         return (
-                          <image
-                            href={art.href}
-                            x={cx - w / 2}
-                            y={art.y}
-                            width={w}
-                            height={h}
+                          <g
+                            transform={`translate(${cx - w / 2} ${art.y}) scale(${art.scale})`}
                             opacity={offRun ? 0.34 : 1}
+                            className={`veh ${lightsOn[a.id] && !offRun ? "ls-999" : "ls-off"}`}
+                            dangerouslySetInnerHTML={{ __html: spriteInner(art.key) }}
                           />
                         );
                       }
@@ -338,6 +353,49 @@ export function StationBayPanel({
                         </g>
                       );
                     })()}
+
+                  {/* Emergency-equipment toggle — parked, on-the-run units only */}
+                  {!out && !offRun && art && (
+                    <g
+                      className="sb-mob"
+                      style={{ cursor: "pointer" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightsOn((prev) => ({ ...prev, [a.id]: !prev[a.id] }));
+                      }}
+                    >
+                      <rect
+                        x={x0 + 14}
+                        y={622}
+                        width={112}
+                        height={26}
+                        rx={4}
+                        fill={lightsOn[a.id] ? "#60a5fa" : "#0a0a0c"}
+                        fillOpacity={lightsOn[a.id] ? 0.22 : 0.55}
+                        stroke={lightsOn[a.id] ? "#60a5fa" : "#3f3f46"}
+                        strokeWidth={1.5}
+                      />
+                      <circle
+                        cx={x0 + 28}
+                        cy={635}
+                        r={4}
+                        fill="#60a5fa"
+                        className={lightsOn[a.id] ? "sb-blink-fast" : undefined}
+                        opacity={lightsOn[a.id] ? 1 : 0.35}
+                      />
+                      <text
+                        x={x0 + 40}
+                        y={639.5}
+                        fontFamily={MONO}
+                        fontWeight={700}
+                        fontSize={11}
+                        letterSpacing={2}
+                        fill={lightsOn[a.id] ? "#60a5fa" : "#71717a"}
+                      >
+                        LIGHTS
+                      </text>
+                    </g>
+                  )}
 
                   {/* Empty bay: floor shadow, tyre marks, chocks, BAY EMPTY */}
                   {out && (

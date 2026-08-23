@@ -297,6 +297,9 @@ function applianceIcon(
     pol_arv: 48,
     pol_unm_saloon: 46,
     pol_unm: 46,
+    // Bay-view art — never returned by spriteKeyForType, sized for safety.
+    bay_pump: 80,
+    bay_alp: 92,
   };
   // H145: ~11 m rotor disc / ~13.6 m overall — much bigger footprint
   // than any road vehicle at the same ground scale.

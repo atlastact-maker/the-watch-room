@@ -35,6 +35,9 @@ const FILES = {
   "vehicle-police-x5-v2.svg": { key: "pol_arv" },
   "vehicle-police-unmarked-saloon-v2.svg": { key: "pol_unm_saloon" },
   "vehicle-police-unmarked-v2.svg": { key: "pol_unm" },
+  // Station bay artwork (nose-down by design) — used by the bay view only.
+  "twr-bay-pump.svg": { key: "bay_pump" },
+  "twr-bay-alp.svg": { key: "bay_alp" },
 };
 
 // Sprite keys whose art renders nose-DOWN as authored; the generator
@@ -100,23 +103,45 @@ for (const [file, { key }] of Object.entries(FILES)) {
     s = s.replace(new RegExp(`href="#${esc}"`, "g"), `href="#${key}-${id}"`);
   }
 
-  // 2. Tag light fittings. Find every element whose fill references one
-  //    of the light defs and inject classes.
+  // 2. Tag light fittings. Two passes: first collect every fitting's raw
+  //    position, then classify each against the FITTINGS' OWN mean —
+  //    vehicle artwork is centre-origin inside translated groups, so the
+  //    viewBox midpoint is meaningless for left/right.
+  // Def ids may carry their own art prefix (pmp-led-blue, alp-led-blue),
+  // so match any id that ENDS with the def name.
+  const fillRefRe = (defName) =>
+    `fill="url\\(#[A-Za-z0-9_-]*${defName}\\)"`;
+
+  const fittings = [];
+  for (const defName of Object.keys(LIGHT_DEFS)) {
+    const tagRe = new RegExp(`<(rect|circle|ellipse|path|polygon|polyline)([^>]*${fillRefRe(defName)}[^>]*?)(/?)>`, "g");
+    let m;
+    while ((m = tagRe.exec(s))) {
+      const pos = firstCoord(m[1], m[2]);
+      if (pos) fittings.push(pos);
+    }
+  }
+  const meanX = fittings.length ? fittings.reduce((n, p) => n + p.x, 0) / fittings.length : midX;
+  const meanY = fittings.length ? fittings.reduce((n, p) => n + p.y, 0) / fittings.length : midY;
+
   for (const [defName, cls] of Object.entries(LIGHT_DEFS)) {
-    const fillRef = `url(#${key}-${defName})`;
-    // match opening tags containing this fill
-    const tagRe = new RegExp(`<(rect|circle|ellipse|path|polygon|polyline)([^>]*fill="${fillRef.replace(/[()#]/g, "\\$&")}"[^>]*?)(/?)>`, "g");
+    // match opening tags containing this fill (id matched by suffix)
+    const tagRe = new RegExp(`<(rect|circle|ellipse|path|polygon|polyline)([^>]*${fillRefRe(defName)}[^>]*?)(/?)>`, "g");
     s = s.replace(tagRe, (full, tag, attrs, selfClose) => {
       const pos = firstCoord(tag, attrs);
       let sideCls = "";
       let endCls = "";
       if (pos) {
+        // dead-centre fittings (|dx| tiny) get no side class — they flash
+        // in both phases via the :not() fallback rule
+        const dx = pos.x - meanX;
+        const dy = pos.y - meanY;
         // baked 180° wrapper flips both axes relative to raw coords
-        const left = baked180 ? pos.x > midX : pos.x < midX;
-        const front = baked180 ? pos.y > midY : pos.y < midY;
+        const left = baked180 ? dx > 0 : dx < 0;
+        const front = baked180 ? dy > 0 : dy < 0;
         // FLIP wrapper (applied below) flips again
         const flip = FLIP.has(key);
-        sideCls = (flip ? !left : left) ? " lt-l" : " lt-r";
+        if (Math.abs(dx) > 1) sideCls = (flip ? !left : left) ? " lt-l" : " lt-r";
         endCls = (flip ? !front : front) ? " lt-f" : " lt-b";
       }
       const classAttr = ` class="lt ${cls}${sideCls}${endCls}"`;
