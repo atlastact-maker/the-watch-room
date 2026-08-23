@@ -32,21 +32,32 @@ const C_OFF = "#5a5a63";
 const C_TEXT = "#f4f4f5";
 const C_DIM = "#8b8b93";
 
-type BayArt = { key: VehicleSpriteKey; w: number; h: number; scale: number; y: number };
+type BayArt = { key: VehicleSpriteKey; scale: number; y: number };
 
-/** Detailed bay art per appliance type, with reference placement. The
- *  sprites are inlined (not <image>) so the tagged LED fittings can run
- *  the emergency-light CSS when the operator flicks them on. */
+/** Detailed bay art per appliance type, with reference placement. The v2
+ *  sprites are drawn nose-up, so the bay render rotates them 180° to sit
+ *  nose-out towards the apron like the reference. Inlined (not <image>)
+ *  so the tagged LED fittings can run the emergency-light CSS when the
+ *  operator flicks them on. */
 function artFor(type: Appliance["type"]): BayArt | null {
   switch (type) {
     case "WrL":
     case "WrT":
     case "L6P":
+      return { key: "pump", scale: 0.711, y: 217.365 };
     case "TRU_pump":
-      return { key: "bay_pump", w: 260, h: 540, scale: 0.711, y: 217.365 };
+      return { key: "tru", scale: 0.66, y: 205 };
     case "TL":
     case "HLP":
-      return { key: "bay_alp", w: 280, h: 680, scale: 0.914, y: 40.233 };
+      return { key: "alp", scale: 0.914, y: 40.233 };
+    case "TRU_van":
+      return { key: "truvan", scale: 0.7, y: 252 };
+    case "PM":
+      return { key: "pm", scale: 0.68, y: 205 };
+    case "HLL":
+      return { key: "hll", scale: 0.68, y: 205 };
+    case "SDU":
+      return { key: "decon", scale: 0.68, y: 205 };
     default:
       return null;
   }
@@ -335,10 +346,11 @@ export function StationBayPanel({
                   {!out &&
                     (() => {
                       if (art) {
-                        const w = art.w * art.scale;
+                        const sp = VEHICLE_SPRITES[art.key];
+                        const w = sp.w * art.scale;
                         return (
                           <g
-                            transform={`translate(${cx - w / 2} ${art.y}) scale(${art.scale})`}
+                            transform={`translate(${cx - w / 2} ${art.y}) scale(${art.scale}) rotate(180 ${sp.w / 2} ${sp.h / 2})`}
                             opacity={offRun ? 0.34 : 1}
                             className={`veh ${lightsOn[a.id] && !offRun ? "ls-999" : "ls-off"}`}
                             dangerouslySetInnerHTML={{ __html: spriteInner(art.key) }}

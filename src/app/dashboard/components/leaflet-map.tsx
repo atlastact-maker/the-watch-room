@@ -704,13 +704,7 @@ export function LeafletMap({
         <Marker
           key={`${m.key}-mover`}
           position={m.currentCoords}
-          icon={movingIcon(
-            m.callsign,
-            m.service,
-            mapPhaseToIconPhase(m.phase),
-            m.applianceType,
-            m.routeCoords && m.phase !== "at_hospital" ? routeBearingAt(m.routeCoords, m.t) : 0,
-          )}
+          icon={movingIcon(m.callsign, m.service, mapPhaseToIconPhase(m.phase))}
           eventHandlers={{ click: () => onSelectAppliance(m.applianceId) }}
         />
       ))}
