@@ -40,6 +40,10 @@ export default function DemoMdtPage() {
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(0);
   const [cursor, setCursor] = useState<{ x: number; y: number; click: boolean } | null>(null);
+  // ?capture=1 hides the operator gutter for clean screen recordings.
+  const [captureMode] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("capture"),
+  );
 
   // Fresh demo world each loop.
   const world = useMemo(() => buildWorld(), [runId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -240,7 +244,7 @@ export default function DemoMdtPage() {
       )}
 
       {/* replay control outside the stage */}
-      <div className="absolute left-4 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-3 text-[10px] uppercase tracking-[0.3em] text-zinc-600 md:flex">
+      <div className={"absolute left-4 top-1/2 z-40 -translate-y-1/2 flex-col gap-3 text-[10px] uppercase tracking-[0.3em] text-zinc-600 " + (captureMode ? "hidden" : "hidden md:flex")}>
         <span>9:16</span>
         <span>mdt demo</span>
         <button onClick={() => setRunId((r) => r + 1)} className="text-zinc-400 hover:text-zinc-100">
@@ -251,7 +255,8 @@ export default function DemoMdtPage() {
 
       <style>{`
         :root { --mdt-scale: 0.52; }
-        @media (min-width: 700px) { :root { --mdt-scale: 0.62; } }
+        @media (min-width: 700px) { :root { --mdt-scale: 0.72; } }
+        @media (min-width: 1000px) { :root { --mdt-scale: 1.12; } }
       `}</style>
     </div>
   );
