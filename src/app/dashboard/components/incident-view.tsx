@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Appliance, AreaCode } from "@/lib/sim/types";
 import type {
   Deployment,
@@ -22,9 +23,8 @@ import type { InformantMessage } from "./informant-panel";
 import { RadioFeed } from "./radio-feed";
 import { DraggableTreatmentPanel } from "./treatment-panel";
 import { ViewSwitch } from "./header";
-import { BaControlBoard } from "./ba-control-board";
 
-type Props = {
+export type Props = {
   incident: Incident;
   stations: StationWithAppliances[];
   patch?: AreaCode | null;
@@ -124,6 +124,25 @@ export type ResolvedDeployment = {
   phase: "mobile" | "at_incident" | "at_hospital" | "returning" | "home";
 };
 
+/** Join deployments to their appliances and movement phase. Shared with the
+ *  MDT tablet, which renders the same hazards/casualties bodies. */
+export function resolveDeployments(
+  deployments: Deployment[],
+  stations: StationWithAppliances[],
+  now: number,
+): ResolvedDeployment[] {
+  return deployments
+    .map((d): ResolvedDeployment | null => {
+      const station = stations.find((s) =>
+        s.appliances.some((a) => a.id === d.applianceId),
+      );
+      const appliance = station?.appliances.find((a) => a.id === d.applianceId);
+      if (!appliance) return null;
+      return { deployment: d, appliance, phase: phaseOf(d, now) };
+    })
+    .filter((x): x is ResolvedDeployment => x !== null);
+}
+
 const SITREP_FILTERS = [
   { key: "all", label: "All" },
   { key: "ops", label: "Ops" },
@@ -189,8 +208,6 @@ export function IncidentView({
   onUpdateBaRemarks,
   onUpdateBaEntryPoint,
   onSetTreatingCasualty,
-  informantLog,
-  informantOnCall,
   tacticalMode,
   onDeclareTacticalMode,
   fatigueByApplianceId,
@@ -202,7 +219,6 @@ export function IncidentView({
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
-  hemsFlyable,
   mdtVisible,
   onToggleMdt,
   onSetTreatmentDestination,
@@ -231,23 +247,13 @@ export function IncidentView({
   // Per-panel collapse state — the operator can pin any side/bottom panel to
   // reclaim screen real-estate for the map. The action menu is not collapsible
   // (the whole point is it stays fully visible when a vehicle is selected).
-  const [tacticalCollapsed, setTacticalCollapsed] = useState(false);
   const [rightRailCollapsed, setRightRailCollapsed] = useState(false);
   const [sitrepCollapsed, setSitrepCollapsed] = useState(false);
   // When set, the operator has asked to re-orient a parked vehicle. The map
   // enters rotate mode until they click to pick a new bearing (or cancel).
   const [rotatePendingApplianceId, setRotatePendingApplianceId] = useState<string | null>(null);
 
-  const resolved: ResolvedDeployment[] = deployments
-    .map((d): ResolvedDeployment | null => {
-      const station = stations.find((s) =>
-        s.appliances.some((a) => a.id === d.applianceId),
-      );
-      const appliance = station?.appliances.find((a) => a.id === d.applianceId);
-      if (!appliance) return null;
-      return { deployment: d, appliance, phase: phaseOf(d, now) };
-    })
-    .filter((x): x is ResolvedDeployment => x !== null);
+  const resolved: ResolvedDeployment[] = resolveDeployments(deployments, stations, now);
 
   const onSceneDeployments = resolved.filter((r) => r.phase === "at_incident");
   const selectedResolved = selectedApplianceId
@@ -302,43 +308,15 @@ export function IncidentView({
       <div
         className="grid min-h-0 flex-1 overflow-hidden"
         style={{
-          gridTemplateColumns: `${tacticalCollapsed ? "40px" : "320px"} 1fr ${rightRailCollapsed ? "40px" : "340px"}`,
+          gridTemplateColumns: `1fr ${rightRailCollapsed ? "40px" : "340px"}`,
           gridTemplateRows: `1fr ${sitrepCollapsed ? "32px" : "180px"}`,
         }}
       >
-        <div className="min-h-0 overflow-hidden" style={{ gridRow: "1 / 2", gridColumn: "1 / 2" }}>
-          <LeftRail
-            incident={incident}
-            sim={sim}
-            deployments={deployments}
-            resolved={resolved}
-            tasks={tasks}
-            now={now}
-            informantLog={informantLog}
-            informantOnCall={informantOnCall}
-            treatmentByCasualtyId={treatmentByCasualtyId}
-            onSetTreatingCasualty={onSetTreatingCasualty}
-            onStartPatientSurvey={onStartPatientSurvey}
-            onApplyAirway={onApplyAirway}
-            onApplyBreathing={onApplyBreathing}
-            onApplyCirculation={onApplyCirculation}
-            onAdministerDrug={onAdministerDrug}
-            onApplyPackaging={onApplyPackaging}
-            onRequestClinician={onRequestClinician}
-            hemsFlyable={hemsFlyable}
-            onSetTreatmentDestination={onSetTreatmentDestination}
-            onSendAtmistPrealert={onSendAtmistPrealert}
-            onConveyCasualtyVia={onConveyCasualtyVia}
-            onUpdateBaRemarks={onUpdateBaRemarks}
-            onUpdateBaEntryPoint={onUpdateBaEntryPoint}
-            onAbortTask={onAbortTask}
-            collapsed={tacticalCollapsed}
-            onToggleCollapse={() => setTacticalCollapsed((v) => !v)}
-          />
-        </div>
+        {/* Call / hazards / casualties / BA live on the MDT tablet — the
+            ground view keeps just the scene, the crews rail and the feed. */}
         <div
-          className="relative min-h-0 overflow-hidden border-x border-(--color-border-subtle) bg-(--color-bg)"
-          style={{ gridRow: "1 / 3", gridColumn: "2 / 3" }}
+          className="relative min-h-0 overflow-hidden border-r border-(--color-border-subtle) bg-(--color-bg)"
+          style={{ gridRow: "1 / 2", gridColumn: "1 / 2" }}
         >
           <GroundSceneMap
             incident={incident}
@@ -459,7 +437,7 @@ export function IncidentView({
             </div>
           )}
         </div>
-        <div className="min-h-0 overflow-hidden" style={{ gridRow: "1 / 3", gridColumn: "3 / 4" }}>
+        <div className="min-h-0 overflow-hidden" style={{ gridRow: "1 / 3", gridColumn: "2 / 3" }}>
           <RightRail
             incident={incident}
             stations={stations}
@@ -788,180 +766,6 @@ function Counter({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tactical Plan
-// ---------------------------------------------------------------------------
-
-function LeftRail({
-  incident,
-  sim,
-  deployments,
-  resolved,
-  tasks,
-  now,
-  informantLog,
-  informantOnCall,
-  treatmentByCasualtyId,
-  onSetTreatingCasualty,
-  onStartPatientSurvey,
-  onApplyAirway,
-  onApplyBreathing,
-  onApplyCirculation,
-  onAdministerDrug,
-  onApplyPackaging,
-  onRequestClinician,
-  hemsFlyable,
-  onSetTreatmentDestination,
-  onSendAtmistPrealert,
-  onConveyCasualtyVia,
-  onUpdateBaRemarks,
-  onUpdateBaEntryPoint,
-  onAbortTask,
-  collapsed,
-  onToggleCollapse,
-}: {
-  incident: Incident;
-  sim: IncidentSimState;
-  deployments: Deployment[];
-  resolved: ResolvedDeployment[];
-  tasks: Task[];
-  now: number;
-  informantLog?: InformantMessage[];
-  informantOnCall?: boolean;
-  treatmentByCasualtyId?: Record<string, PatientTreatmentState>;
-  onSetTreatingCasualty?: (applianceId: string, casualtyId: string | null) => void;
-  onStartPatientSurvey?: (casualtyId: string) => void;
-  onApplyAirway?: Props["onApplyAirway"];
-  onApplyBreathing?: Props["onApplyBreathing"];
-  onApplyCirculation?: Props["onApplyCirculation"];
-  onAdministerDrug?: Props["onAdministerDrug"];
-  onApplyPackaging?: Props["onApplyPackaging"];
-  onRequestClinician?: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
-  hemsFlyable?: boolean;
-  onSetTreatmentDestination?: Props["onSetTreatmentDestination"];
-  onSendAtmistPrealert?: (casualtyId: string) => void;
-  onConveyCasualtyVia?: (applianceId: string, casualtyId: string) => void;
-  onUpdateBaRemarks?: (taskId: string, text: string) => void;
-  onUpdateBaEntryPoint?: (taskId: string, label: string) => void;
-  onAbortTask?: (taskId: string) => void;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-}) {
-  const [tab, setTab] = useState<"call" | "hazards" | "casualties" | "ba">("call");
-  if (collapsed) {
-    return <CollapsedRail title="Call & Hazards" side="left" onExpand={onToggleCollapse} />;
-  }
-  const hazardCount = sim.visibleHazards.length;
-  const locatedCount = sim.foundCasualties.filter((c) => {
-    const stage = sim.casualtyProgression?.[c.id]?.stage;
-    return stage && stage !== "undiscovered" && stage !== "at_hospital";
-  }).length;
-  // Active BA teams across all appliances — populates the BA tab. UK
-  // doctrine wants the Entry Control Board visible throughout BA ops;
-  // here it lives as its own tab so the whole left rail is one size and
-  // one scroll region rather than a strip-above-tabs layout.
-  const baByAppliance: { applianceId: string; appliance: Appliance; tasks: Task[] }[] = [];
-  for (const t of tasks) {
-    if (t.kind !== "ba_sar" || t.state !== "active") continue;
-    const r = resolved.find((x) => x.appliance.id === t.applianceId);
-    if (!r) continue;
-    const existing = baByAppliance.find((b) => b.applianceId === t.applianceId);
-    if (existing) existing.tasks.push(t);
-    else baByAppliance.push({ applianceId: t.applianceId, appliance: r.appliance, tasks: [t] });
-  }
-  const totalBaTeams = baByAppliance.reduce((n, b) => n + b.tasks.length, 0);
-  // If BA ops finish while that tab is active, fall back to Call so the
-  // rail doesn't render an empty pane.
-  if (tab === "ba" && totalBaTeams === 0) {
-    setTab("call");
-  }
-  return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-(--color-surface)/30">
-      <div className="flex items-stretch border-b border-(--color-border-subtle) bg-(--color-surface-raised)">
-        <TabButton label="Call" active={tab === "call"} onClick={() => setTab("call")} />
-        <TabButton
-          label={`Hazards${hazardCount > 0 ? ` · ${hazardCount}` : ""}`}
-          active={tab === "hazards"}
-          onClick={() => setTab("hazards")}
-          tone={hazardCount > 0 ? "critical" : "default"}
-        />
-        <TabButton
-          label={`Casualties${locatedCount > 0 ? ` · ${locatedCount}` : ""}`}
-          active={tab === "casualties"}
-          onClick={() => setTab("casualties")}
-          tone={locatedCount > 0 ? "critical" : "default"}
-        />
-        {totalBaTeams > 0 && (
-          <TabButton
-            label={`BA · ${totalBaTeams}`}
-            active={tab === "ba"}
-            onClick={() => setTab("ba")}
-            tone="critical"
-          />
-        )}
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="shrink-0 border-l border-(--color-border-subtle) px-2 font-mono text-[11px] text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-amber)"
-          title="Minimise"
-          aria-label="Minimise"
-        >
-          —
-        </button>
-      </div>
-      {tab === "call" ? (
-        <CallInformationBody
-          incident={incident}
-          informantLog={informantLog}
-          informantOnCall={informantOnCall}
-        />
-      ) : tab === "hazards" ? (
-        <HazardsBody
-          sim={sim}
-          incident={incident}
-          deployments={deployments}
-          resolved={resolved}
-        />
-      ) : tab === "ba" ? (
-        <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
-          {baByAppliance.map(({ appliance, tasks: bt }) => (
-            <BaControlBoard
-              key={appliance.id}
-              appliance={appliance}
-              baTasks={bt}
-              now={now}
-              onUpdateRemarks={onUpdateBaRemarks}
-              onUpdateEntryPoint={onUpdateBaEntryPoint}
-              onWithdrawTeam={onAbortTask}
-            />
-          ))}
-        </div>
-      ) : (
-        <CasualtiesBody
-          sim={sim}
-          deployments={deployments}
-          resolved={resolved}
-          tasks={tasks}
-          now={now}
-          treatmentByCasualtyId={treatmentByCasualtyId}
-          onSetTreatingCasualty={onSetTreatingCasualty}
-          onStartPatientSurvey={onStartPatientSurvey}
-          onApplyAirway={onApplyAirway}
-          onApplyBreathing={onApplyBreathing}
-          onApplyCirculation={onApplyCirculation}
-          onAdministerDrug={onAdministerDrug}
-          onApplyPackaging={onApplyPackaging}
-          onRequestClinician={onRequestClinician}
-          hemsFlyable={hemsFlyable}
-          onSetTreatmentDestination={onSetTreatmentDestination}
-          onSendAtmistPrealert={onSendAtmistPrealert}
-          onConveyCasualtyVia={onConveyCasualtyVia}
-        />
-      )}
-    </aside>
-  );
-}
-
 function TabButton({
   label,
   active,
@@ -992,7 +796,7 @@ function TabButton({
   );
 }
 
-function HazardsBody({
+export function HazardsBody({
   sim,
   incident,
   deployments,
@@ -1128,7 +932,7 @@ const CASUALTY_STAGE_TONE: Record<IncidentSimState["casualtyProgression"][string
   expectant: "text-(--color-critical)",
 };
 
-function CasualtiesBody({
+export function CasualtiesBody({
   sim,
   deployments,
   resolved,
@@ -1347,7 +1151,7 @@ function CasualtiesBody({
           })}
         </ul>
       )}
-      {openTreatmentId && (() => {
+      {openTreatmentId && typeof document !== "undefined" && (() => {
         const target = casualties.find((c) => c.casualty.id === openTreatmentId);
         if (!target) return null;
         const c = target.casualty;
@@ -1360,7 +1164,10 @@ function CasualtiesBody({
             return r ? { deployment: d, appliance: r.appliance } : null;
           })
           .filter((x): x is NonNullable<typeof x> => x !== null);
-        return (
+        // Portal to <body>: the casualties body can sit inside the MDT
+        // tablet (a transformed react-rnd container), which would otherwise
+        // trap and clip this draggable panel.
+        return createPortal(
           <DraggableTreatmentPanel
             casualty={c}
             treatment={treatmentByCasualtyId?.[c.id] ?? null}
@@ -1385,7 +1192,8 @@ function CasualtiesBody({
               onConveyCasualtyVia?.(applianceId, casualtyId)
             }
             onClose={() => setOpenTreatmentId(null)}
-          />
+          />,
+          document.body,
         );
       })()}
     </div>
@@ -1464,7 +1272,7 @@ function severityTone(severity: string): string {
   }
 }
 
-function CallInformationBody({
+export function CallInformationBody({
   incident,
   informantLog,
   informantOnCall,

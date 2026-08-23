@@ -18,6 +18,15 @@ import {
   type LogEntry,
 } from "@/lib/sim/incident_types";
 import type { StationWithAppliances } from "../page";
+import {
+  CallInformationBody,
+  HazardsBody,
+  CasualtiesBody,
+  resolveDeployments,
+  type Props as IncidentViewProps,
+  type ResolvedDeployment,
+} from "./incident-view";
+import { BaControlBoard } from "./ba-control-board";
 
 // Aerial property view — Leaflet must not run on the server.
 const PropertyAerial = dynamic(
@@ -49,24 +58,75 @@ type Props = {
   onResolve: () => void;
   onDismiss: () => void;
   onClose: () => void;
+
+  // Ground-view extras — the MDT carries Call / Hazards / Casualties / BA
+  // as tabs so the scene needs no separate rail boxes for them.
+  sim?: IncidentViewProps["sim"] | null;
+  tasks?: IncidentViewProps["tasks"];
+  now?: number;
+  informantLog?: IncidentViewProps["informantLog"];
+  informantOnCall?: boolean;
+  treatmentByCasualtyId?: IncidentViewProps["treatmentByCasualtyId"];
+  onSetTreatingCasualty?: IncidentViewProps["onSetTreatingCasualty"];
+  onStartPatientSurvey?: IncidentViewProps["onStartPatientSurvey"];
+  onApplyAirway?: IncidentViewProps["onApplyAirway"];
+  onApplyBreathing?: IncidentViewProps["onApplyBreathing"];
+  onApplyCirculation?: IncidentViewProps["onApplyCirculation"];
+  onAdministerDrug?: IncidentViewProps["onAdministerDrug"];
+  onApplyPackaging?: IncidentViewProps["onApplyPackaging"];
+  onRequestClinician?: IncidentViewProps["onRequestClinician"];
+  hemsFlyable?: boolean;
+  onSetTreatmentDestination?: IncidentViewProps["onSetTreatmentDestination"];
+  onSendAtmistPrealert?: IncidentViewProps["onSendAtmistPrealert"];
+  onConveyCasualtyVia?: IncidentViewProps["onConveyCasualtyVia"];
+  onUpdateBaRemarks?: IncidentViewProps["onUpdateBaRemarks"];
+  onUpdateBaEntryPoint?: IncidentViewProps["onUpdateBaEntryPoint"];
+  onAbortTask?: IncidentViewProps["onAbortTask"];
 };
 
 type TabKey =
   | "overview"
+  | "call"
   | "property"
   | "view"
   | "pri"
   | "targets"
+  | "hazards"
+  | "casualties"
+  | "ba"
   | "log"
   | "debrief";
 
 export function DraggableIncidentMdt({
   incident,
+  stations,
+  deployments,
   log,
   outcome,
   onResolve,
   onDismiss,
   onClose,
+  sim,
+  tasks,
+  now,
+  informantLog,
+  informantOnCall,
+  treatmentByCasualtyId,
+  onSetTreatingCasualty,
+  onStartPatientSurvey,
+  onApplyAirway,
+  onApplyBreathing,
+  onApplyCirculation,
+  onAdministerDrug,
+  onApplyPackaging,
+  onRequestClinician,
+  hemsFlyable,
+  onSetTreatmentDestination,
+  onSendAtmistPrealert,
+  onConveyCasualtyVia,
+  onUpdateBaRemarks,
+  onUpdateBaEntryPoint,
+  onAbortTask,
 }: Props) {
   const resolved = !!outcome;
   const [tab, setTab] = useState<TabKey>("overview");
@@ -88,6 +148,38 @@ export function DraggableIncidentMdt({
   }, [incident.receivedAt]);
 
   const sc = incident.scenario;
+  const nowMs = now ?? Date.now();
+
+  // Scene data for the Hazards / Casualties / BA tabs.
+  const resolvedDeps: ResolvedDeployment[] = sim
+    ? resolveDeployments(deployments, stations, nowMs)
+    : [];
+  const hazardCount = sim?.visibleHazards.length ?? 0;
+  const locatedCount = sim
+    ? sim.foundCasualties.filter((c) => {
+        const stage = sim.casualtyProgression?.[c.id]?.stage;
+        return stage && stage !== "undiscovered" && stage !== "at_hospital";
+      }).length
+    : 0;
+  const baByAppliance: {
+    applianceId: string;
+    appliance: ResolvedDeployment["appliance"];
+    tasks: NonNullable<IncidentViewProps["tasks"]>;
+  }[] = [];
+  for (const t of tasks ?? []) {
+    if (t.kind !== "ba_sar" || t.state !== "active") continue;
+    const r = resolvedDeps.find((x) => x.appliance.id === t.applianceId);
+    if (!r) continue;
+    const existing = baByAppliance.find((b) => b.applianceId === t.applianceId);
+    if (existing) existing.tasks.push(t);
+    else baByAppliance.push({ applianceId: t.applianceId, appliance: r.appliance, tasks: [t] });
+  }
+  const totalBaTeams = baByAppliance.reduce((n, b) => n + b.tasks.length, 0);
+  // If BA ops wind down while the BA tab is open, fall back to Overview.
+  if (tab === "ba" && totalBaTeams === 0) {
+    setTab("overview");
+  }
+
   const tabs: { key: TabKey; label: string }[] = resolved
     ? [
         { key: "debrief", label: "Debrief" },
@@ -95,12 +187,28 @@ export function DraggableIncidentMdt({
       ]
     : [
         { key: "overview", label: "Overview" },
+        { key: "call", label: "Call" },
         { key: "property", label: "Property" },
         { key: "view", label: "Prop View" },
         { key: "pri", label: "PRI" },
         { key: "targets", label: "Targets" },
+        ...(sim
+          ? ([
+              { key: "hazards", label: hazardCount > 0 ? `Hazards·${hazardCount}` : "Hazards" },
+              {
+                key: "casualties",
+                label: locatedCount > 0 ? `Casualties·${locatedCount}` : "Casualties",
+              },
+            ] as { key: TabKey; label: string }[])
+          : []),
+        ...(totalBaTeams > 0
+          ? ([{ key: "ba", label: `BA·${totalBaTeams}` }] as { key: TabKey; label: string }[])
+          : []),
         { key: "log", label: "Log" },
       ];
+
+  // Tabs that render the dark ops-theme scene bodies edge-to-edge.
+  const darkTab = tab === "call" || tab === "hazards" || tab === "casualties" || tab === "ba";
 
   const alerts = [
     ...sc.property.knownHazards,
@@ -156,7 +264,7 @@ export function DraggableIncidentMdt({
 
           {/* Tab row + device buttons */}
           <div className="flex items-stretch justify-between border-b-2 border-zinc-400 bg-[#d9d9de]">
-            <div className="flex items-stretch">
+            <div className="flex flex-wrap items-stretch">
               {tabs.map((t) => {
                 const active = tab === t.key;
                 return (
@@ -238,10 +346,72 @@ export function DraggableIncidentMdt({
           <div
             className={
               "min-h-0 flex-1 " +
-              (tab === "view" ? "" : "overflow-y-auto bg-[#f4f4f5] px-3 py-2.5")
+              (tab === "view" || darkTab ? "" : "overflow-y-auto bg-[#f4f4f5] px-3 py-2.5")
             }
           >
             {tab === "debrief" && outcome && <OutcomeView outcome={outcome} />}
+
+            {tab === "call" && !resolved && (
+              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)">
+                <CallInformationBody
+                  incident={incident}
+                  informantLog={informantLog}
+                  informantOnCall={informantOnCall}
+                />
+              </div>
+            )}
+
+            {tab === "hazards" && !resolved && sim && (
+              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)">
+                <HazardsBody
+                  sim={sim}
+                  incident={incident}
+                  deployments={deployments}
+                  resolved={resolvedDeps}
+                />
+              </div>
+            )}
+
+            {tab === "casualties" && !resolved && sim && (
+              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)">
+                <CasualtiesBody
+                  sim={sim}
+                  deployments={deployments}
+                  resolved={resolvedDeps}
+                  tasks={tasks ?? []}
+                  now={nowMs}
+                  treatmentByCasualtyId={treatmentByCasualtyId}
+                  onSetTreatingCasualty={onSetTreatingCasualty}
+                  onStartPatientSurvey={onStartPatientSurvey}
+                  onApplyAirway={onApplyAirway}
+                  onApplyBreathing={onApplyBreathing}
+                  onApplyCirculation={onApplyCirculation}
+                  onAdministerDrug={onAdministerDrug}
+                  onApplyPackaging={onApplyPackaging}
+                  onRequestClinician={onRequestClinician}
+                  hemsFlyable={hemsFlyable}
+                  onSetTreatmentDestination={onSetTreatmentDestination}
+                  onSendAtmistPrealert={onSendAtmistPrealert}
+                  onConveyCasualtyVia={onConveyCasualtyVia}
+                />
+              </div>
+            )}
+
+            {tab === "ba" && !resolved && (
+              <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto bg-(--color-bg) px-3 py-3 text-(--color-text)">
+                {baByAppliance.map(({ appliance, tasks: bt }) => (
+                  <BaControlBoard
+                    key={appliance.id}
+                    appliance={appliance}
+                    baTasks={bt}
+                    now={nowMs}
+                    onUpdateRemarks={onUpdateBaRemarks}
+                    onUpdateEntryPoint={onUpdateBaEntryPoint}
+                    onWithdrawTeam={onAbortTask}
+                  />
+                ))}
+              </div>
+            )}
 
             {tab === "overview" && !resolved && (
               <>

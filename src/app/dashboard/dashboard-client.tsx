@@ -2970,6 +2970,27 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onResolve={resolveIncident}
             onDismiss={dismissIncident}
             onClose={() => setIncidentPanelVisible(false)}
+            sim={incidentSim}
+            tasks={tasks}
+            now={now}
+            informantLog={informantLog}
+            informantOnCall={informantOnCall}
+            treatmentByCasualtyId={treatmentByCasualtyId}
+            onSetTreatingCasualty={setTreatingCasualty}
+            onStartPatientSurvey={startPatientSurvey}
+            onApplyAirway={applyAirway}
+            onApplyBreathing={applyBreathing}
+            onApplyCirculation={applyCirculation}
+            onAdministerDrug={administerDrug}
+            onApplyPackaging={applyPackaging}
+            onRequestClinician={requestClinician}
+            hemsFlyable={hemsAvailable(weather)}
+            onSetTreatmentDestination={setTreatmentDestination}
+            onSendAtmistPrealert={sendAtmistPrealert}
+            onConveyCasualtyVia={conveyCasualtyVia}
+            onUpdateBaRemarks={updateBaRemarks}
+            onUpdateBaEntryPoint={updateBaEntryPoint}
+            onAbortTask={abortTask}
           />
         )}
         {pendingCall && (
