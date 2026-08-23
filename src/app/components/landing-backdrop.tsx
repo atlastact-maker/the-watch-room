@@ -16,7 +16,6 @@ import { useEffect, useRef } from "react";
  */
 export function LandingBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const tickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -343,59 +342,6 @@ export function LandingBackdrop() {
     };
   }, []);
 
-  // Radio-traffic ticker — procedurally shuffled CAD-style log lines. The
-  // lines animate in via CSS transitions, restart via React state, and the
-  // DOM is small (three lines at any time) so it's cheap.
-  useEffect(() => {
-    const el = tickerRef.current;
-    if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
-    const lines = [
-      "G50-P1 · Status 1 · mobile Wythenshawe",
-      "A-BOL-D3 · Status 5 · at Royal Oldham",
-      "G39-P1 · Stop message sent · on scene",
-      "HELIMED 72 · requested for trauma",
-      "G10-PM1 · mobile carrying HVP",
-      "ARV 24 · en route · armed support",
-      "G24-R6 · USAR team on scene",
-      "Make pumps 6 · 02 Dwelling Fire Wythenshawe",
-      "A-MAN-D7 · Status 1 · mobile to RTC",
-      "G57-R2 · TRU en route · RTC entrapment",
-      "BA crew committed · 2 wearers · 300 bar",
-      "Hydrant H2 in use · G12-P1",
-      "NPAS 21 · airborne · Stockport",
-      "G01-A3 · Aerial cage in use",
-      "HART1 · requested · water rescue",
-      "Dog unit en route · missing person",
-      "OFFICER · scene command · G50 WM",
-      "Relay hose 70mm · G12 → G50",
-      "Firebreak cut · Wildfire WFU L2",
-      "CCC · paediatric trauma · Manchester Royal",
-    ];
-    let i = 0;
-    const push = () => {
-      const line = lines[i % lines.length];
-      i++;
-      const row = document.createElement("div");
-      row.className =
-        "opacity-0 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) transition-opacity duration-500";
-      row.textContent = `⎋ ${line}`;
-      el.appendChild(row);
-      // Fade in next tick.
-      requestAnimationFrame(() => {
-        row.style.opacity = "0.65";
-      });
-      // Keep at most 8 rows on screen.
-      while (el.children.length > 8) {
-        el.removeChild(el.firstChild!);
-      }
-    };
-    push();
-    const id = setInterval(push, 2200);
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
       <canvas
@@ -417,17 +363,6 @@ export function LandingBackdrop() {
         style={{
           background:
             "radial-gradient(80% 60% at 50% 40%, rgba(5,5,7,0) 40%, rgba(5,5,7,0.55) 80%, rgba(5,5,7,0.85) 100%)",
-        }}
-      />
-      {/* Radio ticker column — bottom-left of the viewport. */}
-      <div
-        ref={tickerRef}
-        className="absolute bottom-4 left-4 flex w-[280px] flex-col gap-0.5 sm:bottom-6 sm:left-6"
-        style={{
-          maskImage:
-            "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0.9) 60%, rgba(0,0,0,0) 100%)",
-          WebkitMaskImage:
-            "linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0.9) 60%, rgba(0,0,0,0) 100%)",
         }}
       />
     </div>
