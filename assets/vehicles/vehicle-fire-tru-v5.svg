@@ -1,0 +1,595 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 620" font-family="'Inter', 'Helvetica Neue', sans-serif">
+
+  <defs>
+    <filter id="shadow-deep" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="3" dy="5"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <linearGradient id="body-red" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5A0808"/>
+      <stop offset="6%" stop-color="#8B1212"/>
+      <stop offset="14%" stop-color="#B01818"/>
+      <stop offset="22%" stop-color="#CE2020"/>
+      <stop offset="45%" stop-color="#E42828"/>
+      <stop offset="55%" stop-color="#E42828"/>
+      <stop offset="78%" stop-color="#CE2020"/>
+      <stop offset="86%" stop-color="#B01818"/>
+      <stop offset="94%" stop-color="#8B1212"/>
+      <stop offset="100%" stop-color="#5A0808"/>
+    </linearGradient>
+
+    <linearGradient id="body-sheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="12%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="cab-red" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6A0A0A"/>
+      <stop offset="10%" stop-color="#A01818"/>
+      <stop offset="25%" stop-color="#C82424"/>
+      <stop offset="50%" stop-color="#E83030"/>
+      <stop offset="75%" stop-color="#C82424"/>
+      <stop offset="90%" stop-color="#A01818"/>
+      <stop offset="100%" stop-color="#6A0A0A"/>
+    </linearGradient>
+
+    <linearGradient id="toolbox-red" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5A0808"/>
+      <stop offset="20%" stop-color="#8B1010"/>
+      <stop offset="50%" stop-color="#B81C1C"/>
+      <stop offset="80%" stop-color="#8B1010"/>
+      <stop offset="100%" stop-color="#5A0808"/>
+    </linearGradient>
+
+    <pattern id="chequer-pattern" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse">
+      <rect width="5" height="5" fill="#7A7A72"/>
+      <polygon points="2.5,0.8 4.2,2.5 2.5,4.2 0.8,2.5" fill="#585850" opacity="0.65"/>
+      <polygon points="2.5,0.4 3.8,2.5 2.5,4.6 1.2,2.5" fill="#B0B0A8" opacity="0.35"/>
+      <circle cx="2.5" cy="2.5" r="0.3" fill="#9A9A92" opacity="0.4"/>
+    </pattern>
+
+    <linearGradient id="rail-metal" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3A3A30"/>
+      <stop offset="30%" stop-color="#8A8780"/>
+      <stop offset="50%" stop-color="#D8D5C8"/>
+      <stop offset="70%" stop-color="#8A8780"/>
+      <stop offset="100%" stop-color="#3A3A30"/>
+    </linearGradient>
+
+    <linearGradient id="rung-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5A5A50"/>
+      <stop offset="30%" stop-color="#A8A8A0"/>
+      <stop offset="60%" stop-color="#D0D0C8"/>
+      <stop offset="100%" stop-color="#6A6A60"/>
+    </linearGradient>
+
+    <!-- Orange spine board gradient - textured plastic look -->
+    <linearGradient id="spineboard-orange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8B4010"/>
+      <stop offset="15%" stop-color="#C05820"/>
+      <stop offset="35%" stop-color="#E87030"/>
+      <stop offset="65%" stop-color="#E87030"/>
+      <stop offset="85%" stop-color="#C05820"/>
+      <stop offset="100%" stop-color="#8B4010"/>
+    </linearGradient>
+
+    <!-- Cage stretcher metal with deep metallic -->
+    <linearGradient id="stretcher-metal" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3A3A32"/>
+      <stop offset="25%" stop-color="#7A7A72"/>
+      <stop offset="50%" stop-color="#B0B0A8"/>
+      <stop offset="75%" stop-color="#7A7A72"/>
+      <stop offset="100%" stop-color="#3A3A32"/>
+    </linearGradient>
+
+    <!-- Wire mesh pattern for stretcher floor -->
+    <pattern id="wire-mesh" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="4" fill="#5A5A52"/>
+      <line x1="0" y1="2" x2="4" y2="2" stroke="#2A2A22" stroke-width="0.4"/>
+      <line x1="2" y1="0" x2="2" y2="4" stroke="#2A2A22" stroke-width="0.4"/>
+      <circle cx="2" cy="2" r="0.3" fill="#8A8A82" opacity="0.5"/>
+    </pattern>
+
+    <radialGradient id="led-blue" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#AAC8FF"/>
+      <stop offset="40%" stop-color="#5A7AFF"/>
+      <stop offset="90%" stop-color="#2A3ACC"/>
+      <stop offset="100%" stop-color="#1A2388"/>
+    </radialGradient>
+
+    <radialGradient id="led-amber" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFE8A0"/>
+      <stop offset="40%" stop-color="#F0B820"/>
+      <stop offset="90%" stop-color="#A07010"/>
+      <stop offset="100%" stop-color="#604008"/>
+    </radialGradient>
+
+    <radialGradient id="headlight" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFAE0"/>
+      <stop offset="50%" stop-color="#F0E8C0"/>
+      <stop offset="100%" stop-color="#B09850"/>
+    </radialGradient>
+
+    <linearGradient id="windscreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A6A90"/>
+      <stop offset="30%" stop-color="#2A3A55"/>
+      <stop offset="70%" stop-color="#1A2535"/>
+      <stop offset="100%" stop-color="#0A1525"/>
+    </linearGradient>
+  <radialGradient id="led-red" cx="50%" cy="50%" r="50%">
+<stop offset="0%" stop-color="#FFC0C0"/><stop offset="40%" stop-color="#FF5050"/>
+<stop offset="90%" stop-color="#C01414"/><stop offset="100%" stop-color="#780A0A"/></radialGradient></defs>
+
+  <rect width="280" height="620" fill="none"/>
+
+  <g transform="translate(140, 310)" filter="url(#shadow-deep)">
+
+    <!-- ============================================= -->
+    <!-- WHEELS - 6x2 tandem rear -->
+    <!-- ============================================= -->
+    <g>
+      <rect x="-90" y="-220" width="7" height="26" rx="2" fill="#0A0A0A"/>
+      <rect x="-89" y="-218" width="5" height="22" rx="1" fill="#1F1F1F"/>
+      <rect x="-88" y="-216" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+      <rect x="-88" y="-199" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+
+      <rect x="83" y="-220" width="7" height="26" rx="2" fill="#0A0A0A"/>
+      <rect x="84" y="-218" width="5" height="22" rx="1" fill="#1F1F1F"/>
+      <rect x="85" y="-216" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+      <rect x="85" y="-199" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+
+      <rect x="-90" y="80" width="7" height="36" rx="2" fill="#0A0A0A"/>
+      <rect x="-89" y="82" width="5" height="32" rx="1" fill="#1F1F1F"/>
+      <rect x="-88" y="84" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+      <rect x="-88" y="110" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+
+      <rect x="83" y="80" width="7" height="36" rx="2" fill="#0A0A0A"/>
+      <rect x="84" y="82" width="5" height="32" rx="1" fill="#1F1F1F"/>
+      <rect x="85" y="84" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+      <rect x="85" y="110" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+
+      <rect x="-90" y="128" width="7" height="36" rx="2" fill="#0A0A0A"/>
+      <rect x="-89" y="130" width="5" height="32" rx="1" fill="#1F1F1F"/>
+      <rect x="-88" y="132" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+      <rect x="-88" y="158" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+
+      <rect x="83" y="128" width="7" height="36" rx="2" fill="#0A0A0A"/>
+      <rect x="84" y="130" width="5" height="32" rx="1" fill="#1F1F1F"/>
+      <rect x="85" y="132" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+      <rect x="85" y="158" width="3" height="2" fill="#3A3A3A" opacity="0.5"/>
+    </g>
+
+    <!-- ============================================= -->
+    <!-- CAB (Volvo FE crew cab, slightly wider than FL) -->
+    <!-- ============================================= -->
+    <rect x="-80" y="-268" width="160" height="180" rx="4" fill="url(#cab-red)" stroke="#3A0606" stroke-width="1"/>
+    <rect x="-80" y="-268" width="160" height="12" rx="4" fill="url(#body-sheen)"/>
+
+    <!-- Panel seams -->
+    <g stroke="#4A0606" stroke-width="0.4" opacity="0.7">
+      <line x1="-80" y1="-198" x2="-76" y2="-198"/>
+      <line x1="76" y1="-198" x2="80" y2="-198"/>
+      <line x1="-80" y1="-135" x2="-76" y2="-135"/>
+      <line x1="76" y1="-135" x2="80" y2="-135"/>
+    </g>
+
+    <!-- Front bumper -->
+    <path d="M -80 -268 Q -80 -272 -74 -272 L 74 -272 Q 80 -272 80 -268 L 80 -252 L -80 -252 Z"
+          fill="#1A1A1A" stroke="#000000" stroke-width="0.8"/>
+    <path d="M -78 -270 L 78 -270" stroke="#5A5A5A" stroke-width="0.5" opacity="0.6"/>
+    <g fill="#3A3A3A">
+      <circle cx="-64" cy="-256" r="0.8"/>
+      <circle cx="0" cy="-256" r="0.8"/>
+      <circle cx="64" cy="-256" r="0.8"/>
+    </g>
+
+    <!-- Front chevrons -->
+    <g>
+      <rect x="-76" y="-252" width="152" height="18" fill="#8B1010"/>
+      <g fill="#FFFFFF">
+        <polygon points="-76,-234 -65,-252 -54,-252 -65,-234"/>
+        <polygon points="-54,-234 -43,-252 -32,-252 -43,-234"/>
+        <polygon points="-32,-234 -21,-252 -10,-252 -21,-234"/>
+        <polygon points="-10,-234 1,-252 12,-252 1,-234"/>
+        <polygon points="12,-234 23,-252 34,-252 23,-234"/>
+        <polygon points="34,-234 45,-252 56,-252 45,-234"/>
+        <polygon points="56,-234 67,-252 76,-252 67,-234"/>
+      </g>
+      <rect x="-76" y="-252" width="152" height="4" fill="#FFFFFF" opacity="0.15"/>
+    </g>
+
+    <!-- Headlights -->
+    <g>
+      <rect x="-73" y="-271" width="15" height="7" rx="1.5" fill="#2A2A2A"/>
+      <rect x="-72" y="-270" width="13" height="5" rx="1" fill="url(#headlight)"/>
+      <ellipse cx="-68" cy="-268" rx="1.5" ry="0.8" fill="#FFFFFF" opacity="0.7"/>
+      <ellipse cx="-63" cy="-267" rx="1" ry="0.5" fill="#FFFFFF" opacity="0.4"/>
+    </g>
+    <g>
+      <rect x="58" y="-271" width="15" height="7" rx="1.5" fill="#2A2A2A"/>
+      <rect x="59" y="-270" width="13" height="5" rx="1" fill="url(#headlight)"/>
+      <ellipse cx="62" cy="-268" rx="1.5" ry="0.8" fill="#FFFFFF" opacity="0.7"/>
+      <ellipse cx="67" cy="-267" rx="1" ry="0.5" fill="#FFFFFF" opacity="0.4"/>
+    </g>
+
+    <!-- Grille -->
+    <rect x="-20" y="-271" width="40" height="8" rx="1" fill="#0A0A0A"/>
+    <g stroke="#2A2A2A" stroke-width="0.5">
+      <line x1="-18" y1="-269" x2="18" y2="-269"/>
+      <line x1="-18" y1="-267" x2="18" y2="-267"/>
+      <line x1="-18" y1="-265" x2="18" y2="-265"/>
+    </g>
+    <rect x="-4" y="-268" width="8" height="2" fill="#5A5A5A"/>
+
+    <!-- Windscreen -->
+    <path d="M -76 -234 L -65 -194 L 65 -194 L 76 -234 Z" fill="url(#windscreen)" stroke="#050510" stroke-width="0.8"/>
+    <path d="M -72 -232 L -62 -198 L -20 -198 L -20 -232 Z" fill="#6A8AAC" opacity="0.35"/>
+    <path d="M -70 -230 L -58 -202 L -30 -202 L -30 -230 Z" fill="#AAC8E0" opacity="0.2"/>
+    <path d="M -30 -222 L -8 -196" stroke="#0A0A0A" stroke-width="0.7" opacity="0.7"/>
+    <path d="M 8 -222 L 30 -196" stroke="#0A0A0A" stroke-width="0.7" opacity="0.7"/>
+    <rect x="-30" y="-223" width="1.5" height="1.5" fill="#2A2A2A"/>
+    <rect x="28" y="-223" width="1.5" height="1.5" fill="#2A2A2A"/>
+
+    <!-- Cab roof -->
+    <rect x="-76" y="-194" width="152" height="100" fill="url(#cab-red)" stroke="#3A0606" stroke-width="0.8"/>
+    <rect x="-76" y="-194" width="152" height="6" fill="url(#body-sheen)"/>
+
+    <!-- LED bar -->
+    <g>
+      <rect x="-64" y="-190" width="128" height="16" rx="2" fill="#050510" stroke="#000000" stroke-width="0.6"/>
+      <rect x="-62" y="-189" width="124" height="14" rx="1.5" fill="#0A0A1A"/>
+      <rect x="-62" y="-189" width="124" height="1" fill="#6A7080" opacity="0.7"/>
+
+      <g>
+        <rect x="-59" y="-187" width="24" height="7" rx="1" fill="#0A0A1A"/>
+        <rect x="-58" y="-186" width="22" height="5" rx="0.8" fill="url(#led-blue)"/>
+        <circle cx="-53" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="-47" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="-41" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+      </g>
+      <g>
+        <rect x="-34" y="-187" width="24" height="7" rx="1" fill="#0A0A1A"/>
+        <rect x="-33" y="-186" width="22" height="5" rx="0.8" fill="url(#led-blue)"/>
+        <circle cx="-28" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="-22" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="-16" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+      </g>
+      <g>
+        <rect x="-9" y="-187" width="18" height="7" rx="1" fill="#0A0A1A"/>
+        <rect x="-8" y="-186" width="16" height="5" rx="0.8" fill="url(#led-blue)"/>
+        <circle cx="-5" cy="-183.5" r="0.8" fill="#FFFFCC" opacity="0.9"/>
+        <circle cx="0" cy="-183.5" r="0.8" fill="#FFFFCC" opacity="0.9"/>
+        <circle cx="5" cy="-183.5" r="0.8" fill="#FFFFCC" opacity="0.9"/>
+      </g>
+      <g>
+        <rect x="10" y="-187" width="24" height="7" rx="1" fill="#0A0A1A"/>
+        <rect x="11" y="-186" width="22" height="5" rx="0.8" fill="url(#led-blue)"/>
+        <circle cx="16" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="22" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="28" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+      </g>
+      <g>
+        <rect x="35" y="-187" width="24" height="7" rx="1" fill="#0A0A1A"/>
+        <rect x="36" y="-186" width="22" height="5" rx="0.8" fill="url(#led-blue)"/>
+        <circle cx="41" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="47" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+        <circle cx="53" cy="-183.5" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+      </g>
+      <rect x="-62" y="-176" width="124" height="1" fill="#4A5060" opacity="0.6"/>
+    </g>
+
+    <!-- Wing mirrors -->
+    <g>
+      <rect x="-94" y="-238" width="12" height="18" rx="2" fill="#1A0404"/>
+      <rect x="-93" y="-236" width="10" height="16" rx="1.5" fill="#3A0808"/>
+      <rect x="-91" y="-234" width="6" height="12" rx="1" fill="#6A0A0A"/>
+      <rect x="-92" y="-237" width="3" height="3" fill="#8A9AB0" opacity="0.7"/>
+    </g>
+    <g>
+      <rect x="82" y="-238" width="12" height="18" rx="2" fill="#1A0404"/>
+      <rect x="83" y="-236" width="10" height="16" rx="1.5" fill="#3A0808"/>
+      <rect x="85" y="-234" width="6" height="12" rx="1" fill="#6A0A0A"/>
+      <rect x="89" y="-237" width="3" height="3" fill="#8A9AB0" opacity="0.7"/>
+    </g>
+
+    <!-- Cab windows -->
+    <rect x="-80" y="-190" width="4" height="32" fill="url(#windscreen)"/>
+    <rect x="-80" y="-190" width="4" height="3" fill="#6A8AAA" opacity="0.5"/>
+    <rect x="76" y="-190" width="4" height="32" fill="url(#windscreen)"/>
+    <rect x="76" y="-190" width="4" height="3" fill="#6A8AAA" opacity="0.5"/>
+
+    <rect x="-80" y="-158" width="4" height="5" fill="#1A0404"/>
+    <rect x="76" y="-158" width="4" height="5" fill="#1A0404"/>
+
+    <rect x="-80" y="-153" width="4" height="52" fill="url(#windscreen)"/>
+    <rect x="-80" y="-153" width="4" height="3" fill="#6A8AAA" opacity="0.5"/>
+    <rect x="76" y="-153" width="4" height="52" fill="url(#windscreen)"/>
+    <rect x="76" y="-153" width="4" height="3" fill="#6A8AAA" opacity="0.5"/>
+
+    <rect x="-80" y="-101" width="4" height="5" fill="#1A0404"/>
+    <rect x="76" y="-101" width="4" height="5" fill="#1A0404"/>
+
+    <!-- Crew cab skylight -->
+    <rect x="-22" y="-140" width="44" height="38" rx="2" fill="url(#windscreen)" stroke="#050510" stroke-width="0.8"/>
+    <rect x="-20" y="-138" width="40" height="5" fill="#6A8AAA" opacity="0.4"/>
+    <rect x="-19" y="-137" width="20" height="2" fill="#AAC8E0" opacity="0.5"/>
+
+    <!-- Cab-to-body seam -->
+    <line x1="-80" y1="-88" x2="80" y2="-88" stroke="#3A0606" stroke-width="0.7"/>
+
+    <!-- ============================================= -->
+    <!-- BODY with metallic paint -->
+    <!-- ============================================= -->
+    <rect x="-84" y="-88" width="168" height="280" rx="3" fill="url(#body-red)" stroke="#3A0606" stroke-width="1"/>
+    <rect x="-84" y="-88" width="168" height="4" fill="url(#body-sheen)"/>
+
+    <!-- Panel seams -->
+    <g stroke="#4A0606" stroke-width="0.5" opacity="0.5">
+      <line x1="-84" y1="0" x2="-80" y2="0"/>
+      <line x1="80" y1="0" x2="84" y2="0"/>
+      <line x1="-84" y1="80" x2="-80" y2="80"/>
+      <line x1="80" y1="80" x2="84" y2="80"/>
+      <line x1="-84" y1="160" x2="-80" y2="160"/>
+      <line x1="80" y1="160" x2="84" y2="160"/>
+    </g>
+
+    <!-- Chequer plate roof -->
+    <rect x="-78" y="-84" width="156" height="270" rx="2" fill="url(#chequer-pattern)" stroke="#2A2A22" stroke-width="1"/>
+    <rect x="-78" y="-84" width="156" height="3" fill="#C0C0B8" opacity="0.3"/>
+    <rect x="-78" y="-84" width="156" height="270" rx="2" fill="none" stroke="#1A1A1A" stroke-width="1.5"/>
+
+    <!-- ============================================= -->
+    <!-- RIGHT-SIDE LADDER — full length with metallic detail -->
+    <!-- ============================================= -->
+    <g>
+      <!-- Ladder mounts -->
+      <rect x="36" y="-82" width="40" height="5" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+      <rect x="36" y="-82" width="40" height="1" fill="#5A5A50" opacity="0.7"/>
+      <rect x="36" y="180" width="40" height="5" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+      <rect x="36" y="180" width="40" height="1" fill="#5A5A50" opacity="0.7"/>
+
+      <!-- Ladder rails (chrome metal) -->
+      <rect x="40" y="-78" width="4" height="258" fill="url(#rail-metal)" stroke="#1A1A10" stroke-width="0.3"/>
+      <rect x="68" y="-78" width="4" height="258" fill="url(#rail-metal)" stroke="#1A1A10" stroke-width="0.3"/>
+
+      <!-- 3D rungs -->
+      <g>
+        <rect x="44" y="-72" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="-60" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="-48" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="-36" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="-24" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="-12" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="0" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="12" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="24" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="36" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="48" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="60" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="72" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="84" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="96" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="108" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="120" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="132" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="144" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="156" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+        <rect x="44" y="168" width="24" height="3" rx="0.3" fill="url(#rung-metal)" stroke="#1A1A10" stroke-width="0.2"/>
+      </g>
+    </g>
+
+    <!-- ============================================= -->
+    <!-- TOP-LEFT: SMALL RED TOOLBOX with full 3D depth -->
+    <!-- ============================================= -->
+    <g>
+      <rect x="-70" y="-70" width="56" height="58" fill="#000000" opacity="0.4"/>
+      <rect x="-72" y="-74" width="56" height="58" rx="2.5" fill="url(#toolbox-red)" stroke="#2A0404" stroke-width="1"/>
+      <rect x="-70" y="-72" width="52" height="3" fill="#E83838" opacity="0.7"/>
+      <rect x="-70" y="-72" width="52" height="1" fill="#FF4848" opacity="0.5"/>
+      <rect x="-72" y="-74" width="3" height="58" fill="#3A0404" opacity="0.8"/>
+      <rect x="-18" y="-74" width="2" height="58" fill="#E83838" opacity="0.4"/>
+      <!-- Centre lid seam -->
+      <line x1="-44" y1="-74" x2="-44" y2="-16" stroke="#2A0404" stroke-width="0.8"/>
+      <line x1="-44" y1="-74" x2="-44" y2="-16" stroke="#E83838" stroke-width="0.3" opacity="0.5"/>
+      <!-- Lift handle -->
+      <rect x="-52" y="-48" width="16" height="3.5" rx="0.5" fill="#1A0202" stroke="#000000" stroke-width="0.3"/>
+      <rect x="-52" y="-48" width="16" height="1" fill="#5A0A0A" opacity="0.5"/>
+      <!-- Hinge hints -->
+      <rect x="-68" y="-20" width="3" height="1.5" fill="#1A0202" opacity="0.7"/>
+      <rect x="-23" y="-20" width="3" height="1.5" fill="#1A0202" opacity="0.7"/>
+    </g>
+
+    <!-- ============================================= -->
+    <!-- MIDDLE-LEFT: SPINE BOARD (bright orange, tapered, detailed) -->
+    <!-- ============================================= -->
+    <g>
+      <!-- Drop shadow -->
+      <path d="M -64 -8 L -18 -8 L -20 77 L -62 77 Z" fill="#000000" opacity="0.35"/>
+
+      <!-- Main board -->
+      <path d="M -66 -10 L -20 -10 L -22 75 L -64 75 Z" fill="url(#spineboard-orange)" stroke="#5A2A08" stroke-width="1"/>
+
+      <!-- Top highlight sheen along top edge -->
+      <path d="M -64 -10 L -22 -10 L -22.5 -7 L -63.5 -7 Z" fill="#FFB060" opacity="0.4"/>
+
+      <!-- Head immobiliser block -->
+      <rect x="-56" y="-8" width="26" height="14" rx="1.5" fill="#6A2810" stroke="#3A1505" stroke-width="0.5"/>
+      <rect x="-56" y="-8" width="26" height="2" fill="#A04020" opacity="0.8"/>
+      <rect x="-56" y="-8" width="2" height="14" fill="#3A1505" opacity="0.7"/>
+      <!-- Block strap slots -->
+      <rect x="-53" y="-3" width="6" height="1.5" fill="#2A1005"/>
+      <rect x="-39" y="-3" width="6" height="1.5" fill="#2A1005"/>
+
+      <!-- Hand holes with depth -->
+      <g>
+        <ellipse cx="-65" cy="12" rx="2" ry="3.5" fill="#3A1505"/>
+        <ellipse cx="-65" cy="12" rx="1.3" ry="2.7" fill="#1A0A02"/>
+        <ellipse cx="-20" cy="12" rx="2" ry="3.5" fill="#3A1505"/>
+        <ellipse cx="-20" cy="12" rx="1.3" ry="2.7" fill="#1A0A02"/>
+        <ellipse cx="-65" cy="32" rx="2" ry="3.5" fill="#3A1505"/>
+        <ellipse cx="-65" cy="32" rx="1.3" ry="2.7" fill="#1A0A02"/>
+        <ellipse cx="-21" cy="32" rx="2" ry="3.5" fill="#3A1505"/>
+        <ellipse cx="-21" cy="32" rx="1.3" ry="2.7" fill="#1A0A02"/>
+        <ellipse cx="-65" cy="52" rx="2" ry="3.5" fill="#3A1505"/>
+        <ellipse cx="-65" cy="52" rx="1.3" ry="2.7" fill="#1A0A02"/>
+        <ellipse cx="-22" cy="52" rx="2" ry="3.5" fill="#3A1505"/>
+        <ellipse cx="-22" cy="52" rx="1.3" ry="2.7" fill="#1A0A02"/>
+      </g>
+
+      <!-- Casualty straps with 3D depth -->
+      <g>
+        <!-- Chest -->
+        <rect x="-65" y="14" width="45" height="4" fill="#1A1A1A"/>
+        <rect x="-65" y="14" width="45" height="1" fill="#4A4A4A" opacity="0.8"/>
+        <rect x="-65" y="17.5" width="45" height="0.8" fill="#0A0A0A"/>
+        <!-- Waist -->
+        <rect x="-65" y="34" width="44" height="4" fill="#1A1A1A"/>
+        <rect x="-65" y="34" width="44" height="1" fill="#4A4A4A" opacity="0.8"/>
+        <rect x="-65" y="37.5" width="44" height="0.8" fill="#0A0A0A"/>
+        <!-- Leg -->
+        <rect x="-65" y="54" width="43" height="4" fill="#1A1A1A"/>
+        <rect x="-65" y="54" width="43" height="1" fill="#4A4A4A" opacity="0.8"/>
+        <rect x="-65" y="57.5" width="43" height="0.8" fill="#0A0A0A"/>
+      </g>
+
+      <!-- Strap buckles (metallic) -->
+      <g>
+        <rect x="-45" y="13.5" width="5" height="5" rx="0.4" fill="#6A6A62" stroke="#2A2A22" stroke-width="0.3"/>
+        <rect x="-45" y="13.5" width="5" height="1" fill="#A8A8A0" opacity="0.7"/>
+        <rect x="-43" y="15.5" width="1" height="1" fill="#2A2A22"/>
+
+        <rect x="-45" y="33.5" width="5" height="5" rx="0.4" fill="#6A6A62" stroke="#2A2A22" stroke-width="0.3"/>
+        <rect x="-45" y="33.5" width="5" height="1" fill="#A8A8A0" opacity="0.7"/>
+        <rect x="-43" y="35.5" width="1" height="1" fill="#2A2A22"/>
+
+        <rect x="-45" y="53.5" width="5" height="5" rx="0.4" fill="#6A6A62" stroke="#2A2A22" stroke-width="0.3"/>
+        <rect x="-45" y="53.5" width="5" height="1" fill="#A8A8A0" opacity="0.7"/>
+        <rect x="-43" y="55.5" width="1" height="1" fill="#2A2A22"/>
+      </g>
+
+      <!-- Centre line of the board -->
+      <line x1="-42" y1="8" x2="-43" y2="74" stroke="#8B4010" stroke-width="0.5" opacity="0.4"/>
+    </g>
+
+    <!-- ============================================= -->
+    <!-- LOWER-LEFT: CAGE STRETCHER (Ferno wire basket) -->
+    <!-- ============================================= -->
+    <g>
+      <!-- Drop shadow -->
+      <path d="M -64 90 Q -66 84 -58 84 L -22 84 Q -16 84 -18 90 L -20 168 Q -21 174 -28 174 L -58 174 Q -63 174 -63 168 Z"
+            fill="#000000" opacity="0.35"/>
+
+      <!-- Stretcher outer frame -->
+      <path d="M -66 87 Q -68 82 -60 82 L -22 82 Q -16 82 -17 88 L -19 168 Q -20 174 -28 174 L -58 174 Q -64 174 -64 168 Z"
+            fill="url(#stretcher-metal)" stroke="#1A1A10" stroke-width="1.2"/>
+
+      <!-- Top edge chrome highlight -->
+      <path d="M -64 85 Q -66 82 -60 83 L -22 83" stroke="#D0D0C8" stroke-width="0.8" opacity="0.6" fill="none"/>
+
+      <!-- Wire mesh floor -->
+      <path d="M -62 90 L -22 90 L -24 168 L -60 168 Z" fill="url(#wire-mesh)" stroke="#1A1A10" stroke-width="0.5"/>
+
+      <!-- Reinforced cross rails (horizontal) -->
+      <g stroke="#0A0A0A" stroke-width="0.8" fill="none" opacity="0.9">
+        <line x1="-62" y1="95" x2="-22" y2="95"/>
+        <line x1="-62" y1="108" x2="-22" y2="108"/>
+        <line x1="-62" y1="125" x2="-22" y2="125"/>
+        <line x1="-62" y1="142" x2="-22" y2="142"/>
+        <line x1="-62" y1="158" x2="-22" y2="158"/>
+      </g>
+      <!-- Chrome highlights on cross rails -->
+      <g stroke="#A8A8A0" stroke-width="0.3" fill="none" opacity="0.6">
+        <line x1="-62" y1="95.5" x2="-22" y2="95.5"/>
+        <line x1="-62" y1="108.5" x2="-22" y2="108.5"/>
+        <line x1="-62" y1="125.5" x2="-22" y2="125.5"/>
+        <line x1="-62" y1="142.5" x2="-22" y2="142.5"/>
+        <line x1="-62" y1="158.5" x2="-22" y2="158.5"/>
+      </g>
+
+      <!-- Vertical rails -->
+      <g stroke="#0A0A0A" stroke-width="0.7" fill="none" opacity="0.85">
+        <line x1="-55" y1="90" x2="-56" y2="170"/>
+        <line x1="-48" y1="90" x2="-49" y2="170"/>
+        <line x1="-41" y1="90" x2="-42" y2="170"/>
+        <line x1="-34" y1="90" x2="-35" y2="170"/>
+        <line x1="-27" y1="90" x2="-28" y2="170"/>
+      </g>
+
+      <!-- Reinforced end rails (top and bottom of stretcher) -->
+      <rect x="-58" y="84" width="36" height="4" rx="1" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+      <rect x="-58" y="84" width="36" height="1" fill="#6A6A62" opacity="0.7"/>
+      <rect x="-58" y="168" width="36" height="4" rx="1" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+      <rect x="-58" y="168" width="36" height="1" fill="#6A6A62" opacity="0.7"/>
+
+      <!-- Centre bridle attachment ring (for rope rescue) -->
+      <circle cx="-41" cy="125" r="3" fill="#2A2A22" stroke="#000000" stroke-width="0.5"/>
+      <circle cx="-41" cy="125" r="2.2" fill="#8A8A82"/>
+      <circle cx="-41" cy="125" r="1.5" fill="#1A1A10"/>
+      <circle cx="-41" cy="125" r="0.6" fill="#C8C8C0"/>
+
+      <!-- Corner lifting eyes -->
+      <g>
+        <circle cx="-55" cy="88" r="1.3" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+        <circle cx="-55" cy="88" r="0.8" fill="#6A6A62"/>
+
+        <circle cx="-27" cy="88" r="1.3" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+        <circle cx="-27" cy="88" r="0.8" fill="#6A6A62"/>
+
+        <circle cx="-56" cy="168" r="1.3" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+        <circle cx="-56" cy="168" r="0.8" fill="#6A6A62"/>
+
+        <circle cx="-26" cy="168" r="1.3" fill="#1A1A10" stroke="#000000" stroke-width="0.3"/>
+        <circle cx="-26" cy="168" r="0.8" fill="#6A6A62"/>
+      </g>
+    </g>
+
+    <!-- ============================================= -->
+    <!-- Hi-vis chequered at rear corners -->
+    <!-- ============================================= -->
+    <g>
+      <rect x="-84" y="80" width="6" height="14" fill="#F5D800" stroke="#8B7000" stroke-width="0.2"/>
+      <rect x="-84" y="80" width="6" height="2" fill="#FFFF80" opacity="0.6"/>
+      <rect x="-84" y="94" width="6" height="14" fill="#FFFFFF" stroke="#C0C0C0" stroke-width="0.2"/>
+      <rect x="-84" y="108" width="6" height="14" fill="#F5D800" stroke="#8B7000" stroke-width="0.2"/>
+      <rect x="-84" y="108" width="6" height="2" fill="#FFFF80" opacity="0.6"/>
+      <rect x="-84" y="122" width="6" height="14" fill="#FFFFFF" stroke="#C0C0C0" stroke-width="0.2"/>
+    </g>
+    <g>
+      <rect x="78" y="80" width="6" height="14" fill="#F5D800" stroke="#8B7000" stroke-width="0.2"/>
+      <rect x="78" y="80" width="6" height="2" fill="#FFFF80" opacity="0.6"/>
+      <rect x="78" y="94" width="6" height="14" fill="#FFFFFF" stroke="#C0C0C0" stroke-width="0.2"/>
+      <rect x="78" y="108" width="6" height="14" fill="#F5D800" stroke="#8B7000" stroke-width="0.2"/>
+      <rect x="78" y="108" width="6" height="2" fill="#FFFF80" opacity="0.6"/>
+      <rect x="78" y="122" width="6" height="14" fill="#FFFFFF" stroke="#C0C0C0" stroke-width="0.2"/>
+    </g>
+
+    <!-- Rear chevrons -->
+    <rect x="-78" y="173" width="9" height="7" rx="1.4" fill="#111116" stroke="#040406" stroke-width="0.5"/><rect x="-78" y="173" width="9" height="1.4" fill="#3A3A44" opacity="0.7"/><rect x="-77.2" y="178.8" width="7.4" height="2.4" rx="1" fill="url(#led-blue)"/><rect x="-76.8" y="179" width="2.4" height="1" fill="#FFFFFF" opacity="0.55"/><rect x="-65" y="173" width="9" height="7" rx="1.4" fill="#111116" stroke="#040406" stroke-width="0.5"/><rect x="-65" y="173" width="9" height="1.4" fill="#3A3A44" opacity="0.7"/><rect x="-64.2" y="178.8" width="7.4" height="2.4" rx="1" fill="url(#led-red)"/><rect x="-63.8" y="179" width="2.4" height="1" fill="#FFFFFF" opacity="0.55"/><rect x="69" y="173" width="9" height="7" rx="1.4" fill="#111116" stroke="#040406" stroke-width="0.5"/><rect x="69" y="173" width="9" height="1.4" fill="#3A3A44" opacity="0.7"/><rect x="69.8" y="178.8" width="7.4" height="2.4" rx="1" fill="url(#led-blue)"/><rect x="70.2" y="179" width="2.4" height="1" fill="#FFFFFF" opacity="0.55"/><rect x="56" y="173" width="9" height="7" rx="1.4" fill="#111116" stroke="#040406" stroke-width="0.5"/><rect x="56" y="173" width="9" height="1.4" fill="#3A3A44" opacity="0.7"/><rect x="56.8" y="178.8" width="7.4" height="2.4" rx="1" fill="url(#led-red)"/><rect x="57.2" y="179" width="2.4" height="1" fill="#FFFFFF" opacity="0.55"/><g transform="translate(0, 184)">
+      <rect x="-84" y="0" width="168" height="16" fill="#B80A10"/>
+      <rect x="-84" y="0" width="168" height="2" fill="#E83040" opacity="0.5"/>
+      <g fill="#F5D800">
+        <polygon points="-82,16 -70,0 -58,0 -70,16"/>
+        <polygon points="-58,16 -46,0 -34,0 -46,16"/>
+        <polygon points="-34,16 -22,0 -10,0 -22,16"/>
+        <polygon points="-10,16 2,0 14,0 2,16"/>
+        <polygon points="14,16 26,0 38,0 26,16"/>
+        <polygon points="38,16 50,0 62,0 50,16"/>
+        <polygon points="62,16 74,0 82,0 82,6 74,16"/>
+      </g>
+      <g fill="#FFFF80" opacity="0.4">
+        <polygon points="-70,0 -66,0 -68,4"/>
+        <polygon points="-46,0 -42,0 -44,4"/>
+        <polygon points="-22,0 -18,0 -20,4"/>
+        <polygon points="2,0 6,0 4,4"/>
+        <polygon points="26,0 30,0 28,4"/>
+        <polygon points="50,0 54,0 52,4"/>
+      </g>
+    </g>
+
+  </g>
+
+</svg>

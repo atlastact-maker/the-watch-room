@@ -115,3 +115,38 @@ body::before {
     --color-border: #fff;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Ground-view vehicle emergency lights. The sprite build (vehicle-sprites)
+   tags every lamp with .lt plus a colour (.lt-blue/.lt-red/.lt-amber/.lt-head)
+   and position (.lt-l/.lt-r left-right, .lt-f/.lt-b front-back). The marker
+   wrapper carries .veh.ls-<lightState>; these rules animate the fittings:
+   999 = alternating blues wig-wag + rear reds; at_scene = slow blues + rear
+   reds; rear_blues / rear_reds = rear fittings only; hazards = ambers. */
+@keyframes lt-strobe {
+  0%, 44% { opacity: 1; }
+  50%, 94% { opacity: 0.06; }
+  100% { opacity: 1; }
+}
+@keyframes lt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+.veh.ls-999 .lt-blue.lt-l,
+.veh.ls-999 .lt-head.lt-l { animation: lt-strobe 0.55s linear infinite; }
+.veh.ls-999 .lt-blue.lt-r,
+.veh.ls-999 .lt-head.lt-r { animation: lt-strobe 0.55s linear infinite 0.275s; }
+.veh.ls-999 .lt-blue:not(.lt-l):not(.lt-r) { animation: lt-strobe 0.55s linear infinite; }
+.veh.ls-999 .lt-red.lt-b { animation: lt-pulse 0.7s ease-in-out infinite; }
+.veh.ls-999 .lt-amber { animation: lt-pulse 0.9s ease-in-out infinite; }
+
+.veh.ls-at_scene .lt-blue { animation: lt-strobe 1.2s linear infinite; }
+.veh.ls-at_scene .lt-red.lt-b { animation: lt-pulse 1.4s ease-in-out infinite; }
+
+.veh.ls-rear_blues .lt-blue.lt-b { animation: lt-strobe 0.9s linear infinite; }
+.veh.ls-rear_reds .lt-red.lt-b { animation: lt-pulse 0.9s ease-in-out infinite; }
+.veh.ls-hazards .lt-amber { animation: lt-pulse 0.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .veh .lt { animation: none !important; }
+}

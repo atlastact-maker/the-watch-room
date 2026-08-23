@@ -23,8 +23,13 @@ import {
   type OsmRoadWay,
 } from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
-import type { HoseType, Incident, KitKind, Task, TaskKind } from "@/lib/sim/incident_types";
+import type { HoseType, Incident, KitKind, LightState, Task, TaskKind } from "@/lib/sim/incident_types";
 import type { ApplianceTypeCode } from "@/lib/sim/types";
+import {
+  VEHICLE_SPRITES,
+  spriteKeyForType,
+  type VehicleSpriteKey,
+} from "./vehicle-sprites";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
 import type { ResolvedDeployment } from "./incident-view";
@@ -260,50 +265,47 @@ function applianceIcon(
   /** True when this marker is currently under the mouse. Triggers the
    *  minimal hover label. */
   hovered: boolean,
+  /** Emergency-light state — drives the sprite's tagged LED fittings. */
+  lightState?: LightState,
 ): L.DivIcon {
   const c = service === "Fire" ? "#dc2626" : service === "Ambulance" ? "#10b981" : "#6366f1";
   const scale = applianceScaleForZoom(mapZoom);
   const bodyRot = `rotate(${bearingDeg}deg)`;
 
-  // Illustrated SVG body lookup. WrL (P1/P2) pumps, aerial-ladder
-  // platforms (TL/HLP), TRU pumps (R2) and TRU vans (R4) get bespoke
-  // top-down illustrations; everything else falls back to the generic
-  // red block. Each SVG already has its origin at the vehicle centre
-  // with the front facing "up" (-Y), so we rotate the whole element by
-  // the parking bearing.
-  const illustratedSvg: string | null =
-    applianceType === "WrL"
-      ? "/appliances/wrl-pump.svg"
-      : applianceType === "TL" || applianceType === "HLP"
-        ? "/appliances/alp.svg"
-        : applianceType === "TRU_pump"
-          ? "/appliances/tru-pump.svg"
-          : applianceType === "TRU_van"
-            ? "/appliances/tru-van.svg"
-            : applianceType === "HEMS"
-              ? "/appliances/hems-h145.svg"
-              : null;
-  const isIllustrated = illustratedSvg !== null;
+  // Bespoke top-down artwork — inlined SVG sprites with tagged light
+  // fittings (see vehicle-sprites.ts), so the emergency-light state can
+  // animate the actual lamps. Every sprite is nose-up; we rotate the
+  // wrapper by the parking bearing. The heli keeps its <img> art.
+  const spriteKey = spriteKeyForType(applianceType);
+  const sprite = spriteKey ? VEHICLE_SPRITES[spriteKey] : null;
   const isHeli = applianceType === "HEMS";
+  const isIllustrated = sprite !== null || isHeli;
 
-  // Reference dimensions tuned for the default zoom (APPLIANCE_REF_ZOOM).
-  // All other zooms scale from here by 2^(zoom - ref) — matching the
-  // map's own ground-truth scaling, so a parked vehicle's footprint
-  // stays constant on the actual ground. Min-pixel floors below keep
-  // icons readable at very wide zooms.
-  const isTruVan = applianceType === "TRU_van";
+  // Reference heights (px at the reference zoom) per sprite class —
+  // ground-truth proportions: pump ~8.5 m, ALP/TRU heavies longer,
+  // police cars ~4.8 m. Width follows each sprite's aspect ratio.
+  const SPRITE_REF_H: Record<VehicleSpriteKey, number> = {
+    pump: 80,
+    alp: 92,
+    tru: 92,
+    truvan: 74,
+    pm: 88,
+    hll: 88,
+    decon: 88,
+    pol_estate: 46,
+    pol_rpu: 46,
+    pol_arv: 48,
+    pol_unm_saloon: 46,
+    pol_unm: 46,
+  };
   // H145: ~11 m rotor disc / ~13.6 m overall — much bigger footprint
   // than any road vehicle at the same ground scale.
-  const refBodyW = isHeli ? 104 : isTruVan ? 30 : isIllustrated ? 36 : 18;
-  const refBodyH = isHeli
-    ? 130
-    : isTruVan
-      ? 74
-      : applianceType === "TL" || applianceType === "HLP" || applianceType === "TRU_pump"
-        ? 92
-        : isIllustrated
-          ? 80
-          : 32;
+  const refBodyH = isHeli ? 130 : sprite && spriteKey ? SPRITE_REF_H[spriteKey] : 32;
+  const refBodyW = isHeli
+    ? 104
+    : sprite
+      ? Math.round(refBodyH * (sprite.w / sprite.h))
+      : 18;
   // Scale the body at the ground-truth rate but floor at a readable
   // minimum size so vehicles don't shrink into specks when zoomed out.
   const minBodyW = 10;
@@ -343,10 +345,14 @@ function applianceIcon(
     `
     : "";
 
-  const bodyHtml = isIllustrated
+  const bodyHtml = sprite
+    ? `
+      <div class="veh ls-${lightState ?? "off"}" style="position:absolute; left:50%; top:50%; width:${bodyW}px; height:${bodyH}px; transform: translate(-50%,-50%) ${bodyRot}; transform-origin: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); pointer-events:none;">${sprite.svg}</div>
+    `
+    : isHeli
     ? `
       <div style="position:absolute; left:50%; top:50%; width:${bodyW}px; height:${bodyH}px; transform: translate(-50%,-50%) ${bodyRot}; transform-origin: center;">
-        <img src="${illustratedSvg}" alt="" draggable="false" style="display:block; width:100%; height:100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); pointer-events:none;" />
+        <img src="/appliances/hems-h145.svg" alt="" draggable="false" style="display:block; width:100%; height:100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); pointer-events:none;" />
       </div>
     `
     : `
@@ -1336,6 +1342,7 @@ export function LeafletGroundMap({
               mapZoom,
               true,
               isHovered,
+              m.deployment.lightState,
             )}
             eventHandlers={{
               click: () => onSelectAppliance(m.appliance.id),
