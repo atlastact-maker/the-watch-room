@@ -26,12 +26,13 @@ const LOOP_MS = 56_000;
 const CAPTIONS: { at: number; text: string }[] = [
   { at: 300, text: "THE MDT — YOUR INCIDENT TERMINAL" },
   { at: 5_200, text: "THE 999 LINE, LIVE" },
-  { at: 11_200, text: "EVERY RESOURCE. ONE SCREEN." },
-  { at: 16_800, text: "FULL UNIT CONTROL — CREW · WATER · ACTIONS" },
-  { at: 24_200, text: "HAZARDS AS CREWS FIND THEM" },
-  { at: 30_200, text: "CASUALTY BY CASUALTY" },
-  { at: 37_200, text: "BA BOARD — WHO'S IN, HOW LONG" },
-  { at: 42_200, text: "EVERY DECISION LOGGED" },
+  { at: 10_200, text: "EVERY RESOURCE. ONE SCREEN." },
+  { at: 15_000, text: "ONE CLICK TO MOBILISE" },
+  { at: 20_000, text: "FULL UNIT CONTROL — CREW · WATER · ACTIONS" },
+  { at: 26_600, text: "HAZARDS AS CREWS FIND THEM" },
+  { at: 31_800, text: "CASUALTY BY CASUALTY" },
+  { at: 38_400, text: "BA BOARD — WHO'S IN, HOW LONG" },
+  { at: 43_400, text: "EVERY DECISION LOGGED" },
 ];
 
 export default function DemoMdtPage() {
@@ -47,6 +48,12 @@ export default function DemoMdtPage() {
 
   // Fresh demo world each loop.
   const world = useMemo(() => buildWorld(), [runId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Deployments live in state so the ghost operator's Mobilise click
+  // really commits a unit on camera.
+  const [deployments, setDeployments] = useState<Deployment[]>(world.deployments);
+  useEffect(() => {
+    setDeployments(world.deployments);
+  }, [world]);
 
   // Clear any stored tablet frame so the demo always stages identically.
   useState(() => {
@@ -73,51 +80,71 @@ export default function DemoMdtPage() {
     return () => window.clearInterval(id);
   }, [runId]);
 
-  // ---- ghost operator: scripted clicks on the real component ----
+  // ---- ghost operator: scripted, human-paced pointer work ----
   useEffect(() => {
     const timers: number[] = [];
-    const clickAt = (at: number, find: () => HTMLElement | null) => {
+    const moveTo = (el: HTMLElement, jitter = 0) => {
+      const r = el.getBoundingClientRect();
+      setCursor({
+        x: r.left + r.width / 2 + jitter,
+        y: r.top + r.height / 2,
+        click: false,
+      });
+    };
+    /** Glide to the element (long eased travel), optionally click after
+     *  settling. Hover-only steps just park the cursor there. */
+    const step = (at: number, find: () => HTMLElement | null, opts?: { click?: boolean; jitter?: number }) => {
       timers.push(
         window.setTimeout(() => {
           const el = find();
           if (!el) return;
-          const r = el.getBoundingClientRect();
-          setCursor({ x: r.left + r.width / 2, y: r.top + r.height / 2, click: false });
-          timers.push(
-            window.setTimeout(() => {
-              setCursor({ x: r.left + r.width / 2, y: r.top + r.height / 2, click: true });
-              el.click();
-              timers.push(window.setTimeout(() => setCursor((c) => (c ? { ...c, click: false } : c)), 500));
-            }, 700),
-          );
+          moveTo(el, opts?.jitter ?? 0);
+          if (opts?.click) {
+            timers.push(
+              window.setTimeout(() => {
+                const r = el.getBoundingClientRect();
+                setCursor({ x: r.left + r.width / 2 + (opts?.jitter ?? 0), y: r.top + r.height / 2, click: true });
+                el.click();
+                timers.push(window.setTimeout(() => setCursor((c) => (c ? { ...c, click: false } : c)), 520));
+              }, 1000),
+            );
+          }
         }, at),
       );
     };
+    const buttons = () => Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
     const tab = (label: string) => () => {
       const want = label.toLowerCase();
-      return (
-        Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) => {
-          const t = (b.textContent ?? "").trim().toLowerCase();
-          return t === want || t.startsWith(want + "·");
-        }) ?? null
-      );
+      return buttons().find((b) => {
+        const t = (b.textContent ?? "").trim().toLowerCase();
+        return t === want || t.startsWith(want + "·");
+      }) ?? null;
     };
-    clickAt(4_500, tab("call"));
-    clickAt(10_500, tab("resourcing"));
-    // open the first on-scene unit's control page from the committed list
-    clickAt(16_000, () => {
+    const mobiliseButtons = () =>
+      buttons().filter((b) => (b.textContent ?? "").trim().toLowerCase() === "mobilise" && !b.disabled);
+    const availableRow = (n: number) => () =>
+      (mobiliseButtons()[n]?.closest("li") as HTMLElement | null) ?? null;
+
+    step(4_500, tab("call"), { click: true });
+    step(9_300, tab("resourcing"), { click: true });
+    // run the pointer down the available fleet like a human scanning it
+    step(11_800, availableRow(0), { jitter: -40 });
+    step(12_900, availableRow(1), { jitter: -25 });
+    step(14_000, availableRow(2), { jitter: -35 });
+    // …and commit one: MOBILISE
+    step(15_200, () => mobiliseButtons()[1] ?? mobiliseButtons()[0] ?? null, { click: true });
+    // open the IC pump's full control page from the committed list
+    step(19_400, () => {
       const cs = world.onSceneCallsign.toLowerCase();
-      return (
-        Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) => {
-          const t = (b.textContent ?? "").trim().toLowerCase();
-          return t.includes(cs) && !t.startsWith("resourcing");
-        }) ?? null
-      );
-    });
-    clickAt(23_500, tab("hazards"));
-    clickAt(29_500, tab("casualties"));
-    clickAt(36_500, tab("ba"));
-    clickAt(41_500, tab("log"));
+      return buttons().find((b) => {
+        const t = (b.textContent ?? "").trim().toLowerCase();
+        return t.includes(cs) && !t.startsWith("resourcing");
+      }) ?? null;
+    }, { click: true });
+    step(26_000, tab("hazards"), { click: true });
+    step(31_200, tab("casualties"), { click: true });
+    step(37_800, tab("ba"), { click: true });
+    step(42_800, tab("log"), { click: true });
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
       setCursor(null);
@@ -166,10 +193,27 @@ export default function DemoMdtPage() {
             <DraggableIncidentMdt
               incident={world.incident}
               stations={world.stations}
-              deployments={world.deployments}
+              deployments={deployments}
               log={world.log}
               outcome={null}
-              onDeploy={() => {}}
+              onDeploy={(args) =>
+                setDeployments((prev) =>
+                  prev.some((d) => d.applianceId === args.applianceId)
+                    ? prev
+                    : [
+                        ...prev,
+                        {
+                          applianceId: args.applianceId,
+                          incidentId: world.incident.id,
+                          slotId: args.slotId,
+                          mobilisedAt: Date.now(),
+                          etaSeconds: args.etaSeconds,
+                          arrivesAt: Date.now() + args.etaSeconds * 1000,
+                          lightState: "999",
+                        } as Deployment,
+                      ],
+                )
+              }
               onStandDownForWelfare={() => {}}
               onResolve={() => {}}
               onDismiss={() => {}}
@@ -232,7 +276,12 @@ export default function DemoMdtPage() {
       {cursor && !endCard && (
         <div
           className="pointer-events-none fixed z-50"
-          style={{ left: cursor.x, top: cursor.y, transition: "left 0.7s cubic-bezier(.3,.7,.3,1), top 0.7s cubic-bezier(.3,.7,.3,1)" }}
+          style={{
+            left: cursor.x,
+            top: cursor.y,
+            transition:
+              "left 1.05s cubic-bezier(0.16, 1, 0.3, 1), top 1.05s cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
         >
           {cursor.click && (
             <span className="absolute -left-3.5 -top-3.5 size-8 animate-[clickRing_0.5s_ease-out] rounded-full border-2 border-amber-400" />
@@ -265,7 +314,7 @@ export default function DemoMdtPage() {
 /* ------------------------------ mock world ------------------------------ */
 
 function buildWorld() {
-  const scenario = SCENARIOS.find((s) => s.id === "02") ?? SCENARIOS[0];
+  const scenario = SCENARIOS.find((s) => s.id === "08") ?? SCENARIOS[0];
   const nowMs = Date.now();
   const receivedAt = nowMs - 9 * 60_000;
 
@@ -274,17 +323,19 @@ function buildWorld() {
     appliances: getStationAppliances(s.id),
   }));
 
-  // First-due station's pumps + a support pump from anywhere else.
+  const FRONTLINE = new Set(["WrL", "WrT", "L6P", "TRU_pump"]);
+  // First-due station's pump + a support pump from a neighbouring ground.
   const firstDue =
     stations.find((s) => s.id === scenario.property.firstDueStationId && s.appliances.length > 0) ??
-    stations.find((s) => s.service === "Fire" && s.appliances.length >= 2)!;
-  const pumps = firstDue.appliances.filter((a) => a.service === "Fire");
+    stations.find((s) => s.service === "Fire" && s.appliances.some((a) => FRONTLINE.has(a.type)))!;
+  const pumps = firstDue.appliances.filter((a) => FRONTLINE.has(a.type));
   const p1 = pumps[0];
-  const p2 = pumps[1] ?? pumps[0];
-  const support = stations
+  const supportPumps = stations
     .filter((s) => s.service === "Fire" && s.id !== firstDue.id)
     .flatMap((s) => s.appliances)
-    .find((a) => a.crewMembers.length >= 4);
+    .filter((a) => FRONTLINE.has(a.type) && a.crewMembers.length >= 4);
+  const p2 = pumps[1] ?? supportPumps[0];
+  const support = supportPumps.find((a) => a.id !== p2?.id);
   const dca = stations
     .filter((s) => s.service === "Ambulance")
     .flatMap((s) => s.appliances)
