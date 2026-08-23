@@ -76,6 +76,7 @@ import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { InformantPanel } from "./components/informant-panel";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
+import { StationBayPanel } from "./components/station-bay-panel";
 import { IncidentView } from "./components/incident-view";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
@@ -210,6 +211,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [now, setNow] = useState(Date.now());
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
   const [groundViewOpen, setGroundViewOpen] = useState(false);
+  // Fire station whose appliance-bay view is open (from the map popup).
+  const [bayStationId, setBayStationId] = useState<string | null>(null);
   const [newlyFoundCasualties, setNewlyFoundCasualties] = useState<Set<string>>(new Set());
   // Progression tracking: memoised last-known fire stage + per-casualty
   // severity so we only emit a SITREP entry when these actually change,
@@ -2800,7 +2803,20 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           deployments={deployments}
           patch={patch ?? null}
           onSelectAppliance={setSelectedApplianceId}
+          onOpenStationBays={setBayStationId}
         />
+        {/* Station bay view — top-down look inside a fire station. */}
+        {bayStationId && (() => {
+          const st = allDeployableStations.find((s) => s.id === bayStationId);
+          if (!st) return null;
+          return (
+            <StationBayPanel
+              station={st}
+              onClose={() => setBayStationId(null)}
+              onSelectAppliance={setSelectedApplianceId}
+            />
+          );
+        })()}
         {resourcesVisible && (
           <DraggableResourcesPanel
             stations={allDeployableStations}

@@ -265,6 +265,8 @@ type Props = {
   deployments: Deployment[];
   patch: AreaCode | null;
   onSelectAppliance: (applianceId: string) => void;
+  /** Opens the top-down appliance-bay view for a fire station. */
+  onOpenStationBays?: (stationId: string) => void;
 };
 
 export function LeafletMap({
@@ -273,6 +275,7 @@ export function LeafletMap({
   deployments,
   patch,
   onSelectAppliance,
+  onOpenStationBays,
 }: Props) {
   // Internal high-frequency clock so ghost-movers animate smoothly between
   // the dashboard-client's 1Hz status ticks.
@@ -580,6 +583,28 @@ export function LeafletMap({
                 <div style={{ fontSize: 11, marginTop: 6 }}>
                   {deployable}/{s.appliances.length} appliances ready
                 </div>
+                {s.service === "Fire" && onOpenStationBays && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenStationBays(s.id)}
+                    style={{
+                      marginTop: 8,
+                      width: "100%",
+                      padding: "5px 8px",
+                      background: "#b91c1c",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 3,
+                      fontFamily: "var(--font-geist-mono), monospace",
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Open appliance bays →
+                  </button>
+                )}
               </div>
             </Popup>
           </Marker>
