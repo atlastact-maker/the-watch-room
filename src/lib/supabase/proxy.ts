@@ -1,7 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth", "/terms"];
+// Trailers are public — they're marketing pages meant to be shared raw.
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/signup",
+  "/auth",
+  "/terms",
+  "/trailer",
+  "/trailer2",
+  "/trailer3",
+];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });

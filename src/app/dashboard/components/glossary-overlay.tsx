@@ -72,7 +72,7 @@ const GLOSSARY: Section[] = [
       { term: "HELIMED 72", def: "North West Air Ambulance (NWAA) HEMS airframe" },
       { term: "MP[area]-XX", def: "GMP division response vehicle (MP + division stub + unit)" },
       { term: "AR-XX", def: "GMP Armed Response Vehicle" },
-      { term: "NPAS 15", def: "National Police Air Service — NW helicopter" },
+      { term: "NPAS 21", def: "National Police Air Service — NW helicopter, out of Barton" },
     ],
   },
   {

@@ -364,7 +364,7 @@ export function LandingBackdrop() {
       "G57-R2 · TRU en route · RTC entrapment",
       "BA crew committed · 2 wearers · 300 bar",
       "Hydrant H2 in use · G12-P1",
-      "NPAS 15 · airborne · Stockport",
+      "NPAS 21 · airborne · Stockport",
       "G01-A3 · Aerial cage in use",
       "HART1 · requested · water rescue",
       "Dog unit en route · missing person",

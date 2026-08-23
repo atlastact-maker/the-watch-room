@@ -44,18 +44,18 @@ export default function LandingPage() {
         <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
           <section>
             <p className="font-mono text-xs uppercase tracking-[0.3em] text-(--color-amber-dim)">
-              Emergency Services Incident Manager
+              Emergency Services Incident Management Simulator
             </p>
             <h1 className="mt-4 text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
               The Watch Room
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-(--color-text-muted)">
               One operator. Three services. You command Fire, Ambulance and
-              Police from a single unified seat across Greater Manchester —
-              deciding who rolls, where, and how fast.
+              Police from a single unified seat — deciding who rolls, where,
+              and how fast.
             </p>
             <p className="mt-5 font-mono text-base text-(--color-amber)">
-              Hesitation costs minutes. Minutes cost lives.
+              You&apos;re in command and control.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
@@ -74,12 +74,7 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-10 flex flex-wrap gap-2 border-t border-(--color-border-subtle) pt-6">
-              {[
-                "Real stations & appliances",
-                "METHANE · JESIP · NDM",
-                "Real road routing",
-                "Live ticking clock",
-              ].map((chip) => (
+              {["Real stations", "Real resources"].map((chip) => (
                 <span
                   key={chip}
                   className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)"

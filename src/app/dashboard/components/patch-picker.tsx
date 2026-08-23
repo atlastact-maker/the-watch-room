@@ -72,7 +72,7 @@ function hintsForHour(hour: number): { tone: "ok" | "warn" | "dim"; text: string
   );
   out.push({
     tone: "ok",
-    text: "NPAS 15 (Barton) — day & night, weather permitting",
+    text: "NPAS 21 (Barton) — day & night, weather permitting",
   });
   if (rush) {
     out.push({ tone: "warn", text: "Rush-hour traffic will slow blue-light runs" });

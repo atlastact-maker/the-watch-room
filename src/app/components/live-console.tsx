@@ -192,7 +192,7 @@ export function LiveConsole({ fire, ambulance, police }: Props) {
       <div className="flex items-center justify-between border-b border-(--color-border-subtle) px-4 py-2.5">
         <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
           <span className="dot-live size-1.5 rounded-full bg-(--color-critical)" />
-          NWRC · Live picture
+          NWRC
         </span>
         <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
           Manchester
@@ -238,7 +238,7 @@ export function LiveConsole({ fire, ambulance, police }: Props) {
         />
         <CapRow
           ok
-          okText={`NPAS 15 · available${(wx?.windMph ?? 0) >= 45 ? " — high winds, limited" : ", weather permitting"}`}
+          okText={`NPAS 21 (Barton) · available${(wx?.windMph ?? 0) >= 45 ? " — high winds, limited" : ", weather permitting"}`}
           warnText=""
         />
         <CapRow
@@ -256,7 +256,7 @@ export function LiveConsole({ fire, ambulance, police }: Props) {
       <div className="border-t border-(--color-border-subtle) px-4 py-2.5">
         <div className="flex items-baseline justify-between">
           <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-            Force status
+            Area status
           </span>
           <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
             ~{available}/{totalAppliances} units on the run
