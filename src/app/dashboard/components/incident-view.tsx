@@ -111,6 +111,14 @@ export type Props = {
   /** Open the pre-arrival panel for an inbound (not yet on scene) unit —
    *  lets the operator pre-allocate crews to tasks (BA etc.) en route. */
   onSelectInbound?: (applianceId: string) => void;
+  /** Road-closure placement in progress (crew already picked, next map
+   *  click drops the cones). Owned by the dashboard so the MDT can start
+   *  closures too. */
+  pendingClosure: PendingClosure | null;
+  onSetPendingClosure: (pc: PendingClosure | null) => void;
+  /** Vehicle awaiting a rotate-bearing click on the ground map. */
+  rotatePendingApplianceId: string | null;
+  onSetRotatePending: (applianceId: string | null) => void;
   onSetTreatmentDestination?: (
     casualtyId: string,
     type: import("@/lib/sim/scene").HospitalDestinationType,
@@ -125,6 +133,13 @@ export type ResolvedDeployment = {
   deployment: Deployment;
   appliance: Appliance;
   phase: "mobile" | "at_incident" | "at_hospital" | "returning" | "home";
+};
+
+/** A road closure waiting for its placement click on the ground map. */
+export type PendingClosure = {
+  applianceId: string;
+  kind: "close_carriageway" | "close_road";
+  crewIds: string[];
 };
 
 /** Join deployments to their appliances and movement phase. Shared with the
@@ -219,6 +234,10 @@ export function IncidentView({
   mdtVisible,
   onToggleMdt,
   onSelectInbound,
+  pendingClosure,
+  onSetPendingClosure,
+  rotatePendingApplianceId,
+  onSetRotatePending,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -226,28 +245,20 @@ export function IncidentView({
 }: Props) {
   const scene = incident.scenario.scene;
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
-  // Road-closure placement: set when the operator picks Close carriageway /
-  // Close road in the action menu (crew already chosen); the next ground-map
-  // click on a road places the cone line and starts the task. Esc cancels.
-  const [pendingClosure, setPendingClosure] = useState<{
-    applianceId: string;
-    kind: "close_carriageway" | "close_road";
-    crewIds: string[];
-  } | null>(null);
+  // Road-closure placement + vehicle rotate are owned by the dashboard so
+  // both the map action menu AND the MDT can start them; the next
+  // ground-map click completes the interaction. Esc cancels a closure.
   useEffect(() => {
     if (!pendingClosure) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPendingClosure(null);
+      if (e.key === "Escape") onSetPendingClosure(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pendingClosure]);
+  }, [pendingClosure, onSetPendingClosure]);
   // Bottom feed collapse — the operator can pin it to reclaim screen
   // real-estate for the map. Everything else lives on the MDT tablet.
   const [sitrepCollapsed, setSitrepCollapsed] = useState(false);
-  // When set, the operator has asked to re-orient a parked vehicle. The map
-  // enters rotate mode until they click to pick a new bearing (or cancel).
-  const [rotatePendingApplianceId, setRotatePendingApplianceId] = useState<string | null>(null);
 
   const resolved: ResolvedDeployment[] = resolveDeployments(deployments, stations, now);
 
@@ -336,7 +347,7 @@ export function IncidentView({
             now={now}
             onSetParkingPos={onSetParkingPos}
             rotatePendingApplianceId={rotatePendingApplianceId}
-            onClearRotatePending={() => setRotatePendingApplianceId(null)}
+            onClearRotatePending={() => onSetRotatePending(null)}
             onStartTask={onStartTask}
             onAbortTask={onAbortTask}
             onSelectAppliance={setSelectedApplianceId}
@@ -350,7 +361,7 @@ export function IncidentView({
                 closurePos: { lat, lng },
                 closureBearingDeg: bearingDeg,
               });
-              setPendingClosure(null);
+              onSetPendingClosure(null);
             }}
           />
           <SceneOverlay
@@ -375,7 +386,7 @@ export function IncidentView({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setPendingClosure(null)}
+                  onClick={() => onSetPendingClosure(null)}
                   className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
                 >
                   Cancel · Esc
@@ -403,7 +414,7 @@ export function IncidentView({
                 onStartTask={onStartTask}
                 onAbortTask={onAbortTask}
                 onBeginRoadClosure={(kind, crewIds) =>
-                  setPendingClosure({
+                  onSetPendingClosure({
                     applianceId: selectedAppliance.id,
                     kind,
                     crewIds,
@@ -419,7 +430,7 @@ export function IncidentView({
                 onUpdateBaRemarks={onUpdateBaRemarks}
                 onUpdateBaEntryPoint={onUpdateBaEntryPoint}
                 onSetTreatingCasualty={onSetTreatingCasualty}
-                onRequestRotate={(id) => setRotatePendingApplianceId(id)}
+                onRequestRotate={(id) => onSetRotatePending(id)}
                 scenarioCasualties={sim.foundCasualties}
                 casualtyProgression={sim.casualtyProgression}
                 sim={sim}

@@ -29,6 +29,7 @@ import {
   type ResolvedDeployment,
 } from "./incident-view";
 import { BaControlBoard } from "./ba-control-board";
+import { BottomActionMenu } from "./bottom-action-menu";
 import { DeploymentBoard, type Eta } from "./deployment-board";
 import type { AreaCode } from "@/lib/sim/types";
 
@@ -94,6 +95,24 @@ type Props = {
   onSetPreCommitBaCrew?: IncidentViewProps["onSetPreCommitBaCrew"];
   sceneCommanderApplianceId?: string | null;
   crewAir?: Record<string, number>;
+
+  // Unit control from the tablet — clicking a committed callsign swaps the
+  // Available pane for the full vehicle/crew/water/actions menu.
+  busyCrewIds?: IncidentViewProps["busyCrewIds"];
+  vehicleGauges?: IncidentViewProps["vehicleGauges"];
+  onStartTask?: IncidentViewProps["onStartTask"];
+  onSetLightState?: IncidentViewProps["onSetLightState"];
+  onSetPumpRunning?: IncidentViewProps["onSetPumpRunning"];
+  onSetPumpOperator?: IncidentViewProps["onSetPumpOperator"];
+  onSetFastAttackDeployed?: IncidentViewProps["onSetFastAttackDeployed"];
+  onToggleCrewEquipment?: IncidentViewProps["onToggleCrewEquipment"];
+  tacticalMode?: IncidentViewProps["tacticalMode"];
+  fatigueByApplianceId?: IncidentViewProps["fatigueByApplianceId"];
+  /** Start a road-closure placement (next ground-map click drops cones). */
+  onBeginRoadClosure?: (applianceId: string, kind: "close_carriageway" | "close_road", crewIds: string[]) => void;
+  onRequestRotate?: (applianceId: string) => void;
+  /** Clicking a still-mobile callsign opens its pre-arrival panel. */
+  onSelectInbound?: (applianceId: string) => void;
 };
 
 // Light CAD palette (grey / red / yellow, matching the Overview tab) —
@@ -167,11 +186,27 @@ export function DraggableIncidentMdt({
   onSetPreCommitBaCrew,
   sceneCommanderApplianceId,
   crewAir,
+  busyCrewIds,
+  vehicleGauges,
+  onStartTask,
+  onSetLightState,
+  onSetPumpRunning,
+  onSetPumpOperator,
+  onSetFastAttackDeployed,
+  onToggleCrewEquipment,
+  tacticalMode,
+  fatigueByApplianceId,
+  onBeginRoadClosure,
+  onRequestRotate,
+  onSelectInbound,
 }: Props) {
   const resolved = !!outcome;
   const [tab, setTab] = useState<TabKey>("overview");
+  // Committed unit whose control page fills the Resourcing right pane.
+  const [unitId, setUnitId] = useState<string | null>(null);
   useEffect(() => {
     setTab(resolved ? "debrief" : "overview");
+    setUnitId(null);
   }, [resolved, incident.id]);
 
   // Clocks for the sync bar: UTC wall clock + incident elapsed.
@@ -218,6 +253,22 @@ export function DraggableIncidentMdt({
   if (tab === "ba" && totalBaTeams === 0) {
     setTab("overview");
   }
+
+  // Unit-control page state for the Resourcing tab.
+  const selectedUnit = unitId
+    ? resolvedDeps.find((r) => r.appliance.id === unitId) ?? null
+    : null;
+  const canControl = !!(
+    onStartTask &&
+    onSetLightState &&
+    onSetPumpRunning &&
+    onSetPumpOperator &&
+    onSetFastAttackDeployed &&
+    onToggleCrewEquipment &&
+    busyCrewIds &&
+    vehicleGauges
+  );
+  const onSceneList = resolvedDeps.filter((r) => r.phase === "at_incident");
 
   const tabs: { key: TabKey; label: string }[] = resolved
     ? [
@@ -440,37 +491,116 @@ export function DraggableIncidentMdt({
                             now={nowMs}
                             isCommander={sceneCommanderApplianceId === r.deployment.applianceId}
                             onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
-                            onSelectAppliance={() => {}}
+                            onSelectAppliance={(id) => {
+                              if (!id) return;
+                              const target = resolvedDeps.find((x) => x.appliance.id === id);
+                              // Still driving in → pre-arrival panel; on scene
+                              // (or beyond) → full control page in this pane.
+                              if (target?.phase === "mobile") onSelectInbound?.(id);
+                              else setUnitId(id);
+                            }}
                           />
                         ))}
                       </ul>
                     )}
                   </div>
                 </div>
-                {/* Available side — the full fleet with one-click mobilise */}
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                    Available
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-                    {etas ? (
-                      <DeploymentBoard
+                {/* Right pane — unit control page when a committed callsign
+                    is selected, otherwise the available fleet. */}
+                {selectedUnit && canControl ? (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex items-center justify-between border-b border-(--color-border-subtle) px-3 py-1.5">
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+                        Unit control · {selectedUnit.appliance.callsign}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setUnitId(null)}
+                        className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)"
+                      >
+                        ← Available fleet
+                      </button>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      <BottomActionMenu
+                        appliance={selectedUnit.appliance}
+                        deployment={selectedUnit.deployment}
+                        allOnSceneAppliances={onSceneList.map((r) => r.appliance)}
+                        tasks={tasks ?? []}
                         incident={incident}
-                        stations={stations}
-                        etas={etas}
-                        deployments={deployments}
-                        patch={patch}
-                        onDeploy={onDeploy}
-                        onStandDownForWelfare={onStandDownForWelfare}
-                        onStandDown={onStandDown ?? (() => {})}
+                        visibleHazards={(sim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
+                        isCommander={sceneCommanderApplianceId === selectedUnit.appliance.id}
+                        crewAir={crewAir ?? {}}
+                        busyCrewIds={busyCrewIds!}
+                        vehicleGauges={vehicleGauges!}
+                        now={nowMs}
+                        onStartTask={onStartTask!}
+                        onAbortTask={onAbortTask ?? (() => {})}
+                        onBeginRoadClosure={
+                          onBeginRoadClosure
+                            ? (kind, crewIds) => onBeginRoadClosure(selectedUnit.appliance.id, kind, crewIds)
+                            : undefined
+                        }
+                        onClose={() => setUnitId(null)}
+                        onSceneSeconds={
+                          selectedUnit.phase === "at_incident"
+                            ? Math.max(0, (nowMs - selectedUnit.deployment.arrivesAt) / 1000)
+                            : null
+                        }
+                        onSetLightState={onSetLightState!}
+                        onSetPumpRunning={onSetPumpRunning!}
+                        onSetPumpOperator={onSetPumpOperator!}
+                        onSetFastAttackDeployed={onSetFastAttackDeployed!}
+                        onToggleCrewEquipment={onToggleCrewEquipment!}
+                        onUpdateBaRemarks={onUpdateBaRemarks}
+                        onUpdateBaEntryPoint={onUpdateBaEntryPoint}
+                        onSetTreatingCasualty={onSetTreatingCasualty}
+                        onRequestRotate={onRequestRotate}
+                        scenarioCasualties={sim?.foundCasualties}
+                        casualtyProgression={sim?.casualtyProgression}
+                        sim={sim ?? undefined}
+                        tacticalMode={tacticalMode ?? null}
+                        fatigueByApplianceId={fatigueByApplianceId}
+                        treatmentByCasualtyId={treatmentByCasualtyId}
+                        onScenePatientDeployments={onSceneList.map((r) => r.deployment)}
+                        onStartPatientSurvey={onStartPatientSurvey}
+                        onApplyAirway={onApplyAirway}
+                        onApplyBreathing={onApplyBreathing}
+                        onApplyCirculation={onApplyCirculation}
+                        onAdministerDrug={onAdministerDrug}
+                        onApplyPackaging={onApplyPackaging}
+                        onRequestClinician={onRequestClinician}
+                        onSetTreatmentDestination={onSetTreatmentDestination}
+                        onSendAtmistPrealert={onSendAtmistPrealert}
+                        onConveyCasualtyVia={onConveyCasualtyVia}
                       />
-                    ) : (
-                      <p className="px-2 text-xs text-(--color-text-dim)">
-                        Station ETAs still calculating…
-                      </p>
-                    )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+                      Available
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+                      {etas ? (
+                        <DeploymentBoard
+                          incident={incident}
+                          stations={stations}
+                          etas={etas}
+                          deployments={deployments}
+                          patch={patch}
+                          onDeploy={onDeploy}
+                          onStandDownForWelfare={onStandDownForWelfare}
+                          onStandDown={onStandDown ?? (() => {})}
+                        />
+                      ) : (
+                        <p className="px-2 text-xs text-(--color-text-dim)">
+                          Station ETAs still calculating…
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

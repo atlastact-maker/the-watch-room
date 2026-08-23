@@ -77,7 +77,7 @@ import { InformantPanel } from "./components/informant-panel";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
 import { StationBayPanel } from "./components/station-bay-panel";
-import { IncidentView } from "./components/incident-view";
+import { IncidentView, type PendingClosure } from "./components/incident-view";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
 import { GlossaryOverlay } from "./components/glossary-overlay";
@@ -210,6 +210,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [outcome, setOutcome] = useState<IncidentOutcome | null>(null);
   const [now, setNow] = useState(Date.now());
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
+  // Ground-view map interactions started from either the map action menu or
+  // the MDT: a road closure awaiting its placement click, and a parked
+  // vehicle awaiting a rotate-bearing click.
+  const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
+  const [rotatePendingApplianceId, setRotatePendingApplianceId] = useState<string | null>(null);
   const [groundViewOpen, setGroundViewOpen] = useState(false);
   // Fire station whose appliance-bay view is open (from the map popup).
   const [bayStationId, setBayStationId] = useState<string | null>(null);
@@ -2955,6 +2960,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             mdtVisible={incidentPanelVisible}
             onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
             onSelectInbound={setSelectedApplianceId}
+            pendingClosure={pendingClosure}
+            onSetPendingClosure={setPendingClosure}
+            rotatePendingApplianceId={rotatePendingApplianceId}
+            onSetRotatePending={setRotatePendingApplianceId}
             onClose={() => setGroundViewOpen(false)}
           />
         )}
@@ -2998,6 +3007,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onSetPreCommitBaCrew={setPreCommitBaCrew}
             sceneCommanderApplianceId={sceneCommanderApplianceId}
             crewAir={crewAir}
+            busyCrewIds={busyCrewIds}
+            vehicleGauges={vehicleGauges}
+            onStartTask={startTask}
+            onSetLightState={setLightState}
+            onSetPumpRunning={setPumpRunning}
+            onSetPumpOperator={setPumpOperator}
+            onSetFastAttackDeployed={setFastAttackDeployed}
+            onToggleCrewEquipment={toggleCrewEquipment}
+            tacticalMode={tacticalMode}
+            fatigueByApplianceId={fatigueByApplianceId}
+            onBeginRoadClosure={(applianceId, kind, crewIds) =>
+              setPendingClosure({ applianceId, kind, crewIds })
+            }
+            onRequestRotate={setRotatePendingApplianceId}
+            onSelectInbound={setSelectedApplianceId}
           />
         )}
         {pendingCall && (
