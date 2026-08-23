@@ -637,48 +637,7 @@ export function LeafletMap({
           position={m.currentCoords}
           icon={movingIcon(m.callsign, m.service, mapPhaseToIconPhase(m.phase))}
           eventHandlers={{ click: () => onSelectAppliance(m.applianceId) }}
-        >
-          <Popup>
-            <div
-              style={{
-                fontFamily: "var(--font-geist-mono), monospace",
-                color: "#0a0a0c",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color:
-                    m.phase === "return" || m.phase === "at_hospital"
-                      ? "#a16207"
-                      : "#b91c1c",
-                }}
-              >
-                {phaseLabel(m.phase)}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-                {m.callsign}
-              </div>
-              <div style={{ fontSize: 11, marginTop: 4 }}>
-                {m.phase === "at_hospital" ? (
-                  <>
-                    At {m.hospitalName ?? "hospital"} · offload ETA {fmtSecs(m.etaRemainingSec)}
-                  </>
-                ) : m.phase === "hospital_leg" ? (
-                  <>
-                    → {m.hospitalName ?? "hospital"} · ETA {fmtSecs(m.etaRemainingSec)}
-                  </>
-                ) : (
-                  <>
-                    ETA {fmtSecs(m.etaRemainingSec)} · {Math.round(m.t * 100)}% along route
-                  </>
-                )}
-              </div>
-            </div>
-          </Popup>
-        </Marker>
+        />
       ))}
 
       {/* Active incident */}
@@ -743,26 +702,6 @@ export function LeafletMap({
     </MapContainer>
     </div>
   );
-}
-
-function fmtSecs(s: number): string {
-  if (s < 60) return `${Math.round(s)}s`;
-  const m = Math.floor(s / 60);
-  const r = Math.round(s % 60);
-  return `${m}m ${r}s`;
-}
-
-function phaseLabel(phase: "outbound" | "hospital_leg" | "at_hospital" | "return"): string {
-  switch (phase) {
-    case "outbound":
-      return "Status 1 · Mobile to incident";
-    case "hospital_leg":
-      return "Status 1 · Mobile to hospital";
-    case "at_hospital":
-      return "Status 5 · At hospital · offloading";
-    case "return":
-      return "Status 4 · Returning to station";
-  }
 }
 
 function mapPhaseToIconPhase(
