@@ -132,12 +132,31 @@ body::before {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.15; }
 }
+/* Active fittings glow hard — small lamps read as lit, not just tinted. */
+.veh.ls-999 .lt-blue,
+.veh.ls-at_scene .lt-blue,
+.veh.ls-rear_blues .lt-blue.lt-b {
+  filter: drop-shadow(0 0 2px #7cc0ff) drop-shadow(0 0 5px #3b82f6) brightness(1.9) saturate(1.4);
+}
+.veh.ls-999 .lt-red.lt-b,
+.veh.ls-at_scene .lt-red.lt-b,
+.veh.ls-rear_reds .lt-red.lt-b {
+  filter: drop-shadow(0 0 2px #ff8a8a) drop-shadow(0 0 5px #ef4444) brightness(1.8) saturate(1.3);
+}
+.veh.ls-999 .lt-amber,
+.veh.ls-hazards .lt-amber {
+  filter: drop-shadow(0 0 2px #ffd27a) drop-shadow(0 0 5px #f59e0b) brightness(1.8);
+}
+.veh.ls-999 .lt-head {
+  filter: drop-shadow(0 0 3px #ffffff) brightness(1.9);
+}
+
 .veh.ls-999 .lt-blue.lt-l,
 .veh.ls-999 .lt-head.lt-l { animation: lt-strobe 0.55s linear infinite; }
 .veh.ls-999 .lt-blue.lt-r,
 .veh.ls-999 .lt-head.lt-r { animation: lt-strobe 0.55s linear infinite 0.275s; }
 .veh.ls-999 .lt-blue:not(.lt-l):not(.lt-r) { animation: lt-strobe 0.55s linear infinite; }
-.veh.ls-999 .lt-red.lt-b { animation: lt-pulse 0.7s ease-in-out infinite; }
+/* Rear reds run STEADY on a 999 run — lit bright, no flash. */
 .veh.ls-999 .lt-amber { animation: lt-pulse 0.9s ease-in-out infinite; }
 
 .veh.ls-at_scene .lt-blue { animation: lt-strobe 1.2s linear infinite; }
