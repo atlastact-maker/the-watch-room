@@ -99,18 +99,44 @@ export function StationBayPanel({
 }) {
   const bays = station.appliances;
   const n = Math.max(1, bays.length);
-  const svgW = MARGIN * 2 + n * MOD_W;
+  // Canvas never narrower than a 2-bay reference frame, so the header
+  // always has room; a smaller garage is centred between its own walls.
+  const svgW = Math.max(880, MARGIN * 2 + n * MOD_W);
+  const gx0 = (svgW - n * MOD_W) / 2;
   const nAvail = bays.filter((a) => a.status === 7).length;
   const nOff = bays.filter((a) => a.status === 8).length;
   const nOut = bays.length - nAvail - nOff;
 
   const rawName = station.name.toUpperCase();
-  const title = rawName.includes("FIRE STATION") ? rawName : `${rawName} FIRE STATION`;
   const staffing = (station.staffing ?? "Wholetime").split("/")[0].trim().toUpperCase();
   const badgeW = 32 + station.id.length * 16;
-  // Shrink the title if a narrow (few-bay) canvas can't fit it.
-  const titleRoom = svgW - MARGIN - badgeW - 18 - 470;
-  const titleSize = Math.max(13, Math.min(25, titleRoom / (title.length * 0.86)));
+
+  // Approximate rendered width of monospace text (Geist Mono ≈ 0.6em advance).
+  const monoW = (t: string, size: number, ls: number) =>
+    t.length * size * 0.6 + Math.max(0, t.length - 1) * ls;
+
+  const summary = `${nAvail} AVAILABLE / ${nOut} MOBILE / ${nOff} OFF`;
+  const summaryW = monoW(summary, 19, 2);
+  const titleX = MARGIN + badgeW + 18;
+  const titleRoom = svgW - MARGIN - summaryW - 30 - titleX;
+  // Fit the title without ever touching the summary block: full name at
+  // reference size, then shrink, then drop the FIRE STATION suffix, then
+  // squeeze the glyphs as a last resort.
+  const fullTitle = rawName.includes("FIRE STATION") ? rawName : `${rawName} FIRE STATION`;
+  let title = fullTitle;
+  let titleLs = 5;
+  let titleSize = Math.min(25, (titleRoom - (title.length - 1) * titleLs) / (title.length * 0.6));
+  if (titleSize < 18) {
+    titleLs = 2;
+    titleSize = Math.min(25, (titleRoom - (title.length - 1) * titleLs) / (title.length * 0.6));
+  }
+  if (titleSize < 15 && title !== rawName) {
+    title = rawName;
+    titleLs = 3;
+    titleSize = Math.min(25, (titleRoom - (title.length - 1) * titleLs) / (title.length * 0.6));
+  }
+  titleSize = Math.max(12, titleSize);
+  const titleSqueeze = monoW(title, titleSize, titleLs) > titleRoom;
 
   /** Detail line under the status word (reference: "DWELLING FIRE · ETA 4 MIN"). */
   function detailFor(a: Appliance): string | null {
@@ -131,7 +157,7 @@ export function StationBayPanel({
       default={{
         x: 50,
         y: 70,
-        width: Math.min(1020, 260 + n * 250),
+        width: Math.min(1020, 260 + Math.max(2, n) * 250),
         height: typeof window !== "undefined" ? Math.min(790, window.innerHeight - 110) : 700,
       }}
       minWidth={460}
@@ -217,7 +243,7 @@ export function StationBayPanel({
             <rect x={0} y={SLAB_BOT} width={svgW} height={SVG_H - SLAB_BOT} fill="url(#sb-apron)" />
 
             {bays.map((a, i) => {
-              const x0 = MARGIN + i * MOD_W;
+              const x0 = gx0 + i * MOD_W;
               const cx = x0 + MOD_W / 2;
               const art = artFor(a.type);
               const out = !inBay(a);
@@ -368,12 +394,12 @@ export function StationBayPanel({
             })}
 
             {/* Lintel across the door line */}
-            <rect x={68} y={140} width={svgW - 128} height={16} fill="#000" opacity={0.75} filter="url(#sb-soft)" />
-            <rect x={64} y={134} width={svgW - 128} height={16} fill="url(#sb-wallh)" />
-            <rect x={64} y={134} width={svgW - 128} height={2} fill="#c2c2cb" opacity={0.55} />
+            <rect x={gx0 - 12} y={140} width={n * MOD_W + 32} height={16} fill="#000" opacity={0.75} filter="url(#sb-soft)" />
+            <rect x={gx0 - 16} y={134} width={n * MOD_W + 32} height={16} fill="url(#sb-wallh)" />
+            <rect x={gx0 - 16} y={134} width={n * MOD_W + 32} height={2} fill="#c2c2cb" opacity={0.55} />
 
             {/* Side walls + dividers */}
-            {[64, svgW - 80, ...Array.from({ length: n - 1 }, (_, k) => MARGIN + (k + 1) * MOD_W - 8)].map((wx) => (
+            {[gx0 - 16, gx0 + n * MOD_W, ...Array.from({ length: n - 1 }, (_, k) => gx0 + (k + 1) * MOD_W - 8)].map((wx) => (
               <g key={wx}>
                 <rect x={wx + 4} y={140} width={16} height={556} fill="#000" opacity={0.75} filter="url(#sb-soft)" />
                 <rect x={wx} y={134} width={16} height={556} fill="url(#sb-wallv)" />
@@ -389,19 +415,28 @@ export function StationBayPanel({
             <text x={80 + badgeW / 2} y={76.4} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={27} fill="#050507">
               {station.id}
             </text>
-            <text x={80 + badgeW + 18} y={70.4} fontFamily={MONO} fontWeight={700} fontSize={titleSize} letterSpacing={5} fill={C_TEXT}>
+            <text
+              x={titleX}
+              y={70.4}
+              fontFamily={MONO}
+              fontWeight={700}
+              fontSize={titleSize}
+              letterSpacing={titleLs}
+              fill={C_TEXT}
+              {...(titleSqueeze ? { textLength: titleRoom, lengthAdjust: "spacingAndGlyphs" as const } : {})}
+            >
               {title}
             </text>
-            <text x={80 + badgeW + 18} y={94.2} fontFamily={MONO} fontSize={14.9} letterSpacing={6} fill={C_DIM}>
+            <text x={titleX} y={94.2} fontFamily={MONO} fontSize={14.9} letterSpacing={6} fill={C_DIM}>
               APPLIANCE BAYS
             </text>
 
             {/* Header: availability summary */}
             <text x={svgW - 80} y={71.9} textAnchor="end" fontFamily={MONO} fontWeight={700} fontSize={19} letterSpacing={2} fill={C_TEXT}>
-              {nAvail} AVAILABLE / {nOut} MOBILE / {nOff} OFF
+              {summary}
             </text>
             <text x={svgW - 80} y={95.5} textAnchor="end" fontFamily={MONO} fontSize={15} letterSpacing={3} fill={C_DIM}>
-              {staffing} / {n} BAYS
+              {staffing} / {n} {n === 1 ? "BAY" : "BAYS"}
             </text>
           </svg>
         </div>
