@@ -91,16 +91,34 @@ export default function DemoMdtPage() {
         click: false,
       });
     };
-    /** Scroll the target into view, glide to it (long eased travel),
-     *  optionally click after settling. Hover-only steps just park there. */
+    /** Nearest scrollable ancestor — the pane we actually need to move. */
+    const scrollParentOf = (el: HTMLElement): HTMLElement | null => {
+      let p = el.parentElement;
+      while (p) {
+        const s = window.getComputedStyle(p);
+        if (/(auto|scroll)/.test(s.overflowY) && p.scrollHeight > p.clientHeight + 4) return p;
+        p = p.parentElement;
+      }
+      return null;
+    };
+    const bringIntoView = (el: HTMLElement) => {
+      const sp = scrollParentOf(el);
+      if (!sp) return;
+      const delta = el.getBoundingClientRect().top - sp.getBoundingClientRect().top;
+      sp.scrollTo({
+        top: Math.max(0, sp.scrollTop + delta - sp.clientHeight / 2 + el.offsetHeight / 2),
+        behavior: "smooth",
+      });
+    };
+    /** Scroll the target's pane, glide to it (long eased travel),
+     *  optionally click after settling — re-measuring at click time so
+     *  the ring lands exactly on the control. */
     const step = (at: number, find: () => HTMLElement | null, opts?: { click?: boolean; jitter?: number }) => {
       timers.push(
         window.setTimeout(() => {
           const el = find();
           if (!el) return;
-          try {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-          } catch {}
+          bringIntoView(el);
           timers.push(
             window.setTimeout(() => {
               moveTo(el, opts?.jitter ?? 0);
@@ -114,7 +132,7 @@ export default function DemoMdtPage() {
                   }, 1000),
                 );
               }
-            }, 480),
+            }, 650),
           );
         }, at),
       );
@@ -131,6 +149,11 @@ export default function DemoMdtPage() {
       buttons().filter((b) => (b.textContent ?? "").trim().toLowerCase() === "mobilise" && !b.disabled);
     const availableRow = (n: number) => () =>
       (mobiliseButtons()[n]?.closest("li") as HTMLElement | null) ?? null;
+    // Prefer a proper pump for the on-camera mobilisation.
+    const pumpMobilise = () =>
+      mobiliseButtons().find((b) => /water ladder|pump/i.test(b.closest("li")?.textContent ?? "")) ??
+      mobiliseButtons()[0] ??
+      null;
 
     step(4_500, tab("call"), { click: true });
     step(9_300, tab("resourcing"), { click: true });
@@ -138,8 +161,8 @@ export default function DemoMdtPage() {
     step(11_800, availableRow(0), { jitter: -40 });
     step(12_900, availableRow(1), { jitter: -25 });
     step(14_000, availableRow(2), { jitter: -35 });
-    // …and commit one: MOBILISE the top (recommended) pump
-    step(15_200, () => mobiliseButtons()[0] ?? null, { click: true });
+    // …and commit one: MOBILISE a pump
+    step(15_200, pumpMobilise, { click: true });
     // open the IC pump's full control page from the committed list
     step(19_400, () => {
       const cs = world.onSceneCallsign.toLowerCase();
