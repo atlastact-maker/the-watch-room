@@ -180,7 +180,7 @@ const AREA_SPRITE_H: Record<VehicleSpriteKey, number> = {
   bay_alp: 38,
 };
 
-function movingIcon(
+export function movingIcon(
   callsign: string,
   service: ServiceCode,
   phase: "responding" | "standdown" = "responding",
