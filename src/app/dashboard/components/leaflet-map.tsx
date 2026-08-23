@@ -13,7 +13,8 @@ import {
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
-import type { AreaCode, ServiceCode } from "@/lib/sim/types";
+import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
+import { VEHICLE_SPRITES, spriteKeyForType, type VehicleSpriteKey } from "./vehicle-sprites";
 import type { StationWithAppliances } from "../page";
 
 // Service identity colours — fire engines are red, ambulances green,
@@ -160,19 +161,77 @@ const incidentIcon = L.divIcon({
   `,
 });
 
+/** Fixed on-screen heights for mover sprites at area-view zooms —
+ *  readable silhouettes, not ground-truth scale. */
+const AREA_SPRITE_H: Record<VehicleSpriteKey, number> = {
+  pump: 34,
+  alp: 38,
+  tru: 36,
+  truvan: 30,
+  pm: 36,
+  hll: 36,
+  decon: 36,
+  pol_estate: 25,
+  pol_rpu: 25,
+  pol_arv: 26,
+  pol_unm_saloon: 25,
+  pol_unm: 25,
+  bay_pump: 34,
+  bay_alp: 38,
+};
+
 function movingIcon(
   callsign: string,
   service: ServiceCode,
   phase: "responding" | "standdown" = "responding",
+  applianceType?: ApplianceTypeCode,
+  bearingDeg = 0,
 ): L.DivIcon {
-  // Responding units flash their service colour (blue-light run);
-  // returning / offloading units show steady yellow.
+  // Responding units run their blues (LED fittings on the sprite art);
+  // returning / offloading units show steady yellow on the label.
   const colour = phase === "standdown" ? STANDDOWN_COLOUR : SERVICE_COLOUR[service];
   const glow = `${colour}88`;
-  const anim =
-    phase === "responding"
-      ? "animation: mover-flash 0.8s steps(2, start) infinite;"
-      : "";
+  const spriteKey = applianceType ? spriteKeyForType(applianceType) : null;
+  const sprite = spriteKey ? VEHICLE_SPRITES[spriteKey] : null;
+  const isHeli = applianceType === "HEMS" || applianceType === "Police_NPAS";
+
+  let bodyHtml: string;
+  let labelLeft: number;
+  if (sprite && spriteKey) {
+    const h = AREA_SPRITE_H[spriteKey];
+    const w = Math.round(h * (sprite.w / sprite.h));
+    bodyHtml = `
+        <div class="veh ${phase === "responding" ? "ls-999" : "ls-off"}" style="
+          position: absolute; left: ${-w / 2}px; top: ${-h / 2}px;
+          width: ${w}px; height: ${h}px;
+          transform: rotate(${Math.round(bearingDeg)}deg); transform-origin: center;
+          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+        ">${sprite.svg}</div>`;
+    labelLeft = Math.max(12, Math.ceil(w / 2) + 6);
+  } else if (isHeli) {
+    bodyHtml = `
+        <div style="
+          position: absolute; left: -20px; top: -25px; width: 40px; height: 50px;
+          transform: rotate(${Math.round(bearingDeg)}deg); transform-origin: center;
+          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7));
+        "><img src="/appliances/hems-h145.svg" alt="" style="display:block;width:100%;height:100%;" /></div>`;
+    labelLeft = 24;
+  } else {
+    const anim =
+      phase === "responding"
+        ? "animation: mover-flash 0.8s steps(2, start) infinite;"
+        : "";
+    bodyHtml = `
+        <div style="
+          position: absolute; left: -5px; top: -5px;
+          width: 10px; height: 10px; border-radius: 50%;
+          background: ${colour};
+          box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 0 8px ${glow};
+          ${anim}
+        "></div>`;
+    labelLeft = 10;
+  }
+
   return L.divIcon({
     className: "",
     iconSize: [10, 10],
@@ -180,15 +239,9 @@ function movingIcon(
     popupAnchor: [0, -6],
     html: `
       <div style="position: relative;">
+        ${bodyHtml}
         <div style="
-          position: absolute; left: -5px; top: -5px;
-          width: 10px; height: 10px; border-radius: 50%;
-          background: ${colour};
-          box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 0 8px ${glow};
-          ${anim}
-        "></div>
-        <div style="
-          position: absolute; left: 10px; top: -8px;
+          position: absolute; left: ${labelLeft}px; top: -8px;
           padding: 2px 5px;
           background: rgba(10,10,12,0.92);
           border: 1px solid ${colour};
@@ -208,6 +261,17 @@ function movingIcon(
       </style>
     `,
   });
+}
+
+/** Direction of travel at fraction t along a route — bearing of the small
+ *  step ahead, degrees clockwise from north. */
+function routeBearingAt(routeCoords: [number, number][], t: number): number {
+  const a = interpolateAlongRoute(routeCoords, Math.min(0.999, t));
+  const b = interpolateAlongRoute(routeCoords, Math.min(1, Math.min(0.999, t) + 0.004));
+  const dLat = b[0] - a[0];
+  const dLng = (b[1] - a[1]) * Math.cos((a[0] * Math.PI) / 180);
+  if (dLat === 0 && dLng === 0) return 0;
+  return ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
 }
 
 // ---------------------------------------------------------------------------
@@ -314,6 +378,7 @@ export function LeafletMap({
       t: number;
       etaRemainingSec: number;
       phase: "outbound" | "hospital_leg" | "at_hospital" | "return";
+      applianceType: import("@/lib/sim/types").ApplianceTypeCode;
       hospitalName?: string;
     }[] = [];
     for (const d of deployments) {
@@ -348,6 +413,7 @@ export function LeafletMap({
           key: `${d.applianceId}-ret`,
           applianceId: d.applianceId,
           callsign: appliance.callsign,
+          applianceType: appliance.type,
           service: appliance.service,
           currentCoords: interpolateAlongRoute(routeCoords, t),
           routeCoords,
@@ -372,6 +438,7 @@ export function LeafletMap({
           key: `${d.applianceId}-hosp`,
           applianceId: d.applianceId,
           callsign: appliance.callsign,
+          applianceType: appliance.type,
           service: appliance.service,
           currentCoords: [d.hospitalCoords.lat, d.hospitalCoords.lng],
           routeCoords: null,
@@ -406,6 +473,7 @@ export function LeafletMap({
           key: `${d.applianceId}-toh`,
           applianceId: d.applianceId,
           callsign: appliance.callsign,
+          applianceType: appliance.type,
           service: appliance.service,
           currentCoords: interpolateAlongRoute(routeCoords, t),
           routeCoords,
@@ -432,6 +500,7 @@ export function LeafletMap({
         key: d.applianceId,
         applianceId: d.applianceId,
         callsign: appliance.callsign,
+        applianceType: appliance.type,
         service: appliance.service,
         currentCoords: interpolateAlongRoute(routeCoords, t),
         routeCoords,
@@ -635,7 +704,13 @@ export function LeafletMap({
         <Marker
           key={`${m.key}-mover`}
           position={m.currentCoords}
-          icon={movingIcon(m.callsign, m.service, mapPhaseToIconPhase(m.phase))}
+          icon={movingIcon(
+            m.callsign,
+            m.service,
+            mapPhaseToIconPhase(m.phase),
+            m.applianceType,
+            m.routeCoords && m.phase !== "at_hospital" ? routeBearingAt(m.routeCoords, m.t) : 0,
+          )}
           eventHandlers={{ click: () => onSelectAppliance(m.applianceId) }}
         />
       ))}

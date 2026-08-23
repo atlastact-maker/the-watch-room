@@ -249,7 +249,7 @@ function haversineMetres(
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function applianceIcon(
+export function applianceIcon(
   callsign: string,
   service: string,
   commander: boolean,
