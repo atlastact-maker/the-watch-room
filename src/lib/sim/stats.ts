@@ -60,6 +60,22 @@ export function loadCareerStats(): CareerStats {
   }
 }
 
+/** Overwrite the local record wholesale (used by the account sync). */
+export function saveCareerStats(s: CareerStats): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    // best-effort
+  }
+}
+
+/** Command points — the leaderboard score. A=5 … F=1 per resolved job. */
+export function commandScore(s: CareerStats): number {
+  const w: Record<Grade, number> = { A: 5, B: 4, C: 3, D: 2, F: 1 };
+  return (Object.keys(w) as Grade[]).reduce((n, g) => n + (s.grades[g] ?? 0) * w[g], 0);
+}
+
 export function bumpStats(mutate: (s: CareerStats) => void): void {
   if (typeof window === "undefined") return;
   try {

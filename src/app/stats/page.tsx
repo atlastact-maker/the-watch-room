@@ -1,11 +1,12 @@
 "use client";
 
-// Service record — career statistics accumulated across every shift on
-// this device, in the same ops-centre styling as the main menu.
+// Service record — career statistics synced to the account (local cache
+// + Supabase row, max-merged), plus the all-time operator leaderboard.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { loadCareerStats, type CareerStats, type Grade } from "@/lib/sim/stats";
+import { loadCareerStats, commandScore, type CareerStats, type Grade } from "@/lib/sim/stats";
+import { fetchLeaderboard, syncCareerStats, type LeaderboardRow } from "@/lib/sim/stats-sync";
 
 const GRADE_ORDER: Grade[] = ["A", "B", "C", "D", "F"];
 const GRADE_TONE: Record<Grade, string> = {
@@ -28,10 +29,22 @@ function typeLabel(code: string): string {
 }
 
 export default function StatsPage() {
-  // Load on the client only — localStorage isn't there for the server pass.
+  // Local record first (instant paint), then the account-merged record —
+  // the sync reconciles this device with the Supabase row and vice versa.
   const [stats, setStats] = useState<CareerStats | null>(null);
+  const [board, setBoard] = useState<LeaderboardRow[] | null | "loading">("loading");
   useEffect(() => {
     setStats(loadCareerStats());
+    let cancelled = false;
+    void syncCareerStats().then((merged) => {
+      if (!cancelled) setStats(merged);
+      return fetchLeaderboard().then((rows) => {
+        if (!cancelled) setBoard(rows);
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const avgFirstAlloc =
@@ -64,7 +77,7 @@ export default function StatsPage() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         <p className="font-mono text-xs uppercase tracking-[0.3em] text-(--color-amber-dim)">
-          Career statistics · this device
+          Career statistics · synced to your account
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Service record.</h1>
 
@@ -184,8 +197,78 @@ export default function StatsPage() {
                 )}
               </section>
             </div>
+
+
           </>
         )}
+
+        {/* Leaderboard — command points across every operator */}
+        <section className="mt-8 rounded-sm border border-(--color-border-subtle) p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
+              Top operators · all time
+            </h2>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+              Your score:{" "}
+              <span className="text-(--color-amber)">
+                {stats ? commandScore(stats) : 0} pts
+              </span>{" "}
+              · A=5 B=4 C=3 D=2 F=1
+            </span>
+          </div>
+
+          {board === "loading" ? (
+            <p className="mt-4 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+              Fetching the board…
+            </p>
+          ) : board === null ? (
+            <p className="mt-4 text-sm leading-relaxed text-(--color-text-muted)">
+              The leaderboard isn&apos;t reachable — either you&apos;re offline
+              or the stats table hasn&apos;t been set up yet
+              (supabase/migrations/001_career_stats.sql).
+            </p>
+          ) : board.length === 0 ? (
+            <p className="mt-4 text-sm text-(--color-text-muted)">
+              No scores posted yet — resolve an incident and take the top spot.
+            </p>
+          ) : (
+            <ol className="mt-4 space-y-1">
+              {board.map((r) => (
+                <li
+                  key={r.rank}
+                  className={
+                    "flex items-baseline gap-3 rounded-sm border px-3 py-1.5 " +
+                    (r.isYou
+                      ? "border-(--color-amber)/60 bg-(--color-amber)/10"
+                      : "border-transparent")
+                  }
+                >
+                  <span
+                    className={
+                      "w-7 shrink-0 font-mono text-sm font-bold tabular-nums " +
+                      (r.rank <= 3 ? "text-(--color-amber)" : "text-(--color-text-dim)")
+                    }
+                  >
+                    {r.rank}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-sm font-bold tracking-widest text-(--color-text)">
+                    {r.callsign}
+                    {r.isYou && (
+                      <span className="ml-2 font-normal text-(--color-amber)">· you</span>
+                    )}
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+                    {r.incidentsResolved} resolved ·{" "}
+                    <span className="text-(--color-ok)">{r.casualtiesSaved} saved</span>
+                  </span>
+                  <span className="w-16 shrink-0 text-right font-mono text-sm font-bold tabular-nums text-(--color-amber)">
+                    {r.score}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </main>
     </div>
   );

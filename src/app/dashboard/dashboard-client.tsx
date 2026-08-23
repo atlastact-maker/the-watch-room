@@ -90,6 +90,7 @@ import {
   type ShiftSave,
 } from "@/lib/sim/save";
 import { bumpStats, saveLastShift } from "@/lib/sim/stats";
+import { syncCareerStats } from "@/lib/sim/stats-sync";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
 const INTENSITY_STORAGE_KEY = "watch-room.intensity";
@@ -1664,6 +1665,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       summary: scored.summary,
       resolvedAt,
     });
+    // Push the updated record to the account (best-effort, non-blocking).
+    void syncCareerStats();
   }
 
   function dismissIncident() {
