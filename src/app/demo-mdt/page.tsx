@@ -334,7 +334,7 @@ function buildWorld() {
     },
   ] as unknown as Task[];
 
-  const crewAir: Record<string, number> = { [ba1]: 172, [ba2]: 168 };
+  const crewAir: Record<string, number> = { [ba1]: 64, [ba2]: 58 };
 
   const scene = scenario.scene;
   const sim = {
