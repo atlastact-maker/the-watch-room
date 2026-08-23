@@ -6,6 +6,23 @@ import { signup } from "@/lib/auth/actions";
 export function SignupForm() {
   const [state, action, pending] = useActionState(signup, undefined);
 
+  // Email confirmation enabled server-side — the account exists but needs
+  // the inbox link before login works.
+  if (state?.needsConfirmation) {
+    return (
+      <div className="rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">
+          ✓ Account created — confirm your email
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-(--color-text-muted)">
+          We&apos;ve sent a confirmation link to your inbox. Click it, then log
+          in and take the chair. Nothing arrived after a couple of minutes?
+          Check spam.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form action={action} className="flex flex-col gap-4">
       <Field
@@ -83,6 +100,10 @@ export function SignupForm() {
       >
         {pending ? "Registering…" : "▸ Begin Shift"}
       </button>
+
+      <p className="text-center font-mono text-[9px] uppercase tracking-widest leading-relaxed text-(--color-text-dim)/70">
+        Your email is used for login — and updates only if you opted in.
+      </p>
     </form>
   );
 }

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { LandingBackdrop } from "./components/landing-backdrop";
 import { LiveConsole } from "./components/live-console";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
@@ -19,7 +21,15 @@ function fleetCounts() {
   return out;
 }
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // A live session goes straight to the ops centre — returning operators
+  // shouldn't land on the marketing page.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/menu");
+
   const fleet = fleetCounts();
 
   return (
@@ -35,7 +45,9 @@ export default function LandingPage() {
             <span className="text-(--color-border)">|</span>
             <span className="text-(--color-text-dim)">Multi-Agency Operator</span>
           </div>
-          <div className="hidden sm:block">Build 0.1 · Pre-alpha</div>
+          <div className="hidden sm:block">
+            Build {process.env.NEXT_PUBLIC_BUILD_STAMP ?? "dev"} · Pre-alpha
+          </div>
         </div>
       </header>
 
@@ -72,6 +84,16 @@ export default function LandingPage() {
                 Log in
               </Link>
             </div>
+
+            <Link
+              href="/trailer2"
+              className="group mt-5 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:text-(--color-amber)"
+            >
+              <span>▸ Watch the trailer</span>
+              <span className="text-(--color-text-dim)/60 group-hover:text-(--color-amber)/60">
+                45 sec
+              </span>
+            </Link>
 
             <div className="mt-10 flex flex-wrap gap-2 border-t border-(--color-border-subtle) pt-6">
               {["Real stations", "Real resources"].map((chip) => (

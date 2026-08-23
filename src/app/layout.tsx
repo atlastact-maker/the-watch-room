@@ -13,9 +13,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://the-watch-room.vercel.app"),
   title: "The Watch Room",
   description:
-    "An emergency services incident manager simulator. Greater Manchester and Lancashire — METHANE, JESIP, real procedures.",
+    "Emergency Services Incident Management Simulator. Command Fire, Ambulance and Police from one seat — real stations, real resources. You're in command and control.",
+  openGraph: {
+    title: "The Watch Room",
+    description:
+      "Emergency Services Incident Management Simulator. Command Fire, Ambulance and Police from one seat. You're in command and control.",
+    siteName: "The Watch Room",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Watch Room",
+    description:
+      "Emergency Services Incident Management Simulator. You're in command and control.",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -26,13 +26,36 @@ export const SignupSchema = z.object({
   newsletter: z.boolean(),
 });
 
+export const ForgotPasswordSchema = z.object({
+  email: z.email({ error: "Enter a valid email." }).trim(),
+});
+
+export const ResetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, { error: "At least 8 characters." })
+      .regex(/[a-zA-Z]/, { error: "Include a letter." })
+      .regex(/[0-9]/, { error: "Include a number." }),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    error: "Passwords don't match.",
+    path: ["confirm"],
+  });
+
 export type AuthFormState =
   | {
-      ok?: false;
+      ok?: boolean;
+      /** Signup succeeded but the account needs email confirmation. */
+      needsConfirmation?: boolean;
+      /** Positive feedback line (e.g. reset email sent). */
+      message?: string;
       errors?: {
         callsign?: string[];
         email?: string[];
         password?: string[];
+        confirm?: string[];
         acceptTerms?: string[];
         form?: string[];
       };

@@ -1,36 +1,25 @@
 "use client";
 
 import { useActionState } from "react";
-import { login } from "@/lib/auth/actions";
+import { updatePassword } from "@/lib/auth/actions";
 
-export function LoginForm() {
-  const [state, action, pending] = useActionState(login, undefined);
+export function ResetPasswordForm() {
+  const [state, action, pending] = useActionState(updatePassword, undefined);
 
   return (
     <form action={action} className="space-y-4">
       <Field
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        errors={state?.errors?.email}
-      />
-      <Field
-        label="Password"
+        label="New password"
         name="password"
-        type="password"
-        autoComplete="current-password"
+        autoComplete="new-password"
         errors={state?.errors?.password}
       />
-
-      <div className="text-right">
-        <a
-          href="/forgot-password"
-          className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)"
-        >
-          Forgot password?
-        </a>
-      </div>
+      <Field
+        label="Confirm new password"
+        name="confirm"
+        autoComplete="new-password"
+        errors={state?.errors?.confirm}
+      />
 
       {state?.errors?.form?.map((msg) => (
         <p key={msg} className="text-sm text-(--color-critical)">
@@ -43,7 +32,7 @@ export function LoginForm() {
         disabled={pending}
         className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {pending ? "Authenticating…" : "Log in"}
+        {pending ? "Saving…" : "Set password & log in"}
       </button>
     </form>
   );
@@ -52,13 +41,11 @@ export function LoginForm() {
 function Field({
   label,
   name,
-  type,
   autoComplete,
   errors,
 }: {
   label: string;
   name: string;
-  type: string;
   autoComplete: string;
   errors?: string[];
 }) {
@@ -73,13 +60,13 @@ function Field({
       <input
         id={name}
         name={name}
-        type={type}
+        type="password"
         autoComplete={autoComplete}
         required
-        className="block w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 py-2.5 text-sm text-(--color-text) outline-none transition-colors focus:border-(--color-amber)"
+        className="h-11 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 text-sm text-(--color-text) outline-none focus:border-(--color-amber)"
       />
       {errors?.map((msg) => (
-        <p key={msg} className="mt-1 text-xs text-(--color-critical)">
+        <p key={msg} className="mt-1 text-sm text-(--color-critical)">
           {msg}
         </p>
       ))}
