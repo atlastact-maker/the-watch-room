@@ -91,24 +91,31 @@ export default function DemoMdtPage() {
         click: false,
       });
     };
-    /** Glide to the element (long eased travel), optionally click after
-     *  settling. Hover-only steps just park the cursor there. */
+    /** Scroll the target into view, glide to it (long eased travel),
+     *  optionally click after settling. Hover-only steps just park there. */
     const step = (at: number, find: () => HTMLElement | null, opts?: { click?: boolean; jitter?: number }) => {
       timers.push(
         window.setTimeout(() => {
           const el = find();
           if (!el) return;
-          moveTo(el, opts?.jitter ?? 0);
-          if (opts?.click) {
-            timers.push(
-              window.setTimeout(() => {
-                const r = el.getBoundingClientRect();
-                setCursor({ x: r.left + r.width / 2 + (opts?.jitter ?? 0), y: r.top + r.height / 2, click: true });
-                el.click();
-                timers.push(window.setTimeout(() => setCursor((c) => (c ? { ...c, click: false } : c)), 520));
-              }, 1000),
-            );
-          }
+          try {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          } catch {}
+          timers.push(
+            window.setTimeout(() => {
+              moveTo(el, opts?.jitter ?? 0);
+              if (opts?.click) {
+                timers.push(
+                  window.setTimeout(() => {
+                    const r = el.getBoundingClientRect();
+                    setCursor({ x: r.left + r.width / 2 + (opts?.jitter ?? 0), y: r.top + r.height / 2, click: true });
+                    el.click();
+                    timers.push(window.setTimeout(() => setCursor((c) => (c ? { ...c, click: false } : c)), 520));
+                  }, 1000),
+                );
+              }
+            }, 480),
+          );
         }, at),
       );
     };
@@ -131,8 +138,8 @@ export default function DemoMdtPage() {
     step(11_800, availableRow(0), { jitter: -40 });
     step(12_900, availableRow(1), { jitter: -25 });
     step(14_000, availableRow(2), { jitter: -35 });
-    // …and commit one: MOBILISE
-    step(15_200, () => mobiliseButtons()[1] ?? mobiliseButtons()[0] ?? null, { click: true });
+    // …and commit one: MOBILISE the top (recommended) pump
+    step(15_200, () => mobiliseButtons()[0] ?? null, { click: true });
     // open the IC pump's full control page from the committed list
     step(19_400, () => {
       const cs = world.onSceneCallsign.toLowerCase();
