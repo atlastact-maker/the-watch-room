@@ -2954,6 +2954,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onConveyCasualtyVia={conveyCasualtyVia}
             mdtVisible={incidentPanelVisible}
             onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
+            onSelectInbound={setSelectedApplianceId}
             onClose={() => setGroundViewOpen(false)}
           />
         )}
@@ -2991,6 +2992,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onUpdateBaRemarks={updateBaRemarks}
             onUpdateBaEntryPoint={updateBaEntryPoint}
             onAbortTask={abortTask}
+            etas={etas}
+            patch={patch}
+            onStandDown={standDownAppliance}
+            onSetPreCommitBaCrew={setPreCommitBaCrew}
+            sceneCommanderApplianceId={sceneCommanderApplianceId}
+            crewAir={crewAir}
           />
         )}
         {pendingCall && (

@@ -64,7 +64,9 @@ export function PreArrivalPanel({
       bounds="window"
       dragHandleClassName="drag-handle"
       enableResizing={false}
-      className="z-[1150]"
+      // Above the fullscreen ground view (1200) and MDT (1250) so inbound
+      // chips can open it for en-route pre-allocation.
+      className="z-[1290]"
     >
       <div className="flex w-full flex-col overflow-hidden rounded-sm border border-(--color-amber)/50 bg-(--color-surface) shadow-2xl shadow-black/60">
         <div className="drag-handle flex cursor-move items-center justify-between gap-2 border-b border-(--color-border-subtle) bg-(--color-amber)/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">

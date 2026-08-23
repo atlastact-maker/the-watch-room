@@ -108,6 +108,9 @@ export type Props = {
   /** MDT tablet visibility toggle for the mission bar. */
   mdtVisible?: boolean;
   onToggleMdt?: () => void;
+  /** Open the pre-arrival panel for an inbound (not yet on scene) unit —
+   *  lets the operator pre-allocate crews to tasks (BA etc.) en route. */
+  onSelectInbound?: (applianceId: string) => void;
   onSetTreatmentDestination?: (
     casualtyId: string,
     type: import("@/lib/sim/scene").HospitalDestinationType,
@@ -182,9 +185,7 @@ const FILTER_KINDS: Record<SitrepFilter, LogEntry["kind"][] | null> = {
 export function IncidentView({
   incident,
   stations,
-  patch,
   deployments,
-  etas,
   log,
   now,
   sim,
@@ -194,15 +195,11 @@ export function IncidentView({
   busyCrewIds,
   vehicleGauges,
   onSetParkingPos,
-  onSetPreCommitBaCrew,
   onSetLightState,
   onSetPumpRunning,
   onSetPumpOperator,
   onSetFastAttackDeployed,
   onToggleCrewEquipment,
-  onDeploy,
-  onStandDownForWelfare,
-  onStandDown,
   onStartTask,
   onAbortTask,
   onUpdateBaRemarks,
@@ -221,6 +218,7 @@ export function IncidentView({
   onRequestClinician,
   mdtVisible,
   onToggleMdt,
+  onSelectInbound,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -244,10 +242,8 @@ export function IncidentView({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [pendingClosure]);
-  // Per-panel collapse state — the operator can pin any side/bottom panel to
-  // reclaim screen real-estate for the map. The action menu is not collapsible
-  // (the whole point is it stays fully visible when a vehicle is selected).
-  const [rightRailCollapsed, setRightRailCollapsed] = useState(false);
+  // Bottom feed collapse — the operator can pin it to reclaim screen
+  // real-estate for the map. Everything else lives on the MDT tablet.
   const [sitrepCollapsed, setSitrepCollapsed] = useState(false);
   // When set, the operator has asked to re-orient a parked vehicle. The map
   // enters rotate mode until they click to pick a new bearing (or cancel).
@@ -308,14 +304,15 @@ export function IncidentView({
       <div
         className="grid min-h-0 flex-1 overflow-hidden"
         style={{
-          gridTemplateColumns: `1fr ${rightRailCollapsed ? "40px" : "340px"}`,
+          gridTemplateColumns: "1fr",
           gridTemplateRows: `1fr ${sitrepCollapsed ? "32px" : "180px"}`,
         }}
       >
-        {/* Call / hazards / casualties / BA live on the MDT tablet — the
-            ground view keeps just the scene, the crews rail and the feed. */}
+        {/* Full map + MDT view: call, hazards, casualties, BA and
+            resourcing all live on the MDT tablet — the ground view is
+            just the scene and the bottom feed. */}
         <div
-          className="relative min-h-0 overflow-hidden border-r border-(--color-border-subtle) bg-(--color-bg)"
+          className="relative min-h-0 overflow-hidden bg-(--color-bg)"
           style={{ gridRow: "1 / 2", gridColumn: "1 / 2" }}
         >
           <GroundSceneMap
@@ -358,6 +355,13 @@ export function IncidentView({
           />
           <SceneOverlay
             enRouteAwaitingParking={enRouteDeployments.filter((r) => !r.deployment.parkingPos).length}
+          />
+          {/* Inbound allocation board — glanceable chips for units still
+              blue-lighting in. Click one to pre-allocate its crew. */}
+          <InboundChips
+            inbound={enRouteDeployments}
+            now={now}
+            onSelect={onSelectInbound}
           />
           {/* Road-closure placement banner */}
           {pendingClosure && (
@@ -436,28 +440,6 @@ export function IncidentView({
               />
             </div>
           )}
-        </div>
-        <div className="min-h-0 overflow-hidden" style={{ gridRow: "1 / 3", gridColumn: "2 / 3" }}>
-          <RightRail
-            incident={incident}
-            stations={stations}
-            patch={patch}
-            resolved={resolved}
-            sim={sim}
-            now={now}
-            tasks={tasks}
-            sceneCommanderApplianceId={sceneCommanderApplianceId}
-            crewAir={crewAir}
-            etas={etas}
-            deployments={deployments}
-            collapsed={rightRailCollapsed}
-            onToggleCollapse={() => setRightRailCollapsed((v) => !v)}
-            onDeploy={onDeploy}
-            onStandDownForWelfare={onStandDownForWelfare}
-            onStandDown={onStandDown}
-            onSetPreCommitBaCrew={onSetPreCommitBaCrew}
-            onSelectAppliance={setSelectedApplianceId}
-          />
         </div>
         <div className="border-t border-(--color-border-subtle)" style={{ gridRow: "2 / 3", gridColumn: "1 / 2" }}>
           <BottomFeedPane
@@ -763,36 +745,6 @@ function Counter({
         {value}
       </span>
     </div>
-  );
-}
-
-function TabButton({
-  label,
-  active,
-  onClick,
-  tone = "default",
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  tone?: "default" | "critical";
-}) {
-  const activeColour = tone === "critical" ? "text-(--color-critical)" : "text-(--color-amber)";
-  const indicator = tone === "critical" ? "bg-(--color-critical)" : "bg-(--color-amber)";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "relative flex-1 truncate px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors " +
-        (active
-          ? `${activeColour} bg-(--color-bg)`
-          : "text-(--color-text-dim) hover:bg-(--color-bg)/40 hover:text-(--color-text)")
-      }
-    >
-      {label}
-      {active && <span className={`absolute inset-x-2 bottom-0 h-0.5 ${indicator}`} />}
-    </button>
   );
 }
 
@@ -1717,131 +1669,7 @@ function CallInformation({
     </aside>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Right rail — METHANE + Hazards + Casualties + Active Tasks + Committed Crews
-// ---------------------------------------------------------------------------
-
-function RightRail({
-  incident,
-  stations,
-  patch,
-  resolved,
-  sim,
-  now,
-  tasks,
-  sceneCommanderApplianceId,
-  crewAir,
-  etas,
-  deployments,
-  collapsed,
-  onToggleCollapse,
-  onDeploy,
-  onStandDownForWelfare,
-  onStandDown,
-  onSetPreCommitBaCrew,
-  onSelectAppliance,
-}: {
-  incident: Incident;
-  stations: StationWithAppliances[];
-  patch?: AreaCode | null;
-  resolved: ResolvedDeployment[];
-  sim: IncidentSimState;
-  now: number;
-  tasks: Task[];
-  sceneCommanderApplianceId: string | null;
-  crewAir: Record<string, number>;
-  etas: Record<string, Eta>;
-  deployments: Deployment[];
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-  onDeploy: (args: DeployArgs) => void;
-  onStandDownForWelfare: (applianceId: string) => void;
-  onStandDown: (applianceId: string) => void;
-  onSetPreCommitBaCrew: Props["onSetPreCommitBaCrew"];
-  onSelectAppliance: (id: string | null) => void;
-}) {
-  const [tab, setTab] = useState<"crews" | "resources">("crews");
-  if (collapsed) {
-    return <CollapsedRail title="Crews & Resources" side="right" onExpand={onToggleCollapse} />;
-  }
-  const activeTasks = tasks.filter((t) => t.state === "active");
-  return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-(--color-surface)/30">
-      <div className="flex items-stretch border-b border-(--color-border-subtle) bg-(--color-surface-raised)">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="shrink-0 border-r border-(--color-border-subtle) px-2 font-mono text-[11px] text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-amber)"
-          title="Minimise"
-          aria-label="Minimise"
-        >
-          —
-        </button>
-        <TabButton
-          label={`Committed Crews · ${resolved.length}`}
-          active={tab === "crews"}
-          onClick={() => setTab("crews")}
-        />
-        <TabButton
-          label="Resources"
-          active={tab === "resources"}
-          onClick={() => setTab("resources")}
-        />
-      </div>
-
-      {tab === "crews" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          {activeTasks.length > 0 && (
-            <div className="border-b border-(--color-border-subtle) px-4 py-3 text-xs">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                Active tasks · {activeTasks.length}
-              </div>
-              <ul className="mt-1 space-y-1.5">
-                {activeTasks.map((t) => (
-                  <ActiveTaskRow key={t.id} task={t} now={now} crewAir={crewAir} />
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto px-4 py-3 text-xs">
-            {resolved.length === 0 ? (
-              <p className="text-(--color-text-dim)">No crews committed yet.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {resolved.map((r) => (
-                  <CrewLine
-                    key={r.deployment.applianceId}
-                    r={r}
-                    now={now}
-                    isCommander={sceneCommanderApplianceId === r.deployment.applianceId}
-                    onSetPreCommitBaCrew={onSetPreCommitBaCrew}
-                    onSelectAppliance={onSelectAppliance}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto px-3 py-3">
-          <DeploymentBoard
-            incident={incident}
-            stations={stations}
-            etas={etas}
-            deployments={deployments}
-            patch={patch}
-            onDeploy={onDeploy}
-            onStandDownForWelfare={onStandDownForWelfare}
-            onStandDown={onStandDown}
-          />
-        </div>
-      )}
-    </aside>
-  );
-}
-
-function ActiveTaskRow({
+export function ActiveTaskRow({
   task,
   now,
   crewAir,
@@ -1932,7 +1760,7 @@ function MethaneLine({
   );
 }
 
-function CrewLine({
+export function CrewLine({
   r,
   now,
   isCommander,
@@ -2331,6 +2159,61 @@ function kindColour(k: LogEntry["kind"]): string {
 // ---------------------------------------------------------------------------
 // Scene overlay
 // ---------------------------------------------------------------------------
+
+/** Slim allocation-board strip over the scene: one chip per inbound unit
+ *  (service-coloured callsign + live ETA countdown). Clicking a chip opens
+ *  the pre-arrival panel so crews can be pre-allocated to tasks en route.
+ *  Vanishes once everyone is on scene. */
+function InboundChips({
+  inbound,
+  now,
+  onSelect,
+}: {
+  inbound: ResolvedDeployment[];
+  now: number;
+  onSelect?: (applianceId: string) => void;
+}) {
+  if (inbound.length === 0) return null;
+  const tone = (service: Appliance["service"]) =>
+    service === "Fire"
+      ? "border-(--color-critical)/60 text-(--color-critical)"
+      : service === "Ambulance"
+        ? "border-(--color-ok)/60 text-(--color-ok)"
+        : "border-(--color-info)/60 text-(--color-info)";
+  const dot = (service: Appliance["service"]) =>
+    service === "Fire"
+      ? "bg-(--color-critical)"
+      : service === "Ambulance"
+        ? "bg-(--color-ok)"
+        : "bg-(--color-info)";
+  return (
+    <div className="pointer-events-none absolute left-3 top-3 z-[550] flex max-w-[70%] flex-wrap items-center gap-1.5">
+      <span className="rounded-sm bg-(--color-bg)/85 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+        Inbound · {inbound.length}
+      </span>
+      {inbound.map((r) => {
+        const remaining = Math.max(0, Math.ceil((r.deployment.arrivesAt - now) / 1000));
+        const mm = Math.floor(remaining / 60);
+        const ss = String(remaining % 60).padStart(2, "0");
+        return (
+          <button
+            key={r.deployment.applianceId}
+            type="button"
+            onClick={() => onSelect?.(r.deployment.applianceId)}
+            title={`${r.appliance.callsign} — pre-allocate crew`}
+            className={`pointer-events-auto flex items-center gap-1.5 rounded-sm border bg-(--color-bg)/90 px-2 py-1 font-mono text-[10px] tracking-wider shadow-lg shadow-black/40 transition-colors hover:bg-(--color-surface) ${tone(r.appliance.service)}`}
+          >
+            <span className={`dot-live size-1.5 rounded-full ${dot(r.appliance.service)}`} />
+            <span className="font-bold">{r.appliance.callsign}</span>
+            <span className="tabular-nums text-(--color-text-dim)">
+              {mm}:{ss}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function SceneOverlay({
   enRouteAwaitingParking,

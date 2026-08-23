@@ -22,11 +22,15 @@ import {
   CallInformationBody,
   HazardsBody,
   CasualtiesBody,
+  CrewLine,
+  ActiveTaskRow,
   resolveDeployments,
   type Props as IncidentViewProps,
   type ResolvedDeployment,
 } from "./incident-view";
 import { BaControlBoard } from "./ba-control-board";
+import { DeploymentBoard, type Eta } from "./deployment-board";
+import type { AreaCode } from "@/lib/sim/types";
 
 // Aerial property view — Leaflet must not run on the server.
 const PropertyAerial = dynamic(
@@ -82,11 +86,20 @@ type Props = {
   onUpdateBaRemarks?: IncidentViewProps["onUpdateBaRemarks"];
   onUpdateBaEntryPoint?: IncidentViewProps["onUpdateBaEntryPoint"];
   onAbortTask?: IncidentViewProps["onAbortTask"];
+
+  // Resourcing tab — committed crews + available fleet with mobilise.
+  etas?: Record<string, Eta>;
+  patch?: AreaCode | null;
+  onStandDown?: (applianceId: string) => void;
+  onSetPreCommitBaCrew?: IncidentViewProps["onSetPreCommitBaCrew"];
+  sceneCommanderApplianceId?: string | null;
+  crewAir?: Record<string, number>;
 };
 
 type TabKey =
   | "overview"
   | "call"
+  | "resourcing"
   | "property"
   | "view"
   | "pri"
@@ -127,6 +140,14 @@ export function DraggableIncidentMdt({
   onUpdateBaRemarks,
   onUpdateBaEntryPoint,
   onAbortTask,
+  onDeploy,
+  onStandDownForWelfare,
+  etas,
+  patch,
+  onStandDown,
+  onSetPreCommitBaCrew,
+  sceneCommanderApplianceId,
+  crewAir,
 }: Props) {
   const resolved = !!outcome;
   const [tab, setTab] = useState<TabKey>("overview");
@@ -150,10 +171,9 @@ export function DraggableIncidentMdt({
   const sc = incident.scenario;
   const nowMs = now ?? Date.now();
 
-  // Scene data for the Hazards / Casualties / BA tabs.
-  const resolvedDeps: ResolvedDeployment[] = sim
-    ? resolveDeployments(deployments, stations, nowMs)
-    : [];
+  // Scene data for the Resourcing / Hazards / Casualties / BA tabs.
+  const resolvedDeps: ResolvedDeployment[] = resolveDeployments(deployments, stations, nowMs);
+  const activeTaskList = (tasks ?? []).filter((t) => t.state === "active");
   const hazardCount = sim?.visibleHazards.length ?? 0;
   const locatedCount = sim
     ? sim.foundCasualties.filter((c) => {
@@ -188,6 +208,10 @@ export function DraggableIncidentMdt({
     : [
         { key: "overview", label: "Overview" },
         { key: "call", label: "Call" },
+        {
+          key: "resourcing",
+          label: resolvedDeps.length > 0 ? `Resourcing·${resolvedDeps.length}` : "Resourcing",
+        },
         { key: "property", label: "Property" },
         { key: "view", label: "Prop View" },
         { key: "pri", label: "PRI" },
@@ -208,7 +232,12 @@ export function DraggableIncidentMdt({
       ];
 
   // Tabs that render the dark ops-theme scene bodies edge-to-edge.
-  const darkTab = tab === "call" || tab === "hazards" || tab === "casualties" || tab === "ba";
+  const darkTab =
+    tab === "call" ||
+    tab === "resourcing" ||
+    tab === "hazards" ||
+    tab === "casualties" ||
+    tab === "ba";
 
   const alerts = [
     ...sc.property.knownHazards,
@@ -358,6 +387,71 @@ export function DraggableIncidentMdt({
                   informantLog={informantLog}
                   informantOnCall={informantOnCall}
                 />
+              </div>
+            )}
+
+            {tab === "resourcing" && !resolved && (
+              <div className="flex h-full min-h-0 bg-(--color-bg) text-(--color-text)">
+                {/* Committed side — who's assigned, their tasks, pre-allocation */}
+                <div className="flex min-h-0 w-[46%] flex-col border-r border-(--color-border-subtle)">
+                  <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+                    Committed · {resolvedDeps.length}
+                  </div>
+                  {activeTaskList.length > 0 && (
+                    <div className="border-b border-(--color-border-subtle) px-3 py-2 text-xs">
+                      <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+                        Active tasks · {activeTaskList.length}
+                      </div>
+                      <ul className="mt-1 space-y-1.5">
+                        {activeTaskList.map((t) => (
+                          <ActiveTaskRow key={t.id} task={t} now={nowMs} crewAir={crewAir ?? {}} />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex-1 overflow-y-auto px-3 py-2 text-xs">
+                    {resolvedDeps.length === 0 ? (
+                      <p className="text-(--color-text-dim)">No crews committed yet.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {resolvedDeps.map((r) => (
+                          <CrewLine
+                            key={r.deployment.applianceId}
+                            r={r}
+                            now={nowMs}
+                            isCommander={sceneCommanderApplianceId === r.deployment.applianceId}
+                            onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
+                            onSelectAppliance={() => {}}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+                {/* Available side — the full fleet with one-click mobilise */}
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+                    Available
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+                    {etas ? (
+                      <DeploymentBoard
+                        incident={incident}
+                        stations={stations}
+                        etas={etas}
+                        deployments={deployments}
+                        patch={patch}
+                        onDeploy={onDeploy}
+                        onStandDownForWelfare={onStandDownForWelfare}
+                        onStandDown={onStandDown ?? (() => {})}
+                      />
+                    ) : (
+                      <p className="px-2 text-xs text-(--color-text-dim)">
+                        Station ETAs still calculating…
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
