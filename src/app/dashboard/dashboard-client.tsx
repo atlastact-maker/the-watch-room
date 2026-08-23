@@ -2817,6 +2817,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               deployments={deployments}
               activeIncident={activeIncident}
               now={now}
+              incidentActive={!!activeIncident && !outcome}
+              onMobilise={(applianceId) => {
+                const eta = etas[st.id];
+                if (!eta) return;
+                deployAppliance({
+                  applianceId,
+                  slotId: "extra",
+                  etaSeconds: eta.seconds,
+                  routeMeters: eta.meters,
+                  routeCoords: eta.coords ?? undefined,
+                });
+              }}
             />
           );
         })()}

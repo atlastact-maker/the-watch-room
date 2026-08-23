@@ -89,6 +89,8 @@ export function StationBayPanel({
   deployments,
   activeIncident,
   now,
+  incidentActive,
+  onMobilise,
 }: {
   station: StationWithAppliances;
   onClose: () => void;
@@ -96,6 +98,10 @@ export function StationBayPanel({
   deployments?: Deployment[];
   activeIncident?: Incident | null;
   now?: number;
+  /** True while there's a live incident to allocate to. */
+  incidentActive?: boolean;
+  /** Mobilise this appliance to the live incident (one-click allocate). */
+  onMobilise?: (applianceId: string) => void;
 }) {
   const bays = station.appliances;
   const n = Math.max(1, bays.length);
@@ -189,6 +195,9 @@ export function StationBayPanel({
             <style>{`
               @keyframes sb-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
               .sb-blink { animation: sb-blink 2.6s ease-in-out infinite; }
+              .sb-mob rect { transition: fill-opacity 0.15s ease; }
+              .sb-mob:hover rect { fill-opacity: 0.25; }
+              .sb-mob:active rect { fill-opacity: 0.4; }
             `}</style>
             <defs>
               <linearGradient id="sb-concrete" x1="0%" y1="0%" x2="18%" y2="100%">
@@ -389,6 +398,26 @@ export function StationBayPanel({
                       {detail}
                     </text>
                   )}
+
+                  {/* One-click allocation to the live incident */}
+                  {incidentActive &&
+                    onMobilise &&
+                    a.status === 7 &&
+                    !deployments?.some((d) => d.applianceId === a.id) && (
+                      <g
+                        className="sb-mob"
+                        style={{ cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMobilise(a.id);
+                        }}
+                      >
+                        <rect x={cx - 84} y={832} width={168} height={34} rx={4} fill={C_AVAIL} fillOpacity={0.08} stroke={C_AVAIL} strokeWidth={1.5} />
+                        <text x={cx} y={854.5} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={14.5} letterSpacing={3} fill={C_AVAIL}>
+                          ▸ MOBILISE
+                        </text>
+                      </g>
+                    )}
                 </g>
               );
             })}
