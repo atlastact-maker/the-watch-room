@@ -89,6 +89,7 @@ import {
   writeSave,
   type ShiftSave,
 } from "@/lib/sim/save";
+import { bumpStats } from "@/lib/sim/stats";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
 const INTENSITY_STORAGE_KEY = "watch-room.intensity";
@@ -712,6 +713,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   function triggerScenario(scenario: Scenario) {
     clearIncidentState();
+    bumpStats((s) => {
+      s.callsAnswered += 1;
+      s.byType[scenario.type] = (s.byType[scenario.type] ?? 0) + 1;
+    });
     const t = Date.now();
     setActiveIncident({
       id: `INC-${t}`,
@@ -1352,6 +1357,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     if (!activeIncident) return;
     const mobilisedAt = Date.now();
     dispatchBeep();
+    bumpStats((s) => {
+      s.resourcesAllocated += 1;
+      if (deployments.length === 0) {
+        s.firstAllocSumSec += Math.max(0, (mobilisedAt - activeIncident.receivedAt) / 1000);
+        s.firstAllocCount += 1;
+      }
+    });
     // Find the appliance so we can pre-populate a sensible default crew
     // loadout by role — the operator can swap kit in the Crew tab later.
     // Use the full deployable pool so out-of-patch specialists resolve too.
@@ -1621,9 +1633,25 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }),
       ),
     ]);
-    setOutcome(
-      scoreIncident(activeIncident, deployments, incidentSim, treatmentByCasualtyId, log, tasks),
+    const scored = scoreIncident(
+      activeIncident,
+      deployments,
+      incidentSim,
+      treatmentByCasualtyId,
+      log,
+      tasks,
     );
+    setOutcome(scored);
+    // Career record: grade, targets and the casualty balance at close.
+    const stages = Object.values(incidentSim?.casualtyProgression ?? {}).map((c) => c.stage);
+    bumpStats((s) => {
+      s.incidentsResolved += 1;
+      s.grades[scored.grade] = (s.grades[scored.grade] ?? 0) + 1;
+      s.targetsMet += scored.passedCount;
+      s.targetsTotal += scored.totalCount;
+      s.casualtiesSaved += stages.filter((st) => st === "at_hospital").length;
+      s.casualtiesLost += stages.filter((st) => st === "expectant").length;
+    });
   }
 
   function dismissIncident() {

@@ -8,7 +8,7 @@
 // runs a light "CAD app" theme so it reads as a separate device sitting
 // on top of the dark ops-room UI.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Rnd } from "react-rnd";
 import {
@@ -115,6 +115,46 @@ type Props = {
   onSelectInbound?: (applianceId: string) => void;
 };
 
+// Remembered tablet frame — survives the MDT being collapsed/reopened
+// (component unmount) and full reloads. Best-effort localStorage.
+type MdtFrame = { x: number; y: number; width: number; height: number };
+const MDT_FRAME_KEY = "twr:mdt-frame:v1";
+
+function loadMdtFrame(): MdtFrame | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(MDT_FRAME_KEY);
+    if (!raw) return null;
+    const f = JSON.parse(raw) as MdtFrame;
+    if (
+      typeof f.x !== "number" ||
+      typeof f.y !== "number" ||
+      typeof f.width !== "number" ||
+      typeof f.height !== "number"
+    ) {
+      return null;
+    }
+    // Never restore a frame that's drifted off the visible screen.
+    return {
+      width: Math.max(640, Math.min(f.width, window.innerWidth)),
+      height: Math.max(460, Math.min(f.height, window.innerHeight)),
+      x: Math.max(0, Math.min(f.x, window.innerWidth - 200)),
+      y: Math.max(0, Math.min(f.y, window.innerHeight - 120)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveMdtFrame(f: MdtFrame): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MDT_FRAME_KEY, JSON.stringify(f));
+  } catch {
+    // best-effort
+  }
+}
+
 // Light CAD palette (grey / red / yellow, matching the Overview tab) —
 // re-skins the shared ops-room bodies by overriding their design tokens
 // inside the tablet screen, so every tab reads as the same CAD app.
@@ -204,6 +244,11 @@ export function DraggableIncidentMdt({
   const [tab, setTab] = useState<TabKey>("overview");
   // Committed unit whose control page fills the Resourcing right pane.
   const [unitId, setUnitId] = useState<string | null>(null);
+  // Tablet frame — restored from the last drag/resize so collapsing and
+  // reopening the MDT keeps the operator's chosen size and position.
+  const frame = useRef<MdtFrame>(
+    loadMdtFrame() ?? { x: 24, y: 90, width: 880, height: 620 },
+  );
   useEffect(() => {
     setTab(resolved ? "debrief" : "overview");
     setUnitId(null);
@@ -317,10 +362,23 @@ export function DraggableIncidentMdt({
   return (
     <Rnd
       default={{
-        x: 24,
-        y: 90,
-        width: 880,
-        height: 620,
+        x: frame.current.x,
+        y: frame.current.y,
+        width: frame.current.width,
+        height: frame.current.height,
+      }}
+      onDragStop={(_e, d) => {
+        frame.current = { ...frame.current, x: d.x, y: d.y };
+        saveMdtFrame(frame.current);
+      }}
+      onResizeStop={(_e, _dir, ref, _delta, pos) => {
+        frame.current = {
+          x: pos.x,
+          y: pos.y,
+          width: ref.offsetWidth,
+          height: ref.offsetHeight,
+        };
+        saveMdtFrame(frame.current);
       }}
       minWidth={640}
       minHeight={460}

@@ -130,6 +130,24 @@ export default async function MenuPage() {
                 Status codes, METHANE, JESIP, callsigns, clinical scope.
               </p>
             </Link>
+
+            <Link
+              href="/stats"
+              className="group rounded-sm border border-(--color-border) p-5 transition-colors hover:border-(--color-amber) sm:col-span-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[12px] uppercase tracking-widest text-(--color-text-dim) group-hover:text-(--color-amber)">
+                  Service Record
+                </span>
+                <span className="font-mono text-[12px] text-(--color-text-dim) group-hover:text-(--color-amber)">
+                  →
+                </span>
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed text-(--color-text-muted)">
+                Calls answered, grade breakdown, casualties saved and lost,
+                allocation speed — your career on the patch.
+              </p>
+            </Link>
           </div>
 
           <Link
