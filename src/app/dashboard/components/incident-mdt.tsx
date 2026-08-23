@@ -96,6 +96,25 @@ type Props = {
   crewAir?: Record<string, number>;
 };
 
+// Light CAD palette (grey / red / yellow, matching the Overview tab) —
+// re-skins the shared ops-room bodies by overriding their design tokens
+// inside the tablet screen, so every tab reads as the same CAD app.
+const CAD_VARS = {
+  "--color-bg": "#f4f4f5",
+  "--color-surface": "#ffffff",
+  "--color-surface-raised": "#e7e7ea",
+  "--color-border": "#a1a1aa",
+  "--color-border-subtle": "#d4d4d8",
+  "--color-text": "#18181b",
+  "--color-text-dim": "#52525b",
+  "--color-text-muted": "#71717a",
+  "--color-amber": "#a16207",
+  "--color-amber-dim": "#b45309",
+  "--color-critical": "#dc2626",
+  "--color-ok": "#15803d",
+  "--color-info": "#1d4ed8",
+} as React.CSSProperties;
+
 type TabKey =
   | "overview"
   | "call"
@@ -381,7 +400,7 @@ export function DraggableIncidentMdt({
             {tab === "debrief" && outcome && <OutcomeView outcome={outcome} />}
 
             {tab === "call" && !resolved && (
-              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)">
+              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
                 <CallInformationBody
                   incident={incident}
                   informantLog={informantLog}
@@ -391,7 +410,7 @@ export function DraggableIncidentMdt({
             )}
 
             {tab === "resourcing" && !resolved && (
-              <div className="flex h-full min-h-0 bg-(--color-bg) text-(--color-text)">
+              <div className="flex h-full min-h-0 bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
                 {/* Committed side — who's assigned, their tasks, pre-allocation */}
                 <div className="flex min-h-0 w-[46%] flex-col border-r border-(--color-border-subtle)">
                   <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
@@ -456,7 +475,7 @@ export function DraggableIncidentMdt({
             )}
 
             {tab === "hazards" && !resolved && sim && (
-              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)">
+              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
                 <HazardsBody
                   sim={sim}
                   incident={incident}
@@ -467,7 +486,7 @@ export function DraggableIncidentMdt({
             )}
 
             {tab === "casualties" && !resolved && sim && (
-              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)">
+              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
                 <CasualtiesBody
                   sim={sim}
                   deployments={deployments}
@@ -492,7 +511,7 @@ export function DraggableIncidentMdt({
             )}
 
             {tab === "ba" && !resolved && (
-              <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto bg-(--color-bg) px-3 py-3 text-(--color-text)">
+              <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto bg-(--color-bg) px-3 py-3 text-(--color-text)" style={CAD_VARS}>
                 {baByAppliance.map(({ appliance, tasks: bt }) => (
                   <BaControlBoard
                     key={appliance.id}
