@@ -1,42 +1,48 @@
 "use client";
 
 // Station bay view — a top-down look inside a fire station's appliance
-// bays, matching the hand-drawn reference module-for-module: 360-wide
-// concrete modules with expansion joints, yellow hatched strips down
-// both edges, a floor drain channel under the vehicle, white marked
-// parking box, ghost bay number, oil staining, and a tarmac apron.
-//
-// Data-driven per station: each appliance gets a bay with the correct
-// callsign plate and the detailed top-down art (pump / aerial from the
-// reference set). A unit that's out the door shows as a ~34% ghost of
-// itself with tyre marks rolling onto the apron and its status word
-// flashing slowly beneath the bay.
+// bays, reproducing the reference artwork 1:1: header with yellow station
+// badge, wall pillars and lintel, contiguous concrete bay modules with
+// expansion joints, edge hatching, marked box, ghost bay number and oil
+// staining, roller-shutter thresholds with a status-coloured light bar,
+// and vehicle top-down art. A unit that's out leaves an empty bay (floor
+// shadow, tyre marks, wheel chocks, BAY EMPTY) and its status word
+// flashes slowly on the apron; off the run parks a 34% ghost.
 
 import { Rnd } from "react-rnd";
+import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import type { Appliance } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
 
-// Reference module geometry (absolute units within the SVG).
+// Reference geometry (canvas units). Modules are contiguous.
 const MOD_W = 360;
-const GAP = 20;
 const MARGIN = 80;
 const SLAB_TOP = 150;
 const SLAB_BOT = 690;
 const SVG_H = 880;
 
-type BayArt = { href: string; w: number; h: number; scale: number };
+const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
-/** Detailed bay art per appliance type (drawn nose-out already). */
+// Reference palette: amber = available, blue = out the door, grey = off.
+const C_AVAIL = "#fbbf24";
+const C_OUT = "#60a5fa";
+const C_OFF = "#5a5a63";
+const C_TEXT = "#f4f4f5";
+const C_DIM = "#8b8b93";
+
+type BayArt = { href: string; w: number; h: number; scale: number; y: number };
+
+/** Detailed bay art per appliance type, with reference placement. */
 function artFor(type: Appliance["type"]): BayArt | null {
   switch (type) {
     case "WrL":
     case "WrT":
     case "L6P":
     case "TRU_pump":
-      return { href: "/appliances/twr-bay-pump.svg", w: 260, h: 540, scale: 0.62 };
+      return { href: "/appliances/twr-bay-pump.svg", w: 260, h: 540, scale: 0.711, y: 217.365 };
     case "TL":
     case "HLP":
-      return { href: "/appliances/twr-bay-alp.svg", w: 280, h: 680, scale: 0.5828 };
+      return { href: "/appliances/twr-bay-alp.svg", w: 280, h: 680, scale: 0.914, y: 40.233 };
     default:
       return null;
   }
@@ -47,7 +53,7 @@ function inBay(a: Appliance): boolean {
   return a.status === 7 || a.status === 8;
 }
 
-function shortStatus(a: Appliance): string {
+function statusWord(a: Appliance): string {
   switch (a.status) {
     case 1: return "MOBILE";
     case 2: return "ON SCENE";
@@ -56,7 +62,23 @@ function shortStatus(a: Appliance): string {
     case 5: return "AT HOSPITAL";
     case 6: return "MOBILE AVAIL";
     case 8: return "OFF THE RUN";
-    default: return "IN BAY";
+    default: return "AVAILABLE";
+  }
+}
+
+/** Short type caption matching the reference wording. */
+function typeCaption(a: Appliance): string {
+  switch (a.type) {
+    case "WrL":
+    case "WrT":
+      return "PUMP";
+    case "L6P": return "LIGHT PUMP";
+    case "TRU_pump": return "TECHNICAL RESCUE PUMP";
+    case "TL":
+    case "HLP":
+      return "AERIAL LADDER PLATFORM";
+    default:
+      return a.typeName.toUpperCase().slice(0, 30);
   }
 }
 
@@ -64,54 +86,74 @@ export function StationBayPanel({
   station,
   onClose,
   onSelectAppliance,
+  deployments,
+  activeIncident,
+  now,
 }: {
   station: StationWithAppliances;
   onClose: () => void;
   onSelectAppliance?: (applianceId: string) => void;
+  deployments?: Deployment[];
+  activeIncident?: Incident | null;
+  now?: number;
 }) {
   const bays = station.appliances;
   const n = Math.max(1, bays.length);
-  const svgW = MARGIN * 2 + n * MOD_W + (n - 1) * GAP;
-  const ready = bays.filter((a) => a.status === 7).length;
+  const svgW = MARGIN * 2 + n * MOD_W;
+  const nAvail = bays.filter((a) => a.status === 7).length;
+  const nOff = bays.filter((a) => a.status === 8).length;
+  const nOut = bays.length - nAvail - nOff;
+
+  const rawName = station.name.toUpperCase();
+  const title = rawName.includes("FIRE STATION") ? rawName : `${rawName} FIRE STATION`;
+  const staffing = (station.staffing ?? "Wholetime").split("/")[0].trim().toUpperCase();
+  const badgeW = 32 + station.id.length * 16;
+  // Shrink the title if a narrow (few-bay) canvas can't fit it.
+  const titleRoom = svgW - MARGIN - badgeW - 18 - 470;
+  const titleSize = Math.max(13, Math.min(25, titleRoom / (title.length * 0.86)));
+
+  /** Detail line under the status word (reference: "DWELLING FIRE · ETA 4 MIN"). */
+  function detailFor(a: Appliance): string | null {
+    if (a.status === 8) return (a.note ?? "CREW SHORTFALL").toUpperCase().slice(0, 34);
+    if (inBay(a)) return null;
+    const dep = deployments?.find((d) => d.applianceId === a.id);
+    if (!dep) return null;
+    const incidentLabel = activeIncident
+      ? activeIncident.scenario.type.replace(/[_-]+/g, " ").toUpperCase()
+      : null;
+    const etaMin = Math.ceil((dep.arrivesAt - (now ?? Date.now())) / 60000);
+    if (etaMin > 0) return `${incidentLabel ?? "INCIDENT"} · ETA ${etaMin} MIN`;
+    return incidentLabel;
+  }
 
   return (
     <Rnd
       default={{
-        x: 60,
-        y: 90,
-        width: Math.min(1040, 220 + n * 250),
-        height: typeof window !== "undefined" ? Math.min(740, window.innerHeight - 130) : 660,
+        x: 50,
+        y: 70,
+        width: Math.min(1020, 260 + n * 250),
+        height: typeof window !== "undefined" ? Math.min(790, window.innerHeight - 110) : 700,
       }}
-      minWidth={440}
-      minHeight={380}
+      minWidth={460}
+      minHeight={400}
       bounds="window"
       dragHandleClassName="drag-handle"
       className="z-[1120]"
     >
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-critical)/40 bg-(--color-surface) shadow-2xl shadow-black/60">
-        <div className="drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) bg-(--color-critical)/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
-          <div className="flex items-center gap-2 text-(--color-critical)">
-            <span className="dot-live size-1.5 rounded-full bg-(--color-critical)" />
-            <span className="text-(--color-text)">{station.id}</span>
-            <span className="opacity-60">|</span>
-            <span>{station.name}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-(--color-text-dim)">
-              {ready}/{bays.length} on the run
-            </span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
-              title="Close"
-            >
-              ✕
-            </button>
-          </div>
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-border-subtle) bg-[#050507] shadow-2xl shadow-black/60">
+        <div className="drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) bg-[#0a0a0e] px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+          <span>Station · {station.id}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-sm px-2 py-0.5 hover:bg-(--color-bg) hover:text-(--color-critical)"
+            title="Close"
+          >
+            ✕
+          </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto bg-[#050507]">
+        <div className="min-h-0 flex-1 overflow-auto">
           <svg
             viewBox={`0 0 ${svgW} ${SVG_H}`}
             className="h-auto w-full"
@@ -128,20 +170,46 @@ export function StationBayPanel({
                 <stop offset="40%" stopColor="#33333a" />
                 <stop offset="100%" stopColor="#26262c" />
               </linearGradient>
+              <linearGradient id="sb-wallv" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#8f8f99" />
+                <stop offset="30%" stopColor="#6b6b75" />
+                <stop offset="100%" stopColor="#3c3c45" />
+              </linearGradient>
+              <linearGradient id="sb-wallh" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#8f8f99" />
+                <stop offset="30%" stopColor="#6b6b75" />
+                <stop offset="100%" stopColor="#3c3c45" />
+              </linearGradient>
+              <linearGradient id="sb-shutter" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#4a4a52" />
+                <stop offset="50%" stopColor="#5e5e68" />
+                <stop offset="100%" stopColor="#33333a" />
+              </linearGradient>
               <linearGradient id="sb-apron" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#141419" />
                 <stop offset="100%" stopColor="#0a0a0e" />
               </linearGradient>
-              <radialGradient id="sb-oil" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#000" stopOpacity="0.42" />
-                <stop offset="100%" stopColor="#000" stopOpacity="0" />
-              </radialGradient>
               <linearGradient id="sb-tyre" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#101015" stopOpacity="0" />
                 <stop offset="22%" stopColor="#101015" stopOpacity="0.3" />
                 <stop offset="60%" stopColor="#101015" stopOpacity="0.16" />
                 <stop offset="100%" stopColor="#101015" stopOpacity="0" />
               </linearGradient>
+              <radialGradient id="sb-oil" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#000" stopOpacity="0.42" />
+                <stop offset="100%" stopColor="#000" stopOpacity="0" />
+              </radialGradient>
+              <filter id="sb-soft" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="7" />
+              </filter>
+              <filter id="sb-soft-s" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" />
+              </filter>
+              <radialGradient id="sb-vig" cx="50%" cy="45%" r="72%">
+                <stop offset="0%" stopColor="#000" stopOpacity="0" />
+                <stop offset="72%" stopColor="#000" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="#000" stopOpacity="0.7" />
+              </radialGradient>
             </defs>
 
             {/* Backdrop + apron */}
@@ -149,19 +217,20 @@ export function StationBayPanel({
             <rect x={0} y={SLAB_BOT} width={svgW} height={SVG_H - SLAB_BOT} fill="url(#sb-apron)" />
 
             {bays.map((a, i) => {
-              const x0 = MARGIN + i * (MOD_W + GAP);
-              const cx = x0 + 180;
+              const x0 = MARGIN + i * MOD_W;
+              const cx = x0 + MOD_W / 2;
               const art = artFor(a.type);
-              const parked = inBay(a);
+              const out = !inBay(a);
               const offRun = a.status === 8;
-              const status = shortStatus(a);
+              const stripColour = offRun ? C_OFF : out ? C_OUT : C_AVAIL;
+              const detail = detailFor(a);
               return (
                 <g
                   key={a.id}
                   onClick={() => onSelectAppliance?.(a.id)}
                   style={{ cursor: onSelectAppliance ? "pointer" : "default" }}
                 >
-                  {/* Concrete module */}
+                  {/* Concrete slab */}
                   <rect x={x0} y={SLAB_TOP} width={MOD_W} height={SLAB_BOT - SLAB_TOP} fill="url(#sb-concrete)" />
 
                   {/* Expansion joints */}
@@ -195,126 +264,145 @@ export function StationBayPanel({
                     </g>
                   ))}
 
-                  {/* Floor drain channel */}
-                  <rect x={x0 + 172} y={176} width={16} height={482} fill="#2a2a30" />
-                  <rect x={x0 + 172} y={176} width={22} height={482} fill="none" stroke="#191920" strokeWidth={2} />
-                  {Array.from({ length: 30 }, (_, k) => (
-                    <line
-                      key={k}
-                      x1={x0 + 172}
-                      y1={180 + k * 16}
-                      x2={x0 + 188}
-                      y2={180 + k * 16}
-                      stroke="#3a3a42"
-                      strokeWidth={1.5}
-                      opacity={0.4}
-                    />
-                  ))}
-
                   {/* Ghost bay number */}
                   <text
-                    x={x0 + 330}
+                    x={x0 + 331}
                     y={246}
                     textAnchor="end"
-                    fontFamily="var(--font-geist-sans), sans-serif"
+                    fontFamily={MONO}
                     fontWeight={800}
-                    fontSize={64}
+                    fontSize={67}
                     fill="#ffffff"
                     opacity={0.07}
                   >
                     {i + 1}
                   </text>
 
-                  {/* Tyre marks rolling out — only when the unit is out */}
-                  {!parked && (
+                  {/* Occupied bay: vehicle art (34% ghost when off the run) */}
+                  {!out &&
+                    (() => {
+                      if (art) {
+                        const w = art.w * art.scale;
+                        const h = art.h * art.scale;
+                        return (
+                          <image
+                            href={art.href}
+                            x={cx - w / 2}
+                            y={art.y}
+                            width={w}
+                            height={h}
+                            opacity={offRun ? 0.34 : 1}
+                          />
+                        );
+                      }
+                      return (
+                        <g opacity={offRun ? 0.34 : 1}>
+                          <rect x={cx - 62} y={240} width={124} height={330} rx={10} fill="#b91c1c" stroke="#0a0a0c" strokeWidth={2} />
+                          <rect x={cx - 62} y={516} width={124} height={54} rx={10} fill="#7f1d1d" />
+                          <rect x={cx - 46} y={526} width={92} height={20} rx={4} fill="#1e293b" />
+                        </g>
+                      );
+                    })()}
+
+                  {/* Empty bay: floor shadow, tyre marks, chocks, BAY EMPTY */}
+                  {out && (
                     <>
-                      <rect x={cx - 46} y={430} width={11} height={SVG_H - 470} fill="url(#sb-tyre)" />
-                      <rect x={cx + 35} y={430} width={11} height={SVG_H - 470} fill="url(#sb-tyre)" />
+                      <rect x={cx - 60} y={260} width={16} height={390} fill="url(#sb-tyre)" filter="url(#sb-soft-s)" />
+                      <rect x={cx + 44} y={260} width={16} height={390} fill="url(#sb-tyre)" filter="url(#sb-soft-s)" />
+                      <ellipse cx={cx} cy={400} rx={86} ry={170} fill="#000" opacity={0.16} filter="url(#sb-soft)" />
+                      <rect x={cx - 73} y={554} width={22} height={13} rx={3} fill="#8a6a12" opacity={0.8} />
+                      <rect x={cx + 51} y={554} width={22} height={13} rx={3} fill="#8a6a12" opacity={0.8} />
+                      <text
+                        x={cx}
+                        y={400}
+                        textAnchor="middle"
+                        fontFamily={MONO}
+                        fontSize={20}
+                        letterSpacing={4}
+                        fill="#ffffff"
+                        opacity={0.16}
+                      >
+                        BAY EMPTY
+                      </text>
                     </>
                   )}
 
-                  {/* Vehicle — full art when home, ~34% ghost when out */}
-                  {(() => {
-                    if (art) {
-                      const w = art.w * art.scale;
-                      const h = art.h * art.scale;
-                      return (
-                        <image
-                          href={art.href}
-                          x={cx - w / 2}
-                          y={210}
-                          width={w}
-                          height={h}
-                          opacity={parked ? (offRun ? 0.55 : 1) : 0.34}
-                        />
-                      );
-                    }
-                    return (
-                      <g opacity={parked ? (offRun ? 0.55 : 1) : 0.34}>
-                        <rect x={cx - 62} y={230} width={124} height={330} rx={10} fill="#b91c1c" stroke="#0a0a0c" strokeWidth={2} />
-                        <rect x={cx - 62} y={506} width={124} height={54} rx={10} fill="#7f1d1d" />
-                        <rect x={cx - 46} y={516} width={92} height={20} rx={4} fill="#1e293b" />
-                      </g>
-                    );
-                  })()}
+                  {/* Roller-shutter threshold */}
+                  <rect x={x0 + 4} y={664} width={MOD_W - 8} height={26} fill="url(#sb-shutter)" />
+                  {[668, 674, 680, 686].map((y) => (
+                    <line key={y} x1={x0 + 4} y1={y} x2={x0 + MOD_W - 4} y2={y} stroke="#26262c" strokeWidth={2} opacity={0.7} />
+                  ))}
+                  <rect x={x0 + 4} y={664} width={MOD_W - 8} height={2} fill="#a6a6b0" opacity={0.6} />
 
-                  {/* Off-run flag over a parked but unavailable vehicle */}
-                  {parked && offRun && (
-                    <text
-                      x={cx}
-                      y={SLAB_TOP + 24}
-                      textAnchor="middle"
-                      fontFamily="var(--font-geist-mono), monospace"
-                      fontSize={15}
-                      letterSpacing={2}
-                      fill="#f87171"
-                    >
-                      OFF THE RUN
-                    </text>
-                  )}
+                  {/* Status light bar on the door line */}
+                  <rect x={x0 + 4} y={688} width={MOD_W - 8} height={12} fill={stripColour} opacity={0.3} filter="url(#sb-soft-s)" />
+                  <rect x={x0 + 4} y={690} width={MOD_W - 8} height={6} fill={stripColour} />
 
-                  {/* Callsign plate on the apron */}
-                  <rect x={cx - 84} y={SLAB_BOT + 34} width={168} height={72} rx={4} fill="#0a0a0c" stroke={parked && !offRun ? "#34d399" : offRun ? "#f87171" : "#f59e0b"} strokeWidth={1.5} opacity={0.95} />
-                  <text
-                    x={cx}
-                    y={SLAB_BOT + 62}
-                    textAnchor="middle"
-                    fontFamily="var(--font-geist-mono), monospace"
-                    fontWeight={700}
-                    fontSize={21}
-                    letterSpacing={2}
-                    fill={parked && !offRun ? "#34d399" : offRun ? "#f87171" : "#f59e0b"}
-                  >
+                  {/* Apron captions */}
+                  <text x={cx} y={742.4} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={27} letterSpacing={2} fill={offRun ? C_OFF : C_TEXT}>
                     {a.callsign}
                   </text>
-                  {/* Status word — flashes slowly while the unit is out */}
+                  <text x={cx} y={768.2} textAnchor="middle" fontFamily={MONO} fontSize={13.5} letterSpacing={3} fill={offRun ? C_OFF : C_DIM}>
+                    {typeCaption(a)}
+                  </text>
                   <text
                     x={cx}
-                    y={SLAB_BOT + 88}
+                    y={796}
                     textAnchor="middle"
-                    fontFamily="var(--font-geist-mono), monospace"
-                    fontSize={14}
+                    fontFamily={MONO}
+                    fontWeight={700}
+                    fontSize={14.5}
                     letterSpacing={3}
-                    fill={parked && !offRun ? "#a8a8b3" : offRun ? "#f87171" : "#f59e0b"}
-                    className={parked ? undefined : "sb-blink"}
+                    fill={stripColour}
+                    className={out ? "sb-blink" : undefined}
                   >
-                    {status}
+                    {statusWord(a)}
                   </text>
-                  {/* Type caption under the plate */}
-                  <text
-                    x={cx}
-                    y={SLAB_BOT + 128}
-                    textAnchor="middle"
-                    fontFamily="var(--font-geist-mono), monospace"
-                    fontSize={11}
-                    letterSpacing={1.5}
-                    fill="#6b6b75"
-                  >
-                    {a.typeName.toUpperCase().slice(0, 28)}
-                  </text>
+                  {detail && (
+                    <text x={cx} y={820} textAnchor="middle" fontFamily={MONO} fontSize={12.5} letterSpacing={2} fill={offRun ? C_OFF : C_DIM}>
+                      {detail}
+                    </text>
+                  )}
                 </g>
               );
             })}
+
+            {/* Lintel across the door line */}
+            <rect x={68} y={140} width={svgW - 128} height={16} fill="#000" opacity={0.75} filter="url(#sb-soft)" />
+            <rect x={64} y={134} width={svgW - 128} height={16} fill="url(#sb-wallh)" />
+            <rect x={64} y={134} width={svgW - 128} height={2} fill="#c2c2cb" opacity={0.55} />
+
+            {/* Side walls + dividers */}
+            {[64, svgW - 80, ...Array.from({ length: n - 1 }, (_, k) => MARGIN + (k + 1) * MOD_W - 8)].map((wx) => (
+              <g key={wx}>
+                <rect x={wx + 4} y={140} width={16} height={556} fill="#000" opacity={0.75} filter="url(#sb-soft)" />
+                <rect x={wx} y={134} width={16} height={556} fill="url(#sb-wallv)" />
+                <rect x={wx} y={134} width={2} height={556} fill="#c2c2cb" opacity={0.55} />
+              </g>
+            ))}
+
+            {/* Vignette */}
+            <rect width={svgW} height={SVG_H} fill="url(#sb-vig)" pointerEvents="none" />
+
+            {/* Header: station badge + name */}
+            <rect x={80} y={46} width={badgeW} height={42} rx={4} fill={C_AVAIL} />
+            <text x={80 + badgeW / 2} y={76.4} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={27} fill="#050507">
+              {station.id}
+            </text>
+            <text x={80 + badgeW + 18} y={70.4} fontFamily={MONO} fontWeight={700} fontSize={titleSize} letterSpacing={5} fill={C_TEXT}>
+              {title}
+            </text>
+            <text x={80 + badgeW + 18} y={94.2} fontFamily={MONO} fontSize={14.9} letterSpacing={6} fill={C_DIM}>
+              APPLIANCE BAYS
+            </text>
+
+            {/* Header: availability summary */}
+            <text x={svgW - 80} y={71.9} textAnchor="end" fontFamily={MONO} fontWeight={700} fontSize={19} letterSpacing={2} fill={C_TEXT}>
+              {nAvail} AVAILABLE / {nOut} MOBILE / {nOff} OFF
+            </text>
+            <text x={svgW - 80} y={95.5} textAnchor="end" fontFamily={MONO} fontSize={15} letterSpacing={3} fill={C_DIM}>
+              {staffing} / {n} BAYS
+            </text>
           </svg>
         </div>
       </div>

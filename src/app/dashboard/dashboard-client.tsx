@@ -2814,6 +2814,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               station={st}
               onClose={() => setBayStationId(null)}
               onSelectAppliance={setSelectedApplianceId}
+              deployments={deployments}
+              activeIncident={activeIncident}
+              now={now}
             />
           );
         })()}

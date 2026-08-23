@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 540" width="260" height="540"><g transform="translate(0 0) rotate(180 130.0 270.0)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 540" width="260" height="540">
+<defs>
+
+</defs>
+<g transform="translate(0 0) rotate(180 130.0 270.0)">
 
   <defs>
     <!-- Deep drop shadow -->
@@ -548,4 +552,5 @@
 
   </g>
 
-</g></svg>
+</g>
+</svg>
