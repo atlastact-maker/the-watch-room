@@ -54,18 +54,59 @@ function londonHour(d: Date): number {
 }
 
 // Procedural CAD feed material — plausible GM call types + districts.
-const CAD_TYPES: { text: string; service: "F" | "A" | "P" }[] = [
-  { text: "AFA · commercial premises", service: "F" },
-  { text: "Bin fire · open ground", service: "F" },
-  { text: "Smoke issuing · derelict", service: "F" },
-  { text: "Lift release · persons inside", service: "F" },
-  { text: "ALS · chest pain", service: "A" },
-  { text: "Cardiac arrest · CPR in progress", service: "A" },
-  { text: "Fall · elderly · no injury", service: "A" },
-  { text: "RTC · damage only", service: "P" },
-  { text: "Concern for welfare", service: "P" },
-  { text: "Disorder · town centre", service: "P" },
+// Weighted to the real demand profile: ambulance carries most of the
+// 999 load, police next, fire a small fraction. Wording follows the
+// grading each service actually uses (NWAS Cat 1–4, GMP Grade 1/2).
+const CAD_TYPES: { text: string; service: "F" | "A" | "P"; w: number }[] = [
+  // Fire (GMFRS) — low volume
+  { text: "AFA · commercial premises", service: "F", w: 3 },
+  { text: "Secondary fire · grassland", service: "F", w: 2 },
+  { text: "Smoke issuing · derelict building", service: "F", w: 1 },
+  { text: "Lift release · persons inside", service: "F", w: 1 },
+  { text: "Flooding · burst water main", service: "F", w: 1 },
+  { text: "Dwelling fire · persons reported", service: "F", w: 1 },
+  // Ambulance (NWAS) — highest volume
+  { text: "Cat 2 · chest pain · conscious and breathing", service: "A", w: 8 },
+  { text: "Cat 3 · fall · elderly · assistance required", service: "A", w: 8 },
+  { text: "Cat 2 · breathing difficulty", service: "A", w: 7 },
+  { text: "Cat 1 · cardiac arrest · CPR in progress", service: "A", w: 2 },
+  { text: "Cat 2 · stroke · FAST positive", service: "A", w: 4 },
+  { text: "Cat 3 · abdominal pain", service: "A", w: 5 },
+  { text: "Cat 4 · minor injury · clinical review", service: "A", w: 3 },
+  { text: "HCP · urgent admission requested", service: "A", w: 3 },
+  // Police (GMP) — high volume
+  { text: "Grade 1 · disturbance · licensed premises", service: "P", w: 4 },
+  { text: "Grade 2 · concern for welfare", service: "P", w: 6 },
+  { text: "Grade 2 · retail theft · detained", service: "P", w: 4 },
+  { text: "Grade 1 · RTC · damage only", service: "P", w: 4 },
+  { text: "Grade 1 · domestic incident", service: "P", w: 4 },
+  { text: "Grade 2 · suspicious activity", service: "P", w: 3 },
 ];
+const CAD_WEIGHT_TOTAL = CAD_TYPES.reduce((n, t) => n + t.w, 0);
+
+function pickCadType() {
+  let roll = Math.random() * CAD_WEIGHT_TOTAL;
+  for (const t of CAD_TYPES) {
+    roll -= t.w;
+    if (roll <= 0) return t;
+  }
+  return CAD_TYPES[0];
+}
+
+/** Seconds between new CAD lines — a realistic pace for one console,
+ *  busier through the evening, near-quiet in the small hours. */
+function cadGapMs(): number {
+  const band = timeBandForHour(new Date().getUTCHours());
+  const [min, max] =
+    band === "evening"
+      ? [15, 45]
+      : band === "morning"
+        ? [18, 55]
+        : band === "overnight" || band === "pre_dawn"
+          ? [35, 90]
+          : [20, 60];
+  return (min + Math.random() * (max - min)) * 1000;
+}
 const CAD_PLACES = [
   "Rochdale OL16",
   "Bolton BL1",
@@ -145,25 +186,36 @@ export function LiveConsole({ fire, ambulance, police }: Props) {
   const [feed, setFeed] = useState<CadLine[]>([]);
   const idRef = useRef(0);
   useEffect(() => {
-    const spawn = () => {
-      const t = CAD_TYPES[Math.floor(Math.random() * CAD_TYPES.length)];
-      const place = CAD_PLACES[Math.floor(Math.random() * CAD_PLACES.length)];
-      const d = new Date();
-      const time = [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]
+    const stamp = (d: Date) =>
+      [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]
         .map((n) => String(n).padStart(2, "0"))
         .join(":");
+    const line = (at: Date): CadLine => {
+      const t = pickCadType();
+      const place = CAD_PLACES[Math.floor(Math.random() * CAD_PLACES.length)];
       idRef.current += 1;
-      setFeed((prev) =>
-        [{ id: idRef.current, time, text: `${t.text} · ${place}`, service: t.service }, ...prev].slice(0, 5),
-      );
+      return {
+        id: idRef.current,
+        time: stamp(at),
+        text: `${t.text} · ${place}`,
+        service: t.service,
+      };
     };
-    spawn();
+    // Seed a lived-in console: a few lines back-dated at a plausible
+    // spacing, then continue at the realistic cadence.
+    const seeded: CadLine[] = [];
+    let back = 0;
+    for (let i = 0; i < 4; i++) {
+      back += 25 + Math.random() * 50;
+      seeded.push(line(new Date(Date.now() - back * 1000)));
+    }
+    setFeed(seeded);
     let timer: number;
     const loop = () => {
       timer = window.setTimeout(() => {
-        spawn();
+        setFeed((prev) => [line(new Date()), ...prev].slice(0, 5));
         loop();
-      }, 6000 + Math.random() * 9000);
+      }, cadGapMs());
     };
     loop();
     return () => window.clearTimeout(timer);
@@ -228,27 +280,27 @@ export function LiveConsole({ fire, ambulance, police }: Props) {
       <ul className="mt-3 space-y-1 border-t border-(--color-border-subtle) px-4 py-2.5">
         <CapRow
           ok={!hemsGrounded}
-          okText="HEMS · flying, weather permitting"
-          warnText="HEMS · grounded — NWAA car covering by road"
+          okText="HEMS · online — available for tasking"
+          warnText="HEMS · stood down — critical care car providing cover"
         />
         <CapRow
           ok={!dark}
-          okText="Drone team · daylight ops available"
-          warnText="Drone team · no flying in darkness"
+          okText="Drone unit · available for tasking · daylight VLOS"
+          warnText="Drone unit · offline — no night operations"
         />
         <CapRow
           ok
-          okText={`NPAS 21 (Barton) · available${(wx?.windMph ?? 0) >= 45 ? " — high winds, limited" : ", weather permitting"}`}
+          okText={`NPAS 21 (Barton) · available for tasking${(wx?.windMph ?? 0) >= 45 ? " — restricted in high winds" : ""}`}
           warnText=""
         />
         <CapRow
           ok={!rush}
           okText={
             band === "overnight" || band === "pre_dawn"
-              ? "Roads · quiet — fastest response times"
-              : "Roads · normal running"
+              ? "Road network · light traffic — response times improved"
+              : "Road network · free flowing"
           }
-          warnText="Roads · rush hour — blue-light runs slowed"
+          warnText="Road network · peak congestion — extended response times"
         />
       </ul>
 
