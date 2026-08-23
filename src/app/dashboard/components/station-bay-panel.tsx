@@ -1,49 +1,48 @@
 "use client";
 
 // Station bay view — a top-down look inside a fire station's appliance
-// bays, styled after the hand-drawn reference (concrete slab, yellow
-// hatched no-parking strips, white bay outlines, ghost bay numbers,
-// oil staining, shutter thresholds, tarmac apron).
+// bays, matching the hand-drawn reference module-for-module: 360-wide
+// concrete modules with expansion joints, yellow hatched strips down
+// both edges, a floor drain channel under the vehicle, white marked
+// parking box, ghost bay number, oil staining, and a tarmac apron.
 //
-// Fully data-driven: one bay per appliance, the right top-down vehicle
-// art parked nose-out, the real callsign on a plate at the threshold —
-// and when a unit is out the door, its bay sits empty with a dashed
-// ghost outline and a live status tag.
+// Data-driven per station: each appliance gets a bay with the correct
+// callsign plate and the detailed top-down art (pump / aerial from the
+// reference set). A unit that's out the door shows as a ~34% ghost of
+// itself with tyre marks rolling onto the apron and its status word
+// flashing slowly beneath the bay.
 
 import { Rnd } from "react-rnd";
-import { STATUS_LABELS, type Appliance } from "@/lib/sim/types";
+import type { Appliance } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
 
-const BAY_W = 250;
-const DIV_W = 16;
-const HATCH_W = 34;
-const PAD = 26;
-const SLAB_TOP = 30;
-const SLAB_BOT = 640;
-const APRON_BOT = 790;
+// Reference module geometry (absolute units within the SVG).
+const MOD_W = 360;
+const GAP = 20;
+const MARGIN = 80;
+const SLAB_TOP = 150;
+const SLAB_BOT = 690;
+const SVG_H = 880;
 
-/** Top-down art per appliance type; null falls back to a generic block. */
-function artFor(type: Appliance["type"]): { href: string; w: number; h: number } | null {
+type BayArt = { href: string; w: number; h: number; scale: number };
+
+/** Detailed bay art per appliance type (drawn nose-out already). */
+function artFor(type: Appliance["type"]): BayArt | null {
   switch (type) {
     case "WrL":
     case "WrT":
     case "L6P":
-      return { href: "/appliances/wrl-pump.svg", w: 170, h: 355 };
+    case "TRU_pump":
+      return { href: "/appliances/twr-bay-pump.svg", w: 260, h: 540, scale: 0.62 };
     case "TL":
     case "HLP":
-      return { href: "/appliances/alp.svg", w: 165, h: 420 };
-    case "TRU_pump":
-      return { href: "/appliances/tru-pump.svg", w: 165, h: 420 };
-    case "TRU_van":
-      return { href: "/appliances/tru-van.svg", w: 140, h: 345 };
-    case "HEMS":
-      return { href: "/appliances/hems-h145.svg", w: 220, h: 275 };
+      return { href: "/appliances/twr-bay-alp.svg", w: 280, h: 680, scale: 0.5828 };
     default:
       return null;
   }
 }
 
-/** Whether the vehicle is physically sat in its bay right now. */
+/** Whether the vehicle is physically in its bay right now. */
 function inBay(a: Appliance): boolean {
   return a.status === 7 || a.status === 8;
 }
@@ -57,7 +56,7 @@ function shortStatus(a: Appliance): string {
     case 5: return "AT HOSPITAL";
     case 6: return "MOBILE AVAIL";
     case 8: return "OFF THE RUN";
-    default: return STATUS_LABELS[a.status] ?? "";
+    default: return "IN BAY";
   }
 }
 
@@ -72,8 +71,7 @@ export function StationBayPanel({
 }) {
   const bays = station.appliances;
   const n = Math.max(1, bays.length);
-  const svgW = PAD * 2 + HATCH_W * 2 + n * BAY_W + (n - 1) * DIV_W;
-  const svgH = APRON_BOT + 10;
+  const svgW = MARGIN * 2 + n * MOD_W + (n - 1) * GAP;
   const ready = bays.filter((a) => a.status === 7).length;
 
   return (
@@ -81,10 +79,10 @@ export function StationBayPanel({
       default={{
         x: 60,
         y: 90,
-        width: Math.min(980, 240 + n * 190),
-        height: typeof window !== "undefined" ? Math.min(720, window.innerHeight - 130) : 640,
+        width: Math.min(1040, 220 + n * 250),
+        height: typeof window !== "undefined" ? Math.min(740, window.innerHeight - 130) : 660,
       }}
-      minWidth={420}
+      minWidth={440}
       minHeight={380}
       bounds="window"
       dragHandleClassName="drag-handle"
@@ -100,7 +98,7 @@ export function StationBayPanel({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-(--color-text-dim)">
-              {ready}/{bays.length} in bays · ready
+              {ready}/{bays.length} on the run
             </span>
             <button
               type="button"
@@ -115,11 +113,15 @@ export function StationBayPanel({
 
         <div className="min-h-0 flex-1 overflow-auto bg-[#050507]">
           <svg
-            viewBox={`0 0 ${svgW} ${svgH}`}
+            viewBox={`0 0 ${svgW} ${SVG_H}`}
             className="h-auto w-full"
             role="img"
             aria-label={`${station.name} appliance bays`}
           >
+            <style>{`
+              @keyframes sb-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
+              .sb-blink { animation: sb-blink 2.6s ease-in-out infinite; }
+            `}</style>
             <defs>
               <linearGradient id="sb-concrete" x1="0%" y1="0%" x2="18%" y2="100%">
                 <stop offset="0%" stopColor="#3e3e44" />
@@ -134,59 +136,85 @@ export function StationBayPanel({
                 <stop offset="0%" stopColor="#000" stopOpacity="0.42" />
                 <stop offset="100%" stopColor="#000" stopOpacity="0" />
               </radialGradient>
-              <pattern
-                id="sb-hatch"
-                width="16"
-                height="16"
-                patternUnits="userSpaceOnUse"
-                patternTransform="rotate(45)"
-              >
-                <rect width="16" height="16" fill="#d8b41a" opacity="0.10" />
-                <rect width="7" height="16" fill="#0e0e12" opacity="0.30" />
-              </pattern>
+              <linearGradient id="sb-tyre" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#101015" stopOpacity="0" />
+                <stop offset="22%" stopColor="#101015" stopOpacity="0.3" />
+                <stop offset="60%" stopColor="#101015" stopOpacity="0.16" />
+                <stop offset="100%" stopColor="#101015" stopOpacity="0" />
+              </linearGradient>
             </defs>
 
             {/* Backdrop + apron */}
-            <rect width={svgW} height={svgH} fill="#050507" />
-            <rect x={0} y={SLAB_BOT} width={svgW} height={APRON_BOT - SLAB_BOT} fill="url(#sb-apron)" />
-
-            {/* Concrete slab across all bays */}
-            <rect
-              x={PAD}
-              y={SLAB_TOP}
-              width={svgW - PAD * 2}
-              height={SLAB_BOT - SLAB_TOP}
-              fill="url(#sb-concrete)"
-            />
-
-            {/* Outer hatched no-parking strips */}
-            <rect x={PAD} y={SLAB_TOP + 20} width={HATCH_W} height={SLAB_BOT - SLAB_TOP - 40} fill="url(#sb-hatch)" />
-            <rect x={svgW - PAD - HATCH_W} y={SLAB_TOP + 20} width={HATCH_W} height={SLAB_BOT - SLAB_TOP - 40} fill="url(#sb-hatch)" />
+            <rect width={svgW} height={SVG_H} fill="#050507" />
+            <rect x={0} y={SLAB_BOT} width={svgW} height={SVG_H - SLAB_BOT} fill="url(#sb-apron)" />
 
             {bays.map((a, i) => {
-              const x0 = PAD + HATCH_W + i * (BAY_W + DIV_W);
-              const cx = x0 + BAY_W / 2;
+              const x0 = MARGIN + i * (MOD_W + GAP);
+              const cx = x0 + 180;
               const art = artFor(a.type);
               const parked = inBay(a);
               const offRun = a.status === 8;
+              const status = shortStatus(a);
               return (
                 <g
                   key={a.id}
                   onClick={() => onSelectAppliance?.(a.id)}
                   style={{ cursor: onSelectAppliance ? "pointer" : "default" }}
                 >
-                  {/* Divider between bays */}
-                  {i > 0 && (
-                    <>
-                      <line x1={x0 - DIV_W / 2} y1={SLAB_TOP + 12} x2={x0 - DIV_W / 2} y2={SLAB_BOT - 12} stroke="#1c1c22" strokeWidth={3} opacity={0.6} />
-                      <line x1={x0 - DIV_W / 2 + 2} y1={SLAB_TOP + 12} x2={x0 - DIV_W / 2 + 2} y2={SLAB_BOT - 12} stroke="#4a4a52" strokeWidth={1} opacity={0.35} />
-                    </>
-                  )}
+                  {/* Concrete module */}
+                  <rect x={x0} y={SLAB_TOP} width={MOD_W} height={SLAB_BOT - SLAB_TOP} fill="url(#sb-concrete)" />
+
+                  {/* Expansion joints */}
+                  {[285, 420, 555].map((y) => (
+                    <g key={y}>
+                      <line x1={x0} y1={y} x2={x0 + MOD_W} y2={y} stroke="#1c1c22" strokeWidth={2} opacity={0.55} />
+                      <line x1={x0} y1={y + 2} x2={x0 + MOD_W} y2={y + 2} stroke="#4a4a52" strokeWidth={1} opacity={0.35} />
+                    </g>
+                  ))}
+
+                  {/* Oil staining */}
+                  <ellipse cx={cx} cy={450} rx={88} ry={150} fill="url(#sb-oil)" />
+                  <ellipse cx={x0 + 150} cy={580} rx={34} ry={26} fill="url(#sb-oil)" />
+
+                  {/* Marked parking box */}
+                  <rect x={x0 + 88} y={188} width={184} height={450} fill="none" stroke="#e9e6dc" strokeWidth={4} opacity={0.3} />
+
+                  {/* Yellow hatched strips, both edges */}
+                  {[x0 + 10, x0 + 320].map((hx) => (
+                    <g key={hx}>
+                      <rect x={hx} y={180} width={30} height={470} fill="#d8b41a" opacity={0.1} />
+                      {Array.from({ length: 18 }, (_, k) => (
+                        <path
+                          key={k}
+                          d={`M${hx} ${206 + k * 26} L${hx + 28} ${182 + k * 26}`}
+                          stroke="#0e0e12"
+                          strokeWidth={7}
+                          opacity={0.3}
+                        />
+                      ))}
+                    </g>
+                  ))}
+
+                  {/* Floor drain channel */}
+                  <rect x={x0 + 172} y={176} width={16} height={482} fill="#2a2a30" />
+                  <rect x={x0 + 172} y={176} width={22} height={482} fill="none" stroke="#191920" strokeWidth={2} />
+                  {Array.from({ length: 30 }, (_, k) => (
+                    <line
+                      key={k}
+                      x1={x0 + 172}
+                      y1={180 + k * 16}
+                      x2={x0 + 188}
+                      y2={180 + k * 16}
+                      stroke="#3a3a42"
+                      strokeWidth={1.5}
+                      opacity={0.4}
+                    />
+                  ))}
 
                   {/* Ghost bay number */}
                   <text
-                    x={x0 + BAY_W - 18}
-                    y={SLAB_TOP + 70}
+                    x={x0 + 330}
+                    y={246}
                     textAnchor="end"
                     fontFamily="var(--font-geist-sans), sans-serif"
                     fontWeight={800}
@@ -197,78 +225,44 @@ export function StationBayPanel({
                     {i + 1}
                   </text>
 
-                  {/* Bay outline */}
-                  <rect
-                    x={x0 + 24}
-                    y={SLAB_TOP + 42}
-                    width={BAY_W - 48}
-                    height={SLAB_BOT - SLAB_TOP - 100}
-                    fill="none"
-                    stroke="#e9e6dc"
-                    strokeWidth={4}
-                    opacity={0.3}
-                  />
-
-                  {/* Oil staining */}
-                  <ellipse cx={cx} cy={(SLAB_TOP + SLAB_BOT) / 2 + 30} rx={62} ry={110} fill="url(#sb-oil)" />
-                  <ellipse cx={cx - 26} cy={SLAB_BOT - 110} rx={26} ry={20} fill="url(#sb-oil)" />
-
-                  {/* Shutter threshold at the door line */}
-                  <line x1={x0 + 8} y1={SLAB_BOT - 2} x2={x0 + BAY_W - 8} y2={SLAB_BOT - 2} stroke="#1c1c22" strokeWidth={4} />
-                  <line x1={x0 + 8} y1={SLAB_BOT + 1} x2={x0 + BAY_W - 8} y2={SLAB_BOT + 1} stroke="#4a4a52" strokeWidth={1.5} opacity={0.5} />
-
-                  {/* Vehicle (nose-out, toward the apron) or empty-bay ghost */}
-                  {parked ? (
-                    art ? (
-                      <image
-                        href={art.href}
-                        x={cx - art.w / 2}
-                        y={(SLAB_TOP + SLAB_BOT) / 2 - art.h / 2 + 10}
-                        width={art.w}
-                        height={art.h}
-                        opacity={offRun ? 0.55 : 1}
-                        transform={`rotate(180 ${cx} ${(SLAB_TOP + SLAB_BOT) / 2 + 10})`}
-                      />
-                    ) : (
-                      <g opacity={offRun ? 0.55 : 1}>
-                        <rect x={cx - 62} y={(SLAB_TOP + SLAB_BOT) / 2 - 160} width={124} height={330} rx={10} fill="#b91c1c" stroke="#0a0a0c" strokeWidth={2} />
-                        <rect x={cx - 62} y={(SLAB_TOP + SLAB_BOT) / 2 + 116} width={124} height={54} rx={10} fill="#7f1d1d" />
-                        <rect x={cx - 46} y={(SLAB_TOP + SLAB_BOT) / 2 + 126} width={92} height={20} rx={4} fill="#1e293b" />
-                      </g>
-                    )
-                  ) : (
-                    <g>
-                      <rect
-                        x={cx - 62}
-                        y={(SLAB_TOP + SLAB_BOT) / 2 - 160}
-                        width={124}
-                        height={330}
-                        rx={10}
-                        fill="none"
-                        stroke="#4a4a52"
-                        strokeWidth={2.5}
-                        strokeDasharray="10 8"
-                        opacity={0.5}
-                      />
-                      <text
-                        x={cx}
-                        y={(SLAB_TOP + SLAB_BOT) / 2 + 12}
-                        textAnchor="middle"
-                        fontFamily="var(--font-geist-mono), monospace"
-                        fontSize={17}
-                        letterSpacing={2}
-                        fill="#f59e0b"
-                      >
-                        {shortStatus(a)}
-                      </text>
-                    </g>
+                  {/* Tyre marks rolling out — only when the unit is out */}
+                  {!parked && (
+                    <>
+                      <rect x={cx - 46} y={430} width={11} height={SVG_H - 470} fill="url(#sb-tyre)" />
+                      <rect x={cx + 35} y={430} width={11} height={SVG_H - 470} fill="url(#sb-tyre)" />
+                    </>
                   )}
+
+                  {/* Vehicle — full art when home, ~34% ghost when out */}
+                  {(() => {
+                    if (art) {
+                      const w = art.w * art.scale;
+                      const h = art.h * art.scale;
+                      return (
+                        <image
+                          href={art.href}
+                          x={cx - w / 2}
+                          y={210}
+                          width={w}
+                          height={h}
+                          opacity={parked ? (offRun ? 0.55 : 1) : 0.34}
+                        />
+                      );
+                    }
+                    return (
+                      <g opacity={parked ? (offRun ? 0.55 : 1) : 0.34}>
+                        <rect x={cx - 62} y={230} width={124} height={330} rx={10} fill="#b91c1c" stroke="#0a0a0c" strokeWidth={2} />
+                        <rect x={cx - 62} y={506} width={124} height={54} rx={10} fill="#7f1d1d" />
+                        <rect x={cx - 46} y={516} width={92} height={20} rx={4} fill="#1e293b" />
+                      </g>
+                    );
+                  })()}
 
                   {/* Off-run flag over a parked but unavailable vehicle */}
                   {parked && offRun && (
                     <text
                       x={cx}
-                      y={SLAB_TOP + 34}
+                      y={SLAB_TOP + 24}
                       textAnchor="middle"
                       fontFamily="var(--font-geist-mono), monospace"
                       fontSize={15}
@@ -279,30 +273,44 @@ export function StationBayPanel({
                     </text>
                   )}
 
-                  {/* Callsign plate + type on the apron */}
-                  <rect x={cx - 78} y={SLAB_BOT + 26} width={156} height={54} rx={4} fill="#0a0a0c" stroke={parked ? "#34d399" : "#f59e0b"} strokeWidth={1.5} opacity={0.95} />
+                  {/* Callsign plate on the apron */}
+                  <rect x={cx - 84} y={SLAB_BOT + 34} width={168} height={72} rx={4} fill="#0a0a0c" stroke={parked && !offRun ? "#34d399" : offRun ? "#f87171" : "#f59e0b"} strokeWidth={1.5} opacity={0.95} />
                   <text
                     x={cx}
-                    y={SLAB_BOT + 49}
+                    y={SLAB_BOT + 62}
                     textAnchor="middle"
                     fontFamily="var(--font-geist-mono), monospace"
                     fontWeight={700}
-                    fontSize={19}
+                    fontSize={21}
                     letterSpacing={2}
-                    fill={parked ? "#34d399" : "#f59e0b"}
+                    fill={parked && !offRun ? "#34d399" : offRun ? "#f87171" : "#f59e0b"}
                   >
                     {a.callsign}
                   </text>
+                  {/* Status word — flashes slowly while the unit is out */}
                   <text
                     x={cx}
-                    y={SLAB_BOT + 70}
+                    y={SLAB_BOT + 88}
+                    textAnchor="middle"
+                    fontFamily="var(--font-geist-mono), monospace"
+                    fontSize={14}
+                    letterSpacing={3}
+                    fill={parked && !offRun ? "#a8a8b3" : offRun ? "#f87171" : "#f59e0b"}
+                    className={parked ? undefined : "sb-blink"}
+                  >
+                    {status}
+                  </text>
+                  {/* Type caption under the plate */}
+                  <text
+                    x={cx}
+                    y={SLAB_BOT + 128}
                     textAnchor="middle"
                     fontFamily="var(--font-geist-mono), monospace"
                     fontSize={11}
                     letterSpacing={1.5}
-                    fill="#a8a8b3"
+                    fill="#6b6b75"
                   >
-                    {a.typeName.toUpperCase().slice(0, 24)}
+                    {a.typeName.toUpperCase().slice(0, 28)}
                   </text>
                 </g>
               );
