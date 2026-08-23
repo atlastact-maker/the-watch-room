@@ -752,6 +752,7 @@ export function LeafletGroundMap({
   onSelectAppliance,
   closurePick,
   onPlaceClosure,
+  onSelectInbound,
 }: {
   incident: Incident;
   resolved: ResolvedDeployment[];
@@ -771,6 +772,8 @@ export function LeafletGroundMap({
   onStartTask: StartTaskFn;
   onAbortTask: (taskId: string) => void;
   onSelectAppliance: (id: string | null) => void;
+  /** Open the pre-arrival panel for a still-mobile unit. */
+  onSelectInbound?: (applianceId: string) => void;
   /** Armed by the incident view while the operator places a road closure. */
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
@@ -935,6 +938,33 @@ export function LeafletGroundMap({
     });
   }
 
+  // Inbound dropdown rows — everything still travelling plus anything
+  // arrived but not yet placed. Pre-placed mobile units stay listed (crew
+  // access) with a PLACED tag instead of a PLACE action.
+  const inboundRows = resolved
+    .filter(
+      (r) =>
+        r.phase === "mobile" || (r.phase === "at_incident" && !r.deployment.parkingPos),
+    )
+    .map((r) => ({
+      applianceId: r.deployment.applianceId,
+      callsign: r.appliance.callsign,
+      service: r.appliance.service,
+      phase: r.phase as "mobile" | "at_incident",
+      placed: !!r.deployment.parkingPos,
+      isHeli: !!r.deployment.hemsFlight,
+      etaSec: Math.max(
+        0,
+        Math.ceil(
+          ((r.deployment.hemsFlight
+            ? r.deployment.hemsFlight.overheadAt
+            : r.deployment.arrivesAt) -
+            now) /
+            1000,
+        ),
+      ),
+    }));
+
   // Cancel any in-progress parking workflow if the appliance got placed by
   // another route or was never committed.
   useEffect(() => {
@@ -943,41 +973,9 @@ export function LeafletGroundMap({
     if (!stillAwaiting) setParking({ phase: "idle" });
   }, [parking, awaitingPlacement]);
 
-  // Auto-park on arrival. Once OSM road polylines are loaded, any crew
-  // that's arrived on scene without an operator-chosen parking spot is
-  // snapped to the nearest drivable road with a small angular offset
-  // per vehicle so a busy scene doesn't stack everyone on the same
-  // metre of kerb. The front of the vehicle is oriented towards the
-  // incident. Operators can still override via the rotate / re-place
-  // flow from the Parking panel.
-  const autoParkedIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (osmRoads.length === 0) return;
-    // Deterministic angular spread around the incident — each arrival
-    // gets a slightly different bearing offset so the nearest road
-    // lookup snaps to different kerb points. We use the arrival order
-    // within awaitingPlacement to seed the offset angle.
-    const toPark = awaitingPlacement.filter(
-      (a) => a.phase === "at_incident" && !autoParkedIdsRef.current.has(a.applianceId),
-    );
-    if (toPark.length === 0) return;
-    toPark.forEach((a, i) => {
-      const angleDeg = (i * 47) % 360; // deterministic pseudo-spread
-      const angleRad = (angleDeg * Math.PI) / 180;
-      const offsetM = 18;
-      const candidate = metresToLatLng(
-        { lat: incidentLat, lng: incidentLng },
-        { x: offsetM * Math.sin(angleRad), y: -offsetM * Math.cos(angleRad) },
-      );
-      const snapped = snapToNearestRoad(candidate, osmRoads, 60) ?? candidate;
-      const dLat = incidentLat - snapped.lat;
-      const dLng = incidentLng - snapped.lng;
-      const bearing = ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
-      autoParkedIdsRef.current.add(a.applianceId);
-      onSetParkingPos(a.applianceId, snapped.lat, snapped.lng, bearing);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [awaitingPlacement, osmRoads, incidentLat, incidentLng]);
+  // No auto-park: arrivals wait in the INBOUND dropdown until the
+  // operator picks each vehicle's position and facing (or pre-placed
+  // them while still en route).
 
   // External request to rotate a parked vehicle. Enter rotate phase with the
   // current parking position as the pivot so the next map click sets the
@@ -1006,9 +1004,10 @@ export function LeafletGroundMap({
   return (
     <div className="relative h-full w-full">
     <ParkingPanel
-      awaiting={awaitingPlacement}
+      rows={inboundRows}
       parking={parking}
       onSelect={(applianceId, callsign) => setParking({ phase: "pos", applianceId, callsign })}
+      onCrew={onSelectInbound}
       onCancel={() => {
         if (parking.phase === "rotate") onClearRotatePending();
         setParking({ phase: "idle" });
@@ -1409,48 +1408,36 @@ export function LeafletGroundMap({
   );
 }
 
+/** Top-left INBOUND control: a compact button that drops down to list
+ *  every en-route / arrived-unplaced unit. PLACE arms the two-click
+ *  placement flow (position, then facing); CREW opens the pre-arrival
+ *  panel for units still driving in. While placing, the button is
+ *  replaced by the step banner. */
 function ParkingPanel({
-  awaiting,
+  rows,
   parking,
   onSelect,
+  onCrew,
   onCancel,
 }: {
-  awaiting: { applianceId: string; callsign: string; phase: "mobile" | "at_incident" }[];
+  rows: {
+    applianceId: string;
+    callsign: string;
+    service: string;
+    phase: "mobile" | "at_incident";
+    placed: boolean;
+    isHeli: boolean;
+    etaSec: number;
+  }[];
   parking: ParkingState;
   onSelect: (applianceId: string, callsign: string) => void;
+  onCrew?: (applianceId: string) => void;
   onCancel: () => void;
 }) {
-  if (awaiting.length === 0 && parking.phase === "idle") return null;
-  return (
-    <div
-      className="pointer-events-auto absolute left-1/2 top-3 z-[600] -translate-x-1/2 rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/95 px-3 py-2 shadow-lg"
-      style={{ minWidth: 320, maxWidth: 520 }}
-    >
-      {parking.phase === "idle" ? (
-        <>
-          <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber-dim)">
-            Awaiting placement · {awaiting.length}
-          </div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {awaiting.map((a) => (
-              <button
-                key={a.applianceId}
-                type="button"
-                onClick={() => onSelect(a.applianceId, a.callsign)}
-                className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-2 py-1 font-mono text-[11px] tracking-widest text-(--color-amber) hover:bg-(--color-amber)/20"
-              >
-                {a.callsign}
-                <span className="ml-1 font-mono text-[9px] uppercase text-(--color-text-dim)">
-                  {a.phase === "mobile" ? "en route" : "on scene"}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-            Click a callsign to place — vehicles do not park automatically
-          </div>
-        </>
-      ) : (
+  const [open, setOpen] = useState(false);
+  if (parking.phase !== "idle") {
+    return (
+      <div className="pointer-events-auto absolute left-3 top-3 z-[600] rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/95 px-3 py-2 shadow-lg" style={{ maxWidth: 420 }}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
@@ -1471,6 +1458,82 @@ function ParkingPanel({
           >
             Cancel
           </button>
+        </div>
+      </div>
+    );
+  }
+  if (rows.length === 0) return null;
+  const tone = (service: string) =>
+    service === "Fire"
+      ? "text-(--color-critical)"
+      : service === "Ambulance"
+        ? "text-(--color-ok)"
+        : "text-(--color-info)";
+  const fmtEta = (s: number) => {
+    const m = Math.floor(s / 60);
+    return m + ":" + String(s % 60).padStart(2, "0");
+  };
+  return (
+    <div
+      className="pointer-events-auto absolute left-3 top-3 z-[600]"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/95 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) shadow-lg"
+      >
+        <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
+        Inbound · {rows.length}
+        <span className="text-(--color-text-dim)">▾</span>
+      </button>
+      {open && (
+        <div className="mt-1 w-[320px] rounded-sm border border-(--color-border) bg-(--color-bg)/95 shadow-xl">
+          <ul>
+            {rows.map((row) => (
+              <li
+                key={row.applianceId}
+                className="flex items-center justify-between gap-2 border-b border-(--color-border-subtle) px-2.5 py-1.5 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <div className={"font-mono text-[11px] font-bold tracking-widest " + tone(row.service)}>
+                    {row.callsign}
+                  </div>
+                  <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                    {row.phase === "mobile"
+                      ? (row.isHeli ? "overhead " : "eta ") + fmtEta(row.etaSec) + (row.placed ? " · placed ✓" : "")
+                      : row.isHeli
+                        ? "holding — select LZ"
+                        : "arrived — awaiting placement"}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {!row.placed && (
+                    <button
+                      type="button"
+                      onClick={() => onSelect(row.applianceId, row.callsign)}
+                      className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/25"
+                    >
+                      {row.isHeli ? "Set LZ" : "Place"}
+                    </button>
+                  )}
+                  {row.phase === "mobile" && onCrew && (
+                    <button
+                      type="button"
+                      onClick={() => onCrew(row.applianceId)}
+                      className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-info) hover:text-(--color-info)"
+                    >
+                      Crew
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="border-t border-(--color-border-subtle) px-2.5 py-1 font-mono text-[8.5px] uppercase tracking-widest text-(--color-text-dim)">
+            Place · click map for position, then facing — Crew · pre-arrival orders
+          </div>
         </div>
       )}
     </div>

@@ -315,13 +315,13 @@ export function IncidentView({
       <div
         className="grid min-h-0 flex-1 overflow-hidden"
         style={{
-          gridTemplateColumns: "1fr",
-          gridTemplateRows: `1fr ${sitrepCollapsed ? "32px" : "180px"}`,
+          gridTemplateColumns: `1fr ${sitrepCollapsed ? "40px" : "320px"}`,
+          gridTemplateRows: "1fr",
         }}
       >
         {/* Full map + MDT view: call, hazards, casualties, BA and
             resourcing all live on the MDT tablet — the ground view is
-            just the scene and the bottom feed. */}
+            the scene plus the SITREP/radio feed column on the right. */}
         <div
           className="relative min-h-0 overflow-hidden bg-(--color-bg)"
           style={{ gridRow: "1 / 2", gridColumn: "1 / 2" }}
@@ -329,6 +329,7 @@ export function IncidentView({
           <GroundSceneMap
             incident={incident}
             resolved={resolved}
+            onSelectInbound={onSelectInbound}
             onScene={onSceneDeployments.map((r) => ({
               deployment: r.deployment,
               appliance: r.appliance,
@@ -366,13 +367,6 @@ export function IncidentView({
           />
           <SceneOverlay
             enRouteAwaitingParking={enRouteDeployments.filter((r) => !r.deployment.parkingPos).length}
-          />
-          {/* Inbound allocation board — glanceable chips for units still
-              blue-lighting in. Click one to pre-allocate its crew. */}
-          <InboundChips
-            inbound={enRouteDeployments}
-            now={now}
-            onSelect={onSelectInbound}
           />
           {/* Road-closure placement banner */}
           {pendingClosure && (
@@ -452,12 +446,19 @@ export function IncidentView({
             </div>
           )}
         </div>
-        <div className="border-t border-(--color-border-subtle)" style={{ gridRow: "2 / 3", gridColumn: "1 / 2" }}>
-          <BottomFeedPane
-            log={log}
-            collapsed={sitrepCollapsed}
-            onToggleCollapse={() => setSitrepCollapsed((v) => !v)}
-          />
+        <div
+          className="min-h-0 overflow-hidden border-l border-(--color-border-subtle)"
+          style={{ gridRow: "1 / 2", gridColumn: "2 / 3" }}
+        >
+          {sitrepCollapsed ? (
+            <CollapsedRail title="SITREP / Radio" side="right" onExpand={() => setSitrepCollapsed(false)} />
+          ) : (
+            <BottomFeedPane
+              log={log}
+              collapsed={false}
+              onToggleCollapse={() => setSitrepCollapsed(true)}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -2170,61 +2171,6 @@ function kindColour(k: LogEntry["kind"]): string {
 // ---------------------------------------------------------------------------
 // Scene overlay
 // ---------------------------------------------------------------------------
-
-/** Slim allocation-board strip over the scene: one chip per inbound unit
- *  (service-coloured callsign + live ETA countdown). Clicking a chip opens
- *  the pre-arrival panel so crews can be pre-allocated to tasks en route.
- *  Vanishes once everyone is on scene. */
-function InboundChips({
-  inbound,
-  now,
-  onSelect,
-}: {
-  inbound: ResolvedDeployment[];
-  now: number;
-  onSelect?: (applianceId: string) => void;
-}) {
-  if (inbound.length === 0) return null;
-  const tone = (service: Appliance["service"]) =>
-    service === "Fire"
-      ? "border-(--color-critical)/60 text-(--color-critical)"
-      : service === "Ambulance"
-        ? "border-(--color-ok)/60 text-(--color-ok)"
-        : "border-(--color-info)/60 text-(--color-info)";
-  const dot = (service: Appliance["service"]) =>
-    service === "Fire"
-      ? "bg-(--color-critical)"
-      : service === "Ambulance"
-        ? "bg-(--color-ok)"
-        : "bg-(--color-info)";
-  return (
-    <div className="pointer-events-none absolute left-3 top-3 z-[550] flex max-w-[70%] flex-wrap items-center gap-1.5">
-      <span className="rounded-sm bg-(--color-bg)/85 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-        Inbound · {inbound.length}
-      </span>
-      {inbound.map((r) => {
-        const remaining = Math.max(0, Math.ceil((r.deployment.arrivesAt - now) / 1000));
-        const mm = Math.floor(remaining / 60);
-        const ss = String(remaining % 60).padStart(2, "0");
-        return (
-          <button
-            key={r.deployment.applianceId}
-            type="button"
-            onClick={() => onSelect?.(r.deployment.applianceId)}
-            title={`${r.appliance.callsign} — pre-allocate crew`}
-            className={`pointer-events-auto flex items-center gap-1.5 rounded-sm border bg-(--color-bg)/90 px-2 py-1 font-mono text-[10px] tracking-wider shadow-lg shadow-black/40 transition-colors hover:bg-(--color-surface) ${tone(r.appliance.service)}`}
-          >
-            <span className={`dot-live size-1.5 rounded-full ${dot(r.appliance.service)}`} />
-            <span className="font-bold">{r.appliance.callsign}</span>
-            <span className="tabular-nums text-(--color-text-dim)">
-              {mm}:{ss}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function SceneOverlay({
   enRouteAwaitingParking,

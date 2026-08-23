@@ -1367,9 +1367,38 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // The board's ETAs are priced at the fleet-average blue-light factor;
     // rescale to what THIS vehicle class actually does on blues (bike <
     // car < ambulance < pump < aerial). Aircraft rescale as a no-op.
-    const etaSeconds = appliance
+    let etaSeconds = appliance
       ? rescaleBlueLightSeconds(args.etaSeconds, appliance.type)
       : args.etaSeconds;
+
+    // Aircraft fly direct — never hand them the road polyline the station
+    // ETA sweep priced. Replace route + timing with the flight model, and
+    // for HEMS gate arrival on the operator confirming a landing zone.
+    let routeMeters = args.routeMeters;
+    let routeCoords = args.routeCoords;
+    let arrivesAt = mobilisedAt + etaSeconds * 1000;
+    let hemsFlight: Deployment["hemsFlight"];
+    const isAircraft = appliance?.type === "HEMS" || appliance?.type === "Police_NPAS";
+    if (isAircraft && appliance) {
+      const base = findStationForAppliance(appliance.id)?.coords;
+      const target = activeIncident.scenario.location.coords;
+      if (base) {
+        const meters = haversineMeters(base, target);
+        // H145 / EC135: ~3 min lift, ~130 kt cruise (≈67 m/s).
+        etaSeconds = Math.round(180 + meters / 67);
+        routeMeters = Math.round(meters);
+        routeCoords = [
+          [base.lat, base.lng],
+          [target.lat, target.lng],
+        ];
+        arrivesAt = mobilisedAt + etaSeconds * 1000;
+        if (appliance.type === "HEMS") {
+          // Hold overhead until an LZ is confirmed via the placement flow.
+          hemsFlight = { overheadAt: arrivesAt, landingSec: 90 };
+          arrivesAt += 6 * 3600 * 1000;
+        }
+      }
+    }
     setDeployments((prev) => [
       ...prev,
       {
@@ -1378,12 +1407,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         slotId: args.slotId,
         mobilisedAt,
         etaSeconds,
-        arrivesAt: mobilisedAt + etaSeconds * 1000,
-        routeMeters: args.routeMeters,
-        routeCoords: args.routeCoords,
+        arrivesAt,
+        routeMeters,
+        routeCoords,
         lightState: "999",
         crewEquipment,
         selectedPodType: args.selectedPodType,
+        hemsFlight,
       },
     ]);
     setStatusOverrides((prev) => ({ ...prev, [args.applianceId]: 1 }));
@@ -1405,8 +1435,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // deployment that mobilised without a real polyline fetches its own
     // route now (a single request, so it's never rate-limited away) and
     // patches the geometry in — timing is left untouched to avoid ETA
-    // jumps mid-run.
-    if (!args.routeCoords || args.routeCoords.length < 2) {
+    // jumps mid-run. Aircraft are excluded — their straight line IS the route.
+    if (!isAircraft && (!args.routeCoords || args.routeCoords.length < 2)) {
       const station = findStationForAppliance(args.applianceId);
       const target = activeIncident.scenario.location.coords;
       if (station) {
