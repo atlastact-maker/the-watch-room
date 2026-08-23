@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/trailer",
   "/trailer2",
   "/trailer3",
+  "/trailer4",
 ];
 
 export async function updateSession(request: NextRequest) {
