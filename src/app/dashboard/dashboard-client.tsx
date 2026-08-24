@@ -217,6 +217,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // vehicle awaiting a rotate-bearing click.
   const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
   const [rotatePendingApplianceId, setRotatePendingApplianceId] = useState<string | null>(null);
+  // Casualty muster / evacuation point — designated by the operator on the
+  // ground map; casualties and walking wounded RV here.
+  const [musterPos, setMusterPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [pendingMuster, setPendingMuster] = useState(false);
   const [groundViewOpen, setGroundViewOpen] = useState(false);
   // Fire station whose appliance-bay view is open (from the map popup).
   const [bayStationId, setBayStationId] = useState<string | null>(null);
@@ -691,6 +695,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setTacticalMode(null);
     setFatigueByApplianceId({});
     setLastFatigueTickAt(0);
+    setMusterPos(null);
+    setPendingMuster(false);
   }
 
   /** Declare / change tactical mode. IC must be assigned first — the
@@ -1951,10 +1957,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     });
   }, [now, tasks]);
 
-  // Auto-fire pre-committed BA tasks once their appliance has arrived AND
-  // entry has been made (or there's no entry needed). The user pre-selected
-  // these wearers from the en-route Crews panel so the BA team commits as
-  // soon as it's tactically possible.
+  // Auto-fire pre-committed BA tasks the moment their appliance lands —
+  // exactly what the en-route pre-select promises. No entry gate: if a
+  // door needs forcing, the BA team is who'd be doing it anyway, and many
+  // scenes (open doors, RTCs, moorland) never have an entry task at all.
   useEffect(() => {
     for (const d of deployments) {
       if (!d.preCommitBaCrewIds || d.preCommitBaCrewIds.length === 0) continue;
@@ -1963,13 +1969,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         (t) => t.applianceId === d.applianceId && t.kind === "ba_sar" && t.state !== "aborted",
       );
       if (alreadyBaSar) continue;
-      const entryDone = tasks.some(
-        (t) =>
-          t.applianceId === d.applianceId &&
-          t.kind === "gain_entry" &&
-          t.state === "completed",
-      );
-      if (!entryDone) continue;
       // Fire the BA task and clear the pre-commit so we don't re-trigger.
       startTask({
         applianceId: d.applianceId,
@@ -3036,6 +3035,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onSelectInbound={setSelectedApplianceId}
             pendingClosure={pendingClosure}
             onSetPendingClosure={setPendingClosure}
+            musterPos={musterPos}
+            pendingMuster={pendingMuster}
+            onSetPendingMuster={setPendingMuster}
+            onPlaceMuster={(lat, lng) => {
+              setMusterPos({ lat, lng });
+              setPendingMuster(false);
+              setLog((prev) => [
+                ...prev,
+                {
+                  id: `ccp:${Date.now()}`,
+                  timestamp: Date.now(),
+                  kind: "annotation",
+                  message: "Casualty muster point designated — walking wounded and casualties to RV",
+                },
+              ]);
+            }}
             rotatePendingApplianceId={rotatePendingApplianceId}
             onSetRotatePending={setRotatePendingApplianceId}
             onClose={() => setGroundViewOpen(false)}

@@ -57,6 +57,10 @@ export function GroundSceneMap(props: {
   onSelectAppliance: (id: string | null) => void;
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
+  /** Casualty muster point: armed placement flag, current position, setter. */
+  musterPick?: boolean;
+  musterPos?: { lat: number; lng: number } | null;
+  onPlaceMuster?: (lat: number, lng: number) => void;
   /** Open the pre-arrival panel for a still-mobile unit (crew pre-allocation). */
   onSelectInbound?: (applianceId: string) => void;
 }) {

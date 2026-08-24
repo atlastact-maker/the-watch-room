@@ -541,7 +541,6 @@ const EQUIPMENT_GROUPS: EquipGroup[] = [
     items: [
       { key: "hali_tool", label: "Hali tool" },
       { key: "lock_snapper", label: "Lock snapper" },
-      { key: "forcible_entry", label: "Forcible entry kit" },
     ],
   },
   {
@@ -789,8 +788,9 @@ function applianceHasEquipment(appliance: Appliance, key: CrewEquipment): boolea
     case "lock_snapper":
       return hasKit(/Lock snapper/i);
     case "forcible_entry":
-      return hasKit(/BA sets?|Hose|Hali/i); // every pumping fire appliance
-
+      // Retired as an equip option — the entry TOOL choice covers it.
+      // Kept in the union so older saves with it equipped still load.
+      return false;
     // RTC / heavy rescue — gated by specific kit OR the RTC/USAR capability.
     case "hydraulic_cutters":
     case "hydraulic_spreaders":
@@ -1743,7 +1743,6 @@ function ActionsTab({
                                 kind: "gain_entry",
                                 label: ENTRY_TOOL_LABEL[tool],
                                 entryTool: tool,
-                                requiredEquipment: ["forcible_entry"],
                               })
                             }
                           />

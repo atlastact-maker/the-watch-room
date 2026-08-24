@@ -498,6 +498,8 @@ function MapClickHandler({
   roads,
   closureActive,
   onClosureClick,
+  musterActive,
+  onMusterClick,
   onPickedPos,
   onPickedBearing,
 }: {
@@ -509,6 +511,8 @@ function MapClickHandler({
    *  over the parking flow for the next click. */
   closureActive: boolean;
   onClosureClick: (lat: number, lng: number, bearingDeg: number) => void;
+  musterActive: boolean;
+  onMusterClick: (lat: number, lng: number) => void;
   onPickedPos: (pos: { lat: number; lng: number }) => void;
   onPickedBearing: (bearingDeg: number) => void;
 }) {
@@ -530,6 +534,10 @@ function MapClickHandler({
           snapped?.lng ?? e.latlng.lng,
           snapped?.bearingDeg ?? 0,
         );
+        return;
+      }
+      if (musterActive) {
+        onMusterClick(e.latlng.lat, e.latlng.lng);
         return;
       }
       if (parking.phase === "pos") {
@@ -565,6 +573,20 @@ function MapClickHandler({
 // -----------------------------------------------------------------------------
 // Curved polyline fallback when ORS doesn't return a foot route
 // -----------------------------------------------------------------------------
+
+/** Casualty muster / evacuation point — green flag with a cross chip. */
+function musterIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [150, 46],
+    iconAnchor: [8, 44],
+    html: `
+      <div style="position:relative;font-family:var(--font-geist-mono),monospace;">
+        <div style="position:absolute;left:6px;top:0;width:3px;height:44px;background:#e5e7eb;border:1px solid #111;"></div>
+        <div style="position:absolute;left:10px;top:2px;background:#15803d;color:#fff;border:1.5px solid #052e16;border-radius:2px;padding:3px 8px;font-size:10px;font-weight:700;letter-spacing:0.08em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5);">✚ CASUALTY MUSTER</div>
+      </div>`,
+  });
+}
 
 /** Aviation-style helipad "H" with a status chip beneath. Rendered under
  *  the aircraft sprite so a landed HELIMED sits on a marked-out pad. */
@@ -762,6 +784,9 @@ export function LeafletGroundMap({
   closurePick,
   onPlaceClosure,
   onSelectInbound,
+  musterPick,
+  musterPos,
+  onPlaceMuster,
 }: {
   incident: Incident;
   resolved: ResolvedDeployment[];
@@ -785,6 +810,9 @@ export function LeafletGroundMap({
   onSelectInbound?: (applianceId: string) => void;
   /** Armed by the incident view while the operator places a road closure. */
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
+  musterPick?: boolean;
+  musterPos?: { lat: number; lng: number } | null;
+  onPlaceMuster?: (lat: number, lng: number) => void;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
 }) {
   const centre: [number, number] = [
@@ -1048,6 +1076,8 @@ export function LeafletGroundMap({
         roads={osmRoads}
         closureActive={!!closurePick}
         onClosureClick={(lat, lng, bearingDeg) => onPlaceClosure?.(lat, lng, bearingDeg)}
+        musterActive={!!musterPick}
+        onMusterClick={(lat, lng) => onPlaceMuster?.(lat, lng)}
         onPickedPos={(pos) => {
           if (parking.phase !== "pos") return;
           setParking({
@@ -1070,6 +1100,15 @@ export function LeafletGroundMap({
           }
         }}
       />
+
+      {/* Casualty muster / evacuation point */}
+      {musterPos && (
+        <Marker
+          position={[musterPos.lat, musterPos.lng]}
+          icon={musterIcon()}
+          zIndexOffset={800}
+        />
+      )}
 
       {/* Always centre on the incident when the map first mounts. */}
       <FitToIncident lat={incidentLat} lng={incidentLng} />

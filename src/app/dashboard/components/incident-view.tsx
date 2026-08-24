@@ -119,6 +119,11 @@ export type Props = {
   /** Vehicle awaiting a rotate-bearing click on the ground map. */
   rotatePendingApplianceId: string | null;
   onSetRotatePending: (applianceId: string | null) => void;
+  /** Casualty muster / evac point — set by clicking the ground map. */
+  musterPos?: { lat: number; lng: number } | null;
+  pendingMuster?: boolean;
+  onSetPendingMuster?: (armed: boolean) => void;
+  onPlaceMuster?: (lat: number, lng: number) => void;
   onSetTreatmentDestination?: (
     casualtyId: string,
     type: import("@/lib/sim/scene").HospitalDestinationType,
@@ -238,6 +243,10 @@ export function IncidentView({
   onSetPendingClosure,
   rotatePendingApplianceId,
   onSetRotatePending,
+  musterPos,
+  pendingMuster,
+  onSetPendingMuster,
+  onPlaceMuster,
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
@@ -309,6 +318,9 @@ export function IncidentView({
         onDeclareTacticalMode={onDeclareTacticalMode}
         mdtVisible={mdtVisible}
         onToggleMdt={onToggleMdt}
+        musterArmed={!!pendingMuster}
+        musterSet={!!musterPos}
+        onArmMuster={onSetPendingMuster ? () => onSetPendingMuster(!pendingMuster) : undefined}
         onClose={onClose}
       />
 
@@ -353,6 +365,9 @@ export function IncidentView({
             onAbortTask={onAbortTask}
             onSelectAppliance={setSelectedApplianceId}
             closurePick={pendingClosure ? { kind: pendingClosure.kind } : null}
+            musterPick={!!pendingMuster}
+            musterPos={musterPos ?? null}
+            onPlaceMuster={onPlaceMuster}
             onPlaceClosure={(lat, lng, bearingDeg) => {
               if (!pendingClosure) return;
               onStartTask({
@@ -384,6 +399,24 @@ export function IncidentView({
                   className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
                 >
                   Cancel · Esc
+                </button>
+              </div>
+            </div>
+          )}
+          {/* Muster-point placement banner */}
+          {pendingMuster && (
+            <div className="pointer-events-auto absolute left-1/2 top-3 z-[650] -translate-x-1/2 rounded-sm border border-(--color-ok)/60 bg-(--color-bg)/95 px-4 py-2 shadow-lg">
+              <div className="flex items-center gap-3">
+                <span className="dot-live size-2 rounded-full bg-(--color-ok)" />
+                <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-text)">
+                  Click the map to set the casualty muster point
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onSetPendingMuster?.(false)}
+                  className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
+                >
+                  Cancel
                 </button>
               </div>
             </div>
@@ -485,6 +518,9 @@ function MissionBar({
   onDeclareTacticalMode,
   mdtVisible,
   onToggleMdt,
+  musterArmed,
+  musterSet,
+  onArmMuster,
   onClose,
 }: {
   incident: Incident;
@@ -502,6 +538,9 @@ function MissionBar({
   onDeclareTacticalMode?: (mode: "offensive" | "defensive" | "transitional") => void;
   mdtVisible?: boolean;
   onToggleMdt?: () => void;
+  musterArmed?: boolean;
+  musterSet?: boolean;
+  onArmMuster?: () => void;
   onClose: () => void;
 }) {
   return (
@@ -554,6 +593,21 @@ function MissionBar({
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-2">
+        {onArmMuster && (
+          <button
+            type="button"
+            onClick={onArmMuster}
+            className={
+              "rounded-sm border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors " +
+              (musterArmed
+                ? "border-(--color-ok) bg-(--color-ok)/20 text-(--color-ok)"
+                : "border-(--color-border) text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)")
+            }
+            title="Designate the casualty muster / evacuation point on the map"
+          >
+            {musterArmed ? "Click map…" : musterSet ? "Move muster point" : "Muster point"}
+          </button>
+        )}
         {onToggleMdt && (
           <button
             type="button"
