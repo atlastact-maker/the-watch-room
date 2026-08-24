@@ -565,6 +565,7 @@ const EQUIPMENT_GROUPS: EquipGroup[] = [
       { key: "fast_attack_branch", label: "Fast attack reel" },
       { key: "thermal_camera", label: "TIC" },
       { key: "extinguisher", label: "Extinguisher" },
+      { key: "foam_branch", label: "Foam branch" },
     ],
   },
   {
@@ -601,6 +602,7 @@ const EQUIPMENT_GROUPS: EquipGroup[] = [
       { key: "search_camera", label: "Search camera" },
       { key: "area_lighting", label: "Area lighting" },
       { key: "airline_ba", label: "Airline BA" },
+      { key: "small_tools", label: "Small tools" },
     ],
   },
   {
@@ -857,6 +859,12 @@ function applianceHasEquipment(appliance: Appliance, key: CrewEquipment): boolea
       return cap("RTC_extrication") || cap("USAR") || cap("Command") || appliance.waterLitres > 0;
     case "airline_ba":
       return cap("USAR") || cap("HAZMAT_DIM");
+    // Every fire appliance stows a small-gear locker; foam-making kit
+    // rides on anything that pumps (AFFF pickup + FB branch).
+    case "small_tools":
+      return appliance.waterLitres > 0 || cap("RTC_extrication") || cap("USAR") || hasKit(/tool/i);
+    case "foam_branch":
+      return hasKit(/foam/i) || cap("Foam") || appliance.waterLitres > 0;
 
     // Rope rescue
     case "rope_kit":

@@ -57,6 +57,9 @@ export type CrewEquipment =
   | "search_camera"        // probe / pole camera
   | "area_lighting"
   | "airline_ba"           // airline breathing apparatus for confined spaces
+  | "small_tools"          // small gear kit — spanners, pliers, lead cutters, straps
+  // Firefighting media
+  | "foam_branch"          // foam-making branch (FB5X/FB10X) + AFFF pickup
   // Rope rescue
   | "rope_kit"
   | "rescue_harness"
