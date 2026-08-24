@@ -247,38 +247,72 @@ export function BottomActionMenu({
         ? POLICE_TABS
         : FIRE_TABS;
 
+  const serviceHex =
+    appliance.service === "Fire"
+      ? "#dc2626"
+      : appliance.service === "Ambulance"
+        ? "#15803d"
+        : "#1d4ed8";
+  const lightState = deployment.lightState ?? "off";
+  const lightChip =
+    lightState === "999"
+      ? { label: "999 Response", cls: "border-(--color-critical)/60 bg-(--color-critical)/10 text-(--color-critical)" }
+      : lightState === "at_scene"
+        ? { label: "At scene", cls: "border-(--color-amber)/60 bg-(--color-amber)/10 text-(--color-amber)" }
+        : lightState === "off"
+          ? { label: "Lights off", cls: "border-(--color-border) text-(--color-text-dim)" }
+          : { label: lightState.replace(/_/g, " "), cls: "border-(--color-info)/60 bg-(--color-info)/10 text-(--color-info)" };
+
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-(--color-surface)">
-      {/* Compact header — callsign pill + type + meta on one row. */}
-      <header className="flex items-center gap-3 border-b border-(--color-border-subtle) bg-(--color-surface-raised) px-3 py-2">
-        <span
-          className={`shrink-0 rounded-sm border px-2 py-0.5 font-mono text-[12px] font-bold tracking-widest ${serviceColour}`}
-        >
-          {appliance.callsign}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] leading-tight font-medium text-(--color-text)">
-            {appliance.typeName}
+      {/* Service accent strip */}
+      <div className="h-[3px] w-full shrink-0" style={{ background: serviceHex }} />
+      {/* Identity header — callsign plate, type + VRM, light state, meta. */}
+      <header className="border-b border-(--color-border-subtle) bg-(--color-surface-raised) px-3 py-2.5">
+        <div className="flex items-center gap-3">
+          <span
+            className={`shrink-0 rounded-sm border px-2.5 py-1 font-mono text-[13px] font-bold tracking-widest ${serviceColour}`}
+          >
+            {appliance.callsign}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] leading-tight font-medium text-(--color-text)">
+              {appliance.typeName}
+            </div>
+            <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+              {appliance.make} {appliance.model} · {appliance.vrm}
+            </div>
           </div>
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-            <span>Crew {appliance.crew.current}/{appliance.crew.min}</span>
-            {onSceneSeconds !== null && <span>· On scene {fmtMs(onSceneSeconds)}</span>}
-            {isCommander && (
-              <span className="rounded-sm border border-(--color-amber) bg-(--color-amber)/10 px-1 py-0 text-(--color-amber)">
-                IC
-              </span>
-            )}
-          </div>
+          <span
+            className={`shrink-0 rounded-sm border px-2 py-1 font-mono text-[9px] uppercase tracking-widest ${lightChip.cls}`}
+          >
+            {lightChip.label}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-sm border border-(--color-border) px-1.5 py-0.5 font-mono text-[11px] text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+            title="Close"
+            aria-label="Close action menu"
+          >
+            ✕
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 rounded-sm border border-(--color-border) px-1.5 py-0.5 font-mono text-[11px] text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
-          title="Close"
-          aria-label="Close action menu"
-        >
-          ✕
-        </button>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-(--color-border-subtle) pt-2 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+          <span>
+            Crew <span className="text-(--color-text)">{appliance.crew.current}/{appliance.crew.min}</span>
+          </span>
+          {onSceneSeconds !== null && (
+            <span>
+              On scene <span className="tabular-nums text-(--color-text)">{fmtMs(onSceneSeconds)}</span>
+            </span>
+          )}
+          {isCommander && (
+            <span className="rounded-sm border border-(--color-amber) bg-(--color-amber)/10 px-1.5 py-0 text-(--color-amber)">
+              Incident Commander
+            </span>
+          )}
+        </div>
       </header>
 
       {/* Horizontal tab rail — matches the LeftRail style and frees up
@@ -308,7 +342,7 @@ export function BottomActionMenu({
       </nav>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
           {tab === "vehicle" && (
             <VehicleTab
               appliance={appliance}
@@ -500,12 +534,11 @@ function VehicleTab({
         <Gauge label="Condition" pct={gauges.conditionPct} colour="ok" />
       </Section>
 
-      <Section title="Vehicle info">
-        <KV k="Make / model" v={`${appliance.make} ${appliance.model}`} />
-        <KV k="VRM" v={appliance.vrm} />
-        <KV k="Type" v={appliance.typeName} />
-        {appliance.note && <KV k="Note" v={appliance.note} />}
-      </Section>
+      {appliance.note && (
+        <Section title="Vehicle notes">
+          <KV k="Note" v={appliance.note} />
+        </Section>
+      )}
     </div>
   );
 }
@@ -2292,9 +2325,11 @@ function CrewPickerInline({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">{title}</div>
-      <div className="mt-1.5 space-y-1.5">{children}</div>
+    <section className="overflow-hidden rounded-sm border border-(--color-border-subtle) bg-(--color-surface-raised)/25">
+      <div className="border-b border-(--color-border-subtle) bg-(--color-surface-raised) px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+        {title}
+      </div>
+      <div className="space-y-1.5 px-2.5 py-2.5">{children}</div>
     </section>
   );
 }
@@ -2332,8 +2367,8 @@ function Gauge({
         <span>{label}</span>
         <span className="tabular-nums text-(--color-text)">{Math.round(v)}%</span>
       </div>
-      <div className="mt-1 h-2 w-full overflow-hidden rounded-sm border border-(--color-border-subtle) bg-(--color-bg)">
-        <div className={`h-full ${cls}`} style={{ width: `${v}%` }} />
+      <div className="mt-1 h-2.5 w-full overflow-hidden rounded-sm border border-(--color-border-subtle) bg-(--color-bg)">
+        <div className={`h-full ${cls}`} style={{ width: `${v}%`, transition: "width 500ms ease-out" }} />
       </div>
     </div>
   );
