@@ -43,24 +43,14 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  // Optional advisor registration — served personnel offering to help
-  // development. Validated only when the box is ticked.
+  // Optional advisor registration — emergency-services personnel offering
+  // to help development. Validated only when the box is ticked.
   const wantsAdvisor = formData.get("advisor") === "on";
-  let advisor: { service: string; background: string; notes: string } | null = null;
+  let advisor: AdvisorData | null = null;
   if (wantsAdvisor) {
-    const adv = AdvisorSchema.safeParse({
-      advisorService: formData.get("advisorService"),
-      advisorBackground: formData.get("advisorBackground"),
-      advisorNotes: formData.get("advisorNotes") ?? "",
-    });
-    if (!adv.success) {
-      return { errors: adv.error.flatten().fieldErrors };
-    }
-    advisor = {
-      service: adv.data.advisorService,
-      background: adv.data.advisorBackground,
-      notes: adv.data.advisorNotes ?? "",
-    };
+    const adv = advisorFromForm(formData);
+    if ("errors" in adv) return { errors: adv.errors };
+    advisor = adv.data;
   }
 
   const supabase = await createClient();
@@ -75,14 +65,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
       data: {
         callsign: parsed.data.callsign,
         newsletter_opt_in: parsed.data.newsletter,
-        ...(advisor
-          ? {
-              advisor: true,
-              advisor_service: advisor.service,
-              advisor_background: advisor.background,
-              advisor_notes: advisor.notes,
-            }
-          : {}),
+        ...(advisor ? advisorMetadata(advisor) : {}),
       },
     },
   });
@@ -94,10 +77,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
     await supabase.from("advisors").upsert({
       user_id: data.user.id,
       callsign: parsed.data.callsign,
-      service: advisor.service,
-      background: advisor.background,
-      notes: advisor.notes,
-      updated_at: new Date().toISOString(),
+      ...advisorRow(advisor),
     });
   }
   // Email confirmation enabled → no session yet. Tell the operator to
@@ -114,14 +94,8 @@ export async function saveAdvisorProfile(
   _state: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  const parsed = AdvisorSchema.safeParse({
-    advisorService: formData.get("advisorService"),
-    advisorBackground: formData.get("advisorBackground"),
-    advisorNotes: formData.get("advisorNotes") ?? "",
-  });
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors };
-  }
+  const adv = advisorFromForm(formData);
+  if ("errors" in adv) return { errors: adv.errors };
 
   const supabase = await createClient();
   const {
@@ -133,21 +107,11 @@ export async function saveAdvisorProfile(
 
   const callsign =
     ((user.user_metadata as { callsign?: string } | null)?.callsign ?? "OPERATOR").slice(0, 24);
-  await supabase.auth.updateUser({
-    data: {
-      advisor: true,
-      advisor_service: parsed.data.advisorService,
-      advisor_background: parsed.data.advisorBackground,
-      advisor_notes: parsed.data.advisorNotes ?? "",
-    },
-  });
+  await supabase.auth.updateUser({ data: advisorMetadata(adv.data) });
   const { error } = await supabase.from("advisors").upsert({
     user_id: user.id,
     callsign,
-    service: parsed.data.advisorService,
-    background: parsed.data.advisorBackground,
-    notes: parsed.data.advisorNotes ?? "",
-    updated_at: new Date().toISOString(),
+    ...advisorRow(adv.data),
   });
   if (error) {
     return {
@@ -161,6 +125,83 @@ export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+// ---- advisor questionnaire ------------------------------------------------
+
+type AdvisorData = {
+  service: string;
+  status: string;
+  background: string;
+  force: string;
+  topics: string[];
+  involvement: string;
+  notes: string;
+  contactOk: boolean;
+  discord: string;
+};
+
+/** Parse + validate the advisor questionnaire out of a form post. */
+function advisorFromForm(
+  formData: FormData,
+): { data: AdvisorData } | { errors: NonNullable<AuthFormState>["errors"] } {
+  const adv = AdvisorSchema.safeParse({
+    advisorService: formData.get("advisorService"),
+    advisorStatus: formData.get("advisorStatus"),
+    advisorBackground: formData.get("advisorBackground"),
+    advisorForce: formData.get("advisorForce") ?? "",
+    advisorTopics: formData.getAll("advisorTopics"),
+    advisorInvolvement: formData.get("advisorInvolvement"),
+    advisorNotes: formData.get("advisorNotes") ?? "",
+    advisorContactOk: formData.get("advisorContactOk") === "on",
+    advisorDiscord: formData.get("advisorDiscord") ?? "",
+  });
+  if (!adv.success) return { errors: adv.error.flatten().fieldErrors };
+  return {
+    data: {
+      service: adv.data.advisorService,
+      status: adv.data.advisorStatus,
+      background: adv.data.advisorBackground,
+      force: adv.data.advisorForce ?? "",
+      topics: adv.data.advisorTopics,
+      involvement: adv.data.advisorInvolvement,
+      notes: adv.data.advisorNotes ?? "",
+      contactOk: adv.data.advisorContactOk,
+      discord: adv.data.advisorDiscord ?? "",
+    },
+  };
+}
+
+/** user_metadata payload for an advisor — survives the confirmation gap. */
+function advisorMetadata(a: AdvisorData) {
+  return {
+    advisor: true,
+    advisor_service: a.service,
+    advisor_status: a.status,
+    advisor_background: a.background,
+    advisor_force: a.force,
+    advisor_topics: a.topics,
+    advisor_involvement: a.involvement,
+    advisor_notes: a.notes,
+    advisor_contact_ok: a.contactOk,
+    advisor_discord: a.discord,
+  };
+}
+
+/** advisors table row (minus user_id/callsign). */
+function advisorRow(a: AdvisorData) {
+  return {
+    service: a.service,
+    status: a.status,
+    background: a.background,
+    force_area: a.force,
+    topics: a.topics,
+    involvement: a.involvement,
+    notes: a.notes,
+    contact_ok: a.contactOk,
+    discord: a.discord,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 /** Site origin for auth email redirects — request origin first, then the

@@ -34,17 +34,56 @@ export const ADVISOR_SERVICES = [
   "Other",
 ] as const;
 
+export const ADVISOR_STATUSES = [
+  "Currently serving",
+  "Retired",
+  "Previously served",
+] as const;
+
+export const ADVISOR_TOPICS = [
+  "Control room & mobilising",
+  "Incident command & JESIP",
+  "BA & firefighting operations",
+  "RTCs & technical rescue",
+  "Clinical & casualty care",
+  "Police operations & scene management",
+  "Aviation (HEMS / NPAS)",
+  "Appliances, kit & equipment",
+  "Wildfire & specialist operations",
+] as const;
+
+export const ADVISOR_INVOLVEMENT = [
+  "Occasional questions",
+  "Review new features",
+  "Regular playtesting & feedback",
+  "Whatever helps",
+] as const;
+
 export const AdvisorSchema = z.object({
   advisorService: z.enum(ADVISOR_SERVICES, {
-    error: "Pick the service you served with.",
+    error: "Pick your service.",
+  }),
+  advisorStatus: z.enum(ADVISOR_STATUSES, {
+    error: "Pick your current status.",
   }),
   advisorBackground: z
     .string()
     .trim()
-    .min(2, { error: "Tell us your role — e.g. Crew Manager, 12 years." })
+    .min(2, { error: "Tell us your role — e.g. Crew Manager · 12 years." })
     .max(120, { error: "120 characters max." }),
+  advisorForce: z.string().trim().max(60, { error: "60 characters max." }).optional(),
+  advisorTopics: z
+    .array(z.enum(ADVISOR_TOPICS))
+    .min(1, { error: "Pick at least one area you can advise on." }),
+  advisorInvolvement: z.enum(ADVISOR_INVOLVEMENT, {
+    error: "Pick how involved you'd like to be.",
+  }),
   advisorNotes: z.string().trim().max(600, { error: "600 characters max." }).optional(),
+  advisorContactOk: z.boolean(),
+  advisorDiscord: z.string().trim().max(40, { error: "40 characters max." }).optional(),
 });
+
+export type AdvisorAnswers = z.infer<typeof AdvisorSchema>;
 
 export const ForgotPasswordSchema = z.object({
   email: z.email({ error: "Enter a valid email." }).trim(),
@@ -78,8 +117,13 @@ export type AuthFormState =
         confirm?: string[];
         acceptTerms?: string[];
         advisorService?: string[];
+        advisorStatus?: string[];
         advisorBackground?: string[];
+        advisorForce?: string[];
+        advisorTopics?: string[];
+        advisorInvolvement?: string[];
         advisorNotes?: string[];
+        advisorDiscord?: string[];
         form?: string[];
       };
     }

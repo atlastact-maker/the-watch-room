@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isMuted, setMuted, unlockAudio } from "@/lib/audio/sim-audio";
 import { clearCareerRecord } from "@/lib/sim/stats";
 import { saveAdvisorProfile } from "@/lib/auth/actions";
-import { ADVISOR_SERVICES } from "@/lib/auth/schemas";
+import { AdvisorQuestions, type AdvisorDefaults } from "@/app/components/advisor-questions";
 
 export default function SettingsPage() {
   const [callsign, setCallsign] = useState("");
@@ -19,12 +19,9 @@ export default function SettingsPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [muted, setMutedState] = useState(false);
   const [resetDone, setResetDone] = useState(false);
-  const [advisorMeta, setAdvisorMeta] = useState<{
-    advisor: boolean;
-    service: string;
-    background: string;
-    notes: string;
-  } | null>(null);
+  const [advisorMeta, setAdvisorMeta] = useState<
+    (AdvisorDefaults & { advisor: boolean }) | null
+  >(null);
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [advState, advAction, advPending] = useActionState(saveAdvisorProfile, undefined);
 
@@ -36,8 +33,14 @@ export default function SettingsPage() {
         callsign?: string;
         advisor?: boolean;
         advisor_service?: string;
+        advisor_status?: string;
         advisor_background?: string;
+        advisor_force?: string;
+        advisor_topics?: string[];
+        advisor_involvement?: string;
         advisor_notes?: string;
+        advisor_contact_ok?: boolean;
+        advisor_discord?: string;
       } | null;
       const cs = meta?.callsign ?? "";
       setCallsign(cs);
@@ -46,8 +49,14 @@ export default function SettingsPage() {
       setAdvisorMeta({
         advisor: isAdvisor,
         service: meta?.advisor_service ?? "",
+        status: meta?.advisor_status ?? "",
         background: meta?.advisor_background ?? "",
+        force: meta?.advisor_force ?? "",
+        topics: meta?.advisor_topics ?? [],
+        involvement: meta?.advisor_involvement ?? "",
         notes: meta?.advisor_notes ?? "",
+        contactOk: meta?.advisor_contact_ok ?? true,
+        discord: meta?.advisor_discord ?? "",
       });
       setAdvisorOpen(isAdvisor);
     });
@@ -203,42 +212,7 @@ export default function SettingsPage() {
 
           {advisorOpen && advisorMeta && (
             <form action={advAction} className="mt-4 flex flex-col gap-3">
-              <select
-                name="advisorService"
-                defaultValue={advisorMeta.service || ""}
-                className="h-10 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none focus:border-(--color-info)"
-              >
-                <option value="" disabled>
-                  Select your service…
-                </option>
-                {ADVISOR_SERVICES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              {advState?.errors?.advisorService?.map((msg) => (
-                <p key={msg} className="text-xs text-(--color-critical)">{msg}</p>
-              ))}
-              <input
-                name="advisorBackground"
-                defaultValue={advisorMeta.background}
-                placeholder="Role & background — e.g. Crew Manager · 12 years · GMFRS"
-                className="h-10 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)"
-              />
-              {advState?.errors?.advisorBackground?.map((msg) => (
-                <p key={msg} className="text-xs text-(--color-critical)">{msg}</p>
-              ))}
-              <textarea
-                name="advisorNotes"
-                defaultValue={advisorMeta.notes}
-                rows={3}
-                placeholder="How can you help? (optional)"
-                className="w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 py-2 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)"
-              />
-              {advState?.errors?.advisorNotes?.map((msg) => (
-                <p key={msg} className="text-xs text-(--color-critical)">{msg}</p>
-              ))}
+              <AdvisorQuestions defaults={advisorMeta} errors={advState?.errors} />
               {advState?.errors?.form?.map((msg) => (
                 <p key={msg} className="text-sm text-(--color-critical)">{msg}</p>
               ))}

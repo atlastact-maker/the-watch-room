@@ -17,8 +17,14 @@ export async function syncAdvisorProfile(): Promise<void> {
       advisor?: boolean;
       callsign?: string;
       advisor_service?: string;
+      advisor_status?: string;
       advisor_background?: string;
+      advisor_force?: string;
+      advisor_topics?: string[];
+      advisor_involvement?: string;
       advisor_notes?: string;
+      advisor_contact_ok?: boolean;
+      advisor_discord?: string;
     } | null;
     if (!meta?.advisor || !meta.advisor_service) return;
 
@@ -33,8 +39,14 @@ export async function syncAdvisorProfile(): Promise<void> {
       user_id: user.id,
       callsign: (meta.callsign ?? "OPERATOR").slice(0, 24),
       service: meta.advisor_service,
+      status: meta.advisor_status ?? "",
       background: meta.advisor_background ?? "",
+      force_area: meta.advisor_force ?? "",
+      topics: meta.advisor_topics ?? [],
+      involvement: meta.advisor_involvement ?? "",
       notes: meta.advisor_notes ?? "",
+      contact_ok: meta.advisor_contact_ok ?? false,
+      discord: meta.advisor_discord ?? "",
     });
   } catch {
     // best-effort

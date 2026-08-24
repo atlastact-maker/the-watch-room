@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { signup } from "@/lib/auth/actions";
-import { ADVISOR_SERVICES } from "@/lib/auth/schemas";
+import { AdvisorQuestions } from "@/app/components/advisor-questions";
 
 export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?: boolean }) {
   const [state, action, pending] = useActionState(signup, undefined);
@@ -104,78 +104,8 @@ export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?
       </div>
 
       {advisorOpen && (
-        <div className="flex flex-col gap-4 rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-4">
-          <p className="text-[10px] uppercase tracking-[0.2em] leading-relaxed text-(--color-info)">
-            Advisor programme — help keep The Watch Room authentic
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="advisorService"
-              className="text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)"
-            >
-              Service
-            </label>
-            <select
-              id="advisorService"
-              name="advisorService"
-              defaultValue=""
-              className="h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none focus:border-(--color-info)"
-            >
-              <option value="" disabled>
-                Select your service…
-              </option>
-              {ADVISOR_SERVICES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-            {state?.errors?.advisorService?.map((msg) => (
-              <p key={msg} className="text-xs text-(--color-critical)">
-                {msg}
-              </p>
-            ))}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="advisorBackground"
-              className="text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)"
-            >
-              Role &amp; background
-            </label>
-            <input
-              id="advisorBackground"
-              name="advisorBackground"
-              type="text"
-              placeholder="e.g. Crew Manager · 12 years · GMFRS"
-              className="h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)"
-            />
-            {state?.errors?.advisorBackground?.map((msg) => (
-              <p key={msg} className="text-xs text-(--color-critical)">
-                {msg}
-              </p>
-            ))}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="advisorNotes"
-              className="text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)"
-            >
-              How can you help? <span className="normal-case tracking-normal">(optional)</span>
-            </label>
-            <textarea
-              id="advisorNotes"
-              name="advisorNotes"
-              rows={3}
-              placeholder="Procedures, mobilising, kit, control room reality — whatever you can sanity-check."
-              className="w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 py-2.5 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)"
-            />
-            {state?.errors?.advisorNotes?.map((msg) => (
-              <p key={msg} className="text-xs text-(--color-critical)">
-                {msg}
-              </p>
-            ))}
-          </div>
+        <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-4">
+          <AdvisorQuestions errors={state?.errors} />
         </div>
       )}
 
