@@ -18,7 +18,6 @@ import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { StationWithAppliances } from "../page";
 import { GroundSceneMap } from "./ground-scene-map";
 import { DeploymentBoard, type DeployArgs, type Eta } from "./deployment-board";
-import { BottomActionMenu } from "./bottom-action-menu";
 import type { InformantMessage } from "./informant-panel";
 import { RadioFeed } from "./radio-feed";
 import { DraggableTreatmentPanel } from "./treatment-panel";
@@ -111,6 +110,10 @@ export type Props = {
   /** Open the pre-arrival panel for an inbound (not yet on scene) unit —
    *  lets the operator pre-allocate crews to tasks (BA etc.) en route. */
   onSelectInbound?: (applianceId: string) => void;
+  /** Ground-map vehicle clicks open the MDT unit-control page — the
+   *  dashboard owns which unit is focused (halo on the map). */
+  selectedVehicleId?: string | null;
+  onVehicleSelect?: (applianceId: string) => void;
   /** Road-closure placement in progress (crew already picked, next map
    *  click drops the cones). Owned by the dashboard so the MDT can start
    *  closures too. */
@@ -215,30 +218,15 @@ export function IncidentView({
   busyCrewIds,
   vehicleGauges,
   onSetParkingPos,
-  onSetLightState,
-  onSetPumpRunning,
-  onSetPumpOperator,
-  onSetFastAttackDeployed,
-  onToggleCrewEquipment,
   onStartTask,
   onAbortTask,
-  onUpdateBaRemarks,
-  onUpdateBaEntryPoint,
-  onSetTreatingCasualty,
   tacticalMode,
   onDeclareTacticalMode,
-  fatigueByApplianceId,
-  treatmentByCasualtyId,
-  onStartPatientSurvey,
-  onApplyAirway,
-  onApplyBreathing,
-  onApplyCirculation,
-  onAdministerDrug,
-  onApplyPackaging,
-  onRequestClinician,
   mdtVisible,
   onToggleMdt,
   onSelectInbound,
+  selectedVehicleId,
+  onVehicleSelect,
   pendingClosure,
   onSetPendingClosure,
   rotatePendingApplianceId,
@@ -247,13 +235,9 @@ export function IncidentView({
   pendingMuster,
   onSetPendingMuster,
   onPlaceMuster,
-  onSetTreatmentDestination,
-  onSendAtmistPrealert,
-  onConveyCasualtyVia,
   onClose,
 }: Props) {
   const scene = incident.scenario.scene;
-  const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
   // Road-closure placement + vehicle rotate are owned by the dashboard so
   // both the map action menu AND the MDT can start them; the next
   // ground-map click completes the interaction. Esc cancels a closure.
@@ -272,19 +256,6 @@ export function IncidentView({
   const resolved: ResolvedDeployment[] = resolveDeployments(deployments, stations, now);
 
   const onSceneDeployments = resolved.filter((r) => r.phase === "at_incident");
-  const selectedResolved = selectedApplianceId
-    ? resolved.find((r) => r.appliance.id === selectedApplianceId) ?? null
-    : null;
-  const selectedAppliance = selectedResolved?.appliance ?? null;
-  const selectedOnSceneSec =
-    selectedResolved && selectedResolved.phase === "at_incident"
-      ? Math.max(0, (now - selectedResolved.deployment.arrivesAt) / 1000)
-      : null;
-
-  // If the selected appliance leaves the patch (resolved/dismissed), clear.
-  if (selectedApplianceId && !selectedResolved) {
-    queueMicrotask(() => setSelectedApplianceId(null));
-  }
   const enRouteDeployments = resolved.filter((r) => r.phase === "mobile");
   const mobileCount = enRouteDeployments.length;
   const returningCount = resolved.filter(
@@ -356,14 +327,16 @@ export function IncidentView({
             crewAir={crewAir}
             busyCrewIds={busyCrewIds}
             vehicleGauges={vehicleGauges}
-            selectedApplianceId={selectedApplianceId}
+            selectedApplianceId={selectedVehicleId ?? null}
             now={now}
             onSetParkingPos={onSetParkingPos}
             rotatePendingApplianceId={rotatePendingApplianceId}
             onClearRotatePending={() => onSetRotatePending(null)}
             onStartTask={onStartTask}
             onAbortTask={onAbortTask}
-            onSelectAppliance={setSelectedApplianceId}
+            onSelectAppliance={(id) => {
+              if (id) onVehicleSelect?.(id);
+            }}
             closurePick={pendingClosure ? { kind: pendingClosure.kind } : null}
             musterPick={!!pendingMuster}
             musterPos={musterPos ?? null}
@@ -419,63 +392,6 @@ export function IncidentView({
                   Cancel
                 </button>
               </div>
-            </div>
-          )}
-          {/* Vehicle action menu — overlays the right third of the map area
-              when a vehicle is selected, so it's always fully visible and
-              doesn't steal from the SITREP / right-rail panels. */}
-          {selectedAppliance && selectedResolved && (
-            <div className="pointer-events-auto absolute inset-y-0 right-0 z-[500] flex w-[420px] max-w-[90vw] flex-col border-l border-(--color-border) bg-(--color-surface) shadow-2xl shadow-black/70">
-              <BottomActionMenu
-                appliance={selectedAppliance}
-                deployment={selectedResolved.deployment}
-                allOnSceneAppliances={onSceneDeployments.map((r) => r.appliance)}
-                tasks={tasks}
-                incident={incident}
-                visibleHazards={sim.visibleHazards.map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
-                isCommander={sceneCommanderApplianceId === selectedAppliance.id}
-                crewAir={crewAir}
-                busyCrewIds={busyCrewIds}
-                vehicleGauges={vehicleGauges}
-                now={now}
-                onStartTask={onStartTask}
-                onAbortTask={onAbortTask}
-                onBeginRoadClosure={(kind, crewIds) =>
-                  onSetPendingClosure({
-                    applianceId: selectedAppliance.id,
-                    kind,
-                    crewIds,
-                  })
-                }
-                onClose={() => setSelectedApplianceId(null)}
-                onSceneSeconds={selectedOnSceneSec}
-                onSetLightState={onSetLightState}
-                onSetPumpRunning={onSetPumpRunning}
-                onSetPumpOperator={onSetPumpOperator}
-                onSetFastAttackDeployed={onSetFastAttackDeployed}
-                onToggleCrewEquipment={onToggleCrewEquipment}
-                onUpdateBaRemarks={onUpdateBaRemarks}
-                onUpdateBaEntryPoint={onUpdateBaEntryPoint}
-                onSetTreatingCasualty={onSetTreatingCasualty}
-                onRequestRotate={(id) => onSetRotatePending(id)}
-                scenarioCasualties={sim.foundCasualties}
-                casualtyProgression={sim.casualtyProgression}
-                sim={sim}
-                tacticalMode={tacticalMode ?? null}
-                fatigueByApplianceId={fatigueByApplianceId}
-                treatmentByCasualtyId={treatmentByCasualtyId}
-                onScenePatientDeployments={onSceneDeployments.map((r) => r.deployment)}
-                onStartPatientSurvey={onStartPatientSurvey}
-                onApplyAirway={onApplyAirway}
-                onApplyBreathing={onApplyBreathing}
-                onApplyCirculation={onApplyCirculation}
-                onAdministerDrug={onAdministerDrug}
-                onApplyPackaging={onApplyPackaging}
-                onRequestClinician={onRequestClinician}
-                onSetTreatmentDestination={onSetTreatmentDestination}
-                onSendAtmistPrealert={onSendAtmistPrealert}
-                onConveyCasualtyVia={onConveyCasualtyVia}
-              />
             </div>
           )}
         </div>

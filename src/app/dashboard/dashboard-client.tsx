@@ -220,6 +220,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // Casualty muster / evacuation point — designated by the operator on the
   // ground map; casualties and walking wounded RV here.
   const [musterPos, setMusterPos] = useState<{ lat: number; lng: number } | null>(null);
+  // Unit whose control page fills the MDT Resourcing pane — set by MDT
+  // clicks AND ground-map vehicle clicks (the map-side menu is gone).
+  const [mdtUnitId, setMdtUnitId] = useState<string | null>(null);
   const [pendingMuster, setPendingMuster] = useState(false);
   const [groundViewOpen, setGroundViewOpen] = useState(false);
   // Fire station whose appliance-bay view is open (from the map popup).
@@ -697,6 +700,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setLastFatigueTickAt(0);
     setMusterPos(null);
     setPendingMuster(false);
+    setMdtUnitId(null);
   }
 
   /** Declare / change tactical mode. IC must be assigned first — the
@@ -3033,6 +3037,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             mdtVisible={incidentPanelVisible}
             onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
             onSelectInbound={setSelectedApplianceId}
+            selectedVehicleId={mdtUnitId}
+            onVehicleSelect={(id) => {
+              setMdtUnitId(id);
+              setIncidentPanelVisible(true);
+            }}
             pendingClosure={pendingClosure}
             onSetPendingClosure={setPendingClosure}
             musterPos={musterPos}
@@ -3111,6 +3120,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }
             onRequestRotate={setRotatePendingApplianceId}
             onSelectInbound={setSelectedApplianceId}
+            unitId={mdtUnitId}
+            onSetUnitId={setMdtUnitId}
           />
         )}
         {pendingCall && (

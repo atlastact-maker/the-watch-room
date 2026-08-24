@@ -113,6 +113,11 @@ type Props = {
   onRequestRotate?: (applianceId: string) => void;
   /** Clicking a still-mobile callsign opens its pre-arrival panel. */
   onSelectInbound?: (applianceId: string) => void;
+  /** Controlled unit-control selection — when provided, the dashboard owns
+   *  which unit's control page fills the Resourcing pane (ground-map
+   *  vehicle clicks land here). Omit for internal state (demo page). */
+  unitId?: string | null;
+  onSetUnitId?: (applianceId: string | null) => void;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -239,11 +244,21 @@ export function DraggableIncidentMdt({
   onBeginRoadClosure,
   onRequestRotate,
   onSelectInbound,
+  unitId: unitIdProp,
+  onSetUnitId,
 }: Props) {
   const resolved = !!outcome;
   const [tab, setTab] = useState<TabKey>("overview");
   // Committed unit whose control page fills the Resourcing right pane.
-  const [unitId, setUnitId] = useState<string | null>(null);
+  // Controlled by the dashboard when the props are supplied (ground-map
+  // clicks open the tablet's unit page); internal state otherwise.
+  const [internalUnitId, setInternalUnitId] = useState<string | null>(null);
+  const unitId = unitIdProp !== undefined ? unitIdProp : internalUnitId;
+  const setUnitId = onSetUnitId ?? setInternalUnitId;
+  // An externally focused unit jumps the tablet to its control page.
+  useEffect(() => {
+    if (unitIdProp) setTab("resourcing");
+  }, [unitIdProp]);
   // Tablet frame — restored from the last drag/resize so collapsing and
   // reopening the MDT keeps the operator's chosen size and position.
   const frame = useRef<MdtFrame>(
