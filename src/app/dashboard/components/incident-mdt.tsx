@@ -30,6 +30,7 @@ import {
 } from "./incident-view";
 import { BaControlBoard } from "./ba-control-board";
 import { BottomActionMenu } from "./bottom-action-menu";
+import { CAD_VARS } from "./cad-theme";
 import { CrsPanel } from "./crs-panel";
 import { DeploymentBoard, type Eta } from "./deployment-board";
 import type { AreaCode } from "@/lib/sim/types";
@@ -160,25 +161,6 @@ function saveMdtFrame(f: MdtFrame): void {
     // best-effort
   }
 }
-
-// Light CAD palette (grey / red / yellow, matching the Overview tab) —
-// re-skins the shared ops-room bodies by overriding their design tokens
-// inside the tablet screen, so every tab reads as the same CAD app.
-const CAD_VARS = {
-  "--color-bg": "#f4f4f5",
-  "--color-surface": "#ffffff",
-  "--color-surface-raised": "#e7e7ea",
-  "--color-border": "#a1a1aa",
-  "--color-border-subtle": "#d4d4d8",
-  "--color-text": "#18181b",
-  "--color-text-dim": "#52525b",
-  "--color-text-muted": "#71717a",
-  "--color-amber": "#a16207",
-  "--color-amber-dim": "#b45309",
-  "--color-critical": "#dc2626",
-  "--color-ok": "#15803d",
-  "--color-info": "#1d4ed8",
-} as React.CSSProperties;
 
 type TabKey =
   | "overview"

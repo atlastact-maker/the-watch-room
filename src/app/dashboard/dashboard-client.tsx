@@ -1300,6 +1300,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     if (d.hospitalLegStartedAt) return; // already conveying
     const station = findStationForAppliance(applianceId);
     if (!station) return;
+    // Stretcher rule — only a DCA or the air ambulance can convey. An RRV
+    // or critical-care car brings the clinician, never the ride.
+    const conveyor = station.appliances.find((a) => a.id === applianceId);
+    if (!conveyor || (conveyor.type !== "DCA" && conveyor.type !== "HEMS")) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `noconvey:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "setback",
+          message: `${applianceLabel(applianceId)} cannot convey — no stretcher. Pair a DCA (or the air ambulance) for the hospital leg.`,
+        },
+      ]);
+      return;
+    }
     const incidentCoords = activeIncident.scenario.location.coords;
     const hospital = nearestHospital(incidentCoords);
     const now = Date.now();

@@ -479,9 +479,12 @@ function MissionBar({
         />
       </div>
 
-      {/* Centred incident summary \— fire bar, counters, mission clock. */}
+      {/* Centred incident summary \— fire bar, counters, mission clock.
+          The fire bar only earns its slot on fire jobs — or on any job
+          where something has actually caught (an RTC vehicle smoking).
+          A water rescue or chemical leak shows counters only. */}
       <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-4">
-        <FireBar sim={sim} />
+        {fireBarRelevant(incident, sim) && <FireBar sim={sim} />}
         <Counter label="On scene" value={String(onScene)} tone="ok" />
         <Counter label="Mobile" value={String(mobile)} tone="amber" />
         <Counter label="Rtn" value={String(returning)} tone="info" />
@@ -656,6 +659,23 @@ function fireStageTone(stage: IncidentSimState["fireStage"]): string {
     default:
       return "text-(--color-text-dim)";
   }
+}
+
+/** Fire scenario types always carry the bar; non-fire types (RTC,
+ *  hazmat, water rescue) only once an actual fire has taken hold. */
+function fireBarRelevant(incident: Incident, sim: IncidentSimState): boolean {
+  if (sim.fireMaterial === null) return false; // no fire seat authored at all
+  const fireTypes: Incident["scenario"]["type"][] = [
+    "automatic_fire_alarm",
+    "dwelling_fire_persons_reported",
+    "industrial_fire",
+    "wildfire_moorland",
+    "high_rise_dwelling_fire",
+    "education_premises_fire",
+    "healthcare_premises_fire_alarm",
+  ];
+  if (fireTypes.includes(incident.scenario.type)) return true;
+  return sim.fireRadiusM > 0.05;
 }
 
 function FireBar({ sim }: { sim: IncidentSimState }) {
@@ -907,7 +927,9 @@ export function CasualtiesBody({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // Casualty id whose treatment pop-out is currently open. Null = closed.
-  const [openTreatmentId, setOpenTreatmentId] = useState<string | null>(null);
+  // Several patient windows can be open at once — one per casualty,
+  // cascaded like a windowing system. Order = opening order.
+  const [openTreatmentIds, setOpenTreatmentIds] = useState<string[]>([]);
 
   const casualties = sim.foundCasualties
     .map((c) => ({
@@ -1063,12 +1085,18 @@ export function CasualtiesBody({
                     <div className="mt-3 border-t border-(--color-border-subtle) pt-2">
                       <button
                         type="button"
-                        onClick={() => setOpenTreatmentId(casualty.id)}
+                        onClick={() =>
+                          setOpenTreatmentIds((prev) =>
+                            prev.includes(casualty.id) ? prev : [...prev, casualty.id],
+                          )
+                        }
                         className="flex w-full items-center justify-between rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-3 py-2 text-left transition-colors hover:border-(--color-ok) hover:bg-(--color-ok)/15"
                       >
                         <div>
                           <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
-                            Open treatment box
+                            {openTreatmentIds.includes(casualty.id)
+                              ? "Treatment box open"
+                              : "Open treatment box"}
                           </div>
                           <div className="mt-0.5 text-[11px] text-(--color-text-muted)">
                             Pop-out clinical workflow · body diagram, ABC,
@@ -1085,51 +1113,59 @@ export function CasualtiesBody({
           })}
         </ul>
       )}
-      {openTreatmentId && typeof document !== "undefined" && (() => {
-        const target = casualties.find((c) => c.casualty.id === openTreatmentId);
-        if (!target) return null;
-        const c = target.casualty;
-        const pairedForTarget = deployments.filter(
-          (d) => d.treatingCasualtyId === c.id,
-        );
-        const paired = pairedForTarget
-          .map((d) => {
-            const r = resolved.find((x) => x.appliance.id === d.applianceId);
-            return r ? { deployment: d, appliance: r.appliance } : null;
-          })
-          .filter((x): x is NonNullable<typeof x> => x !== null);
-        // Portal to <body>: the casualties body can sit inside the MDT
-        // tablet (a transformed react-rnd container), which would otherwise
-        // trap and clip this draggable panel.
-        return createPortal(
-          <DraggableTreatmentPanel
-            casualty={c}
-            treatment={treatmentByCasualtyId?.[c.id] ?? null}
-            pairedDeployments={paired}
-            extractionRequired={isExtractionRequired(c, tasks)}
-            now={now}
-            onStartSurvey={(id) => onStartPatientSurvey?.(id)}
-            onApplyAirway={(id, a, by) => onApplyAirway?.(id, a, by)}
-            onApplyBreathing={(id, a, by) => onApplyBreathing?.(id, a, by)}
-            onApplyCirculation={(id, a, by) =>
-              onApplyCirculation?.(id, a, by)
-            }
-            onAdministerDrug={(id, d, by) => onAdministerDrug?.(id, d, by)}
-            onApplyPackaging={(id, a, by) => onApplyPackaging?.(id, a, by)}
-            onRequestClinician={(s, id) => onRequestClinician?.(s, id)}
-            hemsFlyable={hemsFlyable}
-            onSetDestination={(id, type, name) =>
-              onSetTreatmentDestination?.(id, type, name)
-            }
-            onSendAtmist={(id) => onSendAtmistPrealert?.(id)}
-            onConveyVia={(applianceId, casualtyId) =>
-              onConveyCasualtyVia?.(applianceId, casualtyId)
-            }
-            onClose={() => setOpenTreatmentId(null)}
-          />,
-          document.body,
-        );
-      })()}
+      {openTreatmentIds.length > 0 &&
+        typeof document !== "undefined" &&
+        openTreatmentIds.map((openId, idx) => {
+          const target = casualties.find((c) => c.casualty.id === openId);
+          if (!target) return null;
+          const c = target.casualty;
+          const pairedForTarget = deployments.filter(
+            (d) => d.treatingCasualtyId === c.id,
+          );
+          const paired = pairedForTarget
+            .map((d) => {
+              const r = resolved.find((x) => x.appliance.id === d.applianceId);
+              return r ? { deployment: d, appliance: r.appliance } : null;
+            })
+            .filter((x): x is NonNullable<typeof x> => x !== null);
+          // Portal to <body>: the casualties body can sit inside the MDT
+          // tablet (a transformed react-rnd container), which would otherwise
+          // trap and clip this draggable panel.
+          return createPortal(
+            <DraggableTreatmentPanel
+              key={openId}
+              index={idx}
+              escToClose={idx === openTreatmentIds.length - 1}
+              casualty={c}
+              treatment={treatmentByCasualtyId?.[c.id] ?? null}
+              pairedDeployments={paired}
+              extractionRequired={isExtractionRequired(c, tasks)}
+              now={now}
+              onStartSurvey={(id) => onStartPatientSurvey?.(id)}
+              onApplyAirway={(id, a, by) => onApplyAirway?.(id, a, by)}
+              onApplyBreathing={(id, a, by) => onApplyBreathing?.(id, a, by)}
+              onApplyCirculation={(id, a, by) =>
+                onApplyCirculation?.(id, a, by)
+              }
+              onAdministerDrug={(id, d, by) => onAdministerDrug?.(id, d, by)}
+              onApplyPackaging={(id, a, by) => onApplyPackaging?.(id, a, by)}
+              onRequestClinician={(s, id) => onRequestClinician?.(s, id)}
+              hemsFlyable={hemsFlyable}
+              onSetDestination={(id, type, name) =>
+                onSetTreatmentDestination?.(id, type, name)
+              }
+              onSendAtmist={(id) => onSendAtmistPrealert?.(id)}
+              onConveyVia={(applianceId, casualtyId) =>
+                onConveyCasualtyVia?.(applianceId, casualtyId)
+              }
+              onClose={() =>
+                setOpenTreatmentIds((prev) => prev.filter((x) => x !== openId))
+              }
+            />,
+            document.body,
+            `treatment-${openId}`,
+          );
+        })}
     </div>
   );
 }

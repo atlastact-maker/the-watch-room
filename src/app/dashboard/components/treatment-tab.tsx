@@ -302,11 +302,17 @@ export function TreatmentTab({
     );
   }
 
-  // Scope + paired chip list derived from paired deployments.
+  // Scope + paired chip list derived from paired deployments. Conveyance
+  // needs a stretcher: only a DCA (box-body ambulance) or the air
+  // ambulance can carry the patient — an RRV or critical-care car brings
+  // the clinician, not the ride.
   const paired = pairedDeployments.map(({ appliance, deployment }) => ({
     applianceId: deployment.applianceId,
     callsign: appliance.callsign,
     scope: scopeOfDeployment(deployment),
+    canConvey:
+      appliance.type === "DCA" ||
+      (appliance.type === "HEMS" && hemsFlyable !== false),
   }));
   const scope: ClinicianScope = paired.length === 0
     ? "none"
@@ -652,33 +658,54 @@ export function TreatmentTab({
         </Section>
       )}
 
-      {/* ---- Conveyance picker ---- */}
+      {/* ---- Conveyance picker — stretcher-capable units only ---- */}
       {surveyDone && treatment.atmistSentAt && !conveying && (
         <Section title="Convey via">
-          {paired.filter((p) => p.scope !== "none").length === 0 ? (
+          {paired.filter((p) => p.canConvey).length === 0 ? (
             <p className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-              No conveying unit paired. Pair a DCA (or higher) to carry this patient.
+              No stretcher unit paired. Only a DCA — or the air ambulance —
+              can convey; RRVs and cars stay on scene. Pair a DCA to carry
+              this patient.
             </p>
           ) : (
             <div className="space-y-1">
-              {paired.map((p) => (
-                <button
-                  key={p.applianceId}
-                  type="button"
-                  onClick={() => onConveyVia?.(p.applianceId, casualtyId)}
-                  className="flex w-full items-center justify-between gap-2 rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-2 py-1.5 text-left text-(--color-info) hover:bg-(--color-info)/20"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-mono text-[12px]">{p.callsign}</span>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                      {SCOPE_LABEL[p.scope]}
+              {paired.map((p) =>
+                p.canConvey ? (
+                  <button
+                    key={p.applianceId}
+                    type="button"
+                    onClick={() => onConveyVia?.(p.applianceId, casualtyId)}
+                    className="flex w-full items-center justify-between gap-2 rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-2 py-1.5 text-left text-(--color-info) hover:bg-(--color-info)/20"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-mono text-[12px]">{p.callsign}</span>
+                      <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                        {SCOPE_LABEL[p.scope]}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[9px] uppercase tracking-widest">
+                      Convey
+                    </span>
+                  </button>
+                ) : (
+                  <div
+                    key={p.applianceId}
+                    className="flex w-full items-center justify-between gap-2 rounded-sm border border-(--color-border-subtle) px-2 py-1.5 opacity-60"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-mono text-[12px] text-(--color-text-dim)">
+                        {p.callsign}
+                      </span>
+                      <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-muted)">
+                        {SCOPE_LABEL[p.scope]}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-muted)">
+                      No stretcher
                     </span>
                   </div>
-                  <span className="font-mono text-[9px] uppercase tracking-widest">
-                    Convey
-                  </span>
-                </button>
-              ))}
+                ),
+              )}
               <p className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
                 Clinician stays with patient to hospital. Other paired units are released.
               </p>
