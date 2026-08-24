@@ -687,7 +687,9 @@ export type TaskKind =
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
   // BA follow-on
-  | "extract_casualty";   // timed — move a located casualty to safe ground
+  | "extract_casualty"    // timed — move a located casualty to safe ground
+  // Crash Recovery System
+  | "crs_action";         // timed — a make-safe action from the MDT CRS tab
 
 export type HoseType = "45mm" | "70mm" | "LDH_150mm";
 export type KitKind = "aed" | "first_aid" | "trauma" | "extinguisher";
@@ -712,6 +714,25 @@ export type CrsComponentKind =
   | "gas_strut"
   | "reinforcement";
 
+/** A make-safe action the operator can run from the CRS tab. Becomes a
+ *  real `crs_action` task: crew assigned, timed, logged on completion.
+ *  Two components may share an action id (e.g. a pair of gas struts) —
+ *  one task completes both glyphs. */
+export type CrsAction = {
+  id: string;             // stable within the vehicle, e.g. "isolate-12v"
+  label: string;          // "Isolate 12V battery"
+  detail?: string;        // one-liner shown under the label
+  durationSec: number;
+  minCrew: number;
+  requiredEquipment?: CrewEquipment[];
+  /** Counts toward "vehicle made safe" — completing every critical action
+   *  across the CRS vehicles unlocks a faster, controlled extrication. */
+  critical?: boolean;
+  /** Log line when the task completes — author it self-contained
+   *  (include the VRM), it lands in the incident log verbatim. */
+  done: string;
+};
+
 /** One safety-critical component on the schematic. Coordinates are
  *  percentages of the schematic canvas (0–100 across, 0–200 down,
  *  vehicle drawn nose-up). */
@@ -722,6 +743,9 @@ export type CrsComponent = {
   y: number;
   w?: number;
   h?: number;
+  /** Present when crews can act on this component (isolate / contain /
+   *  restrain). Absent = information only (avoid, keep clear). */
+  action?: CrsAction;
 };
 
 export type CrsVehicle = {
@@ -735,6 +759,9 @@ export type CrsVehicle = {
   /** Safety-critical guidance lines shown beside the schematic. */
   notes: string[];
   components: CrsComponent[];
+  /** Whole-vehicle actions (stabilisation, glass management) that aren't
+   *  tied to one schematic component. */
+  actions?: CrsAction[];
 };
 
 export type DoorType =
@@ -959,6 +986,15 @@ export type Task = {
   /** Road bearing at the closure point (compass degrees) — the cone
    *  line renders perpendicular to this. */
   closureBearingDeg?: number;
+  // ---- Crash Recovery System (crs_action only) ---------------------------
+  /** Which CRS vehicle + action this task executes. Component status on
+   *  the CRS schematic is derived from tasks matching these ids. */
+  crsVehicleId?: string;
+  crsActionId?: string;
+  /** Snapshot of the action's label/done-line at start time, so the task
+   *  list and completion log read correctly without a scenario lookup. */
+  crsLabel?: string;
+  crsDoneMessage?: string;
   // ---- BA Entry Control Board (ba_sar only) ------------------------------
   /** Entry-point label, e.g. "EP1" / "Front door" / "Stairwell A". */
   entryPoint?: string;
@@ -1007,6 +1043,7 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   scene_preservation: 1,
   triage_sieve: 1,
   extract_casualty: 2,
+  crs_action: 1, // per-action minimums come from the CrsAction itself
 };
 
 /** Which service(s) may perform this task kind. `commander` and `survey` are
@@ -1039,6 +1076,7 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   scene_preservation: ["Police"],
   triage_sieve: ["Ambulance"],
   extract_casualty: ["Fire"],
+  crs_action: ["Fire"],
 };
 
 /** BA Entry Control Board — working-duration table.

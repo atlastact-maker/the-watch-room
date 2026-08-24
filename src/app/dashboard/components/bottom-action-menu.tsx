@@ -85,6 +85,11 @@ export type StartTaskFn = (args: {
   entryTool?: EntryTool;
   closurePos?: { lat: number; lng: number };
   closureBearingDeg?: number;
+  crsVehicleId?: string;
+  crsActionId?: string;
+  crsDurationSec?: number;
+  crsLabel?: string;
+  crsDoneMessage?: string;
 }) => void;
 
 type Tab = "vehicle" | "crew" | "water" | "treatment" | "actions";
@@ -1692,7 +1697,7 @@ function ActionsTab({
                 className="flex items-center justify-between gap-2 rounded-sm border border-(--color-border-subtle) bg-(--color-surface-raised) px-2 py-1.5"
               >
                 <span className="font-mono text-[11px] text-(--color-text)">
-                  {taskShortLabel(t.kind)}
+                  {t.crsLabel ?? taskShortLabel(t.kind)}
                   {t.hydrantId ? ` · ${t.hydrantId}` : ""}
                 </span>
                 <button
@@ -2216,7 +2221,7 @@ function ActionsTab({
 // Inline crew picker shared by Water + Actions tabs
 // ---------------------------------------------------------------------------
 
-function CrewPickerInline({
+export function CrewPickerInline({
   appliance,
   deployment,
   minCrew,
@@ -2662,6 +2667,8 @@ function taskShortLabel(k: TaskKind): string {
       return "Triage";
     case "extract_casualty":
       return "Extract";
+    case "crs_action":
+      return "CRS Action";
   }
 }
 

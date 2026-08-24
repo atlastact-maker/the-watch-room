@@ -1948,6 +1948,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             kind: "hazard_mitigated",
             message: `Hazard mitigated · ${t.hazardId}`,
           });
+        } else if (t.kind === "crs_action") {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: t.crsDoneMessage ?? `${applianceLabel(t.applianceId)} — ${t.crsLabel ?? "CRS action"} complete`,
+          });
         } else {
           toAppend.push({
             id,
@@ -2570,14 +2577,45 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     entryTool?: import("@/lib/sim/incident_types").EntryTool;
     closurePos?: { lat: number; lng: number };
     closureBearingDeg?: number;
+    crsVehicleId?: string;
+    crsActionId?: string;
+    crsDurationSec?: number;
+    crsLabel?: string;
+    crsDoneMessage?: string;
   }) {
     const startedAt = Date.now();
     // Realistic per-task timings. Forcible entry gets its duration from
     // the tool-vs-door matrix instead of the generic roll.
-    const durationSec =
+    let durationSec =
       args.kind === "gain_entry" && args.entryTool && activeIncident
         ? ENTRY_TABLE[args.entryTool][doorTypeForScenario(activeIncident.scenario)].sec
         : taskDurationSecFor(args);
+    // CRS payoff: an extrication on vehicles that have been made safe
+    // (every critical CRS action complete) runs controlled and faster;
+    // cutting with safety actions outstanding stays at the full duration
+    // and gets called out in the log.
+    let crsOutstanding: string[] | null = null;
+    if (args.kind === "rtc_extrication" && activeIncident?.scenario.crs?.length) {
+      const critical = activeIncident.scenario.crs.flatMap((v) => [
+        ...(v.actions ?? []).filter((a) => a.critical).map((a) => ({ v, a })),
+        ...v.components
+          .map((c) => c.action)
+          .filter((a): a is NonNullable<typeof a> => !!a && !!a.critical)
+          .map((a) => ({ v, a })),
+      ]);
+      const doneIds = new Set(
+        tasks
+          .filter((t) => t.kind === "crs_action" && t.state === "completed")
+          .map((t) => `${t.crsVehicleId}:${t.crsActionId}`),
+      );
+      const outstanding = critical.filter(({ v, a }) => !doneIds.has(`${v.id}:${a.id}`));
+      if (outstanding.length === 0) {
+        durationSec = durationSec ? Math.round(durationSec * 0.75) : durationSec;
+        crsOutstanding = [];
+      } else {
+        crsOutstanding = [...new Set(outstanding.map(({ a }) => a.label))];
+      }
+    }
     const task: Task = {
       id: `${args.applianceId}:${args.kind}:${startedAt}`,
       applianceId: args.applianceId,
@@ -2600,8 +2638,44 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       entryTool: args.entryTool,
       closurePos: args.closurePos,
       closureBearingDeg: args.closureBearingDeg,
+      crsVehicleId: args.crsVehicleId,
+      crsActionId: args.crsActionId,
+      crsLabel: args.crsLabel,
+      crsDoneMessage: args.crsDoneMessage,
     };
     setTasks((prev) => [...prev, task]);
+
+    if (args.kind === "crs_action") {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `crs:${startedAt}`,
+          timestamp: startedAt,
+          kind: "task_started",
+          message: `${applianceLabel(args.applianceId)} — ${args.crsLabel ?? "CRS action"} underway`,
+        },
+      ]);
+    }
+
+    if (args.kind === "rtc_extrication" && crsOutstanding !== null) {
+      setLog((prev) => [
+        ...prev,
+        crsOutstanding.length === 0
+          ? {
+              id: `crssafe:${startedAt}`,
+              timestamp: startedAt,
+              kind: "task_started",
+              message:
+                "Vehicles made safe per CRS — controlled extrication, cutting time reduced",
+            }
+          : {
+              id: `crsrisk:${startedAt}`,
+              timestamp: startedAt,
+              kind: "setback",
+              message: `Cutting commenced with CRS actions outstanding: ${crsOutstanding.join(", ")}`,
+            },
+      ]);
+    }
 
     if (args.kind === "gain_entry" && args.entryTool) {
       setLog((prev) => [
@@ -3230,6 +3304,7 @@ function taskDurationSecFor(args: {
   kind: TaskKind;
   hazardId?: string;
   mitigationMethod?: string;
+  crsDurationSec?: number;
 }): number | undefined {
   switch (args.kind) {
     case "survey":
@@ -3289,6 +3364,8 @@ function taskDurationSecFor(args: {
     case "traffic_mgmt":
     case "scene_preservation":
       return undefined; // ongoing (no auto-completion)
+    case "crs_action":
+      return args.crsDurationSec ?? 120; // authored per-action on the datasheet
   }
 }
 
@@ -3320,6 +3397,7 @@ function taskLabel(kind: TaskKind): string {
     case "scene_preservation": return "Scene preservation";
     case "triage_sieve": return "Triage sieve";
     case "extract_casualty": return "Extract casualty";
+    case "crs_action": return "CRS action";
   }
 }
 

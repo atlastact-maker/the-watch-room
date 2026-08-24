@@ -791,7 +791,14 @@ export function DraggableIncidentMdt({
             )}
 
             {tab === "crs" && !resolved && incident.scenario.crs && (
-              <CrsPanel vehicles={incident.scenario.crs} />
+              <CrsPanel
+                vehicles={incident.scenario.crs}
+                onScene={onSceneList.filter((r) => r.appliance.service === "Fire")}
+                tasks={tasks}
+                busyCrewIds={busyCrewIds}
+                now={now}
+                onStartTask={onStartTask}
+              />
             )}
 
             {tab === "pri" && !resolved && (

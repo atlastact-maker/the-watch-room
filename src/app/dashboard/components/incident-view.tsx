@@ -1675,7 +1675,7 @@ export function ActiveTaskRow({
           {task.applianceId.replace("-", " ")}
         </span>
         <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-          {taskLabelShort(task.kind)}
+          {task.crsLabel ?? taskLabelShort(task.kind)}
         </span>
       </div>
       {pct !== null && (
@@ -2311,6 +2311,7 @@ function taskLabelShort(kind: TaskKind): string {
     case "scene_preservation": return "Scene Preserve";
     case "triage_sieve": return "Triage";
     case "extract_casualty": return "Extract";
+    case "crs_action": return "CRS Action";
   }
 }
 
