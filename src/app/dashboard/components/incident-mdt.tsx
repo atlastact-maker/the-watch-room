@@ -30,6 +30,7 @@ import {
 } from "./incident-view";
 import { BaControlBoard } from "./ba-control-board";
 import { BottomActionMenu } from "./bottom-action-menu";
+import { CrsPanel } from "./crs-panel";
 import { DeploymentBoard, type Eta } from "./deployment-board";
 import type { AreaCode } from "@/lib/sim/types";
 
@@ -185,6 +186,7 @@ type TabKey =
   | "resourcing"
   | "property"
   | "view"
+  | "crs"
   | "pri"
   | "targets"
   | "hazards"
@@ -344,6 +346,9 @@ export function DraggableIncidentMdt({
         },
         { key: "property", label: "Property" },
         { key: "view", label: "Prop View" },
+        ...((incident.scenario.crs?.length ?? 0) > 0
+          ? ([{ key: "crs", label: "CRS" }] as { key: TabKey; label: string }[])
+          : []),
         { key: "pri", label: "PRI" },
         { key: "targets", label: "Targets" },
         ...(sim
@@ -783,6 +788,10 @@ export function DraggableIncidentMdt({
                   {sc.location.address}
                 </div>
               </div>
+            )}
+
+            {tab === "crs" && !resolved && incident.scenario.crs && (
+              <CrsPanel vehicles={incident.scenario.crs} />
             )}
 
             {tab === "pri" && !resolved && (

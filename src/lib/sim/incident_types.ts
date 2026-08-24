@@ -228,6 +228,13 @@ export type Scenario = {
    *  placeholder when the ground view is opened. */
   scene?: Scene;
 
+  /** Crash Recovery System datasheets — present on vehicle-based
+   *  scenarios (RTCs). Mirrors the Moditech CRS crews use on real MDTs:
+   *  a top-down schematic per involved vehicle with safety-critical
+   *  components (batteries, SRS, fuel, reinforcements) and cutting
+   *  guidance. The MDT shows a CRS tab whenever this is authored. */
+  crs?: CrsVehicle[];
+
   /** Optional call-handler → informant script. Each entry is a message the
    *  999 informant (the caller) passes to the operator while crews are en
    *  route. The informant "hangs up" once the first crew lands on scene.
@@ -690,6 +697,46 @@ export type KitKind = "aed" | "first_aid" | "trauma" | "extinguisher";
 // ---------------------------------------------------------------------------
 
 /** Front-door construction classes common on UK premises. */
+// ---------------------------------------------------------------------------
+// Crash Recovery System (CRS) — per-vehicle rescue datasheets for RTCs
+// ---------------------------------------------------------------------------
+
+export type CrsComponentKind =
+  | "battery_12v"
+  | "battery_hv"
+  | "airbag"
+  | "curtain_airbag"
+  | "srs_unit"
+  | "pretensioner"
+  | "fuel_tank"
+  | "gas_strut"
+  | "reinforcement";
+
+/** One safety-critical component on the schematic. Coordinates are
+ *  percentages of the schematic canvas (0–100 across, 0–200 down,
+ *  vehicle drawn nose-up). */
+export type CrsComponent = {
+  kind: CrsComponentKind;
+  label: string;
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+};
+
+export type CrsVehicle = {
+  id: string;
+  make: string;
+  model: string;
+  years: string;
+  vrm: string;
+  fuel: "petrol" | "diesel" | "hybrid" | "phev" | "bev";
+  body: "car" | "van";
+  /** Safety-critical guidance lines shown beside the schematic. */
+  notes: string[];
+  components: CrsComponent[];
+};
+
 export type DoorType =
   | "timber"          // traditional timber door, rim/mortice lock
   | "upvc"            // uPVC multi-point with euro cylinder — most UK dwellings

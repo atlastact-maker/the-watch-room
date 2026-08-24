@@ -69,6 +69,92 @@ export const scenario03: Scenario = {
     emergencyServices: "Fire, ambulance, police (Roads Policing) all required",
   },
 
+  // Crash Recovery System datasheets — the three involved vehicles.
+  // Component positions are schematic percentages (nose-up); guidance
+  // follows real CRS conventions (isolation points, SRS hazards,
+  // ultra-high-strength steel cutting restrictions).
+  crs: [
+    {
+      id: "veh-transit",
+      make: "Ford",
+      model: "Transit 350 L3",
+      years: "2019–2024",
+      vrm: "BN69 KVD",
+      fuel: "diesel",
+      body: "van",
+      notes: [
+        "12V battery beneath the DRIVER'S SEAT — isolation is restricted while the driver is trapped; cut both leads as soon as access allows",
+        "Diesel tank ruptured in this collision — foam blanket and containment before any cutting or sharp work",
+        "Steering-column entrapment: column relocation with a ram footed on the A-pillar base, not dash roll alone",
+        "Conventional diesel — no high-voltage system on board",
+      ],
+      components: [
+        // RHD — driver's side is the right of the nose-up schematic.
+        { kind: "battery_12v", label: "12V under driver's seat", x: 68, y: 92 },
+        { kind: "airbag", label: "Driver airbag", x: 68, y: 72 },
+        { kind: "airbag", label: "Passenger airbag", x: 32, y: 72 },
+        { kind: "pretensioner", label: "Pretensioner", x: 16, y: 84 },
+        { kind: "pretensioner", label: "Pretensioner", x: 84, y: 84 },
+        { kind: "srs_unit", label: "SRS control unit", x: 50, y: 80 },
+        { kind: "fuel_tank", label: "Diesel tank (ruptured)", x: 60, y: 128, w: 24, h: 34 },
+      ],
+    },
+    {
+      id: "veh-ceed",
+      make: "Kia",
+      model: "Ceed 1.4 T-GDi",
+      years: "2018–2023",
+      vrm: "MT68 XRF",
+      fuel: "petrol",
+      body: "car",
+      notes: [
+        "Hot-formed ultra-high-strength steel at the B-pillar root — cut HIGH or LOW, never mid-pillar",
+        "Curtain airbag inflators in both C-pillars — strip the trim before any roof cut",
+        "12V battery nearside engine bay; single isolation point",
+        "Petrol tank under the rear bench — no cutting below the rear doors",
+      ],
+      components: [
+        { kind: "battery_12v", label: "12V battery", x: 32, y: 26 },
+        { kind: "airbag", label: "Driver airbag", x: 66, y: 84 },
+        { kind: "airbag", label: "Passenger airbag", x: 34, y: 84 },
+        { kind: "curtain_airbag", label: "Curtain airbag", x: 12, y: 74, h: 62 },
+        { kind: "curtain_airbag", label: "Curtain airbag", x: 88, y: 74, h: 62 },
+        { kind: "srs_unit", label: "SRS control unit", x: 50, y: 102 },
+        { kind: "pretensioner", label: "Pretensioner", x: 16, y: 112 },
+        { kind: "pretensioner", label: "Pretensioner", x: 84, y: 112 },
+        { kind: "reinforcement", label: "UHSS B-pillar", x: 10, y: 92, w: 6, h: 40 },
+        { kind: "reinforcement", label: "UHSS B-pillar", x: 84, y: 92, w: 6, h: 40 },
+        { kind: "fuel_tank", label: "Petrol tank", x: 50, y: 140, w: 32, h: 18 },
+      ],
+    },
+    {
+      id: "veh-polo",
+      make: "Volkswagen",
+      model: "Polo 1.0 TSI",
+      years: "2018–2024",
+      vrm: "DK20 HZE",
+      fuel: "petrol",
+      body: "car",
+      notes: [
+        "Driver out and walking — vehicle secondary; confirm ignition off and handbrake applied",
+        "Undeployed passenger and curtain airbags — maintain clearance from deployment zones",
+        "12V battery nearside engine bay",
+        "Tailgate gas struts — restrain before cutting rearward",
+      ],
+      components: [
+        { kind: "battery_12v", label: "12V battery", x: 34, y: 28 },
+        { kind: "airbag", label: "Driver airbag", x: 65, y: 86 },
+        { kind: "airbag", label: "Passenger airbag", x: 35, y: 86 },
+        { kind: "curtain_airbag", label: "Curtain airbag", x: 12, y: 76, h: 56 },
+        { kind: "curtain_airbag", label: "Curtain airbag", x: 88, y: 76, h: 56 },
+        { kind: "srs_unit", label: "SRS control unit", x: 50, y: 100 },
+        { kind: "fuel_tank", label: "Petrol tank", x: 50, y: 136, w: 30, h: 16 },
+        { kind: "gas_strut", label: "Tailgate struts", x: 22, y: 172 },
+        { kind: "gas_strut", label: "Tailgate struts", x: 78, y: 172 },
+      ],
+    },
+  ],
+
   pda: [
     {
       id: "pump1",
