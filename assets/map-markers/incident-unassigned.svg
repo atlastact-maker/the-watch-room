@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 66" width="80" height="66">
+
+<circle class="mk-999" cx="40" cy="40" r="6" fill="none" stroke="#dc2626" stroke-width="2.5"></circle>
+<g class="mk-inc">
+<path d="M40 16 L58 48 L22 48 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5"></path>
+<text x="40" y="43" text-anchor="middle" font-family="ui-monospace, monospace" font-size="18" font-weight="700" fill="#ffffff">!</text>
+</g>
+</svg>

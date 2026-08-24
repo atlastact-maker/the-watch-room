@@ -14,7 +14,13 @@ import {
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
 import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
-import { VEHICLE_SPRITES, spriteKeyForType, type VehicleSpriteKey } from "./vehicle-sprites";
+import {
+  chipServiceColour,
+  incidentMarkerSvg,
+  unitChipSvg,
+  type ChipOpts,
+  type IncidentMarkerKind,
+} from "./map-markers";
 import type { StationWithAppliances } from "../page";
 
 // Service identity colours — fire engines are red, ambulances green,
@@ -45,221 +51,54 @@ const STANDDOWN_COLOUR = "#eab308";
  * can see at a glance which entries the research data hasn't fully
  * verified yet.
  */
-function stationIcon(service: ServiceCode, approximate?: boolean): L.DivIcon {
-  const c = SERVICE_COLOUR[service];
-  const stroke = approximate
-    ? `border: 1.5px dashed rgba(255,255,255,0.85);`
-    : `border: 1.5px solid rgba(255,255,255,0.85);`;
-  const glyph =
-    service === "Fire"
-      ? maltesCrossSvg()
-      : service === "Ambulance"
-        ? starOfLifeSvg()
-        : battenbergSvg();
+function chipIcon(opts: ChipOpts): L.DivIcon {
   return L.divIcon({
     className: "",
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -12],
-    html: `
-      <div style="
-        width: 22px;
-        height: 22px;
-        border-radius: 4px;
-        background: ${c};
-        ${stroke}
-        box-shadow: 0 1px 2px rgba(0,0,0,0.6), 0 0 0 2px rgba(0,0,0,0.35);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-      ">
-        ${glyph}
-      </div>
-    `,
+    iconSize: [80, 66],
+    iconAnchor: [40, 58],
+    popupAnchor: [0, -46],
+    html: unitChipSvg(opts),
   });
 }
 
-/** Eight-pointed Maltese cross — universal international fire-service
- *  emblem. Rendered in white on the red plaque. */
-function maltesCrossSvg(): string {
-  return `
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-      <path
-        d="M12 2 L14 8 L20 6 L18 12 L22 14 L16 16 L18 22 L12 20 L6 22 L8 16 L2 14 L6 12 L4 6 L10 8 Z"
-        fill="#ffffff" stroke="#00000022" stroke-width="0.4" stroke-linejoin="round"
-      />
-    </svg>`;
+/** Station chip — the station id as the callsign, roundel 6 while any
+ *  appliance is ready (0 dims the chip otherwise), ×N for multi-bay
+ *  stations, service colour on the border per the marker pack. */
+function stationIcon(
+  service: ServiceCode,
+  stationId: string,
+  applianceCount: number,
+  anyAvailable: boolean,
+): L.DivIcon {
+  return chipIcon({
+    callsign: stationId,
+    status: anyAvailable ? "available" : "offRun",
+    serviceColour: chipServiceColour(service),
+    dimmed: !anyAvailable,
+    cluster: applianceCount,
+  });
 }
 
-/** Star of Life — international symbol for emergency medical services.
- *  Six-pointed star with the Rod of Asclepius (snake on a staff) at its
- *  centre. Simplified to the six points + cross for legibility at 14px. */
-function starOfLifeSvg(): string {
-  return `
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-      <g stroke="#ffffff" stroke-width="3" stroke-linecap="round" fill="none">
-        <line x1="12" y1="3" x2="12" y2="21"/>
-        <line x1="4"  y1="7.5" x2="20" y2="16.5"/>
-        <line x1="4"  y1="16.5" x2="20" y2="7.5"/>
-      </g>
-      <circle cx="12" cy="12" r="2" fill="#ffffff"/>
-    </svg>`;
-}
-
-/** UK police Battenberg chequer pattern — two rows of blue/white squares,
- *  the livery markings on UK police vehicles and signage. Legible at 14px
- *  as a compact band with a police "P" centred. */
-function battenbergSvg(): string {
-  // 6×2 chequer in white-on-transparent so the plaque's blue shows
-  // through the clear squares, giving the classic two-tone look.
-  const cells: string[] = [];
-  for (let row = 0; row < 2; row++) {
-    for (let col = 0; col < 6; col++) {
-      const alt = (row + col) % 2 === 0;
-      if (!alt) continue;
-      const x = col * 4;
-      const y = 6 + row * 4;
-      cells.push(
-        `<rect x="${x}" y="${y}" width="4" height="4" fill="#ffffff"/>`,
-      );
-    }
-  }
-  return `
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-      ${cells.join("")}
-    </svg>`;
-}
-
-const incidentIcon = L.divIcon({
-  className: "",
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-  popupAnchor: [0, -10],
-  html: `
-    <div style="position: relative; width: 28px; height: 28px;">
-      <div style="
-        position: absolute; inset: 0;
-        border-radius: 50%;
-        background: rgba(239,68,68,0.25);
-        animation: incident-pulse 1.4s ease-out infinite;
-      "></div>
-      <div style="
-        position: absolute; left: 8px; top: 8px;
-        width: 12px; height: 12px;
-        border-radius: 50%;
-        background: #ef4444;
-        box-shadow: 0 0 0 2px rgba(239,68,68,0.4), 0 0 0 4px rgba(0,0,0,0.55);
-      "></div>
-    </div>
-    <style>
-      @keyframes incident-pulse {
-        0% { transform: scale(0.6); opacity: 0.9; }
-        100% { transform: scale(1.8); opacity: 0; }
-      }
-    </style>
-  `,
-});
-
-/** Fixed on-screen heights for mover sprites at area-view zooms —
- *  readable silhouettes, not ground-truth scale. */
-const AREA_SPRITE_H: Record<VehicleSpriteKey, number> = {
-  pump: 34,
-  alp: 38,
-  tru: 36,
-  truvan: 30,
-  pm: 36,
-  hll: 36,
-  decon: 36,
-  pol_estate: 25,
-  pol_rpu: 25,
-  pol_arv: 26,
-  pol_unm_saloon: 25,
-  pol_unm: 25,
-  bay_pump: 34,
-  bay_alp: 38,
-};
-
+/** Mover chip — status roundel per phase, heading arrow + pulsing 999
+ *  ring while blue-lighting, dashed ring when selected. */
 export function movingIcon(
   callsign: string,
   service: ServiceCode,
-  phase: "responding" | "standdown" = "responding",
+  phase: "outbound" | "hospital_leg" | "at_hospital" | "return",
   applianceType?: ApplianceTypeCode,
-  bearingDeg = 0,
+  bearingDeg?: number,
+  selected = false,
 ): L.DivIcon {
-  // Responding units run their blues (LED fittings on the sprite art);
-  // returning / offloading units show steady yellow on the label.
-  const colour = phase === "standdown" ? STANDDOWN_COLOUR : SERVICE_COLOUR[service];
-  const glow = `${colour}88`;
-  const spriteKey = applianceType ? spriteKeyForType(applianceType) : null;
-  const sprite = spriteKey ? VEHICLE_SPRITES[spriteKey] : null;
-  const isHeli = applianceType === "HEMS" || applianceType === "Police_NPAS";
-
-  let bodyHtml: string;
-  let labelLeft: number;
-  if (sprite && spriteKey) {
-    const h = AREA_SPRITE_H[spriteKey];
-    const w = Math.round(h * (sprite.w / sprite.h));
-    bodyHtml = `
-        <div class="veh ${phase === "responding" ? "ls-999" : "ls-off"}" style="
-          position: absolute; left: ${-w / 2}px; top: ${-h / 2}px;
-          width: ${w}px; height: ${h}px;
-          transform: rotate(${Math.round(bearingDeg)}deg); transform-origin: center;
-          filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
-        ">${sprite.svg}</div>`;
-    labelLeft = Math.max(12, Math.ceil(w / 2) + 6);
-  } else if (isHeli) {
-    bodyHtml = `
-        <div style="
-          position: absolute; left: -20px; top: -25px; width: 40px; height: 50px;
-          transform: rotate(${Math.round(bearingDeg)}deg); transform-origin: center;
-          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7));
-        "><img src="/appliances/hems-h145.svg" alt="" style="display:block;width:100%;height:100%;" /></div>`;
-    labelLeft = 24;
-  } else {
-    const anim =
-      phase === "responding"
-        ? "animation: mover-flash 0.8s steps(2, start) infinite;"
-        : "";
-    bodyHtml = `
-        <div style="
-          position: absolute; left: -5px; top: -5px;
-          width: 10px; height: 10px; border-radius: 50%;
-          background: ${colour};
-          box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 0 8px ${glow};
-          ${anim}
-        "></div>`;
-    labelLeft = 10;
-  }
-
-  return L.divIcon({
-    className: "",
-    iconSize: [10, 10],
-    iconAnchor: [5, 5],
-    popupAnchor: [0, -6],
-    html: `
-      <div style="position: relative;">
-        ${bodyHtml}
-        <div style="
-          position: absolute; left: ${labelLeft}px; top: -8px;
-          padding: 2px 5px;
-          background: rgba(10,10,12,0.92);
-          border: 1px solid ${colour};
-          border-radius: 2px;
-          font-family: var(--font-geist-mono), ui-monospace, monospace;
-          font-size: 10px; line-height: 1;
-          color: ${colour};
-          letter-spacing: 0.04em;
-          white-space: nowrap;
-        ">${callsign}</div>
-      </div>
-      <style>
-        @keyframes mover-flash {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.25; }
-        }
-      </style>
-    `,
+  const status =
+    phase === "at_hospital" ? "attendance" : phase === "return" ? "returning" : "mobile";
+  const responding = phase === "outbound" || phase === "hospital_leg";
+  return chipIcon({
+    callsign,
+    status,
+    serviceColour: chipServiceColour(service, applianceType),
+    bearingDeg: responding ? bearingDeg : undefined,
+    ring999: responding,
+    selected,
   });
 }
 
@@ -329,6 +168,7 @@ type Props = {
   deployments: Deployment[];
   patch: AreaCode | null;
   onSelectAppliance: (applianceId: string) => void;
+  selectedApplianceId?: string | null;
   /** Opens the top-down appliance-bay view for a fire station. */
   onOpenStationBays?: (stationId: string) => void;
 };
@@ -339,6 +179,7 @@ export function LeafletMap({
   deployments,
   patch,
   onSelectAppliance,
+  selectedApplianceId,
   onOpenStationBays,
 }: Props) {
   // Internal high-frequency clock so ghost-movers animate smoothly between
@@ -624,7 +465,12 @@ export function LeafletMap({
           <Marker
             key={s.id}
             position={[s.coords.lat, s.coords.lng]}
-            icon={stationIcon(s.service, s.coordsApproximate)}
+            icon={stationIcon(
+              s.service,
+              s.id,
+              s.appliances.length,
+              s.appliances.some((a) => a.status === 7),
+            )}
           >
             <Popup>
               <div
@@ -704,7 +550,16 @@ export function LeafletMap({
         <Marker
           key={`${m.key}-mover`}
           position={m.currentCoords}
-          icon={movingIcon(m.callsign, m.service, mapPhaseToIconPhase(m.phase))}
+          icon={movingIcon(
+            m.callsign,
+            m.service,
+            m.phase,
+            m.applianceType,
+            m.routeCoords && (m.phase === "outbound" || m.phase === "hospital_leg")
+              ? routeBearingAt(m.routeCoords, m.t)
+              : undefined,
+            selectedApplianceId === m.applianceId,
+          )}
           eventHandlers={{ click: () => onSelectAppliance(m.applianceId) }}
         />
       ))}
@@ -716,7 +571,19 @@ export function LeafletMap({
             activeIncident.scenario.location.coords.lat,
             activeIncident.scenario.location.coords.lng,
           ]}
-          icon={incidentIcon}
+          icon={L.divIcon({
+            className: "",
+            iconSize: [80, 66],
+            iconAnchor: [40, 48],
+            popupAnchor: [0, -36],
+            html: incidentMarkerSvg(
+              (activeIncident.resolvedAt
+                ? "closed"
+                : deployments.length > 0
+                  ? "assigned"
+                  : "unassigned") as IncidentMarkerKind,
+            ),
+          })}
         >
           <Popup>
             <div
@@ -773,10 +640,3 @@ export function LeafletMap({
   );
 }
 
-function mapPhaseToIconPhase(
-  phase: "outbound" | "hospital_leg" | "at_hospital" | "return",
-): "responding" | "standdown" {
-  // Outbound + hospital legs are blue-light runs → flashing service
-  // colour. At-hospital and return legs are stood down → steady yellow.
-  return phase === "return" || phase === "at_hospital" ? "standdown" : "responding";
-}

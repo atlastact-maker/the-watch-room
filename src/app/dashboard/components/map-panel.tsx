@@ -21,6 +21,7 @@ export function EmbeddedMap({
   deployments,
   patch,
   onSelectAppliance,
+  selectedApplianceId,
   onOpenStationBays,
 }: {
   stations: StationWithAppliances[];
@@ -28,6 +29,7 @@ export function EmbeddedMap({
   deployments: Deployment[];
   patch: AreaCode | null;
   onSelectAppliance: (applianceId: string) => void;
+  selectedApplianceId?: string | null;
   onOpenStationBays?: (stationId: string) => void;
 }) {
   return (
@@ -38,6 +40,7 @@ export function EmbeddedMap({
         deployments={deployments}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
+        selectedApplianceId={selectedApplianceId}
         onOpenStationBays={onOpenStationBays}
       />
     </div>

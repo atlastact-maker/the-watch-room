@@ -2881,6 +2881,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           deployments={deployments}
           patch={patch ?? null}
           onSelectAppliance={setSelectedApplianceId}
+          selectedApplianceId={selectedApplianceId}
           onOpenStationBays={setBayStationId}
         />
         {/* Station bay view — top-down look inside a fire station. */}

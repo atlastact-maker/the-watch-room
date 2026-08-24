@@ -169,3 +169,22 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .veh .lt { animation: none !important; }
 }
+
+/* Dispatcher map markers (area view) — pulsing 999 ring + blinking
+   unassigned-incident triangle from the marker pack. */
+.mk-999 {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mk999-pulse 1.2s ease-out infinite;
+}
+@keyframes mk999-pulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.mk-inc {
+  animation: mkinc-blink 1s steps(2, start) infinite;
+}
+@keyframes mkinc-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
