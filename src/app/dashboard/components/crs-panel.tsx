@@ -562,6 +562,257 @@ function badgePos(c: CrsComponent): { x: number; y: number } {
   }
 }
 
+// Base vehicle artwork — Moditech-style cutaway top-downs: body contours,
+// lamps and glazing outside, roof removed over the cabin so the seats,
+// dash and steering wheel (RHD — right side) show through. Component
+// glyphs render on top of these layers.
+
+function BaseDefs({ p }: { p: string }) {
+  return (
+    <defs>
+      <linearGradient id={`${p}-body`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#ffffff" />
+        <stop offset="0.5" stopColor="#f1f5f9" />
+        <stop offset="1" stopColor="#e2e8f0" />
+      </linearGradient>
+      <linearGradient id={`${p}-glass`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#dbeafe" />
+        <stop offset="1" stopColor="#93c5fd" />
+      </linearGradient>
+    </defs>
+  );
+}
+
+/** Seat drawn nose-up: squab, then backrest and headrest behind (higher y). */
+function Seat({ x, y, w, squab, split }: { x: number; y: number; w: number; squab: number; split?: boolean }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={squab} rx={3} fill="#cbd5e1" stroke="#64748b" strokeWidth={0.8} />
+      {/* bolster stitches */}
+      <line x1={x + 2.5} y1={y + 2} x2={x + 2.5} y2={y + squab - 2} stroke="#94a3b8" strokeWidth={0.7} />
+      <line x1={x + w - 2.5} y1={y + 2} x2={x + w - 2.5} y2={y + squab - 2} stroke="#94a3b8" strokeWidth={0.7} />
+      {split && (
+        <line x1={x + w / 2} y1={y + 1} x2={x + w / 2} y2={y + squab + 5} stroke="#94a3b8" strokeWidth={0.8} />
+      )}
+      <rect x={x} y={y + squab} width={w} height={5} rx={2} fill="#94a3b8" stroke="#64748b" strokeWidth={0.7} />
+      {w <= 22 ? (
+        <rect x={x + w / 2 - 4} y={y + squab + 5} width={8} height={4} rx={2} fill="#64748b" />
+      ) : (
+        <>
+          <rect x={x + w * 0.22 - 4} y={y + squab + 5} width={8} height={4} rx={2} fill="#64748b" />
+          <rect x={x + w * 0.78 - 4} y={y + squab + 5} width={8} height={4} rx={2} fill="#64748b" />
+        </>
+      )}
+    </g>
+  );
+}
+
+function SteeringWheel({ cx, cy }: { cx: number; cy: number }) {
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={6} fill="none" stroke="#334155" strokeWidth={1.8} />
+      <line x1={cx - 5} y1={cy - 1.5} x2={cx + 5} y2={cy - 1.5} stroke="#334155" strokeWidth={1.1} />
+      <line x1={cx} y1={cy} x2={cx} y2={cy + 5} stroke="#334155" strokeWidth={1.1} />
+      <circle cx={cx} cy={cy} r={2} fill="#334155" />
+    </g>
+  );
+}
+
+function CarBase({ id }: { id: string }) {
+  const p = `cs-${id}`;
+  return (
+    <g>
+      <BaseDefs p={p} />
+      {/* ground shadow */}
+      <ellipse cx={50} cy={100} rx={42} ry={96} fill="#000000" opacity={0.07} />
+      {/* tyres */}
+      {[
+        [4, 36],
+        [84, 36],
+        [4, 146],
+        [84, 146],
+      ].map(([x, y], i) => (
+        <g key={i}>
+          <rect x={x} y={y} width={12} height={28} rx={3.5} fill="#27272a" />
+          <line x1={x + 6} y1={y + 4} x2={x + 6} y2={y + 24} stroke="#3f3f46" strokeWidth={2} />
+        </g>
+      ))}
+      {/* wing mirrors */}
+      <line x1={12} y1={52} x2={6} y2={55} stroke="#64748b" strokeWidth={1.4} />
+      <rect x={2} y={52.5} width={7} height={6.5} rx={2} fill="#e2e8f0" stroke="#64748b" strokeWidth={0.9} />
+      <line x1={88} y1={52} x2={94} y2={55} stroke="#64748b" strokeWidth={1.4} />
+      <rect x={91} y={52.5} width={7} height={6.5} rx={2} fill="#e2e8f0" stroke="#64748b" strokeWidth={0.9} />
+      {/* body shell */}
+      <path
+        d="M50 6 C34 6.5 24 9 19 16 C14 24 12 34 12 46 L12 138 C12 158 13 172 16 182 C20 191 32 194 50 194 C68 194 80 191 84 182 C87 172 88 158 88 138 L88 46 C88 34 86 24 81 16 C76 9 66 6.5 50 6 Z"
+        fill={`url(#${p}-body)`}
+        stroke="#52525b"
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      {/* wheel-arch shading */}
+      <path d="M12 40 Q17 50 12 64" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      <path d="M88 40 Q83 50 88 64" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      <path d="M12 146 Q17 156 12 170" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      <path d="M88 146 Q83 156 88 170" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      {/* headlamps + grille */}
+      <path d="M20 12 L34 9 L36 14.5 L23 19 Z" fill="#e0f2fe" stroke="#64748b" strokeWidth={0.8} />
+      <path d="M80 12 L66 9 L64 14.5 L77 19 Z" fill="#e0f2fe" stroke="#64748b" strokeWidth={0.8} />
+      <rect x={42} y={8.5} width={16} height={4} rx={2} fill="#cbd5e1" stroke="#64748b" strokeWidth={0.6} />
+      <circle cx={50} cy={10.5} r={1.6} fill="#94a3b8" />
+      {/* bonnet creases + shutline */}
+      <path d="M30 16 C28 26 27 34 26 43" fill="none" stroke="#cbd5e1" strokeWidth={1} />
+      <path d="M70 16 C72 26 73 34 74 43" fill="none" stroke="#cbd5e1" strokeWidth={1} />
+      <path d="M14 44 Q50 40 86 44" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      {/* windscreen */}
+      <path
+        d="M20 47 C32 44.5 68 44.5 80 47 L74 67 C62 64.5 38 64.5 26 67 Z"
+        fill={`url(#${p}-glass)`}
+        stroke="#60a5fa"
+        strokeWidth={1}
+      />
+      <path d="M30 63 Q42 58 46 51" fill="none" stroke="#bfdbfe" strokeWidth={1} opacity={0.9} />
+      <path d="M52 63 Q64 58 68 51" fill="none" stroke="#bfdbfe" strokeWidth={1} opacity={0.9} />
+      {/* cabin floor (roof removed — cutaway) */}
+      <rect x={16} y={68} width={68} height={80} rx={6} fill="#f1f5f9" />
+      {/* dash + binnacle */}
+      <path d="M24 70 L76 70 L74 77 L26 77 Z" fill="#94a3b8" />
+      <rect x={58} y={71} width={13} height={4.5} rx={1} fill="#64748b" />
+      {/* centre console + gear */}
+      <rect x={46} y={78} width={8} height={26} rx={2} fill="#cbd5e1" stroke="#94a3b8" strokeWidth={0.6} />
+      <circle cx={50} cy={95} r={1.8} fill="#64748b" />
+      {/* front seats — driver on the right (RHD) */}
+      <Seat x={28} y={86} w={16} squab={14} />
+      <Seat x={56} y={86} w={16} squab={14} />
+      <SteeringWheel cx={65} cy={82} />
+      {/* rear bench */}
+      <Seat x={27} y={116} w={46} squab={16} split />
+      {/* parcel shelf */}
+      <rect x={24} y={146} width={52} height={4} rx={1.5} fill="#e2e8f0" stroke="#cbd5e1" strokeWidth={0.6} />
+      {/* rear screen */}
+      <path
+        d="M26 151 C38 149 62 149 74 151 L80 164 C62 161 38 161 20 164 Z"
+        fill={`url(#${p}-glass)`}
+        stroke="#60a5fa"
+        strokeWidth={1}
+      />
+      <line x1={26} y1={155} x2={74} y2={155} stroke="#bfdbfe" strokeWidth={0.8} />
+      <line x1={24} y1={158.5} x2={76} y2={158.5} stroke="#bfdbfe" strokeWidth={0.8} />
+      {/* boot shutline + tail lamps */}
+      <path d="M20 167 Q50 171 80 167" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      <path d="M16 183 Q50 189 84 183" fill="none" stroke="#cbd5e1" strokeWidth={1} />
+      <path d="M15 176 L30 179.5 L29 184 L16 181.5 Z" fill="#fca5a5" stroke="#b91c1c" strokeWidth={0.6} />
+      <path d="M85 176 L70 179.5 L71 184 L84 181.5 Z" fill="#fca5a5" stroke="#b91c1c" strokeWidth={0.6} />
+      {/* roof side rails + headers framing the cutaway */}
+      <rect x={22} y={68} width={3.5} height={80} rx={1.7} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={0.7} />
+      <rect x={74.5} y={68} width={3.5} height={80} rx={1.7} fill="#e2e8f0" stroke="#94a3b8" strokeWidth={0.7} />
+      {/* door shutlines + handles */}
+      {[70, 108, 146].map((y) => (
+        <g key={y}>
+          <line x1={12} y1={y} x2={22} y2={y} stroke="#94a3b8" strokeWidth={0.8} />
+          <line x1={78} y1={y} x2={88} y2={y} stroke="#94a3b8" strokeWidth={0.8} />
+        </g>
+      ))}
+      {[86, 122].map((y) => (
+        <g key={y}>
+          <rect x={13} y={y} width={2.5} height={6} rx={1} fill="#64748b" />
+          <rect x={84.5} y={y} width={2.5} height={6} rx={1} fill="#64748b" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+function VanBase({ id }: { id: string }) {
+  const p = `cs-${id}`;
+  return (
+    <g>
+      <BaseDefs p={p} />
+      <ellipse cx={50} cy={100} rx={43} ry={97} fill="#000000" opacity={0.07} />
+      {/* tyres */}
+      {[
+        [4, 38],
+        [84, 38],
+        [4, 148],
+        [84, 148],
+      ].map(([x, y], i) => (
+        <g key={i}>
+          <rect x={x} y={y} width={12} height={28} rx={3.5} fill="#27272a" />
+          <line x1={x + 6} y1={y + 4} x2={x + 6} y2={y + 24} stroke="#3f3f46" strokeWidth={2} />
+        </g>
+      ))}
+      {/* van mirrors — long arms */}
+      <line x1={13} y1={40} x2={5} y2={44} stroke="#64748b" strokeWidth={1.4} />
+      <rect x={1.5} y={41.5} width={6} height={9} rx={1.5} fill="#e2e8f0" stroke="#64748b" strokeWidth={0.9} />
+      <line x1={87} y1={40} x2={95} y2={44} stroke="#64748b" strokeWidth={1.4} />
+      <rect x={92.5} y={41.5} width={6} height={9} rx={1.5} fill="#e2e8f0" stroke="#64748b" strokeWidth={0.9} />
+      {/* body shell — boxy */}
+      <path
+        d="M50 5 C36 5 26 7 21 12 C15 18 13 26 13 34 L12 44 L12 180 C12 187 15 191 22 192.5 C32 194 68 194 78 192.5 C85 191 88 187 88 180 L88 44 L87 34 C87 26 85 18 79 12 C74 7 64 5 50 5 Z"
+        fill={`url(#${p}-body)`}
+        stroke="#52525b"
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+      {/* arch shading */}
+      <path d="M12 42 Q17 52 12 66" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      <path d="M88 42 Q83 52 88 66" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      {/* headlamps + grille bars */}
+      <path d="M17 10 L34 7.5 L36 13 L21 18 Z" fill="#e0f2fe" stroke="#64748b" strokeWidth={0.8} />
+      <path d="M83 10 L66 7.5 L64 13 L79 18 Z" fill="#e0f2fe" stroke="#64748b" strokeWidth={0.8} />
+      {[9, 12, 15].map((y) => (
+        <rect key={y} x={40} y={y} width={20} height={1.6} rx={0.8} fill="#94a3b8" />
+      ))}
+      <circle cx={50} cy={12.5} r={2.2} fill="#cbd5e1" stroke="#64748b" strokeWidth={0.6} />
+      {/* bonnet creases + shutline */}
+      <path d="M28 14 L26 29" stroke="#cbd5e1" strokeWidth={1} />
+      <path d="M72 14 L74 29" stroke="#cbd5e1" strokeWidth={1} />
+      <path d="M13 31 Q50 27.5 87 31" fill="none" stroke="#94a3b8" strokeWidth={1.2} />
+      {/* windscreen */}
+      <path
+        d="M17 33 C32 30.5 68 30.5 83 33 L79 53 C60 50 40 50 21 53 Z"
+        fill={`url(#${p}-glass)`}
+        stroke="#60a5fa"
+        strokeWidth={1}
+      />
+      <path d="M28 50 Q40 44 44 36" fill="none" stroke="#bfdbfe" strokeWidth={1} opacity={0.9} />
+      <path d="M52 50 Q64 44 68 36" fill="none" stroke="#bfdbfe" strokeWidth={1} opacity={0.9} />
+      {/* cab floor (cutaway) */}
+      <rect x={15} y={54} width={70} height={44} rx={4} fill="#f1f5f9" />
+      {/* dash + binnacle */}
+      <path d="M22 56 L78 56 L76 63 L24 63 Z" fill="#94a3b8" />
+      <rect x={59} y={57} width={13} height={4.5} rx={1} fill="#64748b" />
+      <circle cx={52} cy={80} r={1.8} fill="#64748b" />
+      {/* seats — dual passenger bench nearside, driver offside (RHD) */}
+      <Seat x={22} y={74} w={26} squab={14} split />
+      <Seat x={58} y={74} w={20} squab={14} />
+      <SteeringWheel cx={68} cy={72} />
+      {/* bulkhead */}
+      <rect x={12} y={100} width={76} height={2.5} fill="#71717a" />
+      {Array.from({ length: 12 }, (_, i) => 14 + i * 6.4).map((x) => (
+        <line key={x} x1={x} y1={100} x2={x + 3} y2={102.5} stroke="#a1a1aa" strokeWidth={0.6} />
+      ))}
+      {/* load floor + ribs */}
+      <rect x={14} y={104} width={72} height={84} rx={2} fill="#f8fafc" stroke="#d4d4d8" strokeWidth={1} />
+      {[112, 120.5, 129, 137.5, 146, 154.5, 163, 171.5, 180].map((y) => (
+        <line key={y} x1={16} y1={y} x2={84} y2={y} stroke="#e4e4e7" strokeWidth={1.4} />
+      ))}
+      {/* rear wheel-arch boxes */}
+      <rect x={14} y={146} width={8} height={30} rx={2} fill="#d4d4d8" stroke="#94a3b8" strokeWidth={0.8} />
+      <rect x={78} y={146} width={8} height={30} rx={2} fill="#d4d4d8" stroke="#94a3b8" strokeWidth={0.8} />
+      {/* sliding door (nearside) + cab door handles */}
+      <line x1={10.8} y1={106} x2={10.8} y2={144} stroke="#64748b" strokeWidth={1.6} />
+      <rect x={13} y={108} width={2.5} height={7} rx={1} fill="#64748b" />
+      <rect x={13} y={66} width={2.5} height={7} rx={1} fill="#64748b" />
+      <rect x={84.5} y={66} width={2.5} height={7} rx={1} fill="#64748b" />
+      {/* rear barn-door split + hinges */}
+      <line x1={50} y1={187.5} x2={50} y2={193.5} stroke="#64748b" strokeWidth={1.2} />
+      <circle cx={17} cy={190} r={1} fill="#64748b" />
+      <circle cx={83} cy={190} r={1} fill="#64748b" />
+    </g>
+  );
+}
+
 /** Top-down schematic, nose-up. Component coords are % of a 100×200 canvas. */
 function VehicleSchematic({
   vehicle,
@@ -579,37 +830,7 @@ function VehicleSchematic({
   const van = vehicle.body === "van";
   return (
     <svg viewBox="0 0 100 200" className="w-full max-w-[220px] rounded-sm border border-zinc-300 bg-[#f4f4f5]">
-      {/* wheels */}
-      {[
-        [6, van ? 42 : 38],
-        [82, van ? 42 : 38],
-        [6, van ? 150 : 148],
-        [82, van ? 150 : 148],
-      ].map(([x, y], i) => (
-        <rect key={i} x={x} y={y} width={12} height={26} rx={4} fill="#3f3f46" />
-      ))}
-      {/* body */}
-      <rect x={12} y={8} width={76} height={184} rx={van ? 8 : 14} fill="#ffffff" stroke="#52525b" strokeWidth={2} />
-      {/* bonnet line + windscreen */}
-      {van ? (
-        <>
-          <line x1={12} y1={30} x2={88} y2={30} stroke="#a1a1aa" strokeWidth={1.5} />
-          <path d="M16 32 L84 32 L80 52 L20 52 Z" fill="#bfdbfe" stroke="#60a5fa" strokeWidth={1} />
-          {/* bulkhead + load area */}
-          <line x1={12} y1={100} x2={88} y2={100} stroke="#71717a" strokeWidth={2} strokeDasharray="4 3" />
-          <rect x={18} y={106} width={64} height={80} fill="none" stroke="#d4d4d8" strokeWidth={1.5} />
-        </>
-      ) : (
-        <>
-          <line x1={14} y1={44} x2={86} y2={44} stroke="#a1a1aa" strokeWidth={1.5} />
-          <path d="M18 48 L82 48 L76 66 L24 66 Z" fill="#bfdbfe" stroke="#60a5fa" strokeWidth={1} />
-          <path d="M22 148 L78 148 L74 162 L26 162 Z" fill="#bfdbfe" stroke="#60a5fa" strokeWidth={1} />
-          {/* roof */}
-          <rect x={24} y={70} width={52} height={74} rx={6} fill="none" stroke="#d4d4d8" strokeWidth={1.5} />
-        </>
-      )}
-      {/* nose marker */}
-      <path d="M46 12 L50 4 L54 12 Z" fill="#52525b" />
+      {van ? <VanBase id={vehicle.id} /> : <CarBase id={vehicle.id} />}
 
       {/* components */}
       {vehicle.components.map((c, i) => {
