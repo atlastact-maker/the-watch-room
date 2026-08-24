@@ -145,6 +145,16 @@ function suppressionRateFor(
     return base * mult;
   }
   if (t.kind === "ba_sar") return 0.12;
+  // Wildfire tools — the primary suppression mechanism on vegetation
+  // fires, near-useless against anything structural.
+  if (t.kind === "wildfire_beating")
+    return material === "vegetation" ? 0.1 : 0.02;
+  if (t.kind === "wildfire_knapsack")
+    return material === "vegetation" ? 0.08 : 0.02;
+  // A completed firebreak removes a solid chunk of fire front — the
+  // integration over its (fixed) duration models the cut-off line.
+  if (t.kind === "firebreak")
+    return material === "vegetation" ? 0.5 : 0.05;
   return 0;
 }
 

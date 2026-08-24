@@ -12,7 +12,7 @@ export type SceneBuilding = {
 
 export type SceneRoad = {
   shape: SceneRect;
-  kind: "road" | "pavement" | "driveway" | "garden";
+  kind: "road" | "pavement" | "driveway" | "garden" | "water";
   label?: string;
 };
 
@@ -59,7 +59,8 @@ export type FireMaterial =
   | "metal"             // magnesium, titanium — water reacts, dry powder only
   | "lpg_gas"           // LPG / propane / butane — isolate + cool, foam for any pool
   | "bulk_combustible"  // warehouse / industrial stock — needs HVP for scale
-  | "vehicle";          // car / HGV — water-foam mix, watch for fuel tank
+  | "vehicle"           // car / HGV — water-foam mix, watch for fuel tank
+  | "vegetation";       // moorland / grassland — beaters + firebreaks, peat re-burns
 
 export type SceneFire = {
   pos: ScenePoint;

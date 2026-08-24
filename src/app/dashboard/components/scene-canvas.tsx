@@ -213,7 +213,9 @@ function RoadShape({ road }: { road: SceneRoad }) {
           ? "#252528"
           : road.kind === "garden"
             ? "#0e1a12"
-            : "#1a1a1e";
+            : road.kind === "water"
+              ? "#0b2333"
+              : "#1a1a1e";
   return (
     <g>
       <rect x={x} y={y} width={w} height={h} fill={fill} />

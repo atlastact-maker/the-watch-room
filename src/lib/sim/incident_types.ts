@@ -920,6 +920,14 @@ export const ATTACK_EFFECTIVENESS: Record<
     exterior_attack: 0.8,
     interior_attack: 0.6,
   },
+  vegetation: {
+    // Hose lines work where the ground allows a pump to reach, but the
+    // real moorland tools are the wildfire tasks (beaters, knapsacks,
+    // firebreaks). "Interior" attack has no meaning on open moor.
+    exterior_cooling: 0.5,
+    exterior_attack: 0.7,
+    interior_attack: 0.3,
+  },
 };
 
 /** Short operator-facing label for each material. */
@@ -931,6 +939,7 @@ export const FIRE_MATERIAL_LABEL: Record<import("./scene").FireMaterial, string>
   lpg_gas: "LPG / gas",
   bulk_combustible: "Bulk combustible",
   vehicle: "Vehicle",
+  vegetation: "Vegetation / moorland",
 };
 
 /** Plain-English recommended tactic per material — shown in the Water tab
@@ -943,6 +952,8 @@ export const FIRE_MATERIAL_TACTIC: Record<import("./scene").FireMaterial, string
   lpg_gas: "Cool the cylinder from cover, isolate the valve. Do not extinguish the flame while gas is flowing.",
   bulk_combustible: "High Volume Pump (HVP) for scale. Standard hose works but slow on warehouse-scale loads.",
   vehicle: "Water-foam mix ideal. Watch for fuel tank / lithium battery involvement.",
+  vegetation:
+    "Beaters and knapsacks on the flanks, firebreak ahead of the head. Water where a pump can reach — peat needs soaking, not knocking, and can re-burn for days.",
 };
 
 export type Task = {
