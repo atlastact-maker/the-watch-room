@@ -110,7 +110,7 @@ export function LightingControlHead({
           <div className="grid grid-cols-3 gap-1.5">
             <Tile
               label="Arrive Mode"
-              colour="bg-sky-600"
+              colour="bg-green-600"
               active={is("at_scene")}
               onClick={() => onSet("at_scene")}
             />
@@ -122,21 +122,16 @@ export function LightingControlHead({
             />
             <Tile
               label="Rear Reds"
-              colour="bg-sky-600"
+              colour="bg-red-600"
               active={is("rear_reds")}
               onClick={() => onSet("rear_reds")}
-            />
-            <Tile
-              label="Hazard"
-              colour="bg-amber-500"
-              active={is("hazards")}
-              onClick={() => onSet("hazards")}
             />
             <Tile
               label="Clear All"
               colour="bg-orange-500"
               active={is("off")}
               onClick={() => onSet("off")}
+              className="col-span-2"
             />
             <Tile
               label="Aux Equip"
