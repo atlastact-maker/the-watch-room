@@ -9,6 +9,7 @@ import type { ServiceCode } from "@/lib/sim/types";
 import { FOLLOW_URL, FOLLOW_LABEL } from "@/lib/social";
 import { MenuResumeBanner } from "./menu-resume";
 import { LastShiftCard } from "./last-shift-card";
+import { ChangelogCard } from "./changelog-card";
 import { AdvisorSync } from "./advisor-sync";
 
 // Ops-centre main menu — operator strip up top, action tiles on the
@@ -88,6 +89,7 @@ export default async function MenuPage() {
           <AdvisorSync />
           <MenuResumeBanner />
           <LastShiftCard />
+          <ChangelogCard />
 
           <Link
             href="/dashboard?new=1"

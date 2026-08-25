@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   "/trailer3",
   "/trailer4",
   "/demo-mdt",
+  "/changelog",
   "/forgot-password",
   "/reset-password",
 ];

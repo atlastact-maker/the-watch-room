@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LATEST, formatEntryDate } from "@/lib/changelog";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LandingBackdrop } from "./components/landing-backdrop";
@@ -93,6 +94,15 @@ export default async function LandingPage() {
               <span className="text-(--color-text-dim)/60 group-hover:text-(--color-amber)/60">
                 45 sec
               </span>
+            </Link>
+
+            {/* Proof of life — newest patch note, title and date only. */}
+            <Link
+              href="/changelog"
+              className="mt-3 block font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:text-(--color-amber)"
+            >
+              <span className="text-(--color-ok)">Latest</span> · {LATEST.title} —{" "}
+              {formatEntryDate(LATEST.date)}
             </Link>
 
             <div className="mt-10 flex flex-wrap gap-2 border-t border-(--color-border-subtle) pt-6">
