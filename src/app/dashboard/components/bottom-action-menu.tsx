@@ -489,7 +489,7 @@ function VehicleTab({
           </button>
         </Section>
       )}
-      <Section title="Emergency lighting">
+      <Section title="Emergency lighting" collapsible>
         <LightingControlHead
           current={current}
           onSet={(state) => onSetLightState(appliance.id, state)}
@@ -2354,13 +2354,38 @@ export function CrewPickerInline({
 // Tiny presentational components
 // ---------------------------------------------------------------------------
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  collapsible = false,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  /** Title bar becomes a toggle; the body can be collapsed away. */
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const shown = !collapsible || open;
+  const barCls =
+    (shown ? "border-b border-(--color-border-subtle) " : "") +
+    "bg-(--color-surface-raised) px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)";
   return (
     <section className="overflow-hidden rounded-sm border border-(--color-border-subtle) bg-(--color-surface-raised)/25">
-      <div className="border-b border-(--color-border-subtle) bg-(--color-surface-raised) px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-        {title}
-      </div>
-      <div className="space-y-1.5 px-2.5 py-2.5">{children}</div>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={"flex w-full items-center justify-between text-left " + barCls}
+        >
+          <span>{title}</span>
+          <span className="text-(--color-text-dim)">{open ? "▾" : "▸"}</span>
+        </button>
+      ) : (
+        <div className={barCls}>{title}</div>
+      )}
+      {shown && <div className="space-y-1.5 px-2.5 py-2.5">{children}</div>}
     </section>
   );
 }

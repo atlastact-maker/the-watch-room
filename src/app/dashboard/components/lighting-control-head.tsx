@@ -171,10 +171,6 @@ export function LightingControlHead({
           />
         </div>
       </div>
-      <p className="mt-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-        999 runs lights &amp; sirens · Arrive drops to scene lighting on the
-        rear · Clear All kills the lot
-      </p>
     </div>
   );
 }
