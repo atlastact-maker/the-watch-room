@@ -5,6 +5,7 @@ import { logout } from "@/lib/auth/actions";
 import type { AreaCode } from "@/lib/sim/types";
 import type { Scenario } from "@/lib/sim/incident_types";
 import { SCENARIOS } from "@/lib/sim/scenarios";
+import { scenarioCovered } from "@/lib/sim/coverage";
 import type { WeatherState } from "@/lib/sim/weather";
 import { WeatherChip } from "./weather-chip";
 
@@ -70,6 +71,8 @@ type Props = {
   onToggleIncidentPanel: () => void;
   hasActiveIncident: boolean;
   onTriggerScenario: (s: Scenario) => void;
+  /** Services covered this shift — scenarios needing others are hidden. */
+  coveredServices: import("@/lib/sim/types").ServiceCode[];
   /** Area ↔ Ground view switch. Ground selectable only with a live incident. */
   viewMode?: "area" | "ground";
   groundViewEnabled?: boolean;
@@ -90,6 +93,7 @@ export function DashboardHeader({
   onToggleIncidentPanel,
   hasActiveIncident,
   onTriggerScenario,
+  coveredServices,
   viewMode,
   groundViewEnabled,
   onSelectView,
@@ -109,7 +113,9 @@ export function DashboardHeader({
     return () => clearInterval(id);
   }, []);
 
-  const scenariosForPatch = SCENARIOS.filter((s) => s.patch === patch);
+  const scenariosForPatch = SCENARIOS.filter(
+    (s) => s.patch === patch && scenarioCovered(s, coveredServices),
+  );
 
   return (
     <header className="border-b border-(--color-border-subtle) bg-(--color-surface)/60">

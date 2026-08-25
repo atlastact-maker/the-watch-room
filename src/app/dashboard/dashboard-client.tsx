@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
-import { isSpecialistAppliance } from "@/lib/sim/types";
+import { isSpecialistAppliance, type ServiceCode } from "@/lib/sim/types";
+import {
+  ALL_SERVICES,
+  COVERED_SERVICES_KEY,
+  parseCoveredServices,
+} from "@/lib/sim/coverage";
 import type {
   AirwayAction,
   BreathingAction,
@@ -205,6 +210,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [treatmentByCasualtyId, setTreatmentByCasualtyId] = useState<
     Record<string, PatientTreatmentState>
   >({});
+  // Which services the operator covers this shift — drives scenario
+  // availability in the trigger menu. Chosen on the patch picker.
+  const [coveredServices, setCoveredServices] = useState<ServiceCode[]>([
+    ...ALL_SERVICES,
+  ]);
   // Held scenario awaiting operator answer-or-decline from the 999 call modal.
   const [pendingCall, setPendingCall] = useState<Scenario | null>(null);
   // Audible 999 ring when a call comes in.
@@ -320,6 +330,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     } else {
       setPatch(undefined);
     }
+    setCoveredServices(
+      parseCoveredServices(localStorage.getItem(COVERED_SERVICES_KEY)),
+    );
   }, []);
 
   // ---- Save / resume handlers ------------------------------------------
@@ -346,6 +359,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setInformantOnCall(shifted.informantOnCall);
     setFireIgnition(shifted.fireIgnition ?? null);
     setAbsentCasualtyIds(shifted.absentCasualtyIds ?? []);
+    setCoveredServices(shifted.coveredServices ?? [...ALL_SERVICES]);
     setNewlyFoundCasualties(new Set(shifted.newlyFoundCasualties));
     setNewlyConfirmedHazards(new Set(shifted.newlyConfirmedHazards));
     setLastFireStage(shifted.lastFireStage);
@@ -410,6 +424,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         informantOnCall,
         fireIgnition,
         absentCasualtyIds,
+        coveredServices,
         newlyFoundCasualties: Array.from(newlyFoundCasualties),
         newlyConfirmedHazards: Array.from(newlyConfirmedHazards),
         lastFireStage,
@@ -440,6 +455,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     informantOnCall,
     fireIgnition,
     absentCasualtyIds,
+    coveredServices,
     newlyFoundCasualties,
     newlyConfirmedHazards,
     lastFireStage,
@@ -676,9 +692,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now, deployments]);
 
-  function selectPatch(area: Patch, newIntensity: ShiftIntensity, startHour?: number) {
+  function selectPatch(
+    area: Patch,
+    newIntensity: ShiftIntensity,
+    startHour?: number,
+    services?: ServiceCode[],
+  ) {
     localStorage.setItem(PATCH_STORAGE_KEY, area);
     localStorage.setItem(INTENSITY_STORAGE_KEY, newIntensity);
+    if (services && services.length > 0) {
+      localStorage.setItem(COVERED_SERVICES_KEY, JSON.stringify(services));
+      setCoveredServices(services);
+    }
     setPatch(area);
     setIntensity(newIntensity);
     setPreShiftStates({}); // force a re-roll on first render after selection
@@ -3144,6 +3169,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         onToggleIncidentPanel={() => setIncidentPanelVisible((v) => !v)}
         hasActiveIncident={!!activeIncident}
         onTriggerScenario={setPendingCall}
+        coveredServices={coveredServices}
         viewMode={groundViewOpen && activeIncident ? "ground" : "area"}
         groundViewEnabled={!!activeIncident && !outcome}
         onSelectView={(mode) => setGroundViewOpen(mode === "ground" && !!activeIncident)}
@@ -3409,7 +3435,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onDecline={() => setPendingCall(null)}
           />
         )}
-        <GlossaryOverlay open={glossaryOpen} onClose={() => setGlossaryOpen(false)} />
+        <GlossaryOverlay
+          open={glossaryOpen}
+          onClose={() => setGlossaryOpen(false)}
+          stations={[
+            ...stationsByArea.Southern,
+            ...stationsByArea.Eastern,
+            ...stationsByArea.Western,
+            ...stationsByArea.ForceWide,
+          ]}
+        />
         {activeIncident && outcome && (
           <DebriefScreen
             incident={activeIncident}

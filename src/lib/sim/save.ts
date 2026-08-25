@@ -63,6 +63,8 @@ export type ShiftSave = {
   /** Persons-reality roll — casualty ids not present this run. Optional
    *  for saves written before the mechanic existed. */
   absentCasualtyIds?: string[];
+  /** Services the operator covers this shift. Optional for old saves. */
+  coveredServices?: import("./types").ServiceCode[];
   newlyFoundCasualties: string[];
   newlyConfirmedHazards: string[];
   lastFireStage: string;

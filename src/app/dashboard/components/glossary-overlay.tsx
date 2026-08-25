@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { StationWithAppliances } from "../page";
+import { ResourceDirectory } from "./resource-directory";
 
 /**
  * Glossary / training-mode overlay.
@@ -108,28 +110,37 @@ const GLOSSARY: Section[] = [
 export function GlossaryOverlay({
   open,
   onClose,
+  stations,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Fleet for the Resources tab — omit to hide the tab. */
+  stations?: StationWithAppliances[];
+}) {
+  // The panel mounts fresh each time the overlay opens, so filter and
+  // tab state reset naturally — no reset-in-effect needed.
+  if (!open) return null;
+  return <GlossaryPanel onClose={onClose} stations={stations} />;
+}
+
+function GlossaryPanel({
+  onClose,
+  stations,
+}: {
+  onClose: () => void;
+  stations?: StationWithAppliances[];
 }) {
   const [filter, setFilter] = useState("");
+  const [view, setView] = useState<"glossary" | "resources">("glossary");
 
-  // Esc to close.
+  // Esc to close — only mounted while the overlay is open.
   useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  // Reset filter when re-opening.
-  useEffect(() => {
-    if (open) setFilter("");
-  }, [open]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const lowered = filter.trim().toLowerCase();
   const sections = lowered
@@ -153,7 +164,7 @@ export function GlossaryOverlay({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="my-8 w-full max-w-3xl px-6 py-6">
+      <div className={"my-8 w-full px-6 py-6 " + (view === "resources" ? "max-w-5xl" : "max-w-3xl")}>
         <header className="rounded-sm border border-(--color-amber)/60 bg-(--color-surface) p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -194,11 +205,41 @@ export function GlossaryOverlay({
               autoFocus
             />
           </label>
+          {stations && stations.length > 0 && (
+            <div className="mt-3 flex gap-2">
+              {(
+                [
+                  { key: "glossary", label: "Glossary" },
+                  { key: "resources", label: "Resource directory" },
+                ] as const
+              ).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setView(t.key)}
+                  className={
+                    "rounded-sm border px-3 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors " +
+                    (view === t.key
+                      ? "border-(--color-amber) bg-(--color-amber)/10 text-(--color-amber)"
+                      : "border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber-dim) hover:text-(--color-text)")
+                  }
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
+
+        {view === "resources" && stations && (
+          <ResourceDirectory stations={stations} filter={filter} />
+        )}
+        {view === "glossary" && (
+        <>
 
         {sections.length === 0 ? (
           <p className="mt-6 text-center font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-            No matches for "{filter}"
+            No matches for &quot;{filter}&quot;
           </p>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -228,6 +269,8 @@ export function GlossaryOverlay({
               </section>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
     </div>
