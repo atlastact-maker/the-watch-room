@@ -2658,9 +2658,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   function setPreCommitBaCrew(applianceId: string, crewIds: string[]) {
     setDeployments((prev) =>
-      prev.map((d) =>
-        d.applianceId === applianceId ? { ...d, preCommitBaCrewIds: crewIds } : d,
-      ),
+      prev.map((d) => {
+        if (d.applianceId !== applianceId) return d;
+        // Rigging en route is literal: ticking a wearer puts their BA set
+        // on right away (visible on the MDT Crew screen), unticking takes
+        // it back off.
+        const eq = { ...(d.crewEquipment ?? {}) };
+        for (const cid of crewIds) {
+          const cur = eq[cid] ?? [];
+          if (!cur.includes("ba_set")) eq[cid] = [...cur, "ba_set"];
+        }
+        for (const cid of d.preCommitBaCrewIds ?? []) {
+          if (crewIds.includes(cid)) continue;
+          eq[cid] = (eq[cid] ?? []).filter((x) => x !== "ba_set");
+        }
+        return { ...d, preCommitBaCrewIds: crewIds, crewEquipment: eq };
+      }),
     );
   }
 
