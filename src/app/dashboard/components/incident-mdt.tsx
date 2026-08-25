@@ -169,10 +169,8 @@ type TabKey =
   | "overview"
   | "call"
   | "resourcing"
-  | "property"
   | "view"
   | "crs"
-  | "pri"
   | "targets"
   | "hazards"
   | "casualties"
@@ -330,12 +328,10 @@ export function DraggableIncidentMdt({
           key: "resourcing",
           label: resolvedDeps.length > 0 ? `Resourcing·${resolvedDeps.length}` : "Resourcing",
         },
-        { key: "property", label: "Property" },
         { key: "view", label: "Prop View" },
         ...((incident.scenario.crs?.length ?? 0) > 0
           ? ([{ key: "crs", label: "CRS" }] as { key: TabKey; label: string }[])
           : []),
-        { key: "pri", label: "PRI" },
         { key: "targets", label: "Targets" },
         ...(sim
           ? ([
@@ -821,15 +817,7 @@ export function DraggableIncidentMdt({
                     <MethaneTable methane={sc.methane} />
                   </CadCard>
                 )}
-                <CadCard title="Occupancy & access">
-                  <KeyVal k="Occupants" v={sc.property.occupants} />
-                  <KeyVal k="Access" v={sc.property.access} />
-                </CadCard>
-              </>
-            )}
-
-            {tab === "property" && !resolved && (
-              <CadCard title="Property record">
+                <CadCard title="Property record">
                 <KeyVal k="Class" v={sc.property.class} />
                 {sc.property.size && <KeyVal k="Size" v={sc.property.size} />}
                 {sc.property.materials && (
@@ -851,7 +839,27 @@ export function DraggableIncidentMdt({
                     tone="critical"
                   />
                 )}
-              </CadCard>
+                </CadCard>
+                <CadCard title="Premises risk information">
+                  <p className="font-mono text-[11px] text-zinc-600">
+                    {sc.pri.hasFormalPri
+                      ? "FORMAL PRI ON FILE."
+                      : "NO FORMAL PRI (RESIDENTIAL / OPEN)."}
+                  </p>
+                  {sc.pri.items.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {sc.pri.items.map((it) => (
+                        <li
+                          key={it}
+                          className="border-l-4 border-amber-400 bg-amber-50 px-2 py-1 text-[12px] leading-snug"
+                        >
+                          {it}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CadCard>
+              </>
             )}
 
             {tab === "view" && !resolved && (
@@ -875,28 +883,6 @@ export function DraggableIncidentMdt({
                 now={now}
                 onStartTask={onStartTask}
               />
-            )}
-
-            {tab === "pri" && !resolved && (
-              <CadCard title="Premises risk information">
-                <p className="font-mono text-[11px] text-zinc-600">
-                  {sc.pri.hasFormalPri
-                    ? "FORMAL PRI ON FILE."
-                    : "NO FORMAL PRI (RESIDENTIAL / OPEN)."}
-                </p>
-                {sc.pri.items.length > 0 && (
-                  <ul className="mt-2 space-y-1">
-                    {sc.pri.items.map((it) => (
-                      <li
-                        key={it}
-                        className="border-l-4 border-amber-400 bg-amber-50 px-2 py-1 text-[12px] leading-snug"
-                      >
-                        {it}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CadCard>
             )}
 
             {tab === "targets" && !resolved && (
