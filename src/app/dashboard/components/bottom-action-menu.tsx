@@ -36,6 +36,7 @@ import {
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { mitigationOptionsFor } from "@/lib/sim/mitigation";
 import { BaControlBoard } from "./ba-control-board";
+import { LightingControlHead } from "./lighting-control-head";
 import type {
   AirwayAction as TxAirwayAction,
   BreathingAction as TxBreathingAction,
@@ -417,14 +418,6 @@ export function BottomActionMenu({
 // Vehicle tab — light state + summary gauges
 // ---------------------------------------------------------------------------
 
-const LIGHT_OPTIONS: { state: LightState; label: string; tone: string }[] = [
-  { state: "999", label: "999 Response", tone: "border-(--color-critical) text-(--color-critical) bg-(--color-critical)/15" },
-  { state: "at_scene", label: "At scene", tone: "border-(--color-amber) text-(--color-amber) bg-(--color-amber)/15" },
-  { state: "rear_blues", label: "Rear blues", tone: "border-(--color-info) text-(--color-info) bg-(--color-info)/15" },
-  { state: "rear_reds", label: "Rear reds", tone: "border-(--color-critical) text-(--color-critical) bg-(--color-critical)/10" },
-  { state: "hazards", label: "Hazard lights", tone: "border-(--color-amber) text-(--color-amber) bg-(--color-amber)/10" },
-  { state: "off", label: "All off", tone: "border-(--color-border) text-(--color-text-dim)" },
-];
 
 function VehicleTab({
   appliance,
@@ -496,27 +489,11 @@ function VehicleTab({
           </button>
         </Section>
       )}
-      <Section title="Emergency lights">
-        <div className="grid grid-cols-2 gap-1.5">
-          {LIGHT_OPTIONS.map((opt) => {
-            const active = current === opt.state;
-            return (
-              <button
-                key={opt.state}
-                type="button"
-                onClick={() => onSetLightState(appliance.id, opt.state)}
-                className={
-                  "rounded-sm border px-2 py-2 text-left font-mono text-[11px] uppercase tracking-widest transition-colors " +
-                  (active
-                    ? opt.tone
-                    : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim)")
-                }
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+      <Section title="Emergency lighting">
+        <LightingControlHead
+          current={current}
+          onSet={(state) => onSetLightState(appliance.id, state)}
+        />
       </Section>
 
       <Section title="Crew status">
