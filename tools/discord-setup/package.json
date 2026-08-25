@@ -1,0 +1,13 @@
+{
+  "name": "twr-discord-setup",
+  "private": true,
+  "type": "module",
+  "description": "Builds The Watch Room Discord server from discord-blueprint.md",
+  "scripts": {
+    "setup": "node --env-file=.env setup.mjs",
+    "setup:reset": "node --env-file=.env setup.mjs --reset"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3"
+  }
+}
