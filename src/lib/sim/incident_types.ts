@@ -501,6 +501,13 @@ export type InformantUpdate = {
    *  follow-on beats never orphan ("evacuation started" can't fire when
    *  the fire itself never happened). */
   requiresFiredIds?: string[];
+  /** Only fires when every listed casualty is PRESENT this run (persons
+   *  reality roll) — "my son's upstairs" can't play on an all-out night.
+   *  Silently skipped otherwise. */
+  requiresCasualtyIds?: string[];
+  /** Only fires when every listed casualty is ABSENT this run — the
+   *  relief beat ("they're all out!") on the other side of the roll. */
+  requiresAbsentCasualtyIds?: string[];
   /** Optional hard sim effects to apply when the update fires. */
   effect?: {
     /** Push the incident receivedAt back by this many seconds so the fire
@@ -517,6 +524,10 @@ export type InformantUpdate = {
      *  night. Additive — a later escalation beat can add radius and
      *  raise the growth rate. */
     igniteFire?: { radiusM: number; growthRateMpm: number };
+    /** Make an absent casualty (presentProbability 0 or a failed roll)
+     *  PRESENT from this beat onward — "my husband went back in for him".
+     *  The casualty then discovers, progresses and scores as normal. */
+    revealCasualty?: string;
   };
 };
 

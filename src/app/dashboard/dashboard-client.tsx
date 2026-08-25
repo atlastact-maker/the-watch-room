@@ -192,6 +192,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // A real fire lit mid-incident by an informant beat (igniteFire) —
   // alarm scenarios roll their false-vs-real reality through this.
   const [fireIgnition, setFireIgnition] = useState<FireIgnition | null>(null);
+  // Persons-reality roll — casualty ids NOT in the building this run.
+  const [absentCasualtyIds, setAbsentCasualtyIds] = useState<string[]>([]);
 
   // Per-casualty clinical treatment state. Keyed by casualty id so it
   // survives ambulance hand-off. Grows as the operator runs a primary
@@ -340,6 +342,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setInformantLog(shifted.informantLog);
     setInformantOnCall(shifted.informantOnCall);
     setFireIgnition(shifted.fireIgnition ?? null);
+    setAbsentCasualtyIds(shifted.absentCasualtyIds ?? []);
     setNewlyFoundCasualties(new Set(shifted.newlyFoundCasualties));
     setNewlyConfirmedHazards(new Set(shifted.newlyConfirmedHazards));
     setLastFireStage(shifted.lastFireStage);
@@ -403,6 +406,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         informantLog,
         informantOnCall,
         fireIgnition,
+        absentCasualtyIds,
         newlyFoundCasualties: Array.from(newlyFoundCasualties),
         newlyConfirmedHazards: Array.from(newlyConfirmedHazards),
         lastFireStage,
@@ -432,6 +436,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     informantLog,
     informantOnCall,
     fireIgnition,
+    absentCasualtyIds,
     newlyFoundCasualties,
     newlyConfirmedHazards,
     lastFireStage,
@@ -702,6 +707,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setInformantLog([]);
     setInformantOnCall(false);
     setFireIgnition(null);
+    setAbsentCasualtyIds([]);
     setTreatmentByCasualtyId({});
     setTacticalMode(null);
     setFatigueByApplianceId({});
@@ -737,6 +743,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       s.byType[scenario.type] = (s.byType[scenario.type] ?? 0) + 1;
     });
     const t = Date.now();
+    // Persons-reality roll — decided once, at call time. Casualties with
+    // presentProbability < 1 may simply not be there tonight; a beat with
+    // effect.revealCasualty can still put one back mid-call.
+    const absentRoll: string[] = [];
+    for (const c of scenario.scene?.casualties ?? []) {
+      if (c.presentProbability === undefined) continue;
+      if (Math.random() >= c.presentProbability) absentRoll.push(c.id);
+    }
+    setAbsentCasualtyIds(absentRoll);
     setActiveIncident({
       id: `INC-${t}`,
       scenarioId: scenario.id,
@@ -1810,8 +1825,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       treatmentByCasualtyId,
       fireGrowthWindMultiplier(weather.windMph),
       fireIgnition,
+      new Set(absentCasualtyIds),
     );
-  }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph, fireIgnition]);
+  }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph, fireIgnition, absentCasualtyIds]);
 
   // Airwave click on Status change — every time statusOverrides updates
   // for an already-tracked appliance, click once. Skips the initial
@@ -2159,6 +2175,19 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ) {
         continue;
       }
+      // Persons-reality gates: beats about a casualty only play when that
+      // casualty is actually in the building this run — and the relief
+      // beat ("they're all out") only on runs where they aren't.
+      if (
+        update.requiresCasualtyIds?.some((id) => absentCasualtyIds.includes(id)) ||
+        update.requiresAbsentCasualtyIds?.some((id) => !absentCasualtyIds.includes(id))
+      ) {
+        setInformantLog((prev) => [
+          ...prev,
+          { id: update.id, text: "", tone: "info", firedAt: Date.now() },
+        ]);
+        continue;
+      }
       // Dependency gate: follow-on beats wait for their prerequisites to
       // COMMIT. If a prerequisite was rolled and skipped, this beat can
       // never happen — mark it silently skipped.
@@ -2233,6 +2262,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               }
             : { atMs: Date.now(), radiusM: ig.radiusM, growthRateMpm: ig.growthRateMpm },
         );
+      }
+      if (update.effect?.revealCasualty) {
+        const revealed = update.effect.revealCasualty;
+        setAbsentCasualtyIds((prev) => prev.filter((id) => id !== revealed));
       }
       setLog((prev) => [
         ...prev,

@@ -60,6 +60,9 @@ export type ShiftSave = {
   /** Mid-incident fire started by an informant beat. Optional — absent in
    *  saves written before the ignition mechanic existed. */
   fireIgnition?: FireIgnition | null;
+  /** Persons-reality roll — casualty ids not present this run. Optional
+   *  for saves written before the mechanic existed. */
+  absentCasualtyIds?: string[];
   newlyFoundCasualties: string[];
   newlyConfirmedHazards: string[];
   lastFireStage: string;

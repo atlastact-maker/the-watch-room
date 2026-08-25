@@ -237,12 +237,13 @@ export const scenario08: Scenario = {
     ],
     casualties: [
       {
-        // The brief's "one missing in changing rooms" roll, authored as a
-        // late-discovery casualty in the pool block.
+        // The brief's "one missing in changing rooms" roll — absent until
+        // the swimmer-missing beat reveals him (slow responses only).
         id: "cas-swimmer",
         pos: { x: -56, y: 2 },
         severity: "serious",
         discoverAfterMinBa: 6,
+        presentProbability: 0,
         label: "Swimmer (14) — collapsed in changing rooms",
         clinical: {
           vitals: {
@@ -297,7 +298,7 @@ export const scenario08: Scenario = {
       delayThresholdSec: 300,
       text: "One of the instructors can't find a lad from the swim squad — they think he went back into the changing rooms for his phone.",
       tone: "critical",
-      effect: { pulseCritical: true },
+      effect: { pulseCritical: true, revealCasualty: "cas-swimmer" },
     },
     {
       id: "smoke-spreading",

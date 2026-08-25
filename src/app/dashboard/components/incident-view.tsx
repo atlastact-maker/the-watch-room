@@ -283,7 +283,10 @@ export function IncidentView({
         personsReported={personsReported}
         sim={sim}
         casualtiesFound={sim.foundCasualties.length}
-        plannedCasualties={scene?.casualties?.length ?? 0}
+        plannedCasualties={Math.max(
+          0,
+          (scene?.casualties?.length ?? 0) - (sim.absentCasualtyIds?.length ?? 0),
+        )}
         tacticalMode={tacticalMode ?? null}
         icAssigned={!!sceneCommanderApplianceId}
         onDeclareTacticalMode={onDeclareTacticalMode}

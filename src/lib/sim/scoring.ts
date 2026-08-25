@@ -104,8 +104,13 @@ export function scoreIncident(
   }
 
   // 6. Casualty outcomes — each scene casualty is evaluated individually
-  //    based on progression stage + destination choice.
-  const casualties = incident.scenario.scene?.casualties ?? [];
+  //    based on progression stage + destination choice. Casualties the
+  //    persons-reality roll removed from this run don't count against
+  //    the operator — nobody can rescue someone who wasn't there.
+  const absentIds = new Set(sim?.absentCasualtyIds ?? []);
+  const casualties = (incident.scenario.scene?.casualties ?? []).filter(
+    (c) => !absentIds.has(c.id),
+  );
   if (casualties.length > 0) {
     let delivered = 0;
     let expectant = 0;

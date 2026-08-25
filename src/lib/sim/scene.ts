@@ -167,6 +167,13 @@ export type SceneCasualty = {
    *  First casualty should typically be 3–5 min, further ones later. */
   discoverAfterMinBa: number;
   label?: string;
+  /** Chance (0–1) this casualty is actually present, rolled ONCE when the
+   *  incident opens — the "persons reality" roll. Omit for always-present.
+   *  0 = absent unless an informant beat reveals them mid-call
+   *  (effect.revealCasualty — "my husband went back in"). Absent
+   *  casualties are never discovered, never progress, and don't count
+   *  toward planned totals or scoring. */
+  presentProbability?: number;
 };
 
 export type SceneSector = {

@@ -75,6 +75,10 @@ export type IncidentSimState = {
    *  scenario casualty (even undiscovered ones) so the operator's
    *  MissionBar can show the full count + timers. */
   casualtyProgression: Record<string, CasualtyProgression>;
+  /** Casualty ids removed from this run by the persons-reality roll.
+   *  Downstream consumers (scoring, planned-count displays) subtract
+   *  these from the authored scene list. */
+  absentCasualtyIds: string[];
   firstArrivalElapsedSec: number;
   baMinutesOnScene: number;
   baSarMinutes: number;
@@ -171,7 +175,12 @@ export function simulateIncident(
    *  from its own start time. How "probably false" alarm scenarios roll
    *  their reality per playthrough. */
   fireIgnition?: import("./incident_types").FireIgnition | null,
+  /** Casualty ids the persons-reality roll (or an unrevealed
+   *  presentProbability: 0) has removed from this run — never discovered,
+   *  never progress, never scored. */
+  absentCasualtyIds?: Set<string> | null,
 ): IncidentSimState {
+  const absent = absentCasualtyIds ?? new Set<string>();
   const scene = incident.scenario.scene;
 
   let firstArrival: number | null = null;
@@ -333,6 +342,7 @@ export function simulateIncident(
   const foundCasualties: SceneCasualty[] = [];
   if (scene?.casualties) {
     for (const c of scene.casualties) {
+      if (absent.has(c.id)) continue; // not in the building this run
       if (baSarMinutes >= c.discoverAfterMinBa) {
         foundCasualties.push(c);
       }
@@ -385,6 +395,7 @@ export function simulateIncident(
     }
 
     for (const c of scene.casualties) {
+      if (absent.has(c.id)) continue; // not in the building this run
       const located = baSarMinutes >= c.discoverAfterMinBa;
       const paired = pairingByCasualtyId[c.id];
       // Treatment is paused while paired with an on-scene ambulance OR
@@ -470,6 +481,7 @@ export function simulateIncident(
     mitigatedHazardIds,
     foundCasualties,
     casualtyProgression,
+    absentCasualtyIds: Array.from(absent),
     firstArrivalElapsedSec:
       firstArrival === null ? 0 : Math.max(0, (now - firstArrival) / 1000),
     baMinutesOnScene,

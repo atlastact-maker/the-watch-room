@@ -46,12 +46,12 @@ export const scenario02: Scenario = {
 
   methane: {
     M: "No",
-    E: "14 Hollyhedge Road, M22 — neighbour at no. 16 has called",
+    E: "285 Hollyhedge Road, M22 — neighbour at no. 287 has called",
     T: "House fire — smoke from upper windows, neighbour heard shouting",
     H: "Gas meter believed inside, parked cars on road",
     A: "Driveway clear, no width restriction",
     N: "Unknown — family of 4 believed inside, 02:34 night call",
-    emergencyServices: "Fire, ambulance running, police TBC for cordon",
+    emergencyServices: "Fire, ambulance running, police for cordon and traffic",
   },
 
   pda: [
@@ -88,6 +88,14 @@ export const scenario02: Scenario = {
       requiredCapabilities: ["Medical"],
       notes: "NWAS attendance is automatic for persons-reported dwelling fire",
     },
+    {
+      id: "police",
+      label: "Police (auto)",
+      service: "Police",
+      requiredApplianceTypes: ["Police_Response"],
+      requiredCapabilities: ["Police_Response"],
+      notes: "Cordon + traffic on Hollyhedge Road; family welfare on the pavement",
+    },
   ],
 
   evaluation: {
@@ -110,19 +118,19 @@ export const scenario02: Scenario = {
       {
         shape: { x: -4, y: -6, w: 8, h: 12 },
         kind: "target",
-        label: "14 Hollyhedge Rd",
+        label: "285 Hollyhedge Rd",
       },
       {
-        // Attached neighbour (semi-detached partner) — no.16
+        // Attached neighbour (semi-detached partner) — no.287, the caller
         shape: { x: 4, y: -6, w: 8, h: 12 },
         kind: "neighbour",
-        label: "16 (semi-attached)",
+        label: "287 (semi-attached)",
       },
       {
-        // Detached neighbour on the other side — no.12
+        // Neighbour on the other side — no.283
         shape: { x: -20, y: -6, w: 8, h: 12 },
         kind: "neighbour",
-        label: "12",
+        label: "283",
       },
       // Row of houses opposite across the road (schematic)
       { shape: { x: -22, y: 22, w: 8, h: 7 }, kind: "other", label: "Opposite" },
@@ -191,12 +199,18 @@ export const scenario02: Scenario = {
         discoverAfterMinOnScene: 6,
       },
     ],
+    // Persons reality (per the approved brief): ~33% of runs the whole
+    // family is out on the pavement; ~67% the boy is still in the back
+    // bedroom; and on slow responses his father may go back in after him
+    // (the second-casualty beat reveals cas-2). Roughly 33 / 37 / 30
+    // across all-out / one-inside / two-inside.
     casualties: [
       {
         id: "cas-1",
         pos: { x: 2, y: -4 },
         severity: "critical",
         discoverAfterMinBa: 4,
+        presentProbability: 0.67,
         label: "Child (5) — back bedroom",
         clinical: {
           vitals: {
@@ -214,6 +228,9 @@ export const scenario02: Scenario = {
         pos: { x: -1, y: -1 },
         severity: "serious",
         discoverAfterMinBa: 7,
+        // Only exists when the "second-casualty" beat fires — the father
+        // going back in for his son on a slow response.
+        presentProbability: 0,
         label: "Adult (38) — hall",
         clinical: {
           vitals: {
@@ -244,8 +261,18 @@ export const scenario02: Scenario = {
     {
       id: "child-upstairs",
       atSec: 25,
+      requiresCasualtyIds: ["cas-1"],
       text: "My son's upstairs, he was asleep in the back bedroom. I can't get back in — the hallway's black with smoke.",
       tone: "critical",
+    },
+    {
+      // The other side of the persons-reality roll — everyone's out.
+      // The house is still going like a train; only the pressure changes.
+      id: "all-out",
+      atSec: 30,
+      requiresAbsentCasualtyIds: ["cas-1"],
+      text: "Wait — they're out! They're ALL out — she's got both kids with her at next door's. Everyone's accounted for. The house has properly gone up though, it's through the kitchen roof.",
+      tone: "urgent",
     },
     {
       id: "neighbour",
@@ -259,18 +286,23 @@ export const scenario02: Scenario = {
       atSec: 90,
       delayThresholdSec: 270,
       probability: 0.8,
+      requiresCasualtyIds: ["cas-1"],
       text: "There are flames at the upstairs window now, it's really gone up — I can't see my son.",
       tone: "critical",
       effect: { accelerateGrowthSec: 60, pulseCritical: true },
     },
     {
+      // Slow response consequence: the father goes back in after his son.
+      // This beat CREATES the second casualty (cas-2 is absent until it
+      // fires) — fast attendances never generate him.
       id: "second-casualty",
       atSec: 140,
       delayThresholdSec: 330,
       probability: 0.45,
+      requiresCasualtyIds: ["cas-1"],
       text: "My husband went back in to get our son — he hasn't come out. They're both in there.",
       tone: "critical",
-      effect: { pulseCritical: true },
+      effect: { pulseCritical: true, revealCasualty: "cas-2" },
     },
     {
       id: "passer-by",
