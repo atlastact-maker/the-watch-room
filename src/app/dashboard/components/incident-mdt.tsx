@@ -22,7 +22,6 @@ import {
   CallInformationBody,
   HazardsBody,
   CasualtiesBody,
-  CrewLine,
   ActiveTaskRow,
   resolveDeployments,
   type Props as IncidentViewProps,
@@ -528,7 +527,7 @@ export function DraggableIncidentMdt({
             {tab === "resourcing" && !resolved && (
               <div className="flex h-full min-h-0 bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
                 {/* Committed side — who's assigned, their tasks, pre-allocation */}
-                <div className="flex min-h-0 w-[46%] flex-col border-r border-(--color-border-subtle)">
+                <div className="flex min-h-0 w-60 shrink-0 flex-col border-r border-(--color-border-subtle)">
                   {/* Inbound / placement — the console the map's old INBOUND
                       button used to be. En-route units take pre-arrival
                       orders (CREW); arrived units and holding helis get
@@ -640,21 +639,19 @@ export function DraggableIncidentMdt({
                     {resolvedDeps.length === 0 ? (
                       <p className="text-(--color-text-dim)">No crews committed yet.</p>
                     ) : (
-                      <ul className="space-y-1.5">
+                      <ul className="space-y-1">
                         {resolvedDeps.map((r) => (
-                          <CrewLine
+                          <CommittedRow
                             key={r.deployment.applianceId}
                             r={r}
                             now={nowMs}
+                            selected={unitId === r.appliance.id}
                             isCommander={sceneCommanderApplianceId === r.deployment.applianceId}
-                            onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
-                            onSelectAppliance={(id) => {
-                              if (!id) return;
-                              const target = resolvedDeps.find((x) => x.appliance.id === id);
+                            onClick={() => {
                               // Still driving in → pre-arrival panel; on scene
                               // (or beyond) → full control page in this pane.
-                              if (target?.phase === "mobile") onSelectInbound?.(id);
-                              else setUnitId(id);
+                              if (r.phase === "mobile") onSelectInbound?.(r.appliance.id);
+                              else setUnitId(r.appliance.id);
                             }}
                           />
                         ))}
@@ -1137,4 +1134,84 @@ function fmtHms(totalSec: number): string {
   return h > 0
     ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`
     : `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+}
+
+// Compact committed row — callsign, phase, ETA/elapsed. The detail lives
+// on the unit-control page and the pre-arrival panel, not in the list.
+function CommittedRow({
+  r,
+  now,
+  selected,
+  isCommander,
+  onClick,
+}: {
+  r: ResolvedDeployment;
+  now: number;
+  selected: boolean;
+  isCommander: boolean;
+  onClick: () => void;
+}) {
+  const colour =
+    r.appliance.service === "Fire"
+      ? "text-(--color-critical)"
+      : r.appliance.service === "Ambulance"
+        ? "text-(--color-ok)"
+        : "text-(--color-info)";
+  const fmt = (ms: number) => {
+    const t = Math.max(0, Math.ceil(ms / 1000));
+    return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  };
+  const hems = r.deployment.hemsFlight;
+  let status = "At station";
+  let right = "";
+  if (r.phase === "mobile") {
+    if (hems && !r.deployment.parkingPos) {
+      if (now >= hems.overheadAt) {
+        status = "Overhead";
+        right = "LZ req";
+      } else {
+        status = "Airborne";
+        right = fmt(hems.overheadAt - now);
+      }
+    } else {
+      status = "Mobile";
+      right = fmt(r.deployment.arrivesAt - now);
+    }
+  } else if (r.phase === "at_incident") {
+    status = "On scene";
+    right = fmt(now - r.deployment.arrivesAt);
+  } else if (r.phase === "at_hospital") {
+    status = "At hospital";
+  } else if (r.phase === "returning") {
+    status = "Returning";
+  }
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className={
+          "flex w-full items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-left transition-colors " +
+          (selected
+            ? "border-(--color-amber) bg-(--color-amber)/10"
+            : "border-(--color-border-subtle) bg-(--color-surface) hover:border-(--color-amber-dim)")
+        }
+      >
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className={"truncate font-mono text-[11px] font-bold tracking-widest " + colour}>
+            {r.appliance.callsign}
+          </span>
+          {isCommander && (
+            <span className="shrink-0 rounded-[2px] border border-(--color-amber) px-0.5 font-mono text-[8px] font-bold text-(--color-amber)">
+              IC
+            </span>
+          )}
+        </span>
+        <span className="flex shrink-0 items-baseline gap-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+          <span>{status}</span>
+          {right && <span className="tabular-nums text-(--color-text)">{right}</span>}
+        </span>
+      </button>
+    </li>
+  );
 }
