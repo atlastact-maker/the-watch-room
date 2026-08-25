@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { AREAS } from "@/lib/sim/areas";
@@ -135,21 +136,31 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
 
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden p-6">
-      <div className="mb-4 flex items-baseline justify-between gap-6">
-        <div>
+      {/* Centred briefing masthead, with a route back to the ops room on
+          the left and a spacer on the right keeping the title true-centre. */}
+      <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+        <div className="justify-self-start">
+          <Link
+            href="/menu"
+            className="inline-flex items-center gap-2 rounded-sm border border-(--color-border) px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)"
+          >
+            ← Ops Room
+          </Link>
+        </div>
+        <div className="text-center">
           <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
             Watch Room // Pre-shift Briefing
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             Pick your patch
           </h1>
+          <p className="mt-1 text-sm">
+            <strong className="font-bold text-(--color-text)">
+              The red boundary is the ground you&apos;ll cover this shift.
+            </strong>
+          </p>
         </div>
-        <p className="max-w-md text-right text-sm text-(--color-text-muted)">
-          Fire, Ambulance and Police resources for the area you pick.{" "}
-          <strong className="font-bold text-(--color-text)">
-            The red boundary is the ground you&apos;ll cover this shift.
-          </strong>
-        </p>
+        <div aria-hidden />
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)_380px] gap-6">
