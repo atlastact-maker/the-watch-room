@@ -2065,32 +2065,43 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     });
   }, [now, tasks]);
 
-  // Auto-fire pre-committed BA tasks the moment their appliance lands —
-  // exactly what the en-route pre-select promises. No entry gate: if a
-  // door needs forcing, the BA team is who'd be doing it anyway, and many
-  // scenes (open doors, RTCs, moorland) never have an entry task at all.
+  // Stage pre-selected BA teams the moment their appliance lands. The
+  // en-route pre-select means "rig in BA on the way" — so on arrival the
+  // team stands ready at the entry point with sets on, but they do NOT
+  // enter automatically: committing to search and rescue is the
+  // operator's order, given from the action menu (where the staged team
+  // gets a one-click commit).
   useEffect(() => {
     for (const d of deployments) {
-      if (!d.preCommitBaCrewIds || d.preCommitBaCrewIds.length === 0) continue;
+      const stagedCrew = d.preCommitBaCrewIds;
+      if (!stagedCrew || stagedCrew.length === 0) continue;
       if (now < d.arrivesAt) continue;
-      const alreadyBaSar = tasks.some(
-        (t) => t.applianceId === d.applianceId && t.kind === "ba_sar" && t.state !== "aborted",
-      );
-      if (alreadyBaSar) continue;
-      // Fire the BA task and clear the pre-commit so we don't re-trigger.
-      startTask({
-        applianceId: d.applianceId,
-        kind: "ba_sar",
-        assignedCrewIds: d.preCommitBaCrewIds,
-      });
+      if (d.baStagedAt) continue; // already rigged + logged
+      const stagedAt = Date.now();
       setDeployments((prev) =>
-        prev.map((x) =>
-          x.applianceId === d.applianceId ? { ...x, preCommitBaCrewIds: undefined } : x,
-        ),
+        prev.map((x) => {
+          if (x.applianceId !== d.applianceId) return x;
+          // Rig the team — BA sets on for every pre-selected wearer.
+          const crewEquipment = { ...(x.crewEquipment ?? {}) };
+          for (const cid of stagedCrew) {
+            const cur = crewEquipment[cid] ?? [];
+            if (!cur.includes("ba_set")) crewEquipment[cid] = [...cur, "ba_set"];
+          }
+          return { ...x, crewEquipment, baStagedAt: stagedAt };
+        }),
       );
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `bastage:${d.applianceId}`,
+          timestamp: stagedAt,
+          kind: "annotation",
+          message: `${applianceLabel(d.applianceId)} in attendance — BA team of ${stagedCrew.length} rigged and staged at the entry point, awaiting commit order`,
+        },
+      ]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [now, deployments, tasks]);
+  }, [now, deployments]);
 
   // Water-tank tick — consumer-driven drain using realistic hose flow
   // rates. Each running hose_attack is a consumer at HOSE_FLOW_LPM for
@@ -2802,6 +2813,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       crsDoneMessage: args.crsDoneMessage,
     };
     setTasks((prev) => [...prev, task]);
+
+    // A BA commitment consumes any staged pre-select on this appliance —
+    // whether it used the staged crew or a fresh pick.
+    if (args.kind === "ba_sar") {
+      setDeployments((prev) =>
+        prev.map((x) =>
+          x.applianceId === args.applianceId
+            ? { ...x, preCommitBaCrewIds: undefined, baStagedAt: undefined }
+            : x,
+        ),
+      );
+    }
 
     if (args.kind === "crs_action") {
       setLog((prev) => [

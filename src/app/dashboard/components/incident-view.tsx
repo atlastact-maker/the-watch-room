@@ -1899,7 +1899,7 @@ function PreCommitBaPanel({
         Pre-commit BA team
       </div>
       <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-        Selected wearers commit on arrival once entry is made
+        Selected wearers rig en route and stage on arrival — commit them from the action menu
       </div>
       <div className="mt-2 grid grid-cols-2 gap-1.5">
         {baEligible.map((m) => {

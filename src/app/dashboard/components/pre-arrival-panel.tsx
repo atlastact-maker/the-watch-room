@@ -132,7 +132,8 @@ export function PreArrivalPanel({
               {preCommit.length > 0 && (
                 <p className="mt-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
                   {preCommit.length} wearer{preCommit.length === 1 ? "" : "s"} rigging
-                  en route
+                  en route — they stage at the entry point on arrival and
+                  wait for your commit order
                 </p>
               )}
             </section>

@@ -565,9 +565,15 @@ export type Deployment = {
   parkingPos?: { lat: number; lng: number };
   /** Operator-chosen parking bearing in degrees clockwise from north. */
   parkingBearingDeg?: number;
-  /** Crew members the operator pre-selected to commit as BA wearers as soon
-   *  as the appliance arrives. Only meaningful for BA-capable pumps. */
+  /** Crew members the operator pre-selected as the BA team while en route.
+   *  On arrival they rig in BA and STAGE at the entry point — they do NOT
+   *  commit to SAR automatically; the operator still gives the commit
+   *  order from the action menu. Only meaningful for BA-capable pumps. */
   preCommitBaCrewIds?: string[];
+  /** Epoch ms the pre-selected BA team rigged + staged on arrival. Set by
+   *  the staging effect (idempotence marker) and cleared when the team
+   *  actually commits to a BA task. */
+  baStagedAt?: number;
   /** Emergency-light state. "999" while responding (front + rear blues +
    *  reds + sirens), "at_scene" for rear visibility lights, etc. */
   lightState?: LightState;

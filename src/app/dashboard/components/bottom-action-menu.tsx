@@ -1525,7 +1525,13 @@ function ActionsTab({
 
   function start(p: Pending) {
     setPending(p);
-    setPickedCrew([]);
+    // A staged pre-select seeds the BA picker — the operator can still
+    // untick and swap wearers before confirming.
+    setPickedCrew(
+      p.kind === "ba_sar" && deployment.baStagedAt !== undefined
+        ? (deployment.preCommitBaCrewIds ?? []).filter((id) => !busyCrewIds.has(id))
+        : [],
+    );
   }
   function cancel() {
     setPending(null);
@@ -1799,6 +1805,41 @@ function ActionsTab({
                 </>
               );
             })()}
+            {/* Staged pre-select — rigged on arrival, waiting on the
+                operator's commit order. One click sends the staged team
+                in to search; the normal buttons below re-pick crew. */}
+            {deployment.baStagedAt !== undefined &&
+              (deployment.preCommitBaCrewIds?.length ?? 0) > 0 && (
+                <div className="rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 p-2">
+                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
+                    <span className="dot-live size-1.5 rounded-full bg-(--color-ok)" />
+                    BA team rigged &amp; staged · {deployment.preCommitBaCrewIds!.length} crew
+                  </div>
+                  <p className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                    Pre-selected en route — sets on at the entry point,
+                    awaiting your commit order.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!entryComplete}
+                    onClick={() =>
+                      onStartTask({
+                        applianceId: appliance.id,
+                        kind: "ba_sar",
+                        assignedCrewIds: (deployment.preCommitBaCrewIds ?? []).filter(
+                          (id) => !busyCrewIds.has(id),
+                        ),
+                        baMode: "search",
+                      })
+                    }
+                    className="mt-1.5 w-full rounded-sm border border-(--color-ok) bg-(--color-ok)/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-ok) hover:bg-(--color-ok)/25 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {entryComplete
+                      ? "Commit staged team · Search"
+                      : "Commit staged team (entry first)"}
+                  </button>
+                </div>
+              )}
             <BigBtn
               label={
                 hasActiveBaMode(ownActive, "search")
