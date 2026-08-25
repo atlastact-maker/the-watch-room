@@ -103,6 +103,21 @@ export function scoreIncident(
     });
   }
 
+  // 5b. Exposure protection — did the fire get into the attached
+  //     neighbour / adjacent unit? The breach log entry is the durable
+  //     record (written on the rising edge), so a later knock-down
+  //     doesn't erase the failure.
+  const exposureRisk = incident.scenario.scene?.exposureRisk;
+  if (exposureRisk && incident.scenario.scene?.fireSeat) {
+    const breached = !!log?.some((e) => e.id.startsWith("exposure:"));
+    metrics.push({
+      label: `Exposure held — ${exposureRisk.label}`,
+      target: "Fire kept out of the exposure",
+      actual: breached ? "Fire spread into the exposure" : "Exposure protected",
+      passed: !breached,
+    });
+  }
+
   // 6. Casualty outcomes — each scene casualty is evaluated individually
   //    based on progression stage + destination choice. Casualties the
   //    persons-reality roll removed from this run don't count against

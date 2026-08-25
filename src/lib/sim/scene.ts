@@ -185,6 +185,18 @@ export type SceneSector = {
   bearingDeg: number;
 };
 
+/** One alternative seat of fire for the per-run origin roll. Unset
+ *  override fields keep the authored default seat's values. */
+export type FireOriginVariant = {
+  probability: number;
+  label: string;          // e.g. "Lounge — electrical fault"
+  pos: ScenePoint;
+  material?: FireMaterial;
+  radiusM?: number;
+  growthRateMpm?: number;
+  maxRadiusM?: number;
+};
+
 export type Scene = {
   viewBox: { x: number; y: number; width: number; height: number };
   compassNorth: "up" | "down" | "left" | "right";
@@ -193,6 +205,16 @@ export type Scene = {
   hydrants: SceneHydrant[];
   landmarks: SceneLandmark[];
   fireSeat?: SceneFire;
+  /** Per-run fire-origin roll — one draw when the incident opens. Each
+   *  variant's probability is its own slice; the remainder keeps the
+   *  authored default seat. The winning variant is baked into the live
+   *  incident's fireSeat, so every consumer (sim, canvas, maps, 360
+   *  survey reveal) sees the rolled origin with no extra plumbing. */
+  fireOriginVariants?: FireOriginVariant[];
+  /** Exposure risk — when the fire radius reaches `atRadiusM`, the fire
+   *  is into the named exposure (attached neighbour, adjacent unit). The
+   *  breach is logged once and scored as a failed target at debrief. */
+  exposureRisk?: { atRadiusM: number; label: string };
   hazards: SceneHazard[];
   casualties?: SceneCasualty[];
   sectors?: SceneSector[];

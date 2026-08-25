@@ -752,10 +752,42 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       if (Math.random() >= c.presentProbability) absentRoll.push(c.id);
     }
     setAbsentCasualtyIds(absentRoll);
+    // Fire-origin roll — one draw across the authored variants; the
+    // winner is baked into this incident's own scenario copy so the sim,
+    // scene canvas, maps and the 360 material reveal all see the rolled
+    // seat without any extra plumbing. The remainder probability keeps
+    // the authored default seat.
+    let liveScenario = scenario;
+    const variants = scenario.scene?.fireOriginVariants;
+    if (scenario.scene?.fireSeat && variants && variants.length > 0) {
+      const draw = Math.random();
+      let acc = 0;
+      for (const v of variants) {
+        acc += v.probability;
+        if (draw < acc) {
+          liveScenario = {
+            ...scenario,
+            scene: {
+              ...scenario.scene,
+              fireSeat: {
+                ...scenario.scene.fireSeat,
+                pos: v.pos,
+                material: v.material ?? scenario.scene.fireSeat.material,
+                radiusM: v.radiusM ?? scenario.scene.fireSeat.radiusM,
+                growthRateMpm:
+                  v.growthRateMpm ?? scenario.scene.fireSeat.growthRateMpm,
+                maxRadiusM: v.maxRadiusM ?? scenario.scene.fireSeat.maxRadiusM,
+              },
+            },
+          };
+          break;
+        }
+      }
+    }
     setActiveIncident({
       id: `INC-${t}`,
       scenarioId: scenario.id,
-      scenario,
+      scenario: liveScenario,
       receivedAt: t,
     });
     setLog([
@@ -1828,6 +1860,31 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       new Set(absentCasualtyIds),
     );
   }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph, fireIgnition, absentCasualtyIds]);
+
+  // Exposure breach — log ONCE the moment the fire radius crosses the
+  // scene's authored exposure threshold (fire into the attached
+  // neighbour). The log entry is the durable record: scoring reads it at
+  // debrief, so knocking the fire back down later doesn't unhappen it.
+  useEffect(() => {
+    if (!activeIncident || !incidentSim?.exposureBreached) return;
+    const risk = activeIncident.scenario.scene?.exposureRisk;
+    if (!risk) return;
+    const id = `exposure:${activeIncident.id}`;
+    setLog((prev) =>
+      prev.some((e) => e.id === id)
+        ? prev
+        : [
+            ...prev,
+            {
+              id,
+              timestamp: Date.now(),
+              kind: "setback",
+              message: `Fire into the exposure — ${risk.label}. Make-up and a second jet on the party wall now.`,
+            },
+          ],
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incidentSim?.exposureBreached, activeIncident]);
 
   // Airwave click on Status change — every time statusOverrides updates
   // for an already-tracked appliance, click once. Skips the initial

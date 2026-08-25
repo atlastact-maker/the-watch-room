@@ -79,6 +79,11 @@ export type IncidentSimState = {
    *  Downstream consumers (scoring, planned-count displays) subtract
    *  these from the authored scene list. */
   absentCasualtyIds: string[];
+  /** True while the fire radius is at/beyond the scene's authored
+   *  exposure threshold (fire into the attached neighbour / adjacent
+   *  unit). The dashboard logs the breach on the rising edge; scoring
+   *  reads that log entry so a later knock-down doesn't erase it. */
+  exposureBreached: boolean;
   firstArrivalElapsedSec: number;
   baMinutesOnScene: number;
   baSarMinutes: number;
@@ -482,6 +487,8 @@ export function simulateIncident(
     foundCasualties,
     casualtyProgression,
     absentCasualtyIds: Array.from(absent),
+    exposureBreached:
+      !!scene?.exposureRisk && fireRadiusM >= scene.exposureRisk.atRadiusM,
     firstArrivalElapsedSec:
       firstArrival === null ? 0 : Math.max(0, (now - firstArrival) / 1000),
     baMinutesOnScene,

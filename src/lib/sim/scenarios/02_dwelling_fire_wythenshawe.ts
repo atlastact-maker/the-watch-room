@@ -168,14 +168,40 @@ export const scenario02: Scenario = {
       { pos: { x: 8, y: 14 }, kind: "car", label: "Parked" },
       { pos: { x: -5, y: 3 }, kind: "tree" },
     ],
-    // Kitchen seat of fire — towards the rear (north) of the target house.
+    // Default seat — kitchen chip-pan at the rear (north). Half of runs
+    // keep it; the origin roll below can move the seat to the lounge
+    // (electrical — isolate before water) or the upstairs bedroom
+    // (cigarette — right next to where the boy sleeps). The material is
+    // hidden until a 360 survey confirms it.
     fireSeat: {
       pos: { x: 0, y: -3 },
       radiusM: 2.5,
       growthRateMpm: 0.25,
       suppressionPerBaMpm: 0.08,
       maxRadiusM: 14,
+      material: "structural",
+      unknownMaterial: true,
     },
+    fireOriginVariants: [
+      {
+        probability: 0.3,
+        label: "Lounge — electrical fault",
+        pos: { x: -2, y: 1 },
+        material: "electrical",
+      },
+      {
+        probability: 0.2,
+        label: "Upstairs bedroom — cigarette",
+        pos: { x: 1, y: -4 },
+        material: "structural",
+        radiusM: 2,
+        growthRateMpm: 0.22,
+      },
+    ],
+    // The attached semi at no. 287 — the fire is through the party wall
+    // once it reaches ~6 m (about 15 unsuppressed minutes from the
+    // kitchen seat). Breaching it is a scored failure.
+    exposureRisk: { atRadiusM: 6, label: "No. 287 (attached neighbour)" },
     hazards: [
       {
         id: "gas-meter",
@@ -197,6 +223,15 @@ export const scenario02: Scenario = {
         kind: "chemical",
         label: "Paint / solvent storage (utility cupboard)",
         discoverAfterMinOnScene: 6,
+      },
+      {
+        // Isolating this restores water effectiveness on lounge-origin
+        // (electrical) runs; on other origins it's good practice anyway.
+        id: "house-supply",
+        pos: { x: -2, y: -2 },
+        kind: "electrical",
+        label: "Consumer unit — cupboard under stairs, isolate the house supply",
+        discoverAfterMinOnScene: 2,
       },
     ],
     // Persons reality (per the approved brief): ~33% of runs the whole
@@ -253,9 +288,11 @@ export const scenario02: Scenario = {
   },
   informantScript: [
     {
+      // Origin-neutral — the seat of fire varies per run and the caller
+      // wouldn't reliably know it anyway.
       id: "ack",
       atSec: 4,
-      text: "Please hurry, there's thick smoke coming from the kitchen window and the fire's spreading!",
+      text: "Please hurry, the house is full of smoke — it's pouring out of the windows and I can see the glow inside!",
       tone: "urgent",
     },
     {
