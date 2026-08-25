@@ -61,8 +61,10 @@ export function GroundSceneMap(props: {
   musterPick?: boolean;
   musterPos?: { lat: number; lng: number } | null;
   onPlaceMuster?: (lat: number, lng: number) => void;
-  /** Open the pre-arrival panel for a still-mobile unit (crew pre-allocation). */
-  onSelectInbound?: (applianceId: string) => void;
+  /** Armed by the MDT's Inbound console — appliance whose two-click map
+   *  placement the next clicks perform. */
+  placePendingApplianceId?: string | null;
+  onClearPlacePending?: () => void;
 }) {
   return (
     <div className="absolute inset-0">

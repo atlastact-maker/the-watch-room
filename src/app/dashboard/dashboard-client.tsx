@@ -194,6 +194,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [fireIgnition, setFireIgnition] = useState<FireIgnition | null>(null);
   // Persons-reality roll — casualty ids NOT in the building this run.
   const [absentCasualtyIds, setAbsentCasualtyIds] = useState<string[]>([]);
+  // Armed map placement — set by the MDT's Inbound console (PLACE / SET
+  // LZ); the ground map performs the two-click flow and clears it.
+  const [placePendingApplianceId, setPlacePendingApplianceId] = useState<string | null>(null);
 
   // Per-casualty clinical treatment state. Keyed by casualty id so it
   // survives ambulance hand-off. Grows as the operator runs a primary
@@ -715,6 +718,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setMusterPos(null);
     setPendingMuster(false);
     setMdtUnitId(null);
+    setPlacePendingApplianceId(null);
   }
 
   /** Declare / change tactical mode. IC must be assigned first — the
@@ -3291,7 +3295,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onConveyCasualtyVia={conveyCasualtyVia}
             mdtVisible={incidentPanelVisible}
             onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
-            onSelectInbound={setSelectedApplianceId}
+            placePendingApplianceId={placePendingApplianceId}
+            onClearPlacePending={() => setPlacePendingApplianceId(null)}
             selectedVehicleId={mdtUnitId}
             onVehicleSelect={(id) => {
               setMdtUnitId(id);
@@ -3375,6 +3380,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }
             onRequestRotate={setRotatePendingApplianceId}
             onSelectInbound={setSelectedApplianceId}
+            onArmPlacement={setPlacePendingApplianceId}
             unitId={mdtUnitId}
             onSetUnitId={setMdtUnitId}
           />

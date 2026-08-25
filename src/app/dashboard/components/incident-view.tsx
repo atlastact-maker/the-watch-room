@@ -109,7 +109,9 @@ export type Props = {
   onToggleMdt?: () => void;
   /** Open the pre-arrival panel for an inbound (not yet on scene) unit —
    *  lets the operator pre-allocate crews to tasks (BA etc.) en route. */
-  onSelectInbound?: (applianceId: string) => void;
+  /** Armed placement from the MDT's Inbound console. */
+  placePendingApplianceId?: string | null;
+  onClearPlacePending?: () => void;
   /** Ground-map vehicle clicks open the MDT unit-control page — the
    *  dashboard owns which unit is focused (halo on the map). */
   selectedVehicleId?: string | null;
@@ -224,7 +226,8 @@ export function IncidentView({
   onDeclareTacticalMode,
   mdtVisible,
   onToggleMdt,
-  onSelectInbound,
+  placePendingApplianceId,
+  onClearPlacePending,
   selectedVehicleId,
   onVehicleSelect,
   pendingClosure,
@@ -315,7 +318,8 @@ export function IncidentView({
           <GroundSceneMap
             incident={incident}
             resolved={resolved}
-            onSelectInbound={onSelectInbound}
+            placePendingApplianceId={placePendingApplianceId}
+            onClearPlacePending={onClearPlacePending}
             onScene={onSceneDeployments.map((r) => ({
               deployment: r.deployment,
               appliance: r.appliance,
