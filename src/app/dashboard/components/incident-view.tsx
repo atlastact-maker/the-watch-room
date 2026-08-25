@@ -661,20 +661,21 @@ function fireStageTone(stage: IncidentSimState["fireStage"]): string {
   }
 }
 
-/** Fire scenario types always carry the bar; non-fire types (RTC,
- *  hazmat, water rescue) only once an actual fire has taken hold. */
+/** Confirmed-fire scenario types always carry the bar. Everything else —
+ *  non-fire jobs (RTC, hazmat, water rescue) AND alarm-investigation
+ *  jobs (AFA, hospital alarm) whose whole identity is "probably false"
+ *  — only shows it once an actual fire has taken hold, so the bar never
+ *  leaks the answer before crews confirm it. */
 function fireBarRelevant(incident: Incident, sim: IncidentSimState): boolean {
   if (sim.fireMaterial === null) return false; // no fire seat authored at all
-  const fireTypes: Incident["scenario"]["type"][] = [
-    "automatic_fire_alarm",
+  const confirmedFireTypes: Incident["scenario"]["type"][] = [
     "dwelling_fire_persons_reported",
     "industrial_fire",
     "wildfire_moorland",
     "high_rise_dwelling_fire",
     "education_premises_fire",
-    "healthcare_premises_fire_alarm",
   ];
-  if (fireTypes.includes(incident.scenario.type)) return true;
+  if (confirmedFireTypes.includes(incident.scenario.type)) return true;
   return sim.fireRadiusM > 0.05;
 }
 

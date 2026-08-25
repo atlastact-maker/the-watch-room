@@ -135,13 +135,14 @@ export const scenario01: Scenario = {
       { pos: { x: -40, y: 20 }, kind: "lamppost" },
       { pos: { x: 40, y: 20 }, kind: "lamppost" },
     ],
-    // Almost always nothing — a possible smoulder above the food court
-    // kitchens. Slow growth; the informant beats either stand it down or
-    // confirm a working kitchen fire.
+    // Dormant seat — nothing burns unless the "working-fire" informant
+    // beat rolls true (its igniteFire effect lights this spot). Roughly
+    // three in four runs stay a genuine false alarm and the fire bar
+    // never appears.
     fireSeat: {
       pos: { x: 6, y: -22 },
-      radiusM: 0.5,
-      growthRateMpm: 0.05,
+      radiusM: 0,
+      growthRateMpm: 0,
       suppressionPerBaMpm: 0.12,
       maxRadiusM: 6,
       material: "electrical",
@@ -161,6 +162,15 @@ export const scenario01: Scenario = {
         kind: "structural",
         label: "Open atrium — smoke travel across zones if fire confirmed",
         knownFromPri: true,
+      },
+      {
+        // Isolating this restores water effectiveness on the (electrical)
+        // extract-fan fire if the working-fire roll lands.
+        id: "extract-supply",
+        pos: { x: 10, y: -18 },
+        kind: "electrical",
+        label: "Kitchen extract fan supply — isolator in the N3 service riser",
+        discoverAfterMinOnScene: 2,
       },
     ],
     casualties: [],
@@ -185,26 +195,32 @@ export const scenario01: Scenario = {
       text: "Your crews want the Orient entrance — I'll have the fire liaison at the panel with the zone plans and a radio.",
       tone: "info",
     },
+    // The reality roll. ~70% the patrol stands it down; of the rest,
+    // most turn out to be a real extract-fan fire (≈24% of all runs).
+    // The two outcomes are mutually exclusive — one playthrough only
+    // ever hears one of them.
     {
       id: "likely-false",
       atSec: 95,
       probability: 0.7,
+      suppressesIds: ["working-fire"],
       text: "Patrol's up there now — they reckon it's steam off the dishwasher extract in one of the kitchen units. No smoke, no smell. We'll hold the zone until your crews confirm.",
       tone: "info",
     },
     {
       id: "working-fire",
       atSec: 150,
-      probability: 0.25,
+      probability: 0.8,
+      suppressesIds: ["likely-false"],
       text: "Update from the patrol — there IS smoke in the service corridor, they can smell burning. Looks like it's coming off a kitchen extract fan. We're pulling the shutters on the food court units now.",
       tone: "critical",
-      effect: { accelerateGrowthSec: 240, pulseCritical: true },
+      effect: { igniteFire: { radiusM: 1.5, growthRateMpm: 0.25 }, pulseCritical: true },
     },
     {
       id: "phased-evac",
       atSec: 210,
-      delayThresholdSec: 420,
-      probability: 0.4,
+      probability: 0.9,
+      requiresFiredIds: ["working-fire"],
       text: "We've started the phased evacuation announcement for the food court and upper mall — shoppers are moving, it's orderly so far.",
       tone: "urgent",
     },

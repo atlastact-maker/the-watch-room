@@ -54,6 +54,7 @@ import {
   rootWaterSource,
   HOSE_FLOW_LPM,
   INTERIOR_BA_DEFAULT_FLOW_LPM,
+  type FireIgnition,
 } from "@/lib/sim/incident_types";
 import { MITIGATION_OPTIONS } from "@/lib/sim/mitigation";
 import {
@@ -188,6 +189,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // Whether the caller is still "on the phone". Flips to false the moment
   // the first committed crew arrives on scene.
   const [informantOnCall, setInformantOnCall] = useState(false);
+  // A real fire lit mid-incident by an informant beat (igniteFire) —
+  // alarm scenarios roll their false-vs-real reality through this.
+  const [fireIgnition, setFireIgnition] = useState<FireIgnition | null>(null);
 
   // Per-casualty clinical treatment state. Keyed by casualty id so it
   // survives ambulance hand-off. Grows as the operator runs a primary
@@ -335,6 +339,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setLog(shifted.log);
     setInformantLog(shifted.informantLog);
     setInformantOnCall(shifted.informantOnCall);
+    setFireIgnition(shifted.fireIgnition ?? null);
     setNewlyFoundCasualties(new Set(shifted.newlyFoundCasualties));
     setNewlyConfirmedHazards(new Set(shifted.newlyConfirmedHazards));
     setLastFireStage(shifted.lastFireStage);
@@ -397,6 +402,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         log,
         informantLog,
         informantOnCall,
+        fireIgnition,
         newlyFoundCasualties: Array.from(newlyFoundCasualties),
         newlyConfirmedHazards: Array.from(newlyConfirmedHazards),
         lastFireStage,
@@ -425,6 +431,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     log,
     informantLog,
     informantOnCall,
+    fireIgnition,
     newlyFoundCasualties,
     newlyConfirmedHazards,
     lastFireStage,
@@ -694,6 +701,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setLastAirTickAt(0);
     setInformantLog([]);
     setInformantOnCall(false);
+    setFireIgnition(null);
     setTreatmentByCasualtyId({});
     setTacticalMode(null);
     setFatigueByApplianceId({});
@@ -1801,8 +1809,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       now,
       treatmentByCasualtyId,
       fireGrowthWindMultiplier(weather.windMph),
+      fireIgnition,
     );
-  }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph]);
+  }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph, fireIgnition]);
 
   // Airwave click on Status change — every time statusOverrides updates
   // for an already-tracked appliance, click once. Skips the initial
@@ -2137,6 +2146,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // Find any update whose atSec has passed and that hasn't fired yet.
     // Walk in order so earlier beats fire before later ones.
     const firedIds = new Set(informantLog.map((e) => e.id));
+    const committedIds = new Set(
+      informantLog.filter((e) => e.text.length > 0).map((e) => e.id),
+    );
     for (const update of script) {
       if (firedIds.has(update.id)) continue;
       if (sinceOpenSec < update.atSec) continue;
@@ -2146,6 +2158,25 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         sinceOpenSec < update.delayThresholdSec
       ) {
         continue;
+      }
+      // Dependency gate: follow-on beats wait for their prerequisites to
+      // COMMIT. If a prerequisite was rolled and skipped, this beat can
+      // never happen — mark it silently skipped.
+      if (update.requiresFiredIds && update.requiresFiredIds.length > 0) {
+        const deadPrereq = update.requiresFiredIds.some(
+          (id) => firedIds.has(id) && !committedIds.has(id),
+        );
+        if (deadPrereq) {
+          setInformantLog((prev) => [
+            ...prev,
+            { id: update.id, text: "", tone: "info", firedAt: Date.now() },
+          ]);
+          continue;
+        }
+        const allCommitted = update.requiresFiredIds.every((id) =>
+          committedIds.has(id),
+        );
+        if (!allCommitted) continue; // prerequisites still pending
       }
       // Probability roll — single chance per update. Fire the dice the
       // first time the window opens; either we commit it, or we skip it
@@ -2163,9 +2194,19 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         ]);
         continue;
       }
-      // Fire.
+      // Fire — and silently retire any mutually-exclusive beats so the
+      // other side of an either/or outcome can never land as well.
+      const suppressed = (update.suppressesIds ?? [])
+        .filter((id) => !firedIds.has(id))
+        .map((id) => ({
+          id,
+          text: "",
+          tone: "info" as const,
+          firedAt: Date.now(),
+        }));
       setInformantLog((prev) => [
         ...prev,
+        ...suppressed,
         {
           id: update.id,
           text: update.text,
@@ -2179,6 +2220,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           prev
             ? { ...prev, receivedAt: prev.receivedAt - update.effect!.accelerateGrowthSec! * 1000 }
             : prev,
+        );
+      }
+      if (update.effect?.igniteFire) {
+        const ig = update.effect.igniteFire;
+        setFireIgnition((prev) =>
+          prev
+            ? {
+                atMs: prev.atMs,
+                radiusM: prev.radiusM + ig.radiusM,
+                growthRateMpm: Math.max(prev.growthRateMpm, ig.growthRateMpm),
+              }
+            : { atMs: Date.now(), radiusM: ig.radiusM, growthRateMpm: ig.growthRateMpm },
         );
       }
       setLog((prev) => [

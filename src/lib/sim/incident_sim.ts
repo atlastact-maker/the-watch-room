@@ -166,6 +166,11 @@ export function simulateIncident(
   now: number,
   treatmentByCasualtyId?: Record<string, PatientTreatmentState>,
   windGrowthMultiplier: number = 1,
+  /** A real fire started mid-incident by an informant beat (igniteFire) —
+   *  adds radius and growth on top of the authored seat, integrating
+   *  from its own start time. How "probably false" alarm scenarios roll
+   *  their reality per playthrough. */
+  fireIgnition?: import("./incident_types").FireIgnition | null,
 ): IncidentSimState {
   const scene = incident.scenario.scene;
 
@@ -211,7 +216,18 @@ export function simulateIncident(
 
     // Integrate growth over incident lifetime.
     const receivedAtSec = Math.max(0, (now - incident.receivedAt) / 1000);
-    const growthAdd = growth * (receivedAtSec / 60);
+    let growthAdd = growth * (receivedAtSec / 60);
+
+    // A mid-incident ignition (informant beat) integrates from its own
+    // start time on top of the authored seat — for alarm scenarios the
+    // seat itself is zero and this IS the fire.
+    let ignitionGrowthNow = 0;
+    let ignitionRadius = 0;
+    if (fireIgnition && now >= fireIgnition.atMs) {
+      ignitionRadius = fireIgnition.radiusM;
+      ignitionGrowthNow = fireIgnition.growthRateMpm * windGrowthMultiplier;
+      growthAdd += ignitionGrowthNow * ((now - fireIgnition.atMs) / 1000 / 60);
+    }
 
     // Suppression from active tasks, integrated over their active duration.
     // Rate depends on hose-attack mode: interior attack is most effective,
@@ -225,10 +241,13 @@ export function simulateIncident(
       suppressionSub += rate * (taskDurationSec(t, now) / 60);
     }
 
-    fireRadiusM = Math.min(maxR, Math.max(0, seat.radiusM + growthAdd - suppressionSub));
+    fireRadiusM = Math.min(
+      maxR,
+      Math.max(0, seat.radiusM + ignitionRadius + growthAdd - suppressionSub),
+    );
 
     // Current instantaneous rate: growth minus active-task suppression.
-    fireRateMpm = growth - activeSuppressionNow;
+    fireRateMpm = growth + ignitionGrowthNow - activeSuppressionNow;
     // Once at zero radius, cap rate at 0 (out).
     if (fireRadiusM <= 0) fireRateMpm = Math.max(0, fireRateMpm);
   }
@@ -243,7 +262,16 @@ export function simulateIncident(
     const maxR = scene.fireSeat.maxRadiusM ?? 15;
     const pct = maxR > 0 ? fireRadiusM / maxR : 0;
     const shrinking = fireRateMpm < -0.01;
-    if (fireRadiusM <= 0.1) {
+    // Alarm scenarios author a dormant seat (radius 0, growth 0) that only
+    // an informant ignition lights — until then there is genuinely no
+    // fire, which must read as "none", never "extinguished".
+    const neverBurned =
+      scene.fireSeat.radiusM <= 0 &&
+      (scene.fireSeat.growthRateMpm ?? 0.2) <= 0 &&
+      !fireIgnition;
+    if (neverBurned) {
+      fireStage = "none";
+    } else if (fireRadiusM <= 0.1) {
       fireStage = shrinking || firstArrival !== null ? "extinguished" : "incipient";
     } else if (shrinking) {
       fireStage = "under_control";

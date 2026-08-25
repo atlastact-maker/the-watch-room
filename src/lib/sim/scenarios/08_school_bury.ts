@@ -225,6 +225,15 @@ export const scenario08: Scenario = {
         label: "Gas cylinder by the kiln — design tech store",
         discoverAfterMinOnScene: 3,
       },
+      {
+        // The design-tech fire is electrical (lathe / kiln origin) —
+        // isolating the block's supply restores water effectiveness.
+        id: "tech-block-supply",
+        pos: { x: 20, y: -10 },
+        kind: "electrical",
+        label: "Tech block electrical intake — isolate at the switch room by the service yard",
+        discoverAfterMinOnScene: 3,
+      },
     ],
     casualties: [
       {

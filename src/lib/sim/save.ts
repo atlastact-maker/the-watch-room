@@ -6,6 +6,7 @@
 
 import type {
   Deployment,
+  FireIgnition,
   Incident,
   LogEntry,
   PatientTreatmentState,
@@ -56,6 +57,9 @@ export type ShiftSave = {
   log: LogEntry[];
   informantLog: FiredInformant[];
   informantOnCall: boolean;
+  /** Mid-incident fire started by an informant beat. Optional — absent in
+   *  saves written before the ignition mechanic existed. */
+  fireIgnition?: FireIgnition | null;
   newlyFoundCasualties: string[];
   newlyConfirmedHazards: string[];
   lastFireStage: string;
@@ -227,6 +231,9 @@ export function applyResumeOffset(
       ...e,
       firedAt: e.firedAt + offset,
     })),
+    fireIgnition: save.fireIgnition
+      ? { ...save.fireIgnition, atMs: save.fireIgnition.atMs + offset }
+      : save.fireIgnition,
     lastAirTickAt: save.lastAirTickAt ? save.lastAirTickAt + offset : 0,
     lastFatigueTickAt: save.lastFatigueTickAt
       ? save.lastFatigueTickAt + offset

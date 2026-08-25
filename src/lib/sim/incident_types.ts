@@ -491,6 +491,16 @@ export type InformantUpdate = {
   text: string;
   /** Visual tone for the update in the informant panel. */
   tone?: "info" | "urgent" | "critical";
+  /** When this update COMMITS (fires with text), the listed beat ids are
+   *  silently skipped — lets scenarios author mutually-exclusive
+   *  outcomes ("it's a false alarm" vs "it's a working fire") without
+   *  both ever landing in one playthrough. */
+  suppressesIds?: string[];
+  /** This update can only fire after every listed beat id has COMMITTED.
+   *  If any listed beat was rolled and skipped, this one is skipped too —
+   *  follow-on beats never orphan ("evacuation started" can't fire when
+   *  the fire itself never happened). */
+  requiresFiredIds?: string[];
   /** Optional hard sim effects to apply when the update fires. */
   effect?: {
     /** Push the incident receivedAt back by this many seconds so the fire
@@ -499,7 +509,23 @@ export type InformantUpdate = {
     accelerateGrowthSec?: number;
     /** Flash a persistent high-priority banner on the informant panel. */
     pulseCritical?: boolean;
+    /** Start (or grow) a REAL fire at the scene's fire seat from the
+     *  moment this beat fires. This is how "probably false" alarm
+     *  scenarios (AFA, hospital) roll their reality per playthrough:
+     *  the seat is authored at zero radius / zero growth, and the
+     *  confirmed-fire beat's probability decides whether tonight is the
+     *  night. Additive — a later escalation beat can add radius and
+     *  raise the growth rate. */
+    igniteFire?: { radiusM: number; growthRateMpm: number };
   };
+};
+
+/** Runtime fire started by an informant beat's igniteFire effect —
+ *  tracked by the dashboard and fed into simulateIncident. */
+export type FireIgnition = {
+  atMs: number;
+  radiusM: number;
+  growthRateMpm: number;
 };
 
 // Active runtime incident — instantiated when the player triggers a scenario.

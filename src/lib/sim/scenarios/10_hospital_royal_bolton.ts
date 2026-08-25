@@ -191,13 +191,14 @@ export const scenario10: Scenario = {
       { pos: { x: -80, y: -34 }, kind: "tree" },
       { pos: { x: 80, y: 26 }, kind: "tree" },
     ],
-    // Ward 19 pantry — small electrical fire (toaster / equipment fault
-    // per the alarm-reality rolls). Slow growth inside one compartment;
-    // the informant either stands it down or walks it up the stages.
+    // Ward 19 pantry — dormant seat. Half of all runs the trust officer
+    // stands it down as a burnt-out appliance; the other half his
+    // "confirmed-small" beat ignites a real one-room electrical fire
+    // (and can escalate into the corridor void on slow responses).
     fireSeat: {
       pos: { x: 12, y: -22 },
-      radiusM: 1.2,
-      growthRateMpm: 0.18,
+      radiusM: 0,
+      growthRateMpm: 0,
       suppressionPerBaMpm: 0.1,
       maxRadiusM: 8,
       material: "electrical",
@@ -231,6 +232,15 @@ export const scenario10: Scenario = {
         kind: "chemical",
         label: "Pharmacy — controlled drugs store (Block A ground)",
         knownFromPri: true,
+      },
+      {
+        // Isolating this restores water effectiveness on the pantry's
+        // electrical fire when the confirmed-small roll lands.
+        id: "ward19-supply",
+        pos: { x: 8, y: -26 },
+        kind: "electrical",
+        label: "Ward 19 pantry ring main — isolate at the ward distribution board",
+        discoverAfterMinOnScene: 2,
       },
     ],
     casualties: [
@@ -279,26 +289,39 @@ export const scenario10: Scenario = {
       text: "I'll meet your crews at the Block C entrance off Minerva Road with the plans and the gas isolation locations. Lifts are in fire mode.",
       tone: "info",
     },
+    // The reality roll — a coin flip between a real one-room fire and a
+    // burnt-out toaster. Mutually exclusive; each run hears exactly one.
     {
       id: "confirmed-small",
       atSec: 140,
       probability: 0.5,
+      suppressesIds: ["stood-down"],
       text: "Update — my officer's at the pantry. It's a counter-top appliance well alight and it's got into the cupboard above, but it's one room. Door's shut, compartment's good. Your BA crew can make this quick work.",
       tone: "urgent",
+      effect: { igniteFire: { radiusM: 1.2, growthRateMpm: 0.12 } },
+    },
+    {
+      id: "stood-down",
+      atSec: 155,
+      suppressesIds: ["confirmed-small"],
+      text: "Stand your crews easy — it's a burnt-out toaster, nothing's spread. We're ventilating the smell, resetting the panel, and reversing the Stage 2 move. Appreciate the attendance.",
+      tone: "info",
     },
     {
       id: "corridor-smoke",
       atSec: 220,
       delayThresholdSec: 420,
       probability: 0.35,
+      requiresFiredIds: ["confirmed-small"],
       text: "It's not holding as clean as I'd like — smoke's found the corridor ceiling void. We're extending the Stage 2 to the whole of ward 19 and I want your crews on the void.",
       tone: "critical",
-      effect: { accelerateGrowthSec: 60, pulseCritical: true },
+      effect: { igniteFire: { radiusM: 0.8, growthRateMpm: 0.08 }, pulseCritical: true },
     },
     {
       id: "patient-affected",
       atSec: 280,
       probability: 0.6,
+      requiresFiredIds: ["confirmed-small"],
       text: "One of the ward 19 patients is struggling — elderly lady with COPD, took some smoke during the move. Ward staff have oxygen on her; your NWAS liaison's been told.",
       tone: "urgent",
     },
