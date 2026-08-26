@@ -1093,7 +1093,7 @@ function CommittedRow({
       right = fmt(r.deployment.arrivesAt - now);
     }
   } else if (r.phase === "at_incident") {
-    status = r.deployment.parkingPos ? "On scene" : "Arrived";
+    status = "On scene";
     right = fmt(now - r.deployment.arrivesAt);
   } else if (r.phase === "at_hospital") {
     status = "At hospital";
@@ -1101,9 +1101,12 @@ function CommittedRow({
     status = "Returning";
   }
   // Anything committed but not yet positioned on the ground still needs
-  // placing — a helicopter's placement is its landing zone.
+  // placing — a helicopter's placement is its landing zone. A unit on the
+  // hospital leg is still tagged "mobile" by phaseOf but has physically
+  // left, so it is not awaiting anything.
   const needsPlacing =
     !r.deployment.parkingPos &&
+    !r.deployment.hospitalLegStartedAt &&
     (r.phase === "mobile" || r.phase === "at_incident");
   const isHeli = !!r.deployment.hemsFlight;
   return (

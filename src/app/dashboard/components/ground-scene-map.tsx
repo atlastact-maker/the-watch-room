@@ -61,8 +61,8 @@ export function GroundSceneMap(props: {
   musterPick?: boolean;
   musterPos?: { lat: number; lng: number } | null;
   onPlaceMuster?: (lat: number, lng: number) => void;
-  /** Armed by the MDT's Inbound console — appliance whose two-click map
-   *  placement the next clicks perform. */
+  /** Armed from the MDT's committed list — the appliance whose two-click
+   *  map placement the next clicks perform. */
   placePendingApplianceId?: string | null;
   onClearPlacePending?: () => void;
 }) {

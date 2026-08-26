@@ -108,9 +108,7 @@ export type Props = {
   /** MDT tablet visibility toggle for the mission bar. */
   mdtVisible?: boolean;
   onToggleMdt?: () => void;
-  /** Open the pre-arrival panel for an inbound (not yet on scene) unit —
-   *  lets the operator pre-allocate crews to tasks (BA etc.) en route. */
-  /** Armed placement from the MDT's Inbound console. */
+  /** Armed placement from the MDT's committed list. */
   placePendingApplianceId?: string | null;
   onClearPlacePending?: () => void;
   /** Ground-map vehicle clicks open the MDT unit-control page — the

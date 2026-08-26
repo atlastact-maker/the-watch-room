@@ -966,6 +966,9 @@ export function LeafletGroundMap({
   const awaitingPlacement: { applianceId: string; callsign: string; phase: "mobile" | "at_incident" }[] = [];
   for (const r of resolved) {
     if (r.deployment.parkingPos) continue;
+    // Same guard the ghost layer uses: a unit on the hospital leg has
+    // left the scene even though phaseOf still calls it mobile.
+    if (r.deployment.hospitalLegStartedAt) continue;
     if (r.phase !== "mobile" && r.phase !== "at_incident") continue;
     awaitingPlacement.push({
       applianceId: r.deployment.applianceId,
@@ -990,7 +993,7 @@ export function LeafletGroundMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parking, awaitingPlacement]);
 
-  // External arming from the MDT's Inbound console: arm the two-click
+  // External arming from the MDT's committed list: arm the two-click
   // placement flow for the requested unit; dropping the request (or the
   // unit becoming placed) stands the flow down.
   useEffect(() => {
@@ -1015,9 +1018,9 @@ export function LeafletGroundMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placePendingApplianceId]);
 
-  // No auto-park: arrivals wait in the INBOUND dropdown until the
-  // operator picks each vehicle's position and facing (or pre-placed
-  // them while still en route).
+  // No auto-park: an arrival stands unplaced until the operator picks
+  // its position and facing, armed from the Place button on its row in
+  // the MDT's committed list.
 
   // External request to rotate a parked vehicle. Enter rotate phase with the
   // current parking position as the pivot so the next map click sets the
@@ -1461,9 +1464,9 @@ export function LeafletGroundMap({
   );
 }
 
-/** Step banner shown while a placement / LZ pick / rotation is armed from
- *  the MDT's Inbound console. The map itself stays clean otherwise —
- *  inbound listing and buttons live on the MDT Resourcing tab. */
+/** Step banner shown while a placement / LZ pick / rotation is armed
+ *  from the MDT. The map itself stays clean otherwise — every unit list
+ *  and its actions live on the MDT's Resourcing tab. */
 function PlacementBanner({
   parking,
   onCancel,
@@ -1473,7 +1476,10 @@ function PlacementBanner({
 }) {
   if (parking.phase === "idle") return null;
   return (
-    <div className="pointer-events-auto absolute left-3 top-3 z-[600] rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/95 px-3 py-2 shadow-lg" style={{ maxWidth: 420 }}>
+    <div
+      className="pointer-events-auto absolute bottom-4 left-1/2 z-[1300] -translate-x-1/2 rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/95 px-3 py-2 shadow-lg"
+      style={{ maxWidth: 460 }}
+    >
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">

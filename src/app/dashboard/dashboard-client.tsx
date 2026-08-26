@@ -208,8 +208,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [fireIgnition, setFireIgnition] = useState<FireIgnition | null>(null);
   // Persons-reality roll — casualty ids NOT in the building this run.
   const [absentCasualtyIds, setAbsentCasualtyIds] = useState<string[]>([]);
-  // Armed map placement — set by the MDT's Inbound console (PLACE / SET
-  // LZ); the ground map performs the two-click flow and clears it.
+  // Armed map placement — set by the Place / LZ button on a unit's row
+  // in the MDT; the ground map performs the two-click flow and clears it.
   const [placePendingApplianceId, setPlacePendingApplianceId] = useState<string | null>(null);
 
   // Per-casualty clinical treatment state. Keyed by casualty id so it
