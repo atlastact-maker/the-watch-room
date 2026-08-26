@@ -38,6 +38,7 @@ import { mitigationOptionsFor } from "@/lib/sim/mitigation";
 import { BaControlBoard } from "./ba-control-board";
 import { LightingControlHead } from "./lighting-control-head";
 import {
+  APPLIANCE_SINGLETONS,
   HAND_BUDGET,
   applyLoadout,
   canCarry,
@@ -828,15 +829,33 @@ export function CrewTab({
       }
       applyPreset(m.id, preset);
     }
+    // A rescue pump carries three Technical Rescue riders but an
+    // extrication needs four positions covered, so glass management
+    // would never be issued. Hand it to the first rider with a spare
+    // hand — in practice the officer.
+    if (itemAvailable("glass_mgmt")) {
+      const carriers = appliance.crewMembers.filter((m) =>
+        (equipMap[m.id] ?? []).includes("glass_mgmt"),
+      );
+      if (carriers.length === 0) {
+        const spare = appliance.crewMembers.find(
+          (m) =>
+            !busyCrewIds.has(m.id) &&
+            canCarry(equipMap[m.id] ?? [], "glass_mgmt").ok,
+        );
+        if (spare) {
+          onToggleCrewEquipment(appliance.id, spare.id, "glass_mgmt");
+        }
+      }
+    }
   }
 
   const sel = appliance.crewMembers.find((m) => m.id === selId) ?? null;
   const selEquipped = sel ? (equipMap[sel.id] ?? []) : [];
 
   /** Current holder of a one-per-appliance item, if anyone. */
-  const SINGLETONS = new Set<CrewEquipment>(["fast_attack_branch"]);
   function holderOf(item: CrewEquipment): (typeof appliance.crewMembers)[number] | null {
-    if (!SINGLETONS.has(item)) return null;
+    if (!APPLIANCE_SINGLETONS.has(item)) return null;
     for (const m of appliance.crewMembers) {
       if ((equipMap[m.id] ?? []).includes(item)) return m;
     }
@@ -970,6 +989,12 @@ export function CrewTab({
                       <button
                         key={p.key}
                         type="button"
+                        disabled={busyCrewIds.has(sel.id)}
+                        title={
+                          busyCrewIds.has(sel.id)
+                            ? "Crew member is working — stand them down first"
+                            : undefined
+                        }
                         onClick={() => applyPreset(sel.id, p)}
                         className={
                           "rounded-sm border px-2 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
@@ -1109,7 +1134,9 @@ function applianceHasEquipment(appliance: Appliance, key: CrewEquipment): boolea
     case "branch_45mm":
     case "branch_70mm":
     case "fast_attack_branch":
-      return appliance.waterLitres > 0 || hasKit(/Hose|Boom monitor/i);
+      // Aerials work a monitor from the cage — aerial_monitor requires a
+      // 70 mm branch, so a TL or HLP must be able to hold one.
+      return appliance.waterLitres > 0 || hasKit(/Hose|Boom monitor/i) || cap("Aerial");
     case "thermal_camera":
       return hasKit(/Thermal imaging|TIC/i) || cap("RTC_extrication") || cap("USAR");
     case "extinguisher":
@@ -1897,6 +1924,17 @@ function ActionsTab({
 
   const activeBaTasks = ownActive.filter((t) => t.kind === "ba_sar");
 
+  // The staged pre-select bypasses the crew picker, so it has to carry
+  // the same gate itself: enough wearers free, and every one of them
+  // actually wearing a set.
+  const stagedAvailable = (deployment.preCommitBaCrewIds ?? []).filter(
+    (id) => !busyCrewIds.has(id),
+  );
+  const stagedEquip = deployment.crewEquipment ?? {};
+  const stagedTeamReady =
+    stagedAvailable.length >= TASK_MIN_CREW.ba_sar &&
+    stagedAvailable.every((id) => (stagedEquip[id] ?? []).includes("ba_set"));
+
   // Per-casualty treatment pairing panel — only shown for ambulance-type
   // appliances that are on scene (not generic medical roles on a fire
   // pump). The operator picks a discovered casualty from the list and
@@ -2113,7 +2151,9 @@ function ActionsTab({
             })()}
             {/* Staged pre-select — rigged on arrival, waiting on the
                 operator's commit order. One click sends the staged team
-                in to search; the normal buttons below re-pick crew. */}
+                in to search; the normal buttons below re-pick crew.
+                Gated on the same rules as any other BA commit: enough
+                wearers, and every one of them actually wearing a set. */}
             {deployment.baStagedAt !== undefined &&
               (deployment.preCommitBaCrewIds?.length ?? 0) > 0 && (
                 <div className="rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 p-2">
@@ -2127,22 +2167,25 @@ function ActionsTab({
                   </p>
                   <button
                     type="button"
-                    disabled={!entryComplete}
-                    onClick={() =>
+                    disabled={!entryComplete || !stagedTeamReady}
+                    onClick={() => {
+                      if (!stagedTeamReady) return;
                       onStartTask({
                         applianceId: appliance.id,
                         kind: "ba_sar",
-                        assignedCrewIds: (deployment.preCommitBaCrewIds ?? []).filter(
-                          (id) => !busyCrewIds.has(id),
-                        ),
+                        assignedCrewIds: stagedAvailable,
                         baMode: "search",
-                      })
-                    }
+                      });
+                    }}
                     className="mt-1.5 w-full rounded-sm border border-(--color-ok) bg-(--color-ok)/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-ok) hover:bg-(--color-ok)/25 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {entryComplete
-                      ? "Commit staged team · Search"
-                      : "Commit staged team (entry first)"}
+                    {!entryComplete
+                      ? "Commit staged team (entry first)"
+                      : stagedAvailable.length < TASK_MIN_CREW.ba_sar
+                        ? `Need ${TASK_MIN_CREW.ba_sar} wearers free`
+                        : !stagedTeamReady
+                          ? "Staged team not all in BA"
+                          : "Commit staged team · Search"}
                   </button>
                 </div>
               )}

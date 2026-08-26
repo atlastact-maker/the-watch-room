@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
-import { isSpecialistAppliance, type ServiceCode } from "@/lib/sim/types";
+import {
+  isSpecialistAppliance,
+  type ApplianceTypeCode,
+  type ServiceCode,
+} from "@/lib/sim/types";
 import {
   ALL_SERVICES,
   COVERED_SERVICES_KEY,
@@ -1487,8 +1491,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       .find((a) => a.id === args.applianceId);
     const crewEquipment: Record<string, string[]> = {};
     if (appliance) {
+      // Seed only what this vehicle actually carries, one holder per
+      // one-per-appliance item, and within each rider's hand budget —
+      // otherwise a rider steps off holding phantom kit that has no
+      // toggle in the Crew tab and no way to put down.
+      const claimed = new Set<string>();
       for (const m of appliance.crewMembers) {
-        crewEquipment[m.id] = defaultLoadoutFor(m.role);
+        const wanted = defaultLoadoutFor(m.role).filter((item) => {
+          if (!applianceCarries(appliance, item)) return false;
+          if (APPLIANCE_SINGLETONS.has(item)) {
+            if (claimed.has(item)) return false;
+            claimed.add(item);
+          }
+          return true;
+        });
+        crewEquipment[m.id] = applyLoadout(wanted).items;
       }
     }
     // The board's ETAs are priced at the fleet-average blue-light factor;
@@ -2699,16 +2716,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       prev.map((d) => {
         if (d.applianceId !== applianceId) return d;
         const eq = { ...(d.crewEquipment ?? {}) };
+        // Never strip a one-per-appliance item off a rider who is
+        // working — drop it from this loadout instead.
+        const granted: string[] = [];
         for (const item of items) {
-          if (!APPLIANCE_SINGLETONS.has(item)) continue;
-          for (const [otherCrew, held] of Object.entries(eq)) {
-            if (otherCrew === crewId) continue;
-            if (held.includes(item)) {
-              eq[otherCrew] = held.filter((x) => x !== item);
-            }
+          if (!APPLIANCE_SINGLETONS.has(item)) {
+            granted.push(item);
+            continue;
           }
+          const holder = Object.entries(eq).find(
+            ([other, held]) => other !== crewId && held.includes(item),
+          );
+          if (holder && busyCrewIds.has(holder[0])) continue; // in use
+          if (holder) eq[holder[0]] = holder[1].filter((x) => x !== item);
+          granted.push(item);
         }
-        eq[crewId] = items;
+        eq[crewId] = granted;
         return { ...d, crewEquipment: eq };
       }),
     );
@@ -2786,14 +2809,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         const current = eq[crewId] ?? [];
         const adding = !current.includes(item);
         // One-per-appliance kit: if this rider is taking the cutters,
-        // nobody else on the pump is still holding them.
+        // nobody else on the pump is still holding them — unless that
+        // someone is working a task with it, in which case the transfer
+        // is refused rather than robbing them mid-job.
         if (adding && APPLIANCE_SINGLETONS.has(item)) {
-          for (const [otherCrew, items] of Object.entries(eq)) {
-            if (otherCrew === crewId) continue;
-            if (items.includes(item)) {
-              eq[otherCrew] = items.filter((x) => x !== item);
-            }
-          }
+          const holder = Object.entries(eq).find(
+            ([other, items]) => other !== crewId && items.includes(item),
+          );
+          if (holder && busyCrewIds.has(holder[0])) return d;
+          if (holder) eq[holder[0]] = holder[1].filter((x) => x !== item);
         }
         // addEquipment returns the list unchanged when the rider has no
         // hand free — a refusal, not a silent overload.
@@ -3533,6 +3557,52 @@ function applianceLabel(id: string): string {
  *  Driver always takes the red key + thermal camera (they set up water
  *  supply); officer-in-charge takes the TIC + radio; rear crew just get a
  *  radio so the operator can decide what they carry into the scene. */
+/** Does this vehicle physically carry the item? Mirrors the Crew tab's
+ *  rule so a rider is never seeded kit the tab cannot show. */
+function applianceCarries(
+  a: { kit: string[]; type: ApplianceTypeCode; waterLitres: number },
+  key: string,
+): boolean {
+  const kit = a.kit.join(" ");
+  const caps: string[] =
+    (CAPABILITIES_BY_TYPE as Record<string, string[]>)[a.type] ?? [];
+  const hasKit = (re: RegExp) => re.test(kit);
+  const cap = (c: string) => caps.includes(c);
+  switch (key) {
+    case "radio":
+      return true;
+    case "ba_set":
+      return cap("BA") || hasKit(/BA sets?/i);
+    case "branch_45mm":
+    case "branch_70mm":
+    case "fast_attack_branch":
+      return a.waterLitres > 0 || hasKit(/Hose|Boom monitor/i) || cap("Aerial");
+    case "thermal_camera":
+      return hasKit(/Thermal imaging|TIC/i) || cap("RTC_extrication") || cap("USAR");
+    case "red_key":
+    case "standpipe":
+      return hasKit(/Red key|standpipe/i) || a.waterLitres > 0;
+    case "stabiliser_chocks":
+      return hasKit(/Stabiliser|Heavy rescue/i) || cap("RTC_extrication") || cap("Aerial");
+    case "rope_kit":
+    case "rescue_harness":
+      return cap("Rope") || hasKit(/Rope/i);
+    case "beater":
+    case "leaf_blower":
+    case "knapsack_sprayer":
+    case "drip_torch":
+      return cap("Wildfire") || hasKit(/beater|Leaf blower|Knapsack/i);
+    case "aed":
+      return hasKit(/AED|Defib/i) || cap("Medical");
+    case "first_aid":
+      return hasKit(/Paramedic kit|First|Oxygen|Airway/i) || cap("Medical");
+    case "trauma":
+      return hasKit(/Trauma|Critical care|Blood/i) || cap("Trauma") || cap("HEMS");
+    default:
+      return true; // permissive for anything not gated above
+  }
+}
+
 function defaultLoadoutFor(role: string): string[] {
   if (/Driver|Pump Op/i.test(role)) {
     // Key and standpipe is both hands — the TIC belongs to the BA team.
