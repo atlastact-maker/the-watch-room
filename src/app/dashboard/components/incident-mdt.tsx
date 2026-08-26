@@ -661,17 +661,10 @@ export function DraggableIncidentMdt({
                     is selected, otherwise the available fleet. */}
                 {selectedUnit && canControl ? (
                   <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex items-center justify-between border-b border-(--color-border-subtle) px-3 py-1.5">
+                    <div className="border-b border-(--color-border-subtle) px-3 py-1.5">
                       <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                        Unit control · {selectedUnit.appliance.callsign}
+                        Unit control
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setUnitId(null)}
-                        className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)"
-                      >
-                        ← Available fleet
-                      </button>
                     </div>
                     <div className="min-h-0 flex-1 overflow-hidden">
                       <BottomActionMenu

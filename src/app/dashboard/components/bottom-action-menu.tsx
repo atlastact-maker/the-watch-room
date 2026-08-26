@@ -274,6 +274,27 @@ export function BottomActionMenu({
         ? "#15803d"
         : "#1d4ed8";
   const lightState = deployment.lightState ?? "off";
+  // Rotation is only safe when the vehicle is parked, its crew are not
+  // working, and no hose is attached — a hose would teleport with it.
+  const rotateHasActiveTask = tasks.some(
+    (t) => t.applianceId === appliance.id && t.state === "active",
+  );
+  const rotateHasHose = tasks.some(
+    (t) =>
+      t.state !== "aborted" &&
+      (t.kind === "connect_hydrant" || t.kind === "relay_hose") &&
+      (t.applianceId === appliance.id || t.sourceApplianceId === appliance.id),
+  );
+  const canRotate =
+    !!deployment.parkingPos && !rotateHasActiveTask && !rotateHasHose;
+  const rotateLockReason = !deployment.parkingPos
+    ? "not parked yet"
+    : rotateHasActiveTask
+      ? "crew working"
+      : rotateHasHose
+        ? "hose connected"
+        : "";
+
   const lightChip =
     lightState === "999"
       ? { label: "999 Response", cls: "border-(--color-critical)/60 bg-(--color-critical)/10 text-(--color-critical)" }
@@ -308,6 +329,27 @@ export function BottomActionMenu({
           >
             {lightChip.label}
           </span>
+          {onRequestRotate && (
+            <button
+              type="button"
+              disabled={!canRotate}
+              onClick={() => onRequestRotate(appliance.id)}
+              title={
+                canRotate
+                  ? "Rotate — click the map to set a new facing"
+                  : `Rotate locked · ${rotateLockReason}`
+              }
+              aria-label="Rotate vehicle"
+              className={
+                "shrink-0 rounded-sm border px-1.5 py-1 text-[11px] leading-none transition-colors disabled:cursor-not-allowed " +
+                (canRotate
+                  ? "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15"
+                  : "border-(--color-border) text-(--color-text-dim) opacity-50")
+              }
+            >
+              ⟳
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -371,7 +413,6 @@ export function BottomActionMenu({
               vehicleGauges={vehicleGauges}
               fatiguePct={fatigueByApplianceId?.[appliance.id] ?? 0}
               onSetLightState={onSetLightState}
-              onRequestRotate={onRequestRotate}
             />
           )}
           {tab === "crew" && (
@@ -441,7 +482,6 @@ function VehicleTab({
   vehicleGauges,
   fatiguePct,
   onSetLightState,
-  onRequestRotate,
 }: {
   appliance: Appliance;
   deployment: Deployment;
@@ -449,7 +489,6 @@ function VehicleTab({
   vehicleGauges: Record<string, { fuelPct: number; waterPct: number; conditionPct: number }>;
   fatiguePct?: number;
   onSetLightState: (applianceId: string, state: LightState) => void;
-  onRequestRotate?: (applianceId: string) => void;
 }) {
   const current = deployment.lightState ?? "at_scene";
   const gauges = vehicleGauges[appliance.id] ?? {
@@ -457,78 +496,31 @@ function VehicleTab({
     waterPct: appliance.waterPct,
     conditionPct: appliance.conditionPct,
   };
-  // Rotation lock-out: we don't want the operator spinning a vehicle while
-  // its crew are actively working or there's a hose attached (the hose would
-  // teleport with the vehicle, which is nonsense). Re-enable once every
-  // task on this appliance is completed/aborted AND no hose lines connect
-  // to or from it.
-  const hasActiveTask = tasks.some(
-    (t) => t.applianceId === appliance.id && t.state === "active",
-  );
-  const hasHoseConnection = tasks.some(
-    (t) =>
-      t.state !== "aborted" &&
-      (t.kind === "connect_hydrant" || t.kind === "relay_hose") &&
-      (t.applianceId === appliance.id || t.sourceApplianceId === appliance.id),
-  );
-  const parked = !!deployment.parkingPos;
-  const canRotate = parked && !hasActiveTask && !hasHoseConnection;
-  const lockReason = !parked
-    ? "Not parked yet"
-    : hasActiveTask
-      ? "Crew working"
-      : hasHoseConnection
-        ? "Hose connected"
-        : null;
   return (
     <div className="space-y-4">
-      {onRequestRotate && (
-        <Section title="Vehicle heading">
-          <button
-            type="button"
-            disabled={!canRotate}
-            onClick={() => onRequestRotate(appliance.id)}
-            className={
-              "w-full rounded-sm border px-3 py-2 text-left font-mono text-[11px] uppercase tracking-widest transition-colors " +
-              (canRotate
-                ? "border-(--color-amber) bg-(--color-amber)/10 text-(--color-amber) hover:bg-(--color-amber)/20"
-                : "cursor-not-allowed border-(--color-border) bg-(--color-surface-raised)/40 text-(--color-text-dim)")
-            }
-          >
-            <div>Rotate vehicle</div>
-            <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest">
-              {canRotate
-                ? "Click map to set new facing direction"
-                : `Locked · ${lockReason}`}
-            </div>
-          </button>
-        </Section>
-      )}
-      <Section title="Emergency lighting" collapsible>
+      <Section title="Emergency lighting" collapsible defaultOpen={false}>
         <LightingControlHead
           current={current}
           onSet={(state) => onSetLightState(appliance.id, state)}
         />
       </Section>
 
-      <Section title="Crew status">
-        <Gauge
-          label={`Fatigue${fatiguePct && fatiguePct > 70 ? " · consider welfare" : ""}`}
-          pct={100 - (fatiguePct ?? 0)}
-          colour={fatiguePct && fatiguePct > 70 ? "critical" : fatiguePct && fatiguePct > 50 ? "amber" : "ok"}
-        />
-      </Section>
-
-      <Section title="Vehicle status">
+      {/* Gauges in one block so the tab fits without scrolling. */}
+      <Section title="Status">
         <Gauge label="Fuel" pct={gauges.fuelPct} colour="amber" />
         {appliance.waterLitres > 0 && (
           <Gauge
-            label={`Water (${appliance.waterLitres.toLocaleString()} L tank)`}
+            label={`Water · ${appliance.waterLitres.toLocaleString()} L`}
             pct={gauges.waterPct}
             colour="info"
           />
         )}
         <Gauge label="Condition" pct={gauges.conditionPct} colour="ok" />
+        <Gauge
+          label={`Crew fatigue${fatiguePct && fatiguePct > 70 ? " · consider welfare" : ""}`}
+          pct={100 - (fatiguePct ?? 0)}
+          colour={fatiguePct && fatiguePct > 70 ? "critical" : fatiguePct && fatiguePct > 50 ? "amber" : "ok"}
+        />
       </Section>
 
       {appliance.note && (
