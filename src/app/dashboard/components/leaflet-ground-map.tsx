@@ -163,33 +163,16 @@ function hydrantIcon(
  * to the buildings it's parked next to.
  */
 // -----------------------------------------------------------------------------
-// Map detents
+// Map scale
 // -----------------------------------------------------------------------------
 
 /**
- * The three scales the map snaps between. Free zoom is deliberately not
- * offered: every marker, overlay and sprite is authored to read at one of
- * these, and letting the operator sit between them makes the board
- * illegible rather than flexible.
- *
- *  Patch     — the whole ground, boroughs and stations.
- *  Approach  — the street network around the job, units converging on it.
- *  Ground    — the incident itself, at true vehicle footprint.
+ * The map is one continuous surface the operator scrolls. Two zooms
+ * matter to the code: where an incident opens, and where the scene layers
+ * take over from the patch layers.
  */
-const DETENTS = [
-  { id: "patch", label: "Patch", zoom: 11 },
-  { id: "approach", label: "Approach", zoom: 16 },
-  { id: "ground", label: "Ground", zoom: 19 },
-] as const;
-
-type DetentId = (typeof DETENTS)[number]["id"];
-
-/** At or past this zoom the scene layers replace the patch layers. */
+const OPENING_ZOOM = 19;
 const GROUND_DETAIL_ZOOM = 17;
-
-function detentZoomFor(id: DetentId): number {
-  return DETENTS.find((d) => d.id === id)?.zoom ?? 19;
-}
 
 /** Compute the linear scale factor for the appliance body at a given map
  *  zoom. Each zoom step doubles the tile resolution in principle, but 2x
@@ -287,7 +270,7 @@ function haversineMetres(
  * This used to draw true-scale top-down artwork. The artwork still exists
  * and is still used where a picture belongs — the resource directory and
  * the station bay view — but the map runs symbology, which is what a real
- * mobilising screen shows and what stays legible at every detent.
+ * mobilising screen shows and what stays legible at any zoom.
  */
 export function applianceIcon(
   callsign: string,
@@ -392,11 +375,10 @@ type ParkingState =
 /** One-shot helper that centres the map on the incident coords at a sensible
  *  zoom so the address pin always sits in the middle of the viewport. */
 /**
- * Drives the map between detents. The first run snaps without animation so
- * an incident opens straight onto the ground; every change after that
- * flies, so the operator keeps their bearings on the way out and back.
+ * Centres on the incident when it opens, at working zoom, and then keeps
+ * out of the way — the operator drives the map from there.
  */
-function DetentController({
+function OpenOnIncident({
   zoom,
   lat,
   lng,
@@ -408,12 +390,9 @@ function DetentController({
   const map = useMap();
   const firstRef = useRef(true);
   useEffect(() => {
-    if (firstRef.current) {
-      map.setView([lat, lng], zoom, { animate: false });
-      firstRef.current = false;
-      return;
-    }
-    map.flyTo([lat, lng], zoom, { duration: 0.7 });
+    if (!firstRef.current) return;
+    map.setView([lat, lng], zoom, { animate: false });
+    firstRef.current = false;
   }, [zoom, lat, lng, map]);
   return null;
 }
@@ -873,7 +852,7 @@ export function LeafletGroundMap({
   onClearPlacePending?: () => void;
   /** Armed by the incident view while the operator places a road closure. */
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
-  /** Patch-scale data, drawn at the Patch and Approach detents. The same
+  /** Patch-scale data, drawn once the operator zooms back out. The same
    *  layers the pre-incident map shows, so zooming out of a job lands the
    *  operator on familiar ground rather than a different screen. */
   stations: StationWithAppliances[];
@@ -895,9 +874,6 @@ export function LeafletGroundMap({
   // its position, then a second map-click to set its facing direction.
   const [parking, setParking] = useState<ParkingState>({ phase: "idle" });
 
-  // Which of the three scales the operator is on. Opening an incident puts
-  // them on the ground; the control lets them pull back without leaving.
-  const [detent, setDetent] = useState<DetentId>("ground");
 
   // Muster area part-way through being drawn: the first click sets the
   // centre, the cursor grows the radius, the second click commits it.
@@ -946,8 +922,7 @@ export function LeafletGroundMap({
   // reference size below it so appliances stay readable when zoomed out.
   const [mapZoom, setMapZoom] = useState(19);
   // Past the detail threshold the scene layers take over from the patch
-  // layers. Driven by live zoom, not by the detent, so it stays correct
-  // mid-flight between two scales.
+  // layers. Driven by live zoom, so it follows the scroll wheel.
   const showGround = mapZoom >= GROUND_DETAIL_ZOOM;
   // Currently hovered appliance marker id. Used to bump the callsign label
   // to its "full" bright form so the operator can identify a specific
@@ -1166,7 +1141,6 @@ export function LeafletGroundMap({
       onChoose={chooseBasemap}
     />
     <MapAttribution basemap={basemap} />
-    <DetentControl current={detent} onChoose={setDetent} />
     <PlacementBanner
       parking={parking}
       onCancel={() => {
@@ -1177,15 +1151,14 @@ export function LeafletGroundMap({
     />
     <MapContainer
       center={centre}
-      zoom={detentZoomFor("ground")}
+      zoom={OPENING_ZOOM}
       maxZoom={19}
       minZoom={11}
-      // Detents are button-driven on purpose — see DETENTS above.
-      scrollWheelZoom={false}
-      doubleClickZoom={false}
-      touchZoom={false}
-      boxZoom={false}
-      keyboard={false}
+      scrollWheelZoom
+      doubleClickZoom
+      touchZoom
+      boxZoom
+      keyboard
       zoomControl={false}
       attributionControl={false}
       className={"h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")}
@@ -1237,14 +1210,14 @@ export function LeafletGroundMap({
         }}
       />
 
-      {/* Snaps to the incident on open, flies between detents after. */}
-      <DetentController
-        zoom={detentZoomFor(detent)}
+      {/* Centres the job when it opens; the operator drives from there. */}
+      <OpenOnIncident
+        zoom={OPENING_ZOOM}
         lat={incidentLat}
         lng={incidentLng}
       />
 
-      {/* Track zoom so markers and overlays can size themselves per detent. */}
+      {/* Track zoom so markers and overlays can size themselves to it. */}
       <ZoomTracker onZoom={setMapZoom} />
 
       {/* Patch and Approach scales. */}
@@ -1786,31 +1759,3 @@ function MapAttribution({
   );
 }
 
-/** Scale selector — the three detents, stacked under the base-map switch. */
-function DetentControl({
-  current,
-  onChoose,
-}: {
-  current: DetentId;
-  onChoose: (id: DetentId) => void;
-}) {
-  return (
-    <div className="pointer-events-auto absolute right-3 top-12 z-[600] flex overflow-hidden rounded-sm border border-(--color-border) bg-(--color-bg)/90 shadow-lg">
-      {DETENTS.map((d) => (
-        <button
-          key={d.id}
-          type="button"
-          onClick={() => onChoose(d.id)}
-          className={
-            "px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
-            (d.id === current
-              ? "bg-(--color-amber)/20 text-(--color-amber)"
-              : "text-(--color-text-dim) hover:text-(--color-text)")
-          }
-        >
-          {d.label}
-        </button>
-      ))}
-    </div>
-  );
-}
