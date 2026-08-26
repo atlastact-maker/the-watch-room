@@ -1087,7 +1087,7 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   extend_platform: 1,
   aerial_rescue: 2,
   aerial_monitor: 1,
-  rtc_extrication: 3,
+  rtc_extrication: 4, // cutters + spreaders + chocks + glass = 7 hands
   rope_rescue: 2,
   water_rescue: 2,
   wildfire_beating: 2,

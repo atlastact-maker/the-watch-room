@@ -13,6 +13,7 @@ import type {
   Task,
   TreatmentEvent,
 } from "./incident_types";
+import { sanitiseLoadout } from "./crew_carry";
 import type { PreShiftState, ShiftIntensity } from "./shift";
 import type { WeatherState } from "./weather";
 import type { AreaCode, StatusCode } from "./types";
@@ -136,8 +137,23 @@ function shiftMap(
 }
 
 function shiftDeployment(d: Deployment, offset: number): Deployment {
+  // Shifts saved before carry limits existed can hold more than two
+  // hands' worth of kit. Trim to what the rider could actually carry,
+  // keeping worn and pocketed items first.
+  let crewEquipment = d.crewEquipment;
+  if (crewEquipment) {
+    const trimmed: Record<string, string[]> = {};
+    let changed = false;
+    for (const [crewId, items] of Object.entries(crewEquipment)) {
+      const res = sanitiseLoadout(items);
+      trimmed[crewId] = res.items;
+      if (res.dropped.length > 0) changed = true;
+    }
+    if (changed) crewEquipment = trimmed;
+  }
   return {
     ...d,
+    crewEquipment,
     mobilisedAt: d.mobilisedAt + offset,
     arrivesAt: d.arrivesAt + offset,
     baStagedAt: shift(d.baStagedAt, offset),

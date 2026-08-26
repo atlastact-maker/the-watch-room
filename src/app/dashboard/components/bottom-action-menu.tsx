@@ -37,6 +37,13 @@ import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { mitigationOptionsFor } from "@/lib/sim/mitigation";
 import { BaControlBoard } from "./ba-control-board";
 import { LightingControlHead } from "./lighting-control-head";
+import {
+  HAND_BUDGET,
+  canCarry,
+  carryClass,
+  handsUsed,
+  teamCovers,
+} from "@/lib/sim/crew_carry";
 import type {
   AirwayAction as TxAirwayAction,
   BreathingAction as TxBreathingAction,
@@ -66,8 +73,10 @@ type Pending = {
   casualtyId?: string;
   /** For gain_entry: the forcible-entry tool being used. */
   entryTool?: EntryTool;
-  /** Equipment the crew need carrying to be selectable for this task. */
+  /** Kit the team must bring between them. */
   requiredEquipment?: CrewEquipment[];
+  /** Kit every assigned rider needs personally (a breathing set). */
+  requiredEquipmentAll?: CrewEquipment[];
 };
 
 export type StartTaskFn = (args: {
@@ -139,6 +148,7 @@ export function BottomActionMenu({
   onSetPumpOperator,
   onSetFastAttackDeployed,
   onToggleCrewEquipment,
+  onSetCrewLoadout,
   onUpdateBaRemarks,
   onUpdateBaEntryPoint,
   onSetTreatingCasualty,
@@ -211,6 +221,8 @@ export function BottomActionMenu({
   onSetPumpOperator: (applianceId: string, crewId: string | null) => void;
   onSetFastAttackDeployed: (applianceId: string, deployed: boolean) => void;
   onToggleCrewEquipment: (applianceId: string, crewId: string, item: string) => void;
+  /** Atomic whole-loadout write for riding-position presets. */
+  onSetCrewLoadout?: (applianceId: string, crewId: string, items: string[]) => void;
   onUpdateBaRemarks?: (taskId: string, text: string) => void;
   onUpdateBaEntryPoint?: (taskId: string, label: string) => void;
   onSetTreatingCasualty?: (applianceId: string, casualtyId: string | null) => void;
@@ -367,6 +379,7 @@ export function BottomActionMenu({
               busyCrewIds={busyCrewIds}
               crewAir={crewAir}
               onToggleCrewEquipment={onToggleCrewEquipment}
+              onSetCrewLoadout={onSetCrewLoadout}
             />
           )}
           {tab === "water" && (
@@ -672,26 +685,55 @@ type LoadoutPreset = {
 };
 
 const LOADOUT_PRESETS: LoadoutPreset[] = [
-  { key: "ba", label: "BA Wearer", items: ["ba_set", "radio"], services: ["Fire"] },
-  { key: "search", label: "BA Search", items: ["ba_set", "thermal_camera", "radio"], services: ["Fire"] },
+  // Fire. Two hands each, and never two heavy tools on one rider — a
+  // cutter and a spreader are ~20 kg apiece with a single central handle,
+  // so a cutting crew is four riders, not one.
+  { key: "officer", label: "Officer / IC", items: ["radio"], services: ["Fire"] },
   { key: "pump_op", label: "Pump Operator", items: ["red_key", "standpipe", "radio"], services: ["Fire"] },
-  { key: "rtc", label: "RTC Rescue", items: ["hydraulic_cutters", "hydraulic_spreaders", "glass_mgmt", "radio"], services: ["Fire"] },
-  { key: "officer", label: "Officer", items: ["radio", "thermal_camera"], services: ["Fire"] },
+  { key: "ba_branch", label: "BA · Branch", items: ["ba_set", "branch_45mm", "radio"], services: ["Fire"] },
+  { key: "ba_tic", label: "BA · TIC", items: ["ba_set", "thermal_camera", "radio"], services: ["Fire"] },
+  { key: "moe", label: "Entry / MOE", items: ["hali_tool", "lock_snapper", "radio"], services: ["Fire"] },
+  { key: "rtc_stab", label: "RTC 1 · Stabilisation", items: ["stabiliser_chocks", "radio"], services: ["Fire"] },
+  { key: "rtc_glass", label: "RTC 2 · Glass & saw", items: ["glass_mgmt", "reciprocating_saw", "small_tools", "radio"], services: ["Fire"] },
+  { key: "rtc_cut", label: "RTC 3 · Cutters", items: ["hydraulic_cutters", "radio"], services: ["Fire"] },
+  { key: "rtc_spread", label: "RTC 4 · Spreaders", items: ["hydraulic_spreaders", "radio"], services: ["Fire"] },
+  { key: "wf_beat", label: "Wildfire · Beater", items: ["knapsack_sprayer", "beater", "radio"], services: ["Fire"] },
+  { key: "wf_blow", label: "Wildfire · Blower", items: ["leaf_blower", "radio"], services: ["Fire"] },
+  { key: "rope_rig", label: "Rope · Rigger", items: ["rescue_harness", "rope_kit", "pulleys_prusiks", "radio"], services: ["Fire"] },
+  { key: "rope_cas", label: "Rope · Casualty", items: ["rescue_harness", "sked_stretcher", "radio"], services: ["Fire"] },
+  { key: "water_wade", label: "Water · Wader", items: ["dry_suit", "pfd", "wading_pole", "throw_line", "radio"], services: ["Fire"] },
+  { key: "water_bank", label: "Water · Bank safety", items: ["pfd", "throw_line", "radio"], services: ["Fire"] },
+  // Ambulance
   { key: "attendant", label: "Attendant", items: ["first_aid", "aed", "radio"], services: ["Ambulance"] },
   { key: "critical", label: "Critical Care", items: ["trauma", "first_aid", "radio"], services: ["Ambulance"] },
+  { key: "packaging", label: "Packaging", items: ["spine_board", "radio"], services: ["Ambulance"] },
+  // Police — hands stay free, which is the point.
   { key: "patrol", label: "Patrol", items: ["radio"], services: ["Police"] },
+  { key: "roads", label: "Roads Policing", items: ["first_aid", "radio"], services: ["Police"] },
 ];
 
-/** Which preset a rider takes under "Standard loadout", from their role. */
-function presetKeyForRole(role: string, service: ServiceCode): string {
+/** Preset for a rider's role. `seen` counts how many of each role have
+ *  already been assigned, so the four RTC positions go to four different
+ *  riders rather than everyone grabbing the cutters. */
+function presetKeyForRole(
+  role: string,
+  service: ServiceCode,
+  nth: number,
+): string {
   if (service === "Ambulance") {
-    return /Doctor|Critical Care/i.test(role) ? "critical" : "attendant";
+    if (/Doctor|Critical Care/i.test(role)) return "critical";
+    return nth === 0 ? "attendant" : "packaging";
   }
-  if (service === "Police") return "patrol";
-  if (/Manager/i.test(role)) return "officer";
+  if (service === "Police") {
+    return /Roads Policing/i.test(role) ? "roads" : "patrol";
+  }
+  if (/Manager|Officer/i.test(role)) return "officer";
   if (/Driver|Pump Op/i.test(role)) return "pump_op";
-  if (/Technical Rescue/i.test(role)) return "rtc";
-  return "ba";
+  if (/Technical Rescue|USAR/i.test(role)) {
+    return ["rtc_stab", "rtc_cut", "rtc_spread", "rtc_glass"][nth % 4];
+  }
+  if (/Wildfire/i.test(role)) return ["wf_beat", "wf_blow"][nth % 2];
+  return ["ba_branch", "ba_tic"][nth % 2];
 }
 
 export function CrewTab({
@@ -700,12 +742,16 @@ export function CrewTab({
   busyCrewIds,
   crewAir,
   onToggleCrewEquipment,
+  onSetCrewLoadout,
 }: {
   appliance: Appliance;
   deployment: Deployment;
   busyCrewIds: Set<string>;
   crewAir: Record<string, number>;
   onToggleCrewEquipment: (applianceId: string, crewId: string, item: string) => void;
+  /** Atomic whole-loadout write — presets use this so they can never
+   *  half-apply the way a sequence of toggles can. */
+  onSetCrewLoadout?: (applianceId: string, crewId: string, items: string[]) => void;
 }) {
   const [selId, setSelId] = useState<string | null>(
     appliance.crewMembers[0]?.id ?? null,
@@ -721,13 +767,19 @@ export function CrewTab({
   const presets = LOADOUT_PRESETS.filter(
     (p) =>
       p.services.includes(appliance.service) &&
-      p.items.some((it) => it !== "radio" && itemAvailable(it)),
+      p.items.filter((it) => it !== "radio").every(itemAvailable),
   );
 
   /** Rig a rider AS a position: their loadout becomes exactly the
    *  preset's available items. */
   function applyPreset(crewId: string, preset: LoadoutPreset) {
     const target = preset.items.filter(itemAvailable);
+    if (onSetCrewLoadout) {
+      onSetCrewLoadout(appliance.id, crewId, target);
+      return;
+    }
+    // Fallback for surfaces without the atomic setter: clear first so the
+    // hand budget is free before the new kit goes on.
     const current = equipMap[crewId] ?? [];
     for (const item of current) {
       if (!target.includes(item as CrewEquipment)) {
@@ -744,11 +796,26 @@ export function CrewTab({
   /** Kit the whole crew by role in one tap. Busy riders keep what they
    *  are holding. */
   function standardLoadout() {
+    // Count each role as we go so the RTC positions (stabilisation,
+    // cutters, spreaders, glass) land on four different riders.
+    const seen: Record<string, number> = {};
     for (const m of appliance.crewMembers) {
       if (busyCrewIds.has(m.id)) continue;
-      const key = presetKeyForRole(m.role, appliance.service);
-      const preset = LOADOUT_PRESETS.find((p) => p.key === key);
-      if (preset) applyPreset(m.id, preset);
+      const bucket = m.role.replace(/[^A-Za-z]/g, "");
+      const nth = seen[bucket] ?? 0;
+      seen[bucket] = nth + 1;
+      const key = presetKeyForRole(m.role, appliance.service, nth);
+      const preset =
+        LOADOUT_PRESETS.find((p) => p.key === key) ??
+        LOADOUT_PRESETS.find((p) => p.key === "officer");
+      if (!preset) continue;
+      // Skip a position this appliance cannot actually equip.
+      const needs = preset.items.filter((i) => i !== "radio");
+      if (needs.length > 0 && !needs.every(itemAvailable)) {
+        applyPreset(m.id, { ...preset, items: ["radio"] });
+        continue;
+      }
+      applyPreset(m.id, preset);
     }
   }
 
@@ -858,7 +925,16 @@ export function CrewTab({
                 {sel.name}
               </span>
               <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                {selEquipped.length} item{selEquipped.length === 1 ? "" : "s"}
+                {selEquipped.length} item{selEquipped.length === 1 ? "" : "s"} ·{" "}
+                <span
+                  className={
+                    handsUsed(selEquipped) >= HAND_BUDGET
+                      ? "text-(--color-amber)"
+                      : "text-(--color-text-dim)"
+                  }
+                >
+                  {handsUsed(selEquipped)}/{HAND_BUDGET} hands
+                </span>
               </span>
             </div>
             <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-muted)">
@@ -922,29 +998,49 @@ export function CrewTab({
                         const on = selEquipped.includes(eq.key);
                         const holder = holderOf(eq.key);
                         const heldElsewhere = !!holder && holder.id !== sel.id;
+                        // A rider working a task keeps what they are
+                        // holding — you cannot strip the cutters off the
+                        // firefighter running the extrication.
+                        const locked = busyCrewIds.has(sel.id);
+                        const fit = canCarry(selEquipped, eq.key);
+                        const tooHeavy = !on && !fit.ok;
+                        const cls = carryClass(eq.key);
                         return (
                           <button
                             key={eq.key}
                             type="button"
+                            disabled={locked || tooHeavy}
                             onClick={() =>
                               onToggleCrewEquipment(appliance.id, sel.id, eq.key)
                             }
                             title={
-                              heldElsewhere
-                                ? `One aboard — taking it off ${holder!.name}`
-                                : undefined
+                              locked
+                                ? "Crew member is working — stand them down first"
+                                : tooHeavy
+                                  ? (fit as { reason: string }).reason
+                                  : heldElsewhere
+                                    ? `One aboard — taking it off ${holder!.name}`
+                                    : undefined
                             }
                             className={
-                              "rounded-sm border px-2 py-1 text-left font-mono text-[10px] uppercase tracking-widest transition-colors " +
+                              "rounded-sm border px-2 py-1 text-left font-mono text-[10px] uppercase tracking-widest transition-colors disabled:cursor-not-allowed " +
                               (on
                                 ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
-                                : heldElsewhere
-                                  ? "border-(--color-border) text-(--color-text-dim)"
-                                  : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim)")
+                                : tooHeavy || locked
+                                  ? "border-(--color-border-subtle) text-(--color-text-dim) opacity-50"
+                                  : heldElsewhere
+                                    ? "border-(--color-border) text-(--color-text-dim)"
+                                    : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim)")
                             }
                           >
                             {on ? "✓ " : ""}
                             {eq.label}
+                            {cls === "two_hands" && (
+                              <span className="ml-1 text-(--color-text-dim)">··</span>
+                            )}
+                            {cls === "one_hand" && (
+                              <span className="ml-1 text-(--color-text-dim)">·</span>
+                            )}
                             {heldElsewhere && (
                               <span className="block font-mono text-[8px] normal-case tracking-normal text-(--color-text-dim)">
                                 with {holder!.name}
@@ -1593,10 +1689,11 @@ function WaterTab({
           appliance={appliance}
           deployment={deployment}
           minCrew={TASK_MIN_CREW.hose_attack}
-          requiredEquipment={
-            pendingHoseAttack.mode === "interior_attack"
-              ? ["ba_set", pendingHoseAttack.hoseType === "70mm" ? "branch_70mm" : "branch_45mm"]
-              : [pendingHoseAttack.hoseType === "70mm" ? "branch_70mm" : "branch_45mm"]
+          requiredEquipment={[
+            pendingHoseAttack.hoseType === "70mm" ? "branch_70mm" : "branch_45mm",
+          ]}
+          requiredEquipmentAll={
+            pendingHoseAttack.mode === "interior_attack" ? ["ba_set"] : undefined
           }
           pickedCrew={pickedCrew}
           busyCrewIds={busyCrewIds}
@@ -1764,6 +1861,7 @@ function ActionsTab({
         deployment={deployment}
         minCrew={TASK_MIN_CREW[pending.kind]}
         requiredEquipment={pending.requiredEquipment}
+        requiredEquipmentAll={pending.requiredEquipmentAll}
         pickedCrew={pickedCrew}
         busyCrewIds={busyCrewIds}
         crewAir={pending.kind === "ba_sar" ? crewAir : undefined}
@@ -2043,7 +2141,7 @@ function ActionsTab({
                 start({
                   kind: "ba_sar",
                   label: "BA SAR · Search",
-                  requiredEquipment: ["ba_set"],
+                  requiredEquipmentAll: ["ba_set"],
                   baMode: "search",
                 })
               }
@@ -2063,7 +2161,8 @@ function ActionsTab({
                 start({
                   kind: "ba_sar",
                   label: "BA SAR · Firefighting",
-                  requiredEquipment: ["ba_set", "branch_45mm"],
+                  requiredEquipmentAll: ["ba_set"],
+                  requiredEquipment: ["branch_45mm"],
                   baMode: "firefighting",
                 })
               }
@@ -2107,7 +2206,7 @@ function ActionsTab({
                         start({
                           kind: "extract_casualty",
                           label: `Extract ${c.label ?? c.id}`,
-                          requiredEquipment: ["ba_set"],
+                          requiredEquipmentAll: ["ba_set"],
                           casualtyId: c.id,
                         })
                       }
@@ -2185,12 +2284,14 @@ function ActionsTab({
                   start({
                     kind: "rtc_extrication",
                     label: "RTC extrication",
+                    // Seven hands of kit — one rider on the cutters, one
+                    // on the spreaders, one on stabilisation, one on
+                    // glass. The spine board comes with the ambulance.
                     requiredEquipment: [
                       "hydraulic_cutters",
                       "hydraulic_spreaders",
                       "stabiliser_chocks",
                       "glass_mgmt",
-                      "spine_board",
                     ],
                   })
                 }
@@ -2464,6 +2565,7 @@ export function CrewPickerInline({
   deployment,
   minCrew,
   requiredEquipment,
+  requiredEquipmentAll,
   pickedCrew,
   busyCrewIds,
   crewAir,
@@ -2476,7 +2578,11 @@ export function CrewPickerInline({
   appliance: Appliance;
   deployment: Deployment;
   minCrew: number;
+  /** Kit the team must bring BETWEEN them — one rider carrying the
+   *  cutters satisfies it. Nobody can carry a whole extrication set. */
   requiredEquipment?: CrewEquipment[];
+  /** Kit every assigned rider must have personally (a breathing set). */
+  requiredEquipmentAll?: CrewEquipment[];
   pickedCrew: string[];
   busyCrewIds: Set<string>;
   crewAir?: Record<string, number>;
@@ -2490,7 +2596,28 @@ export function CrewPickerInline({
     ? appliance.crewMembers.filter((c) => /Firefighter|Paramedic|HART/.test(c.role))
     : appliance.crewMembers;
   const equipMap = deployment.crewEquipment ?? {};
-  const enough = pickedCrew.length >= minCrew;
+  const nameOf = (id: string) =>
+    appliance.crewMembers.find((m) => m.id === id)?.name ?? id;
+
+  // A task's kit is satisfied by the TEAM as a set, not by each person.
+  // This is what lets an extrication run: one rider on the cutters, one
+  // on the spreaders, one on stabilisation.
+  const cover = teamCovers(equipMap, pickedCrew, {
+    all: requiredEquipmentAll,
+    any: requiredEquipment,
+  });
+  const shortBy = Math.max(0, minCrew - pickedCrew.length);
+  const reasons: string[] = [];
+  if (shortBy > 0) reasons.push(`Need ${shortBy} more crew`);
+  for (const it of cover.missingAny) {
+    reasons.push(`Nobody carrying ${labelForEquipment(it)}`);
+  }
+  for (const [cid, items] of Object.entries(cover.missingAllBy)) {
+    reasons.push(
+      `${nameOf(cid)} has no ${items.map(labelForEquipment).join(" / ")}`,
+    );
+  }
+  const enough = reasons.length === 0;
   return (
     <div className="rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 p-3">
       <div className="flex items-start justify-between gap-3">
@@ -2503,8 +2630,34 @@ export function CrewPickerInline({
             Need {minCrew}+ · selected {pickedCrew.length}
           </div>
           {requiredEquipment && requiredEquipment.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5">
+              {requiredEquipment.map((it) => {
+                const holder = cover.coverage[it];
+                return (
+                  <li
+                    key={it}
+                    className={
+                      "font-mono text-[10px] uppercase tracking-widest " +
+                      (holder ? "text-(--color-ok)" : "text-(--color-critical)")
+                    }
+                  >
+                    {holder ? "✓" : "✗"} {labelForEquipment(it)}
+                    <span className="text-(--color-text-dim)">
+                      {holder ? ` · ${nameOf(holder)}` : " · nobody carrying"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {requiredEquipmentAll && requiredEquipmentAll.length > 0 && (
             <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-muted)">
-              Equipment needed: {requiredEquipment.map(labelForEquipment).join(", ")}
+              Every rider needs: {requiredEquipmentAll.map(labelForEquipment).join(", ")}
+            </div>
+          )}
+          {!enough && reasons.length > 0 && (
+            <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+              {reasons[0]}
             </div>
           )}
         </div>
@@ -2520,7 +2673,7 @@ export function CrewPickerInline({
                 : "border-(--color-border) text-(--color-text-dim)")
             }
           >
-            {enough ? "Confirm" : `Need ${minCrew - pickedCrew.length}`}
+            {enough ? "Confirm" : shortBy > 0 ? `Need ${shortBy}` : "Kit short"}
           </button>
           <button
             type="button"
@@ -2539,21 +2692,28 @@ export function CrewPickerInline({
         )}
         {candidates.map((m) => {
           const equipped = equipMap[m.id] ?? [];
-          const hasEquip =
-            !requiredEquipment || requiredEquipment.every((e) => equipped.includes(e));
           const picked = pickedCrew.includes(m.id);
           const busy = busyCrewIds.has(m.id) && !picked;
           const air = crewAir?.[m.id];
+          // What this rider brings to the required kit, and any
+          // per-person item they are missing.
+          const brings = (requiredEquipment ?? []).filter((e) =>
+            equipped.includes(e),
+          );
+          const missingAll = (requiredEquipmentAll ?? []).filter(
+            (e) => !equipped.includes(e),
+          );
           return (
             <CrewChip
               key={m.id}
               member={m}
               picked={picked}
               busy={busy}
-              hasEquip={hasEquip}
+              brings={brings}
+              missingAll={missingAll}
               equipped={equipped}
               air={air}
-              onToggle={() => !busy && hasEquip && onTogglePick(m.id)}
+              onToggle={() => !busy && onTogglePick(m.id)}
             />
           );
         })}
@@ -2826,7 +2986,8 @@ function CrewChip({
   member,
   picked,
   busy,
-  hasEquip,
+  brings,
+  missingAll,
   equipped,
   air,
   onToggle,
@@ -2834,12 +2995,19 @@ function CrewChip({
   member: CrewMember;
   picked: boolean;
   busy: boolean;
-  hasEquip: boolean;
+  /** Required kit this rider contributes to the team. */
+  brings: CrewEquipment[];
+  /** Per-person kit this rider is missing (a breathing set). */
+  missingAll: CrewEquipment[];
   equipped: string[];
   air?: number;
   onToggle: () => void;
 }) {
-  const blocked = busy || !hasEquip;
+  // Only being busy blocks a pick now. A rider carrying nothing is still
+  // a valid pair of hands — what gates the task is whether the TEAM has
+  // the kit, which the picker header spells out.
+  const blocked = busy;
+  const short = missingAll.length > 0;
   const showAir = air !== undefined;
   const airPct = air ?? 100;
   const airColour =
@@ -2853,7 +3021,9 @@ function CrewChip({
       className={
         "flex flex-col gap-0.5 rounded-sm border px-2 py-1.5 text-left transition-colors disabled:cursor-not-allowed " +
         (picked
-          ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
+          ? short
+            ? "border-(--color-critical) bg-(--color-critical)/10 text-(--color-critical)"
+            : "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
           : blocked
             ? "border-(--color-border) text-(--color-text-dim)"
             : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim)")
@@ -2865,13 +3035,27 @@ function CrewChip({
           <span className={`font-mono text-[10px] ${airColour}`}>{Math.round(airPct)}%</span>
         ) : busy ? (
           <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">busy</span>
-        ) : !hasEquip ? (
-          <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">no kit</span>
+        ) : short ? (
+          <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">
+            no {labelForEquipment(missingAll[0]).toLowerCase()}
+          </span>
         ) : null}
       </div>
       <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-muted)">
         {member.role}
       </div>
+      {brings.length > 0 && (
+        <div className="mt-0.5 flex flex-wrap gap-0.5">
+          {brings.map((b) => (
+            <span
+              key={b}
+              className="rounded-[2px] border border-(--color-ok)/60 bg-(--color-ok)/10 px-1 font-mono text-[8px] font-bold text-(--color-ok)"
+            >
+              {shortEquipLabel(b)}
+            </span>
+          ))}
+        </div>
+      )}
     </button>
   );
 }

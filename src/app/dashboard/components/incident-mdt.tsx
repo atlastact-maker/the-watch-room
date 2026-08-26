@@ -107,6 +107,7 @@ type Props = {
   onSetPumpOperator?: IncidentViewProps["onSetPumpOperator"];
   onSetFastAttackDeployed?: IncidentViewProps["onSetFastAttackDeployed"];
   onToggleCrewEquipment?: IncidentViewProps["onToggleCrewEquipment"];
+  onSetCrewLoadout?: IncidentViewProps["onSetCrewLoadout"];
   tacticalMode?: IncidentViewProps["tacticalMode"];
   fatigueByApplianceId?: IncidentViewProps["fatigueByApplianceId"];
   /** Start a road-closure placement (next ground-map click drops cones). */
@@ -224,6 +225,7 @@ export function DraggableIncidentMdt({
   onSetPumpOperator,
   onSetFastAttackDeployed,
   onToggleCrewEquipment,
+  onSetCrewLoadout,
   tacticalMode,
   fatigueByApplianceId,
   onBeginRoadClosure,
@@ -702,6 +704,7 @@ export function DraggableIncidentMdt({
                         onSetPumpOperator={onSetPumpOperator!}
                         onSetFastAttackDeployed={onSetFastAttackDeployed!}
                         onToggleCrewEquipment={onToggleCrewEquipment!}
+                        onSetCrewLoadout={onSetCrewLoadout}
                         onUpdateBaRemarks={onUpdateBaRemarks}
                         onUpdateBaEntryPoint={onUpdateBaEntryPoint}
                         onSetTreatingCasualty={onSetTreatingCasualty}

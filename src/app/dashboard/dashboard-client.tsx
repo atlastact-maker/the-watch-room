@@ -61,6 +61,11 @@ import {
   INTERIOR_BA_DEFAULT_FLOW_LPM,
   type FireIgnition,
 } from "@/lib/sim/incident_types";
+import {
+  APPLIANCE_SINGLETONS,
+  addEquipment,
+  applyLoadout,
+} from "@/lib/sim/crew_carry";
 import { MITIGATION_OPTIONS } from "@/lib/sim/mitigation";
 import {
   airwaveClick,
@@ -2681,6 +2686,34 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     );
   }
 
+  /** Set a rider's whole loadout in one write — used by the riding-
+   *  position presets. Capacity-aware, so a preset can never half-apply
+   *  the way a sequence of toggles could. */
+  function setCrewLoadout(
+    applianceId: string,
+    crewId: string,
+    target: readonly string[],
+  ) {
+    const { items } = applyLoadout(target);
+    setDeployments((prev) =>
+      prev.map((d) => {
+        if (d.applianceId !== applianceId) return d;
+        const eq = { ...(d.crewEquipment ?? {}) };
+        for (const item of items) {
+          if (!APPLIANCE_SINGLETONS.has(item)) continue;
+          for (const [otherCrew, held] of Object.entries(eq)) {
+            if (otherCrew === crewId) continue;
+            if (held.includes(item)) {
+              eq[otherCrew] = held.filter((x) => x !== item);
+            }
+          }
+        }
+        eq[crewId] = items;
+        return { ...d, crewEquipment: eq };
+      }),
+    );
+  }
+
   function setPreCommitBaCrew(applianceId: string, crewIds: string[]) {
     setDeployments((prev) =>
       prev.map((d) => {
@@ -2752,11 +2785,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         const eq = { ...(d.crewEquipment ?? {}) };
         const current = eq[crewId] ?? [];
         const adding = !current.includes(item);
-        // Items that physically exist as one-per-appliance (the pre-
-        // connected fast-attack reel) — if one crew member is taking it,
-        // no one else on this pump can have it at the same time.
-        const SINGLETONS = new Set(["fast_attack_branch"]);
-        if (adding && SINGLETONS.has(item)) {
+        // One-per-appliance kit: if this rider is taking the cutters,
+        // nobody else on the pump is still holding them.
+        if (adding && APPLIANCE_SINGLETONS.has(item)) {
           for (const [otherCrew, items] of Object.entries(eq)) {
             if (otherCrew === crewId) continue;
             if (items.includes(item)) {
@@ -2764,8 +2795,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }
           }
         }
+        // addEquipment returns the list unchanged when the rider has no
+        // hand free — a refusal, not a silent overload.
         eq[crewId] = adding
-          ? [...current, item]
+          ? addEquipment(current, item)
           : current.filter((x) => x !== item);
         return { ...d, crewEquipment: eq };
       }),
@@ -3307,6 +3340,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onSetPumpOperator={setPumpOperator}
             onSetFastAttackDeployed={setFastAttackDeployed}
             onToggleCrewEquipment={toggleCrewEquipment}
+            onSetCrewLoadout={setCrewLoadout}
             onDeploy={deployAppliance}
             onStandDownForWelfare={standDownForWelfare}
             onStandDown={standDownAppliance}
@@ -3412,6 +3446,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onSetPumpOperator={setPumpOperator}
             onSetFastAttackDeployed={setFastAttackDeployed}
             onToggleCrewEquipment={toggleCrewEquipment}
+            onSetCrewLoadout={setCrewLoadout}
             tacticalMode={tacticalMode}
             fatigueByApplianceId={fatigueByApplianceId}
             onBeginRoadClosure={(applianceId, kind, crewIds) =>
@@ -3500,7 +3535,8 @@ function applianceLabel(id: string): string {
  *  radio so the operator can decide what they carry into the scene. */
 function defaultLoadoutFor(role: string): string[] {
   if (/Driver|Pump Op/i.test(role)) {
-    return ["red_key", "standpipe", "thermal_camera", "radio"];
+    // Key and standpipe is both hands — the TIC belongs to the BA team.
+    return ["red_key", "standpipe", "radio"];
   }
   if (/Watch Manager|Crew Manager/i.test(role)) {
     return ["thermal_camera", "radio"];
@@ -3521,7 +3557,9 @@ function defaultLoadoutFor(role: string): string[] {
     return ["radio"];
   }
   if (/Wildfire/i.test(role)) {
-    return ["radio", "beater", "knapsack_sprayer", "leaf_blower"];
+    // Sprayer is worn, beater is one hand. The blower is issued from the
+    // vehicle for a firebreak — nobody walks the moor carrying both.
+    return ["radio", "knapsack_sprayer", "beater"];
   }
   if (/Aerial/i.test(role)) {
     return ["radio", "rope_kit", "thermal_camera"];

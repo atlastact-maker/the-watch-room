@@ -44,6 +44,7 @@ export type Props = {
   onSetPumpOperator: (applianceId: string, crewId: string | null) => void;
   onSetFastAttackDeployed: (applianceId: string, deployed: boolean) => void;
   onToggleCrewEquipment: (applianceId: string, crewId: string, item: string) => void;
+  onSetCrewLoadout?: (applianceId: string, crewId: string, items: string[]) => void;
   onDeploy: (args: DeployArgs) => void;
   onStandDownForWelfare: (applianceId: string) => void;
   onStandDown: (applianceId: string) => void;
