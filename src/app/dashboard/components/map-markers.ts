@@ -74,6 +74,20 @@ export type ChipOpts = {
   dimmed?: boolean;
   /** xN badge top-right when the marker stands for several units. */
   cluster?: number;
+
+  // --- ground-view extras -------------------------------------------------
+  // Not in the marker handoff. The sprite these markers replace carried
+  // them and there is nowhere else on the map they can live.
+
+  /** Water level, 0-100, as a strip along the marker's bottom edge. Fire
+   *  pumps only; null for everything else. */
+  waterPct?: number | null;
+  /** Scene commander. Takes the top-right badge slot, which an on-scene
+   *  unit never needs for clustering. */
+  commander?: boolean;
+  /** Emergency lights, as a coloured glow on the symbol's outline, so the
+   *  cab lighting panel still reads on the map. */
+  lightGlow?: string | null;
 };
 
 /**
@@ -168,7 +182,9 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
   const leaderH = o.selected ? SELECTED_LEADER_H : LEADER_H;
   const anchorY = leaderTop + leaderH + DOT / 2;
 
-  const outline = `box-shadow: 0 0 0 1px rgba(0,0,0,0.45);`;
+  const outline = o.lightGlow
+    ? `box-shadow: 0 0 0 1px ${o.lightGlow}, 0 0 7px ${o.lightGlow};`
+    : `box-shadow: 0 0 0 1px rgba(0,0,0,0.45);`;
 
   // Heading wedge, notched into the symbol's own edge so it can never
   // leave the box and land on the callsign plate.
@@ -182,6 +198,19 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
   const ring999 = o.ring999
     ? `<div class="mk-999-box" style="position:absolute;left:0;top:0;width:${t.sym}px;height:${t.sym}px;border:2px solid ${o.serviceColour};border-radius:3px;"></div>`
     : "";
+
+  const commander = o.commander
+    ? `<div style="position:absolute;top:-7px;right:-9px;padding:1px 4px;border-radius:2px;background:${o.serviceColour};border:1.5px solid #fff;font:800 9px/1.2 ${MONO};color:#fff;white-space:nowrap;">IC</div>`
+    : "";
+
+  const water =
+    o.waterPct !== null && o.waterPct !== undefined
+      ? (() => {
+          const pct = Math.max(0, Math.min(100, o.waterPct as number));
+          const col = pct > 60 ? "#3b82f6" : pct > 25 ? "#f59e0b" : "#dc2626";
+          return `<div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(10,10,12,0.75);"><div style="height:100%;width:${pct}%;background:${col};transition:width 600ms ease-out;"></div></div>`;
+        })()
+      : "";
 
   const cluster =
     o.cluster && o.cluster > 1
@@ -212,7 +241,7 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
 
   const html = `<div style="position:relative;${dim}">
   ${ring999}
-  <div style="position:relative;display:flex;align-items:flex-start;width:max-content;">${symbol}${plate}${selection}${cluster}</div>
+  <div style="position:relative;display:flex;align-items:flex-start;width:max-content;">${symbol}${plate}${water}${selection}${commander || cluster}</div>
   ${leader}${dot}
 </div>`;
 

@@ -96,9 +96,9 @@ function stationIcon(
     callsign: stationId,
     status: anyAvailable ? "available" : "offRun",
     serviceColour: chipServiceColour(service),
-    // Stations are not units and have no type code of their own; ST is
-    // assigned per the pack rule that every symbol carries two letters.
-    resourceCode: "ST",
+    // Stations are not units and carry no resource code — the symbol is
+    // a plain block of the service colour and the plate does the naming.
+    resourceCode: "",
     zoom,
     dimmed: !anyAvailable,
     cluster: applianceCount,

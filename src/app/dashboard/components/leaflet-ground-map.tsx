@@ -32,14 +32,10 @@ import type {
   Task,
   TaskKind,
 } from "@/lib/sim/incident_types";
-import type { ApplianceTypeCode, AreaCode } from "@/lib/sim/types";
+import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
 import { PatchLayers } from "./leaflet-map";
-import {
-  VEHICLE_SPRITES,
-  spriteKeyForType,
-  type VehicleSpriteKey,
-} from "./vehicle-sprites";
+import { serviceMarker, unitMarkerHtml } from "./map-markers";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
 import {
@@ -167,13 +163,6 @@ function hydrantIcon(
  * at zoom levels *above* this we scale up so the vehicle stays proportional
  * to the buildings it's parked next to.
  */
-// The default ground-view zoom. Reference dimensions below are tuned for
-// this zoom; every other zoom scales from here at 2^(zoom - ref) so a
-// parked vehicle's ground footprint stays constant as the operator
-// zooms in or out (the previous scheme floored to a pixel size below
-// this zoom, which produced visible size "jumps").
-const APPLIANCE_REF_ZOOM = 19;
-
 // -----------------------------------------------------------------------------
 // Map detents
 // -----------------------------------------------------------------------------
@@ -218,9 +207,6 @@ function detentZoomFor(id: DetentId): number {
  * (minimum pixel dimensions inside applianceIcon) so vehicles don't
  * disappear at wide views.
  */
-function applianceScaleForZoom(zoom: number): number {
-  return Math.pow(2, zoom - APPLIANCE_REF_ZOOM);
-}
 
 /**
  * Given a set of markers at authored parking positions, detect clusters
@@ -296,6 +282,36 @@ function haversineMetres(
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/**
+ * Emergency lights, as a glow colour on the symbol's outline. The lamps
+ * used to be tagged fittings inside the vehicle artwork; with the artwork
+ * gone from the map, this is what keeps the cab lighting panel readable
+ * out here.
+ */
+function lightGlowFor(state?: LightState): string | null {
+  switch (state) {
+    case "999":
+      return "#3b82f6";
+    case "at_scene":
+    case "rear_blues":
+      return "#60a5fa";
+    case "rear_reds":
+      return "#f87171";
+    case "hazards":
+      return "#fbbf24";
+    default:
+      return null;
+  }
+}
+
+/**
+ * An on-scene appliance, as a CAD symbol marker.
+ *
+ * This used to draw true-scale top-down artwork. The artwork still exists
+ * and is still used where a picture belongs — the resource directory and
+ * the station bay view — but the map runs symbology, which is what a real
+ * mobilising screen shows and what stays legible at every detent.
+ */
 export function applianceIcon(
   callsign: string,
   service: string,
@@ -305,164 +321,61 @@ export function applianceIcon(
   selected: boolean,
   applianceType: ApplianceTypeCode,
   mapZoom: number,
-  /** Whether to render the full callsign pill under the body. When false
-   *  we render a tiny callsign tick on hover only, so dense parking areas
-   *  don't turn into a wall of text at wider zooms. */
   showLabel: boolean,
-  /** True when this marker is currently under the mouse. Triggers the
-   *  minimal hover label. */
   hovered: boolean,
-  /** Emergency-light state — drives the sprite's tagged LED fittings. */
   lightState?: LightState,
 ): L.DivIcon {
-  const c = service === "Fire" ? "#dc2626" : service === "Ambulance" ? "#10b981" : "#6366f1";
-  const scale = applianceScaleForZoom(mapZoom);
-  const bodyRot = `rotate(${bearingDeg}deg)`;
-
-  // Bespoke top-down artwork — inlined SVG sprites with tagged light
-  // fittings (see vehicle-sprites.ts), so the emergency-light state can
-  // animate the actual lamps. Every sprite is nose-up; we rotate the
-  // wrapper by the parking bearing. The heli keeps its <img> art.
-  const spriteKey = spriteKeyForType(applianceType);
-  const sprite = spriteKey ? VEHICLE_SPRITES[spriteKey] : null;
-  const isHeli = applianceType === "HEMS";
-  const isIllustrated = sprite !== null || isHeli;
-
-  // Reference heights (px at the reference zoom) per sprite class —
-  // ground-truth proportions: pump ~8.5 m, ALP/TRU heavies longer,
-  // police cars ~4.8 m. Width follows each sprite's aspect ratio.
-  const SPRITE_REF_H: Record<VehicleSpriteKey, number> = {
-    pump: 80,
-    alp: 92,
-    tru: 92,
-    truvan: 74,
-    pm: 88,
-    hll: 88,
-    decon: 88,
-    pol_estate: 46,
-    pol_rpu: 46,
-    pol_arv: 48,
-    pol_unm_saloon: 46,
-    pol_unm: 46,
-    // Bay-view art — never returned by spriteKeyForType, sized for safety.
-    bay_pump: 80,
-    bay_alp: 92,
-  };
-  // H145: ~11 m rotor disc / ~13.6 m overall — much bigger footprint
-  // than any road vehicle at the same ground scale.
-  const refBodyH = isHeli ? 130 : sprite && spriteKey ? SPRITE_REF_H[spriteKey] : 32;
-  const refBodyW = isHeli
-    ? 104
-    : sprite
-      ? Math.round(refBodyH * (sprite.w / sprite.h))
-      : 18;
-  // Scale the body at the ground-truth rate but floor at a readable
-  // minimum size so vehicles don't shrink into specks when zoomed out.
-  const minBodyW = 10;
-  const minBodyH = isIllustrated ? 18 : 14;
-  const bodyW = Math.max(minBodyW, refBodyW * scale);
-  const bodyH = Math.max(minBodyH, refBodyH * scale);
-  // The effective scale actually applied to the body, used for the halo /
-  // water-bar / label offsets so everything stays visually consistent
-  // even when the body hits the floor.
-  const effectiveScale = bodyH / refBodyH;
-  const haloPx = 72 * effectiveScale;
-  const waterBarW = 44 * effectiveScale;
-  const waterBarOffsetY = 22 * effectiveScale;
-  const labelOffsetY = (isIllustrated ? 52 : 24) * effectiveScale;
-  const iconSize: [number, number] = [
-    Math.round(Math.max(36, (isIllustrated ? 120 : 110) * effectiveScale)),
-    Math.round(Math.max(40, (isIllustrated ? 122 : 48) * effectiveScale)),
-  ];
-  const iconAnchor: [number, number] = [iconSize[0] / 2, iconSize[1] / 2];
-
-  const haloRing = selected
-    ? `<div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:${haloPx}px; height:${haloPx}px; border-radius:50%; border:2px solid #fbbf24; box-shadow:0 0 12px rgba(251,191,36,0.7); pointer-events:none;"></div>`
-    : "";
-
-  // Optional water bar shown directly under the vehicle body for fire pumps.
-  const showWater = waterPct !== null;
-  const waterClamp = Math.max(0, Math.min(100, waterPct ?? 0));
-  const waterColour =
-    waterClamp > 60 ? "#3b82f6" : waterClamp > 25 ? "#f59e0b" : "#dc2626";
-  const waterBar = showWater
-    ? `
-      <div style="position:absolute; left:50%; top:50%; transform:translate(-50%, calc(-50% + ${waterBarOffsetY}px)); width:${waterBarW}px; pointer-events:none;">
-        <div style="height:4px; width:100%; background:rgba(10,10,12,0.85); border:1px solid #0a0a0c; border-radius:2px; overflow:hidden;">
-          <div style="height:100%; width:${waterClamp}%; background:${waterColour}; box-shadow:0 0 4px ${waterColour}; transition: width 600ms ease-out;"></div>
-        </div>
-      </div>
-    `
-    : "";
-
-  const bodyHtml = sprite
-    ? `
-      <div class="veh ls-${lightState ?? "off"}" style="position:absolute; left:50%; top:50%; width:${bodyW}px; height:${bodyH}px; transform: translate(-50%,-50%) ${bodyRot}; transform-origin: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); pointer-events:none;">${sprite.svg}</div>
-    `
-    : isHeli
-    ? `
-      <div style="position:absolute; left:50%; top:50%; width:${bodyW}px; height:${bodyH}px; transform: translate(-50%,-50%) ${bodyRot}; transform-origin: center;">
-        <img src="/appliances/hems-h145.svg" alt="" draggable="false" style="display:block; width:100%; height:100%; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); pointer-events:none;" />
-      </div>
-    `
-    : `
-      <div style="position:absolute; left:50%; top:50%; width:${bodyW}px; height:${bodyH}px; transform: translate(-50%,-50%) ${bodyRot}; transform-origin: center;">
-        <div style="position:absolute; inset:0; background:${c}; border:1px solid #0a0a0c; border-radius: 4px; opacity:0.85;"></div>
-        <div style="position:absolute; left:0; right:0; top:0; height:${6 * effectiveScale}px; background:rgba(255,255,255,0.85); border-top-left-radius:4px; border-top-right-radius:4px;"></div>
-        <div style="position:absolute; left:50%; top:-${4 * effectiveScale}px; width:${2 * effectiveScale}px; height:${6 * effectiveScale}px; background:#fde047; transform:translateX(-50%); box-shadow: 0 0 4px #fde047;"></div>
-      </div>
-    `;
-
-  // Callsign label. Three render modes:
-  //   full   — bright pill (selected / commander / hovered / high zoom)
-  //   quiet  — small dim chip (default at zoom ≥ 18 so operators can scan)
-  //   none   — no label at all (wider zooms, keeps the map readable)
-  const labelMode: "full" | "quiet" | "none" = selected || commander || hovered
-    ? "full"
-    : mapZoom >= 18
-      ? "quiet"
-      : "none";
-  const labelHtml =
-    labelMode === "full"
-      ? `<div style="position:absolute; left:50%; top:50%; transform:translate(-50%, calc(-50% + ${labelOffsetY}px)); background: rgba(10,10,12,0.95); border: 1.5px solid ${c}; padding: 2px 6px; font-family: var(--font-geist-mono), monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: ${c}; text-align: center; border-radius: 3px; box-shadow: 0 0 6px rgba(0,0,0,0.7); white-space:nowrap; pointer-events:none;">${callsign}</div>`
-      : labelMode === "quiet"
-        ? `<div style="position:absolute; left:50%; top:50%; transform:translate(-50%, calc(-50% + ${labelOffsetY}px)); background: rgba(10,10,12,0.6); padding: 1px 4px; font-family: var(--font-geist-mono), monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.03em; color: ${c}; opacity:0.75; text-align: center; border-radius: 2px; white-space:nowrap; pointer-events:none;">${callsign}</div>`
-        : "";
-  void showLabel; // currently derived from the other inputs — reserved for future
+  const sm = serviceMarker(service as ServiceCode, applianceType);
+  const m = unitMarkerHtml({
+    callsign,
+    // Anything drawn on the ground map is, by definition, in attendance.
+    status: "attendance",
+    serviceColour: sm.colour,
+    resourceCode: sm.code,
+    zoom: mapZoom,
+    subtitle: applianceType,
+    // The handoff shows the heading wedge for mobile units only. Parked
+    // units keep it here: the two-click place-and-rotate flow has no other
+    // visual output now the vehicle body is gone.
+    bearingDeg,
+    ring999: lightState === "999",
+    selected: selected || hovered,
+    waterPct,
+    commander,
+    lightGlow: lightGlowFor(lightState),
+  });
+  void showLabel; // the plate carries the callsign at every tier now
   return L.divIcon({
     className: "",
-    iconSize,
-    iconAnchor,
-    html: `
-      <div style="position: relative; pointer-events: auto; cursor: pointer; width:${iconSize[0]}px; height:${iconSize[1]}px;">
-        ${haloRing}
-        ${bodyHtml}
-        ${waterBar}
-        ${labelHtml}
-        ${commander ? `<div style="position:absolute; top:0; right:0; background:${c}; color:#0a0a0c; padding:1px 4px; border-radius:2px; font-family: var(--font-geist-mono), monospace; font-size: 9px; font-weight:800;">IC</div>` : ""}
-      </div>
-    `,
+    iconAnchor: m.anchor,
+    popupAnchor: [0, -m.anchor[1]],
+    html: `<div style="pointer-events:auto;cursor:pointer;">${m.html}</div>`,
   });
 }
 
-
-function parkingGhostIcon(callsign: string, service: string, bearingDeg: number): L.DivIcon {
-  const c = service === "Fire" ? "#dc2626" : service === "Ambulance" ? "#10b981" : "#6366f1";
-  const bodyRot = `rotate(${bearingDeg}deg)`;
+/** A previewed parking position for a unit still en route — the same
+ *  marker, dimmed, so the operator can see where it will end up. */
+function parkingGhostIcon(
+  callsign: string,
+  service: string,
+  bearingDeg: number,
+  applianceType: ApplianceTypeCode,
+  mapZoom: number,
+): L.DivIcon {
+  const sm = serviceMarker(service as ServiceCode, applianceType);
+  const m = unitMarkerHtml({
+    callsign,
+    status: "mobile",
+    serviceColour: sm.colour,
+    resourceCode: sm.code,
+    zoom: mapZoom,
+    bearingDeg,
+    dimmed: true,
+  });
   return L.divIcon({
     className: "",
-    iconSize: [110, 42],
-    iconAnchor: [55, 21],
-    html: `
-      <div style="position:relative; pointer-events:none; width:110px; height:42px;">
-        <div style="position:absolute; left:50%; top:50%; width:18px; height:32px; transform: translate(-50%,-50%) ${bodyRot}; transform-origin: center; opacity:0.55;">
-          <div style="position:absolute; inset:0; background:${c}; border:1px dashed #fff; border-radius: 4px; opacity:0.6;"></div>
-        </div>
-        <div style="position:absolute; left:50%; top:50%; transform:translate(-50%, calc(-50% + 22px)); background: rgba(10,10,12,0.5); border: 1.5px dashed ${c}; padding: 2px 6px; font-family: var(--font-geist-mono), monospace; font-size: 10px; font-weight: 700; color: ${c}; border-radius: 3px; white-space:nowrap;">
-          ${callsign} · parked
-        </div>
-      </div>
-    `,
+    iconAnchor: m.anchor,
+    html: `<div style="pointer-events:none;">${m.html}</div>`,
   });
 }
 
@@ -1766,6 +1679,8 @@ export function LeafletGroundMap({
             m.appliance.callsign,
             m.appliance.service,
             m.deployment.parkingBearingDeg ?? 0,
+            m.appliance.type,
+            mapZoom,
           )}
           interactive={false}
         />
