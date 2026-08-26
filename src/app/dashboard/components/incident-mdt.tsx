@@ -524,98 +524,6 @@ export function DraggableIncidentMdt({
               <div className="flex h-full min-h-0 bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
                 {/* Committed side — who's assigned, their tasks, pre-allocation */}
                 <div className="flex min-h-0 w-60 shrink-0 flex-col border-r border-(--color-border-subtle)">
-                  {/* Inbound / placement — the console the map's old INBOUND
-                      button used to be. En-route units take pre-arrival
-                      orders (CREW); arrived units and holding helis get
-                      placed via the two-click map flow (PLACE / SET LZ). */}
-                  {(() => {
-                    const inbound = resolvedDeps
-                      .filter(
-                        (r) =>
-                          r.phase === "mobile" ||
-                          (r.phase === "at_incident" && !r.deployment.parkingPos),
-                      )
-                      .map((r) => ({
-                        id: r.appliance.id,
-                        callsign: r.appliance.callsign,
-                        service: r.appliance.service,
-                        phase: r.phase,
-                        placed: !!r.deployment.parkingPos,
-                        isHeli: !!r.deployment.hemsFlight,
-                        etaSec: Math.max(
-                          0,
-                          Math.ceil(
-                            ((r.deployment.hemsFlight
-                              ? r.deployment.hemsFlight.overheadAt
-                              : r.deployment.arrivesAt) -
-                              nowMs) /
-                              1000,
-                          ),
-                        ),
-                      }));
-                    if (inbound.length === 0) return null;
-                    const tone = (service: string) =>
-                      service === "Fire"
-                        ? "text-(--color-critical)"
-                        : service === "Ambulance"
-                          ? "text-(--color-ok)"
-                          : "text-(--color-info)";
-                    const fmtEta = (s: number) =>
-                      Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-                    return (
-                      <div className="border-b border-(--color-border-subtle) bg-(--color-surface-raised)/40">
-                        <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                          Inbound · {inbound.length}
-                        </div>
-                        <ul className="max-h-40 overflow-y-auto">
-                          {inbound.map((row) => (
-                            <li
-                              key={row.id}
-                              className="flex items-center justify-between gap-2 border-b border-(--color-border-subtle) px-3 py-1.5 text-xs last:border-b-0"
-                            >
-                              <div className="min-w-0">
-                                <div className={"font-mono text-[11px] font-bold tracking-widest " + tone(row.service)}>
-                                  {row.callsign}
-                                </div>
-                                <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                                  {row.phase === "mobile"
-                                    ? (row.isHeli ? "overhead " : "eta ") +
-                                      fmtEta(row.etaSec) +
-                                      (row.placed ? " · placed ✓" : "")
-                                    : row.isHeli
-                                      ? "holding — select LZ"
-                                      : "arrived — awaiting placement"}
-                                </div>
-                              </div>
-                              <div className="flex shrink-0 items-center gap-1.5">
-                                {!row.placed && onArmPlacement && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onArmPlacement(row.id)}
-                                    className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/25"
-                                  >
-                                    {row.isHeli ? "Set LZ" : "Place"}
-                                  </button>
-                                )}
-                                {row.phase === "mobile" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setUnitId(row.id)}
-                                    className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-info) hover:text-(--color-info)"
-                                  >
-                                    Crew
-                                  </button>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="px-3 py-1 font-mono text-[8.5px] uppercase tracking-widest text-(--color-text-dim)">
-                          Place · click the map for position, then facing — Crew · pre-arrival orders
-                        </div>
-                      </div>
-                    );
-                  })()}
                   <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
                     Committed · {resolvedDeps.length}
                   </div>
@@ -646,6 +554,7 @@ export function DraggableIncidentMdt({
                             // Both en-route and on-scene units open in
                             // the pane to the right — nothing pops out.
                             onClick={() => setUnitId(r.appliance.id)}
+                            onArmPlacement={onArmPlacement}
                           />
                         ))}
                       </ul>
@@ -1147,12 +1056,15 @@ function CommittedRow({
   selected,
   isCommander,
   onClick,
+  onArmPlacement,
 }: {
   r: ResolvedDeployment;
   now: number;
   selected: boolean;
   isCommander: boolean;
   onClick: () => void;
+  /** Arm the two-click map placement for a unit not yet positioned. */
+  onArmPlacement?: (applianceId: string) => void;
 }) {
   const colour =
     r.appliance.service === "Fire"
@@ -1181,20 +1093,26 @@ function CommittedRow({
       right = fmt(r.deployment.arrivesAt - now);
     }
   } else if (r.phase === "at_incident") {
-    status = "On scene";
+    status = r.deployment.parkingPos ? "On scene" : "Arrived";
     right = fmt(now - r.deployment.arrivesAt);
   } else if (r.phase === "at_hospital") {
     status = "At hospital";
   } else if (r.phase === "returning") {
     status = "Returning";
   }
+  // Anything committed but not yet positioned on the ground still needs
+  // placing — a helicopter's placement is its landing zone.
+  const needsPlacing =
+    !r.deployment.parkingPos &&
+    (r.phase === "mobile" || r.phase === "at_incident");
+  const isHeli = !!r.deployment.hemsFlight;
   return (
-    <li>
+    <li className="flex items-stretch gap-1">
       <button
         type="button"
         onClick={onClick}
         className={
-          "flex w-full items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-left transition-colors " +
+          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-left transition-colors " +
           (selected
             ? "border-(--color-amber) bg-(--color-amber)/10"
             : "border-(--color-border-subtle) bg-(--color-surface) hover:border-(--color-amber-dim)")
@@ -1215,6 +1133,20 @@ function CommittedRow({
           {right && <span className="tabular-nums text-(--color-text)">{right}</span>}
         </span>
       </button>
+      {needsPlacing && onArmPlacement && (
+        <button
+          type="button"
+          onClick={() => onArmPlacement(r.appliance.id)}
+          title={
+            isHeli
+              ? "Set the landing zone — click the map"
+              : "Place on the ground — click for position, then facing"
+          }
+          className="shrink-0 rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/25"
+        >
+          {isHeli ? "LZ" : "Place"}
+        </button>
+      )}
     </li>
   );
 }
