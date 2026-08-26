@@ -6,7 +6,6 @@ import "leaflet/dist/leaflet.css";
 import {
   MapContainer,
   Marker,
-  Polygon,
   Polyline,
   Popup,
   TileLayer,
@@ -41,18 +40,6 @@ const STANDDOWN_COLOUR = "#eab308";
 // Marker icons
 // ---------------------------------------------------------------------------
 
-/**
- * Station marker — rounded plaque with a service-specific glyph. Mirrors
- * the real signage you see on UK emergency services buildings:
- *
- *   Fire      — eight-pointed Maltese cross on red (international fire symbol)
- *   Ambulance — Star of Life on green (standard UK ambulance service mark)
- *   Police    — Battenberg chequer band on blue (UK police livery)
- *
- * Approximate-location stations get a dashed outer border so the operator
- * can see at a glance which entries the research data hasn't fully
- * verified yet.
- */
 /** The marker's width is set by its callsign plate, so the box is left to
  *  size itself and only the anchor is pinned. Leaving iconSize off keeps
  *  the roundel, cluster badge and 999 ring free to overhang. */
@@ -82,9 +69,9 @@ function useMapZoom(): number {
   return zoom;
 }
 
-/** Station chip — the station id as the callsign, roundel 6 while any
- *  appliance is ready (0 dims the chip otherwise), ×N for multi-bay
- *  stations, service colour on the border per the marker pack. */
+/** Station marker — the station id on the plate, service colour on the
+ *  symbol. Pulled fully back the colour block alone is the useful fact, so
+ *  the status roundel and bay count drop away below zoom 14. */
 function stationIcon(
   service: ServiceCode,
   stationId: string,
@@ -102,11 +89,12 @@ function stationIcon(
     zoom,
     dimmed: !anyAvailable,
     cluster: applianceCount,
+    quietWhenCompact: true,
   });
 }
 
-/** Mover chip — status roundel per phase, heading arrow + pulsing 999
- *  ring while blue-lighting, dashed ring when selected. */
+/** Mover marker — status roundel per phase, pulsing 999 ring while
+ *  blue-lighting, dashed ring when selected. */
 export function movingIcon(
   callsign: string,
   service: ServiceCode,
@@ -128,66 +116,6 @@ export function movingIcon(
     ring999: responding,
     selected,
   });
-}
-
-// ---------------------------------------------------------------------------
-// Patch boundary — real GM metropolitan borough polygons fetched from
-// OpenStreetMap via our server-side Overpass proxy. One ring per borough
-// in the patch. The rings are rendered as "holes" in a world-covering dark
-// mask so only the covered area remains visible, and as a coloured stroke
-// around each borough for the outline.
-// ---------------------------------------------------------------------------
-
-// World-covering ring used as the outer polygon for the grey-out mask. Each
-// borough ring becomes a hole, so the mask darkens everything outside the
-// patch while keeping the covered ground fully visible.
-const WORLD_RECT: [number, number][] = [
-  [-85, -180],
-  [-85, 180],
-  [85, 180],
-  [85, -180],
-];
-
-/** Fetch the real borough boundaries for the operator's patch from the
- *  server-side OSM proxy. Returns one outer ring per borough. */
-/** Borough rings never change during a shift, and these layers now mount
- *  and unmount every time the operator changes detent — so cache per patch
- *  rather than paying a round trip each swap. */
-const patchBoundaryCache = new Map<string, [number, number][][]>();
-
-function usePatchBoundary(patch: AreaCode | null): [number, number][][] | null {
-  const [rings, setRings] = useState<[number, number][][] | null>(
-    () => (patch ? (patchBoundaryCache.get(patch) ?? null) : null),
-  );
-  useEffect(() => {
-    if (!patch || patch === "ForceWide") {
-      setRings(null);
-      return;
-    }
-    const cached = patchBoundaryCache.get(patch);
-    if (cached) {
-      setRings(cached);
-      return;
-    }
-    let cancelled = false;
-    setRings(null);
-    fetch(`/api/patch-boundary?patch=${encodeURIComponent(patch)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { rings?: [number, number][][] } | null) => {
-        if (cancelled) return;
-        if (data?.rings && data.rings.length > 0) {
-          patchBoundaryCache.set(patch, data.rings);
-          setRings(data.rings);
-        }
-      })
-      .catch(() => {
-        /* swallow — the map still renders without a boundary */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [patch]);
-  return rings;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +154,6 @@ export function LeafletMap({
         ]
       : [53.48, -2.24];
 
-  // Real GM borough boundaries for the operator's patch (fetched from OSM
-
   const patchLabel = patch && patch !== "ForceWide" ? `${patch} Command` : null;
 
   return (
@@ -242,13 +168,6 @@ export function LeafletMap({
           </div>
           <div className="font-mono text-[12px] font-semibold tracking-widest text-(--color-amber)">
             {patchLabel}
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] tracking-widest text-(--color-text-dim)">
-            <span
-              className="inline-block h-0.5 w-4 rounded-full"
-              style={{ background: "#fbbf24", boxShadow: "0 0 4px rgba(251,191,36,0.8)" }}
-            />
-            <span>Metropolitan borough boundary</span>
           </div>
         </div>
       )}
@@ -279,12 +198,12 @@ export function LeafletMap({
 }
 
 /**
- * Patch-scale Leaflet layers: borough boundary, stations, en-route ghost
- * movers and the incident marker.
+ * Patch-scale Leaflet layers: stations, en-route ghost movers and the
+ * incident marker.
  *
  * Split out of LeafletMap so the same layers can be dropped into any
- * MapContainer. The persistent map draws them at the Patch and Approach
- * detents and swaps to the ground layers past the detail threshold.
+ * MapContainer — the incident map draws them once the operator zooms back
+ * out past the ground-detail threshold.
  */
 export function PatchLayers({
   stations,
@@ -308,7 +227,6 @@ export function PatchLayers({
   }, []);
 
   // via our server-side Overpass proxy). One ring per borough.
-  const patchRings = usePatchBoundary(patch);
 
   const inFlight = useMemo(() => {
     if (!activeIncident) return [];
@@ -472,58 +390,6 @@ export function PatchLayers({
   }, [deployments, stations, mapNow, activeIncident]);
   return (
     <>
-
-      {/* Patch coverage mask + outline. Out-of-patch ground fades to dark
-          via a single world-rect polygon with a hole cut out per borough;
-          the covered boroughs are then stroked individually so the real
-          Greater Manchester command boundaries read clearly — shared
-          across all three services the operator runs from this patch. */}
-      {patchRings && patchRings.length > 0 && (
-        <>
-          <Polygon
-            positions={[WORLD_RECT, ...patchRings]}
-            pathOptions={{
-              color: "transparent",
-              fillColor: "#0a0a0c",
-              fillOpacity: 0.55,
-              stroke: false,
-            }}
-            interactive={false}
-          />
-          {/* Per-borough stroke — thin, soft, with a subtle glow so it reads
-              at low zoom without dominating the map. */}
-          {patchRings.map((ring, i) => (
-            <Polygon
-              key={`pb-halo-${i}`}
-              positions={ring}
-              pathOptions={{
-                color: "#fbbf24",
-                weight: 4,
-                opacity: 0.18,
-                fill: false,
-                lineCap: "round",
-                lineJoin: "round",
-              }}
-              interactive={false}
-            />
-          ))}
-          {patchRings.map((ring, i) => (
-            <Polygon
-              key={`pb-line-${i}`}
-              positions={ring}
-              pathOptions={{
-                color: "#fbbf24",
-                weight: 1.5,
-                opacity: 0.85,
-                fill: false,
-                lineCap: "round",
-                lineJoin: "round",
-              }}
-              interactive={false}
-            />
-          ))}
-        </>
-      )}
 
       {/* Stations */}
       {stations.map((s) => {

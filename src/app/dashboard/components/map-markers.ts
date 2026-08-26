@@ -1,12 +1,17 @@
-// Dispatcher map markers — faithful implementation of the supplied
-// marker pack (assets/map-markers): rounded unit chips with a status
-// roundel + callsign, service-coloured border and pointer, heading
-// arrow for mobile units, pulsing 999 ring, cluster badge, dashed
-// selected ring; red/amber/grey incident triangles.
+// Dispatcher map markers.
 //
-// Every coordinate matches the reference SVGs. Chips anchor at (40,58)
-// in an 80×66 viewBox; incident triangles anchor at (40,48). The
-// mk-999 / mk-inc animation classes are defined in globals.css.
+// Units are CAD symbols: a service-coloured square carrying a two-letter
+// resource code, a status roundel notched into its top-left, a callsign
+// plate flush to its right, and a dot below marking the exact position.
+// Three tiers by zoom — symbol only, plus callsign, plus a type line —
+// so the marker sheds parts rather than shrinking type past legibility.
+// No vehicle artwork, which is what a real mobilising screen shows and
+// what keeps the whole fleet covered without new art per type.
+//
+// Incident triangles are unchanged from the original pack
+// (assets/map-markers) and are still SVG, anchored at (40,48) in an
+// 80×66 viewBox. The mk-999 / mk-inc animation classes live in
+// globals.css; the HTML markers use mk-999-box.
 
 import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 
@@ -73,6 +78,10 @@ export type ChipOpts = {
   /** xN badge top-right when the marker stands for several units. */
   cluster?: number;
 
+  /** Drop the status roundel and the count badge at the compact tier.
+   *  Stations use this: pulled fully back, the colour block alone is the
+   *  useful fact and the badges are noise. */
+  quietWhenCompact?: boolean;
   /** Scene commander — a solid gold outline on the callsign plate. Kept
    *  distinct from the dashed amber selection ring so the two read apart
    *  when the IC happens to be the selected unit. */
@@ -158,7 +167,9 @@ export type UnitMarker = {
  * and SVG only by hand-computed approximation.
  */
 export function unitMarkerHtml(o: ChipOpts): UnitMarker {
-  const t = TIERS[markerTierForZoom(o.zoom)];
+  const tier = markerTierForZoom(o.zoom);
+  const t = TIERS[tier];
+  const quiet = tier === "compact" && !!o.quietWhenCompact;
   const st = MARKER_STATUS[o.status];
   const cs = o.callsign.toUpperCase().slice(0, 10);
 
@@ -184,11 +195,13 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
     : "";
 
   const cluster =
-    o.cluster && o.cluster > 1
+    o.cluster && o.cluster > 1 && !quiet
       ? `<div style="position:absolute;top:-7px;right:-9px;padding:1px 4px;border-radius:2px;background:#18181b;border:1.5px solid #fff;font:700 9px/1.2 ${MONO};color:#fff;white-space:nowrap;">&#215;${Math.min(o.cluster, 99)}</div>`
       : "";
 
-  const roundel = `<div style="position:absolute;top:-${t.roundelOff}px;left:-${t.roundelOff}px;width:${roundelW}px;height:${t.roundel}px;border-radius:2px;border:${t.border}px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.4);background:${st.colour};display:flex;align-items:center;justify-content:center;font:700 ${roundelFont}px/1 ${MONO};color:#fff;">${st.code}</div>`;
+  const roundel = quiet
+    ? ""
+    : `<div style="position:absolute;top:-${t.roundelOff}px;left:-${t.roundelOff}px;width:${roundelW}px;height:${t.roundel}px;border-radius:2px;border:${t.border}px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.4);background:${st.colour};display:flex;align-items:center;justify-content:center;font:700 ${roundelFont}px/1 ${MONO};color:#fff;">${st.code}</div>`;
 
   const symbol = `<div style="position:relative;width:${t.sym}px;height:${t.sym}px;background:${o.serviceColour};border:${t.border}px solid #fff;border-radius:${t.plate ? t.radius : "3px"};${outline}box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:700 ${t.codeSize}px/1 ${MONO};color:#fff;">${o.resourceCode}${roundel}</div>`;
 
