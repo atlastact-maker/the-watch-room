@@ -188,3 +188,11 @@ body::before {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* Aerial base map — dim and desaturate the photography only, so vehicle
+   sprites, callsign chips, hose lines and hydrant plates keep their full
+   contrast over a busy rooftop. Filtering the tile pane rather than
+   overlaying a scrim leaves every marker untouched. */
+.imagery-base .leaflet-tile-pane {
+  filter: brightness(0.72) saturate(0.85);
+}

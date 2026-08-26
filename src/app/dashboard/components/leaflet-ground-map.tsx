@@ -32,6 +32,14 @@ import {
 } from "./vehicle-sprites";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
+import {
+  BASEMAP_STORAGE_KEY,
+  OS_ERRORS_URL,
+  OS_TERMS_URL,
+  basemapById,
+  groundBasemaps,
+  type BasemapId,
+} from "@/lib/map-basemaps";
 import type { ResolvedDeployment } from "./incident-view";
 
 
@@ -828,6 +836,29 @@ export function LeafletGroundMap({
   // its position, then a second map-click to set its facing direction.
   const [parking, setParking] = useState<ParkingState>({ phase: "idle" });
 
+  // Base map — OS cartography by default (what a UK control room runs),
+  // with aerial as the toggle. Remembered per operator.
+  const options = groundBasemaps();
+  const [basemapId, setBasemapId] = useState<BasemapId>(() => {
+    if (typeof window === "undefined") return options[0].id;
+    try {
+      const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
+      if (saved && options.some((o) => o.id === saved)) return saved as BasemapId;
+    } catch {
+      // best-effort
+    }
+    return options[0].id;
+  });
+  const basemap = basemapById(basemapId);
+  function chooseBasemap(id: BasemapId) {
+    setBasemapId(id);
+    try {
+      window.localStorage.setItem(BASEMAP_STORAGE_KEY, id);
+    } catch {
+      // best-effort
+    }
+  }
+
   // Whether the red MDT-style info callout next to the incident crosshair is
   // shown. The operator can click the crosshair to toggle it off (less
   // cluttered) and back on. Default on so a fresh incident announces itself.
@@ -1048,6 +1079,12 @@ export function LeafletGroundMap({
 
   return (
     <div className="relative h-full w-full">
+    <BasemapToggle
+      options={options}
+      current={basemapId}
+      onChoose={chooseBasemap}
+    />
+    <MapAttribution basemap={basemap} />
     <PlacementBanner
       parking={parking}
       onCancel={() => {
@@ -1068,15 +1105,14 @@ export function LeafletGroundMap({
       keyboard={false}
       zoomControl={false}
       attributionControl={false}
-      className="h-full w-full bg-[#050507]"
+      className={"h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxNativeZoom={19}
+        key={basemap.id}
+        url={basemap.url}
+        maxNativeZoom={basemap.maxNativeZoom}
         maxZoom={20}
       />
-
       <MapClickHandler
         parking={parking}
         roads={osmRoads}
@@ -1501,6 +1537,85 @@ function PlacementBanner({
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Base-map switch — bottom-right, clear of the placement banner. */
+function BasemapToggle({
+  options,
+  current,
+  onChoose,
+}: {
+  options: { id: BasemapId; label: string }[];
+  current: BasemapId;
+  onChoose: (id: BasemapId) => void;
+}) {
+  return (
+    <div className="pointer-events-auto absolute right-3 top-3 z-[600] flex overflow-hidden rounded-sm border border-(--color-border) bg-(--color-bg)/90 shadow-lg">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onChoose(o.id)}
+          className={
+            "px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
+            (o.id === current
+              ? "bg-(--color-amber)/20 text-(--color-amber)"
+              : "text-(--color-text-dim) hover:text-(--color-text)")
+          }
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Attribution block. Ordnance Survey require the copyright statement,
+ * their logo, and links to the errors tool and the terms — all inside
+ * the map — so this is rendered here rather than in Leaflet's own
+ * attribution control (which is why the map disables it).
+ */
+function MapAttribution({
+  basemap,
+}: {
+  basemap: { id: BasemapId; attribution: string };
+}) {
+  const isOs = basemap.id === "os";
+  return (
+    <div className="pointer-events-auto absolute bottom-1 left-1 z-[600] flex items-center gap-1.5 rounded-sm bg-(--color-bg)/75 px-1.5 py-0.5 font-mono text-[8px] leading-tight text-(--color-text-dim)">
+      {isOs && (
+        <span
+          className="shrink-0 rounded-[2px] bg-white px-1 py-px text-[7px] font-bold tracking-tight text-black"
+          aria-label="Ordnance Survey"
+          title="Ordnance Survey"
+        >
+          OS
+        </span>
+      )}
+      <span>{basemap.attribution}</span>
+      {isOs && (
+        <>
+          <a
+            href={OS_ERRORS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="underline hover:text-(--color-amber)"
+          >
+            Report an error
+          </a>
+          <a
+            href={OS_TERMS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="underline hover:text-(--color-amber)"
+          >
+            Terms
+          </a>
+        </>
+      )}
     </div>
   );
 }
