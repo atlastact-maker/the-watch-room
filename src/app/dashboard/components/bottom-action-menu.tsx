@@ -39,6 +39,7 @@ import { BaControlBoard } from "./ba-control-board";
 import { LightingControlHead } from "./lighting-control-head";
 import {
   HAND_BUDGET,
+  applyLoadout,
   canCarry,
   carryClass,
   handsUsed,
@@ -682,6 +683,12 @@ type LoadoutPreset = {
   label: string;
   items: CrewEquipment[];
   services: ServiceCode[];
+  /** The item that defines this position. The preset is offered when the
+   *  appliance carries THIS; anything else in the list is a nice-to-have
+   *  and is simply skipped if it isn't aboard. Without it, a pump that
+   *  carries glass management but no recip saw would be offered no glass
+   *  position at all. Omit for radio-only positions. */
+  requires?: CrewEquipment;
 };
 
 const LOADOUT_PRESETS: LoadoutPreset[] = [
@@ -689,27 +696,28 @@ const LOADOUT_PRESETS: LoadoutPreset[] = [
   // cutter and a spreader are ~20 kg apiece with a single central handle,
   // so a cutting crew is four riders, not one.
   { key: "officer", label: "Officer / IC", items: ["radio"], services: ["Fire"] },
-  { key: "pump_op", label: "Pump Operator", items: ["red_key", "standpipe", "radio"], services: ["Fire"] },
-  { key: "ba_branch", label: "BA · Branch", items: ["ba_set", "branch_45mm", "radio"], services: ["Fire"] },
-  { key: "ba_tic", label: "BA · TIC", items: ["ba_set", "thermal_camera", "radio"], services: ["Fire"] },
-  { key: "moe", label: "Entry / MOE", items: ["hali_tool", "lock_snapper", "radio"], services: ["Fire"] },
-  { key: "rtc_stab", label: "RTC 1 · Stabilisation", items: ["stabiliser_chocks", "radio"], services: ["Fire"] },
-  { key: "rtc_glass", label: "RTC 2 · Glass & saw", items: ["glass_mgmt", "reciprocating_saw", "small_tools", "radio"], services: ["Fire"] },
-  { key: "rtc_cut", label: "RTC 3 · Cutters", items: ["hydraulic_cutters", "radio"], services: ["Fire"] },
-  { key: "rtc_spread", label: "RTC 4 · Spreaders", items: ["hydraulic_spreaders", "radio"], services: ["Fire"] },
-  { key: "wf_beat", label: "Wildfire · Beater", items: ["knapsack_sprayer", "beater", "radio"], services: ["Fire"] },
-  { key: "wf_blow", label: "Wildfire · Blower", items: ["leaf_blower", "radio"], services: ["Fire"] },
-  { key: "rope_rig", label: "Rope · Rigger", items: ["rescue_harness", "rope_kit", "pulleys_prusiks", "radio"], services: ["Fire"] },
-  { key: "rope_cas", label: "Rope · Casualty", items: ["rescue_harness", "sked_stretcher", "radio"], services: ["Fire"] },
-  { key: "water_wade", label: "Water · Wader", items: ["dry_suit", "pfd", "wading_pole", "throw_line", "radio"], services: ["Fire"] },
-  { key: "water_bank", label: "Water · Bank safety", items: ["pfd", "throw_line", "radio"], services: ["Fire"] },
+  { key: "pump_op", label: "Pump Operator", items: ["red_key", "standpipe", "radio"], services: ["Fire"], requires: "red_key" },
+  { key: "ba_branch", label: "BA · Branch", items: ["ba_set", "branch_45mm", "radio"], services: ["Fire"], requires: "ba_set" },
+  { key: "ba_tic", label: "BA · TIC", items: ["ba_set", "thermal_camera", "radio"], services: ["Fire"], requires: "thermal_camera" },
+  { key: "moe", label: "Entry / MOE", items: ["hali_tool", "lock_snapper", "radio"], services: ["Fire"], requires: "hali_tool" },
+  { key: "rtc_stab", label: "RTC 1 · Stabilisation", items: ["stabiliser_chocks", "radio"], services: ["Fire"], requires: "stabiliser_chocks" },
+  { key: "rtc_glass", label: "RTC 2 · Glass & saw", items: ["glass_mgmt", "reciprocating_saw", "small_tools", "radio"], services: ["Fire"], requires: "glass_mgmt" },
+  { key: "rtc_cut", label: "RTC 3 · Cutters", items: ["hydraulic_cutters", "radio"], services: ["Fire"], requires: "hydraulic_cutters" },
+  { key: "rtc_spread", label: "RTC 4 · Spreaders", items: ["hydraulic_spreaders", "radio"], services: ["Fire"], requires: "hydraulic_spreaders" },
+  { key: "wf_beat", label: "Wildfire · Beater", items: ["knapsack_sprayer", "beater", "radio"], services: ["Fire"], requires: "beater" },
+  { key: "wf_blow", label: "Wildfire · Blower", items: ["leaf_blower", "radio"], services: ["Fire"], requires: "leaf_blower" },
+  { key: "rope_rig", label: "Rope · Rigger", items: ["rescue_harness", "rope_kit", "pulleys_prusiks", "radio"], services: ["Fire"], requires: "rope_kit" },
+  { key: "rope_cas", label: "Rope · Casualty", items: ["rescue_harness", "sked_stretcher", "radio"], services: ["Fire"], requires: "sked_stretcher" },
+  { key: "water_wade", label: "Water · Wader", items: ["dry_suit", "pfd", "wading_pole", "throw_line", "radio"], services: ["Fire"], requires: "wading_pole" },
+  { key: "water_bank", label: "Water · Bank safety", items: ["pfd", "throw_line", "radio"], services: ["Fire"], requires: "throw_line" },
   // Ambulance
-  { key: "attendant", label: "Attendant", items: ["first_aid", "aed", "radio"], services: ["Ambulance"] },
-  { key: "critical", label: "Critical Care", items: ["trauma", "first_aid", "radio"], services: ["Ambulance"] },
-  { key: "packaging", label: "Packaging", items: ["spine_board", "radio"], services: ["Ambulance"] },
+  { key: "attendant", label: "Attendant", items: ["first_aid", "aed", "radio"], services: ["Ambulance"], requires: "first_aid" },
+  { key: "critical", label: "Critical Care", items: ["trauma", "first_aid", "radio"], services: ["Ambulance"], requires: "trauma" },
+  { key: "packaging", label: "Packaging", items: ["spine_board", "radio"], services: ["Ambulance"], requires: "spine_board" },
+  { key: "amb_standby", label: "Standby", items: ["radio"], services: ["Ambulance"] },
   // Police — hands stay free, which is the point.
   { key: "patrol", label: "Patrol", items: ["radio"], services: ["Police"] },
-  { key: "roads", label: "Roads Policing", items: ["first_aid", "radio"], services: ["Police"] },
+  { key: "roads", label: "Roads Policing", items: ["first_aid", "radio"], services: ["Police"], requires: "first_aid" },
 ];
 
 /** Preset for a rider's role. `seen` counts how many of each role have
@@ -767,7 +775,10 @@ export function CrewTab({
   const presets = LOADOUT_PRESETS.filter(
     (p) =>
       p.services.includes(appliance.service) &&
-      p.items.filter((it) => it !== "radio").every(itemAvailable),
+      // Offered when the appliance carries the position's defining item.
+      // Extras it doesn't carry are dropped on apply, so a pump with
+      // glass management but no recip saw still gets a glass position.
+      (p.requires ? itemAvailable(p.requires) : true),
   );
 
   /** Rig a rider AS a position: their loadout becomes exactly the
@@ -809,9 +820,9 @@ export function CrewTab({
         LOADOUT_PRESETS.find((p) => p.key === key) ??
         LOADOUT_PRESETS.find((p) => p.key === "officer");
       if (!preset) continue;
-      // Skip a position this appliance cannot actually equip.
-      const needs = preset.items.filter((i) => i !== "radio");
-      if (needs.length > 0 && !needs.every(itemAvailable)) {
+      // If the appliance can't equip this position at all, the rider
+      // still steps off with a radio rather than being skipped.
+      if (preset.requires && !itemAvailable(preset.requires)) {
         applyPreset(m.id, { ...preset, items: ["radio"] });
         continue;
       }
@@ -948,7 +959,9 @@ export function CrewTab({
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {presets.map((p) => {
-                    const target = p.items.filter(itemAvailable);
+                    // What this appliance can actually issue for the
+                    // position — extras it doesn't carry never count.
+                    const target = applyLoadout(p.items.filter(itemAvailable)).items;
                     const matches =
                       target.length > 0 &&
                       target.every((it) => selEquipped.includes(it)) &&
@@ -1130,7 +1143,13 @@ function applianceHasEquipment(appliance: Appliance, key: CrewEquipment): boolea
     case "glass_mgmt":
       return hasKit(/Glass management|Heavy rescue/i) || cap("RTC_extrication");
     case "spine_board":
-      return hasKit(/Spine board|Heavy rescue/i) || cap("RTC_extrication");
+      // Ambulances carry a board or scoop as standard — packaging a
+      // patient is their job, not the fire service's.
+      return (
+        hasKit(/Spine board|Heavy rescue|Trolley/i) ||
+        cap("RTC_extrication") ||
+        cap("Medical")
+      );
     case "airbag_lifting":
     case "reciprocating_saw":
     case "disc_cutter":
