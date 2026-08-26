@@ -10,7 +10,7 @@
 //   Actions  — task assignment, filtered by what crew has equipped
 
 import { useEffect, useState } from "react";
-import type { Appliance, CrewMember } from "@/lib/sim/types";
+import type { Appliance, CrewMember, ServiceCode } from "@/lib/sim/types";
 import {
   ATTACK_EFFECTIVENESS,
   CAPABILITIES_BY_TYPE,
@@ -525,10 +525,6 @@ function VehicleTab({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Crew tab — per-rider equipment loadout
-// ---------------------------------------------------------------------------
-
 type EquipDef = { key: CrewEquipment; label: string; baOnly?: boolean };
 type EquipGroup = { title: string; items: EquipDef[] };
 
@@ -629,7 +625,76 @@ const EQUIPMENT_GROUPS: EquipGroup[] = [
 
 const ALL_EQUIPMENT: EquipDef[] = EQUIPMENT_GROUPS.flatMap((g) => g.items);
 
-function CrewTab({
+
+// ---------------------------------------------------------------------------
+// Crew tab — riding-position loadouts.
+//
+// Left: the full roster, always visible, each rider showing their kit as
+// short badges so gaps ("nobody has the TIC") jump out. Right: the
+// selected rider's loadout — one-tap riding-position presets on top,
+// fine-grain item toggles below. "Standard loadout" kits the whole crew
+// by role in one tap. Scarce one-per-appliance items (the fast-attack
+// reel) name their current holder instead of silently jumping.
+// ---------------------------------------------------------------------------
+
+const EQUIP_SHORT: Partial<Record<CrewEquipment, string>> = {
+  ba_set: "BA",
+  radio: "RDO",
+  thermal_camera: "TIC",
+  branch_45mm: "45MM",
+  branch_70mm: "70MM",
+  fast_attack_branch: "REEL",
+  red_key: "KEY",
+  standpipe: "PIPE",
+  hydraulic_cutters: "CUT",
+  hydraulic_spreaders: "SPRD",
+  glass_mgmt: "GLAS",
+  stabiliser_chocks: "CHKS",
+  spine_board: "SPIN",
+  first_aid: "F/A",
+  aed: "AED",
+  trauma: "TRMA",
+  hali_tool: "HALI",
+  extinguisher: "EXT",
+  small_tools: "TOOL",
+  foam_branch: "FOAM",
+};
+
+function shortEquipLabel(k: CrewEquipment): string {
+  return EQUIP_SHORT[k] ?? k.slice(0, 4).toUpperCase();
+}
+
+type LoadoutPreset = {
+  key: string;
+  label: string;
+  items: CrewEquipment[];
+  services: ServiceCode[];
+};
+
+const LOADOUT_PRESETS: LoadoutPreset[] = [
+  { key: "ba", label: "BA Wearer", items: ["ba_set", "radio"], services: ["Fire"] },
+  { key: "search", label: "BA Search", items: ["ba_set", "thermal_camera", "radio"], services: ["Fire"] },
+  { key: "pump_op", label: "Pump Operator", items: ["red_key", "standpipe", "radio"], services: ["Fire"] },
+  { key: "rtc", label: "RTC Rescue", items: ["hydraulic_cutters", "hydraulic_spreaders", "glass_mgmt", "radio"], services: ["Fire"] },
+  { key: "officer", label: "Officer", items: ["radio", "thermal_camera"], services: ["Fire"] },
+  { key: "attendant", label: "Attendant", items: ["first_aid", "aed", "radio"], services: ["Ambulance"] },
+  { key: "critical", label: "Critical Care", items: ["trauma", "first_aid", "radio"], services: ["Ambulance"] },
+  { key: "patrol", label: "Patrol", items: ["radio"], services: ["Police"] },
+];
+
+/** Which preset a rider takes under "Standard loadout", from their role. */
+function presetKeyForRole(role: string, service: ServiceCode): string {
+  if (service === "Ambulance") {
+    return /Doctor|Critical Care/i.test(role) ? "critical" : "attendant";
+  }
+  if (service === "Police") return "patrol";
+  if (/Manager/i.test(role)) return "officer";
+  if (/Driver|Pump Op/i.test(role)) return "pump_op";
+  if (/Technical Rescue/i.test(role)) return "rtc";
+  return "ba";
+}
+
+export function CrewTab({
   appliance,
   deployment,
   busyCrewIds,
@@ -642,115 +707,262 @@ function CrewTab({
   crewAir: Record<string, number>;
   onToggleCrewEquipment: (applianceId: string, crewId: string, item: string) => void;
 }) {
-  const [openCrewId, setOpenCrewId] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(
+    appliance.crewMembers[0]?.id ?? null,
+  );
   const caps = CAPABILITIES_BY_TYPE[appliance.type] ?? [];
   const baAllowed = caps.includes("BA");
+  const equipMap = deployment.crewEquipment ?? {};
+
+  const itemAvailable = (key: CrewEquipment) =>
+    applianceHasEquipment(appliance, key) &&
+    (key !== "ba_set" || baAllowed);
+
+  const presets = LOADOUT_PRESETS.filter(
+    (p) =>
+      p.services.includes(appliance.service) &&
+      p.items.some((it) => it !== "radio" && itemAvailable(it)),
+  );
+
+  /** Rig a rider AS a position: their loadout becomes exactly the
+   *  preset's available items. */
+  function applyPreset(crewId: string, preset: LoadoutPreset) {
+    const target = preset.items.filter(itemAvailable);
+    const current = equipMap[crewId] ?? [];
+    for (const item of current) {
+      if (!target.includes(item as CrewEquipment)) {
+        onToggleCrewEquipment(appliance.id, crewId, item);
+      }
+    }
+    for (const item of target) {
+      if (!current.includes(item)) {
+        onToggleCrewEquipment(appliance.id, crewId, item);
+      }
+    }
+  }
+
+  /** Kit the whole crew by role in one tap. Busy riders keep what they
+   *  are holding. */
+  function standardLoadout() {
+    for (const m of appliance.crewMembers) {
+      if (busyCrewIds.has(m.id)) continue;
+      const key = presetKeyForRole(m.role, appliance.service);
+      const preset = LOADOUT_PRESETS.find((p) => p.key === key);
+      if (preset) applyPreset(m.id, preset);
+    }
+  }
+
+  const sel = appliance.crewMembers.find((m) => m.id === selId) ?? null;
+  const selEquipped = sel ? (equipMap[sel.id] ?? []) : [];
+
+  /** Current holder of a one-per-appliance item, if anyone. */
+  const SINGLETONS = new Set<CrewEquipment>(["fast_attack_branch"]);
+  function holderOf(item: CrewEquipment): (typeof appliance.crewMembers)[number] | null {
+    if (!SINGLETONS.has(item)) return null;
+    for (const m of appliance.crewMembers) {
+      if ((equipMap[m.id] ?? []).includes(item)) return m;
+    }
+    return null;
+  }
+
   return (
     <div className="space-y-2">
-      {appliance.crewMembers.map((m) => {
-        const equipped = deployment.crewEquipment?.[m.id] ?? [];
-        const busy = busyCrewIds.has(m.id);
-        const air = crewAir[m.id];
-        const isOpen = openCrewId === m.id;
-        return (
-          <div
-            key={m.id}
-            className={
-              "rounded-sm border bg-(--color-surface-raised) " +
-              (busy
-                ? "border-(--color-critical)/40"
-                : isOpen
-                  ? "border-(--color-amber)/60"
-                  : "border-(--color-border-subtle)")
-            }
-          >
-            <button
-              type="button"
-              onClick={() => setOpenCrewId(isOpen ? null : m.id)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-(--color-text)">{m.name}</span>
-                  {busy && (
-                    <span className="rounded-sm border border-(--color-critical)/50 bg-(--color-critical)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">
-                      busy
+      {/* Whole-crew action */}
+      <div className="flex items-center justify-between gap-2 rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 px-2.5 py-1.5">
+        <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+          Kit the crew by riding position — busy riders keep their gear
+        </span>
+        <button
+          type="button"
+          onClick={standardLoadout}
+          className="shrink-0 rounded-sm border border-(--color-amber) bg-(--color-amber)/15 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/25"
+        >
+          Standard loadout
+        </button>
+      </div>
+
+      <div className="grid grid-cols-[180px_1fr] gap-2">
+        {/* Roster — always visible, badges show each rider's kit */}
+        <ul className="space-y-1">
+          {appliance.crewMembers.map((m) => {
+            const equipped = equipMap[m.id] ?? [];
+            const busy = busyCrewIds.has(m.id);
+            const air = crewAir[m.id];
+            const selected = m.id === selId;
+            return (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelId(m.id)}
+                  className={
+                    "w-full rounded-sm border px-2 py-1.5 text-left transition-colors " +
+                    (selected
+                      ? "border-(--color-amber) bg-(--color-amber)/10"
+                      : busy
+                        ? "border-(--color-critical)/40 bg-(--color-surface-raised)/40 hover:border-(--color-critical)"
+                        : "border-(--color-border-subtle) bg-(--color-surface-raised)/40 hover:border-(--color-amber-dim)")
+                  }
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="truncate text-[12px] font-medium text-(--color-text)">
+                      {m.name}
                     </span>
-                  )}
-                  {air !== undefined && (
-                    <span
-                      className={
-                        "font-mono text-[10px] " +
-                        (air < 30
-                          ? "text-(--color-critical)"
-                          : air < 50
-                            ? "text-(--color-amber)"
-                            : "text-(--color-ok)")
-                      }
-                    >
-                      BA {Math.round(air)}%
-                    </span>
-                  )}
-                </div>
-                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-muted)">
-                  {m.role} · {m.yearsService}y
-                </div>
-                {equipped.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {equipped.map((e) => (
-                      <span
-                        key={e}
-                        className="rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-1.5 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-amber)"
-                      >
-                        {labelForEquipment(e)}
+                    {busy && (
+                      <span className="shrink-0 font-mono text-[8px] font-bold uppercase text-(--color-critical)">
+                        busy
                       </span>
-                    ))}
+                    )}
+                    {air !== undefined && !busy && (
+                      <span className="shrink-0 font-mono text-[8px] text-(--color-text-dim)">
+                        BA {Math.round(air)}%
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-              <span className="font-mono text-[10px] text-(--color-text-dim)">{isOpen ? "▾" : "▸"}</span>
-            </button>
-            {isOpen && (
-              <div className="space-y-2 border-t border-(--color-border-subtle) px-3 py-2">
-                {EQUIPMENT_GROUPS.map((group) => {
-                  const items = group.items.filter(
-                    (eq) =>
-                      (!eq.baOnly || baAllowed) && applianceHasEquipment(appliance, eq.key),
-                  );
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={group.title}>
-                      <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
-                        {group.title}
-                      </div>
-                      <div className="mt-1 grid grid-cols-2 gap-1">
-                        {items.map((eq) => {
-                          const on = equipped.includes(eq.key);
-                          return (
-                            <button
-                              key={eq.key}
-                              type="button"
-                              onClick={() => onToggleCrewEquipment(appliance.id, m.id, eq.key)}
-                              className={
-                                "rounded-sm border px-2 py-1 text-left font-mono text-[10px] uppercase tracking-widest transition-colors " +
-                                (on
-                                  ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
-                                  : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim)")
-                              }
-                            >
-                              {on ? "✓ " : ""}{eq.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                  <div className="mt-0.5 truncate font-mono text-[8.5px] uppercase tracking-widest text-(--color-text-muted)">
+                    {m.role}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-0.5">
+                    {equipped.length === 0 ? (
+                      <span className="font-mono text-[8px] uppercase tracking-widest text-(--color-text-dim)">
+                        — no kit
+                      </span>
+                    ) : (
+                      <>
+                        {equipped.slice(0, 4).map((e) => (
+                          <span
+                            key={e}
+                            className="rounded-[2px] border border-(--color-amber)/50 bg-(--color-amber)/10 px-1 font-mono text-[8px] font-bold text-(--color-amber)"
+                          >
+                            {shortEquipLabel(e as CrewEquipment)}
+                          </span>
+                        ))}
+                        {equipped.length > 4 && (
+                          <span className="font-mono text-[8px] text-(--color-text-dim)">
+                            +{equipped.length - 4}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* Loadout editor for the selected rider */}
+        {sel ? (
+          <div className="min-w-0 rounded-sm border border-(--color-border-subtle) bg-(--color-surface-raised)/25 p-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-sm font-semibold text-(--color-text)">
+                {sel.name}
+              </span>
+              <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                {selEquipped.length} item{selEquipped.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-muted)">
+              {sel.role}
+            </div>
+
+            {presets.length > 0 && (
+              <div className="mt-2">
+                <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
+                  Rig as
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {presets.map((p) => {
+                    const target = p.items.filter(itemAvailable);
+                    const matches =
+                      target.length > 0 &&
+                      target.every((it) => selEquipped.includes(it)) &&
+                      selEquipped.length === target.length;
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => applyPreset(sel.id, p)}
+                        className={
+                          "rounded-sm border px-2 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
+                          (matches
+                            ? "border-(--color-ok) bg-(--color-ok)/10 text-(--color-ok)"
+                            : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim) hover:text-(--color-amber)")
+                        }
+                      >
+                        {matches ? "✓ " : ""}
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
+
+            <div className="mt-2 space-y-2 border-t border-(--color-border-subtle) pt-2">
+              {EQUIPMENT_GROUPS.map((group) => {
+                const items = group.items.filter(
+                  (eq) =>
+                    (!eq.baOnly || baAllowed) &&
+                    applianceHasEquipment(appliance, eq.key),
+                );
+                if (items.length === 0) return null;
+                const equippedCount = items.filter((eq) =>
+                  selEquipped.includes(eq.key),
+                ).length;
+                return (
+                  <div key={group.title}>
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
+                      {group.title}
+                      {equippedCount > 0 && (
+                        <span className="text-(--color-text-dim)"> · {equippedCount}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 grid grid-cols-2 gap-1">
+                      {items.map((eq) => {
+                        const on = selEquipped.includes(eq.key);
+                        const holder = holderOf(eq.key);
+                        const heldElsewhere = !!holder && holder.id !== sel.id;
+                        return (
+                          <button
+                            key={eq.key}
+                            type="button"
+                            onClick={() =>
+                              onToggleCrewEquipment(appliance.id, sel.id, eq.key)
+                            }
+                            title={
+                              heldElsewhere
+                                ? `One aboard — taking it off ${holder!.name}`
+                                : undefined
+                            }
+                            className={
+                              "rounded-sm border px-2 py-1 text-left font-mono text-[10px] uppercase tracking-widest transition-colors " +
+                              (on
+                                ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
+                                : heldElsewhere
+                                  ? "border-(--color-border) text-(--color-text-dim)"
+                                  : "border-(--color-border) text-(--color-text) hover:border-(--color-amber-dim)")
+                            }
+                          >
+                            {on ? "✓ " : ""}
+                            {eq.label}
+                            {heldElsewhere && (
+                              <span className="block font-mono text-[8px] normal-case tracking-normal text-(--color-text-dim)">
+                                with {holder!.name}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        );
-      })}
+        ) : (
+          <p className="text-(--color-text-dim)">No crew aboard.</p>
+        )}
+      </div>
     </div>
   );
 }
