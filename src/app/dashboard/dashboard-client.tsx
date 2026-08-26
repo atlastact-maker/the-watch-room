@@ -3477,7 +3477,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               setPendingClosure({ applianceId, kind, crewIds })
             }
             onRequestRotate={setRotatePendingApplianceId}
-            onSelectInbound={setSelectedApplianceId}
             onArmPlacement={setPlacePendingApplianceId}
             unitId={mdtUnitId}
             onSetUnitId={setMdtUnitId}

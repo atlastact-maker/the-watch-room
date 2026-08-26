@@ -27,65 +27,29 @@ type Props = {
   onClose: () => void;
 };
 
-export function PreArrivalPanel({
+type BodyProps = Omit<Props, "onClose">;
+
+/**
+ * The pre-arrival instructions themselves. Rendered inline in the MDT's
+ * Resourcing pane, and inside the floating shell below when the operator
+ * clicks an en-route unit on the dispatch map (where there is no MDT).
+ */
+export function PreArrivalBody({
   appliance,
   deployment,
   now,
   casualties,
   onSetPreCommitBaCrew,
   onSetTreatingCasualty,
-  onClose,
-}: Props) {
+}: BodyProps) {
   const caps = CAPABILITIES_BY_TYPE[appliance.type] ?? [];
   const baCapable = caps.includes("BA");
   const medical =
     appliance.service === "Ambulance" ||
     ["HEMS", "CCC", "BASICS", "QR"].includes(appliance.type);
-
-  const awaitingLz = !!deployment.hemsFlight && !deployment.parkingPos;
-  const etaMs = deployment.arrivesAt - now;
-  const etaLabel = awaitingLz
-    ? "awaiting LZ"
-    : etaMs > 0
-      ? fmtMs(etaMs)
-      : "arriving";
-
   const preCommit = deployment.preCommitBaCrewIds ?? [];
-
+  void now;
   return (
-    <Rnd
-      default={{
-        x: typeof window !== "undefined" ? window.innerWidth / 2 - 210 : 300,
-        y: 120,
-        width: 420,
-        height: "auto",
-      }}
-      minWidth={340}
-      bounds="window"
-      dragHandleClassName="drag-handle"
-      enableResizing={false}
-      // Above the fullscreen ground view (1200) and MDT (1250) so inbound
-      // chips can open it for en-route pre-allocation.
-      className="z-[1290]"
-    >
-      <div className="flex w-full flex-col overflow-hidden rounded-sm border border-(--color-amber)/50 bg-(--color-surface) shadow-2xl shadow-black/60">
-        <div className="drag-handle flex cursor-move items-center justify-between gap-2 border-b border-(--color-border-subtle) bg-(--color-amber)/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-          <div className="flex items-center gap-2">
-            <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
-            <span>Pre-arrival · {appliance.callsign}</span>
-            <span className="opacity-60">|</span>
-            <span className="text-(--color-text-dim)">ETA {etaLabel}</span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
-            title="Close"
-          >
-            ✕
-          </button>
-        </div>
-
         <div className="flex flex-col gap-4 px-4 py-4">
           <p className="font-mono text-[10px] uppercase leading-relaxed tracking-widest text-(--color-text-dim)">
             Instructions transmit over airwave — the crew actions them the
@@ -178,6 +142,68 @@ export function PreArrivalPanel({
             </p>
           )}
         </div>
+  );
+}
+
+export function PreArrivalPanel({
+  appliance,
+  deployment,
+  now,
+  casualties,
+  onSetPreCommitBaCrew,
+  onSetTreatingCasualty,
+  onClose,
+}: Props) {
+  const awaitingLz = !!deployment.hemsFlight && !deployment.parkingPos;
+  const etaMs = deployment.arrivesAt - now;
+  const etaLabel = awaitingLz
+    ? "awaiting LZ"
+    : etaMs > 0
+      ? fmtMs(etaMs)
+      : "arriving";
+
+  return (
+    <Rnd
+      default={{
+        x: typeof window !== "undefined" ? window.innerWidth / 2 - 210 : 300,
+        y: 120,
+        width: 420,
+        height: "auto",
+      }}
+      minWidth={340}
+      bounds="window"
+      dragHandleClassName="drag-handle"
+      enableResizing={false}
+      // Above the fullscreen ground view (1200) and MDT (1250) so inbound
+      // chips can open it for en-route pre-allocation.
+      className="z-[1290]"
+    >
+      <div className="flex w-full flex-col overflow-hidden rounded-sm border border-(--color-amber)/50 bg-(--color-surface) shadow-2xl shadow-black/60">
+        <div className="drag-handle flex cursor-move items-center justify-between gap-2 border-b border-(--color-border-subtle) bg-(--color-amber)/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+          <div className="flex items-center gap-2">
+            <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
+            <span>Pre-arrival · {appliance.callsign}</span>
+            <span className="opacity-60">|</span>
+            <span className="text-(--color-text-dim)">ETA {etaLabel}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
+            title="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <PreArrivalBody
+          appliance={appliance}
+          deployment={deployment}
+          now={now}
+          casualties={casualties}
+          onSetPreCommitBaCrew={onSetPreCommitBaCrew}
+          onSetTreatingCasualty={onSetTreatingCasualty}
+        />
       </div>
     </Rnd>
   );

@@ -31,6 +31,7 @@ import { BaControlBoard } from "./ba-control-board";
 import { BottomActionMenu } from "./bottom-action-menu";
 import { CAD_VARS } from "./cad-theme";
 import { CrsPanel } from "./crs-panel";
+import { PreArrivalBody } from "./pre-arrival-panel";
 import { DeploymentBoard, type Eta } from "./deployment-board";
 import type { AreaCode } from "@/lib/sim/types";
 
@@ -113,8 +114,6 @@ type Props = {
   /** Start a road-closure placement (next ground-map click drops cones). */
   onBeginRoadClosure?: (applianceId: string, kind: "close_carriageway" | "close_road", crewIds: string[]) => void;
   onRequestRotate?: (applianceId: string) => void;
-  /** Clicking a still-mobile callsign opens its pre-arrival panel. */
-  onSelectInbound?: (applianceId: string) => void;
   /** Arm the two-click map placement flow for an arrived-unplaced unit
    *  (or an LZ pick for a holding helicopter). The ground map shows the
    *  step banner and takes the clicks; the MDT is just the console. */
@@ -230,7 +229,6 @@ export function DraggableIncidentMdt({
   fatigueByApplianceId,
   onBeginRoadClosure,
   onRequestRotate,
-  onSelectInbound,
   onArmPlacement,
   unitId: unitIdProp,
   onSetUnitId,
@@ -599,10 +597,10 @@ export function DraggableIncidentMdt({
                                     {row.isHeli ? "Set LZ" : "Place"}
                                   </button>
                                 )}
-                                {row.phase === "mobile" && onSelectInbound && (
+                                {row.phase === "mobile" && (
                                   <button
                                     type="button"
-                                    onClick={() => onSelectInbound(row.id)}
+                                    onClick={() => setUnitId(row.id)}
                                     className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-info) hover:text-(--color-info)"
                                   >
                                     Crew
@@ -645,12 +643,9 @@ export function DraggableIncidentMdt({
                             now={nowMs}
                             selected={unitId === r.appliance.id}
                             isCommander={sceneCommanderApplianceId === r.deployment.applianceId}
-                            onClick={() => {
-                              // Still driving in → pre-arrival panel; on scene
-                              // (or beyond) → full control page in this pane.
-                              if (r.phase === "mobile") onSelectInbound?.(r.appliance.id);
-                              else setUnitId(r.appliance.id);
-                            }}
+                            // Both en-route and on-scene units open in
+                            // the pane to the right — nothing pops out.
+                            onClick={() => setUnitId(r.appliance.id)}
                           />
                         ))}
                       </ul>
@@ -659,7 +654,33 @@ export function DraggableIncidentMdt({
                 </div>
                 {/* Right pane — unit control page when a committed callsign
                     is selected, otherwise the available fleet. */}
-                {selectedUnit && canControl ? (
+                {selectedUnit && selectedUnit.phase === "mobile" ? (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex items-center justify-between border-b border-(--color-border-subtle) px-3 py-1.5">
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+                        Pre-arrival · {selectedUnit.appliance.callsign}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setUnitId(null)}
+                        className="rounded-sm border border-(--color-border) px-1.5 py-0.5 font-mono text-[11px] leading-none text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+                        aria-label="Close"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                      <PreArrivalBody
+                        appliance={selectedUnit.appliance}
+                        deployment={selectedUnit.deployment}
+                        now={nowMs}
+                        casualties={sim?.foundCasualties ?? []}
+                        onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
+                        onSetTreatingCasualty={onSetTreatingCasualty ?? (() => {})}
+                      />
+                    </div>
+                  </div>
+                ) : selectedUnit && canControl ? (
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="border-b border-(--color-border-subtle) px-3 py-1.5">
                       <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
