@@ -358,7 +358,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setWeather(shifted.weather);
     setPreShiftStates(shifted.preShiftStates);
     setActiveIncident(shifted.activeIncident);
-    setGroundViewOpen(!!shifted.activeIncident);
     setDeployments(shifted.deployments);
     setStatusOverrides(shifted.statusOverrides);
     setTasks(shifted.tasks);
@@ -842,10 +841,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       },
     ]);
     setIncidentPanelVisible(true);
-    // One map, no modes: an open incident is worked on the ground, so the
-    // view goes there on its own rather than waiting for a click. The
-    // operator can still scroll back out to the whole patch.
-    setGroundViewOpen(true);
     // Caller stays on the line from the moment we answer the call until
     // the first crew lands on scene. Scenarios with no authored script
     // still get the banner briefly, since informantOnCall drives the UI.

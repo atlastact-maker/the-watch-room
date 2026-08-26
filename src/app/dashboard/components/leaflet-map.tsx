@@ -36,6 +36,21 @@ const SERVICE_COLOUR: Record<ServiceCode, string> = {
  *  at hospital, rehab) renders yellow regardless of service. */
 const STANDDOWN_COLOUR = "#eab308";
 
+/**
+ * Trail styling is constant per colour. Handing Leaflet a fresh options
+ * object on every clock tick makes it restyle every dashed line four times
+ * a second, which shows up as flicker on the route lines.
+ */
+const TRAIL_STYLES = new Map<string, L.PathOptions>();
+function trailStyle(color: string): L.PathOptions {
+  let style = TRAIL_STYLES.get(color);
+  if (!style) {
+    style = { color, weight: 2, opacity: 0.45, dashArray: "4 6" };
+    TRAIL_STYLES.set(color, style);
+  }
+  return style;
+}
+
 // ---------------------------------------------------------------------------
 // Marker icons
 // ---------------------------------------------------------------------------
@@ -228,9 +243,43 @@ export function PatchLayers({
 
   // via our server-side Overpass proxy). One ring per borough.
 
+  // Straight-line stand-ins used until a real route comes back from the
+  // router. Built once per leg, because the polyline must keep the same
+  // array identity between clock ticks — a new array means Leaflet
+  // re-simplifies and redraws the whole dashed line, and at 4Hz that is
+  // the flicker you see while units are still responding.
+  const fallbackRoutes = useMemo(() => {
+    const out = new Map<string, [number, number][]>();
+    if (!activeIncident) return out;
+    const inc = activeIncident.scenario.location.coords;
+    for (const d of deployments) {
+      const station = stations.find((s) =>
+        s.appliances.some((a) => a.id === d.applianceId),
+      );
+      if (!station) continue;
+      out.set(d.applianceId, [
+        [station.coords.lat, station.coords.lng],
+        [inc.lat, inc.lng],
+      ]);
+      if (d.hospitalCoords) {
+        out.set(`${d.applianceId}-toh`, [
+          [inc.lat, inc.lng],
+          [d.hospitalCoords.lat, d.hospitalCoords.lng],
+        ]);
+      }
+      out.set(`${d.applianceId}-ret`, [
+        [
+          (d.hospitalCoords ?? inc).lat,
+          (d.hospitalCoords ?? inc).lng,
+        ],
+        [station.coords.lat, station.coords.lng],
+      ]);
+    }
+    return out;
+  }, [deployments, stations, activeIncident]);
+
   const inFlight = useMemo(() => {
     if (!activeIncident) return [];
-    const incidentCoords = activeIncident.scenario.location.coords;
     const out: {
       key: string;
       applianceId: string;
@@ -264,14 +313,10 @@ export function PatchLayers({
           (d.returnEtaSeconds ?? (d.returnArrivesAt - d.returnStartedAt) / 1000) * 1000,
         );
         const t = Math.min(1, Math.max(0, (mapNow - d.returnStartedAt) / returnTotal));
-        const fromCoords = d.hospitalCoords ?? incidentCoords;
         const routeCoords: [number, number][] =
           d.returnRouteCoords && d.returnRouteCoords.length >= 2
             ? d.returnRouteCoords
-            : [
-                [fromCoords.lat, fromCoords.lng],
-                [station.coords.lat, station.coords.lng],
-              ];
+            : fallbackRoutes.get(`${d.applianceId}-ret`) ?? [];
         out.push({
           key: `${d.applianceId}-ret`,
           applianceId: d.applianceId,
@@ -328,10 +373,7 @@ export function PatchLayers({
         const routeCoords: [number, number][] =
           d.hospitalRouteCoords && d.hospitalRouteCoords.length >= 2
             ? d.hospitalRouteCoords
-            : [
-                [incidentCoords.lat, incidentCoords.lng],
-                [d.hospitalCoords.lat, d.hospitalCoords.lng],
-              ];
+            : fallbackRoutes.get(`${d.applianceId}-toh`) ?? [];
         out.push({
           key: `${d.applianceId}-toh`,
           applianceId: d.applianceId,
@@ -355,10 +397,7 @@ export function PatchLayers({
       const routeCoords: [number, number][] =
         d.routeCoords && d.routeCoords.length >= 2
           ? d.routeCoords
-          : [
-              [station.coords.lat, station.coords.lng],
-              [incidentCoords.lat, incidentCoords.lng],
-            ];
+          : fallbackRoutes.get(d.applianceId) ?? [];
       out.push({
         key: d.applianceId,
         applianceId: d.applianceId,
@@ -373,7 +412,7 @@ export function PatchLayers({
       });
     }
     return out;
-  }, [deployments, stations, mapNow, activeIncident]);
+  }, [deployments, stations, mapNow, activeIncident, fallbackRoutes]);
 
   const arrivedAppliances = useMemo(() => {
     if (!activeIncident) return [];
@@ -464,19 +503,16 @@ export function PatchLayers({
 
       {/* Ghost-mover trails: full route polyline, colour depends on phase/service */}
       {inFlight.map((m) =>
-        m.routeCoords ? (
+        m.routeCoords && m.routeCoords.length >= 2 ? (
           <Polyline
             key={`${m.key}-trail`}
             positions={m.routeCoords}
-            pathOptions={{
-              color:
-                m.phase === "return" || m.phase === "at_hospital"
-                  ? STANDDOWN_COLOUR
-                  : SERVICE_COLOUR[m.service],
-              weight: 2,
-              opacity: 0.45,
-              dashArray: "4 6",
-            }}
+            pathOptions={trailStyle(
+              m.phase === "return" || m.phase === "at_hospital"
+                ? STANDDOWN_COLOUR
+                : SERVICE_COLOUR[m.service],
+            )}
+            interactive={false}
           />
         ) : null,
       )}
