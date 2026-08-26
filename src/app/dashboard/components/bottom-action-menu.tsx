@@ -36,7 +36,6 @@ import {
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { mitigationOptionsFor } from "@/lib/sim/mitigation";
 import { BaControlBoard } from "./ba-control-board";
-import { LightingControlHead } from "./lighting-control-head";
 import {
   APPLIANCE_SINGLETONS,
   HAND_BUDGET,
@@ -274,27 +273,6 @@ export function BottomActionMenu({
         ? "#15803d"
         : "#1d4ed8";
   const lightState = deployment.lightState ?? "off";
-  // Rotation is only safe when the vehicle is parked, its crew are not
-  // working, and no hose is attached — a hose would teleport with it.
-  const rotateHasActiveTask = tasks.some(
-    (t) => t.applianceId === appliance.id && t.state === "active",
-  );
-  const rotateHasHose = tasks.some(
-    (t) =>
-      t.state !== "aborted" &&
-      (t.kind === "connect_hydrant" || t.kind === "relay_hose") &&
-      (t.applianceId === appliance.id || t.sourceApplianceId === appliance.id),
-  );
-  const canRotate =
-    !!deployment.parkingPos && !rotateHasActiveTask && !rotateHasHose;
-  const rotateLockReason = !deployment.parkingPos
-    ? "not parked yet"
-    : rotateHasActiveTask
-      ? "crew working"
-      : rotateHasHose
-        ? "hose connected"
-        : "";
-
   const lightChip =
     lightState === "999"
       ? { label: "999 Response", cls: "border-(--color-critical)/60 bg-(--color-critical)/10 text-(--color-critical)" }
@@ -329,27 +307,6 @@ export function BottomActionMenu({
           >
             {lightChip.label}
           </span>
-          {onRequestRotate && (
-            <button
-              type="button"
-              disabled={!canRotate}
-              onClick={() => onRequestRotate(appliance.id)}
-              title={
-                canRotate
-                  ? "Rotate — click the map to set a new facing"
-                  : `Rotate locked · ${rotateLockReason}`
-              }
-              aria-label="Rotate vehicle"
-              className={
-                "shrink-0 rounded-sm border px-1.5 py-1 text-[11px] leading-none transition-colors disabled:cursor-not-allowed " +
-                (canRotate
-                  ? "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15"
-                  : "border-(--color-border) text-(--color-text-dim) opacity-50")
-              }
-            >
-              ⟳
-            </button>
-          )}
           <button
             type="button"
             onClick={onClose}
@@ -490,7 +447,6 @@ function VehicleTab({
   fatiguePct?: number;
   onSetLightState: (applianceId: string, state: LightState) => void;
 }) {
-  const current = deployment.lightState ?? "at_scene";
   const gauges = vehicleGauges[appliance.id] ?? {
     fuelPct: appliance.fuelPct,
     waterPct: appliance.waterPct,
@@ -498,13 +454,6 @@ function VehicleTab({
   };
   return (
     <div className="space-y-4">
-      <Section title="Emergency lighting" collapsible defaultOpen={false}>
-        <LightingControlHead
-          current={current}
-          onSet={(state) => onSetLightState(appliance.id, state)}
-        />
-      </Section>
-
       {/* Gauges in one block so the tab fits without scrolling. */}
       <Section title="Status">
         <Gauge label="Fuel" pct={gauges.fuelPct} colour="amber" />

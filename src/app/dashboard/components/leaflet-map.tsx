@@ -113,7 +113,6 @@ export function movingIcon(
   phase: "outbound" | "hospital_leg" | "at_hospital" | "return",
   zoom: number,
   applianceType?: ApplianceTypeCode,
-  bearingDeg?: number,
   selected = false,
 ): L.DivIcon {
   const status =
@@ -126,21 +125,9 @@ export function movingIcon(
     serviceColour: sm.colour,
     resourceCode: sm.code,
     zoom,
-    bearingDeg: responding ? bearingDeg : undefined,
     ring999: responding,
     selected,
   });
-}
-
-/** Direction of travel at fraction t along a route — bearing of the small
- *  step ahead, degrees clockwise from north. */
-function routeBearingAt(routeCoords: [number, number][], t: number): number {
-  const a = interpolateAlongRoute(routeCoords, Math.min(0.999, t));
-  const b = interpolateAlongRoute(routeCoords, Math.min(1, Math.min(0.999, t) + 0.004));
-  const dLat = b[0] - a[0];
-  const dLng = (b[1] - a[1]) * Math.cos((a[0] * Math.PI) / 180);
-  if (dLat === 0 && dLng === 0) return 0;
-  return ((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360;
 }
 
 // ---------------------------------------------------------------------------
@@ -639,9 +626,6 @@ export function PatchLayers({
             m.phase,
             zoom,
             m.applianceType,
-            m.routeCoords && (m.phase === "outbound" || m.phase === "hospital_leg")
-              ? routeBearingAt(m.routeCoords, m.t)
-              : undefined,
             selectedApplianceId === m.applianceId,
           )}
           eventHandlers={{ click: () => onSelectAppliance(m.applianceId) }}

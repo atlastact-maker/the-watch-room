@@ -28,7 +28,6 @@ import type {
   HoseType,
   Incident,
   KitKind,
-  LightState,
   Task,
   TaskKind,
 } from "@/lib/sim/incident_types";
@@ -283,28 +282,6 @@ function haversineMetres(
 }
 
 /**
- * Emergency lights, as a glow colour on the symbol's outline. The lamps
- * used to be tagged fittings inside the vehicle artwork; with the artwork
- * gone from the map, this is what keeps the cab lighting panel readable
- * out here.
- */
-function lightGlowFor(state?: LightState): string | null {
-  switch (state) {
-    case "999":
-      return "#3b82f6";
-    case "at_scene":
-    case "rear_blues":
-      return "#60a5fa";
-    case "rear_reds":
-      return "#f87171";
-    case "hazards":
-      return "#fbbf24";
-    default:
-      return null;
-  }
-}
-
-/**
  * An on-scene appliance, as a CAD symbol marker.
  *
  * This used to draw true-scale top-down artwork. The artwork still exists
@@ -316,14 +293,11 @@ export function applianceIcon(
   callsign: string,
   service: string,
   commander: boolean,
-  bearingDeg: number,
-  waterPct: number | null,
   selected: boolean,
   applianceType: ApplianceTypeCode,
   mapZoom: number,
   showLabel: boolean,
   hovered: boolean,
-  lightState?: LightState,
 ): L.DivIcon {
   const sm = serviceMarker(service as ServiceCode, applianceType);
   const m = unitMarkerHtml({
@@ -334,15 +308,8 @@ export function applianceIcon(
     resourceCode: sm.code,
     zoom: mapZoom,
     subtitle: applianceType,
-    // The handoff shows the heading wedge for mobile units only. Parked
-    // units keep it here: the two-click place-and-rotate flow has no other
-    // visual output now the vehicle body is gone.
-    bearingDeg,
-    ring999: lightState === "999",
     selected: selected || hovered,
-    waterPct,
     commander,
-    lightGlow: lightGlowFor(lightState),
   });
   void showLabel; // the plate carries the callsign at every tier now
   return L.divIcon({
@@ -358,7 +325,6 @@ export function applianceIcon(
 function parkingGhostIcon(
   callsign: string,
   service: string,
-  bearingDeg: number,
   applianceType: ApplianceTypeCode,
   mapZoom: number,
 ): L.DivIcon {
@@ -369,7 +335,6 @@ function parkingGhostIcon(
     serviceColour: sm.colour,
     resourceCode: sm.code,
     zoom: mapZoom,
-    bearingDeg,
     dimmed: true,
   });
   return L.divIcon({
@@ -1621,16 +1586,11 @@ export function LeafletGroundMap({
               m.appliance.callsign,
               m.appliance.service,
               isCommander,
-              m.deployment.parkingBearingDeg ?? 0,
-              m.appliance.service === "Fire" && m.appliance.waterLitres > 0
-                ? vehicleGauges[m.appliance.id]?.waterPct ?? m.appliance.waterPct
-                : null,
               isSelected,
               m.appliance.type,
               mapZoom,
               true,
               isHovered,
-              m.deployment.lightState,
             )}
             eventHandlers={{
               click: () => onSelectAppliance(m.appliance.id),
@@ -1678,7 +1638,6 @@ export function LeafletGroundMap({
           icon={parkingGhostIcon(
             m.appliance.callsign,
             m.appliance.service,
-            m.deployment.parkingBearingDeg ?? 0,
             m.appliance.type,
             mapZoom,
           )}

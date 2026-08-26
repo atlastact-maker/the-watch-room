@@ -64,8 +64,6 @@ export type ChipOpts = {
   zoom: number;
   /** Second line at the detailed tier, e.g. PUMP · WHITBY. */
   subtitle?: string;
-  /** Heading wedge for mobile units — degrees clockwise from north. */
-  bearingDeg?: number;
   /** Pulsing ring behind the symbol (999 run). */
   ring999?: boolean;
   /** Dashed amber ring around symbol + plate. */
@@ -75,19 +73,10 @@ export type ChipOpts = {
   /** xN badge top-right when the marker stands for several units. */
   cluster?: number;
 
-  // --- ground-view extras -------------------------------------------------
-  // Not in the marker handoff. The sprite these markers replace carried
-  // them and there is nowhere else on the map they can live.
-
-  /** Water level, 0-100, as a strip along the marker's bottom edge. Fire
-   *  pumps only; null for everything else. */
-  waterPct?: number | null;
-  /** Scene commander. Takes the top-right badge slot, which an on-scene
-   *  unit never needs for clustering. */
+  /** Scene commander — a solid gold outline on the callsign plate. Kept
+   *  distinct from the dashed amber selection ring so the two read apart
+   *  when the IC happens to be the selected unit. */
   commander?: boolean;
-  /** Emergency lights, as a coloured glow on the symbol's outline, so the
-   *  cab lighting panel still reads on the map. */
-  lightGlow?: string | null;
 };
 
 /**
@@ -182,35 +171,17 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
   const leaderH = o.selected ? SELECTED_LEADER_H : LEADER_H;
   const anchorY = leaderTop + leaderH + DOT / 2;
 
-  const outline = o.lightGlow
-    ? `box-shadow: 0 0 0 1px ${o.lightGlow}, 0 0 7px ${o.lightGlow};`
-    : `box-shadow: 0 0 0 1px rgba(0,0,0,0.45);`;
+  const outline = `box-shadow: 0 0 0 1px rgba(0,0,0,0.45);`;
 
-  // Heading wedge, notched into the symbol's own edge so it can never
-  // leave the box and land on the callsign plate.
-  const wedge =
-    o.bearingDeg !== undefined
-      ? `<div style="position:absolute;inset:0;transform:rotate(${Math.round(o.bearingDeg)}deg);">
-           <div style="position:absolute;left:50%;top:0.5px;margin-left:-4px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:6px solid #a16207;filter:drop-shadow(0 0 1.5px rgba(255,255,255,0.95));"></div>
-         </div>`
-      : "";
+  // Scene commander: the callsign plate is outlined in gold rather than
+  // the service colour, so the IC reads at a glance without another badge
+  // competing for the corners.
+  const GOLD = "#fbbf24";
+  const plateBorder = o.commander ? GOLD : o.serviceColour;
 
   const ring999 = o.ring999
     ? `<div class="mk-999-box" style="position:absolute;left:0;top:0;width:${t.sym}px;height:${t.sym}px;border:2px solid ${o.serviceColour};border-radius:3px;"></div>`
     : "";
-
-  const commander = o.commander
-    ? `<div style="position:absolute;top:-7px;right:-9px;padding:1px 4px;border-radius:2px;background:${o.serviceColour};border:1.5px solid #fff;font:800 9px/1.2 ${MONO};color:#fff;white-space:nowrap;">IC</div>`
-    : "";
-
-  const water =
-    o.waterPct !== null && o.waterPct !== undefined
-      ? (() => {
-          const pct = Math.max(0, Math.min(100, o.waterPct as number));
-          const col = pct > 60 ? "#3b82f6" : pct > 25 ? "#f59e0b" : "#dc2626";
-          return `<div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(10,10,12,0.75);"><div style="height:100%;width:${pct}%;background:${col};transition:width 600ms ease-out;"></div></div>`;
-        })()
-      : "";
 
   const cluster =
     o.cluster && o.cluster > 1
@@ -219,7 +190,7 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
 
   const roundel = `<div style="position:absolute;top:-${t.roundelOff}px;left:-${t.roundelOff}px;width:${roundelW}px;height:${t.roundel}px;border-radius:2px;border:${t.border}px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.4);background:${st.colour};display:flex;align-items:center;justify-content:center;font:700 ${roundelFont}px/1 ${MONO};color:#fff;">${st.code}</div>`;
 
-  const symbol = `<div style="position:relative;width:${t.sym}px;height:${t.sym}px;background:${o.serviceColour};border:${t.border}px solid #fff;border-radius:${t.plate ? t.radius : "3px"};${outline}box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:700 ${t.codeSize}px/1 ${MONO};color:#fff;">${o.resourceCode}${wedge}${roundel}</div>`;
+  const symbol = `<div style="position:relative;width:${t.sym}px;height:${t.sym}px;background:${o.serviceColour};border:${t.border}px solid #fff;border-radius:${t.plate ? t.radius : "3px"};${outline}box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:700 ${t.codeSize}px/1 ${MONO};color:#fff;">${o.resourceCode}${roundel}</div>`;
 
   const subtitle =
     t.subtitle && o.subtitle
@@ -227,7 +198,7 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
       : "";
 
   const plate = t.plate
-    ? `<div style="height:${t.sym}px;padding:0 ${t.platePad}px;background:#fff;border:${t.border}px solid ${o.serviceColour};border-left:none;border-radius:0 ${t.sym >= 30 ? "4px 4px" : "3px 3px"} 0;${outline}box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font:700 ${t.plateFont}px/1 ${MONO};color:#18181b;white-space:nowrap;">${cs}${subtitle}</div>`
+    ? `<div style="height:${t.sym}px;padding:0 ${t.platePad}px;background:#fff;border:${t.border}px solid ${plateBorder};border-left:none;border-radius:0 ${t.sym >= 30 ? "4px 4px" : "3px 3px"} 0;${outline}box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font:700 ${t.plateFont}px/1 ${MONO};color:#18181b;white-space:nowrap;">${cs}${subtitle}</div>`
     : "";
 
   const selection = o.selected
@@ -241,7 +212,7 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
 
   const html = `<div style="position:relative;${dim}">
   ${ring999}
-  <div style="position:relative;display:flex;align-items:flex-start;width:max-content;">${symbol}${plate}${water}${selection}${commander || cluster}</div>
+  <div style="position:relative;display:flex;align-items:flex-start;width:max-content;">${symbol}${plate}${selection}${cluster}</div>
   ${leader}${dot}
 </div>`;
 
