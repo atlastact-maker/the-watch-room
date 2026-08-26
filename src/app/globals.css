@@ -196,3 +196,15 @@ body::before {
 .imagery-base .leaflet-tile-pane {
   filter: brightness(0.72) saturate(0.85);
 }
+
+/* 999-run pulse for the HTML unit markers. The SVG incident triangles keep
+   .mk-999 above — that pack is unchanged, and its keyframes start from a
+   different scale. */
+.mk-999-box {
+  transform-origin: center;
+  animation: mk999-box-pulse 1.4s ease-out infinite;
+}
+@keyframes mk999-box-pulse {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}

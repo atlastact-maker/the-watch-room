@@ -10,6 +10,7 @@ import {
   Polyline,
   Popup,
   TileLayer,
+  useMap,
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
@@ -17,7 +18,8 @@ import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
 import {
   chipServiceColour,
   incidentMarkerSvg,
-  unitChipSvg,
+  serviceMarker,
+  unitMarkerHtml,
   type ChipOpts,
   type IncidentMarkerKind,
 } from "./map-markers";
@@ -51,14 +53,33 @@ const STANDDOWN_COLOUR = "#eab308";
  * can see at a glance which entries the research data hasn't fully
  * verified yet.
  */
+/** The marker's width is set by its callsign plate, so the box is left to
+ *  size itself and only the anchor is pinned. Leaving iconSize off keeps
+ *  the roundel, cluster badge and 999 ring free to overhang. */
 function chipIcon(opts: ChipOpts): L.DivIcon {
+  const m = unitMarkerHtml(opts);
   return L.divIcon({
     className: "",
-    iconSize: [80, 66],
-    iconAnchor: [40, 58],
-    popupAnchor: [0, -46],
-    html: unitChipSvg(opts),
+    iconAnchor: m.anchor,
+    popupAnchor: [0, -m.anchor[1]],
+    html: m.html,
   });
+}
+
+/** Live map zoom, so markers can pick their tier. */
+function useMapZoom(): number {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useEffect(() => {
+    const sync = () => setZoom(map.getZoom());
+    map.on("zoom", sync);
+    map.on("zoomend", sync);
+    return () => {
+      map.off("zoom", sync);
+      map.off("zoomend", sync);
+    };
+  }, [map]);
+  return zoom;
 }
 
 /** Station chip — the station id as the callsign, roundel 6 while any
@@ -69,11 +90,16 @@ function stationIcon(
   stationId: string,
   applianceCount: number,
   anyAvailable: boolean,
+  zoom: number,
 ): L.DivIcon {
   return chipIcon({
     callsign: stationId,
     status: anyAvailable ? "available" : "offRun",
     serviceColour: chipServiceColour(service),
+    // Stations are not units and have no type code of their own; ST is
+    // assigned per the pack rule that every symbol carries two letters.
+    resourceCode: "ST",
+    zoom,
     dimmed: !anyAvailable,
     cluster: applianceCount,
   });
@@ -85,6 +111,7 @@ export function movingIcon(
   callsign: string,
   service: ServiceCode,
   phase: "outbound" | "hospital_leg" | "at_hospital" | "return",
+  zoom: number,
   applianceType?: ApplianceTypeCode,
   bearingDeg?: number,
   selected = false,
@@ -92,10 +119,13 @@ export function movingIcon(
   const status =
     phase === "at_hospital" ? "attendance" : phase === "return" ? "returning" : "mobile";
   const responding = phase === "outbound" || phase === "hospital_leg";
+  const sm = serviceMarker(service, applianceType);
   return chipIcon({
     callsign,
     status,
-    serviceColour: chipServiceColour(service, applianceType),
+    serviceColour: sm.colour,
+    resourceCode: sm.code,
+    zoom,
     bearingDeg: responding ? bearingDeg : undefined,
     ring999: responding,
     selected,
@@ -278,6 +308,10 @@ export function PatchLayers({
   selectedApplianceId,
   onOpenStationBays,
 }: Props) {
+  // Markers pick their tier from live zoom — symbol only when pulled back,
+  // symbol + callsign at working scale, plus a type line on the ground.
+  const zoom = useMapZoom();
+
   // Internal high-frequency clock so ghost-movers animate smoothly between
   // the dashboard-client's 1Hz status ticks.
   const [mapNow, setMapNow] = useState(() => Date.now());
@@ -518,6 +552,7 @@ export function PatchLayers({
               s.id,
               s.appliances.length,
               s.appliances.some((a) => a.status === 7),
+              zoom,
             )}
           >
             <Popup>
@@ -602,6 +637,7 @@ export function PatchLayers({
             m.callsign,
             m.service,
             m.phase,
+            zoom,
             m.applianceType,
             m.routeCoords && (m.phase === "outbound" || m.phase === "hospital_leg")
               ? routeBearingAt(m.routeCoords, m.t)
