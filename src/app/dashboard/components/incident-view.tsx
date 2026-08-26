@@ -123,11 +123,12 @@ export type Props = {
   /** Vehicle awaiting a rotate-bearing click on the ground map. */
   rotatePendingApplianceId: string | null;
   onSetRotatePending: (applianceId: string | null) => void;
-  /** Casualty muster / evac point — set by clicking the ground map. */
-  musterPos?: { lat: number; lng: number } | null;
+  /** Casualty muster / evac area — drawn on the ground map as a circle:
+   *  click the centre, then click again to set how big it is. */
+  muster?: { lat: number; lng: number; radiusM: number } | null;
   pendingMuster?: boolean;
   onSetPendingMuster?: (armed: boolean) => void;
-  onPlaceMuster?: (lat: number, lng: number) => void;
+  onPlaceMuster?: (lat: number, lng: number, radiusM: number) => void;
   onSetTreatmentDestination?: (
     casualtyId: string,
     type: import("@/lib/sim/scene").HospitalDestinationType,
@@ -210,6 +211,7 @@ export function IncidentView({
   incident,
   stations,
   deployments,
+  patch,
   log,
   now,
   sim,
@@ -233,7 +235,7 @@ export function IncidentView({
   onSetPendingClosure,
   rotatePendingApplianceId,
   onSetRotatePending,
-  musterPos,
+  muster,
   pendingMuster,
   onSetPendingMuster,
   onPlaceMuster,
@@ -295,7 +297,7 @@ export function IncidentView({
         mdtVisible={mdtVisible}
         onToggleMdt={onToggleMdt}
         musterArmed={!!pendingMuster}
-        musterSet={!!musterPos}
+        musterSet={!!muster}
         onArmMuster={onSetPendingMuster ? () => onSetPendingMuster(!pendingMuster) : undefined}
         onClose={onClose}
       />
@@ -344,8 +346,11 @@ export function IncidentView({
               if (id) onVehicleSelect?.(id);
             }}
             closurePick={pendingClosure ? { kind: pendingClosure.kind } : null}
+            stations={stations}
+            deployments={deployments}
+            patch={patch ?? null}
             musterPick={!!pendingMuster}
-            musterPos={musterPos ?? null}
+            muster={muster ?? null}
             onPlaceMuster={onPlaceMuster}
             onPlaceClosure={(lat, lng, bearingDeg) => {
               if (!pendingClosure) return;
@@ -382,13 +387,14 @@ export function IncidentView({
               </div>
             </div>
           )}
-          {/* Muster-point placement banner */}
+          {/* Muster-area placement banner */}
           {pendingMuster && (
             <div className="pointer-events-auto absolute left-1/2 top-3 z-[650] -translate-x-1/2 rounded-sm border border-(--color-ok)/60 bg-(--color-bg)/95 px-4 py-2 shadow-lg">
               <div className="flex items-center gap-3">
                 <span className="dot-live size-2 rounded-full bg-(--color-ok)" />
                 <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-text)">
-                  Click the map to set the casualty muster point
+                  Click the centre of the muster area, then click again to
+                  size it
                 </span>
                 <button
                   type="button"
@@ -528,9 +534,13 @@ function MissionBar({
                 ? "border-(--color-ok) bg-(--color-ok)/20 text-(--color-ok)"
                 : "border-(--color-border) text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)")
             }
-            title="Designate the casualty muster / evacuation point on the map"
+            title="Draw the casualty muster / evacuation area on the map"
           >
-            {musterArmed ? "Click map…" : musterSet ? "Move muster point" : "Muster point"}
+            {musterArmed
+              ? "Draw on map…"
+              : musterSet
+                ? "Redraw muster area"
+                : "Muster area"}
           </button>
         )}
         {onToggleMdt && (

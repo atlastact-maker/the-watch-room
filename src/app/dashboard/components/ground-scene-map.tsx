@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { Appliance } from "@/lib/sim/types";
+import type { Appliance, AreaCode } from "@/lib/sim/types";
+import type { StationWithAppliances } from "../page";
 import type { Deployment, Incident, Task, TaskKind } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedDeployment } from "./incident-view";
@@ -57,10 +58,15 @@ export function GroundSceneMap(props: {
   onSelectAppliance: (id: string | null) => void;
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
+  /** Patch-scale data for the Patch and Approach detents. */
+  stations: StationWithAppliances[];
+  deployments: Deployment[];
+  patch?: AreaCode | null;
+  onOpenStationBays?: (stationId: string) => void;
   /** Casualty muster point: armed placement flag, current position, setter. */
   musterPick?: boolean;
-  musterPos?: { lat: number; lng: number } | null;
-  onPlaceMuster?: (lat: number, lng: number) => void;
+  muster?: { lat: number; lng: number; radiusM: number } | null;
+  onPlaceMuster?: (lat: number, lng: number, radiusM: number) => void;
   /** Armed from the MDT's committed list — the appliance whose two-click
    *  map placement the next clicks perform. */
   placePendingApplianceId?: string | null;

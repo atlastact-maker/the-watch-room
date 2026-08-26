@@ -133,11 +133,23 @@ const WORLD_RECT: [number, number][] = [
 
 /** Fetch the real borough boundaries for the operator's patch from the
  *  server-side OSM proxy. Returns one outer ring per borough. */
+/** Borough rings never change during a shift, and these layers now mount
+ *  and unmount every time the operator changes detent — so cache per patch
+ *  rather than paying a round trip each swap. */
+const patchBoundaryCache = new Map<string, [number, number][][]>();
+
 function usePatchBoundary(patch: AreaCode | null): [number, number][][] | null {
-  const [rings, setRings] = useState<[number, number][][] | null>(null);
+  const [rings, setRings] = useState<[number, number][][] | null>(
+    () => (patch ? (patchBoundaryCache.get(patch) ?? null) : null),
+  );
   useEffect(() => {
     if (!patch || patch === "ForceWide") {
       setRings(null);
+      return;
+    }
+    const cached = patchBoundaryCache.get(patch);
+    if (cached) {
+      setRings(cached);
       return;
     }
     let cancelled = false;
@@ -146,7 +158,10 @@ function usePatchBoundary(patch: AreaCode | null): [number, number][][] | null {
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { rings?: [number, number][][] } | null) => {
         if (cancelled) return;
-        if (data?.rings && data.rings.length > 0) setRings(data.rings);
+        if (data?.rings && data.rings.length > 0) {
+          patchBoundaryCache.set(patch, data.rings);
+          setRings(data.rings);
+        }
       })
       .catch(() => {
         /* swallow — the map still renders without a boundary */
@@ -182,14 +197,6 @@ export function LeafletMap({
   selectedApplianceId,
   onOpenStationBays,
 }: Props) {
-  // Internal high-frequency clock so ghost-movers animate smoothly between
-  // the dashboard-client's 1Hz status ticks.
-  const [mapNow, setMapNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setMapNow(Date.now()), 250);
-    return () => clearInterval(id);
-  }, []);
-
   const center: [number, number] = activeIncident
     ? [
         activeIncident.scenario.location.coords.lat,
@@ -203,6 +210,82 @@ export function LeafletMap({
       : [53.48, -2.24];
 
   // Real GM borough boundaries for the operator's patch (fetched from OSM
+
+  const patchLabel = patch && patch !== "ForceWide" ? `${patch} Command` : null;
+
+  return (
+    <div className="relative h-full w-full">
+      {patchLabel && (
+        <div
+          className="pointer-events-none absolute left-16 top-3 z-[1000] rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/80 px-2.5 py-1 backdrop-blur-sm"
+          style={{ boxShadow: "0 0 8px rgba(251,191,36,0.25)" }}
+        >
+          <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber-dim)">
+            Operator patch
+          </div>
+          <div className="font-mono text-[12px] font-semibold tracking-widest text-(--color-amber)">
+            {patchLabel}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] tracking-widest text-(--color-text-dim)">
+            <span
+              className="inline-block h-0.5 w-4 rounded-full"
+              style={{ background: "#fbbf24", boxShadow: "0 0 4px rgba(251,191,36,0.8)" }}
+            />
+            <span>Metropolitan borough boundary</span>
+          </div>
+        </div>
+      )}
+    <MapContainer
+      center={center}
+      zoom={11}
+      scrollWheelZoom
+      className="h-full w-full bg-[#050507]"
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maxNativeZoom={19}
+        maxZoom={20}
+      />
+      <PatchLayers
+        stations={stations}
+        activeIncident={activeIncident}
+        deployments={deployments}
+        patch={patch}
+        onSelectAppliance={onSelectAppliance}
+        selectedApplianceId={selectedApplianceId}
+        onOpenStationBays={onOpenStationBays}
+      />
+    </MapContainer>
+    </div>
+  );
+}
+
+/**
+ * Patch-scale Leaflet layers: borough boundary, stations, en-route ghost
+ * movers and the incident marker.
+ *
+ * Split out of LeafletMap so the same layers can be dropped into any
+ * MapContainer. The persistent map draws them at the Patch and Approach
+ * detents and swaps to the ground layers past the detail threshold.
+ */
+export function PatchLayers({
+  stations,
+  activeIncident,
+  deployments,
+  patch,
+  onSelectAppliance,
+  selectedApplianceId,
+  onOpenStationBays,
+}: Props) {
+  // Internal high-frequency clock so ghost-movers animate smoothly between
+  // the dashboard-client's 1Hz status ticks.
+  const [mapNow, setMapNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setMapNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+
   // via our server-side Overpass proxy). One ring per borough.
   const patchRings = usePatchBoundary(patch);
 
@@ -366,43 +449,8 @@ export function LeafletMap({
     }
     return out;
   }, [deployments, stations, mapNow, activeIncident]);
-
-  const patchLabel = patch && patch !== "ForceWide" ? `${patch} Command` : null;
-
   return (
-    <div className="relative h-full w-full">
-      {patchLabel && (
-        <div
-          className="pointer-events-none absolute left-16 top-3 z-[1000] rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/80 px-2.5 py-1 backdrop-blur-sm"
-          style={{ boxShadow: "0 0 8px rgba(251,191,36,0.25)" }}
-        >
-          <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber-dim)">
-            Operator patch
-          </div>
-          <div className="font-mono text-[12px] font-semibold tracking-widest text-(--color-amber)">
-            {patchLabel}
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] tracking-widest text-(--color-text-dim)">
-            <span
-              className="inline-block h-0.5 w-4 rounded-full"
-              style={{ background: "#fbbf24", boxShadow: "0 0 4px rgba(251,191,36,0.8)" }}
-            />
-            <span>Metropolitan borough boundary</span>
-          </div>
-        </div>
-      )}
-    <MapContainer
-      center={center}
-      zoom={11}
-      scrollWheelZoom
-      className="h-full w-full bg-[#050507]"
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxNativeZoom={19}
-        maxZoom={20}
-      />
+    <>
 
       {/* Patch coverage mask + outline. Out-of-patch ground fades to dark
           via a single world-rect polygon with a hole cut out per borough;
@@ -635,8 +683,6 @@ export function LeafletMap({
           </Popup>
         </Marker>
       )}
-    </MapContainer>
-    </div>
+    </>
   );
 }
-

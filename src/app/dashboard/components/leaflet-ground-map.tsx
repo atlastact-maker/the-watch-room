@@ -23,8 +23,18 @@ import {
   type OsmRoadWay,
 } from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
-import type { HoseType, Incident, KitKind, LightState, Task, TaskKind } from "@/lib/sim/incident_types";
-import type { ApplianceTypeCode } from "@/lib/sim/types";
+import type {
+  Deployment,
+  HoseType,
+  Incident,
+  KitKind,
+  LightState,
+  Task,
+  TaskKind,
+} from "@/lib/sim/incident_types";
+import type { ApplianceTypeCode, AreaCode } from "@/lib/sim/types";
+import type { StationWithAppliances } from "../page";
+import { PatchLayers } from "./leaflet-map";
 import {
   VEHICLE_SPRITES,
   spriteKeyForType,
@@ -163,6 +173,35 @@ function hydrantIcon(
 // zooms in or out (the previous scheme floored to a pixel size below
 // this zoom, which produced visible size "jumps").
 const APPLIANCE_REF_ZOOM = 19;
+
+// -----------------------------------------------------------------------------
+// Map detents
+// -----------------------------------------------------------------------------
+
+/**
+ * The three scales the map snaps between. Free zoom is deliberately not
+ * offered: every marker, overlay and sprite is authored to read at one of
+ * these, and letting the operator sit between them makes the board
+ * illegible rather than flexible.
+ *
+ *  Patch     — the whole ground, boroughs and stations.
+ *  Approach  — the street network around the job, units converging on it.
+ *  Ground    — the incident itself, at true vehicle footprint.
+ */
+const DETENTS = [
+  { id: "patch", label: "Patch", zoom: 11 },
+  { id: "approach", label: "Approach", zoom: 16 },
+  { id: "ground", label: "Ground", zoom: 19 },
+] as const;
+
+type DetentId = (typeof DETENTS)[number]["id"];
+
+/** At or past this zoom the scene layers replace the patch layers. */
+const GROUND_DETAIL_ZOOM = 17;
+
+function detentZoomFor(id: DetentId): number {
+  return DETENTS.find((d) => d.id === id)?.zoom ?? 19;
+}
 
 /** Compute the linear scale factor for the appliance body at a given map
  *  zoom. Each zoom step doubles the tile resolution in principle, but 2x
@@ -474,14 +513,30 @@ type ParkingState =
 
 /** One-shot helper that centres the map on the incident coords at a sensible
  *  zoom so the address pin always sits in the middle of the viewport. */
-function FitToIncident({ lat, lng }: { lat: number; lng: number }) {
+/**
+ * Drives the map between detents. The first run snaps without animation so
+ * an incident opens straight onto the ground; every change after that
+ * flies, so the operator keeps their bearings on the way out and back.
+ */
+function DetentController({
+  zoom,
+  lat,
+  lng,
+}: {
+  zoom: number;
+  lat: number;
+  lng: number;
+}) {
   const map = useMap();
-  const firedRef = useState<{ v: boolean }>(() => ({ v: false }))[0];
+  const firstRef = useRef(true);
   useEffect(() => {
-    if (firedRef.v) return;
-    map.setView([lat, lng], 18, { animate: false });
-    firedRef.v = true;
-  }, [lat, lng, map, firedRef]);
+    if (firstRef.current) {
+      map.setView([lat, lng], zoom, { animate: false });
+      firstRef.current = false;
+      return;
+    }
+    map.flyTo([lat, lng], zoom, { duration: 0.7 });
+  }, [zoom, lat, lng, map]);
   return null;
 }
 
@@ -507,7 +562,10 @@ function MapClickHandler({
   closureActive,
   onClosureClick,
   musterActive,
-  onMusterClick,
+  musterDraft,
+  onMusterCentre,
+  onMusterRadius,
+  onMusterCommit,
   onPickedPos,
   onPickedBearing,
 }: {
@@ -520,7 +578,12 @@ function MapClickHandler({
   closureActive: boolean;
   onClosureClick: (lat: number, lng: number, bearingDeg: number) => void;
   musterActive: boolean;
-  onMusterClick: (lat: number, lng: number) => void;
+  /** Centre of the muster circle being dragged out, once the first click
+   *  has landed. Null before that — the next click sets the centre. */
+  musterDraft: { lat: number; lng: number; radiusM: number } | null;
+  onMusterCentre: (lat: number, lng: number) => void;
+  onMusterRadius: (radiusM: number) => void;
+  onMusterCommit: (lat: number, lng: number, radiusM: number) => void;
   onPickedPos: (pos: { lat: number; lng: number }) => void;
   onPickedBearing: (bearingDeg: number) => void;
 }) {
@@ -545,7 +608,20 @@ function MapClickHandler({
         return;
       }
       if (musterActive) {
-        onMusterClick(e.latlng.lat, e.latlng.lng);
+        // Two clicks: the centre, then anywhere on the edge. Between them
+        // the circle grows under the cursor so the operator can see the
+        // ground they are committing before they commit it.
+        if (!musterDraft) {
+          onMusterCentre(e.latlng.lat, e.latlng.lng);
+        } else {
+          onMusterCommit(
+            musterDraft.lat,
+            musterDraft.lng,
+            clampMusterRadius(
+              L.latLng(musterDraft.lat, musterDraft.lng).distanceTo(e.latlng),
+            ),
+          );
+        }
         return;
       }
       if (parking.phase === "pos") {
@@ -574,6 +650,16 @@ function MapClickHandler({
         onPickedBearing(norm);
       }
     },
+    mousemove(e) {
+      if (!musterActive || !musterDraft) return;
+      const r = clampMusterRadius(
+        L.latLng(musterDraft.lat, musterDraft.lng).distanceTo(e.latlng),
+      );
+      // mousemove fires far faster than this map wants to re-render, so
+      // only redraw once the radius has actually moved.
+      if (Math.abs(r - musterDraft.radiusM) < 0.5) return;
+      onMusterRadius(r);
+    },
   });
   return null;
 }
@@ -582,16 +668,100 @@ function MapClickHandler({
 // Curved polyline fallback when ORS doesn't return a foot route
 // -----------------------------------------------------------------------------
 
-/** Casualty muster / evacuation point — green flag with a cross chip. */
-function musterIcon(): L.DivIcon {
+// -----------------------------------------------------------------------------
+// Ground-square geometry
+// -----------------------------------------------------------------------------
+
+/** Degrees per metre at a given latitude. Latitude is near enough
+ *  constant; longitude narrows towards the poles, so a square built from
+ *  raw degrees would come out as a rectangle on the ground. */
+function degPerMetre(lat: number): { lat: number; lng: number } {
+  return {
+    lat: 1 / 111320,
+    lng: 1 / (111320 * Math.cos((lat * Math.PI) / 180)),
+  };
+}
+
+/** The four corners of a true-ground square centred on a point. */
+function squareCorners(
+  lat: number,
+  lng: number,
+  halfSideM: number,
+): [number, number][] {
+  const per = degPerMetre(lat);
+  const dLat = halfSideM * per.lat;
+  const dLng = halfSideM * per.lng;
+  return [
+    [lat + dLat, lng - dLng],
+    [lat + dLat, lng + dLng],
+    [lat - dLat, lng + dLng],
+    [lat - dLat, lng - dLng],
+  ];
+}
+
+/** Right-angle brackets at each corner of that square — a landing site
+ *  gets its corners marked out, not a continuous painted line. */
+function squareCornerBrackets(
+  lat: number,
+  lng: number,
+  halfSideM: number,
+  armM: number,
+): [number, number][][] {
+  const per = degPerMetre(lat);
+  const h = halfSideM;
+  const a = Math.min(armM, halfSideM);
+  const pt = (north: number, east: number): [number, number] => [
+    lat + north * per.lat,
+    lng + east * per.lng,
+  ];
+  return [
+    [pt(h - a, -h), pt(h, -h), pt(h, -h + a)],
+    [pt(h, h - a), pt(h, h), pt(h - a, h)],
+    [pt(-h + a, h), pt(-h, h), pt(-h, h - a)],
+    [pt(-h, -h + a), pt(-h, -h), pt(-h + a, -h)],
+  ];
+}
+
+/** A HEMS site is squared off on the deck rather than ringed. We mark
+ *  30 m of clear ground with the inner box as the touchdown area. */
+const LZ_HALF_SIDE_M = 15;
+const LZ_TOUCHDOWN_HALF_M = 7;
+
+/** Muster-area sizing, in metres of radius. Clamped so a stray
+ *  double-click still leaves something usable on the ground. */
+const MUSTER_MIN_R_M = 10;
+const MUSTER_MAX_R_M = 250;
+
+function clampMusterRadius(m: number): number {
+  return Math.round(Math.min(MUSTER_MAX_R_M, Math.max(MUSTER_MIN_R_M, m)));
+}
+
+/** Casualty muster / evacuation area — green flag with a cross chip and
+ *  the radius the operator drew out. */
+function musterIcon(radiusM: number): L.DivIcon {
   return L.divIcon({
     className: "",
-    iconSize: [150, 46],
+    iconSize: [180, 46],
     iconAnchor: [8, 44],
     html: `
       <div style="position:relative;font-family:var(--font-geist-mono),monospace;">
         <div style="position:absolute;left:6px;top:0;width:3px;height:44px;background:#e5e7eb;border:1px solid #111;"></div>
-        <div style="position:absolute;left:10px;top:2px;background:#15803d;color:#fff;border:1.5px solid #052e16;border-radius:2px;padding:3px 8px;font-size:10px;font-weight:700;letter-spacing:0.08em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5);">✚ CASUALTY MUSTER</div>
+        <div style="position:absolute;left:10px;top:2px;background:#15803d;color:#fff;border:1.5px solid #052e16;border-radius:2px;padding:3px 8px;font-size:10px;font-weight:700;letter-spacing:0.08em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5);">✚ CASUALTY MUSTER · R ${Math.round(radiusM)} M</div>
+      </div>`,
+  });
+}
+
+/** Centre mark and live radius readout while the circle is being drawn. */
+function musterDraftIcon(radiusM: number): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [120, 44],
+    iconAnchor: [60, 18],
+    html: `
+      <div style="position:relative;width:120px;height:44px;pointer-events:none;font-family:var(--font-geist-mono),monospace;">
+        <div style="position:absolute;left:60px;top:18px;transform:translate(-50%,-50%);width:16px;height:2px;background:#4ade80;box-shadow:0 0 3px rgba(0,0,0,0.8);"></div>
+        <div style="position:absolute;left:60px;top:18px;transform:translate(-50%,-50%);width:2px;height:16px;background:#4ade80;box-shadow:0 0 3px rgba(0,0,0,0.8);"></div>
+        <div style="position:absolute;left:60px;top:26px;transform:translateX(-50%);background:rgba(10,10,12,0.92);border:1px solid #4ade80;border-radius:2px;padding:1px 6px;font-size:9px;font-weight:700;color:#4ade80;letter-spacing:0.08em;white-space:nowrap;">R ${Math.round(radiusM)} M</div>
       </div>`,
   });
 }
@@ -794,8 +964,12 @@ export function LeafletGroundMap({
   placePendingApplianceId,
   onClearPlacePending,
   musterPick,
-  musterPos,
+  muster,
   onPlaceMuster,
+  stations,
+  deployments,
+  patch,
+  onOpenStationBays,
 }: {
   incident: Incident;
   resolved: ResolvedDeployment[];
@@ -821,9 +995,16 @@ export function LeafletGroundMap({
   onClearPlacePending?: () => void;
   /** Armed by the incident view while the operator places a road closure. */
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
+  /** Patch-scale data, drawn at the Patch and Approach detents. The same
+   *  layers the pre-incident map shows, so zooming out of a job lands the
+   *  operator on familiar ground rather than a different screen. */
+  stations: StationWithAppliances[];
+  deployments: Deployment[];
+  patch?: AreaCode | null;
+  onOpenStationBays?: (stationId: string) => void;
   musterPick?: boolean;
-  musterPos?: { lat: number; lng: number } | null;
-  onPlaceMuster?: (lat: number, lng: number) => void;
+  muster?: { lat: number; lng: number; radiusM: number } | null;
+  onPlaceMuster?: (lat: number, lng: number, radiusM: number) => void;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
 }) {
   const centre: [number, number] = [
@@ -835,6 +1016,24 @@ export function LeafletGroundMap({
   // Parking workflow — user selects an appliance to place, then map-clicks
   // its position, then a second map-click to set its facing direction.
   const [parking, setParking] = useState<ParkingState>({ phase: "idle" });
+
+  // Which of the three scales the operator is on. Opening an incident puts
+  // them on the ground; the control lets them pull back without leaving.
+  const [detent, setDetent] = useState<DetentId>("ground");
+
+  // Muster area part-way through being drawn: the first click sets the
+  // centre, the cursor grows the radius, the second click commits it.
+  const [musterDraft, setMusterDraft] = useState<{
+    lat: number;
+    lng: number;
+    radiusM: number;
+  } | null>(null);
+
+  // Cancelling mid-draw (the banner's Cancel, or toggling the button off)
+  // must take the half-drawn circle with it, not leave it on the ground.
+  useEffect(() => {
+    if (!musterPick) setMusterDraft(null);
+  }, [musterPick]);
 
   // Base map — OS cartography by default (what a UK control room runs),
   // with aerial as the toggle. Remembered per operator.
@@ -868,6 +1067,10 @@ export function LeafletGroundMap({
   // scales gently with zoom above the reference zoom, and floors at the
   // reference size below it so appliances stay readable when zoomed out.
   const [mapZoom, setMapZoom] = useState(19);
+  // Past the detail threshold the scene layers take over from the patch
+  // layers. Driven by live zoom, not by the detent, so it stays correct
+  // mid-flight between two scales.
+  const showGround = mapZoom >= GROUND_DETAIL_ZOOM;
   // Currently hovered appliance marker id. Used to bump the callsign label
   // to its "full" bright form so the operator can identify a specific
   // vehicle without clicking.
@@ -1085,6 +1288,7 @@ export function LeafletGroundMap({
       onChoose={chooseBasemap}
     />
     <MapAttribution basemap={basemap} />
+    <DetentControl current={detent} onChoose={setDetent} />
     <PlacementBanner
       parking={parking}
       onCancel={() => {
@@ -1095,9 +1299,10 @@ export function LeafletGroundMap({
     />
     <MapContainer
       center={centre}
-      zoom={19}
+      zoom={detentZoomFor("ground")}
       maxZoom={19}
-      minZoom={19}
+      minZoom={11}
+      // Detents are button-driven on purpose — see DETENTS above.
       scrollWheelZoom={false}
       doubleClickZoom={false}
       touchZoom={false}
@@ -1119,7 +1324,17 @@ export function LeafletGroundMap({
         closureActive={!!closurePick}
         onClosureClick={(lat, lng, bearingDeg) => onPlaceClosure?.(lat, lng, bearingDeg)}
         musterActive={!!musterPick}
-        onMusterClick={(lat, lng) => onPlaceMuster?.(lat, lng)}
+        musterDraft={musterDraft}
+        onMusterCentre={(lat, lng) =>
+          setMusterDraft({ lat, lng, radiusM: MUSTER_MIN_R_M })
+        }
+        onMusterRadius={(radiusM) =>
+          setMusterDraft((d) => (d ? { ...d, radiusM } : d))
+        }
+        onMusterCommit={(lat, lng, radiusM) => {
+          setMusterDraft(null);
+          onPlaceMuster?.(lat, lng, radiusM);
+        }}
         onPickedPos={(pos) => {
           if (parking.phase !== "pos") return;
           setParking({
@@ -1144,21 +1359,78 @@ export function LeafletGroundMap({
         }}
       />
 
-      {/* Casualty muster / evacuation point */}
-      {musterPos && (
-        <Marker
-          position={[musterPos.lat, musterPos.lng]}
-          icon={musterIcon()}
-          zIndexOffset={800}
+      {/* Snaps to the incident on open, flies between detents after. */}
+      <DetentController
+        zoom={detentZoomFor(detent)}
+        lat={incidentLat}
+        lng={incidentLng}
+      />
+
+      {/* Track zoom so markers and overlays can size themselves per detent. */}
+      <ZoomTracker onZoom={setMapZoom} />
+
+      {/* Patch and Approach scales. */}
+      {!showGround && (
+        <PatchLayers
+          stations={stations}
+          activeIncident={incident}
+          deployments={deployments}
+          patch={patch ?? null}
+          onSelectAppliance={(id) => onSelectAppliance(id)}
+          selectedApplianceId={selectedApplianceId}
+          onOpenStationBays={onOpenStationBays}
         />
       )}
 
-      {/* Always centre on the incident when the map first mounts. */}
-      <FitToIncident lat={incidentLat} lng={incidentLng} />
+      {showGround && (
+      <>
+      {/* Casualty muster / evacuation area. Drawn as ground, not a pin —
+          it is the patch the walking wounded are directed to, so its size
+          is the operator's call. */}
+      {muster && (
+        <>
+          <Circle
+            center={[muster.lat, muster.lng]}
+            radius={muster.radiusM}
+            pathOptions={{
+              color: "#22c55e",
+              weight: 2,
+              dashArray: "8 5",
+              fillColor: "#22c55e",
+              fillOpacity: 0.08,
+            }}
+            interactive={false}
+          />
+          <Marker
+            position={[muster.lat, muster.lng]}
+            icon={musterIcon(muster.radiusM)}
+            zIndexOffset={800}
+          />
+        </>
+      )}
 
-      {/* Track zoom so appliance markers can scale gently when zoomed in
-          past the reference zoom, and freeze at reference size below it. */}
-      <ZoomTracker onZoom={setMapZoom} />
+      {/* Live preview between the two clicks. */}
+      {musterDraft && (
+        <>
+          <Circle
+            center={[musterDraft.lat, musterDraft.lng]}
+            radius={musterDraft.radiusM}
+            pathOptions={{
+              color: "#4ade80",
+              weight: 2,
+              dashArray: "4 4",
+              fillColor: "#4ade80",
+              fillOpacity: 0.1,
+            }}
+            interactive={false}
+          />
+          <Marker
+            position={[musterDraft.lat, musterDraft.lng]}
+            icon={musterDraftIcon(musterDraft.radiusM)}
+            zIndexOffset={900}
+          />
+        </>
+      )}
 
       {/* Fire-growth overlay — translucent circle whose radius is the
           current modelled fire footprint in metres. Tinted by stage so
@@ -1209,9 +1481,11 @@ export function LeafletGroundMap({
             now < touchdownAt ? "inbound" : now < d.arrivesAt ? "walking" : "ground";
           return (
             <Fragment key={`lz-${d.applianceId}`}>
-              <Circle
-                center={[pos.lat, pos.lng]}
-                radius={14}
+              {/* The marked-out landing site. Built from true ground
+                  metres so it stays square at any latitude instead of
+                  being stretched by the lat/lng grid. */}
+              <Polygon
+                positions={squareCorners(pos.lat, pos.lng, LZ_HALF_SIDE_M)}
                 pathOptions={{
                   color: "#fbbf24",
                   weight: 2,
@@ -1221,9 +1495,25 @@ export function LeafletGroundMap({
                 }}
                 interactive={false}
               />
-              <Circle
-                center={[pos.lat, pos.lng]}
-                radius={7.5}
+              {squareCornerBrackets(
+                pos.lat,
+                pos.lng,
+                LZ_HALF_SIDE_M,
+                4.5,
+              ).map((path, i) => (
+                <Polyline
+                  key={`lz-corner-${d.applianceId}-${i}`}
+                  positions={path}
+                  pathOptions={{ color: "#fbbf24", weight: 3 }}
+                  interactive={false}
+                />
+              ))}
+              <Polygon
+                positions={squareCorners(
+                  pos.lat,
+                  pos.lng,
+                  LZ_TOUCHDOWN_HALF_M,
+                )}
                 pathOptions={{
                   color: "rgba(251,191,36,0.55)",
                   weight: 1.2,
@@ -1495,6 +1785,8 @@ export function LeafletGroundMap({
           interactive={false}
         />
       )}
+      </>
+      )}
     </MapContainer>
     </div>
   );
@@ -1616,6 +1908,35 @@ function MapAttribution({
           </a>
         </>
       )}
+    </div>
+  );
+}
+
+/** Scale selector — the three detents, stacked under the base-map switch. */
+function DetentControl({
+  current,
+  onChoose,
+}: {
+  current: DetentId;
+  onChoose: (id: DetentId) => void;
+}) {
+  return (
+    <div className="pointer-events-auto absolute right-3 top-12 z-[600] flex overflow-hidden rounded-sm border border-(--color-border) bg-(--color-bg)/90 shadow-lg">
+      {DETENTS.map((d) => (
+        <button
+          key={d.id}
+          type="button"
+          onClick={() => onChoose(d.id)}
+          className={
+            "px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
+            (d.id === current
+              ? "bg-(--color-amber)/20 text-(--color-amber)"
+              : "text-(--color-text-dim) hover:text-(--color-text)")
+          }
+        >
+          {d.label}
+        </button>
+      ))}
     </div>
   );
 }

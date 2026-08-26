@@ -245,9 +245,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // vehicle awaiting a rotate-bearing click.
   const [pendingClosure, setPendingClosure] = useState<PendingClosure | null>(null);
   const [rotatePendingApplianceId, setRotatePendingApplianceId] = useState<string | null>(null);
-  // Casualty muster / evacuation point — designated by the operator on the
-  // ground map; casualties and walking wounded RV here.
-  const [musterPos, setMusterPos] = useState<{ lat: number; lng: number } | null>(null);
+  // Casualty muster / evacuation area — drawn on the ground map as a
+  // circle; casualties and walking wounded RV inside it.
+  const [muster, setMuster] = useState<{
+    lat: number;
+    lng: number;
+    radiusM: number;
+  } | null>(null);
   // Unit whose control page fills the MDT Resourcing pane — set by MDT
   // clicks AND ground-map vehicle clicks (the map-side menu is gone).
   const [mdtUnitId, setMdtUnitId] = useState<string | null>(null);
@@ -749,7 +753,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setTacticalMode(null);
     setFatigueByApplianceId({});
     setLastFatigueTickAt(0);
-    setMusterPos(null);
+    setMuster(null);
     setPendingMuster(false);
     setMdtUnitId(null);
     setPlacePendingApplianceId(null);
@@ -3401,11 +3405,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }}
             pendingClosure={pendingClosure}
             onSetPendingClosure={setPendingClosure}
-            musterPos={musterPos}
+            muster={muster}
             pendingMuster={pendingMuster}
             onSetPendingMuster={setPendingMuster}
-            onPlaceMuster={(lat, lng) => {
-              setMusterPos({ lat, lng });
+            onPlaceMuster={(lat, lng, radiusM) => {
+              setMuster({ lat, lng, radiusM });
               setPendingMuster(false);
               setLog((prev) => [
                 ...prev,
@@ -3413,7 +3417,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                   id: `ccp:${Date.now()}`,
                   timestamp: Date.now(),
                   kind: "annotation",
-                  message: "Casualty muster point designated — walking wounded and casualties to RV",
+                  message: `Casualty muster area designated, ${Math.round(radiusM)} m radius — walking wounded and casualties to RV`,
                 },
               ]);
             }}
