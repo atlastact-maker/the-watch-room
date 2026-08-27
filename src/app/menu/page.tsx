@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isOperator } from "@/lib/auth/operator-access";
+import { hasShiftAccess } from "@/lib/auth/operator-access";
 import { logout } from "@/lib/auth/actions";
 import { LiveConsole } from "@/app/components/live-console";
 import { DailyOrders } from "@/app/components/daily-orders";
@@ -37,8 +37,9 @@ export default async function MenuPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   // Closed development: accounts and advisor sign-ups are open, shifts
-  // are not. Everyone off the allowlist holds at the standby page.
-  if (!isOperator(user.email)) redirect("/standby");
+  // are not. Access is the allowlist plus assigned roles (user_roles in
+  // Supabase); everyone else holds at the standby page.
+  if (!(await hasShiftAccess(supabase, user.email))) redirect("/standby");
 
   const callsign =
     (user.user_metadata as { callsign?: string } | null)?.callsign ?? null;
