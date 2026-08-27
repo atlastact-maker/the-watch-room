@@ -68,10 +68,11 @@ const INSIGNIA: Record<ServiceKey, { colour: string; label: string; mark: React.
     ),
   },
   control: {
-    // Amber, deliberately not fire red: control room experience spans all
-    // three services — NWFC, NWAS EOC, GMP FCC — so the badge belongs to
-    // the discipline, not to one service's colour.
-    colour: "#b45309",
+    // Purple, deliberately not any one service's colour: control room
+    // experience spans all three — NWFC, NWAS EOC, GMP FCC — so the badge
+    // belongs to the discipline. Same reasoning that gives BA its purple
+    // on the map markers.
+    colour: "#7c3aed",
     label: "CONTROL ROOM OPS",
     mark: (
       <g>
