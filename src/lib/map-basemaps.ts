@@ -9,7 +9,7 @@
 // on the server. When no key is configured that route 404s and we fall
 // back to OpenStreetMap, so the game runs unchanged without one.
 
-export type BasemapId = "os" | "os_outdoor" | "aerial" | "street";
+export type BasemapId = "os_vector" | "os" | "os_outdoor" | "aerial" | "street";
 
 export type Basemap = {
   id: BasemapId;
@@ -20,6 +20,9 @@ export type Basemap = {
   maxNativeZoom: number;
   /** Photography — markers need extra contrast over it. */
   imagery: boolean;
+  /** A MapLibre style document. When set the layer is drawn by MapLibre
+   *  rather than as raster tiles, and `url` is unused. */
+  styleUrl?: string;
 };
 
 /** Whether OS mapping is wired up. Set NEXT_PUBLIC_OS_MAPS=1 alongside
@@ -35,6 +38,21 @@ export const OS_COPYRIGHT = `Contains OS data © Crown copyright and database ri
 export const OS_ERRORS_URL = "https://www.ordnancesurvey.co.uk/contact-us/error";
 export const OS_TERMS_URL =
   "https://www.ordnancesurvey.co.uk/legal/data-hub-api-terms";
+
+const OS_VECTOR: Basemap = {
+  id: "os_vector",
+  label: "OS Vector",
+  // Vector tiles are drawn at whatever scale the map is actually at,
+  // rather than being cut at whole zoom levels and resampled in between,
+  // so detail resolves smoothly the whole way in instead of going soft
+  // between steps. That continuous zoom is why this is the default OS
+  // layer rather than the raster ones below.
+  url: "",
+  styleUrl: "/api/os-vector/resources/styles",
+  attribution: OS_COPYRIGHT,
+  maxNativeZoom: 20,
+  imagery: false,
+};
 
 const OS_MAP: Basemap = {
   id: "os",
@@ -84,12 +102,15 @@ const STREET: Basemap = {
 
 /** Ground-view options, best first. Without an OS key the street map
  *  takes its place so the toggle still has two sides. */
+/** What the toggle offers. Kept to two so the control stays a glance
+ *  rather than a menu; the raster OS styles stay defined above and are one
+ *  line away if the vector cartography ever disappoints. */
 export function groundBasemaps(): Basemap[] {
-  return osMappingEnabled() ? [OS_MAP, OS_OUTDOOR, AERIAL] : [STREET, AERIAL];
+  return osMappingEnabled() ? [OS_VECTOR, AERIAL] : [STREET, AERIAL];
 }
 
 export function basemapById(id: BasemapId): Basemap {
-  const all = [OS_MAP, OS_OUTDOOR, AERIAL, STREET];
+  const all = [OS_VECTOR, OS_MAP, OS_OUTDOOR, AERIAL, STREET];
   const hit = all.find((b) => b.id === id);
   const offered = groundBasemaps();
   // A remembered choice that is no longer on offer (OS turned off since

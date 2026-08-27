@@ -28,6 +28,7 @@ import {
   MapAttribution,
   useBasemapChoice,
 } from "./basemap-controls";
+import { VectorBasemap } from "./vector-basemap";
 
 // Service identity colours — fire engines are red, ambulances green,
 // police blue. Used for station plaques and responding movers alike.
@@ -212,12 +213,16 @@ export function LeafletMap({
         "h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")
       }
     >
-      <TileLayer
-        key={basemap.id}
-        url={basemap.url}
-        maxNativeZoom={basemap.maxNativeZoom}
-        maxZoom={20}
-      />
+      {basemap.styleUrl ? (
+        <VectorBasemap key={basemap.id} styleUrl={basemap.styleUrl} />
+      ) : (
+        <TileLayer
+          key={basemap.id}
+          url={basemap.url}
+          maxNativeZoom={basemap.maxNativeZoom}
+          maxZoom={20}
+        />
+      )}
       <PatchLayers
         stations={stations}
         activeIncident={activeIncident}

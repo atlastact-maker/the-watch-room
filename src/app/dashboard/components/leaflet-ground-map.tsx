@@ -42,6 +42,7 @@ import {
   MapAttribution,
   useBasemapChoice,
 } from "./basemap-controls";
+import { VectorBasemap } from "./vector-basemap";
 import type { ResolvedDeployment } from "./incident-view";
 
 
@@ -1147,12 +1148,16 @@ export function LeafletGroundMap({
       attributionControl={false}
       className={"h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")}
     >
-      <TileLayer
-        key={basemap.id}
-        url={basemap.url}
-        maxNativeZoom={basemap.maxNativeZoom}
-        maxZoom={20}
-      />
+      {basemap.styleUrl ? (
+        <VectorBasemap key={basemap.id} styleUrl={basemap.styleUrl} />
+      ) : (
+        <TileLayer
+          key={basemap.id}
+          url={basemap.url}
+          maxNativeZoom={basemap.maxNativeZoom}
+          maxZoom={20}
+        />
+      )}
       <MapClickHandler
         parking={parking}
         roads={osmRoads}
