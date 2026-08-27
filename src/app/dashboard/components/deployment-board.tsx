@@ -8,6 +8,7 @@
 import { Fragment, useEffect, useState } from "react";
 import type { Appliance, AreaCode, PodTypeCode, ServiceCode } from "@/lib/sim/types";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
+import { pagerDelaySec } from "@/lib/sim/turnout";
 import {
   categoryOf,
   categoriesForService,
@@ -82,6 +83,7 @@ export function DeploymentBoard({
     stationName: string;
     stationId: string;
     stationArea: AreaCode;
+    staffing?: string;
     outOfPatch: boolean;
     eta?: Eta;
   };
@@ -98,6 +100,7 @@ export function DeploymentBoard({
         stationName: st.name,
         stationId: st.id,
         stationArea: st.area,
+        staffing: st.staffing,
         outOfPatch,
         eta: etas[st.id],
       });
@@ -267,10 +270,21 @@ export function DeploymentBoard({
                       <span>·</span>
                       <span className={r.eta ? "text-(--color-amber)" : ""}>
                         {r.eta
-                          ? `ETA ${fmtSecs(rescaleBlueLightSeconds(r.eta.seconds, r.appliance.type))}`
+                          ? `ETA ${fmtSecs(
+                              rescaleBlueLightSeconds(r.eta.seconds, r.appliance.type) +
+                                pagerDelaySec(r.staffing, Date.now()),
+                            )}`
                           : "ETA …"}
                         {r.eta?.source === "fallback" && " (est)"}
                       </span>
+                      {pagerDelaySec(r.staffing, Date.now()) > 0 && (
+                        <span
+                          className="rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-amber)"
+                          title="Day-crewed station — crew respond from home on alerters outside 08:00–18:00; the alerter turnout is included in the ETA shown"
+                        >
+                          On call
+                        </span>
+                      )}
                     </div>
                   </div>
                 <button

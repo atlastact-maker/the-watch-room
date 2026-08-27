@@ -37,6 +37,7 @@ import {
   rescaleBlueLightSeconds,
   routeEta,
 } from "@/lib/sim/eta";
+import { pagerDelaySec } from "@/lib/sim/turnout";
 import { scoreIncident } from "@/lib/sim/scoring";
 import { rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
 import { nearestHospital, rollOffloadSeconds } from "@/lib/sim/hospitals";
@@ -1519,6 +1520,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ? rescaleBlueLightSeconds(args.etaSeconds, appliance.type)
       : args.etaSeconds;
 
+    // Day-crewed stations: outside crewed hours the crew respond from
+    // home on alerters before the vehicle turns a wheel.
+    const mobStation = appliance ? findStationForAppliance(appliance.id) : undefined;
+    const pagerSec = pagerDelaySec(mobStation?.staffing, mobilisedAt);
+    if (pagerSec > 0) etaSeconds += pagerSec;
+
     // Aircraft fly direct — never hand them the road polyline the station
     // ETA sweep priced. Replace route + timing with the flight model, and
     // for HEMS gate arrival on the operator confirming a landing zone.
@@ -1573,7 +1580,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         kind: "mobilised",
         message: `Mobilised ${applianceLabel(args.applianceId)}${
           args.selectedPodType ? ` carrying ${args.selectedPodType}` : ""
-        } · ETA ${fmtSec(etaSeconds)}`,
+        } · ETA ${fmtSec(etaSeconds)}${
+          pagerSec > 0
+            ? ` — day-crewed station, crew responding on alerters (+${Math.round(pagerSec / 60)} min turnout)`
+            : ""
+        }`,
       },
     ]);
 
