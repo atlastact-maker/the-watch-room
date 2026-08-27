@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
-import { accessProfile } from "@/lib/auth/operator-access";
+import { accessProfile, resolveIcon } from "@/lib/auth/operator-access";
 
 // Where a signed-in account lands while the game is in closed
 // development and the account is not on the operator allowlist. The
@@ -27,8 +27,13 @@ export default async function StandbyPage() {
   const applied = Boolean(
     (user?.user_metadata as { advisor?: unknown } | null)?.advisor,
   );
-  const { role, icon } = await accessProfile(supabase, user?.email);
+  const { role, icon: assignedIcon } = await accessProfile(supabase, user?.email);
   const accepted = role === "advisor";
+  // Accepted advisors wear the service off their application unless a
+  // different emoji was typed into their user_roles row.
+  const icon = accepted
+    ? await resolveIcon(supabase, user?.id, assignedIcon)
+    : assignedIcon;
 
   return (
     <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-6">

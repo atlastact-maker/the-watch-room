@@ -67,6 +67,41 @@ export async function accessProfile(
   }
 }
 
+/** The emoji an accepted advisor wears, derived from the service they
+ *  declared on their application (ADVISOR_SERVICES in auth/schemas). An
+ *  icon typed into the user_roles table always wins — this is the
+ *  automatic default, so accepting an application is one row with no
+ *  emoji hunting. */
+const SERVICE_ICONS: Record<string, string> = {
+  "Fire & Rescue": "🚒",
+  Ambulance: "🚑",
+  Police: "🚓",
+  "Fire Control / 999": "🎧",
+  Other: "⭐",
+};
+
+/** The icon this account should wear: the manually assigned one when
+ *  set, else the service emoji off their advisor application, else
+ *  nothing. Reads the caller's own advisors row, which RLS permits. */
+export async function resolveIcon(
+  supabase: SupabaseClient,
+  userId: string | undefined | null,
+  assignedIcon: string,
+): Promise<string> {
+  if (assignedIcon) return assignedIcon;
+  if (!userId) return "";
+  try {
+    const { data } = await supabase
+      .from("advisors")
+      .select("service")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return SERVICE_ICONS[data?.service ?? ""] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /** Whether this account may open the menu and run a shift. Advisor is
  *  deliberately not enough — advising is about authenticity review, and
  *  an advisor is promoted to operator per person when playtesting is

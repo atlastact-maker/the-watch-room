@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { accessProfile, hasShiftAccess } from "@/lib/auth/operator-access";
+import {
+  accessProfile,
+  hasShiftAccess,
+  resolveIcon,
+} from "@/lib/auth/operator-access";
 import { logout } from "@/lib/auth/actions";
 import { LiveConsole } from "@/app/components/live-console";
 import { DailyOrders } from "@/app/components/daily-orders";
@@ -43,8 +47,10 @@ export default async function MenuPage() {
 
   const callsign =
     (user.user_metadata as { callsign?: string } | null)?.callsign ?? null;
-  // Profile icon assigned in the user_roles table, if any.
-  const { icon } = await accessProfile(supabase, user.email);
+  // Profile icon: the one assigned in user_roles, else the service
+  // emoji off an advisor application — a promoted advisor keeps theirs.
+  const { icon: assignedIcon } = await accessProfile(supabase, user.email);
+  const icon = await resolveIcon(supabase, user.id, assignedIcon);
   const fleet = fleetCounts();
 
   return (
