@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
 import { accessProfile, resolveInsignia } from "@/lib/auth/operator-access";
+import { signupOpen } from "@/lib/auth/signup-window";
 import { ServiceBadge } from "@/app/components/service-insignia";
 
 // Where a signed-in account lands while the game is in closed
@@ -100,8 +101,9 @@ export default async function StandbyPage() {
                   >
                     development advisor programme
                   </Link>{" "}
-                  is open — real operational experience shapes what gets
-                  built.
+                  {signupOpen()
+                    ? "is open — real operational experience shapes what gets built."
+                    : "opens Tuesday 1st September — real operational experience shapes what gets built."}
                 </p>
               )}
               <p>

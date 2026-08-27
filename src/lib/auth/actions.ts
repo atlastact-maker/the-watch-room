@@ -1,5 +1,6 @@
 "use server";
 
+import { signupOpen } from "./signup-window";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,11 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
 }
 
 export async function signup(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  if (!signupOpen()) {
+    return {
+      errors: { email: ["Registration opens Tuesday 1st September."] },
+    };
+  }
   const parsed = SignupSchema.safeParse({
     callsign: formData.get("callsign"),
     email: formData.get("email"),

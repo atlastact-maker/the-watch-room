@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignupForm } from "./signup-form";
+import { signupOpen } from "@/lib/auth/signup-window";
 import { UtcClock } from "./utc-clock";
 
 // Operator-intake signup — styled as a secure control-room terminal.
@@ -12,6 +13,7 @@ export default async function SignupPage({
   searchParams: Promise<{ advisor?: string }>;
 }) {
   const { advisor } = await searchParams;
+  const open = signupOpen();
   return (
     <div className="relative z-10 flex flex-1 items-center justify-center p-6 font-mono">
       {/* Vignette — darkens the page edges so the terminal frame glows. */}
@@ -49,14 +51,42 @@ export default async function SignupPage({
           <div className="text-[15px] uppercase tracking-[0.12em] text-(--color-amber)">
             &gt; New operator registration
           </div>
-          <p className="text-xs leading-relaxed text-(--color-text-muted)">
-            The Watch Room is in closed development — shifts open to
-            registered operators when the doors do. Served in Fire,
-            Ambulance, Police or Control? Tick the advisor box below and
-            help shape the simulation now.
-          </p>
+          {open ? (
+            <>
+              <p className="text-xs leading-relaxed text-(--color-text-muted)">
+                The Watch Room is in closed development — shifts open to
+                registered operators when the doors do. Served in Fire,
+                Ambulance, Police or Control? Tick the advisor box below
+                and help shape the simulation now.
+              </p>
 
-          <SignupForm defaultAdvisorOpen={advisor === "1"} />
+              <SignupForm defaultAdvisorOpen={advisor === "1"} />
+            </>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs leading-relaxed text-(--color-text-muted)">
+                Registration opens{" "}
+                <span className="text-(--color-amber)">
+                  Tuesday 1st September
+                </span>
+                {" "}— alongside the development advisor programme for
+                anyone who has served in Fire, Ambulance, Police or a
+                control room.
+              </p>
+              <p className="text-xs leading-relaxed text-(--color-text-muted)">
+                Until then, development happens in the open on{" "}
+                <a
+                  href="https://discord.gg/YBN3sbphs3"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-(--color-info) underline hover:text-(--color-text)"
+                >
+                  the Discord
+                </a>
+                .
+              </p>
+            </div>
+          )}
 
           <p className="mt-1 text-center text-[11px] uppercase tracking-[0.2em] text-(--color-text-dim)">
             Existing operator?{" "}
