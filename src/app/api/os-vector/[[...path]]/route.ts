@@ -120,10 +120,33 @@ export async function GET(
     // rejects anything without a scheme ("Invalid sprite URL ... must be
     // absolute"), so the proxy's own origin goes on the front. The origin
     // comes off the request, so it follows whatever host serves the app.
-    const text = (await res.text())
+    const origin = requestOrigin(request);
+    let text = (await res.text())
       .split(UPSTREAM)
-      .join(`${requestOrigin(request)}${PROXY}`)
+      .join(`${origin}${PROXY}`)
       .replace(/key=[^&"\\]*&?/g, "");
+
+    // The service root's tile index lists its tiles relative to itself
+    // ("tile/{z}/{y}/{x}.pbf"). MapLibre resolves that against the source
+    // URL, and with no trailing slash the last path segment is dropped —
+    // every tile request lands on /api/tile/... and 404s, which paints a
+    // fully loaded style with nothing. Normalise the entries to absolute
+    // proxied URLs so nothing depends on browser URL resolution.
+    if (segments.length === 0) {
+      try {
+        const doc: { tiles?: unknown } = JSON.parse(text);
+        if (Array.isArray(doc.tiles)) {
+          doc.tiles = doc.tiles.map((t) =>
+            typeof t === "string" && !/^https?:\/\//.test(t)
+              ? `${origin}${PROXY}/${t.replace(/^\.?\//, "")}`
+              : t,
+          );
+          text = JSON.stringify(doc);
+        }
+      } catch {
+        // not JSON after all — pass through untouched
+      }
+    }
     return new Response(text, {
       status: 200,
       headers: {

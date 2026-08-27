@@ -61,26 +61,43 @@ export function VectorBasemap({
       onFail?.();
     };
 
+    // A style can load perfectly and still paint nothing if its tile
+    // source is dead — every tile request erroring individually, none of
+    // them fatal on its own. So track whether any tile has ever actually
+    // arrived, and judge errors against that.
+    let gotTile = false;
+    const onSourceData = (e: { tile?: unknown }) => {
+      if (e.tile) gotTile = true;
+    };
+    ml.on("sourcedata", onSourceData);
+
     // An error before the style document has parsed means the style fetch
-    // itself failed — fatal, fall back. Errors after that are usually
-    // recoverable (one tile 404ing at the coverage edge, a missing glyph
-    // range) and are logged but tolerated. Attaching a listener suppresses
-    // MapLibre's own console output, so the else branch restores it.
-    const onError = (e: { error?: { message?: string } }) => {
+    // itself failed — fatal. An error from the tile pipeline before any
+    // tile has ever loaded means the source is dead — equally fatal, and
+    // exactly what a blank-but-loaded map looks like. Errors after tiles
+    // have flowed are recoverable (one 404 at the coverage edge, a missing
+    // glyph range) and are logged but tolerated. Attaching a listener
+    // suppresses MapLibre's own console output, so the else branch
+    // restores it.
+    const onError = (e: { error?: { message?: string }; sourceId?: string }) => {
       if (!ml.isStyleLoaded()) fail(e?.error?.message ?? "style error");
+      else if (!gotTile && (e?.sourceId || /tile/i.test(e?.error?.message ?? "")))
+        fail(`tile source dead before first tile: ${e?.error?.message ?? "?"}`);
       else console.warn("[os-vector]", e?.error?.message ?? e);
     };
     ml.on("error", onError);
     // Belt and braces for the no-event failure modes (a hung fetch): if
-    // nothing has parsed after 12s on what is a few-KB JSON document,
-    // treat it as failed.
+    // neither the style nor a single tile has landed after 12s, treat it
+    // as failed rather than leaving a blank board.
     const timer = window.setTimeout(() => {
       if (!ml.isStyleLoaded()) fail("style not loaded after 12s");
+      else if (!gotTile) fail("no tile arrived within 12s");
     }, 12_000);
 
     return () => {
       window.clearTimeout(timer);
       ml.off("error", onError);
+      ml.off("sourcedata", onSourceData);
       map.removeLayer(layer);
     };
   }, [map, styleUrl, onFail]);
