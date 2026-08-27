@@ -1523,7 +1523,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // Day-crewed stations: outside crewed hours the crew respond from
     // home on alerters before the vehicle turns a wheel.
     const mobStation = appliance ? findStationForAppliance(appliance.id) : undefined;
-    const pagerSec = pagerDelaySec(mobStation?.staffing, mobilisedAt);
+    const pagerSec = pagerDelaySec(mobStation?.staffing, mobilisedAt, appliance?.id);
     if (pagerSec > 0) etaSeconds += pagerSec;
 
     // Aircraft fly direct — never hand them the road polyline the station
@@ -1582,7 +1582,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           args.selectedPodType ? ` carrying ${args.selectedPodType}` : ""
         } · ETA ${fmtSec(etaSeconds)}${
           pagerSec > 0
-            ? ` — day-crewed station, crew responding on alerters (+${Math.round(pagerSec / 60)} min turnout)`
+            ? ` — day-crewed station, crew responding on alerters (+${fmtSec(pagerSec)} turnout)`
             : ""
         }`,
       },

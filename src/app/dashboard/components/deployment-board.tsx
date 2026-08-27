@@ -272,15 +272,15 @@ export function DeploymentBoard({
                         {r.eta
                           ? `ETA ${fmtSecs(
                               rescaleBlueLightSeconds(r.eta.seconds, r.appliance.type) +
-                                pagerDelaySec(r.staffing, Date.now()),
+                                pagerDelaySec(r.staffing, Date.now(), r.appliance.id),
                             )}`
                           : "ETA …"}
                         {r.eta?.source === "fallback" && " (est)"}
                       </span>
-                      {pagerDelaySec(r.staffing, Date.now()) > 0 && (
+                      {pagerDelaySec(r.staffing, Date.now(), r.appliance.id) > 0 && (
                         <span
                           className="rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-amber)"
-                          title="Day-crewed station — crew respond from home on alerters outside 08:00–18:00; the alerter turnout is included in the ETA shown"
+                          title="Day-crewed station — crew respond from home on alerters outside 08:00–18:00; tonight's 4–7 min alerter turnout is included in the ETA shown"
                         >
                           On call
                         </span>
