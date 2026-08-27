@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -43,6 +43,7 @@ import {
   useBasemapChoice,
 } from "./basemap-controls";
 import { VectorBasemap } from "./vector-basemap";
+import { STREET } from "@/lib/map-basemaps";
 import type { ResolvedDeployment } from "./incident-view";
 
 
@@ -897,6 +898,15 @@ export function LeafletGroundMap({
     choose: chooseBasemap,
   } = useBasemapChoice();
 
+  // If the vector style fails to load, drop to raster street tiles rather
+  // than leaving the operator a blank board; the console says why. Reset
+  // on layer change so switching away and back retries.
+  const [vectorFailed, setVectorFailed] = useState(false);
+  const onVectorFail = useCallback(() => setVectorFailed(true), []);
+  useEffect(() => {
+    setVectorFailed(false);
+  }, [basemapId]);
+
   // Whether the red MDT-style info callout next to the incident crosshair is
   // shown. The operator can click the crosshair to toggle it off (less
   // cluttered) and back on. Default on so a fresh incident announces itself.
@@ -1148,13 +1158,19 @@ export function LeafletGroundMap({
       attributionControl={false}
       className={"h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")}
     >
-      {basemap.styleUrl ? (
-        <VectorBasemap key={basemap.id} styleUrl={basemap.styleUrl} />
+      {basemap.styleUrl && !vectorFailed ? (
+        <VectorBasemap
+          key={basemap.id}
+          styleUrl={basemap.styleUrl}
+          onFail={onVectorFail}
+        />
       ) : (
         <TileLayer
-          key={basemap.id}
-          url={basemap.url}
-          maxNativeZoom={basemap.maxNativeZoom}
+          key={basemap.styleUrl ? `${basemap.id}-fallback` : basemap.id}
+          url={basemap.styleUrl ? STREET.url : basemap.url}
+          maxNativeZoom={
+            basemap.styleUrl ? STREET.maxNativeZoom : basemap.maxNativeZoom
+          }
           maxZoom={20}
         />
       )}

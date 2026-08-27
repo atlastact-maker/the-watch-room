@@ -83,7 +83,16 @@ export async function GET(
     return new Response("upstream unreachable", { status: 502 });
   }
 
-  if (!res.ok) return new Response(null, { status: res.status });
+  if (!res.ok) {
+    // Pass the status through with a line a person can read in the
+    // network tab. 401/403 from OS with a working key almost always means
+    // the OS Vector Tile API product is not added to the Data Hub project
+    // the key belongs to — each product has to be added per project.
+    return new Response(
+      `OS upstream error ${res.status} for ${segments[0] ?? "service root"}`,
+      { status: res.status },
+    );
+  }
 
   const contentType =
     res.headers.get("content-type") ?? "application/octet-stream";

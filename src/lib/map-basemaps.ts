@@ -91,7 +91,9 @@ const AERIAL: Basemap = {
   imagery: true,
 };
 
-const STREET: Basemap = {
+/** Exported as the raster fallback the maps drop to when the vector
+ *  style fails to load — a wrong key should degrade, not blank the board. */
+export const STREET: Basemap = {
   id: "street",
   label: "Street",
   url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
