@@ -23,6 +23,11 @@ import {
   type IncidentMarkerKind,
 } from "./map-markers";
 import type { StationWithAppliances } from "../page";
+import {
+  BasemapToggle,
+  MapAttribution,
+  useBasemapChoice,
+} from "./basemap-controls";
 
 // Service identity colours — fire engines are red, ambulances green,
 // police blue. Used for station plaques and responding movers alike.
@@ -170,6 +175,12 @@ export function LeafletMap({
       : [53.48, -2.24];
 
   const patchLabel = patch && patch !== "ForceWide" ? `${patch} Command` : null;
+  const {
+    options: basemapOptions,
+    basemap,
+    id: basemapId,
+    choose: chooseBasemap,
+  } = useBasemapChoice();
 
   return (
     <div className="relative h-full w-full">
@@ -186,16 +197,25 @@ export function LeafletMap({
           </div>
         </div>
       )}
+    <BasemapToggle
+      options={basemapOptions}
+      current={basemapId}
+      onChoose={chooseBasemap}
+    />
+    <MapAttribution basemap={basemap} />
     <MapContainer
       center={center}
       zoom={11}
       scrollWheelZoom
-      className="h-full w-full bg-[#050507]"
+      attributionControl={false}
+      className={
+        "h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")
+      }
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxNativeZoom={19}
+        key={basemap.id}
+        url={basemap.url}
+        maxNativeZoom={basemap.maxNativeZoom}
         maxZoom={20}
       />
       <PatchLayers

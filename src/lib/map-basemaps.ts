@@ -9,7 +9,7 @@
 // on the server. When no key is configured that route 404s and we fall
 // back to OpenStreetMap, so the game runs unchanged without one.
 
-export type BasemapId = "os" | "aerial" | "street";
+export type BasemapId = "os" | "os_outdoor" | "aerial" | "street";
 
 export type Basemap = {
   id: BasemapId;
@@ -48,6 +48,19 @@ const OS_MAP: Basemap = {
   imagery: false,
 };
 
+const OS_OUTDOOR: Basemap = {
+  id: "os_outdoor",
+  label: "Outdoor",
+  // Outdoor is OS's Explorer/Landranger cartography — contours, field
+  // boundaries, footpaths and access land. Far busier than Light, and the
+  // style that changes most as you zoom, since it steps through OS's
+  // small-, medium- and large-scale products rather than restyling one.
+  url: "/api/os-tiles/Outdoor_3857/{z}/{x}/{y}.png",
+  attribution: OS_COPYRIGHT,
+  maxNativeZoom: 20,
+  imagery: false,
+};
+
 const AERIAL: Basemap = {
   id: "aerial",
   label: "Aerial",
@@ -72,12 +85,18 @@ const STREET: Basemap = {
 /** Ground-view options, best first. Without an OS key the street map
  *  takes its place so the toggle still has two sides. */
 export function groundBasemaps(): Basemap[] {
-  return osMappingEnabled() ? [OS_MAP, AERIAL] : [STREET, AERIAL];
+  return osMappingEnabled() ? [OS_MAP, OS_OUTDOOR, AERIAL] : [STREET, AERIAL];
 }
 
 export function basemapById(id: BasemapId): Basemap {
-  const all = [OS_MAP, AERIAL, STREET];
-  return all.find((b) => b.id === id) ?? groundBasemaps()[0];
+  const all = [OS_MAP, OS_OUTDOOR, AERIAL, STREET];
+  const hit = all.find((b) => b.id === id);
+  const offered = groundBasemaps();
+  // A remembered choice that is no longer on offer (OS turned off since
+  // the operator last picked it) falls back rather than showing a layer
+  // whose tiles will 404.
+  if (hit && offered.some((b) => b.id === hit.id)) return hit;
+  return offered[0];
 }
 
 export const BASEMAP_STORAGE_KEY = "twr:ground-basemap:v1";
