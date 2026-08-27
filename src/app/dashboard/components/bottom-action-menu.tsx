@@ -65,6 +65,7 @@ type Pending = {
   hazardId?: string;
   mitigationMethod?: string;
   attackMode?: HoseAttackMode;
+  hretTurret?: boolean;
   /** For ba_sar: tells the sim whether this BA team is inside to search
    *  for casualties or to firefight. Affects what red-flag credit the
    *  run earns and what tasks the committed crew can do next. */
@@ -91,6 +92,7 @@ export type StartTaskFn = (args: {
   hazardId?: string;
   mitigationMethod?: string;
   attackMode?: HoseAttackMode;
+  hretTurret?: boolean;
   baMode?: "search" | "firefighting";
   casualtyId?: string;
   entryTool?: EntryTool;
@@ -295,8 +297,23 @@ export function BottomActionMenu({
             {appliance.callsign}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px] leading-tight font-medium text-(--color-text)">
-              {appliance.typeName}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-[13px] leading-tight font-medium text-(--color-text)">
+                {appliance.typeName}
+              </span>
+              {appliance.capabilities?.map((c) => (
+                <span
+                  key={c}
+                  title={
+                    c === "UHPL"
+                      ? "Ultra High Pressure Lance — cold-cut external attack"
+                      : "High Reach Extendable Turret — piercing boom monitor"
+                  }
+                  className="shrink-0 rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-1 py-px font-mono text-[8px] uppercase tracking-widest text-(--color-info)"
+                >
+                  {c}
+                </span>
+              ))}
             </div>
             <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
               {appliance.make} {appliance.model} · {appliance.vrm}
@@ -1288,6 +1305,7 @@ function WaterTab({
     sourceApplianceId?: string;
     hoseType?: HoseType;
     attackMode?: HoseAttackMode;
+  hretTurret?: boolean;
   }) {
     if (pickedCrew.length < TASK_MIN_CREW[args.kind]) return;
     onStartTask({
@@ -1298,6 +1316,7 @@ function WaterTab({
       sourceApplianceId: args.sourceApplianceId,
       hoseType: args.hoseType,
       attackMode: args.attackMode,
+      hretTurret: args.hretTurret,
     });
     setPendingHydrant(null);
     setPendingRelay(null);
@@ -1537,6 +1556,12 @@ function WaterTab({
               const effInterior = knownMaterial
                 ? ATTACK_EFFECTIVENESS[knownMaterial].interior_attack
                 : 1;
+              const effUhpl = knownMaterial
+                ? ATTACK_EFFECTIVENESS[knownMaterial].uhpl_lance
+                : 1;
+              const hasUhpl =
+                appliance.capabilities?.includes("UHPL") ||
+                appliance.capabilities?.includes("HRET");
               const badge = (eff: number) => {
                 if (!knownMaterial) return null;
                 if (eff < 0)
@@ -1550,6 +1575,7 @@ function WaterTab({
               const cb = badge(effCooling);
               const xb = badge(effExterior);
               const ib = badge(effInterior);
+              const ub = badge(effUhpl);
 
               return (
                 <>
@@ -1576,6 +1602,21 @@ function WaterTab({
                         setPendingHoseAttack({ mode: "exterior_attack", hoseType: "45mm" })
                       }
                     />
+                    {hasUhpl && (
+                      <BigBtn
+                        label={
+                          appliance.capabilities?.includes("HRET")
+                            ? "HRET lance · pierce and cut from the turret"
+                            : "UHPL lance · pierce and cut from outside"
+                        }
+                        detail={ub?.text}
+                        disabled={hasHoseAttack || !canAttack}
+                        tone={ub?.tone === "text-(--color-critical)" ? "critical" : "amber"}
+                        onClick={() =>
+                          setPendingHoseAttack({ mode: "uhpl_lance", hoseType: "45mm" })
+                        }
+                      />
+                    )}
                     <BigBtn
                       label="Interior attack · BA crew advance"
                       detail={
@@ -1676,9 +1717,11 @@ function WaterTab({
           appliance={appliance}
           deployment={deployment}
           minCrew={TASK_MIN_CREW.hose_attack}
-          requiredEquipment={[
-            pendingHoseAttack.hoseType === "70mm" ? "branch_70mm" : "branch_45mm",
-          ]}
+          requiredEquipment={
+            pendingHoseAttack.mode === "uhpl_lance"
+              ? [] // the lance is vehicle-mounted, not a carried branch
+              : [pendingHoseAttack.hoseType === "70mm" ? "branch_70mm" : "branch_45mm"]
+          }
           requiredEquipmentAll={
             pendingHoseAttack.mode === "interior_attack" ? ["ba_set"] : undefined
           }
@@ -1698,6 +1741,9 @@ function WaterTab({
               label: attackModeLabel(pendingHoseAttack.mode),
               hoseType: pendingHoseAttack.hoseType,
               attackMode: pendingHoseAttack.mode,
+              hretTurret:
+                pendingHoseAttack.mode === "uhpl_lance" &&
+                appliance.capabilities?.includes("HRET"),
             })
           }
         />
@@ -3128,6 +3174,8 @@ function attackModeLabel(m: HoseAttackMode): string {
       return "Exterior cooling";
     case "exterior_attack":
       return "Exterior attack";
+    case "uhpl_lance":
+      return "UHPL lance";
     case "interior_attack":
       return "Interior attack";
   }

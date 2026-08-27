@@ -32,7 +32,7 @@ export type DeployArgs = {
   etaSeconds: number;
   routeMeters?: number;
   routeCoords?: [number, number][];
-  selectedPodType?: "EPU" | "HVP" | "HVHL" | "UTC";
+  selectedPodType?: PodTypeCode;
 };
 
 export function DeploymentBoard({
@@ -474,6 +474,8 @@ function podFullLabel(p: PodTypeCode): string {
       return "High Volume Hose Layer";
     case "UTC":
       return "USAR Timber Carrier";
+    case "MDU":
+      return "Mass Decontamination Unit";
   }
 }
 

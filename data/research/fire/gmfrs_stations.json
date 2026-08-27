@@ -16,10 +16,10 @@
           "name": "Stretford",
           "staffing": "Wholetime/Jump Crewed",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
             "1x TL",
             "1x PM",
-            "pods: 2x HVP/HVHL"
+            "pods: 1x HVP, 1x HVHL"
           ],
           "address": "Park Road",
           "town": "Stretford",
@@ -62,7 +62,8 @@
           "name": "Altrincham",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "1x WrL",
+            "1x BASU"
           ],
           "address": "43 Manchester Road",
           "town": "Altrincham",
@@ -83,7 +84,7 @@
           "name": "Moss Side",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "2x WrL +UHPL"
           ],
           "address": "Denhill Road",
           "town": "Moss Side",
@@ -125,7 +126,7 @@
           "name": "Wythenshawe",
           "staffing": "Wholetime",
           "appliances": [
-            "2x WrL"
+            "2x WrL +UHPL"
           ],
           "address": "Brownley Road",
           "town": "Wythenshawe",
@@ -146,7 +147,7 @@
           "name": "Manchester Central",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL",
+            "2x WrL +UHPL",
             "1x TL"
           ],
           "address": "Thompson Street",
@@ -168,7 +169,7 @@
           "name": "Blackley",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "1x WrL +UHPL"
           ],
           "address": "Rochdale Road",
           "town": "Blackley",
@@ -189,7 +190,7 @@
           "name": "Philips Park",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "1x WrL +UHPL"
           ],
           "address": "Briscoe Lane",
           "town": "Philips Park",
@@ -210,7 +211,8 @@
           "name": "Gorton",
           "staffing": "Wholetime",
           "appliances": [
-            "2x WrL"
+            "1x WrL +UHPL",
+            "1x WrL @P2"
           ],
           "address": "Birch Street West",
           "town": "Gorton",
@@ -232,7 +234,7 @@
           "staffing": "Wholetime",
           "appliances": [
             "1x WrL",
-            "1x HVP"
+            "1x TL"
           ],
           "address": "Whitehill Street West",
           "town": "Stockport",
@@ -250,12 +252,16 @@
         },
         {
           "id": "G21",
-          "name": "Stockport",
+          "name": "Stockport Central",
           "staffing": "Wholetime",
           "appliances": [
             "1x WrL"
           ],
-          "closedSince2021": true
+          "coords": {
+            "lat": 53.424461,
+            "lng": -2.165853
+          },
+          "notes": "Temporarily based at Whitehill (G20) during the Stockport Central rebuild — real callsign G21P1 stays on the run from the Whitehill site."
         },
         {
           "id": "G22",
@@ -331,7 +337,7 @@
           "name": "Rochdale",
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
-            "2x WrL",
+            "2x WrL +UHPL",
             "1x ICU"
           ],
           "address": "Halifax Road",
@@ -354,8 +360,7 @@
           "staffing": "Day Crewed/Dual Crewed",
           "appliances": [
             "1x WrL",
-            "1x BASU",
-            "1x WFU"
+            "1x WFU @M6"
           ],
           "address": "Whitelees Road",
           "town": "Littleborough",
@@ -376,7 +381,7 @@
           "name": "Heywood",
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
             "1x WIU"
           ],
           "address": "Middleton Road",
@@ -399,7 +404,7 @@
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
             "1x WrL",
-            "1x HVP"
+            "1x HLP"
           ],
           "address": "Lees Road",
           "town": "Oldham",
@@ -441,7 +446,8 @@
           "name": "Chadderton",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
+            "1x HLL",
             "1x SACU"
           ],
           "address": "Broadway",
@@ -464,8 +470,7 @@
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
             "1x WrL",
-            "1x PM+EPU",
-            "1x WFU"
+            "1x PM+EPU"
           ],
           "address": "Magdalene Road",
           "town": "Bury",
@@ -486,7 +491,7 @@
           "name": "Whitefield",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "1x WrL +UHPL"
           ],
           "address": "Bury New Road",
           "town": "Whitefield",
@@ -507,7 +512,7 @@
           "name": "Ramsbottom",
           "staffing": "Day Crewed/Dual Crewed",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
             "1x DIM"
           ],
           "address": "Stubbins Lane",
@@ -530,7 +535,7 @@
           "staffing": "Wholetime",
           "appliances": [
             "1x WrL",
-            "1x TRU",
+            "1x TRU_pump",
             "1x TRU_van",
             "1x USAR"
           ],
@@ -554,7 +559,8 @@
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
             "1x WrL",
-            "1x WFU"
+            "1x ATV",
+            "1x ATV @M3"
           ],
           "address": "Rassbottom Street",
           "town": "Stalybridge",
@@ -598,7 +604,7 @@
           "name": "Hyde",
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
             "1x CSU",
             "1x WU"
           ],
@@ -626,8 +632,8 @@
           "name": "Bolton Central",
           "staffing": "Wholetime/Jump Crewed",
           "appliances": [
-            "2x WrL",
-            "1x HLP",
+            "2x WrL +UHPL",
+            "1x TL",
             "2x PM",
             "pods: 1x HVP, 1x HVHL"
           ],
@@ -651,8 +657,8 @@
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
             "1x WrL",
-            "1x L6P",
-            "1x HLL"
+            "1x ATV",
+            "1x ATV @M3"
           ],
           "address": "Crompton Way",
           "town": "Bolton",
@@ -673,7 +679,8 @@
           "name": "Horwich",
           "staffing": "Day Crewed",
           "appliances": [
-            "1x WrL"
+            "1x WrL +UHPL",
+            "1x WFU"
           ],
           "address": "Chorley New Road",
           "town": "Horwich",
@@ -694,9 +701,11 @@
           "name": "Farnworth",
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
-            "2x WrL",
+            "1x WrL",
+            "1x WrL @P2 +UHPL",
             "1x BFU",
-            "1x PM (UTC pod)"
+            "1x PM @T7",
+            "pods: 1x MDU, 1x UTC"
           ],
           "address": "Albert Road",
           "town": "Farnworth",
@@ -717,7 +726,7 @@
           "name": "Wigan",
           "staffing": "Wholetime",
           "appliances": [
-            "2x WrL"
+            "2x WrL +UHPL"
           ],
           "address": "Robin Park Road",
           "town": "Wigan",
@@ -739,7 +748,7 @@
           "name": "Hindley",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "1x WrL +UHPL"
           ],
           "address": "Borsdane Avenue",
           "town": "Hindley",
@@ -761,7 +770,8 @@
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
             "1x WrL",
-            "1x CSU"
+            "1x CSU",
+            "1x WU"
           ],
           "address": "Gloucester Street",
           "town": "Atherton",
@@ -783,7 +793,7 @@
           "staffing": "Wholetime",
           "appliances": [
             "1x WrL",
-            "1x TRU",
+            "1x TRU_pump",
             "1x TRU_van",
             "1x HLP"
           ],
@@ -806,9 +816,8 @@
           "name": "Salford",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrT (Trial Basis)",
-            "1x WrL",
-            "1x SACU"
+            "1x WrT @P1 +HRET",
+            "1x WrL @P2 +UHPL"
           ],
           "address": "Liverpool Street",
           "town": "Salford",
@@ -829,7 +838,7 @@
           "name": "Broughton",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL"
+            "1x WrL +UHPL"
           ],
           "address": "Bury New Road",
           "town": "Broughton",
@@ -850,8 +859,7 @@
           "name": "Agecroft",
           "staffing": "Wholetime",
           "appliances": [
-            "1x WrL",
-            "1x SDU"
+            "1x WrL"
           ],
           "address": "Bolton Road",
           "town": "Pendlebury",
@@ -872,7 +880,7 @@
           "name": "Eccles",
           "staffing": "Wholetime/Dual Crewed",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
             "1x WIU"
           ],
           "address": "Liverpool Road",
@@ -894,9 +902,9 @@
           "name": "Irlam",
           "staffing": "Day Crewed/Dual Crewed",
           "appliances": [
-            "1x WrL",
+            "1x WrL +UHPL",
             "1x WFU",
-            "1x WU"
+            "1x WU @S7"
           ],
           "address": "Fairhills Road",
           "town": "Irlam",

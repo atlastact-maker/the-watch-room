@@ -120,6 +120,7 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
   WrL: ["BA"],
   WrT: ["BA", "Aerial"],
   L6P: ["BA"],
+  ATV: [],
   TL: ["Aerial"],
   HLP: ["Aerial"],
   WIU: ["WaterRescue"],
@@ -880,8 +881,16 @@ export function doorTypeForScenario(sc: Scenario): DoorType {
   return "upvc"; // most retro-fitted UK housing stock
 }
 
-/** Tactical firefighting posture for a running jet. */
-export type HoseAttackMode = "exterior_cooling" | "exterior_attack" | "interior_attack";
+/** Tactical firefighting posture for a running jet. uhpl_lance is the
+ *  Ultra High Pressure Lance (cold-cut): pierces the building skin from
+ *  outside and cuts/cools the compartment with a fine high-pressure mist
+ *  — deep-fire effect without committing BA, tiny water usage. Only
+ *  appliances carrying the UHPL or HRET fit can run it. */
+export type HoseAttackMode =
+  | "exterior_cooling"
+  | "exterior_attack"
+  | "uhpl_lance"
+  | "interior_attack";
 
 /** Fire-suppression rate (metres/minute reduction) per attack mode.
  *  Interior attack is the most effective but needs BA crew under air.
@@ -890,6 +899,10 @@ export type HoseAttackMode = "exterior_cooling" | "exterior_attack" | "interior_
 export const SUPPRESSION_MPM_BY_MODE: Record<HoseAttackMode, number> = {
   exterior_cooling: 0.08,
   exterior_attack: 0.18,
+  // Between an exterior and an interior attack: reaches seated fire the
+  // exterior jet cannot, without BA committal. HRET turrets boost this
+  // further in the sim (piercing tip + far greater flow).
+  uhpl_lance: 0.28,
   interior_attack: 0.35,
 };
 
@@ -914,6 +927,7 @@ export const ATTACK_EFFECTIVENESS: Record<
   structural: {
     exterior_cooling: 1.0,
     exterior_attack: 1.0,
+    uhpl_lance: 1.0,
     interior_attack: 1.0,
   },
   electrical: {
@@ -923,6 +937,9 @@ export const ATTACK_EFFECTIVENESS: Record<
     // pass should work — the sim checks hazard mitigation separately.
     exterior_cooling: 0.2,
     exterior_attack: -0.2,
+    // The lance's fine mist at distance is the one water option that is
+    // defensible on a live supply — reduced effect, not counter-productive.
+    uhpl_lance: 0.3,
     interior_attack: -0.3,
   },
   flammable_liquid: {
@@ -931,6 +948,9 @@ export const ATTACK_EFFECTIVENESS: Record<
     // is the only sane option.
     exterior_cooling: 0.3,
     exterior_attack: -0.5,
+    // Mist won't spread burning liquid the way a jet does, but it isn't
+    // foam either.
+    uhpl_lance: 0.2,
     interior_attack: -0.5,
   },
   metal: {
@@ -939,6 +959,7 @@ export const ATTACK_EFFECTIVENESS: Record<
     // mildly useful to protect exposures.
     exterior_cooling: 0.15,
     exterior_attack: -0.4,
+    uhpl_lance: -0.2,
     interior_attack: -0.4,
   },
   lpg_gas: {
@@ -947,6 +968,7 @@ export const ATTACK_EFFECTIVENESS: Record<
     // BLEVE. Interior attack without isolation is suicidal.
     exterior_cooling: 0.8,
     exterior_attack: 0.0,
+    uhpl_lance: 0.1,
     interior_attack: -0.2,
   },
   bulk_combustible: {
@@ -955,12 +977,16 @@ export const ATTACK_EFFECTIVENESS: Record<
     // (High Volume Pump pod on a Prime Mover) for full rate.
     exterior_cooling: 0.4,
     exterior_attack: 0.5,
+    // Deep-seated bulk fire is the lance's home ground.
+    uhpl_lance: 0.6,
     interior_attack: 0.6,
   },
   vehicle: {
     // Water-foam mix ideal; plain water works at reduced rate.
     exterior_cooling: 0.7,
     exterior_attack: 0.8,
+    // Cold-cut through bodywork is close to the ideal vehicle-fire tool.
+    uhpl_lance: 0.9,
     interior_attack: 0.6,
   },
   vegetation: {
@@ -969,6 +995,8 @@ export const ATTACK_EFFECTIVENESS: Record<
     // firebreaks). "Interior" attack has no meaning on open moor.
     exterior_cooling: 0.5,
     exterior_attack: 0.7,
+    // No compartment to pierce on open moor.
+    uhpl_lance: 0.2,
     interior_attack: 0.3,
   },
 };
@@ -1023,6 +1051,9 @@ export type Task = {
   /** For hose_attack: exterior cooling / exterior attack / interior attack.
    *  Affects suppression rate and safety posture. */
   attackMode?: HoseAttackMode;
+  /** Set when a uhpl_lance attack runs from an HRET-fitted appliance —
+   *  the piercing turret flows far more water than the handheld lance. */
+  hretTurret?: boolean;
   /** Hose polyline following a real foot-walking route (for
    *  connect_hydrant + relay_hose). */
   hosePath?: [number, number][];

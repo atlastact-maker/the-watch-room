@@ -10,6 +10,7 @@ export type ApplianceTypeCode =
   | "WrL" | "WrT" | "L6P" | "TL" | "HLP"
   | "WIU" | "ICU" | "CSU" | "OSU" | "FIU"
   | "BASU" | "BFU" | "SACU" | "WU" | "WFU"
+  | "ATV"
   | "HLL" | "PM"
   | "TRU_pump" | "TRU_van" | "USAR" | "SDU" | "DIM"
   // Ambulance (NWAS)
@@ -25,7 +26,12 @@ export type ApplianceTypeCode =
   | "Police_Search"     // POLSA-led specialist search team
   | "Police_SIO";       // Senior Investigating Officer car
 
-export type PodTypeCode = "EPU" | "HVP" | "HVHL" | "UTC";
+export type PodTypeCode = "EPU" | "HVP" | "HVHL" | "UTC" | "MDU";
+
+/** Vehicle-mounted capability flags from the fleet reference — UHPL
+ *  (Ultra High Pressure Lance / cold-cut) on roughly half the pumps,
+ *  HRET (High Reach Extendable Turret) on Salford's P1. */
+export type ApplianceCapability = "UHPL" | "HRET";
 
 /** Non-specialist front-line types — a generic pump or a regular double-
  *  crewed ambulance / RRV. Anything outside this set counts as a specialist
@@ -108,7 +114,9 @@ export type Appliance = {
   service: ServiceCode;
   type: ApplianceTypeCode;
   typeName: string;
-  podType?: PodTypeCode;     // if this is a PM carrying a pod
+  podType?: PodTypeCode;
+  /** UHPL / HRET fits carried by this specific vehicle. */
+  capabilities?: ApplianceCapability[];     // if this is a PM carrying a pod
   status: StatusCode;
   crew: { current: number; min: number; max: number };
   crewMembers: CrewMember[];

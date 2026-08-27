@@ -4,6 +4,7 @@ import nwasJson from "@/../data/research/ambulance/nwas_stations.json";
 import gmpJson from "@/../data/research/police/gmp_stations.json";
 import type {
   Appliance,
+  ApplianceCapability,
   ApplianceType,
   ApplianceTypeCode,
   AreaCode,
@@ -53,7 +54,7 @@ function extractAvailablePods(rawList: string[] | undefined): PodTypeCode[] | un
 }
 
 function isPodCode(s: string): s is PodTypeCode {
-  return s === "EPU" || s === "HVP" || s === "HVHL" || s === "UTC";
+  return s === "EPU" || s === "HVP" || s === "HVHL" || s === "UTC" || s === "MDU";
 }
 
 function buildStationList(
@@ -107,58 +108,83 @@ type Parsed = {
   type: ApplianceTypeCode;
   podType?: PodTypeCode;
   note?: string;
+  /** "@P2"-style pin from the raw string — the real designator where the
+   *  type's default sequence would generate the wrong callsign. */
+  designatorOverride?: string;
+  /** "+UHPL"/"+HRET" flags from the raw string. */
+  capabilities?: ApplianceCapability[];
 };
 
 function parseApplianceString(raw: string): Parsed[] {
-  const trimmed = raw.trim();
+  let trimmed = raw.trim();
+
+  // Strip designator pins and capability flags before the type regexes
+  // run: "1x WFU @M6", "1x WrT @P1 +HRET". "+EPU"-style pod suffixes are
+  // left alone — only known capability tokens are consumed.
+  let designatorOverride: string | undefined;
+  const capabilities: ApplianceCapability[] = [];
+  trimmed = trimmed.replace(/\s@([A-Z]\d+)\b/g, (_, d: string) => {
+    designatorOverride = d;
+    return "";
+  });
+  trimmed = trimmed.replace(/\s\+(UHPL|HRET)\b/g, (_, c: string) => {
+    capabilities.push(c as ApplianceCapability);
+    return "";
+  });
+  const decorate = (list: Parsed[]): Parsed[] =>
+    list.map((p) => ({
+      ...p,
+      designatorOverride,
+      capabilities: capabilities.length > 0 ? capabilities : undefined,
+    }));
 
   if (trimmed.toLowerCase().startsWith("pods:")) return [];
 
   // "1x PM (UTC pod)" / "1x PM+EPU"
   const podMatch = /^(\d+)x\s+PM\s*(?:\(([A-Z]+)\s*pod\)|\+([A-Z]+))$/i.exec(trimmed);
   if (podMatch) {
-    return [
+    return decorate([
       {
         count: Number(podMatch[1]),
         type: "PM",
         podType: (podMatch[2] || podMatch[3]) as PodTypeCode,
       },
-    ];
+    ]);
   }
 
   // "3x HART vehicle" (multi-word type) — normalise to HART_vehicle
   const hartVehicle = /^(\d+)x\s+HART\s+vehicle$/i.exec(trimmed);
   if (hartVehicle) {
-    return [{ count: Number(hartVehicle[1]), type: "HART_vehicle" }];
+    return decorate([{ count: Number(hartVehicle[1]), type: "HART_vehicle" }]);
   }
 
   // "1x HEMS helicopter" / "1x IRU" / "1x BASICS volunteer…" — match first capitalised token
   const hemsMatch = /^(\d+)x\s+HEMS/i.exec(trimmed);
-  if (hemsMatch) return [{ count: Number(hemsMatch[1]), type: "HEMS" }];
+  if (hemsMatch) return decorate([{ count: Number(hemsMatch[1]), type: "HEMS" }]);
 
   const cccMatch = /^(\d+)x\s+CCC$/i.exec(trimmed);
-  if (cccMatch) return [{ count: Number(cccMatch[1]), type: "CCC" }];
+  if (cccMatch) return decorate([{ count: Number(cccMatch[1]), type: "CCC" }]);
 
   const qrMatch = /^(\d+)x\s+QR$/i.exec(trimmed);
-  if (qrMatch) return [{ count: Number(qrMatch[1]), type: "QR" }];
+  if (qrMatch) return decorate([{ count: Number(qrMatch[1]), type: "QR" }]);
 
   const odMatch = /^(\d+)x\s+OD$/i.exec(trimmed);
-  if (odMatch) return [{ count: Number(odMatch[1]), type: "OD" }];
+  if (odMatch) return decorate([{ count: Number(odMatch[1]), type: "OD" }]);
 
   // "1x IRU" — ambulance IRU (ambiguous with fire IRU; we're only using in ambulance context)
   const iruMatch = /^(\d+)x\s+IRU/i.exec(trimmed);
-  if (iruMatch) return [{ count: Number(iruMatch[1]), type: "NWAS_IRU" }];
+  if (iruMatch) return decorate([{ count: Number(iruMatch[1]), type: "NWAS_IRU" }]);
 
   // "1x WrT (Trial Basis)" — parenthetical as note
   const noteMatch = /^(\d+)x\s+(\w+)\s*\(([^)]+)\)$/.exec(trimmed);
   if (noteMatch) {
-    return [
+    return decorate([
       {
         count: Number(noteMatch[1]),
         type: noteMatch[2] as ApplianceTypeCode,
         note: noteMatch[3],
       },
-    ];
+    ]);
   }
 
   // "1x WrL" / "2x WrL" / "3x DCA" / "1x RRV"
@@ -166,7 +192,7 @@ function parseApplianceString(raw: string): Parsed[] {
   if (simple) {
     let type = simple[2] as ApplianceTypeCode;
     if ((type as string) === "TRU") type = "TRU_pump";
-    return [{ count: Number(simple[1]), type }];
+    return decorate([{ count: Number(simple[1]), type }]);
   }
 
   return [];
@@ -265,7 +291,9 @@ export function buildAppliances(
         } else {
           const designators = type.designators ?? [];
           designator =
-            designators[ordinal - 1] ?? `${type.callsignCategory}${ordinal}`;
+            parsed.designatorOverride ??
+            designators[ordinal - 1] ??
+            `${type.callsignCategory}${ordinal}`;
           // Force-wide stations (HART base, NWAA Barton, BASICS) use the
           // designator alone — the designator is already a full over-air
           // callsign (e.g. "Z301", "HELIMED 72"), so stapling the station
@@ -286,6 +314,7 @@ export function buildAppliances(
             ? `${type.fullName} (carrying ${POD_TYPES[parsed.podType]?.fullName ?? parsed.podType})`
             : type.fullName,
           podType: parsed.podType,
+          capabilities: parsed.capabilities,
           status: 7,
           crew: { current: type.crew.max, min: type.crew.min, max: type.crew.max },
           crewMembers: buildCrewMembers(applianceId, parsed.type, station.service, designator),

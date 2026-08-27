@@ -130,7 +130,11 @@ function suppressionRateFor(
 ): number {
   if (t.kind === "hose_attack") {
     const mode = t.attackMode ?? "interior_attack";
-    const base = SUPPRESSION_MPM_BY_MODE[mode];
+    let base = SUPPRESSION_MPM_BY_MODE[mode];
+    // High Reach Extendable Turret: same cold-cut principle as the
+    // handheld lance, but vehicle-mounted with a piercing tip and far
+    // greater flow.
+    if (mode === "uhpl_lance" && t.hretTurret) base *= 1.3;
     let mult = ATTACK_EFFECTIVENESS[material][mode];
     // Electrical fires — water effectiveness returns to partial once the
     // operator has isolated the supply via a mitigate_hazard task.

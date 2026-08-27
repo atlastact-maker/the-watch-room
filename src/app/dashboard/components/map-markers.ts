@@ -36,6 +36,7 @@ export function serviceMarker(
   type?: ApplianceTypeCode,
 ): { colour: string; code: string } {
   if (service === "Police") return { colour: "#1d4ed8", code: "PC" };
+  if (type === "ATV") return { colour: "#9a3412", code: "AT" };
   if (service === "Ambulance") {
     if (type === "HART_vehicle" || type === "NWAS_IRU" || type === "HEMS")
       return { colour: "#0d9488", code: "HT" };

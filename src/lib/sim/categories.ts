@@ -33,6 +33,7 @@ const TYPE_TO_CATEGORY: Record<ApplianceTypeCode, VehicleCategory> = {
   WrL: "fire_appliances",
   WrT: "fire_appliances",
   L6P: "fire_appliances",
+  ATV: "fire_appliances",
   // Aerial.
   TL: "fire_aerial",
   HLP: "fire_aerial",

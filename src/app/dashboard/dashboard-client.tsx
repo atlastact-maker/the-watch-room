@@ -2844,6 +2844,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     hazardId?: string;
     mitigationMethod?: string;
     attackMode?: import("@/lib/sim/incident_types").HoseAttackMode;
+    hretTurret?: boolean;
     baMode?: "search" | "firefighting";
     casualtyId?: string;
     entryTool?: import("@/lib/sim/incident_types").EntryTool;
@@ -2905,6 +2906,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       hazardId: args.hazardId,
       mitigationMethod: args.mitigationMethod,
       attackMode: args.attackMode,
+      hretTurret: args.hretTurret,
       baMode: args.baMode,
       casualtyId: args.casualtyId,
       entryTool: args.entryTool,

@@ -248,9 +248,9 @@
     },
     "WFU": {
       "fullName": "Wildfire Unit",
-      "callsignCategory": "L",
+      "callsignCategory": "M",
       "designators": [
-        "L2"
+        "M2"
       ],
       "crew": {
         "min": 2,
@@ -648,6 +648,23 @@
         "Scene lighting",
         "First aid"
       ]
+    },
+    "ATV": {
+      "fullName": "All-Terrain Vehicle (beavertail + tracked carrier)",
+      "callsignCategory": "M",
+      "designators": [
+        "M1"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Wildfire beaters",
+        "Knapsack sprayers",
+        "Stretcher"
+      ]
     }
   },
   "pods": {
@@ -678,6 +695,14 @@
       "fullName": "USAR Timber Carrier",
       "kit": [
         "Timber for shoring (USAR)"
+      ]
+    },
+    "MDU": {
+      "fullName": "Mass Decontamination Unit",
+      "kit": [
+        "Decontamination shelters",
+        "Disrobe/re-robe packs",
+        "Water heaters"
       ]
     }
   },
