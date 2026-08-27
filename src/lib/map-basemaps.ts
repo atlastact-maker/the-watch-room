@@ -104,11 +104,11 @@ export const STREET: Basemap = {
 
 /** Ground-view options, best first. Without an OS key the street map
  *  takes its place so the toggle still has two sides. */
-/** What the toggle offers. Kept to two so the control stays a glance
- *  rather than a menu; the raster OS styles stay defined above and are one
- *  line away if the vector cartography ever disappoints. */
+/** What the toggle offers. Raster OS first for now — one URL template,
+ *  no style assembly, nothing for the browser to get wrong. The vector
+ *  layer stays defined above for another run at it later. */
 export function groundBasemaps(): Basemap[] {
-  return osMappingEnabled() ? [OS_VECTOR, AERIAL] : [STREET, AERIAL];
+  return osMappingEnabled() ? [OS_MAP, OS_OUTDOOR, AERIAL] : [STREET, AERIAL];
 }
 
 export function basemapById(id: BasemapId): Basemap {
