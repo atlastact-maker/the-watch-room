@@ -18,7 +18,7 @@ import {
   chipServiceColour,
   incidentMarkerSvg,
   serviceMarker,
-  unitMarkerHtml,
+  unitDivIcon,
   type ChipOpts,
   type IncidentMarkerKind,
 } from "./map-markers";
@@ -67,17 +67,31 @@ function trailStyle(color: string): L.PathOptions {
 // Marker icons
 // ---------------------------------------------------------------------------
 
+/** The incident triangle animates (mk-999 pulse, mk-inc breathe), so it
+ *  gets the same treatment as the unit markers: one icon per kind, ever,
+ *  or the 250ms clock restarts the animation from frame zero each tick. */
+const INCIDENT_ICONS = new Map<IncidentMarkerKind, L.DivIcon>();
+function incidentIcon(kind: IncidentMarkerKind): L.DivIcon {
+  let icon = INCIDENT_ICONS.get(kind);
+  if (!icon) {
+    icon = L.divIcon({
+      className: "",
+      iconSize: [80, 66],
+      iconAnchor: [40, 48],
+      popupAnchor: [0, -36],
+      html: incidentMarkerSvg(kind),
+    });
+    INCIDENT_ICONS.set(kind, icon);
+  }
+  return icon;
+}
+
 /** The marker's width is set by its callsign plate, so the box is left to
- *  size itself and only the anchor is pinned. Leaving iconSize off keeps
- *  the roundel, cluster badge and 999 ring free to overhang. */
+ *  size itself and only the anchor is pinned. Cached by inputs - see
+ *  unitDivIcon - so re-renders reuse the same DOM and animations keep
+ *  their rhythm. */
 function chipIcon(opts: ChipOpts): L.DivIcon {
-  const m = unitMarkerHtml(opts);
-  return L.divIcon({
-    className: "",
-    iconAnchor: m.anchor,
-    popupAnchor: [0, -m.anchor[1]],
-    html: m.html,
-  });
+  return unitDivIcon(opts);
 }
 
 /** Fires once each time the operator zooms in past the detail
@@ -330,6 +344,13 @@ export function PatchLayers({
   // array identity between clock ticks — a new array means Leaflet
   // re-simplifies and redraws the whole dashed line, and at 4Hz that is
   // the flicker you see while units are still responding.
+  // Keyed by which legs exist, not by the deployments array's identity -
+  // sim ticks that recreate the array without changing the legs must not
+  // hand every dashed line a fresh coordinates array to redraw.
+  const legFingerprint = deployments
+    .map((d) => `${d.applianceId}:${d.hospitalCoords ? 1 : 0}`)
+    .join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fallbackRoutes = useMemo(() => {
     const out = new Map<string, [number, number][]>();
     if (!activeIncident) return out;
@@ -358,7 +379,8 @@ export function PatchLayers({
       ]);
     }
     return out;
-  }, [deployments, stations, activeIncident]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legFingerprint, stations, activeIncident?.id]);
 
   const inFlight = useMemo(() => {
     if (!activeIncident) return [];
@@ -623,19 +645,13 @@ export function PatchLayers({
             activeIncident.scenario.location.coords.lat,
             activeIncident.scenario.location.coords.lng,
           ]}
-          icon={L.divIcon({
-            className: "",
-            iconSize: [80, 66],
-            iconAnchor: [40, 48],
-            popupAnchor: [0, -36],
-            html: incidentMarkerSvg(
-              (activeIncident.resolvedAt
-                ? "closed"
-                : deployments.length > 0
-                  ? "assigned"
-                  : "unassigned") as IncidentMarkerKind,
-            ),
-          })}
+          icon={incidentIcon(
+            activeIncident.resolvedAt
+              ? "closed"
+              : deployments.length > 0
+                ? "assigned"
+                : "unassigned",
+          )}
         >
           <Popup>
             <div

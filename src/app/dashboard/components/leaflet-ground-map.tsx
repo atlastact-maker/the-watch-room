@@ -34,7 +34,7 @@ import type {
 import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
 import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
-import { serviceMarker, unitMarkerHtml } from "./map-markers";
+import { serviceMarker, unitDivIcon } from "./map-markers";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
 import {
@@ -279,24 +279,21 @@ export function applianceIcon(
   hovered: boolean,
 ): L.DivIcon {
   const sm = serviceMarker(service as ServiceCode, applianceType);
-  const m = unitMarkerHtml({
-    callsign,
-    // Anything drawn on the ground map is, by definition, in attendance.
-    status: "attendance",
-    serviceColour: sm.colour,
-    resourceCode: sm.code,
-    zoom: mapZoom,
-    subtitle: applianceType,
-    selected: selected || hovered,
-    commander,
-  });
   void showLabel; // the plate carries the callsign at every tier now
-  return L.divIcon({
-    className: "",
-    iconAnchor: m.anchor,
-    popupAnchor: [0, -m.anchor[1]],
-    html: `<div style="pointer-events:auto;cursor:pointer;">${m.html}</div>`,
-  });
+  return unitDivIcon(
+    {
+      callsign,
+      // Anything drawn on the ground map is, by definition, in attendance.
+      status: "attendance",
+      serviceColour: sm.colour,
+      resourceCode: sm.code,
+      zoom: mapZoom,
+      subtitle: applianceType,
+      selected: selected || hovered,
+      commander,
+    },
+    { interactive: true },
+  );
 }
 
 /** A previewed parking position for a unit still en route — the same
@@ -308,18 +305,14 @@ function parkingGhostIcon(
   mapZoom: number,
 ): L.DivIcon {
   const sm = serviceMarker(service as ServiceCode, applianceType);
-  const m = unitMarkerHtml({
+  // The wrapping Marker is interactive={false}, so no pointer wrapper.
+  return unitDivIcon({
     callsign,
     status: "mobile",
     serviceColour: sm.colour,
     resourceCode: sm.code,
     zoom: mapZoom,
     dimmed: true,
-  });
-  return L.divIcon({
-    className: "",
-    iconAnchor: m.anchor,
-    html: `<div style="pointer-events:none;">${m.html}</div>`,
   });
 }
 
@@ -621,10 +614,17 @@ function musterDraftIcon(radiusM: number): L.DivIcon {
 
 /** Aviation-style helipad "H" with a status chip beneath. Rendered under
  *  the aircraft sprite so a landed HELIMED sits on a marked-out pad. */
+const HELIPAD_ICONS = new Map<string, L.DivIcon>();
+
+/** Cached per (callsign, phase) — the inbound chip blinks, and the
+ *  1Hz clock rebuilding the icon restarted the blink every second. */
 function helipadIcon(
   callsign: string,
   phase: "inbound" | "walking" | "ground",
 ): L.DivIcon {
+  const cacheKey = `${callsign}|${phase}`;
+  const hit = HELIPAD_ICONS.get(cacheKey);
+  if (hit) return hit;
   const chipColour =
     phase === "inbound" ? "#fbbf24" : "#34d399";
   const chipText =
@@ -637,7 +637,7 @@ function helipadIcon(
     phase === "inbound"
       ? "animation: lz-blink 1.1s steps(2, start) infinite;"
       : "";
-  return L.divIcon({
+  const icon = L.divIcon({
     className: "",
     iconSize: [220, 110],
     iconAnchor: [110, 40],
@@ -675,6 +675,8 @@ function helipadIcon(
       </style>
     `,
   });
+  HELIPAD_ICONS.set(cacheKey, icon);
+  return icon;
 }
 
 /** Offset a lat/lng by `meters` along a compass bearing (deg, 0 = north).

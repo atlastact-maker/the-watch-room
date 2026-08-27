@@ -13,6 +13,7 @@
 // 80×66 viewBox. The mk-999 / mk-inc animation classes live in
 // globals.css; the HTML markers use mk-999-box.
 
+import L from "leaflet";
 import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 
 // Status codes & colours (pack README).
@@ -149,6 +150,42 @@ const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 const LEADER_H = 10;
 const SELECTED_LEADER_H = 12;
 const DOT = 8;
+
+/**
+ * Icon instances, cached by their inputs.
+ *
+ * The maps rebuild their markers on a 250ms clock so movers glide, and
+ * handing Leaflet a fresh DivIcon each tick replaces the marker's DOM -
+ * which restarts every CSS animation on it from frame zero. The 999
+ * pulse never got past its first frames and strobed at 4Hz instead of
+ * breathing at 1.4s. Same inputs, same instance: Leaflet sees an
+ * unchanged icon, the DOM stays put, the animation runs its rhythm.
+ */
+const ICON_CACHE = new Map<string, L.DivIcon>();
+
+export function unitDivIcon(
+  o: ChipOpts,
+  opts?: { interactive?: boolean },
+): L.DivIcon {
+  const interactive = opts?.interactive ?? false;
+  const key = JSON.stringify(o) + (interactive ? "|i" : "");
+  const hit = ICON_CACHE.get(key);
+  if (hit) return hit;
+  const m = unitMarkerHtml(o);
+  const icon = L.divIcon({
+    className: "",
+    iconAnchor: m.anchor,
+    popupAnchor: [0, -m.anchor[1]],
+    html: interactive
+      ? `<div style="pointer-events:auto;cursor:pointer;">${m.html}</div>`
+      : m.html,
+  });
+  // Zoom tiers, statuses and callsigns bound the space, but clear it if
+  // something unbounded (subtitles per type, say) ever inflates it.
+  if (ICON_CACHE.size > 400) ICON_CACHE.clear();
+  ICON_CACHE.set(key, icon);
+  return icon;
+}
 
 export type UnitMarker = {
   html: string;
