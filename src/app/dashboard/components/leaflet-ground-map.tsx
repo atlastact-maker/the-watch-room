@@ -963,14 +963,37 @@ export function LeafletGroundMap({
   // until then the click handler falls through to the raw lat/lng.
   const [osmRoads, setOsmRoads] = useState<OsmRoadWay[]>([]);
   useEffect(() => {
-    let cancelled = false;
     // 500m, not 250: road closures go in at the approach junctions, and
     // the closed-stretch paint can only follow geometry it has.
-    fetchOsmRoads({ lat: incidentLat, lng: incidentLng }, 500).then((ways) => {
-      if (!cancelled) setOsmRoads(ways);
-    });
+    //
+    // Retried, because this call races the building and hydrant fetches
+    // against the same rate-limited Overpass mirrors at mount and loses
+    // often enough to matter. One silent empty response used to cost the
+    // whole incident its road snapping AND its closure paint. The cache
+    // drops empty results, so each retry is a real refetch; anything the
+    // operator placed before the roads land re-snaps its paint on the
+    // render after they do.
+    let cancelled = false;
+    let timer: number | undefined;
+    const DELAYS_MS = [5_000, 15_000, 45_000];
+    let attempt = 0;
+    const tryFetch = () => {
+      fetchOsmRoads({ lat: incidentLat, lng: incidentLng }, 500).then((ways) => {
+        if (cancelled) return;
+        if (ways.length > 0) {
+          setOsmRoads(ways);
+          return;
+        }
+        if (attempt < DELAYS_MS.length) {
+          timer = window.setTimeout(tryFetch, DELAYS_MS[attempt]);
+          attempt++;
+        }
+      });
+    };
+    tryFetch();
     return () => {
       cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [incidentLat, incidentLng]);
 
