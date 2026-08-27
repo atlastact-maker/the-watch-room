@@ -174,10 +174,22 @@ export async function GET(
             await idxRes.json();
           if (!Array.isArray(idx.tiles)) continue;
           delete src.url;
+          // The index comes from a separate fetch, so it never went
+          // through the text-level rewrite above — sanitise each entry
+          // here: repoint the host AND strip the key OS embeds in its
+          // URLs. Without the strip the key ends up in a publicly cached
+          // style document, which is precisely what the proxy exists to
+          // prevent.
+          const sanitise = (u: string) =>
+            u
+              .split(UPSTREAM)
+              .join(`${origin}${PROXY}`)
+              .replace(/key=[^&]*&?/g, "")
+              .replace(/[?&]$/, "");
           src.tiles = idx.tiles.map((t) =>
             typeof t === "string" && !/^https?:\/\//.test(t)
-              ? `${origin}${PROXY}/${t.replace(/^\.?\//, "")}`
-              : String(t).split(UPSTREAM).join(`${origin}${PROXY}`),
+              ? sanitise(`${origin}${PROXY}/${t.replace(/^\.?\//, "")}`)
+              : sanitise(String(t)),
           );
           src.minzoom = typeof idx.minzoom === "number" ? idx.minzoom : 0;
           // OS publish vector tiles to z15; overzoom covers the rest. The
