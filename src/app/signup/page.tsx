@@ -50,7 +50,10 @@ export default async function SignupPage({
             &gt; New operator registration
           </div>
           <p className="text-xs leading-relaxed text-(--color-text-muted)">
-            Account required to save campaign progress between shifts.
+            The Watch Room is in closed development — shifts open to
+            registered operators when the doors do. Served in Fire,
+            Ambulance, Police or Control? Tick the advisor box below and
+            help shape the simulation now.
           </p>
 
           <SignupForm defaultAdvisorOpen={advisor === "1"} />

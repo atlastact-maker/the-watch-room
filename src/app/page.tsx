@@ -72,11 +72,14 @@ export default async function LandingPage() {
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
+              {/* Closed development: shifts are allowlisted, so the
+                  front door is registration + the advisor programme
+                  rather than a shift that would bounce to /standby. */}
               <Link
                 href="/signup"
                 className="inline-flex h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 font-mono text-sm font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
               >
-                Begin Shift
+                Register
               </Link>
               <Link
                 href="/login"
