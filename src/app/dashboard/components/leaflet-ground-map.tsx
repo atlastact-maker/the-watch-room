@@ -1222,18 +1222,21 @@ export function LeafletGroundMap({
       {/* Track zoom so markers and overlays can size themselves to it. */}
       <ZoomTracker onZoom={setMapZoom} />
 
-      {/* Patch and Approach scales. */}
-      {!showGround && (
-        <PatchLayers
-          stations={stations}
-          activeIncident={incident}
-          deployments={deployments}
-          patch={patch ?? null}
-          onSelectAppliance={(id) => onSelectAppliance(id)}
-          selectedApplianceId={selectedApplianceId}
-          onOpenStationBays={onOpenStationBays}
-        />
-      )}
+      {/* Patch furniture — stations, en-route movers and their route
+          trails — at EVERY zoom, not just pulled back. Responding units
+          must stay visible the whole way in; only the incident triangle
+          hands over, to the crosshair address marker, past the detail
+          threshold. */}
+      <PatchLayers
+        stations={stations}
+        activeIncident={incident}
+        deployments={deployments}
+        patch={patch ?? null}
+        onSelectAppliance={(id) => onSelectAppliance(id)}
+        selectedApplianceId={selectedApplianceId}
+        onOpenStationBays={onOpenStationBays}
+        showIncidentMarker={!showGround}
+      />
 
       {showGround && (
       <>

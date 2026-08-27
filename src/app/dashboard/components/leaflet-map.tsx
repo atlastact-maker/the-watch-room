@@ -186,6 +186,11 @@ type Props = {
   /** Called when the operator zooms in past the ground-detail threshold —
    *  the dashboard opens the ground view on it. */
   onZoomIntoGround?: () => void;
+  /** The incident map turns this off above the detail threshold, where
+   *  its own crosshair address marker takes over from the triangle.
+   *  Stations, movers and trails are NOT gated — a responding unit must
+   *  stay visible the whole way in, not vanish at a zoom boundary. */
+  showIncidentMarker?: boolean;
 };
 
 export function LeafletMap({
@@ -304,6 +309,7 @@ export function PatchLayers({
   onSelectAppliance,
   selectedApplianceId,
   onOpenStationBays,
+  showIncidentMarker = true,
 }: Props) {
   // Markers pick their tier from live zoom — symbol only when pulled back,
   // symbol + callsign at working scale, plus a type line on the ground.
@@ -611,7 +617,7 @@ export function PatchLayers({
       ))}
 
       {/* Active incident */}
-      {activeIncident && (
+      {activeIncident && showIncidentMarker && (
         <Marker
           position={[
             activeIncident.scenario.location.coords.lat,
