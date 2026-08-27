@@ -35,6 +35,19 @@ const PROXY = "/api/os-vector";
  *  Anything else is refused rather than turned into an open proxy. */
 const ALLOWED_ROOTS = new Set(["resources", "tile"]);
 
+/** The origin the browser reached us on. Behind Vercel's proxy,
+ *  request.nextUrl can reflect the internal server address rather than
+ *  the public host, so prefer the forwarded headers — an internal origin
+ *  baked into the style would send the browser's sprite and tile
+ *  requests somewhere unreachable. */
+function requestOrigin(request: NextRequest): string {
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (!host) return request.nextUrl.origin;
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
@@ -109,13 +122,18 @@ export async function GET(
     // comes off the request, so it follows whatever host serves the app.
     const text = (await res.text())
       .split(UPSTREAM)
-      .join(`${request.nextUrl.origin}${PROXY}`)
+      .join(`${requestOrigin(request)}${PROXY}`)
       .replace(/key=[^&"\\]*&?/g, "");
     return new Response(text, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600, s-maxage=86400",
+        // max-age=0 on purpose: the browser revalidates the style on every
+        // map mount instead of trusting a copy for an hour — an hour of
+        // staleness here is an hour of serving URLs a deploy may have
+        // changed the shape of. The edge still caches (s-maxage) and is
+        // purged on deploy, so revalidation stays cheap.
+        "Cache-Control": "public, max-age=0, s-maxage=86400",
       },
     });
   }
