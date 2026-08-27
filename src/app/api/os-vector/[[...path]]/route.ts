@@ -12,25 +12,32 @@ import { createClient } from "@/lib/supabase/server";
 //
 // is reachable as /api/os-vector/<path>, with the key added here.
 //
+// The catch-all is OPTIONAL ([[...path]]) because the style's vector
+// source points at the bare service root — /api/os-vector with no path at
+// all — for its TileJSON. A required catch-all never routes that URL, the
+// source 404s, and MapLibre renders a map with nothing on it.
+//
+// Every upstream request is forced to srs=3857. OS serve this API in
+// British National Grid (27700) by default, and the Leaflet binding only
+// speaks Web Mercator — un-forced, the tiles come back in the wrong
+// projection and the geometry lands nowhere visible.
+//
 // The key never reaches the browser. OS Data Hub keys carry no referrer,
 // domain or IP restriction, so a key in a style URL is a key anyone can
-// lift and spend against the account's allowance.
-//
-// The style JSON gets one extra step: MapLibre reads absolute URLs out of
-// it for its sources, sprite and glyphs, and those point straight back at
-// api.os.uk. We rewrite them to point here instead, so the browser never
-// learns the upstream host and never needs a key of its own.
+// lift and spend against the account's allowance. JSON responses get two
+// rewrites before they leave: absolute api.os.uk URLs are pointed back at
+// this route, and any key OS echoed into those URLs is stripped.
 
 const UPSTREAM = "https://api.os.uk/maps/vector/v1/vts";
 const PROXY = "/api/os-vector";
 
-/** Path segments we will forward. Anything else is refused rather than
- *  turned into an open proxy against the OS estate. */
+/** First path segments we will forward (besides the bare service root).
+ *  Anything else is refused rather than turned into an open proxy. */
 const ALLOWED_ROOTS = new Set(["resources", "tile"]);
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ path: string[] }> },
+  context: { params: Promise<{ path?: string[] }> },
 ): Promise<Response> {
   const key = process.env.OS_DATA_HUB_KEY;
   if (!key) {
@@ -47,26 +54,29 @@ export async function GET(
   if (!user) return new Response("unauthorized", { status: 401 });
 
   const { path } = await context.params;
-  if (path.length === 0 || !ALLOWED_ROOTS.has(path[0])) {
+  const segments = path ?? [];
+  if (segments.length > 0 && !ALLOWED_ROOTS.has(segments[0])) {
     return new Response("unknown resource", { status: 400 });
   }
   // No traversal, no absolute URLs smuggled through a segment.
-  if (path.some((p) => p.includes("..") || p.includes("//"))) {
+  if (segments.some((p) => p.includes("..") || p.includes("//"))) {
     return new Response("bad path", { status: 400 });
   }
 
-  const suffix = path.map(encodeURIComponent).join("/");
-  // Keep any query OS itself asked for (the style JSON references sprites
-  // and glyphs with their own parameters), then add the key.
+  const suffix = segments.map(encodeURIComponent).join("/");
+  // Keep any query OS itself asked for (styles reference sprites and
+  // glyphs with their own parameters), then force projection and key.
   const incoming = new URLSearchParams(request.nextUrl.search);
-  incoming.delete("key");
+  incoming.set("srs", "3857");
   incoming.set("key", key);
-  const upstream = `${UPSTREAM}/${suffix}?${incoming.toString()}`;
+  const upstream =
+    `${UPSTREAM}${suffix ? `/${suffix}` : ""}?${incoming.toString()}`;
 
   let res: Response;
   try {
     res = await fetch(upstream, {
-      // Tiles and sprites are immutable per path; the style changes rarely.
+      // Tiles and sprites are immutable per path; the style and service
+      // metadata change rarely.
       next: { revalidate: 60 * 60 * 24 * 7 },
     });
   } catch {
@@ -75,16 +85,19 @@ export async function GET(
 
   if (!res.ok) return new Response(null, { status: res.status });
 
-  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
-  const isStyle = contentType.includes("json") && path[0] === "resources";
+  const contentType =
+    res.headers.get("content-type") ?? "application/octet-stream";
 
-  if (isStyle) {
-    // Point every absolute OS URL in the document back at this route, so
-    // the browser fetches sources, sprite and glyphs through us. Done as a
-    // string replace over the whole document rather than by walking known
-    // fields, because the style spec puts URLs in several places and OS
-    // may add more.
-    const text = (await res.text()).split(UPSTREAM).join(PROXY);
+  if (contentType.includes("json")) {
+    // Two rewrites over the whole document rather than a walk of known
+    // fields, because the style spec scatters URLs across sources, sprite
+    // and glyphs, the service root scatters them again, and OS may move
+    // them: point absolute OS URLs back here, and strip the key OS echoes
+    // into them so it never reaches the browser.
+    const text = (await res.text())
+      .split(UPSTREAM)
+      .join(PROXY)
+      .replace(/key=[^&"\\]*&?/g, "");
     return new Response(text, {
       status: 200,
       headers: {
