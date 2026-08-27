@@ -30,25 +30,52 @@ export function isOperator(email: string | undefined | null): boolean {
   return list.includes(email.trim().toLowerCase());
 }
 
-/** Whether this account may open the menu and run a shift. */
-export async function hasShiftAccess(
+export type AccessRole = "admin" | "operator" | "advisor";
+
+export type AccessProfile = {
+  role: AccessRole | null;
+  /** Emoji set by the developer in the user_roles table; "" for none. */
+  icon: string;
+};
+
+/** The account's assigned role and icon, from user_roles (migrations
+ *  004/005). Null role when unassigned, the table is missing, or the
+ *  lookup fails — callers treat that as plain standby. */
+export async function accessProfile(
   supabase: SupabaseClient,
   email: string | undefined | null,
-): Promise<boolean> {
-  if (isOperator(email)) return true;
-  if (!email) return false;
+): Promise<AccessProfile> {
+  if (!email) return { role: null, icon: "" };
   try {
     // ilike with no wildcard = case-insensitive equality; RLS restricts
     // the query to the caller's own row anyway.
     const { data } = await supabase
       .from("user_roles")
-      .select("role")
+      .select("role, icon")
       .ilike("email", email.trim())
       .maybeSingle();
-    return data?.role === "admin" || data?.role === "operator";
+    const role = data?.role;
+    return {
+      role:
+        role === "admin" || role === "operator" || role === "advisor"
+          ? role
+          : null,
+      icon: typeof data?.icon === "string" ? data.icon : "",
+    };
   } catch {
-    // Table missing (migration 004 not run yet) or transient failure —
-    // fall back to the allowlist result, which was false.
-    return false;
+    return { role: null, icon: "" };
   }
+}
+
+/** Whether this account may open the menu and run a shift. Advisor is
+ *  deliberately not enough — advising is about authenticity review, and
+ *  an advisor is promoted to operator per person when playtesting is
+ *  wanted. */
+export async function hasShiftAccess(
+  supabase: SupabaseClient,
+  email: string | undefined | null,
+): Promise<boolean> {
+  if (isOperator(email)) return true;
+  const { role } = await accessProfile(supabase, email);
+  return role === "admin" || role === "operator";
 }

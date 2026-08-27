@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { hasShiftAccess } from "@/lib/auth/operator-access";
+import { accessProfile, hasShiftAccess } from "@/lib/auth/operator-access";
 import { logout } from "@/lib/auth/actions";
 import { LiveConsole } from "@/app/components/live-console";
 import { DailyOrders } from "@/app/components/daily-orders";
@@ -43,6 +43,8 @@ export default async function MenuPage() {
 
   const callsign =
     (user.user_metadata as { callsign?: string } | null)?.callsign ?? null;
+  // Profile icon assigned in the user_roles table, if any.
+  const { icon } = await accessProfile(supabase, user.email);
   const fleet = fleetCounts();
 
   return (
@@ -58,6 +60,7 @@ export default async function MenuPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-(--color-amber)">
+              {icon && <span aria-hidden className="mr-1.5">{icon}</span>}
               {callsign ? callsign.toUpperCase() : "Operator"}
             </span>
             <span className="hidden text-(--color-text-dim) sm:inline">{user.email}</span>
