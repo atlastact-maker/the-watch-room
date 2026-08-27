@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  serviceKeyFor,
+  type ServiceKey,
+} from "@/app/components/service-insignia";
 
 // Closed development: the game is locked while accounts and advisor
 // sign-ups stay open. Signing up is the advisor programme's front door,
@@ -67,38 +71,38 @@ export async function accessProfile(
   }
 }
 
-/** The emoji an accepted advisor wears, derived from the service they
- *  declared on their application (ADVISOR_SERVICES in auth/schemas). An
- *  icon typed into the user_roles table always wins — this is the
- *  automatic default, so accepting an application is one row with no
- *  emoji hunting. */
-const SERVICE_ICONS: Record<string, string> = {
-  "Fire & Rescue": "🚒",
-  Ambulance: "🚑",
-  Police: "🚓",
-  "Fire Control / 999": "🎧",
-  Other: "⭐",
-};
-
-/** The icon this account should wear: the manually assigned one when
- *  set, else the service emoji off their advisor application, else
- *  nothing. Reads the caller's own advisors row, which RLS permits. */
-export async function resolveIcon(
+/** The insignia this account wears, as a ServiceKey for the
+ *  service-insignia components. The icon column in user_roles overrides
+ *  when it holds a valid key (fire / ambulance / police / control /
+ *  specialist); otherwise the key derives from the service declared on
+ *  the advisor application, so accepting an application is one row with
+ *  nothing extra to fill in. Reads the caller's own advisors row, which
+ *  RLS permits. */
+export async function resolveInsignia(
   supabase: SupabaseClient,
   userId: string | undefined | null,
   assignedIcon: string,
-): Promise<string> {
-  if (assignedIcon) return assignedIcon;
-  if (!userId) return "";
+): Promise<ServiceKey | null> {
+  const override = assignedIcon.trim().toLowerCase();
+  if (
+    override === "fire" ||
+    override === "ambulance" ||
+    override === "police" ||
+    override === "control" ||
+    override === "specialist"
+  ) {
+    return override;
+  }
+  if (!userId) return null;
   try {
     const { data } = await supabase
       .from("advisors")
       .select("service")
       .eq("user_id", userId)
       .maybeSingle();
-    return SERVICE_ICONS[data?.service ?? ""] ?? "";
+    return serviceKeyFor(data?.service);
   } catch {
-    return "";
+    return null;
   }
 }
 

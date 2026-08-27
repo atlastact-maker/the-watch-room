@@ -30,7 +30,10 @@ export const ADVISOR_SERVICES = [
   "Fire & Rescue",
   "Ambulance",
   "Police",
-  "Fire Control / 999",
+  // Deliberately service-neutral: fire control, ambulance EOC and police
+  // FCC are all control rooms, and control room experience is exactly
+  // what an operator game needs advising on.
+  "Control Room / 999",
   "Other",
 ] as const;
 

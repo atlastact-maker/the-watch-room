@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
-import { accessProfile, resolveIcon } from "@/lib/auth/operator-access";
+import { accessProfile, resolveInsignia } from "@/lib/auth/operator-access";
+import { ServiceBadge } from "@/app/components/service-insignia";
 
 // Where a signed-in account lands while the game is in closed
 // development and the account is not on the operator allowlist. The
@@ -29,11 +30,11 @@ export default async function StandbyPage() {
   );
   const { role, icon: assignedIcon } = await accessProfile(supabase, user?.email);
   const accepted = role === "advisor";
-  // Accepted advisors wear the service off their application unless a
-  // different emoji was typed into their user_roles row.
-  const icon = accepted
-    ? await resolveIcon(supabase, user?.id, assignedIcon)
-    : assignedIcon;
+  // Accepted advisors wear the insignia of the service off their
+  // application, unless a different key sits in their user_roles row.
+  const insignia = accepted
+    ? await resolveInsignia(supabase, user?.id, assignedIcon)
+    : null;
 
   return (
     <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-6">
@@ -46,9 +47,14 @@ export default async function StandbyPage() {
             {accepted ? "Advisor Room" : "Standing by"}
           </h1>
           {accepted && (
-            <div className="mt-2 inline-flex items-center gap-2 rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-info)">
-              {icon && <span aria-hidden>{icon}</span>}
-              <span>Development advisor</span>
+            <div className="mt-3">
+              {insignia ? (
+                <ServiceBadge service={insignia} />
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-sm border border-(--color-info)/60 bg-(--color-info)/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-info)">
+                  Development advisor
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import {
   accessProfile,
   hasShiftAccess,
-  resolveIcon,
+  resolveInsignia,
 } from "@/lib/auth/operator-access";
+import { ServiceSymbol } from "@/app/components/service-insignia";
 import { logout } from "@/lib/auth/actions";
 import { LiveConsole } from "@/app/components/live-console";
 import { DailyOrders } from "@/app/components/daily-orders";
@@ -47,10 +48,10 @@ export default async function MenuPage() {
 
   const callsign =
     (user.user_metadata as { callsign?: string } | null)?.callsign ?? null;
-  // Profile icon: the one assigned in user_roles, else the service
-  // emoji off an advisor application — a promoted advisor keeps theirs.
+  // Insignia: the key assigned in user_roles, else derived from an
+  // advisor application — a promoted advisor keeps their service mark.
   const { icon: assignedIcon } = await accessProfile(supabase, user.email);
-  const icon = await resolveIcon(supabase, user.id, assignedIcon);
+  const insignia = await resolveInsignia(supabase, user.id, assignedIcon);
   const fleet = fleetCounts();
 
   return (
@@ -65,9 +66,9 @@ export default async function MenuPage() {
             <span>Ops Centre</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-(--color-amber)">
-              {icon && <span aria-hidden className="mr-1.5">{icon}</span>}
-              {callsign ? callsign.toUpperCase() : "Operator"}
+            <span className="flex items-center gap-1.5 text-(--color-amber)">
+              {insignia && <ServiceSymbol service={insignia} size={18} />}
+              <span>{callsign ? callsign.toUpperCase() : "Operator"}</span>
             </span>
             <span className="hidden text-(--color-text-dim) sm:inline">{user.email}</span>
             <Link
