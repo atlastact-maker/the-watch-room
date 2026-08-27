@@ -48,7 +48,7 @@ const OS_VECTOR: Basemap = {
   // between steps. That continuous zoom is why this is the default OS
   // layer rather than the raster ones below.
   url: "",
-  styleUrl: "/api/os-vector/resources/styles?srs=3857&v=2",
+  styleUrl: "/api/os-vector/resources/styles?srs=3857&v=3",
   attribution: OS_COPYRIGHT,
   maxNativeZoom: 20,
   imagery: false,

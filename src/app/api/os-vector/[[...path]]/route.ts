@@ -147,6 +147,48 @@ export async function GET(
         // not JSON after all — pass through untouched
       }
     }
+
+    // For the style itself, go one further: resolve each vector source's
+    // tile index HERE and inline the result, so the browser never fetches
+    // or URL-resolves the index at all. Two reasons. Every failure so far
+    // has been in the browser-side assembly of this chain, and each link
+    // removed is a class of failure gone. And OS's tiles stop around z15
+    // while the ground view sits at z19 — MapLibre only overzooms instead
+    // of requesting tiles that don't exist if the source declares its
+    // maxzoom, which lives in the index, so it must actually arrive.
+    if (segments[0] === "resources" && segments[1] === "styles") {
+      try {
+        const style: {
+          sources?: Record<
+            string,
+            { type?: string; url?: string; tiles?: string[]; minzoom?: number; maxzoom?: number }
+          >;
+        } = JSON.parse(text);
+        for (const src of Object.values(style.sources ?? {})) {
+          if (src?.type !== "vector" || typeof src.url !== "string") continue;
+          const idxRes = await fetch(`${UPSTREAM}?${incoming.toString()}`, {
+            next: { revalidate: 60 * 60 * 24 * 7 },
+          });
+          if (!idxRes.ok) continue;
+          const idx: { tiles?: unknown; minzoom?: unknown; maxzoom?: unknown } =
+            await idxRes.json();
+          if (!Array.isArray(idx.tiles)) continue;
+          delete src.url;
+          src.tiles = idx.tiles.map((t) =>
+            typeof t === "string" && !/^https?:\/\//.test(t)
+              ? `${origin}${PROXY}/${t.replace(/^\.?\//, "")}`
+              : String(t).split(UPSTREAM).join(`${origin}${PROXY}`),
+          );
+          src.minzoom = typeof idx.minzoom === "number" ? idx.minzoom : 0;
+          // OS publish vector tiles to z15; overzoom covers the rest. The
+          // index's own figure wins when it gives one.
+          src.maxzoom = typeof idx.maxzoom === "number" ? idx.maxzoom : 15;
+        }
+        text = JSON.stringify(style);
+      } catch {
+        // leave the style as rewritten — the browser-side path still works
+      }
+    }
     return new Response(text, {
       status: 200,
       headers: {
