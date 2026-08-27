@@ -103,9 +103,13 @@ export async function GET(
     // and glyphs, the service root scatters them again, and OS may move
     // them: point absolute OS URLs back here, and strip the key OS echoes
     // into them so it never reaches the browser.
+    // Absolute, not root-relative: MapLibre validates the sprite URL and
+    // rejects anything without a scheme ("Invalid sprite URL ... must be
+    // absolute"), so the proxy's own origin goes on the front. The origin
+    // comes off the request, so it follows whatever host serves the app.
     const text = (await res.text())
       .split(UPSTREAM)
-      .join(PROXY)
+      .join(`${request.nextUrl.origin}${PROXY}`)
       .replace(/key=[^&"\\]*&?/g, "");
     return new Response(text, {
       status: 200,
