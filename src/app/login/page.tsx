@@ -35,8 +35,8 @@ export default function LoginPage() {
 
         <p className="mt-4 text-center font-mono text-[10px] uppercase tracking-widest leading-relaxed text-(--color-text-dim)">
           Part of the emergency services?{" "}
-          <Link href="/signup?advisor=1" className="text-(--color-info) hover:text-blue-300">
-            Register as a development advisor →
+          <Link href="/advisors" className="text-(--color-info) hover:text-blue-300">
+            The advisor programme →
           </Link>
         </p>
       </div>

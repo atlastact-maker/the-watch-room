@@ -105,6 +105,15 @@ export default async function LandingPage() {
               {formatEntryDate(LATEST.date)}
             </Link>
 
+            {/* Advisor recruitment — aimed at the people who do the job. */}
+            <Link
+              href="/advisors"
+              className="mt-3 block font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:text-(--color-info)"
+            >
+              <span className="text-(--color-info)">Job</span> · Fire, Ambulance,
+              Police or Control? Advise the build
+            </Link>
+
             <div className="mt-10 flex flex-wrap gap-2 border-t border-(--color-border-subtle) pt-6">
               {["Real stations", "Real resources"].map((chip) => (
                 <span

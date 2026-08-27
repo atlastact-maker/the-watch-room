@@ -27,15 +27,20 @@ export type AdvisorDefaults = {
 export function AdvisorQuestions({
   defaults = {},
   errors,
+  showIntro = true,
 }: {
   defaults?: AdvisorDefaults;
   errors?: NonNullable<AuthFormState>["errors"];
+  /** The advisor page heads its own section, so it hides this strapline. */
+  showIntro?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[10px] uppercase tracking-[0.2em] leading-relaxed text-(--color-info)">
-        Advisor programme — help keep The Watch Room authentic
-      </p>
+      {showIntro && (
+        <p className="text-[10px] uppercase tracking-[0.2em] leading-relaxed text-(--color-info)">
+          Advisor programme — help keep The Watch Room authentic
+        </p>
+      )}
 
       {/* 1 · Service */}
       <Q label="Which service are you with?">
