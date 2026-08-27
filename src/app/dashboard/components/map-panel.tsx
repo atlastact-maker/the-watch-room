@@ -23,6 +23,7 @@ export function EmbeddedMap({
   onSelectAppliance,
   selectedApplianceId,
   onOpenStationBays,
+  onZoomIntoGround,
 }: {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
@@ -31,6 +32,7 @@ export function EmbeddedMap({
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
   onOpenStationBays?: (stationId: string) => void;
+  onZoomIntoGround?: () => void;
 }) {
   return (
     <div className="absolute inset-0 bg-(--color-bg)">
@@ -42,6 +44,7 @@ export function EmbeddedMap({
         onSelectAppliance={onSelectAppliance}
         selectedApplianceId={selectedApplianceId}
         onOpenStationBays={onOpenStationBays}
+        onZoomIntoGround={onZoomIntoGround}
       />
     </div>
   );

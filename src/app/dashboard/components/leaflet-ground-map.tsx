@@ -33,7 +33,7 @@ import type {
 } from "@/lib/sim/incident_types";
 import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
 import type { StationWithAppliances } from "../page";
-import { PatchLayers } from "./leaflet-map";
+import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitMarkerHtml } from "./map-markers";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
@@ -165,13 +165,10 @@ function hydrantIcon(
 // Map scale
 // -----------------------------------------------------------------------------
 
-/**
- * The map is one continuous surface the operator scrolls. Two zooms
- * matter to the code: where an incident opens, and where the scene layers
- * take over from the patch layers.
- */
+/** The map is one continuous surface the operator scrolls; an incident
+ *  opens at working zoom. The layer-swap threshold is GROUND_DETAIL_ZOOM,
+ *  shared with the dispatch map so the two hand over at the same scale. */
 const OPENING_ZOOM = 19;
-const GROUND_DETAIL_ZOOM = 17;
 
 /** Compute the linear scale factor for the appliance body at a given map
  *  zoom. Each zoom step doubles the tile resolution in principle, but 2x

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -30,6 +30,11 @@ import {
 } from "./basemap-controls";
 import { VectorBasemap } from "./vector-basemap";
 import { STREET } from "@/lib/map-basemaps";
+
+/** The zoom at which scene detail takes over from patch furniture. One
+ *  number shared by both maps: the incident map swaps its layers here,
+ *  and the dispatch map hands over to the ground view here. */
+export const GROUND_DETAIL_ZOOM = 17;
 
 // Service identity colours — fire engines are red, ambulances green,
 // police blue. Used for station plaques and responding movers alike.
@@ -73,6 +78,31 @@ function chipIcon(opts: ChipOpts): L.DivIcon {
     popupAnchor: [0, -m.anchor[1]],
     html: m.html,
   });
+}
+
+/** Fires once each time the operator zooms in past the detail
+ *  threshold. The dashboard uses it to open the ground view — zooming
+ *  into the job IS the gesture of going to work on it, so the switch
+ *  should not need a separate click. Re-arms after zooming back out. */
+function ZoomIntoGroundWatcher({ onReach }: { onReach: () => void }) {
+  const map = useMap();
+  const armedRef = useRef(true);
+  useEffect(() => {
+    const check = () => {
+      const z = map.getZoom();
+      if (z >= GROUND_DETAIL_ZOOM && armedRef.current) {
+        armedRef.current = false;
+        onReach();
+      } else if (z < GROUND_DETAIL_ZOOM) {
+        armedRef.current = true;
+      }
+    };
+    map.on("zoomend", check);
+    return () => {
+      map.off("zoomend", check);
+    };
+  }, [map, onReach]);
+  return null;
 }
 
 /** Live map zoom, so markers can pick their tier. */
@@ -153,6 +183,9 @@ type Props = {
   selectedApplianceId?: string | null;
   /** Opens the top-down appliance-bay view for a fire station. */
   onOpenStationBays?: (stationId: string) => void;
+  /** Called when the operator zooms in past the ground-detail threshold —
+   *  the dashboard opens the ground view on it. */
+  onZoomIntoGround?: () => void;
 };
 
 export function LeafletMap({
@@ -163,6 +196,7 @@ export function LeafletMap({
   onSelectAppliance,
   selectedApplianceId,
   onOpenStationBays,
+  onZoomIntoGround,
 }: Props) {
   const center: [number, number] = activeIncident
     ? [
@@ -239,6 +273,7 @@ export function LeafletMap({
           maxZoom={20}
         />
       )}
+      {onZoomIntoGround && <ZoomIntoGroundWatcher onReach={onZoomIntoGround} />}
       <PatchLayers
         stations={stations}
         activeIncident={activeIncident}

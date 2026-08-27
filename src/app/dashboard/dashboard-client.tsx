@@ -3245,6 +3245,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onSelectAppliance={setSelectedApplianceId}
           selectedApplianceId={selectedApplianceId}
           onOpenStationBays={setBayStationId}
+          onZoomIntoGround={
+            activeIncident && !outcome
+              ? () => setGroundViewOpen(true)
+              : undefined
+          }
         />
         {/* Station bay view — top-down look inside a fire station. */}
         {bayStationId && (() => {
