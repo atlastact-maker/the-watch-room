@@ -133,3 +133,82 @@ function haversineM(a: LatLng, b: LatLng): number {
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+
+/**
+ * The stretch of road either side of a point — for painting a road
+ * closure along the actual carriageway geometry rather than tinting a
+ * circle over it. Finds the nearest way, then walks its polyline both
+ * directions from the snapped point, clipping the final segments so the
+ * stretch is `spanM` metres each way (shorter where the way itself ends,
+ * e.g. a cul-de-sac closed at its mouth).
+ *
+ * Returns null when no way is within `maxSnapM` — the caller keeps its
+ * point-marker rendering and simply has no stretch to paint.
+ */
+export function roadStretchAround(
+  point: LatLng,
+  ways: OsmRoadWay[],
+  spanM = 60,
+  maxSnapM = 60,
+): [number, number][] | null {
+  let best: {
+    way: OsmRoadWay;
+    segIdx: number;
+    snapped: LatLng;
+    distanceM: number;
+  } | null = null;
+  for (const way of ways) {
+    for (let i = 1; i < way.coords.length; i++) {
+      const a = { lat: way.coords[i - 1][0], lng: way.coords[i - 1][1] };
+      const b = { lat: way.coords[i][0], lng: way.coords[i][1] };
+      const snapped = closestPointOnSegment(point, a, b);
+      const d = haversineM(point, snapped);
+      if (!best || d < best.distanceM) {
+        best = { way, segIdx: i, snapped, distanceM: d };
+      }
+    }
+  }
+  if (!best || best.distanceM > maxSnapM) return null;
+
+  const { way, segIdx, snapped } = best;
+  const clip = (from: LatLng, to: LatLng, keepM: number): LatLng => {
+    const segM = haversineM(from, to);
+    if (segM <= keepM || segM === 0) return to;
+    const t = keepM / segM;
+    return {
+      lat: from.lat + (to.lat - from.lat) * t,
+      lng: from.lng + (to.lng - from.lng) * t,
+    };
+  };
+
+  // Walk forward from the snapped point towards the way's end.
+  const forward: LatLng[] = [];
+  {
+    let remaining = spanM;
+    let prev = snapped;
+    for (let i = segIdx; i < way.coords.length && remaining > 0; i++) {
+      const next = { lat: way.coords[i][0], lng: way.coords[i][1] };
+      const stepM = haversineM(prev, next);
+      forward.push(clip(prev, next, remaining));
+      remaining -= stepM;
+      prev = next;
+    }
+  }
+  // And backward towards its start.
+  const backward: LatLng[] = [];
+  {
+    let remaining = spanM;
+    let prev = snapped;
+    for (let i = segIdx - 1; i >= 0 && remaining > 0; i--) {
+      const next = { lat: way.coords[i][0], lng: way.coords[i][1] };
+      const stepM = haversineM(prev, next);
+      backward.push(clip(prev, next, remaining));
+      remaining -= stepM;
+      prev = next;
+    }
+  }
+
+  const path: LatLng[] = [...backward.reverse(), snapped, ...forward];
+  if (path.length < 2) return null;
+  return path.map((p) => [p.lat, p.lng]);
+}

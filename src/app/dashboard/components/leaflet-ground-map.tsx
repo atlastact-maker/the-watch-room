@@ -18,6 +18,7 @@ import { fetchOsmBuildingPolygon } from "@/lib/sim/osm_building";
 import { fetchOsmHydrants, type OsmHydrant } from "@/lib/sim/osm_hydrants";
 import {
   fetchOsmRoads,
+  roadStretchAround,
   snapToNearestRoad,
   snapToNearestRoadWithBearing,
   type OsmRoadWay,
@@ -1418,6 +1419,17 @@ export function LeafletGroundMap({
             offsetAlongBearing(pos.lat, pos.lng, perp, from + (k + 1) * step),
           ]);
           const colour = inForce ? "#ef4444" : "#f59e0b";
+          // Paint the closed stretch along the actual road geometry, the
+          // way a traffic CAD shows it: a dark casing under a coloured
+          // line following the carriageway. Full closures are solid; a
+          // carriageway closure is dashed, because traffic still passes
+          // the other side. While the crew are still setting out the
+          // stretch shows amber; red once the closure is in force.
+          const stretch = roadStretchAround(
+            pos,
+            osmRoads,
+            fullRoad ? 80 : 60,
+          );
           const coneAt = offsetAlongBearing(
             pos.lat,
             pos.lng,
@@ -1426,6 +1438,31 @@ export function LeafletGroundMap({
           );
           return (
             <Fragment key={`closure-${t.id}`}>
+              {stretch && (
+                <>
+                  <Polyline
+                    positions={stretch}
+                    pathOptions={{
+                      color: "#0a0a0c",
+                      weight: 9,
+                      opacity: 0.55,
+                      lineCap: "round",
+                    }}
+                    interactive={false}
+                  />
+                  <Polyline
+                    positions={stretch}
+                    pathOptions={{
+                      color: colour,
+                      weight: 5,
+                      opacity: inForce ? 0.85 : 0.65,
+                      lineCap: "round",
+                      dashArray: fullRoad ? undefined : "12 10",
+                    }}
+                    interactive={false}
+                  />
+                </>
+              )}
               {dashes.map((d, i) => (
                 <Polyline
                   key={i}
