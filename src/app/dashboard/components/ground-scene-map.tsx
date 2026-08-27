@@ -66,6 +66,7 @@ export function GroundSceneMap(props: {
   /** Casualty muster point: armed placement flag, current position, setter. */
   musterPick?: boolean;
   muster?: { lat: number; lng: number; radiusM: number } | null;
+  initialView?: { lat: number; lng: number; zoom: number } | null;
   onPlaceMuster?: (lat: number, lng: number, radiusM: number) => void;
   /** Armed from the MDT's committed list — the appliance whose two-click
    *  map placement the next clicks perform. */

@@ -821,6 +821,7 @@ export function LeafletGroundMap({
   onClearPlacePending,
   musterPick,
   muster,
+  initialView,
   onPlaceMuster,
   stations,
   deployments,
@@ -860,6 +861,10 @@ export function LeafletGroundMap({
   onOpenStationBays?: (stationId: string) => void;
   musterPick?: boolean;
   muster?: { lat: number; lng: number; radiusM: number } | null;
+  /** Open at this view instead of snapping to the incident — set when
+   *  the operator entered by zooming in, so the map continues from where
+   *  they were looking rather than yanking them to the job. */
+  initialView?: { lat: number; lng: number; zoom: number } | null;
   onPlaceMuster?: (lat: number, lng: number, radiusM: number) => void;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
 }) {
@@ -959,7 +964,9 @@ export function LeafletGroundMap({
   const [osmRoads, setOsmRoads] = useState<OsmRoadWay[]>([]);
   useEffect(() => {
     let cancelled = false;
-    fetchOsmRoads({ lat: incidentLat, lng: incidentLng }, 250).then((ways) => {
+    // 500m, not 250: road closures go in at the approach junctions, and
+    // the closed-stretch paint can only follow geometry it has.
+    fetchOsmRoads({ lat: incidentLat, lng: incidentLng }, 500).then((ways) => {
       if (!cancelled) setOsmRoads(ways);
     });
     return () => {
@@ -1217,9 +1224,9 @@ export function LeafletGroundMap({
 
       {/* Centres the job when it opens; the operator drives from there. */}
       <OpenOnIncident
-        zoom={OPENING_ZOOM}
-        lat={incidentLat}
-        lng={incidentLng}
+        zoom={initialView?.zoom ?? OPENING_ZOOM}
+        lat={initialView?.lat ?? incidentLat}
+        lng={initialView?.lng ?? incidentLng}
       />
 
       {/* Track zoom so markers and overlays can size themselves to it. */}
@@ -1425,11 +1432,20 @@ export function LeafletGroundMap({
           // carriageway closure is dashed, because traffic still passes
           // the other side. While the crew are still setting out the
           // stretch shows amber; red once the closure is in force.
-          const stretch = roadStretchAround(
-            pos,
-            osmRoads,
-            fullRoad ? 80 : 60,
-          );
+          // Follow the real road geometry when we have it; when we don't
+          // (Overpass down, or the closure sits outside the fetched
+          // radius), fall back to a straight stretch along the recorded
+          // road bearing so the closure always paints.
+          const spanM = fullRoad ? 80 : 60;
+          const stretch =
+            roadStretchAround(pos, osmRoads, spanM, 100) ??
+            ((): [number, number][] => {
+              const along = t.closureBearingDeg ?? 0;
+              return [
+                offsetAlongBearing(pos.lat, pos.lng, along, -spanM),
+                offsetAlongBearing(pos.lat, pos.lng, along, spanM),
+              ];
+            })();
           const coneAt = offsetAlongBearing(
             pos.lat,
             pos.lng,

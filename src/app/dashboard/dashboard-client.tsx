@@ -258,6 +258,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [mdtUnitId, setMdtUnitId] = useState<string | null>(null);
   const [pendingMuster, setPendingMuster] = useState(false);
   const [groundViewOpen, setGroundViewOpen] = useState(false);
+  // Where the ground view should open. Set when the operator zooms into
+  // it (continue from their view); null when they enter via the header
+  // switch (centre the incident, as before).
+  const [groundEntryView, setGroundEntryView] = useState<{
+    lat: number;
+    lng: number;
+    zoom: number;
+  } | null>(null);
   // Fire station whose appliance-bay view is open (from the map popup).
   const [bayStationId, setBayStationId] = useState<string | null>(null);
   const [newlyFoundCasualties, setNewlyFoundCasualties] = useState<Set<string>>(new Set());
@@ -3246,7 +3254,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         coveredServices={coveredServices}
         viewMode={groundViewOpen && activeIncident ? "ground" : "area"}
         groundViewEnabled={!!activeIncident && !outcome}
-        onSelectView={(mode) => setGroundViewOpen(mode === "ground" && !!activeIncident)}
+        onSelectView={(mode) => {
+          setGroundEntryView(null);
+          setGroundViewOpen(mode === "ground" && !!activeIncident);
+        }}
       />
 
       <main id="main-content" className="relative flex-1 overflow-hidden" aria-label="Dispatch map and panels">
@@ -3260,7 +3271,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onOpenStationBays={setBayStationId}
           onZoomIntoGround={
             activeIncident && !outcome
-              ? () => setGroundViewOpen(true)
+              ? (view) => {
+                  setGroundEntryView(view);
+                  setGroundViewOpen(true);
+                }
               : undefined
           }
         />
@@ -3424,6 +3438,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             pendingClosure={pendingClosure}
             onSetPendingClosure={setPendingClosure}
             muster={muster}
+            groundEntryView={groundEntryView}
             pendingMuster={pendingMuster}
             onSetPendingMuster={setPendingMuster}
             onPlaceMuster={(lat, lng, radiusM) => {

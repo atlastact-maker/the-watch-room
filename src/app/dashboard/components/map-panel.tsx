@@ -32,7 +32,7 @@ export function EmbeddedMap({
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
   onOpenStationBays?: (stationId: string) => void;
-  onZoomIntoGround?: () => void;
+  onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
 }) {
   return (
     <div className="absolute inset-0 bg-(--color-bg)">

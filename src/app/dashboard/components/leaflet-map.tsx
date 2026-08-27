@@ -98,7 +98,11 @@ function chipIcon(opts: ChipOpts): L.DivIcon {
  *  threshold. The dashboard uses it to open the ground view — zooming
  *  into the job IS the gesture of going to work on it, so the switch
  *  should not need a separate click. Re-arms after zooming back out. */
-function ZoomIntoGroundWatcher({ onReach }: { onReach: () => void }) {
+function ZoomIntoGroundWatcher({
+  onReach,
+}: {
+  onReach: (view: { lat: number; lng: number; zoom: number }) => void;
+}) {
   const map = useMap();
   const armedRef = useRef(true);
   useEffect(() => {
@@ -106,7 +110,8 @@ function ZoomIntoGroundWatcher({ onReach }: { onReach: () => void }) {
       const z = map.getZoom();
       if (z >= GROUND_DETAIL_ZOOM && armedRef.current) {
         armedRef.current = false;
-        onReach();
+        const c = map.getCenter();
+        onReach({ lat: c.lat, lng: c.lng, zoom: z });
       } else if (z < GROUND_DETAIL_ZOOM) {
         armedRef.current = true;
       }
@@ -198,8 +203,9 @@ type Props = {
   /** Opens the top-down appliance-bay view for a fire station. */
   onOpenStationBays?: (stationId: string) => void;
   /** Called when the operator zooms in past the ground-detail threshold —
-   *  the dashboard opens the ground view on it. */
-  onZoomIntoGround?: () => void;
+   *  the dashboard opens the ground view AT this view, so the handover
+   *  continues from wherever the operator was looking. */
+  onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
   /** The incident map turns this off above the detail threshold, where
    *  its own crosshair address marker takes over from the triangle.
    *  Stations, movers and trails are NOT gated — a responding unit must

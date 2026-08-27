@@ -126,6 +126,9 @@ export type Props = {
   /** Casualty muster / evac area — drawn on the ground map as a circle:
    *  click the centre, then click again to set how big it is. */
   muster?: { lat: number; lng: number; radiusM: number } | null;
+  /** Where the ground map opens: the operator's view when they zoomed in,
+   *  or null to centre the incident (header entry). */
+  groundEntryView?: { lat: number; lng: number; zoom: number } | null;
   pendingMuster?: boolean;
   onSetPendingMuster?: (armed: boolean) => void;
   onPlaceMuster?: (lat: number, lng: number, radiusM: number) => void;
@@ -236,6 +239,7 @@ export function IncidentView({
   rotatePendingApplianceId,
   onSetRotatePending,
   muster,
+  groundEntryView,
   pendingMuster,
   onSetPendingMuster,
   onPlaceMuster,
@@ -351,6 +355,7 @@ export function IncidentView({
             patch={patch ?? null}
             musterPick={!!pendingMuster}
             muster={muster ?? null}
+            initialView={groundEntryView ?? null}
             onPlaceMuster={onPlaceMuster}
             onPlaceClosure={(lat, lng, bearingDeg) => {
               if (!pendingClosure) return;
