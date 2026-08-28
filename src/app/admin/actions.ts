@@ -54,3 +54,31 @@ export async function deleteRole(formData: FormData): Promise<void> {
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }
+
+/** Suspend or reinstate an account. A banned account cannot sign in or
+ *  refresh its session; an already-live session lasts until its token
+ *  expires (about an hour). */
+export async function setBan(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "").trim();
+  const banned = String(formData.get("banned") ?? "") === "true";
+  if (!userId) return;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_ban", {
+    p_user_id: userId,
+    p_banned: banned,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+/** Permanently remove an account. Cascades take the advisor application
+ *  and career stats with it. The database refuses this against admins
+ *  and against yourself, whatever the UI does. */
+export async function deleteUser(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!userId) return;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_delete_user", { p_user_id: userId });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}

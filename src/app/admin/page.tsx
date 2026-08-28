@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
-import { setRole, deleteRole } from "./actions";
+import { setRole, deleteRole, setBan, deleteUser } from "./actions";
 
 // The admin area — overview numbers, advisor applications, access roles
 // and recent registrations, managed from the site instead of the
@@ -53,12 +53,14 @@ type Overview = {
 };
 
 type UserRow = {
+  user_id: string;
   email: string;
   callsign: string;
   created_at: string;
   newsletter: boolean;
   is_advisor_applicant: boolean;
   assigned_role: "admin" | "operator" | "advisor" | null;
+  banned: boolean;
 };
 
 const inputCls =
@@ -383,34 +385,89 @@ export default async function AdminPage() {
         {users.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Recent registrations
+              Registered users
             </h2>
             <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
               {users.map((u) => (
-                <div
-                  key={u.email}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-[12px]"
-                >
-                  <span className="font-semibold text-(--color-text)">
-                    {u.callsign ? u.callsign.toUpperCase() : "—"}
-                  </span>
-                  <span className="break-all text-(--color-text-dim)">{u.email}</span>
-                  <span className="ml-auto flex items-center gap-2 text-[10px] uppercase tracking-widest">
-                    {u.is_advisor_applicant && (
-                      <span className="rounded-sm border border-(--color-info)/50 px-1.5 py-0.5 text-(--color-info)">
-                        Applicant
-                      </span>
-                    )}
-                    {u.assigned_role && (
-                      <span className="rounded-sm border border-(--color-ok)/50 px-1.5 py-0.5 text-(--color-ok)">
-                        {u.assigned_role}
-                      </span>
-                    )}
-                    {u.newsletter && (
-                      <span className="text-(--color-text-dim)">✉</span>
-                    )}
-                    <span className="text-(--color-text-dim)">{fmtDate(u.created_at)}</span>
-                  </span>
+                <div key={u.user_id} className="px-3 py-2.5 text-[12px]">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-semibold text-(--color-text)">
+                      {u.callsign ? u.callsign.toUpperCase() : "—"}
+                    </span>
+                    <span className="break-all text-(--color-text-dim)">{u.email}</span>
+                    <span className="ml-auto flex items-center gap-2 text-[10px] uppercase tracking-widest">
+                      {u.banned && (
+                        <span className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-1.5 py-0.5 text-(--color-critical)">
+                          Banned
+                        </span>
+                      )}
+                      {u.is_advisor_applicant && (
+                        <span className="rounded-sm border border-(--color-info)/50 px-1.5 py-0.5 text-(--color-info)">
+                          Applicant
+                        </span>
+                      )}
+                      {u.assigned_role && (
+                        <span className="rounded-sm border border-(--color-ok)/50 px-1.5 py-0.5 text-(--color-ok)">
+                          {u.assigned_role}
+                        </span>
+                      )}
+                      {u.newsletter && (
+                        <span className="text-(--color-text-dim)">✉</span>
+                      )}
+                      <span className="text-(--color-text-dim)">{fmtDate(u.created_at)}</span>
+                    </span>
+                  </div>
+                  {u.assigned_role !== "admin" && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {!u.assigned_role && (
+                        <form action={setRole} className="flex items-center gap-1.5">
+                          <input type="hidden" name="email" value={u.email} />
+                          <select name="role" className={`${inputCls} py-1 text-[11px]`} defaultValue="operator">
+                            <option value="operator">operator</option>
+                            <option value="advisor">advisor</option>
+                          </select>
+                          <button
+                            type="submit"
+                            className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
+                          >
+                            Grant
+                          </button>
+                        </form>
+                      )}
+                      <form action={setBan}>
+                        <input type="hidden" name="userId" value={u.user_id} />
+                        <input type="hidden" name="banned" value={u.banned ? "false" : "true"} />
+                        <button
+                          type="submit"
+                          className={`${btnCls} ${
+                            u.banned
+                              ? "border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15"
+                              : "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15"
+                          }`}
+                        >
+                          {u.banned ? "Unban" : "Ban"}
+                        </button>
+                      </form>
+                      {/* Two-step delete with no client JS: the summary
+                          opens, the real button confirms. */}
+                      <details className="relative">
+                        <summary
+                          className={`${btnCls} inline-block cursor-pointer list-none border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}
+                        >
+                          Delete
+                        </summary>
+                        <form action={deleteUser} className="absolute left-0 top-full z-10 mt-1">
+                          <input type="hidden" name="userId" value={u.user_id} />
+                          <button
+                            type="submit"
+                            className={`${btnCls} whitespace-nowrap border-(--color-critical) bg-(--color-critical)/15 text-(--color-critical)`}
+                          >
+                            Confirm permanent delete
+                          </button>
+                        </form>
+                      </details>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
