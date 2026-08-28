@@ -118,3 +118,19 @@ export async function hasShiftAccess(
   const { role } = await accessProfile(supabase, email);
   return role === "admin" || role === "operator";
 }
+
+/** Whether this account may open the admin area. Stricter than shift
+ *  access on purpose: the env allowlist admits testers to play, not to
+ *  read applications — admin is the assigned role only, with the
+ *  developer's own account hardwired as bootstrap so a fresh database
+ *  can never lock the one person who administers it out. */
+const DEFAULT_ADMINS = ["atlastact@gmail.com"];
+
+export async function hasAdminAccess(
+  supabase: SupabaseClient,
+  email: string | undefined | null,
+): Promise<boolean> {
+  if (email && DEFAULT_ADMINS.includes(email.trim().toLowerCase())) return true;
+  const { role } = await accessProfile(supabase, email);
+  return role === "admin";
+}

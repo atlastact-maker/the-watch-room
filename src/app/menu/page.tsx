@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   accessProfile,
+  hasAdminAccess,
   hasShiftAccess,
   resolveInsignia,
 } from "@/lib/auth/operator-access";
@@ -52,6 +53,7 @@ export default async function MenuPage() {
   // advisor application — a promoted advisor keeps their service mark.
   const { icon: assignedIcon } = await accessProfile(supabase, user.email);
   const insignia = await resolveInsignia(supabase, user.id, assignedIcon);
+  const isAdmin = await hasAdminAccess(supabase, user.email);
   const fleet = fleetCounts();
 
   return (
@@ -71,6 +73,14 @@ export default async function MenuPage() {
               <span>{callsign ? callsign.toUpperCase() : "Operator"}</span>
             </span>
             <span className="hidden text-(--color-text-dim) sm:inline">{user.email}</span>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="rounded-sm border border-(--color-info)/50 px-2.5 py-1 uppercase tracking-widest text-(--color-info) transition-colors hover:bg-(--color-info)/10"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               href="/settings"
               className="rounded-sm border border-(--color-border) px-2.5 py-1 uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber) hover:text-(--color-amber)"
