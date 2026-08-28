@@ -5,10 +5,12 @@ import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
 import { setRole, deleteRole } from "./actions";
 
-// The admin area — advisor applications and access roles, managed from
-// the site instead of the Supabase Table editor. Needs migration 007
-// (the admin_* database functions); without it the page says so rather
-// than rendering empty tables.
+// The admin area — overview numbers, advisor applications, access roles
+// and recent registrations, managed from the site instead of the
+// Supabase Table editor. Needs migrations 007 + 008 (the admin_*
+// database functions); without them the page says so rather than
+// rendering empty tables. Laid out mobile-first: Tuesday's applications
+// will be accepted from a phone.
 
 export const metadata = { title: "Admin — The Watch Room" };
 
@@ -38,15 +40,53 @@ type RoleRow = {
   created_at: string;
 };
 
+type Overview = {
+  total_accounts: number;
+  new_accounts_7d: number;
+  newsletter_opt_ins: number;
+  applications_total: number;
+  applications_pending: number;
+  advisors_accepted: number;
+  operators_granted: number;
+  calls_answered: number;
+  incidents_resolved: number;
+};
+
+type UserRow = {
+  email: string;
+  callsign: string;
+  created_at: string;
+  newsletter: boolean;
+  is_advisor_applicant: boolean;
+  assigned_role: "admin" | "operator" | "advisor" | null;
+};
+
 const inputCls =
-  "rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-1.5 font-mono text-[12px] text-(--color-text) placeholder:text-(--color-text-dim) focus:border-(--color-amber) focus:outline-none";
+  "rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-2 font-mono text-[12px] text-(--color-text) placeholder:text-(--color-text-dim) focus:border-(--color-amber) focus:outline-none";
 
 const btnCls =
-  "rounded-sm border px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors";
+  "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) {
+  return (
+    <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/50 px-3 py-2.5">
+      <div
+        className={`text-xl font-semibold tabular-nums ${
+          tone === "amber" ? "text-(--color-amber)" : "text-(--color-text)"
+        }`}
+      >
+        {n.toLocaleString()}
+      </div>
+      <div className="mt-0.5 text-[9px] uppercase leading-tight tracking-widest text-(--color-text-dim)">
+        {label}
+      </div>
+    </div>
+  );
 }
 
 export default async function AdminPage() {
@@ -57,21 +97,29 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
+    supabase.rpc("admin_overview"),
+    supabase.rpc("admin_list_users", { p_limit: 25 }),
   ]);
-  const migrationMissing =
-    advisorsRes.error?.message?.includes("admin_list_advisors") ?? false;
+
+  const firstError =
+    advisorsRes.error ?? rolesRes.error ?? overviewRes.error ?? usersRes.error;
+  const missing007 = advisorsRes.error?.message?.includes("admin_list_advisors");
+  const missing008 = overviewRes.error?.message?.includes("admin_overview");
+
   const advisors = (advisorsRes.data ?? []) as AdvisorRow[];
   const roles = (rolesRes.data ?? []) as RoleRow[];
+  const overview = ((overviewRes.data ?? []) as Overview[])[0];
+  const users = (usersRes.data ?? []) as UserRow[];
   const pending = advisors.filter((a) => a.assigned_role === null);
 
   return (
-    <div className="relative z-10 min-h-[100dvh] px-6 py-8 font-mono">
+    <div className="relative z-10 min-h-[100dvh] px-4 py-6 font-mono sm:px-6 sm:py-8">
       <div className="mx-auto w-full max-w-6xl space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-(--color-border-subtle) pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-(--color-border-subtle) pb-4">
           <div>
             <div className="text-[11px] uppercase tracking-[0.3em] text-(--color-amber-dim)">
               The Watch Room
@@ -88,17 +136,38 @@ export default async function AdminPage() {
           </Link>
         </div>
 
-        {(advisorsRes.error || rolesRes.error) && (
+        {firstError && (
           <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-            {migrationMissing
+            {missing007
               ? "Migration 007 (admin functions) has not been run in Supabase yet — run supabase/migrations/007_admin_functions.sql in the SQL editor, then reload."
-              : `Database error: ${advisorsRes.error?.message ?? rolesRes.error?.message}`}
+              : missing008
+                ? "Migration 008 (admin overview) has not been run in Supabase yet — run supabase/migrations/008_admin_overview.sql in the SQL editor, then reload."
+                : `Database error: ${firstError.message}`}
           </div>
+        )}
+
+        {/* Overview */}
+        {overview && (
+          <section className="space-y-3">
+            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+              Overview
+            </h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+              <Tile n={overview.total_accounts} label="Accounts" />
+              <Tile n={overview.new_accounts_7d} label="New · 7 days" />
+              <Tile n={overview.applications_pending} label="Applications pending" tone="amber" />
+              <Tile n={overview.advisors_accepted} label="Advisors" />
+              <Tile n={overview.operators_granted} label="Operators" />
+              <Tile n={overview.newsletter_opt_ins} label="Newsletter" />
+              <Tile n={overview.calls_answered} label="Calls answered" />
+              <Tile n={overview.incidents_resolved} label="Incidents resolved" />
+            </div>
+          </section>
         )}
 
         {/* Advisor applications */}
         <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
               Advisor applications
             </h2>
@@ -122,13 +191,15 @@ export default async function AdminPage() {
                     key={a.user_id}
                     className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                           <span className="text-[14px] font-semibold text-(--color-text)">
                             {a.callsign || "(no callsign)"}
                           </span>
-                          <span className="text-[12px] text-(--color-text-dim)">{a.email}</span>
+                          <span className="break-all text-[12px] text-(--color-text-dim)">
+                            {a.email}
+                          </span>
                           {a.assigned_role ? (
                             <span className="rounded-sm border border-(--color-ok)/60 bg-(--color-ok)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-ok)">
                               {a.assigned_role}
@@ -169,9 +240,13 @@ export default async function AdminPage() {
                         </div>
                       </div>
 
-                      <div className="flex shrink-0 flex-col items-end gap-2">
-                        {insignia && <ServiceBadge service={insignia} />}
-                        <div className="flex gap-2">
+                      <div className="flex shrink-0 flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                        {insignia && (
+                          <span className="hidden sm:inline-flex">
+                            <ServiceBadge service={insignia} />
+                          </span>
+                        )}
+                        <div className="flex flex-wrap gap-2">
                           {a.assigned_role === null && (
                             <form action={setRole}>
                               <input type="hidden" name="email" value={a.email} />
@@ -225,21 +300,21 @@ export default async function AdminPage() {
 
           <form
             action={setRole}
-            className="flex flex-wrap items-center gap-2 rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/40 p-3"
+            className="grid grid-cols-1 gap-2 rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/40 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center"
           >
             <input
               name="email"
               type="email"
               required
               placeholder="email@example.com"
-              className={`${inputCls} w-64`}
+              className={`${inputCls} w-full lg:w-64`}
             />
-            <select name="role" className={inputCls} defaultValue="operator">
+            <select name="role" className={`${inputCls} w-full lg:w-auto`} defaultValue="operator">
               <option value="operator">operator</option>
               <option value="advisor">advisor</option>
               <option value="admin">admin</option>
             </select>
-            <select name="icon" className={inputCls} defaultValue="">
+            <select name="icon" className={`${inputCls} w-full lg:w-auto`} defaultValue="">
               <option value="">icon: from application</option>
               <option value="fire">fire</option>
               <option value="ambulance">ambulance</option>
@@ -250,11 +325,11 @@ export default async function AdminPage() {
             <input
               name="note"
               placeholder="note (who is this?)"
-              className={`${inputCls} w-56`}
+              className={`${inputCls} w-full lg:w-56`}
             />
             <button
               type="submit"
-              className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15`}
+              className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15 sm:col-span-2 lg:col-span-1 lg:w-auto`}
             >
               Grant
             </button>
@@ -262,7 +337,7 @@ export default async function AdminPage() {
 
           {roles.length > 0 && (
             <div className="overflow-x-auto rounded-sm border border-(--color-border-subtle)">
-              <table className="w-full text-left text-[12px]">
+              <table className="w-full min-w-[560px] text-left text-[12px]">
                 <thead>
                   <tr className="border-b border-(--color-border-subtle) text-[10px] uppercase tracking-widest text-(--color-text-dim)">
                     <th className="px-3 py-2">Email</th>
@@ -303,6 +378,44 @@ export default async function AdminPage() {
             </div>
           )}
         </section>
+
+        {/* Recent registrations */}
+        {users.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+              Recent registrations
+            </h2>
+            <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
+              {users.map((u) => (
+                <div
+                  key={u.email}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-[12px]"
+                >
+                  <span className="font-semibold text-(--color-text)">
+                    {u.callsign ? u.callsign.toUpperCase() : "—"}
+                  </span>
+                  <span className="break-all text-(--color-text-dim)">{u.email}</span>
+                  <span className="ml-auto flex items-center gap-2 text-[10px] uppercase tracking-widest">
+                    {u.is_advisor_applicant && (
+                      <span className="rounded-sm border border-(--color-info)/50 px-1.5 py-0.5 text-(--color-info)">
+                        Applicant
+                      </span>
+                    )}
+                    {u.assigned_role && (
+                      <span className="rounded-sm border border-(--color-ok)/50 px-1.5 py-0.5 text-(--color-ok)">
+                        {u.assigned_role}
+                      </span>
+                    )}
+                    {u.newsletter && (
+                      <span className="text-(--color-text-dim)">✉</span>
+                    )}
+                    <span className="text-(--color-text-dim)">{fmtDate(u.created_at)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
