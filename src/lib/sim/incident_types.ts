@@ -11,7 +11,8 @@ export type IncidentTypeCode =
   | "high_rise_dwelling_fire"
   | "education_premises_fire"
   | "special_service_water_rescue"
-  | "healthcare_premises_fire_alarm";
+  | "healthcare_premises_fire_alarm"
+  | "police_firearms_incident";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
