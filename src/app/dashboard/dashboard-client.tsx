@@ -1,5 +1,6 @@
 "use client";
 
+import { applyDirectorParam, rollBeat, rollPresent } from "@/lib/sim/director";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
 import {
@@ -142,6 +143,10 @@ type Props = {
 export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [patch, setPatch] = useState<Patch | null | undefined>(null);
   const [intensity, setIntensity] = useState<ShiftIntensity>("normal");
+  // Director mode: pick up ?director=loud|quiet|off once on mount.
+  useEffect(() => {
+    applyDirectorParam();
+  }, []);
   // Glossary / training overlay — toggled with `?`, shown as a modal.
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   useEffect(() => {
@@ -800,7 +805,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const absentRoll: string[] = [];
     for (const c of scenario.scene?.casualties ?? []) {
       if (c.presentProbability === undefined) continue;
-      if (Math.random() >= c.presentProbability) absentRoll.push(c.id);
+      if (!rollPresent(c.presentProbability)) absentRoll.push(c.id);
     }
     setAbsentCasualtyIds(absentRoll);
     // Fire-origin roll — one draw across the authored variants; the
@@ -2353,7 +2358,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       // first time the window opens; either we commit it, or we skip it
       // permanently by marking it fired with no visible message.
       const prob = update.probability ?? 1;
-      if (Math.random() > prob) {
+      if (!rollBeat(prob)) {
         setInformantLog((prev) => [
           ...prev,
           {
