@@ -64,6 +64,7 @@ and read the same `.env` as `setup.mjs`.
 | `config-welcome-automod.mjs` | Sets the Community welcome screen and creates the native AutoMod rules (invite-link filter exempting `#media-clips`, alerts to `#incident-log`). |
 | `roles-panels.mjs` | Creates the self-select roles and the Operator-gated `#roles` channel, posts the service / patch / interests panels and seeds their reactions. Prints the message IDs that Carl-bot's reaction roles bind to. |
 | `suggestions-forum.mjs` | Creates the `#suggestions` forum with topic tags, mod-only status tags (Planned / Shipped / Not now) and 👍 as the default reaction. |
+| `map-symbols-poll.mjs` | Opens the dev poll thread in `#suggestions` — appliance sprites vs CAD blips on the dispatcher map — tagged UI / UX + Realism, with a week-long native poll, pinned. Idempotent: if the thread is already open it prints the link and changes nothing, because Discord won't let a live poll be edited. |
 
 The bot is not left in the server. To re-run anything, re-invite it first:
 `https://discord.com/oauth2/authorize?client_id=<APPLICATION_ID>&scope=bot&permissions=8`
