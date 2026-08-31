@@ -3,16 +3,19 @@
 // session exists to write the table). On the first authenticated visit
 // this pushes them into the advisors table so they show up for review.
 // Best-effort: missing table / no session / offline all no-op.
+//
+// Returns true only when this call filed a new application, so the
+// caller can refresh a page whose copy depends on the row existing.
 
 import { createClient } from "@/lib/supabase/client";
 
-export async function syncAdvisorProfile(): Promise<void> {
+export async function syncAdvisorProfile(): Promise<boolean> {
   try {
     const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) return false;
     const meta = user.user_metadata as {
       advisor?: boolean;
       callsign?: string;
@@ -26,16 +29,16 @@ export async function syncAdvisorProfile(): Promise<void> {
       advisor_contact_ok?: boolean;
       advisor_discord?: string;
     } | null;
-    if (!meta?.advisor || !meta.advisor_service) return;
+    if (!meta?.advisor || !meta.advisor_service) return false;
 
     const { data: existing, error } = await supabase
       .from("advisors")
       .select("user_id")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (error || existing) return;
+    if (error || existing) return false;
 
-    await supabase.from("advisors").insert({
+    const { error: insertError } = await supabase.from("advisors").insert({
       user_id: user.id,
       callsign: (meta.callsign ?? "OPERATOR").slice(0, 24),
       service: meta.advisor_service,
@@ -48,7 +51,9 @@ export async function syncAdvisorProfile(): Promise<void> {
       contact_ok: meta.advisor_contact_ok ?? false,
       discord: meta.advisor_discord ?? "",
     });
+    return !insertError;
   } catch {
     // best-effort
+    return false;
   }
 }

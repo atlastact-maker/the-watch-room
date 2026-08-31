@@ -4,13 +4,14 @@
 // ops-centre styling. Callsign writes to Supabase user metadata (the
 // same field signup collects); everything else is device-local.
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { isMuted, setMuted, unlockAudio } from "@/lib/audio/sim-audio";
 import { clearCareerRecord } from "@/lib/sim/stats";
 import { saveAdvisorProfile } from "@/lib/auth/actions";
 import { AdvisorQuestions, type AdvisorDefaults } from "@/app/components/advisor-questions";
+import { advisorStanding, type AdvisorStanding } from "@/lib/auth/advisor-standing";
 
 export default function SettingsPage() {
   const [callsign, setCallsign] = useState("");
@@ -23,7 +24,29 @@ export default function SettingsPage() {
     (AdvisorDefaults & { advisor: boolean }) | null
   >(null);
   const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [standing, setStanding] = useState<AdvisorStanding | null>(null);
   const [advState, advAction, advPending] = useActionState(saveAdvisorProfile, undefined);
+
+  // Standing with the programme, resolved the same way /standby does it
+  // so the two pages never disagree. Re-read after a save so registering
+  // here flips the badge to "Pending review" without a reload.
+  const refreshStanding = useCallback(async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const email = user.email?.trim();
+    const { data: roleRow } = email
+      ? await supabase
+          .from("user_roles")
+          .select("role")
+          .ilike("email", email)
+          .maybeSingle()
+      : { data: null };
+    const role = typeof roleRow?.role === "string" ? roleRow.role : null;
+    setStanding(await advisorStanding(supabase, user, role));
+  }, []);
 
   useEffect(() => {
     setMutedState(isMuted());
@@ -60,7 +83,14 @@ export default function SettingsPage() {
       });
       setAdvisorOpen(isAdvisor);
     });
-  }, []);
+    void refreshStanding();
+  }, [refreshStanding]);
+
+  // saveAdvisorProfile only reports ok once the advisors row is upserted,
+  // so a successful save is itself proof of at least "pending" — no need
+  // to re-read the table to move the badge off "Not filed".
+  const shownStanding: AdvisorStanding | null =
+    advState?.ok && standing !== "accepted" ? "pending" : standing;
 
   async function saveCallsign() {
     const trimmed = callsign.trim();
@@ -188,9 +218,19 @@ export default function SettingsPage() {
             <div>
               <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-info)">
                 Advisor programme
-                {advisorMeta?.advisor && (
+                {shownStanding === "accepted" && (
+                  <span className="ml-2 rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-1.5 py-0.5 text-[9px] text-(--color-ok)">
+                    Accepted
+                  </span>
+                )}
+                {shownStanding === "pending" && (
                   <span className="ml-2 rounded-sm border border-(--color-info)/50 bg-(--color-info)/10 px-1.5 py-0.5 text-[9px]">
-                    Registered
+                    Pending review
+                  </span>
+                )}
+                {shownStanding === "unfiled" && (
+                  <span className="ml-2 rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-1.5 py-0.5 text-[9px] text-(--color-amber)">
+                    Not filed
                   </span>
                 )}
               </h2>
