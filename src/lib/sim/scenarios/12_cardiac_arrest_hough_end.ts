@@ -11,7 +11,7 @@ import type { Scenario } from "../incident_types";
  *     that matters (RRV first past the post),
  *   - a working arrest that eats resources (two DCAs, critical care,
  *     a duty officer — over-mobilising is the correct answer),
- *   - the classic playing-fields access problem (pitch 11 is ~300 m of
+ *   - the classic playing-fields access problem (pitch 11 is ~450 m of
  *     grass from the nearest hard standing — the carry has to be
  *     planned before it's needed, and pitch 12 makes a HEMS LZ),
  *   - skill-weighted outcome: the dice colour the story (community
@@ -22,8 +22,10 @@ import type { Scenario } from "../incident_types";
  *
  * Venue is real (Hough End, Manchester's biggest Sunday league site;
  * the Hough End Centre pavilion fronts Mauldeth Road West). Incident
- * coords are a mid-fields point picked for map fit — nudge on playtest.
- * The patient is fictional.
+ * coords are OSM-verified: a mapped grass soccer pitch at the centre of
+ * the fields (OSM way 616654223), ~450 m SE of the Hough End Centre car
+ * park entrance (junction node 3005535518 at 53.43854, -2.25603). The
+ * patient is fictional.
  */
 export const scenario12: Scenario = {
   id: "12",
@@ -38,7 +40,7 @@ export const scenario12: Scenario = {
   location: {
     address: "Hough End Playing Fields, Mauldeth Road West, Chorlton-cum-Hardy",
     postcode: "M21 7SX",
-    coords: { lat: 53.4318, lng: -2.2586 },
+    coords: { lat: 53.43622, lng: -2.25033 },
   },
 
   property: {
@@ -50,7 +52,7 @@ export const scenario12: Scenario = {
       "Sunday morning fixtures in progress across multiple pitches — two full squads plus spectators at the patient's pitch, families among them",
     vulnerabilities: [
       "Patient is 23 — witnessed, non-contact collapse points at a primary cardiac cause",
-      "Pitch 11 is ~300 m of soft ground from the nearest hard standing",
+      "Pitch 11 is ~450 m of soft ground from the nearest hard standing",
       "Crowd around the patient — teammates, opposition, and family on site",
     ],
     access:
@@ -110,7 +112,7 @@ export const scenario12: Scenario = {
       requiredApplianceTypes: ["DCA"],
       requiredCapabilities: ["Medical"],
       preferredStationId: "A-SHA",
-      notes: "A working arrest eats hands — CPR carousel, kit shuttle, and the 300 m carry out",
+      notes: "A working arrest eats hands — CPR carousel, kit shuttle, and the 450 m carry out",
     },
     {
       id: "ccc",
@@ -150,7 +152,7 @@ export const scenario12: Scenario = {
       { metric: "Post-ROSC conveyance, pre-alerted", target: "PCI centre — not the nearest A&E" },
     ],
     lesson:
-      "An arrest is the purest dispatch job in the game: the patient's survival is a straight line from the operator's first sixty seconds. Every minute from collapse to defibrillation costs roughly 10% — so the RRV goes on the first click, and over-mobilising is the correct answer, because a working arrest on grass needs a CPR carousel, a kit shuttle, a carry party and someone to hold the crowd and the family. Playing fields add the access trap: the job is 300 m from the nearest wheel, so the way OUT has to be planned while the resus is still running. And the save isn't finished at ROSC — a young primary-cardiac arrest belongs at the PCI centre, pre-alerted, not the nearest A&E.",
+      "An arrest is the purest dispatch job in the game: the patient's survival is a straight line from the operator's first sixty seconds. Every minute from collapse to defibrillation costs roughly 10% — so the RRV goes on the first click, and over-mobilising is the correct answer, because a working arrest on grass needs a CPR carousel, a kit shuttle, a carry party and someone to hold the crowd and the family. Playing fields add the access trap: the job is 450 m from the nearest wheel, so the way OUT has to be planned while the resus is still running. And the save isn't finished at ROSC — a young primary-cardiac arrest belongs at the PCI centre, pre-alerted, not the nearest A&E.",
   },
 
   informantScript: [
@@ -281,7 +283,7 @@ export const scenario12: Scenario = {
         id: "egress",
         pos: { x: -8, y: -8 },
         kind: "structural",
-        label: "~300 m soft-ground carry from pitch 11 to the car park — build the carry party early",
+        label: "~450 m soft-ground carry from pitch 11 to the car park — build the carry party early",
         knownFromPri: true,
       },
       {

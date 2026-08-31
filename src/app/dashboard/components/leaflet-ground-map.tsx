@@ -680,6 +680,82 @@ function helipadIcon(
   return icon;
 }
 
+/** Small teal crew disc — the doctor + critical care paramedic carrying
+ *  kit from the pad to the casualty. Cached per callsign so the DOM node
+ *  survives re-renders. */
+const CREW_ICONS = new Map<string, L.DivIcon>();
+function crewIcon(callsign: string): L.DivIcon {
+  const hit = CREW_ICONS.get(callsign);
+  if (hit) return hit;
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [120, 44],
+    iconAnchor: [60, 8],
+    html: `
+      <div style="position: relative; width: 120px; height: 44px; pointer-events: none;">
+        <div style="
+          position: absolute; left: 60px; top: 8px;
+          transform: translate(-50%, -50%);
+          width: 11px; height: 11px; border-radius: 50%;
+          background: #0d9488;
+          border: 2px solid #0a0a0c;
+          box-shadow: 0 0 0 1.5px rgba(255,255,255,0.85);
+        "></div>
+        <div style="
+          position: absolute; left: 60px; top: 20px;
+          transform: translateX(-50%);
+          padding: 1px 5px;
+          background: rgba(10,10,12,0.92);
+          border: 1px solid #0d9488;
+          border-radius: 2px;
+          font-family: var(--font-geist-mono), ui-monospace, monospace;
+          font-size: 8px; line-height: 1.4;
+          letter-spacing: 0.1em;
+          color: #2dd4bf;
+          white-space: nowrap;
+        ">${callsign} CREW</div>
+      </div>
+    `,
+  });
+  CREW_ICONS.set(callsign, icon);
+  return icon;
+}
+
+/** The HEMS crew walking the LZ → casualty leg in real time. Self-ticks
+ *  at 4 Hz so the walk is smooth while the surrounding map stays on the
+ *  1 Hz clock — it only exists for the duration of the walk. */
+function CrewWalker({
+  from,
+  to,
+  startAt,
+  endAt,
+  callsign,
+}: {
+  from: { lat: number; lng: number };
+  to: { lat: number; lng: number };
+  startAt: number;
+  endAt: number;
+  callsign: string;
+}) {
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const k = Math.min(1, Math.max(0, (tick - startAt) / Math.max(1, endAt - startAt)));
+  return (
+    <Marker
+      position={[
+        from.lat + (to.lat - from.lat) * k,
+        from.lng + (to.lng - from.lng) * k,
+      ]}
+      icon={crewIcon(callsign)}
+      interactive={false}
+      zIndexOffset={-400}
+    />
+  );
+}
+
 /** Offset a lat/lng by `meters` along a compass bearing (deg, 0 = north).
  *  Equirectangular — plenty for the tens of metres a closure spans. */
 function offsetAlongBearing(
@@ -1416,6 +1492,33 @@ export function LeafletGroundMap({
                 interactive={false}
                 zIndexOffset={-800}
               />
+              {/* Crew walk-in — the doctor + CCP visibly close the
+                  LZ → casualty gap while the airframe's callsign stays
+                  parked on the pad. */}
+              {phase === "walking" && (
+                <>
+                  <Polyline
+                    positions={[
+                      [pos.lat, pos.lng],
+                      [incidentLat, incidentLng],
+                    ]}
+                    pathOptions={{
+                      color: "#0d9488",
+                      weight: 1.5,
+                      dashArray: "2 5",
+                      opacity: 0.75,
+                    }}
+                    interactive={false}
+                  />
+                  <CrewWalker
+                    from={pos}
+                    to={{ lat: incidentLat, lng: incidentLng }}
+                    startAt={touchdownAt}
+                    endAt={d.arrivesAt}
+                    callsign={r.appliance.callsign}
+                  />
+                </>
+              )}
             </Fragment>
           );
         })}

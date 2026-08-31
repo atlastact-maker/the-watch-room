@@ -63,6 +63,23 @@ function trailStyle(color: string): L.PathOptions {
   return style;
 }
 
+/** HEMS trail extended with the descent leg to the confirmed LZ. Cached
+ *  per appliance so the polyline keeps a stable array identity across
+ *  the 4 Hz clock instead of being rebuilt every tick. */
+const HEMS_TRAILS = new Map<string, { key: string; coords: [number, number][] }>();
+function hemsTrailTo(
+  applianceId: string,
+  flightLine: [number, number][],
+  pad: [number, number],
+): [number, number][] {
+  const key = `${flightLine.length}|${pad[0]},${pad[1]}`;
+  const hit = HEMS_TRAILS.get(applianceId);
+  if (hit && hit.key === key) return hit.coords;
+  const coords: [number, number][] = [...flightLine, pad];
+  HEMS_TRAILS.set(applianceId, { key, coords });
+  return coords;
+}
+
 // ---------------------------------------------------------------------------
 // Marker icons
 // ---------------------------------------------------------------------------
@@ -508,14 +525,40 @@ export function PatchLayers({
         d.routeCoords && d.routeCoords.length >= 2
           ? d.routeCoords
           : fallbackRoutes.get(d.applianceId) ?? [];
+      let currentCoords = interpolateAlongRoute(routeCoords, t);
+      let trailCoords = routeCoords;
+      // HEMS with a confirmed LZ: the flight line bends to the pad. After
+      // the overhead hold the aircraft flies the short descent leg to the
+      // operator's LZ, then sits ON the pad through the crew's walk-in —
+      // its callsign never parks on the incident point.
+      if (d.hemsFlight?.lzConfirmedAt !== undefined && d.parkingPos) {
+        const touchdownAt = d.arrivesAt - (d.hemsFlight.walkSec ?? 0) * 1000;
+        const descentStartAt = touchdownAt - d.hemsFlight.landingSec * 1000;
+        if (mapNow >= descentStartAt && routeCoords.length >= 2) {
+          const overhead = routeCoords[routeCoords.length - 1];
+          const pad: [number, number] = [d.parkingPos.lat, d.parkingPos.lng];
+          const k = Math.min(
+            1,
+            Math.max(
+              0,
+              (mapNow - descentStartAt) / Math.max(1, touchdownAt - descentStartAt),
+            ),
+          );
+          currentCoords = [
+            overhead[0] + (pad[0] - overhead[0]) * k,
+            overhead[1] + (pad[1] - overhead[1]) * k,
+          ];
+          trailCoords = hemsTrailTo(d.applianceId, routeCoords, pad);
+        }
+      }
       out.push({
         key: d.applianceId,
         applianceId: d.applianceId,
         callsign: appliance.callsign,
         applianceType: appliance.type,
         service: appliance.service,
-        currentCoords: interpolateAlongRoute(routeCoords, t),
-        routeCoords,
+        currentCoords,
+        routeCoords: trailCoords,
         t,
         etaRemainingSec: Math.max(0, (d.arrivesAt - mapNow) / 1000),
         phase: "outbound",
