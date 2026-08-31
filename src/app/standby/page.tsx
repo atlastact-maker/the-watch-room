@@ -2,19 +2,24 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
 import { accessProfile, resolveInsignia } from "@/lib/auth/operator-access";
+import { advisorStanding } from "@/lib/auth/advisor-standing";
 import { signupOpen } from "@/lib/auth/signup-window";
 import { ServiceBadge } from "@/app/components/service-insignia";
+import { AdvisorSync } from "@/app/components/advisor-sync";
 
 // Where a signed-in account lands while the game is in closed
 // development and the account is not on the operator allowlist. The
 // tone matters: these are early supporters and advisor applicants, not
 // people being turned away.
 //
-// Three states, in order of standing:
-//   role 'advisor'          — ACCEPTED onto the programme: the Advisor
-//                             Room, with the reference material to review.
-//   signup tick, no role    — applied; application acknowledged.
-//   neither                 — invited to apply.
+// Four states, in order of standing (see lib/auth/advisor-standing):
+//   accepted  — onto the programme: the Advisor Room, with the
+//               reference material to review.
+//   pending   — application filed and waiting on a decision.
+//   unfiled   — ticked the box, but the application never reached the
+//               advisors table. <AdvisorSync /> files it and refreshes;
+//               the copy says so rather than claiming it was received.
+//   none      — invited to apply.
 
 export const metadata = {
   title: "Standing by — The Watch Room",
@@ -26,11 +31,9 @@ export default async function StandbyPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const applied = Boolean(
-    (user?.user_metadata as { advisor?: unknown } | null)?.advisor,
-  );
   const { role, icon: assignedIcon } = await accessProfile(supabase, user?.email);
-  const accepted = role === "advisor";
+  const standing = await advisorStanding(supabase, user, role);
+  const accepted = standing === "accepted";
   // Accepted advisors wear the insignia of the service off their
   // application, unless a different key sits in their user_roles row.
   const insignia = accepted
@@ -39,6 +42,9 @@ export default async function StandbyPage() {
 
   return (
     <div className="relative z-10 flex min-h-[100dvh] flex-col items-center justify-center px-6">
+      {/* Files an application that only ever reached user_metadata —
+          applicants are held here, so this is where it has to run. */}
+      {standing === "unfiled" && <AdvisorSync />}
       <div className="w-full max-w-lg space-y-6 border border-(--color-border) bg-(--color-bg)/90 p-8">
         <div className="space-y-1">
           <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-(--color-amber-dim)">
@@ -84,7 +90,7 @@ export default async function StandbyPage() {
                 open to operators yet. Your account is registered and will
                 be ready the day the doors open.
               </p>
-              {applied ? (
+              {standing === "pending" && (
                 <p>
                   Your{" "}
                   <span className="text-(--color-info)">advisor
@@ -92,7 +98,24 @@ export default async function StandbyPage() {
                   review applications by hand; you&apos;ll see your standing
                   change here when yours is in.
                 </p>
-              ) : (
+              )}
+              {standing === "unfiled" && (
+                <p>
+                  Your{" "}
+                  <span className="text-(--color-info)">advisor
+                  application</span> is being filed now — give it a moment
+                  and this will say received. If it doesn&apos;t, your
+                  answers are safe on your account: open{" "}
+                  <Link
+                    href="/settings"
+                    className="text-(--color-info) underline hover:text-(--color-text)"
+                  >
+                    Settings → Advisor programme
+                  </Link>{" "}
+                  and save them again.
+                </p>
+              )}
+              {standing === "none" && (
                 <p>
                   Served in Fire, Ambulance, Police or Control? The{" "}
                   <Link
