@@ -22,7 +22,15 @@
 
 # misc
 .DS_Store
+
+# certificates and private keys — never commit these. Vercel provisions and
+# renews TLS for the custom domain itself, so nothing here needs a cert.
 *.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
 
 # debug
 npm-debug.log*
