@@ -10,6 +10,7 @@ import { scenario08 } from "./08_school_bury";
 import { scenario09 } from "./09_water_rescue_irwell";
 import { scenario10 } from "./10_hospital_royal_bolton";
 import { scenario11 } from "./11_firearms_ashton";
+import { scenario12 } from "./12_cardiac_arrest_hough_end";
 
 // Registry of available scenarios — all ten of the approved set, converted
 // from data/research/fire/scenarios/*.md.
@@ -25,6 +26,7 @@ export const SCENARIOS: Scenario[] = [
   scenario09,
   scenario10,
   scenario11,
+  scenario12,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {

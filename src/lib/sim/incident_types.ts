@@ -12,7 +12,8 @@ export type IncidentTypeCode =
   | "education_premises_fire"
   | "special_service_water_rescue"
   | "healthcare_premises_fire_alarm"
-  | "police_firearms_incident";
+  | "police_firearms_incident"
+  | "ambulance_cardiac_arrest";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
