@@ -103,9 +103,6 @@ export default async function LandingPage() {
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
             Who we&apos;re looking for
           </h2>
-          <p className="mt-2.5 text-sm leading-relaxed text-(--color-text-muted)">
-            Served in any of these — still in, or long since out:
-          </p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {ADVISOR_SERVICES.filter((s) => s !== "Other").map((s) => (
               <li key={s} className={chipCls}>
@@ -121,10 +118,6 @@ export default async function LandingPage() {
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
             What you&apos;d be advising on
           </h2>
-          <p className="mt-2.5 text-sm leading-relaxed text-(--color-text-muted)">
-            Whichever you know well — nobody covers more than their own
-            ground:
-          </p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {ADVISOR_TOPICS.map((t) => (
               <li key={t} className={chipCls}>
