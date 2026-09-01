@@ -77,7 +77,11 @@ export default async function StandbyPage() {
 
         <div className="space-y-3 text-sm leading-relaxed text-(--color-text-muted)">
           {accepted ? (
-            <>
+            /* Set in capitals with a text transform rather than typed
+               that way: the underlying text stays sentence case, so a
+               screen reader says the words instead of spelling them
+               out letter by letter. */
+            <div className="space-y-3 uppercase">
               <p>
                 You&apos;re on the{" "}
                 <span className="text-(--color-info)">DEVELOPMENT ADVISOR
@@ -94,7 +98,7 @@ export default async function StandbyPage() {
                 applications open to registered operators in October
                 2026.
               </p>
-            </>
+            </div>
           ) : (
             <>
               <p>
