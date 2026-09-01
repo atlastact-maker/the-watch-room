@@ -83,9 +83,9 @@ export default async function LandingPage({
             from a single seat, across real stations with real resources.
           </p>
           <p>
-            It is in closed development. The details that make a control
-            room feel like a control room come from the people who have
-            sat in one.
+            The Watch Room is currently in closed development,
+            opportunities to test will be available in the Pre-Alpha
+            testing phase in October 2026.
           </p>
         </div>
 
