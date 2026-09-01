@@ -54,8 +54,7 @@ export default async function SignupPage({
           {open ? (
             <>
               <p className="text-xs leading-relaxed text-(--color-text-muted)">
-                The Watch Room is in closed development — shifts open to
-                registered operators when the doors do. Served in Fire,
+                The Watch Room is in closed development. Active in Fire,
                 Ambulance, Police or Control? Tick the advisor box below
                 and help shape the simulation now.
               </p>
