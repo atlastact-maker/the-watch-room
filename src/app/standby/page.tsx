@@ -87,14 +87,12 @@ export default async function StandbyPage() {
               </p>
               <p>
                 You will be granted access to the closed Advisor room on
-                our Discord in due course. That is where the review work
-                happens — stations, appliances, callsigns, mobilising,
-                kit. If something reads wrong to someone who has lived
-                it, that is exactly what we want to hear.
+                our Discord and website in due course.
               </p>
               <p className="text-(--color-text-dim)">
-                Shifts aren&apos;t open yet. Pre-Alpha testing opens to
-                registered operators in October 2026.
+                Shifts aren&apos;t open yet. Pre-Alpha testing
+                applications open to registered operators in October
+                2026.
               </p>
             </>
           ) : (
