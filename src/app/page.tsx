@@ -22,7 +22,24 @@ export const metadata = {
 const chipCls =
   "rounded-sm border border-(--color-border) bg-(--color-surface)/60 px-2.5 py-1.5 font-mono text-[11px] text-(--color-text-muted)";
 
-export default async function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
+  // Supabase sends the confirmation link to the project's Site URL, which
+  // is the site root unless the link carries a redirect of its own — so a
+  // confirmation can land here as /?code=…
+  //
+  // It cannot be exchanged here: this is a Server Component, where the
+  // Supabase client's cookie writes are swallowed (see lib/supabase/
+  // server), so the session would never persist. /auth/confirm is a route
+  // handler and can set cookies, so hand the code to it.
+  const { code } = await searchParams;
+  if (code) {
+    redirect(`/auth/confirm?code=${encodeURIComponent(code)}`);
+  }
+
   // A live session belongs on its own standing, not the front door. The
   // admin gate on /menu passes administrators through and sends everyone
   // else to /standby.
