@@ -42,8 +42,8 @@ export default async function SignupPage({
           {/* Boot-check lines */}
           <div className="flex flex-col gap-1 text-xs text-(--color-text-dim)">
             <BootLine label="SYS CHECK" />
-            <BootLine label="CAD LINK" />
-            <BootLine label="AIRWAVE NET" />
+            <BootLine label="CAD LINK" status="offline" />
+            <BootLine label="AIRWAVE NET" status="offline" />
           </div>
 
           <div className="h-px bg-(--color-border-subtle)" />
@@ -52,15 +52,7 @@ export default async function SignupPage({
             &gt; New operator registration
           </div>
           {open ? (
-            <>
-              <p className="text-xs leading-relaxed text-(--color-text-muted)">
-                The Watch Room is in closed development. Active in Fire,
-                Ambulance, Police or Control? Tick the advisor box below
-                and help shape the simulation now.
-              </p>
-
-              <SignupForm defaultAdvisorOpen={advisor === "1"} />
-            </>
+            <SignupForm defaultAdvisorOpen={advisor === "1"} />
           ) : (
             <div className="space-y-3">
               <p className="text-xs leading-relaxed text-(--color-text-muted)">
@@ -119,12 +111,21 @@ export default async function SignupPage({
   );
 }
 
-function BootLine({ label }: { label: string }) {
+function BootLine({
+  label,
+  status = "ok",
+}: {
+  label: string;
+  status?: "ok" | "offline";
+}) {
+  const offline = status === "offline";
   return (
     <div className="flex items-baseline">
       <span>{label}</span>
       <span className="mx-2 flex-1 -translate-y-[3px] border-b border-dotted border-(--color-border)" />
-      <span className="text-(--color-ok)">OK</span>
+      <span className={offline ? "text-(--color-critical)" : "text-(--color-ok)"}>
+        {offline ? "OFFLINE" : "OK"}
+      </span>
     </div>
   );
 }
