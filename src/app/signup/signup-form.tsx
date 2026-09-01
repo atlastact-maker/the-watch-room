@@ -120,7 +120,7 @@ export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?
         disabled={pending}
         className="mt-1 inline-flex h-12 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-[0.25em] text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {pending ? "Registering…" : "▸ Begin Shift"}
+        {pending ? "Registering…" : "▸ Register"}
       </button>
 
       <p className="text-center font-mono text-[9px] uppercase tracking-widest leading-relaxed text-(--color-text-dim)/70">
