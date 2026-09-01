@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
 import { accessProfile, resolveInsignia } from "@/lib/auth/operator-access";
@@ -31,13 +32,18 @@ export default async function StandbyPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { role, icon: assignedIcon } = await accessProfile(supabase, user?.email);
+  // Signed-in accounts only. The proxy redirects anonymous visitors too,
+  // but it fails open if its Supabase call throws, and this page reports
+  // an account's standing — so it checks for itself.
+  if (!user) redirect("/login");
+
+  const { role, icon: assignedIcon } = await accessProfile(supabase, user.email);
   const standing = await advisorStanding(supabase, user, role);
   const accepted = standing === "accepted";
   // Accepted advisors wear the insignia of the service off their
   // application, unless a different key sits in their user_roles row.
   const insignia = accepted
-    ? await resolveInsignia(supabase, user?.id, assignedIcon)
+    ? await resolveInsignia(supabase, user.id, assignedIcon)
     : null;
 
   return (
@@ -76,11 +82,12 @@ export default async function StandbyPage() {
                 what keeps this simulation honest.
               </p>
               <p>
-                The most useful thing you can do right now: go through the
-                reference material below with a red pen. Stations,
-                appliances, callsigns, kit — if something reads wrong to
-                someone who&apos;s lived it, we want to hear exactly that,
-                in the Discord&apos;s advisor channels.
+                The most useful thing you can do right now: bring a red
+                pen to the Discord&apos;s advisor channels. Stations,
+                appliances, callsigns, mobilising, kit — if something
+                reads wrong to someone who&apos;s lived it, we want to hear
+                exactly that. Reference material is posted there as it
+                goes out for review.
               </p>
             </>
           ) : (
@@ -138,16 +145,6 @@ export default async function StandbyPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {accepted && (
-            /* The glossary overlay carries the resource directory as a
-               tab, so one door covers both. */
-            <Link
-              href="/glossary"
-              className="border border-(--color-amber)/60 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) transition-colors hover:bg-(--color-amber)/10"
-            >
-              Reference library
-            </Link>
-          )}
           <a
             href="https://discord.gg/YBN3sbphs3"
             target="_blank"
@@ -156,12 +153,6 @@ export default async function StandbyPage() {
           >
             Join the Discord
           </a>
-          <Link
-            href="/changelog"
-            className="border border-(--color-border) px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:text-(--color-text)"
-          >
-            Latest changes
-          </Link>
           {user && (
             <form action={logout}>
               <button
