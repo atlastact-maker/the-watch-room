@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { sendEmail } from "@/lib/email/send";
 import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
+import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
 
 // Server actions for the admin area. Every one re-checks admin access
 // app-side AND relies on the database functions checking is_admin()
@@ -67,6 +68,39 @@ export async function setRole(formData: FormData): Promise<void> {
     const result = await sendEmail({ to: email, subject, html });
     if (!result.sent) {
       console.error(`advisor acceptance email not sent to ${email}: ${result.reason}`);
+    }
+  }
+
+  revalidatePath("/admin");
+}
+
+/** Decline an application, or take a decline back. Declining records the
+ *  decision on the application (migration 010) and tells the applicant,
+ *  so "reviewed and turned down" stops looking like "nobody has looked".
+ *
+ *  The database returns whether the call actually changed the decision,
+ *  so pressing Decline twice cannot email someone twice. Undoing a
+ *  decline sends nothing: it returns them to waiting, which they were
+ *  already told about. */
+export async function setAdvisorDecline(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const declined = String(formData.get("declined") ?? "") === "true";
+  if (!userId) return;
+  const supabase = await adminClient();
+  const { data: changed, error } = await supabase.rpc("admin_set_advisor_decline", {
+    p_user_id: userId,
+    p_declined: declined,
+  });
+  if (error) throw new Error(error.message);
+
+  if (changed === true && declined && email) {
+    // Best-effort, as with acceptance: the decision stands whether or
+    // not the mail goes out.
+    const { subject, html } = advisorDeclinedEmail();
+    const result = await sendEmail({ to: email, subject, html });
+    if (!result.sent) {
+      console.error(`advisor decline email not sent to ${email}: ${result.reason}`);
     }
   }
 

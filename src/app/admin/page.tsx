@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
-import { setRole, deleteRole, setBan, deleteUser } from "./actions";
+import { setRole, deleteRole, setBan, deleteUser, setAdvisorDecline } from "./actions";
 
 // The admin area — overview numbers, advisor applications, access roles
 // and recent registrations, managed from the site instead of the
@@ -28,6 +28,7 @@ type AdvisorRow = {
   background: string;
   notes: string;
   applied_at: string;
+  declined_at: string | null;
   assigned_role: "admin" | "operator" | "advisor" | null;
   assigned_icon: string | null;
 };
@@ -115,7 +116,9 @@ export default async function AdminPage() {
   const roles = (rolesRes.data ?? []) as RoleRow[];
   const overview = ((overviewRes.data ?? []) as Overview[])[0];
   const users = (usersRes.data ?? []) as UserRow[];
-  const pending = advisors.filter((a) => a.assigned_role === null);
+  const pending = advisors.filter(
+    (a) => a.assigned_role === null && !a.declined_at,
+  );
 
   return (
     <div className="relative z-10 min-h-[100dvh] px-4 py-6 font-mono sm:px-6 sm:py-8">
@@ -206,6 +209,10 @@ export default async function AdminPage() {
                             <span className="rounded-sm border border-(--color-ok)/60 bg-(--color-ok)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-ok)">
                               {a.assigned_role}
                             </span>
+                          ) : a.declined_at ? (
+                            <span className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-critical)">
+                              Declined
+                            </span>
                           ) : (
                             <span className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-amber)">
                               Awaiting review
@@ -258,6 +265,31 @@ export default async function AdminPage() {
                                 className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
                               >
                                 Accept advisor
+                              </button>
+                            </form>
+                          )}
+                          {a.assigned_role === null && !a.declined_at && (
+                            <form action={setAdvisorDecline}>
+                              <input type="hidden" name="userId" value={a.user_id} />
+                              <input type="hidden" name="email" value={a.email} />
+                              <input type="hidden" name="declined" value="true" />
+                              <button
+                                type="submit"
+                                className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}
+                              >
+                                Decline
+                              </button>
+                            </form>
+                          )}
+                          {a.assigned_role === null && a.declined_at && (
+                            <form action={setAdvisorDecline}>
+                              <input type="hidden" name="userId" value={a.user_id} />
+                              <input type="hidden" name="declined" value="false" />
+                              <button
+                                type="submit"
+                                className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)`}
+                              >
+                                Undo decline
                               </button>
                             </form>
                           )}

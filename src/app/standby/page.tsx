@@ -17,6 +17,8 @@ import { AdvisorSync } from "@/app/components/advisor-sync";
 //   accepted  — onto the programme: the Advisor Room, with the
 //               reference material to review.
 //   pending   — application filed and waiting on a decision.
+//   declined  — reviewed and not taken forward. Says so plainly rather
+//               than leaving someone on "received" indefinitely.
 //   unfiled   — ticked the box, but the application never reached the
 //               advisors table. <AdvisorSync /> files it and refreshes;
 //               the copy says so rather than claiming it was received.
@@ -112,6 +114,17 @@ export default async function StandbyPage() {
                     verification on your position if required.
                   </p>
                 </>
+              )}
+              {standing === "declined" && (
+                <p>
+                  Your{" "}
+                  <span className="text-(--color-info)">ADVISOR
+                  APPLICATION</span> has been reviewed, and we&apos;re not
+                  taking it forward onto the programme at this stage —
+                  thank you for offering. Your account is unaffected, and
+                  Pre-Alpha testing opens to registered operators in
+                  October 2026.
+                </p>
               )}
               {standing === "unfiled" && (
                 <p>
