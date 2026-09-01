@@ -183,18 +183,6 @@ export default async function LandingPage({
               . Come back then.
             </p>
           )}
-          <p className="mt-6 font-mono text-[11px] leading-relaxed text-(--color-text-dim)">
-            Development happens in the open on{" "}
-            <a
-              href="https://discord.gg/YBN3sbphs3"
-              target="_blank"
-              rel="noreferrer"
-              className="text-(--color-info) underline underline-offset-2 hover:text-(--color-text)"
-            >
-              the Discord
-            </a>
-            .
-          </p>
         </section>
       </main>
 
