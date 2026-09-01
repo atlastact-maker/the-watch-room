@@ -20,6 +20,23 @@ first. One hop, and it does not depend on the Redirect URLs allowlist.
 `/auth/confirm` also still accepts the `?code=` style, so switching back
 to a default template will not break anything.
 
+## The logo
+
+Both emails show `public/email-logo.png`, served from
+`https://thewtchroom.co.uk/email-logo.png`. Email clients cannot use
+relative paths, so it has to be a public absolute URL.
+
+It stays reachable despite the site being closed to non-administrators
+because `proxy.ts`'s matcher excludes image extensions, and static files
+in `public/` have no page gate to run. Narrow that matcher and the logo
+becomes a broken image in every email — the header still reads correctly
+without it, since the wordmark beside it is text, but it is worth
+knowing.
+
+The mark is a copy of `src/app/icon.png`, duplicated rather than linked
+so that reworking the favicon cannot silently change mail that has
+already been sent.
+
 ## Settings these templates depend on
 
 **Authentication → URL Configuration**
