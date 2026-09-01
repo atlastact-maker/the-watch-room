@@ -1,23 +1,31 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ResetPasswordForm } from "./reset-form";
 
 // Recovery links land here in one of two shapes depending on the Supabase
-// email template: `?code=…` (default ConfirmationURL redirect — exchanged
-// for a session here) or already-authenticated via /auth/confirm with
-// type=recovery. Either way, a valid session lets the form set the new
-// password; anything else shows the expired state.
+// email template: `?code=…` (the default ConfirmationURL redirect) or
+// already-authenticated via /auth/confirm with type=recovery.
+//
+// A code cannot be exchanged here. This is a Server Component, where the
+// Supabase client's cookie writes are swallowed (see lib/supabase/server),
+// so exchanging in place appeared to work while leaving no session — and
+// the page then showed its own "link has expired" state. /auth/confirm is
+// a route handler and can set cookies, so the code goes there and comes
+// back with a session.
 export default async function ResetPasswordPage({
   searchParams,
 }: {
   searchParams: Promise<{ code?: string }>;
 }) {
   const { code } = await searchParams;
-  const supabase = await createClient();
-
   if (code) {
-    await supabase.auth.exchangeCodeForSession(code).catch(() => {});
+    redirect(
+      `/auth/confirm?code=${encodeURIComponent(code)}&next=/reset-password`,
+    );
   }
+
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
