@@ -1,143 +1,222 @@
 import Link from "next/link";
-import { LATEST, formatEntryDate } from "@/lib/changelog";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { LandingBackdrop } from "./components/landing-backdrop";
-import { LiveConsole } from "./components/live-console";
-import { STATIONS, getStationAppliances } from "@/lib/sim/data";
-import type { ServiceCode } from "@/lib/sim/types";
+import { signupOpen } from "@/lib/auth/signup-window";
+import {
+  ADVISOR_SERVICES,
+  ADVISOR_STATUSES,
+  ADVISOR_TOPICS,
+} from "@/lib/auth/schemas";
 
-// Fleet counts computed server-side from the real research data, so the
-// client bundle only ships six numbers rather than the station files.
-function fleetCounts() {
-  const out: Record<ServiceCode, { stations: number; appliances: number }> = {
-    Fire: { stations: 0, appliances: 0 },
-    Ambulance: { stations: 0, appliances: 0 },
-    Police: { stations: 0, appliances: 0 },
-  };
-  for (const s of STATIONS) {
-    out[s.service].stations += 1;
-    out[s.service].appliances += getStationAppliances(s.id).length;
-  }
-  return out;
-}
+// The front door. While the site is closed, the advisor programme is the
+// only thing open, so this page has one job: explain the programme to
+// someone who has done the job for real, and get them to the form.
+//
+// It deliberately links nowhere else on the site. Everything but signup
+// and the auth flow is administrator-only (lib/auth/require-admin), so a
+// trailer or changelog link here would dead-end the first thing a
+// visitor touches.
+
+export const metadata = {
+  title: "Development Advisor Programme — The Watch Room",
+  description:
+    "The Watch Room is an emergency services incident management simulator in closed development. If you've served in Fire, Ambulance, Police or a control room, help keep it honest.",
+};
 
 export default async function LandingPage() {
-  // A live session goes straight to the ops centre — returning operators
-  // shouldn't land on the marketing page.
+  // A live session belongs on its own standing, not the front door. The
+  // admin gate on /menu passes administrators through and sends everyone
+  // else to /standby.
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (user) redirect("/menu");
 
-  const fleet = fleetCounts();
+  const open = signupOpen();
 
   return (
-    <>
-    <LandingBackdrop />
     <div className="relative z-10 flex flex-1 flex-col">
-      {/* status bar */}
+      {/* Status strip */}
       <header className="border-b border-(--color-border-subtle)">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-5 py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-(--color-text-dim) sm:px-6 sm:tracking-widest">
           <div className="flex items-center gap-2">
-            <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
-            <span>The Watch Room</span>
-            <span className="text-(--color-border)">|</span>
-            <span className="text-(--color-text-dim)">Multi-Agency Operator</span>
+            <span className="dot-live size-1.5 shrink-0 rounded-full bg-(--color-amber)" />
+            <span className="text-(--color-text)">The Watch Room</span>
           </div>
-          <div className="hidden sm:block">
-            Build {process.env.NEXT_PUBLIC_BUILD_STAMP ?? "dev"} · Pre-alpha
-          </div>
+          <span className="shrink-0 text-(--color-text-dim)">
+            Closed development
+          </span>
         </div>
       </header>
 
-      {/* hero */}
-      <main className="flex flex-1 items-center">
-        <div className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
-          <section>
-            <p className="font-mono text-xs uppercase tracking-[0.3em] text-(--color-amber-dim)">
-              Emergency Services Incident Management Simulator
-            </p>
-            <h1 className="mt-4 text-5xl font-semibold tracking-tight sm:text-6xl lg:text-7xl">
-              The Watch Room
-            </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-(--color-text-muted)">
-              One operator. Three services. You command Fire, Ambulance and
-              Police from a single unified seat — deciding who rolls, where,
-              and how fast.
-            </p>
-            <p className="mt-5 font-mono text-base text-(--color-amber)">
-              You&apos;re in command and control.
-            </p>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:px-6 sm:py-16">
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-amber-dim) sm:tracking-[0.3em]">
+          Development Advisor Programme
+        </p>
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
+          You&apos;ve done the job.
+          <br />
+          Help us get it right.
+        </h1>
 
-            <div className="mt-9 flex flex-wrap gap-3">
-              {/* Closed development: shifts are allowlisted, so the
-                  front door is registration + the advisor programme
-                  rather than a shift that would bounce to /standby. */}
-              <Link
-                href="/signup"
-                className="inline-flex h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 font-mono text-sm font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
-              >
-                Register
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 font-mono text-sm font-medium uppercase tracking-widest text-(--color-text) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)"
-              >
-                Log in
-              </Link>
-            </div>
-
-            <Link
-              href="/trailer2"
-              className="group mt-5 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:text-(--color-amber)"
-            >
-              <span>▸ Watch the trailer</span>
-              <span className="text-(--color-text-dim)/60 group-hover:text-(--color-amber)/60">
-                45 sec
-              </span>
-            </Link>
-
-            {/* Proof of life — newest patch note, title and date only. */}
-            <Link
-              href="/changelog"
-              className="mt-3 block font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:text-(--color-amber)"
-            >
-              <span className="text-(--color-ok)">Latest</span> · {LATEST.title} —{" "}
-              {formatEntryDate(LATEST.date)}
-            </Link>
-
-            <div className="mt-10 flex flex-wrap gap-2 border-t border-(--color-border-subtle) pt-6">
-              {["Real stations", "Real resources"].map((chip) => (
-                <span
-                  key={chip}
-                  className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)"
-                >
-                  {chip}
-                </span>
-              ))}
-            </div>
-          </section>
-
-          {/* Live console */}
-          <aside>
-            <LiveConsole
-              fire={fleet.Fire}
-              ambulance={fleet.Ambulance}
-              police={fleet.Police}
-            />
-          </aside>
+        <div className="mt-6 space-y-4 text-base leading-relaxed text-(--color-text-muted)">
+          <p>
+            The Watch Room is an emergency services incident management
+            simulator — one operator commanding Fire, Ambulance and Police
+            from a single seat, across real stations with real resources.
+          </p>
+          <p>
+            It is in closed development, and it is being built against
+            research rather than guesswork. That only goes so far. The
+            details that make a control room feel like a control room come
+            from the people who have sat in one.
+          </p>
         </div>
+
+        {/* Primary action, high on the page — most visitors arrive
+            already knowing whether this is them. */}
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {open ? (
+            <Link
+              href="/signup?advisor=1"
+              className="inline-flex h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
+            >
+              Apply to the programme
+            </Link>
+          ) : (
+            <span className="inline-flex h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 font-mono text-sm uppercase tracking-[0.15em] text-(--color-text-dim)">
+              Applications open Tuesday 1st September
+            </span>
+          )}
+          <Link
+            href="/login"
+            className="inline-flex h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 font-mono text-sm uppercase tracking-[0.15em] text-(--color-text) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)"
+          >
+            Already applied? Log in
+          </Link>
+        </div>
+
+        {/* Who it's for */}
+        <section className="mt-12 border-t border-(--color-border-subtle) pt-8">
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
+            Who we&apos;re looking for
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
+            Anyone who has served in one of these, whether you are still in
+            or long since out:
+          </p>
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {ADVISOR_SERVICES.filter((s) => s !== "Other").map((s) => (
+              <li
+                key={s}
+                className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 px-2.5 py-1.5 font-mono text-[11px] text-(--color-text-muted)"
+              >
+                {s}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-(--color-text-dim)">
+            {ADVISOR_STATUSES.join(" · ")}
+          </p>
+        </section>
+
+        {/* What advising actually involves */}
+        <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
+            What you&apos;d be advising on
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
+            Pick whichever of these you know well — nobody is expected to
+            cover more than their own ground:
+          </p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {ADVISOR_TOPICS.map((t) => (
+              <li
+                key={t}
+                className="flex items-start gap-2.5 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 px-3 py-2.5 text-[13px] leading-snug text-(--color-text-muted)"
+              >
+                <span aria-hidden className="mt-1 text-(--color-info)">
+                  ▸
+                </span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Commitment — the question everyone actually has */}
+        <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
+            What it asks of you
+          </h2>
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-(--color-text-muted)">
+            <p>
+              As much or as little as you want. You say on the form whether
+              you would rather field the occasional question or review
+              features as they are built — and you can change your mind at
+              any point in your settings.
+            </p>
+            <p>
+              It is unpaid and informal. What you get is a say in how your
+              job gets portrayed, and the development advisor mark against
+              your callsign.
+            </p>
+            <p className="text-(--color-text-dim)">
+              Applications are read by hand, so there is a wait between
+              applying and hearing back. You will see your standing change
+              on the site when yours has been read.
+            </p>
+          </div>
+        </section>
+
+        {/* Closing action */}
+        <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
+          {open ? (
+            <>
+              <p className="text-sm leading-relaxed text-(--color-text-muted)">
+                Registration takes a couple of minutes — a callsign, an
+                email, and the advisor questions.
+              </p>
+              <Link
+                href="/signup?advisor=1"
+                className="mt-4 inline-flex h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
+              >
+                Apply to the programme
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-(--color-text-muted)">
+              The programme opens on{" "}
+              <span className="text-(--color-amber)">
+                Tuesday 1st September
+              </span>
+              . Come back then.
+            </p>
+          )}
+          <p className="mt-6 font-mono text-[11px] leading-relaxed text-(--color-text-dim)">
+            Development happens in the open on{" "}
+            <a
+              href="https://discord.gg/YBN3sbphs3"
+              target="_blank"
+              rel="noreferrer"
+              className="text-(--color-info) underline underline-offset-2 hover:text-(--color-text)"
+            >
+              the Discord
+            </a>
+            .
+          </p>
+        </section>
       </main>
 
       <footer className="border-t border-(--color-border-subtle)">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-          <span>The Watch Room</span>
-          <span>A serious game about decisions under pressure</span>
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-(--color-text-dim) sm:px-6 sm:tracking-[0.2em]">
+          <span>The Watch Room · Pre-alpha</span>
+          <Link href="/terms" className="hover:text-(--color-text)">
+            Terms
+          </Link>
         </div>
       </footer>
     </div>
-    </>
   );
 }

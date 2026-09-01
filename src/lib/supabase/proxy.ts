@@ -1,19 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Trailers are public — they're marketing pages meant to be shared raw.
+// The site is closed to everything but the advisor programme. Only the
+// way in is public: the landing page, registration, and the auth flow
+// around it (the confirmation link, password reset, and the terms the
+// signup form makes you accept). Lock any of these and nobody can apply.
+//
+// Everything else needs a session here, and administrator rights at the
+// page — see lib/auth/require-admin. This check is deliberately
+// session-only: the proxy runs on every request including prefetches, so
+// per the Next docs the database check belongs on the page, not here.
 const PUBLIC_PATHS = [
   "/",
   "/login",
   "/signup",
   "/auth",
   "/terms",
-  "/trailer",
-  "/trailer2",
-  "/trailer3",
-  "/trailer4",
-  "/demo-mdt",
-  "/changelog",
   "/forgot-password",
   "/reset-password",
 ];

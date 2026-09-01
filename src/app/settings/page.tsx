@@ -143,7 +143,7 @@ export default function SettingsPage() {
             href="/menu"
             className="rounded-sm border border-(--color-border) px-2.5 py-1 uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber) hover:text-(--color-amber)"
           >
-            ← Ops Centre
+            ← Back
           </Link>
         </div>
       </header>
