@@ -28,12 +28,19 @@ export default async function LoginPage({
 
           {error === "verify_failed" && (
             <p className="mt-6 rounded-sm border border-(--color-critical)/50 bg-(--color-critical)/10 px-3 py-2.5 text-[13px] leading-relaxed text-(--color-critical)">
-              That confirmation link didn&apos;t work — it may have expired
-              or already been used. Log in below, or{" "}
+              That link didn&apos;t work — it may have expired or already
+              been used. Log in below, or get a fresh one by{" "}
               <Link href="/signup" className="underline underline-offset-2">
-                register again
+                registering
               </Link>{" "}
-              to get a fresh one.
+              or{" "}
+              <Link
+                href="/forgot-password"
+                className="underline underline-offset-2"
+              >
+                resetting your password
+              </Link>
+              .
             </p>
           )}
 
