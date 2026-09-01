@@ -83,9 +83,9 @@ export default async function LandingPage({
             from a single seat, across real stations with real resources.
           </p>
           <p>
-            The Watch Room is currently in closed development,
-            opportunities to test will be available in the Pre-Alpha
-            testing phase in October 2026.
+            It is currently in closed development, opportunities to test
+            will be available in the Pre-Alpha testing phase in October
+            2026.
           </p>
         </div>
 
