@@ -88,10 +88,10 @@ export default function TermsPage() {
             <Section n="08" title="Contact">
               Questions about these terms or your data:{" "}
               <a
-                href="mailto:atlastact@gmail.com"
+                href="mailto:thewtchroom@gmail.com"
                 className="text-(--color-amber) underline underline-offset-2 hover:text-amber-400"
               >
-                atlastact@gmail.com
+                thewtchroom@gmail.com
               </a>
               .
             </Section>
