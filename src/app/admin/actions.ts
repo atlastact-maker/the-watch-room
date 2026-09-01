@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
+import { sendEmail } from "@/lib/email/send";
+import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
 
 // Server actions for the admin area. Every one re-checks admin access
 // app-side AND relies on the database functions checking is_admin()
@@ -24,7 +26,10 @@ export type RoleValue = "admin" | "operator" | "advisor";
 export type IconValue = "fire" | "ambulance" | "police" | "control" | "specialist";
 
 /** Accept an application / set someone's role. Icon empty = derive from
- *  their advisor application, same as the rest of the app. */
+ *  their advisor application, same as the rest of the app.
+ *
+ *  Granting 'advisor' to someone who did not already hold it is what
+ *  "reviewed" means, so that is where the applicant gets told. */
 export async function setRole(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "") as RoleValue;
@@ -35,6 +40,16 @@ export async function setRole(formData: FormData): Promise<void> {
     ? (iconRaw as IconValue)
     : null;
   const supabase = await adminClient();
+
+  // What they hold now, read before the write: re-saving a row to fix a
+  // note or an insignia must not send the acceptance email a second
+  // time. Only the transition into 'advisor' counts.
+  const { data: roles } = await supabase.rpc("admin_list_roles");
+  const previous = (roles as { email: string; role: string }[] | null)?.find(
+    (r) => r.email.trim().toLowerCase() === email.toLowerCase(),
+  );
+  const newlyAdvisor = role === "advisor" && previous?.role !== "advisor";
+
   const { error } = await supabase.rpc("admin_upsert_role", {
     p_email: email,
     p_role: role,
@@ -42,6 +57,19 @@ export async function setRole(formData: FormData): Promise<void> {
     p_note: note || null,
   });
   if (error) throw new Error(error.message);
+
+  if (newlyAdvisor) {
+    // Best-effort by design: sendEmail never throws, and the acceptance
+    // stands whether or not the mail goes out. A failure is logged for
+    // the Vercel runtime logs rather than shown to the admin, who has
+    // already been told the role was set.
+    const { subject, html } = advisorAcceptedEmail();
+    const result = await sendEmail({ to: email, subject, html });
+    if (!result.sent) {
+      console.error(`advisor acceptance email not sent to ${email}: ${result.reason}`);
+    }
+  }
+
   revalidatePath("/admin");
 }
 
