@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasShiftAccess } from "@/lib/auth/operator-access";
 
 // Server-side proxy for Overpass API. Public Overpass mirrors regularly
 // return 504 / hang when called from the browser, so we proxy here with a
@@ -27,7 +28,11 @@ export async function GET(request: NextRequest): Promise<Response> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
+  // Session alone is not enough: these proxy paid or rate-limited
+  // upstreams (OS Maps, OpenRouteService, Overpass), and anyone at
+  // all can register. Only accounts that can actually run a shift
+  // have a page that calls them.
+  if (!user || !(await hasShiftAccess(supabase, user.email))) {
     return NextResponse.json(
       { error: "unauthorized", source: "overpass" } satisfies Failure,
       { status: 401 },
