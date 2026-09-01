@@ -135,9 +135,9 @@ export default async function LandingPage({
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
             What you&apos;d be advising on
           </h2>
-          <ul className="mt-3 flex flex-wrap gap-2">
+          <ul className="mt-3 grid grid-cols-2 gap-2">
             {ADVISOR_TOPICS.map((t) => (
-              <li key={t} className={chipCls}>
+              <li key={t} className={`${chipCls} leading-snug`}>
                 {t}
               </li>
             ))}
