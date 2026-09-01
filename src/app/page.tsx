@@ -80,22 +80,25 @@ export default async function LandingPage() {
           {open ? (
             <Link
               href="/signup?advisor=1"
-              className="inline-flex h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
             >
               Apply to the programme
             </Link>
           ) : (
-            <span className="inline-flex h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 font-mono text-sm uppercase tracking-[0.15em] text-(--color-text-dim)">
+            <span className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 py-3 text-center font-mono text-sm uppercase tracking-[0.15em] text-(--color-text-dim)">
               Applications open Tuesday 1st September
             </span>
           )}
           <Link
             href="/login"
-            className="inline-flex h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 font-mono text-sm uppercase tracking-[0.15em] text-(--color-text) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)"
+            className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 py-3 text-center font-mono text-sm uppercase tracking-[0.15em] text-(--color-text) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)"
           >
-            Already applied? Log in
+            Log in
           </Link>
         </div>
+        <p className="mt-3 text-[13px] leading-relaxed text-(--color-text-dim)">
+          Already applied? Log in to see where your application stands.
+        </p>
 
         {/* Who it's for */}
         <section className="mt-12 border-t border-(--color-border-subtle) pt-8">
@@ -180,7 +183,7 @@ export default async function LandingPage() {
               </p>
               <Link
                 href="/signup?advisor=1"
-                className="mt-4 inline-flex h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
+                className="mt-4 inline-flex min-h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
               >
                 Apply to the programme
               </Link>
@@ -212,7 +215,7 @@ export default async function LandingPage() {
       <footer className="border-t border-(--color-border-subtle)">
         <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-(--color-text-dim) sm:px-6 sm:tracking-[0.2em]">
           <span>The Watch Room · Pre-alpha</span>
-          <Link href="/terms" className="hover:text-(--color-text)">
+          <Link href="/terms" className="-my-2 py-2 hover:text-(--color-text)">
             Terms
           </Link>
         </div>
