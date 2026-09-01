@@ -1,0 +1,20 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",        "x": 0,    "y": 0,    "w": 1080, "h": 1920 },
+    { "file": "WhatItIs.dc.html",    "x": 1280, "y": 0,    "w": 1080, "h": 1920 },
+    { "file": "WhoWeWant.dc.html",   "x": 2560, "y": 0,    "w": 1080, "h": 1920 },
+    { "file": "AdvisingOn.dc.html",  "x": 0,    "y": 2220, "w": 1080, "h": 1920 },
+    { "file": "WhatItAsks.dc.html",  "x": 1280, "y": 2220, "w": 1080, "h": 1920 },
+    { "file": "Apply.dc.html",       "x": 2560, "y": 2220, "w": 1080, "h": 1920 }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": -620,
+      "y": 0,
+      "w": 460,
+      "text": "Six 1080x1920 slides for a TikTok photo post, in the order they should be posted.\n\nThe dark band below each footer is deliberate — that is where TikTok paints the caption, username and the right-hand action rail. Nothing that matters sits in it.\n\nExport: toolbar > Export > PNG, one artboard at a time."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
