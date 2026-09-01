@@ -2,30 +2,34 @@
   Supabase → Authentication → Email Templates → "Confirm signup".
   Paste the markup below into the Message body field.
 
+  Dark to match the site, and so the logo — light frame, white panes —
+  reads as designed rather than vanishing into a white background.
+  Colours are the site's own tokens from globals.css.
+
+  bgcolor attributes sit alongside the inline styles on purpose: Outlook
+  on Windows ignores CSS background on table cells, and without them the
+  email renders as light text on white.
+
   The link uses the token_hash style, which calls /auth/confirm on the
   site directly rather than bouncing through Supabase's verify endpoint
-  first. One hop, and it does not depend on the Redirect URLs allowlist.
-  {{ .SiteURL }} must therefore be the live site, not localhost.
+  first. {{ .SiteURL }} must therefore be the live site, not localhost.
 -->
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f4f5;margin:0;padding:32px 12px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#050507" style="background:#050507;margin:0;padding:32px 12px;">
   <tr>
     <td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e4e4e7;border-radius:4px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0a0a0c" style="max-width:560px;background:#0a0a0c;border:1px solid #2a2a32;border-radius:4px;">
 
         <tr>
-          <td style="padding:20px 32px;border-bottom:1px solid #e4e4e7;">
-            <!-- Logo beside the wordmark, not instead of it: most clients
-                 block images by default, and the header still has to read
-                 as The Watch Room when the mark never loads. -->
+          <td bgcolor="#111114" style="padding:22px 32px;background:#111114;border-bottom:1px solid #1d1d22;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td valign="middle" style="padding-right:12px;">
-                  <img src="https://thewtchroom.co.uk/email-logo.png" width="36" height="36" alt="" style="display:block;width:36px;height:36px;border:0;border-radius:8px;" />
+                <td valign="middle" style="padding-right:14px;">
+                  <img src="https://thewtchroom.co.uk/email-logo.png" width="120" height="80" alt="" style="display:block;width:120px;height:80px;border:0;" />
                 </td>
                 <td valign="middle">
-                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#18181b;font-weight:600;">The Watch Room</span>
+                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#f4f4f6;font-weight:600;">The Watch Room</span>
                   <br />
-                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#71717a;">Operator Intake</span>
+                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#a8a8b3;">Operator Intake</span>
                 </td>
               </tr>
             </table>
@@ -34,13 +38,9 @@
 
         <tr>
           <td style="padding:32px 32px 8px;">
-            <h1 style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:21px;line-height:1.35;color:#18181b;font-weight:600;">Confirm your email address</h1>
-            <p style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;">
-              Thanks for registering with The Watch Room. Confirm this address and your account is live.
-            </p>
-            <p style="margin:0 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;">
-              If you applied to the development advisor programme, your application is filed at the same time and we will be in touch once it has been reviewed.
-            </p>
+            <h1 style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:21px;line-height:1.35;color:#f4f4f6;font-weight:600;">Confirm your email address</h1>
+            <p style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">Thanks for registering with The Watch Room. Confirm this address and your account is live.</p>
+            <p style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">If you applied to the development advisor programme, your application is filed at the same time and we will be in touch once it has been reviewed.</p>
           </td>
         </tr>
 
@@ -48,7 +48,7 @@
           <td align="center" style="padding:0 32px 28px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="background:#fbbf24;border-radius:3px;">
+                <td bgcolor="#fbbf24" style="background:#fbbf24;border-radius:3px;">
                   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/standby"
                      style="display:inline-block;padding:14px 30px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#000000;text-decoration:none;">Confirm email</a>
                 </td>
@@ -59,21 +59,21 @@
 
         <tr>
           <td style="padding:0 32px 32px;">
-            <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#71717a;">
+            <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#a8a8b3;">
               If the button does not work, paste this into your browser:
             </p>
-            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:#3f3f46;word-break:break-all;">
+            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:#cdcdd4;word-break:break-all;">
               {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email&amp;next=/standby
             </p>
           </td>
         </tr>
 
         <tr>
-          <td style="padding:18px 32px;border-top:1px solid #e4e4e7;background:#fafafa;">
-            <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#71717a;">
+          <td bgcolor="#111114" style="padding:18px 32px;background:#111114;border-top:1px solid #1d1d22;">
+            <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#a8a8b3;">
               Didn't register with The Watch Room? Ignore this email — no account is created until the address is confirmed.
             </p>
-            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#a1a1aa;">
+            <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#71717a;">
               The Watch Room &middot; Closed development
             </p>
           </td>

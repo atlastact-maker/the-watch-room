@@ -20,22 +20,33 @@ first. One hop, and it does not depend on the Redirect URLs allowlist.
 `/auth/confirm` also still accepts the `?code=` style, so switching back
 to a default template will not break anything.
 
-## The logo
+## Dark, and the logo
 
-Both emails show `public/email-logo.png`, served from
-`https://thewtchroom.co.uk/email-logo.png`. Email clients cannot use
-relative paths, so it has to be a public absolute URL.
+Both emails are dark, using the site's own tokens from `globals.css`, so
+the logo reads as designed — its frame and panes are light, and on a
+white background all that survives is the single amber pane.
 
-It stays reachable despite the site being closed to non-administrators
-because `proxy.ts`'s matcher excludes image extensions, and static files
-in `public/` have no page gate to run. Narrow that matcher and the logo
-becomes a broken image in every email — the header still reads correctly
-without it, since the wordmark beside it is text, but it is worth
-knowing.
+`bgcolor` attributes sit alongside the inline `style` backgrounds on
+purpose. Outlook on Windows ignores CSS backgrounds on table cells, and
+without the attribute the email renders as light text on white — the
+worst of both.
 
-The mark is a copy of `src/app/icon.png`, duplicated rather than linked
-so that reworking the favicon cannot silently change mail that has
-already been sent.
+The mark is `public/email-logo.png`, served from
+`https://thewtchroom.co.uk/email-logo.png`; email clients cannot use
+relative paths. It is shown beside the wordmark rather than instead of
+it, because most clients block remote images by default and the header
+still has to say who sent the mail. The `img` carries an empty `alt` for
+the same reason — the text beside it already does.
+
+> The PNG was rebuilt from a screenshot of the logo rather than exported
+> from the original artwork. Geometry and colours match what was
+> supplied, but if the source file exists, replacing `public/email-logo.png`
+> with a 360×240 export of it is the better answer.
+
+The asset stays reachable despite the site being closed to
+non-administrators because `proxy.ts`'s matcher excludes image
+extensions, and static files in `public/` have no page gate. Narrow that
+matcher and the logo becomes a broken image in every email already sent.
 
 ## Settings these templates depend on
 
