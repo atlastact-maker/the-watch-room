@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
 import { accessProfile, resolveInsignia } from "@/lib/auth/operator-access";
-import { advisorStanding } from "@/lib/auth/advisor-standing";
+import {
+  advisorStanding,
+  type AdvisorStanding,
+} from "@/lib/auth/advisor-standing";
 import { signupOpen } from "@/lib/auth/signup-window";
 import { ServiceBadge } from "@/app/components/service-insignia";
 import { AdvisorSync } from "@/app/components/advisor-sync";
@@ -29,6 +32,17 @@ export const metadata = {
   title: "Standing by — The Watch Room",
 };
 
+// The headline is the decision, in the colour that decision carries
+// elsewhere: green accepted, amber waiting, red declined. Someone who
+// has not applied is not being judged, so they get neither.
+const HEADINGS: Record<AdvisorStanding, { text: string; tone: string }> = {
+  accepted: { text: "Accepted", tone: "text-(--color-ok)" },
+  pending: { text: "In review", tone: "text-(--color-amber)" },
+  declined: { text: "Declined", tone: "text-(--color-critical)" },
+  unfiled: { text: "Standing by", tone: "text-(--color-text)" },
+  none: { text: "Standing by", tone: "text-(--color-text)" },
+};
+
 export default async function StandbyPage() {
   const supabase = await createClient();
   const {
@@ -43,6 +57,7 @@ export default async function StandbyPage() {
   const { role, icon: assignedIcon } = await accessProfile(supabase, user.email);
   const standing = await advisorStanding(supabase, user, role);
   const accepted = standing === "accepted";
+  const heading = HEADINGS[standing];
   // Accepted advisors wear the insignia of the service off their
   // application, unless a different key sits in their user_roles row.
   const insignia = accepted
@@ -59,8 +74,10 @@ export default async function StandbyPage() {
           <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-(--color-amber-dim)">
             The Watch Room
           </div>
-          <h1 className="font-mono text-xl uppercase tracking-[0.15em] text-(--color-text)">
-            {accepted ? "Accepted" : "Standing by"}
+          <h1
+            className={`font-mono text-xl uppercase tracking-[0.15em] ${heading.tone}`}
+          >
+            {heading.text}
           </h1>
           {accepted && (
             <div className="mt-3">
