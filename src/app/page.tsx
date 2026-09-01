@@ -2,11 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signupOpen } from "@/lib/auth/signup-window";
-import {
-  ADVISOR_SERVICES,
-  ADVISOR_STATUSES,
-  ADVISOR_TOPICS,
-} from "@/lib/auth/schemas";
+import { ADVISOR_SERVICES, ADVISOR_TOPICS } from "@/lib/auth/schemas";
 
 // The front door. While the site is closed, the advisor programme is the
 // only thing open, so this page has one job: explain the programme to
@@ -67,10 +63,9 @@ export default async function LandingPage() {
             from a single seat, across real stations with real resources.
           </p>
           <p>
-            It is in closed development, and it is being built against
-            research rather than guesswork. That only goes so far. The
-            details that make a control room feel like a control room come
-            from the people who have sat in one.
+            It is in closed development. The details that make a control
+            room feel like a control room come from the people who have
+            sat in one.
           </p>
         </div>
 
@@ -119,9 +114,6 @@ export default async function LandingPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-(--color-text-dim)">
-            {ADVISOR_STATUSES.join(" · ")}
-          </p>
         </section>
 
         {/* What advising actually involves */}
@@ -166,9 +158,10 @@ export default async function LandingPage() {
               your callsign.
             </p>
             <p className="text-(--color-text-dim)">
-              Applications are read by hand, so there is a wait between
-              applying and hearing back. You will see your standing change
-              on the site when yours has been read.
+              Applications are reviewed on a case-by-case basis, so there
+              is a wait between applying and hearing back. You will see
+              your standing change on the site when yours has been
+              reviewed.
             </p>
           </div>
         </section>
@@ -176,18 +169,10 @@ export default async function LandingPage() {
         {/* Closing action */}
         <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
           {open ? (
-            <>
-              <p className="text-sm leading-relaxed text-(--color-text-muted)">
-                Registration takes a couple of minutes — a callsign, an
-                email, and the advisor questions.
-              </p>
-              <Link
-                href="/signup?advisor=1"
-                className="mt-4 inline-flex min-h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
-              >
-                Start your application
-              </Link>
-            </>
+            <p className="text-sm leading-relaxed text-(--color-text-muted)">
+              Registration takes a couple of minutes — a callsign, an
+              email, and the advisor questions.
+            </p>
           ) : (
             <p className="text-sm leading-relaxed text-(--color-text-muted)">
               The programme opens on{" "}
