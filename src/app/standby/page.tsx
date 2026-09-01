@@ -171,16 +171,18 @@ export default async function StandbyPage() {
               )}
               {standing === "none" && (
                 <p>
-                  Served in Fire, Ambulance, Police or Control? The{" "}
+                  Served in Fire, Ambulance, Police or Control? The
+                  development advisor programme{" "}
+                  {signupOpen() ? "is open" : "opens Tuesday 1st September"}
+                  {" "}— real operational experience shapes what gets
+                  built. You can apply from{" "}
                   <Link
-                    href="/signup?advisor=1"
+                    href="/settings"
                     className="text-(--color-info) underline hover:text-(--color-text)"
                   >
-                    development advisor programme
-                  </Link>{" "}
-                  {signupOpen()
-                    ? "is open — real operational experience shapes what gets built."
-                    : "opens Tuesday 1st September — real operational experience shapes what gets built."}
+                    Settings → Advisor programme
+                  </Link>
+                  .
                 </p>
               )}
             </>
