@@ -93,18 +93,25 @@ export default async function StandbyPage() {
           ) : (
             <>
               <p>
-                The Watch Room is in closed development — shifts aren&apos;t
-                open to operators yet. Your account is registered and will
-                be ready the day the doors open.
+                The Watch Room is in its closed development phase so
+                shifts aren&apos;t open to operators yet. Your account is
+                registered.
               </p>
               {standing === "pending" && (
-                <p>
-                  Your{" "}
-                  <span className="text-(--color-info)">advisor
-                  application</span> has been received — thank you. We
-                  review applications by hand; you&apos;ll see your standing
-                  change here when yours is in.
-                </p>
+                <>
+                  <p>
+                    Your{" "}
+                    <span className="text-(--color-info)">advisor
+                    application</span> has been received — thank you. We
+                    review applications individually; you&apos;ll see your
+                    standing change here and you will also receive an
+                    email when the application has been reviewed.
+                  </p>
+                  <p>
+                    A member of the team may contact you for further
+                    verification on your position if required.
+                  </p>
+                </>
               )}
               {standing === "unfiled" && (
                 <p>
