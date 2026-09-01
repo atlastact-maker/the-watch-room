@@ -37,20 +37,53 @@ cannot be changed — it is their shared sending infrastructure, and it is
 rate limited to a handful of emails per hour.
 
 To send from an address of your own, set up **custom SMTP**:
-Authentication → Emails → SMTP Settings. Any transactional provider
-works — Resend, Postmark, SendGrid, Mailgun, Amazon SES. You give
-Supabase the host, port, username and password, plus the sender address
-and name.
+Authentication → Emails → SMTP Settings. Supabase does the sending; the
+provider only carries the mail, so no application code is involved and
+no key belongs in this repository or in Vercel.
 
-Two things worth knowing before you pick one:
+Two things worth knowing whichever provider you use:
 
 - **The sender domain needs DNS records** (SPF and DKIM, ideally DMARC).
   Without them, mail to Gmail and Outlook lands in spam or is rejected
-  outright. Every provider above walks you through the records; they go
-  in the same DNS as the site.
+  outright. The records go in the same DNS as the site.
 - **A `@gmail.com` address cannot be used as the sender.** Gmail's DMARC
   policy rejects mail claiming to be from `gmail.com` that Google did not
-  send. Sending confirmation emails "from" a Gmail address will fail for
-  a large share of recipients. Use a domain you control — for example
-  `noreply@thewtchroom.co.uk`, with the DNS records above. A `@gmail.com`
+  send, so a large share of recipients would never receive it. Use a
+  domain you control — `noreply@thewtchroom.co.uk`. A `@gmail.com`
   address is fine as the *reply-to* or contact address.
+
+### Resend
+
+1. **Verify the domain.** Resend → Domains → Add Domain →
+   `thewtchroom.co.uk`. Resend lists the DNS records to add (a DKIM
+   `TXT`, an SPF `TXT`, and for tracking a `CNAME`); add them wherever
+   the domain's DNS lives and wait for Resend to show *Verified*. Until
+   it does, Resend will only deliver to your own address, which looks
+   exactly like a broken signup flow when someone else tries to register.
+
+2. **Point Supabase at Resend's SMTP.** Authentication → Emails → SMTP
+   Settings, enable custom SMTP:
+
+   | Field | Value |
+   | --- | --- |
+   | Host | `smtp.resend.com` |
+   | Port | `465` |
+   | Username | `resend` (the literal word) |
+   | Password | your Resend API key, `re_…` |
+   | Sender email | `noreply@thewtchroom.co.uk` |
+   | Sender name | The Watch Room |
+
+   The API key is the SMTP password. It lives only in this Supabase
+   field — not in `.env`, not in Vercel, not in this repository. Treat it
+   like any other credential: if it is ever pasted somewhere it should
+   not be, roll it in Resend rather than hoping.
+
+3. **Raise the email rate limit.** Authentication → Rate Limits. The
+   default is built around Supabase's shared sender and is far lower than
+   Resend allows; leaving it means signups silently failing to send once
+   a handful of people register in the same hour.
+
+4. **Send one real test.** Register a throwaway account and confirm the
+   mail arrives from your own address, that the link points at
+   `thewtchroom.co.uk` rather than localhost, and that it lands in the
+   inbox rather than spam.
