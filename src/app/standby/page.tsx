@@ -14,8 +14,9 @@ import { AdvisorSync } from "@/app/components/advisor-sync";
 // people being turned away.
 //
 // Four states, in order of standing (see lib/auth/advisor-standing):
-//   accepted  — onto the programme: the Advisor Room, with the
-//               reference material to review.
+//   accepted  — onto the programme. The page confirms the decision;
+//               the Advisor room itself is the closed Discord area they
+//               are granted afterwards.
 //   pending   — application filed and waiting on a decision.
 //   declined  — reviewed and not taken forward. Says so plainly rather
 //               than leaving someone on "received" indefinitely.
@@ -59,7 +60,7 @@ export default async function StandbyPage() {
             The Watch Room
           </div>
           <h1 className="font-mono text-xl uppercase tracking-[0.15em] text-(--color-text)">
-            {accepted ? "Advisor Room" : "Standing by"}
+            {accepted ? "Accepted" : "Standing by"}
           </h1>
           {accepted && (
             <div className="mt-3">
@@ -79,17 +80,21 @@ export default async function StandbyPage() {
             <>
               <p>
                 You&apos;re on the{" "}
-                <span className="text-(--color-info)">development advisor
-                programme</span> — thank you. Your service background is
-                what keeps this simulation honest.
+                <span className="text-(--color-info)">DEVELOPMENT ADVISOR
+                PROGRAMME</span>{" "}
+                — thank you. Your service background is what keeps this
+                simulation honest.
               </p>
               <p>
-                The most useful thing you can do right now: bring a red
-                pen to the Discord&apos;s advisor channels. Stations,
-                appliances, callsigns, mobilising, kit — if something
-                reads wrong to someone who&apos;s lived it, we want to hear
-                exactly that. Reference material is posted there as it
-                goes out for review.
+                You will be granted access to the closed Advisor room on
+                our Discord in due course. That is where the review work
+                happens — stations, appliances, callsigns, mobilising,
+                kit. If something reads wrong to someone who has lived
+                it, that is exactly what we want to hear.
+              </p>
+              <p className="text-(--color-text-dim)">
+                Shifts aren&apos;t open yet. Pre-Alpha testing opens to
+                registered operators in October 2026.
               </p>
             </>
           ) : (

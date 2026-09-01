@@ -63,7 +63,7 @@ export function advisorAcceptedEmail(): { subject: string; html: string } {
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td bgcolor="#fbbf24" style="background:#fbbf24;border-radius:3px;">
-                  <a href="${SITE}/standby" style="display:inline-block;padding:14px 30px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#000000;text-decoration:none;">Open the Advisor Room</a>
+                  <a href="${SITE}/standby" style="display:inline-block;padding:14px 30px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#000000;text-decoration:none;">See your standing</a>
                 </td>
               </tr>
             </table>
