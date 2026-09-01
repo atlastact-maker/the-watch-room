@@ -60,10 +60,15 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   }
 
   const supabase = await createClient();
+  const origin = await siteOrigin();
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
+      // Without this the confirmation link comes back to whatever Site
+      // URL the Supabase project holds, which is not necessarily the
+      // domain the person actually signed up on.
+      emailRedirectTo: `${origin}/auth/confirm`,
       // Stored as user_metadata on the Supabase auth user. Advisor info
       // rides along here too so it survives the email-confirmation gap —
       // the advisors table row is written on the first authenticated
