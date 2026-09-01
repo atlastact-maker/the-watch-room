@@ -19,6 +19,9 @@ export const metadata = {
     "The Watch Room is an emergency services incident management simulator in closed development. If you've served in Fire, Ambulance, Police or a control room, help keep it honest.",
 };
 
+const chipCls =
+  "rounded-sm border border-(--color-border) bg-(--color-surface)/60 px-2.5 py-1.5 font-mono text-[11px] text-(--color-text-muted)";
+
 export default async function LandingPage() {
   // A live session belongs on its own standing, not the front door. The
   // admin gate on /menu passes administrators through and sends everyone
@@ -96,72 +99,60 @@ export default async function LandingPage() {
         </p>
 
         {/* Who it's for */}
-        <section className="mt-12 border-t border-(--color-border-subtle) pt-8">
+        <section className="mt-9 border-t border-(--color-border-subtle) pt-6">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
             Who we&apos;re looking for
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
-            Anyone who has served in one of these, whether you are still in
-            or long since out:
+          <p className="mt-2.5 text-sm leading-relaxed text-(--color-text-muted)">
+            Served in any of these — still in, or long since out:
           </p>
-          <ul className="mt-4 flex flex-wrap gap-2">
+          <ul className="mt-3 flex flex-wrap gap-2">
             {ADVISOR_SERVICES.filter((s) => s !== "Other").map((s) => (
-              <li
-                key={s}
-                className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 px-2.5 py-1.5 font-mono text-[11px] text-(--color-text-muted)"
-              >
+              <li key={s} className={chipCls}>
                 {s}
               </li>
             ))}
           </ul>
         </section>
 
-        {/* What advising actually involves */}
-        <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
+        {/* What advising actually involves. Chips rather than a row
+            apiece: nine full-width tiles was most of a phone screen. */}
+        <section className="mt-9 border-t border-(--color-border-subtle) pt-6">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
             What you&apos;d be advising on
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
-            Pick whichever of these you know well — nobody is expected to
-            cover more than their own ground:
+          <p className="mt-2.5 text-sm leading-relaxed text-(--color-text-muted)">
+            Whichever you know well — nobody covers more than their own
+            ground:
           </p>
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          <ul className="mt-3 flex flex-wrap gap-2">
             {ADVISOR_TOPICS.map((t) => (
-              <li
-                key={t}
-                className="flex items-start gap-2.5 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 px-3 py-2.5 text-[13px] leading-snug text-(--color-text-muted)"
-              >
-                <span aria-hidden className="mt-1 text-(--color-info)">
-                  ▸
-                </span>
-                <span>{t}</span>
+              <li key={t} className={chipCls}>
+                {t}
               </li>
             ))}
           </ul>
         </section>
 
         {/* Commitment — the question everyone actually has */}
-        <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
+        <section className="mt-9 border-t border-(--color-border-subtle) pt-6">
           <h2 className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]">
             What it asks of you
           </h2>
-          <div className="mt-3 space-y-3 text-sm leading-relaxed text-(--color-text-muted)">
+          <div className="mt-2.5 space-y-2.5 text-sm leading-relaxed text-(--color-text-muted)">
             <p>
-              As much or as little as you want. You say on the form whether
-              you would rather field the occasional question or review
-              features as they are built — and you can change your mind at
-              any point in your settings.
+              As much or as little as you want — the occasional question,
+              or reviewing features as they are built. You choose on the
+              form, and can change it later in your settings.
             </p>
             <p>
-              It is unpaid and informal. What you get is a say in how your
-              job gets portrayed, and the development advisor mark against
-              your callsign.
+              Unpaid and informal. You get a say in how your job is
+              portrayed, and the advisor mark against your callsign.
             </p>
             <p className="text-(--color-text-dim)">
               Applications are reviewed on a case-by-case basis, so there
-              is a wait between applying and hearing back. You will see
-              your standing change on the site when yours has been
-              reviewed.
+              is a wait — your standing updates on the site when yours has
+              been reviewed.
             </p>
           </div>
         </section>
