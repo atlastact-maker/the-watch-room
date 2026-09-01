@@ -34,13 +34,26 @@ export function advisorAcceptedEmail(): { subject: string; html: string } {
         </tr>
 
         <tr>
-          <td style="padding:32px 32px 8px;">
-            <h1 style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:21px;line-height:1.35;color:#f4f4f6;font-weight:600;">Your application has been reviewed</h1>
-            <p style="margin:0 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
-              You&rsquo;re on the development advisor programme &mdash; thank you. Your service background is what keeps this simulation honest.
+          <td style="padding:32px 32px 4px;">
+            <h1 style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:21px;line-height:1.35;color:#f4f4f6;font-weight:600;">Your application has been reviewed</h1>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td bgcolor="#0e2a20" style="background:#0e2a20;border:1px solid #34d399;border-radius:3px;padding:8px 16px;">
+                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:600;color:#34d399;">Accepted</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:24px 32px 8px;">
+            <p style="margin:0 0 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#a8a8b3;">What happens next</p>
+            <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
+              Within 24 hours you will be granted access to the closed Advisor area on our Discord, where the review work happens.
             </p>
-            <p style="margin:0 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
-              Sign in and your standing now shows as an advisor. If something in the simulation reads wrong to someone who has lived it, that is exactly what we want to hear.
+            <p style="margin:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
+              Not in the Discord yet? <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;text-decoration:underline;">Join here</a> so we can add you.
             </p>
           </td>
         </tr>
@@ -50,7 +63,7 @@ export function advisorAcceptedEmail(): { subject: string; html: string } {
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td bgcolor="#fbbf24" style="background:#fbbf24;border-radius:3px;">
-                  <a href="${SITE}/standby" style="display:inline-block;padding:14px 30px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#000000;text-decoration:none;">Open the Watch Room</a>
+                  <a href="${SITE}/standby" style="display:inline-block;padding:14px 30px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#000000;text-decoration:none;">Open the Advisor Room</a>
                 </td>
               </tr>
             </table>
