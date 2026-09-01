@@ -54,13 +54,13 @@ export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?
       />
 
       <div className="mt-0.5 flex flex-col gap-2.5">
-        <label className="flex cursor-pointer items-center gap-2.5 select-none">
+        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
           <input
             type="checkbox"
             name="acceptTerms"
-            className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber)"
+            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) sm:size-4"
           />
-          <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-muted)">
+          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-muted)">
             I accept the{" "}
             <a
               href="/terms"
@@ -77,26 +77,26 @@ export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?
             {msg}
           </p>
         ))}
-        <label className="flex cursor-pointer items-center gap-2.5 select-none">
+        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
           <input
             type="checkbox"
             name="newsletter"
-            className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber)"
+            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) sm:size-4"
           />
-          <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
+          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-dim)">
             Send me updates &amp; newsletters
           </span>
         </label>
 
-        <label className="flex cursor-pointer items-center gap-2.5 select-none">
+        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
           <input
             type="checkbox"
             name="advisor"
             checked={advisorOpen}
             onChange={(e) => setAdvisorOpen(e.target.checked)}
-            className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info)"
+            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info) sm:size-4"
           />
-          <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
+          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-dim)">
             Part of the emergency services —{" "}
             <span className="text-(--color-info)">register me as a development advisor</span>
           </span>
@@ -104,7 +104,7 @@ export function SignupForm({ defaultAdvisorOpen = false }: { defaultAdvisorOpen?
       </div>
 
       {advisorOpen && (
-        <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-4">
+        <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-3 sm:p-4">
           <AdvisorQuestions errors={state?.errors} />
         </div>
       )}
@@ -162,7 +162,7 @@ function Field({
         autoComplete={autoComplete}
         placeholder={placeholder}
         required
-        className="h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-sm text-(--color-text) outline-none transition-colors placeholder:text-(--color-text-dim)/60 focus:border-(--color-amber)"
+        className="h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-base text-(--color-text) outline-none transition-colors placeholder:text-(--color-text-dim)/60 focus:border-(--color-amber) sm:text-sm"
         style={{ caretColor: "var(--color-amber)" }}
       />
       {hint && !errors?.length && (

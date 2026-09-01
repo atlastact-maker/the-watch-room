@@ -15,7 +15,7 @@ export default async function SignupPage({
   const { advisor } = await searchParams;
   const open = signupOpen();
   return (
-    <div className="relative z-10 flex flex-1 items-center justify-center p-6 font-mono">
+    <div className="relative z-10 flex flex-1 items-center justify-center p-4 font-mono sm:p-6">
       {/* Vignette — darkens the page edges so the terminal frame glows. */}
       <div
         aria-hidden
@@ -29,16 +29,16 @@ export default async function SignupPage({
       <div className="relative w-full max-w-[720px] rounded-sm border border-(--color-border) bg-(--color-surface) shadow-2xl shadow-black/70">
         {/* Header bar */}
         <div className="flex items-center justify-between border-b border-(--color-border-subtle) bg-(--color-surface-raised) px-4 py-3">
-          <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.2em] text-(--color-amber)">
-            <span className="dot-live inline-block size-1.5 rounded-full bg-(--color-amber)" />
+          <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.12em] text-(--color-amber) sm:tracking-[0.2em]">
+            <span className="dot-live inline-block size-1.5 shrink-0 rounded-full bg-(--color-amber)" />
             NWRC-04 · Operator Intake
           </div>
-          <div className="text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim)">
+          <div className="hidden text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim) sm:block">
             Secure Terminal
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 px-6 py-8 sm:px-10">
+        <div className="flex flex-col gap-4 px-5 py-7 sm:px-10 sm:py-8">
           {/* Boot-check lines */}
           <div className="flex flex-col gap-1 text-xs text-(--color-text-dim)">
             <BootLine label="SYS CHECK" />
@@ -94,17 +94,25 @@ export default async function SignupPage({
               Log in
             </Link>
           </p>
+
+          {/* Mobile stand-in for the fixed corner HUD below. */}
+          <Link
+            href="/"
+            className="py-1 text-center text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim) sm:hidden"
+          >
+            ← The Watch Room
+          </Link>
         </div>
       </div>
 
       {/* Corner HUD */}
       <Link
         href="/"
-        className="fixed bottom-5 left-6 text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim) hover:text-(--color-text)"
+        className="fixed bottom-5 left-6 hidden text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim) hover:text-(--color-text) sm:block"
       >
         ← The Watch Room
       </Link>
-      <div className="fixed bottom-5 right-6 flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim)">
+      <div className="fixed bottom-5 right-6 hidden items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-(--color-text-dim) sm:flex">
         <UtcClock />
         <span className="dot-live inline-block size-1.5 rounded-full bg-(--color-critical)" />
       </div>

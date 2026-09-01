@@ -81,7 +81,7 @@ export function AdvisorQuestions({
           name="advisorBackground"
           type="text"
           defaultValue={defaults.background ?? ""}
-          placeholder="e.g. Crew Manager · 12 years"
+          placeholder="e.g. Crew Manager · 12 yrs"
           className={inputCls}
         />
         <Errs msgs={errors?.advisorBackground} />
@@ -93,7 +93,7 @@ export function AdvisorQuestions({
           name="advisorForce"
           type="text"
           defaultValue={defaults.force ?? ""}
-          placeholder="e.g. GMFRS · NWAS · Lancashire Constabulary"
+          placeholder="e.g. GMFRS or NWAS"
           className={inputCls}
         />
         <Errs msgs={errors?.advisorForce} />
@@ -105,14 +105,14 @@ export function AdvisorQuestions({
           {ADVISOR_TOPICS.map((t) => (
             <label
               key={t}
-              className="flex cursor-pointer items-center gap-2 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 px-2.5 py-1.5 select-none hover:border-(--color-info)/50"
+              className="flex cursor-pointer items-start gap-2.5 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 px-2.5 py-2.5 select-none hover:border-(--color-info)/50 sm:items-center sm:py-1.5"
             >
               <input
                 type="checkbox"
                 name="advisorTopics"
                 value={t}
                 defaultChecked={defaults.topics?.includes(t) ?? false}
-                className="size-3.5 shrink-0 cursor-pointer accent-(--color-info)"
+                className="mt-px size-4.5 shrink-0 cursor-pointer accent-(--color-info) sm:mt-0 sm:size-3.5"
               />
               <span className="text-[11px] leading-snug text-(--color-text-muted)">{t}</span>
             </label>
@@ -154,14 +154,14 @@ export function AdvisorQuestions({
 
       {/* 8 · Contact */}
       <div className="flex flex-col gap-2.5">
-        <label className="flex cursor-pointer items-center gap-2.5 select-none">
+        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
           <input
             type="checkbox"
             name="advisorContactOk"
             defaultChecked={defaults.contactOk ?? true}
-            className="size-4 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info)"
+            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info) sm:size-4"
           />
-          <span className="text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
+          <span className="text-[11px] uppercase tracking-[0.08em] text-(--color-text-dim) sm:tracking-[0.15em]">
             OK to contact me on my account email about development
           </span>
         </label>
@@ -170,7 +170,7 @@ export function AdvisorQuestions({
             name="advisorDiscord"
             type="text"
             defaultValue={defaults.discord ?? ""}
-            placeholder="e.g. watchroomfan — we run a dev Discord"
+            placeholder="e.g. watchroomfan"
             className={inputCls}
           />
           <Errs msgs={errors?.advisorDiscord} />
@@ -181,9 +181,9 @@ export function AdvisorQuestions({
 }
 
 const inputCls =
-  "h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info)";
+  "h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-base text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info) sm:text-sm";
 const selectCls =
-  "h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none focus:border-(--color-info)";
+  "h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-base text-(--color-text) outline-none focus:border-(--color-info) sm:text-sm";
 
 function Q({
   label,
@@ -196,7 +196,7 @@ function Q({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)">
+      <span className="text-[11px] uppercase tracking-[0.12em] text-(--color-text-dim) sm:tracking-[0.25em]">
         {label}
         {optional && <span className="normal-case tracking-normal"> (optional)</span>}
       </span>
