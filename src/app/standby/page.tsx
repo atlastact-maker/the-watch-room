@@ -166,10 +166,6 @@ export default async function StandbyPage() {
                     : "opens Tuesday 1st September — real operational experience shapes what gets built."}
                 </p>
               )}
-              <p>
-                Development happens in the open on Discord — progress, dev
-                diaries, and a say in what comes next.
-              </p>
             </>
           )}
         </div>
