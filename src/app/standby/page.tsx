@@ -101,8 +101,8 @@ export default async function StandbyPage() {
                 <>
                   <p>
                     Your{" "}
-                    <span className="text-(--color-info)">advisor
-                    application</span> has been received — thank you. We
+                    <span className="text-(--color-info)">ADVISOR
+                    APPLICATION</span> has been received — thank you. We
                     review applications individually; you&apos;ll see your
                     standing change here and you will also receive an
                     email when the application has been reviewed.
@@ -116,8 +116,8 @@ export default async function StandbyPage() {
               {standing === "unfiled" && (
                 <p>
                   Your{" "}
-                  <span className="text-(--color-info)">advisor
-                  application</span> is being filed now — give it a moment
+                  <span className="text-(--color-info)">ADVISOR
+                  APPLICATION</span> is being filed now — give it a moment
                   and this will say received. If it doesn&apos;t, your
                   answers are safe on your account: open{" "}
                   <Link
