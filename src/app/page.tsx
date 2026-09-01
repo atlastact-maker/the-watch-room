@@ -185,7 +185,7 @@ export default async function LandingPage() {
                 href="/signup?advisor=1"
                 className="mt-4 inline-flex min-h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
               >
-                Apply to the programme
+                Start your application
               </Link>
             </>
           ) : (
