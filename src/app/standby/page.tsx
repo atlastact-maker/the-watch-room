@@ -104,7 +104,8 @@ export default async function StandbyPage() {
                   <p>
                     Your{" "}
                     <span className="text-(--color-info)">ADVISOR
-                    APPLICATION</span> has been received — thank you. We
+                    APPLICATION</span>{" "}
+                    has been received — thank you. We
                     review applications individually; you&apos;ll see your
                     standing change here and you will also receive an
                     email when the application has been reviewed.
@@ -119,7 +120,8 @@ export default async function StandbyPage() {
                 <p>
                   Your{" "}
                   <span className="text-(--color-info)">ADVISOR
-                  APPLICATION</span> has been reviewed, and we&apos;re not
+                  APPLICATION</span>{" "}
+                  has been reviewed, and we&apos;re not
                   taking it forward onto the programme at this stage —
                   thank you for offering. Your account is unaffected, and
                   Pre-Alpha testing opens to registered operators in
@@ -130,7 +132,8 @@ export default async function StandbyPage() {
                 <p>
                   Your{" "}
                   <span className="text-(--color-info)">ADVISOR
-                  APPLICATION</span> is being filed now — give it a moment
+                  APPLICATION</span>{" "}
+                  is being filed now — give it a moment
                   and this will say received. If it doesn&apos;t, your
                   answers are safe on your account: open{" "}
                   <Link
