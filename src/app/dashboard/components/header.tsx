@@ -9,7 +9,6 @@ import { scenarioCovered } from "@/lib/sim/coverage";
 import { CAD_VARS } from "./cad-theme";
 import type { WeatherState } from "@/lib/sim/weather";
 import { WeatherChip } from "./weather-chip";
-import { WatchRoomLogo } from "@/app/components/watch-room-logo";
 
 type Props = {
   userEmail: string;
@@ -88,8 +87,8 @@ export function DashboardHeader({
       className="border-b-2 border-zinc-500 bg-(--color-surface-raised) text-(--color-text)"
     >
       <div className="flex items-center justify-between px-6 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-        <div className="flex items-center gap-2.5">
-          <WatchRoomLogo className="h-[17px] w-[26px] shrink-0" />
+        <div className="flex items-center gap-3">
+          <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
           <span className="font-bold text-(--color-text)">The Watch Room</span>
         </div>
 
