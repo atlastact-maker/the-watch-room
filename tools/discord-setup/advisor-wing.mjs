@@ -6,9 +6,9 @@
 // standing rule that no scenario ships unsigned), and not the loop that
 // keeps expert volunteers around — proof their input landed.
 //
-// Layout: a common floor (#roll-call, #verify-this) that every advisor
-// reads, then one room per service for the detail that only that service
-// cares about, mirroring the five services the advisor application asks
+// Layout: a common floor (#verify-this) that every advisor reads, then
+// one room per service for the detail that only that service cares
+// about, mirroring the five services the advisor application asks
 // about. Service rooms are visible to ALL advisors, not gated per
 // service — a paramedic reading the fire room is how the JESIP-shaped
 // mistakes get caught, and it saves assigning a service role to every
@@ -100,20 +100,6 @@ const NO_POSTING =
 const NO_VOICE = CONNECT | SPEAK;
 
 // --- Copy ----------------------------------------------------------------
-const ROLL_CALL_PROMPT = `**Roll call.**
-
-You're in this wing because you've done the job. Post once so everyone knows who's on the watch:
-
-• Service and role — e.g. *Crew Manager, 12 years*
-• The patch you know best
-• The first thing in the sim you'd change
-
-Serving, retired and previously served all carry the same weight in here. You don't have to name your station, your force or yourself — "control room, north west, 8 years" is a perfectly good introduction.
-
-**Two rules, and they matter more in this wing than anywhere else on the server:**
-• Nothing protectively marked, restricted, or that isn't already public.
-• No identifiable jobs, patients, colleagues or casework. Ever.`;
-
 const VERIFY_PROMPT = `**Ground truth, fast.**
 
 This is the channel I'll use most. When something in the build hangs on a detail I can't verify from public sources, it gets posted here — usually a screenshot and one direct question:
@@ -300,13 +286,6 @@ if (MODE !== "build") {
 // --- Channel definitions, in wing order ----------------------------------
 const WANTED = [
   {
-    name: "roll-call",
-    type: 0,
-    topic:
-      "Who's on the watch. One post each: service and role, the patch you know best, and the first thing you'd change. No identifiable jobs, nothing not already public.",
-    prompt: ROLL_CALL_PROMPT,
-  },
-  {
     name: "verify-this",
     type: 0,
     topic:
@@ -486,7 +465,6 @@ for (const { want, chan } of results) {
 // --- Order the wing ------------------------------------------------------
 const ORDER = [
   "advisor-briefing",
-  "roll-call",
   "verify-this",
   "fire-rescue",
   "ambulance",
@@ -542,7 +520,6 @@ if (Array.isArray(after)) {
 console.log(`
 Advisory Wing now runs:
   #advisor-briefing    what's being built, what input is needed   (read-only)
-  #roll-call           who's on the watch
   #verify-this         dev -> advisors, ground truth fast
   #fire-rescue         fire & rescue ground
   #ambulance           ambulance ground
