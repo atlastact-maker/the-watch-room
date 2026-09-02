@@ -611,6 +611,10 @@ export type Deployment = {
   mobilisedAt: number;       // epoch ms
   etaSeconds: number;        // seconds from mobilisation to in-attendance
   arrivesAt: number;         // mobilisedAt + etaSeconds * 1000
+  /** Aircraft only: epoch ms the crew get airborne. Until then the
+   *  airframe sits on its pad; the flight leg runs from here to
+   *  hemsFlight.overheadAt (HEMS) or arrivesAt (NPAS) at cruise. */
+  airborneAt?: number;
   routeMeters?: number;      // route distance from OSRM
   /** Outbound route polyline, [lat, lng] pairs. */
   routeCoords?: [number, number][];

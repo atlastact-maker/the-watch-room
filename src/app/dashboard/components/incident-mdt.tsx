@@ -1123,7 +1123,11 @@ function CommittedRow({
   let right = "";
   if (r.phase === "mobile") {
     if (hems && !r.deployment.parkingPos) {
-      if (now >= hems.overheadAt) {
+      const airborneAt = r.deployment.airborneAt;
+      if (airborneAt !== undefined && now < airborneAt) {
+        status = "Lifting";
+        right = fmt(airborneAt - now);
+      } else if (now >= hems.overheadAt) {
         status = "Orbiting";
         right = "LZ req";
       } else {

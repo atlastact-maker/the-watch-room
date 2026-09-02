@@ -541,8 +541,18 @@ export function PatchLayers({
 
       // Outbound leg
       if (mapNow >= d.arrivesAt) continue; // already on scene — drawn in incident popup
-      const total = Math.max(1, d.etaSeconds * 1000);
-      const t = Math.min(1, Math.max(0, (mapNow - d.mobilisedAt) / total));
+      // An aircraft sits on its pad until the crew are airborne, then
+      // flies the leg at cruise: its progress runs from airborneAt to the
+      // end of the flight, not from the moment the job was sent.
+      let t: number;
+      if (d.airborneAt !== undefined) {
+        const flightEndAt = d.hemsFlight?.overheadAt ?? d.arrivesAt;
+        const flightMs = Math.max(1, flightEndAt - d.airborneAt);
+        t = Math.min(1, Math.max(0, (mapNow - d.airborneAt) / flightMs));
+      } else {
+        const total = Math.max(1, d.etaSeconds * 1000);
+        t = Math.min(1, Math.max(0, (mapNow - d.mobilisedAt) / total));
+      }
       const routeCoords: [number, number][] =
         d.routeCoords && d.routeCoords.length >= 2
           ? d.routeCoords

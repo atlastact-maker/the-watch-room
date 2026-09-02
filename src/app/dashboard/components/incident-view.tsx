@@ -1953,6 +1953,10 @@ export function CrewLine({
   const hemsFlight = r.deployment.hemsFlight;
   const hemsLabel = (() => {
     if (!hemsFlight) return null;
+    const airborneAt = r.deployment.airborneAt;
+    if (airborneAt !== undefined && now < airborneAt) {
+      return `Crew to aircraft · airborne in ${fmtMs(airborneAt - now)}`;
+    }
     if (!r.deployment.parkingPos) {
       return now >= hemsFlight.overheadAt
         ? "Orbiting overhead — LZ required"

@@ -2007,13 +2007,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       }
       const base = hemsStation.coords;
       const target = activeIncident.scenario.location.coords;
-      // A flown line, not a ruler line — and the timing is priced off the
-      // line actually flown, so the bend costs the seconds it should.
+      // A flown line, not a ruler line. deployAppliance prices the flight
+      // itself (crew-to-airborne window plus cruise over the line); the
+      // estimate here only feeds the log line.
       const line = flightPath(base, target, `${heli.id}:${activeIncident.id}`);
       const meters = pathLengthMeters(line);
-      // H145: ~3 min lift, ~130 kt cruise (≈67 m/s).
-      const flightSec = Math.round(180 + meters / 67);
-      const now = Date.now();
+      const flightSec = Math.round(210 + meters / 67);
       deployAppliance({
         applianceId: heli.id,
         slotId: "clinician:hems",
@@ -2022,18 +2021,19 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         routeCoords: line,
       });
       setDeployments((prev) =>
-        prev.map((d) =>
-          d.applianceId === heli.id
-            ? {
-                ...d,
-                treatingCasualtyId: casualtyId,
-                // Block "in attendance" until the operator confirms an LZ —
-                // the aircraft holds overhead from overheadAt onwards.
-                arrivesAt: now + flightSec * 1000 + 6 * 3600 * 1000,
-                hemsFlight: { overheadAt: now + flightSec * 1000, landingSec: 90 },
-              }
-            : d,
-        ),
+        prev.map((d) => {
+          if (d.applianceId !== heli.id) return d;
+          // Overhead is when the flight deployAppliance stored ends.
+          const overheadAt = d.mobilisedAt + d.etaSeconds * 1000;
+          return {
+            ...d,
+            treatingCasualtyId: casualtyId,
+            // Block "in attendance" until the operator confirms an LZ —
+            // the aircraft holds overhead from overheadAt onwards.
+            arrivesAt: overheadAt + 6 * 3600 * 1000,
+            hemsFlight: { overheadAt, landingSec: 90 },
+          };
+        }),
       );
       updateTreatment(casualtyId, (p) => ({
         ...p,
@@ -2299,6 +2299,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     let routeCoords = args.routeCoords;
     let arrivesAt = mobilisedAt + etaSeconds * 1000;
     let hemsFlight: Deployment["hemsFlight"];
+    let airborneAt: number | undefined;
     const isAircraft = appliance?.type === "HEMS" || appliance?.type === "Police_NPAS";
     if (isAircraft && appliance) {
       const base = findStationForAppliance(appliance.id)?.coords;
@@ -2307,8 +2308,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         // Curved transit, priced off the line actually flown.
         const line = flightPath(base, target, `${appliance.id}:${activeIncident.id}`);
         const meters = pathLengthMeters(line);
-        // H145 / EC135: ~3 min lift, ~130 kt cruise (≈67 m/s).
-        etaSeconds = Math.round(180 + meters / 67);
+        // Crew to airborne: two to five minutes on the pad. Then H145 /
+        // EC135 cruise at ~130 kt (≈67 m/s) for the line's length.
+        const liftSec = Math.round(120 + Math.random() * 180);
+        const cruiseSec = Math.round(meters / 67);
+        etaSeconds = liftSec + cruiseSec;
+        airborneAt = mobilisedAt + liftSec * 1000;
         routeMeters = Math.round(meters);
         routeCoords = line;
         arrivesAt = mobilisedAt + etaSeconds * 1000;
@@ -2334,6 +2339,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         crewEquipment,
         selectedPodType: args.selectedPodType,
         hemsFlight,
+        airborneAt,
       },
     ]);
     setStatusOverrides((prev) => ({ ...prev, [args.applianceId]: 1 }));
