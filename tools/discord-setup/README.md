@@ -64,6 +64,7 @@ and read the same `.env` as `setup.mjs`.
 | `config-welcome-automod.mjs` | Sets the Community welcome screen and creates the native AutoMod rules (invite-link filter exempting `#media-clips`, alerts to `#incident-log`). |
 | `roles-panels.mjs` | Creates the self-select roles and the Operator-gated `#roles` channel, posts the service / patch / interests panels and seeds their reactions. Prints the message IDs that Carl-bot's reaction roles bind to. |
 | `suggestions-forum.mjs` | Creates the `#suggestions` forum with topic tags, mod-only status tags (Planned / Shipped / Not now) and 👍 as the default reaction. |
+| `advisor-wing.mjs` | Builds out the Advisory Wing: `#roll-call`, `#verify-this`, the `#scenario-sign-off` and `#reference-library` forums, the read-only `#you-said-we-did` log and an *Advisor Watch Room* voice channel. Retags `#sop-review` to the nine topics the advisor application actually asks about, posts and pins the channel prompts, and orders the wing. |
 
 The bot is not left in the server. To re-run anything, re-invite it first:
 `https://discord.com/oauth2/authorize?client_id=<APPLICATION_ID>&scope=bot&permissions=8`
