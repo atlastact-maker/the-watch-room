@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 
 // Server-side routing proxy. Primary: OpenRouteService (keyed, 40 req/min
 // free tier). Fallback: the public OSRM demo server — keyless, so a burst
@@ -17,14 +17,15 @@ type Failure = { error: string; source: "ors" };
 
 export async function GET(request: NextRequest): Promise<Response> {
   // Gate to logged-in users so random visitors can't burn the ORS quota.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized", source: "ors" } satisfies Failure, {
-      status: 401,
-    });
+  const gate = await shiftGate();
+  if (!gate.ok) {
+    return NextResponse.json(
+      {
+        error: gate.status === 401 ? "unauthorized" : "forbidden",
+        source: "ors",
+      } satisfies Failure,
+      { status: gate.status },
+    );
   }
 
   const sp = request.nextUrl.searchParams;

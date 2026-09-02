@@ -73,6 +73,9 @@ type UserRow = {
   user_id: string;
   email: string;
   callsign: string;
+  /** From the advisor questionnaire — empty for anyone who never filed
+   *  one, and empty for everybody until migration 013 has been run. */
+  discord: string;
   created_at: string;
   newsletter: boolean;
   is_advisor_applicant: boolean;
@@ -455,6 +458,17 @@ export default async function AdminPage() {
                       {u.callsign ? u.callsign.toUpperCase() : "—"}
                     </span>
                     <span className="break-all text-(--color-text-dim)">{u.email}</span>
+                    {u.discord && (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-sm border border-(--color-info)/40 px-1.5 py-0.5 font-mono text-[11px] text-(--color-info)"
+                        title="Discord handle, from their advisor application"
+                      >
+                        <span className="text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                          Discord
+                        </span>
+                        {u.discord}
+                      </span>
+                    )}
                     <span className="ml-auto flex items-center gap-2 text-[10px] uppercase tracking-widest">
                       {u.banned && (
                         <span className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-1.5 py-0.5 text-(--color-critical)">

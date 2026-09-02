@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 
 // Ordnance Survey raster tile proxy.
 //
@@ -26,20 +26,23 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ tile: string[] }> },
 ): Promise<Response> {
+  // Shift access, not merely a session. Zoom 17-20 is Premium data
+  // billed against a monthly allowance, so an advisor's cookie in a
+  // tile-scraping loop spends real money. Checked before the key so the
+  // 404 below cannot be used to probe whether a key is configured.
+  const gate = await shiftGate();
+  if (!gate.ok) {
+    return new Response(gate.status === 401 ? "unauthorized" : "forbidden", {
+      status: gate.status,
+    });
+  }
+
   const key = process.env.OS_DATA_HUB_KEY;
   if (!key) {
     // No key configured — the client falls back to OpenStreetMap, so a
     // 404 here is the expected quiet path, not an error worth logging.
     return new Response("OS mapping not configured", { status: 404 });
   }
-
-  // Gate to signed-in operators so a scraper can't spend the monthly
-  // premium allowance. Same rule as the routing proxy.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
 
   const { tile } = await context.params;
   if (tile.length !== 4) return new Response("bad tile path", { status: 400 });
@@ -91,8 +94,11 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": res.headers.get("content-type") ?? "image/png",
-      // Immutable per coordinate — cache in the browser and at the edge.
-      "Cache-Control": "public, max-age=86400, s-maxage=2592000, immutable",
+      // Immutable per coordinate — cache hard, but in the browser only.
+      // Private: the shift gate above decides who may have this tile,
+      // so a shared cache must not serve it to the next caller. The
+      // browser cache is untouched, and that is the one panning uses.
+      "Cache-Control": "private, max-age=86400, immutable",
     },
   });
 }

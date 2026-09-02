@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 
 // HEMS landing-zone surface check. Classifies the ground at a picked
 // LZ point from OSM via Overpass:
@@ -35,12 +35,12 @@ const ROAD_HIGHWAY =
   /^(motorway|motorway_link|trunk|trunk_link|primary|secondary|tertiary|unclassified|residential|service)$/;
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await shiftGate();
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: gate.status === 401 ? "unauthorized" : "forbidden" },
+      { status: gate.status },
+    );
   }
 
   const sp = request.nextUrl.searchParams;

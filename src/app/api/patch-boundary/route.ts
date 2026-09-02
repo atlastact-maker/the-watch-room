@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 import boundaries from "@/lib/sim/patch_boundaries.json";
 
 /**
@@ -30,14 +30,14 @@ type Failure = { error: string; source: "static-osm" };
 const RINGS = boundaries as unknown as Record<string, [number, number][][]>;
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const gate = await shiftGate();
+  if (!gate.ok) {
     return NextResponse.json(
-      { error: "unauthorized", source: "static-osm" } satisfies Failure,
-      { status: 401 },
+      {
+        error: gate.status === 401 ? "unauthorized" : "forbidden",
+        source: "static-osm",
+      } satisfies Failure,
+      { status: gate.status },
     );
   }
 

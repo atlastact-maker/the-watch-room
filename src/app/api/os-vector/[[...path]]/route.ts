@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 
 // Ordnance Survey Vector Tile API proxy.
 //
@@ -52,19 +52,22 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
 ): Promise<Response> {
+  // Shift access, not merely a session — same metered allowance as the
+  // raster proxy. Checked before the key so the 404 below cannot be used
+  // to probe whether a key is configured.
+  const gate = await shiftGate();
+  if (!gate.ok) {
+    return new Response(gate.status === 401 ? "unauthorized" : "forbidden", {
+      status: gate.status,
+    });
+  }
+
   const key = process.env.OS_DATA_HUB_KEY;
   if (!key) {
     // No key configured — the client never offers the vector layers, so a
     // 404 here is the expected quiet path rather than an error.
     return new Response("OS mapping not configured", { status: 404 });
   }
-
-  // Gate to signed-in operators so a scraper can't spend the allowance.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
 
   const { path } = await context.params;
   const segments = path ?? [];
@@ -208,9 +211,11 @@ export async function GET(
         // max-age=0 on purpose: the browser revalidates the style on every
         // map mount instead of trusting a copy for an hour — an hour of
         // staleness here is an hour of serving URLs a deploy may have
-        // changed the shape of. The edge still caches (s-maxage) and is
+        // changed the shape of. The browser still caches it and is
         // purged on deploy, so revalidation stays cheap.
-        "Cache-Control": "public, max-age=0, s-maxage=86400",
+        // Private for the same reason as the raster proxy — gated
+        // bytes must not sit in a shared cache.
+        "Cache-Control": "private, max-age=0",
       },
     });
   }
@@ -219,7 +224,8 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400, s-maxage=2592000, immutable",
+      // Private: gated bytes, browser cache only.
+      "Cache-Control": "private, max-age=86400, immutable",
     },
   });
 }

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { hasAdminAccess } from "./operator-access";
+import { hasAdminAccess, hasShiftAccess } from "./operator-access";
 
 // Closed site: the advisor programme is the only thing open. Everything
 // that is not the landing page, the signup/auth flow, or a signed-in
@@ -38,4 +38,21 @@ export async function requireSession(): Promise<void> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+}
+
+// Anyone who can actually take a shift — an operator or an admin. Not an
+// advisor: advising is authenticity review, and an advisor is promoted to
+// operator per person when playtesting is wanted (see hasShiftAccess).
+//
+// This is the gate for the parts of the site that belong to the game
+// rather than to the account: the sim, its reference material, and the
+// service record. An advisor who follows a link to one lands back on
+// their own standing rather than on an error.
+export async function requireShift(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  if (!(await hasShiftAccess(supabase, user.email))) redirect("/standby");
 }

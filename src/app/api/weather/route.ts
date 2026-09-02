@@ -9,22 +9,22 @@
 //
 // Open-Meteo needs no API key and no attribution beyond good manners, so
 // there is nothing for the operator to configure and no secret to leak.
-// Cached at the edge for ten minutes — weather does not move faster than
+// Cached for ten minutes — weather does not move faster than
 // that, and a shift should not hammer it.
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 
 const UPSTREAM = "https://api.open-meteo.com/v1/forecast";
 
 export async function GET(request: Request) {
   // Auth-gated like the other proxies — no open relay.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
+  const gate = await shiftGate();
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: gate.status === 401 ? "unauthorised" : "forbidden" },
+      { status: gate.status },
+    );
   }
 
   const { searchParams } = new URL(request.url);
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(url, {
-      // Ten minutes at the edge; a shift is not a weather station.
+      // Ten minutes; a shift is not a weather station.
       next: { revalidate: 600 },
       signal: AbortSignal.timeout(6000),
     });
@@ -70,7 +70,10 @@ export async function GET(request: Request) {
       },
       {
         headers: {
-          "Cache-Control": "public, max-age=0, s-maxage=600, stale-while-revalidate=1800",
+          // Private now the route is gated. The ten minutes moves from
+          // the shared cache to the browser, so a shift still makes one
+          // upstream call rather than one per read.
+          "Cache-Control": "private, max-age=600, stale-while-revalidate=1800",
         },
       },
     );

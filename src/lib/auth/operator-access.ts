@@ -40,6 +40,11 @@ export type AccessProfile = {
   role: AccessRole | null;
   /** Emoji set by the developer in the user_roles table; "" for none. */
   icon: string;
+  /** True when the lookup itself failed — a Supabase outage, a query
+   *  error — as opposed to the account genuinely having no role. Both
+   *  give role: null, because everything here fails closed; but a caller
+   *  that caches its verdict must not cache this one. */
+  lookupFailed?: boolean;
 };
 
 /** The account's assigned role and icon, from user_roles (migrations
@@ -53,11 +58,14 @@ export async function accessProfile(
   try {
     // ilike with no wildcard = case-insensitive equality; RLS restricts
     // the query to the caller's own row anyway.
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_roles")
       .select("role, icon")
       .ilike("email", email.trim())
       .maybeSingle();
+    // supabase-js reports a query failure in `error` rather than
+    // throwing, so the catch below would never see one.
+    if (error) return { role: null, icon: "", lookupFailed: true };
     const role = data?.role;
     return {
       role:
@@ -67,7 +75,7 @@ export async function accessProfile(
       icon: typeof data?.icon === "string" ? data.icon : "",
     };
   } catch {
-    return { role: null, icon: "" };
+    return { role: null, icon: "", lookupFailed: true };
   }
 }
 
@@ -114,9 +122,23 @@ export async function hasShiftAccess(
   supabase: SupabaseClient,
   email: string | undefined | null,
 ): Promise<boolean> {
-  if (isOperator(email)) return true;
-  const { role } = await accessProfile(supabase, email);
-  return role === "admin" || role === "operator";
+  return (await shiftAccess(supabase, email)).allowed;
+}
+
+/** Shift access with the reason attached. The same verdict as
+ *  hasShiftAccess — pages should keep calling that — but a caller which
+ *  caches the answer needs to know whether a refusal was a real decision
+ *  or a database that was briefly unreachable. See lib/auth/api-guard. */
+export async function shiftAccess(
+  supabase: SupabaseClient,
+  email: string | undefined | null,
+): Promise<{ allowed: boolean; lookupFailed: boolean }> {
+  if (isOperator(email)) return { allowed: true, lookupFailed: false };
+  const { role, lookupFailed } = await accessProfile(supabase, email);
+  return {
+    allowed: role === "admin" || role === "operator",
+    lookupFailed: lookupFailed === true,
+  };
 }
 
 /** Whether this account may open the admin area. Stricter than shift

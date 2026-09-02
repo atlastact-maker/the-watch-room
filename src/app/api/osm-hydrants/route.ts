@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { shiftGate } from "@/lib/auth/api-guard";
 
 // Server-side proxy that fetches fire hydrants from OSM via Overpass.
 // Returns a list of { id, lat, lng } within the requested radius.
@@ -19,14 +19,14 @@ const OVERPASS_ENDPOINTS = [
 const cache = new Map<string, Hydrant[]>();
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const gate = await shiftGate();
+  if (!gate.ok) {
     return NextResponse.json(
-      { error: "unauthorized", source: "overpass" } satisfies Failure,
-      { status: 401 },
+      {
+        error: gate.status === 401 ? "unauthorized" : "forbidden",
+        source: "overpass",
+      } satisfies Failure,
+      { status: gate.status },
     );
   }
 
