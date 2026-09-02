@@ -41,7 +41,8 @@ import {
   scopeOfApplianceType,
 } from "@/lib/sim/incident_types";
 import { ResusPanel, type CompressorOption } from "./resus-panel";
-import type { MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
+import { postRoscIssues } from "@/lib/sim/resus";
+import type { AirwayState, MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
 import type {
   HospitalDestinationType,
   PatientClinical,
@@ -222,6 +223,7 @@ export function TreatmentTab({
   resusCandidates = [],
   lucasAvailable = false,
   monitorAvailable = false,
+  onSetResusAirway,
   onAttachMonitor,
   onToggleCapnography,
   onSetCompressor,
@@ -264,6 +266,7 @@ export function TreatmentTab({
   resusCandidates?: CompressorOption[];
   lucasAvailable?: boolean;
   monitorAvailable?: boolean;
+  onSetResusAirway?: (a: AirwayState) => void;
   onAttachMonitor?: (m: MonitorMode) => void;
   onToggleCapnography?: () => void;
   onSetCompressor?: (crew: CompressorOption) => void;
@@ -482,6 +485,8 @@ export function TreatmentTab({
             candidates={resusCandidates}
             lucasAvailable={lucasAvailable}
             monitorAvailable={monitorAvailable}
+            postRoscIssues={postRoscIssues(resus, treatment.liveVitals ?? treatment.revealedVitals)}
+            onSetAirway={(a) => onSetResusAirway?.(a)}
             onAttachMonitor={(m) => onAttachMonitor?.(m)}
             onToggleCapnography={() => onToggleCapnography?.()}
             onSetCompressor={(c) => onSetCompressor?.(c)}

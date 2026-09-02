@@ -16,6 +16,7 @@ import {
   ETCO2_TARGET_KPA,
   LUCAS_FIT_SEC,
   MONITOR_LABEL,
+  POST_ROSC,
   REVERSIBLE_LABEL,
   REVERSIBLE_TREATMENT,
   RHYTHM_LABEL,
@@ -29,7 +30,9 @@ import {
   refractoryVf,
   secondsToRhythmCheck,
   shockJoules,
+  type AirwayState,
   type MonitorMode,
+  type PostRoscIssue,
   type ResusState,
   type ReversibleCause,
 } from "@/lib/sim/resus";
@@ -49,6 +52,8 @@ export function ResusPanel({
   candidates,
   lucasAvailable,
   monitorAvailable,
+  postRoscIssues,
+  onSetAirway,
   onAttachMonitor,
   onToggleCapnography,
   onSetCompressor,
@@ -67,6 +72,8 @@ export function ResusPanel({
   candidates: CompressorOption[];
   lucasAvailable: boolean;
   monitorAvailable: boolean;
+  postRoscIssues: PostRoscIssue[];
+  onSetAirway: (a: AirwayState) => void;
   onAttachMonitor: (m: MonitorMode) => void;
   onToggleCapnography: () => void;
   onSetCompressor: (c: CompressorOption) => void;
@@ -108,18 +115,49 @@ export function ResusPanel({
 
   return (
     <div className="space-y-2.5">
-      {/* ---- ROSC banner ---- */}
+      {/* ---- ROSC + post-ROSC management ---- */}
       {rosc && (
         <div className="rounded-sm border border-(--color-ok) bg-(--color-ok)/10 p-2.5">
-          <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-ok)">
-            ROSC — output restored
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-ok)">
+              ROSC — output restored
+            </div>
+            {state.reArrests > 0 && (
+              <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
+                {state.reArrests} re-arrest{state.reArrests === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
           <p className="mt-1 font-mono text-[10px] leading-snug text-(--color-text-muted)">
-            Down {fmtClock(down)}. Post-ROSC care: titrate oxygen to SpO₂ 94–98%,
-            ventilate to an end-tidal of 4.7–6.0 kPa, get a 12-lead, and
-            pre-alert. A primary cardiac arrest goes to the PPCI centre, not
-            the nearest A&amp;E.
+            Down {fmtClock(down)}. This is the middle of the job, not the end —
+            a patient who has just been got back can lose output again.
           </p>
+          {postRoscIssues.length === 0 ? (
+            <p className="mt-1.5 font-mono text-[10px] text-(--color-ok)">
+              Targets met — SpO₂ {POST_ROSC.spo2Min}–{POST_ROSC.spo2Max}%,
+              end-tidal {POST_ROSC.etco2MinKpa}–{POST_ROSC.etco2MaxKpa} kPa,
+              systolic over {POST_ROSC.bpSysMin}. Get a 12-lead and pre-alert
+              the PPCI centre.
+            </p>
+          ) : (
+            <div className="mt-1.5 space-y-1">
+              {postRoscIssues.map((i) => (
+                <div
+                  key={i.key}
+                  className="rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/5 px-2 py-1"
+                >
+                  <div className="font-mono text-[10px] text-(--color-amber)">{i.text}</div>
+                  <div className="text-[9px] leading-tight text-(--color-text-dim)">
+                    {i.fix}
+                  </div>
+                </div>
+              ))}
+              <p className="text-[9px] leading-snug text-(--color-text-dim)">
+                Every one of these left unmanaged raises the chance of a
+                re-arrest.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -321,6 +359,36 @@ export function ResusPanel({
           )}
         </Group>
       )}
+
+      {/* ---- Airway ---- */}
+      <Group title="Airway">
+        <div className="grid grid-cols-2 gap-1.5">
+          <Chip
+            label="Insert i-gel"
+            done={state.airway === "igel"}
+            onClick={() => onSetAirway("igel")}
+            title="Supraglottic airway. Lets you run continuous compressions and ventilate at 10/min instead of stopping for 30:2."
+          />
+          <Chip
+            label="Intubate · RSI"
+            done={state.airway === "ett"}
+            disabled={SCOPE_LEVEL[scope] < SCOPE_LEVEL.ccc}
+            onClick={() => onSetAirway("ett")}
+            title="Tracheal tube. Critical care or HEMS only, and only with a high first-pass success rate."
+          />
+        </div>
+        {state.airway === "none" ? (
+          <Note>
+            No advanced airway — compressions must pause for ventilations at
+            30:2, and the capnography reading is less reliable through a mask.
+          </Note>
+        ) : (
+          <Note>
+            Advanced airway in — continuous compressions, ventilate at 10 per
+            minute, no pausing.
+          </Note>
+        )}
+      </Group>
 
       {/* ---- Defibrillation ---- */}
       {!rosc && (

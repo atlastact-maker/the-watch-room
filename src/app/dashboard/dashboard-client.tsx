@@ -8,6 +8,8 @@ import {
   amiodaroneDoseMg,
   expectedEtco2,
   newResusState,
+  postRoscIssues,
+  reArrestChancePerMin,
   rhythmAfterFailedShock,
   roscChance,
   secondsIntoCycle,
@@ -553,6 +555,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return () => clearInterval(id);
   }, []);
 
+  // Mirror of the treatment records, so the resus tick can read a
+  // patient's current vitals without re-subscribing the interval on every
+  // 3-second vitals update.
+  const treatmentRef = useRef<Record<string, PatientTreatmentState>>({});
+  useEffect(() => {
+    treatmentRef.current = treatmentByCasualtyId;
+  }, [treatmentByCasualtyId]);
+
   // Resuscitation tick. Runs the ALS clock: end-tidal CO2 chases whatever
   // the current compressions justify, and every two minutes the cycle
   // rolls over into a rhythm check where ROSC is decided. This is also the
@@ -562,12 +572,51 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const id = setInterval(() => {
       const nowMs = Date.now();
       const achieved: string[] = [];
+      const reArrested: string[] = [];
       setResusByCasualtyId((prev) => {
         let changed = false;
         const next: typeof prev = {};
         for (const [cid, r] of Object.entries(prev)) {
-          if (r.roscAt !== undefined || r.roleAt !== undefined) {
+          if (r.roleAt !== undefined) {
             next[cid] = r;
+            continue;
+          }
+          // --- Post-ROSC: fragile, and it can go back the other way -----
+          if (r.roscAt !== undefined) {
+            let s = r;
+            const target = expectedEtco2(s, nowMs);
+            const eased = s.etco2 + (target - s.etco2) * 0.2;
+            if (Math.abs(eased - s.etco2) > 0.02) {
+              s = { ...s, etco2: Math.round(eased * 10) / 10 };
+              changed = true;
+            }
+            // Re-arrest is rolled once a minute against how well the
+            // patient is being managed since they came back.
+            const sinceCheck = (nowMs - (s.lastPostRoscCheckAt ?? r.roscAt)) / 1000;
+            if (sinceCheck >= 60) {
+              const issues = postRoscIssues(s, treatmentRef.current[cid]?.liveVitals);
+              const p = reArrestChancePerMin(s, nowMs, issues);
+              if (rollBeat(p)) {
+                reArrested.push(cid);
+                s = {
+                  ...s,
+                  roscAt: undefined,
+                  reArrests: s.reArrests + 1,
+                  cycle: 0,
+                  cycleStartedAt: nowMs,
+                  rhythm: Math.random() < 0.35 ? "vf" : "pea",
+                  lastPostRoscCheckAt: undefined,
+                  events: [
+                    ...s.events,
+                    { at: nowMs, text: "RE-ARREST — output lost again", tone: "critical" },
+                  ],
+                };
+              } else {
+                s = { ...s, lastPostRoscCheckAt: nowMs };
+              }
+              changed = true;
+            }
+            next[cid] = s;
             continue;
           }
           let s = r;
@@ -618,6 +667,30 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
         return changed ? next : prev;
       });
+      // A re-arrest puts the flag back so the vitals engine drops them
+      // to the CPR floor again.
+      if (reArrested.length > 0) {
+        setTreatmentByCasualtyId((prev) => {
+          const nx = { ...prev };
+          for (const cid of reArrested) {
+            const tx = nx[cid];
+            if (!tx) continue;
+            const flags = tx.activeRedFlags ?? [];
+            if (!flags.includes("cardiac_arrest"))
+              nx[cid] = { ...tx, activeRedFlags: [...flags, "cardiac_arrest"] };
+          }
+          return nx;
+        });
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `rearrest:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: "RE-ARREST — output lost, resuscitation resumed.",
+          },
+        ]);
+      }
       // ROSC clears the arrest so the vitals engine stops holding the
       // patient at the CPR floor and starts recovering them.
       if (achieved.length > 0) {
@@ -1299,6 +1372,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       monitor,
       events: resusEvent(s, `${monitor === "pads" ? "Defib pads" : monitor === "lead_3" ? "3-lead ECG" : "12-lead ECG"} attached`, "action"),
     }));
+  }
+
+  function setResusAirway(casualtyId: string, airway: "igel" | "ett", by: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      airway,
+      events: resusEvent(
+        s,
+        airway === "igel"
+          ? "i-gel inserted — continuous compressions, ventilate at 10/min"
+          : "Intubated — continuous compressions, ventilate at 10/min",
+        "action",
+      ),
+    }));
+    // Keep the A-B-C record in step so the rest of the treatment tab and
+    // the debrief see the airway too.
+    applyAirway(casualtyId, airway === "igel" ? "igel" : "rsi", by);
   }
 
   function toggleCapnography(casualtyId: string) {
@@ -3709,6 +3799,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onApplyBreathing={applyBreathing}
             onApplyCirculation={applyCirculation}
             resusByCasualtyId={resusByCasualtyId}
+            onSetResusAirway={setResusAirway}
             onAttachMonitor={attachMonitor}
             onToggleCapnography={toggleCapnography}
             onSetCompressor={setCompressor}
@@ -3785,6 +3876,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onApplyBreathing={applyBreathing}
             onApplyCirculation={applyCirculation}
             resusByCasualtyId={resusByCasualtyId}
+            onSetResusAirway={setResusAirway}
             onAttachMonitor={attachMonitor}
             onToggleCapnography={toggleCapnography}
             onSetCompressor={setCompressor}

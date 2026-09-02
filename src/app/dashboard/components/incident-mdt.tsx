@@ -80,6 +80,7 @@ type Props = {
   onApplyBreathing?: IncidentViewProps["onApplyBreathing"];
   onApplyCirculation?: IncidentViewProps["onApplyCirculation"];
   resusByCasualtyId?: IncidentViewProps["resusByCasualtyId"];
+  onSetResusAirway?: IncidentViewProps["onSetResusAirway"];
   onAttachMonitor?: IncidentViewProps["onAttachMonitor"];
   onToggleCapnography?: IncidentViewProps["onToggleCapnography"];
   onSetCompressor?: IncidentViewProps["onSetCompressor"];
@@ -211,6 +212,7 @@ export function DraggableIncidentMdt({
   onApplyBreathing,
   onApplyCirculation,
   resusByCasualtyId,
+  onSetResusAirway,
   onAttachMonitor,
   onToggleCapnography,
   onSetCompressor,
@@ -730,6 +732,7 @@ export function DraggableIncidentMdt({
                   onApplyBreathing={onApplyBreathing}
                   onApplyCirculation={onApplyCirculation}
                   resusByCasualtyId={resusByCasualtyId}
+                  onSetResusAirway={onSetResusAirway}
                   onAttachMonitor={onAttachMonitor}
                   onToggleCapnography={onToggleCapnography}
                   onSetCompressor={onSetCompressor}

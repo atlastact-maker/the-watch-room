@@ -100,6 +100,7 @@ export type Props = {
     by: string,
   ) => void;
   resusByCasualtyId?: Record<string, ResusState>;
+  onSetResusAirway?: (casualtyId: string, airway: "igel" | "ett", by: string) => void;
   onAttachMonitor?: (casualtyId: string, monitor: MonitorMode) => void;
   onToggleCapnography?: (casualtyId: string) => void;
   onSetCompressor?: (casualtyId: string, crew: { id: string; name: string; role: string }) => void;
@@ -939,6 +940,7 @@ export function CasualtiesBody({
   onApplyBreathing,
   onApplyCirculation,
   resusByCasualtyId,
+  onSetResusAirway,
   onAttachMonitor,
   onToggleCapnography,
   onSetCompressor,
@@ -970,6 +972,7 @@ export function CasualtiesBody({
   onApplyBreathing?: Props["onApplyBreathing"];
   onApplyCirculation?: Props["onApplyCirculation"];
   resusByCasualtyId?: Props["resusByCasualtyId"];
+  onSetResusAirway?: Props["onSetResusAirway"];
   onAttachMonitor?: Props["onAttachMonitor"];
   onToggleCapnography?: Props["onToggleCapnography"];
   onSetCompressor?: Props["onSetCompressor"];
@@ -1236,6 +1239,14 @@ export function CasualtiesBody({
               monitorAvailable={paired.some(({ appliance }) =>
                 appliance.kit.some((k) => /cardiac monitor|defib/i.test(k)),
               )}
+              onSetResusAirway={(a) =>
+                a !== "none" &&
+                onSetResusAirway?.(
+                  c.id,
+                  a,
+                  paired[0]?.appliance.callsign ?? "Crew",
+                )
+              }
               onAttachMonitor={(m) => onAttachMonitor?.(c.id, m)}
               onToggleCapnography={() => onToggleCapnography?.(c.id)}
               onSetCompressor={(crew) => onSetCompressor?.(c.id, crew)}

@@ -150,6 +150,10 @@ export type ResusState = {
   /** End-tidal CO2 in kPa. */
   etco2: number;
   roscAt?: number;
+  /** How many times this patient has come back and arrested again. */
+  reArrests: number;
+  /** Last time the post-ROSC re-arrest roll was made. */
+  lastPostRoscCheckAt?: number;
   /** Resus stopped without ROSC — recognition of life extinct. */
   roleAt?: number;
   reversibles: Partial<Record<ReversibleCause, "suspected" | "treated">>;
@@ -208,7 +212,11 @@ export function compressionQuality(s: ResusState, now: number): number {
  *  how good the CPR actually is. Perfusing well sits around the target;
  *  a tiring compressor drags it toward the futile end. */
 export function expectedEtco2(s: ResusState, now: number): number {
-  if (s.roscAt !== undefined) return 4.8; // ROSC — normocapnia-ish
+  if (s.roscAt !== undefined) {
+    // With an advanced airway the crew can actually ventilate to a
+    // target; bagging a face mask post-arrest tends to under-ventilate.
+    return s.airway === "none" ? 6.8 : 5.3;
+  }
   const q = compressionQuality(s, now);
   if (q === 0) return 0.6; // nobody on the chest
   const base = 1.0 + q * 2.9;
@@ -233,6 +241,7 @@ export function newResusState(casualtyId: string, at: number, rhythm: ArrestRhyt
     amiodaroneDoses: 0,
     padPosition: "antero_lateral",
     etco2: 0.6,
+    reArrests: 0,
     reversibles: {},
     events: [{ at, text: "Resuscitation commenced", tone: "critical" }],
   };
@@ -344,6 +353,103 @@ export function rhythmAfterFailedShock(
   const degenerate = Math.min(0.5, 0.06 * mins);
   if (roll < degenerate) return "asystole";
   return s.rhythm;
+}
+
+// --- Post-ROSC ------------------------------------------------------------
+
+/**
+ * Post-ROSC targets, RCUK 2025. Getting a pulse back is the middle of the
+ * job, not the end: over-oxygenating and over-ventilating a freshly
+ * arrested brain both do harm, and the pressure has to be held up.
+ */
+export const POST_ROSC = {
+  spo2Min: 94,
+  spo2Max: 98,
+  etco2MinKpa: 4.7,
+  etco2MaxKpa: 6.0,
+  bpSysMin: 100,
+} as const;
+
+export type PostRoscIssue = {
+  key: "hypoxia" | "hyperoxia" | "hypocapnia" | "hypercapnia" | "hypotension";
+  text: string;
+  fix: string;
+};
+
+/** What is currently wrong with the post-ROSC patient, in the order a
+ *  crew would care about it. Empty means they are being managed well. */
+export function postRoscIssues(
+  s: ResusState,
+  vitals: { spo2: number; bpSys: number } | undefined,
+): PostRoscIssue[] {
+  if (s.roscAt === undefined) return [];
+  const out: PostRoscIssue[] = [];
+  if (vitals) {
+    if (vitals.spo2 < POST_ROSC.spo2Min)
+      out.push({
+        key: "hypoxia",
+        text: `SpO₂ ${Math.round(vitals.spo2)}% — below ${POST_ROSC.spo2Min}%`,
+        fix: "Increase oxygen and ventilate",
+      });
+    else if (vitals.spo2 > POST_ROSC.spo2Max)
+      out.push({
+        key: "hyperoxia",
+        text: `SpO₂ ${Math.round(vitals.spo2)}% — above ${POST_ROSC.spo2Max}%`,
+        fix: "Titrate the oxygen DOWN — hyperoxia harms the brain after an arrest",
+      });
+    if (vitals.bpSys < POST_ROSC.bpSysMin)
+      out.push({
+        key: "hypotension",
+        text: `Systolic ${Math.round(vitals.bpSys)} — below ${POST_ROSC.bpSysMin}`,
+        fix: "Fluids, and a vasopressor if it will not come up",
+      });
+  }
+  if (s.capnographyOn) {
+    if (s.etco2 < POST_ROSC.etco2MinKpa)
+      out.push({
+        key: "hypocapnia",
+        text: `End-tidal ${s.etco2.toFixed(1)} kPa — over-ventilating`,
+        fix: "Slow the ventilation rate — hypocapnia constricts cerebral vessels",
+      });
+    else if (s.etco2 > POST_ROSC.etco2MaxKpa)
+      out.push({
+        key: "hypercapnia",
+        text: `End-tidal ${s.etco2.toFixed(1)} kPa — under-ventilating`,
+        fix: "Increase the ventilation rate",
+      });
+  }
+  return out;
+}
+
+/**
+ * Per-minute chance this patient re-arrests.
+ *
+ * Real ROSC is fragile — re-arrest is common, and it is commonest in the
+ * patients who were managed worst. A long downtime, an untreated
+ * reversible cause and post-ROSC targets being missed all push it up; a
+ * short arrest, an advanced airway and a treated cause pull it down.
+ */
+export function reArrestChancePerMin(
+  s: ResusState,
+  now: number,
+  issues: PostRoscIssue[],
+): number {
+  if (s.roscAt === undefined || s.roleAt !== undefined) return 0;
+  const arrestMin = (s.roscAt - s.startedAt) / 60000;
+  // Calibrated so that roughly a third of patients re-arrest across a
+  // typical transport rather than within a minute or two: a well-managed
+  // short arrest sits near 1-2% per minute, a long badly-managed one
+  // nearer 6-8%, which over a 20-minute run is most of them.
+  let p = 0.006 + Math.min(0.024, arrestMin * 0.0018);
+  // Every unmanaged post-ROSC problem makes it worse.
+  p *= 1 + issues.length * 0.35;
+  // A reversible cause actually treated is the strongest protection.
+  if (Object.values(s.reversibles).some((r) => r === "treated")) p *= 0.55;
+  if (s.airway !== "none") p *= 0.85;
+  // The first few minutes after ROSC are the most dangerous.
+  const sinceRosc = (now - s.roscAt) / 60000;
+  if (sinceRosc < 5) p *= 1.5;
+  return Math.max(0, Math.min(0.15, p));
 }
 
 /** Human-readable read on the capnography trace — what a crew would

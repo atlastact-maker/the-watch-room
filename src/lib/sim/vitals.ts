@@ -244,6 +244,69 @@ export function advanceLiveVitals(
     dBM += driftRate(v.bm, 5.5, 0.05);
   }
 
+  // ----- Adverse effects -------------------------------------------------
+  // Drugs are not free. Each of these is a real, documented effect that a
+  // crew would see on the monitor, and each has a window — give a drug and
+  // it works on the patient for a while, then fades. Modelled only OUTSIDE
+  // arrest: while the heart is stopped there is no circulation to carry
+  // them, which is itself why arrest drugs are pushed with a flush.
+  if (!flags.has("cardiac_arrest")) {
+    const within = (at: number | undefined, sec: number) =>
+      at !== undefined && nowMs - at < sec * 1000;
+
+    // Adrenaline. Post-ROSC it drives the heart hard — tachycardia and a
+    // pressure overshoot that pushes myocardial oxygen demand up at
+    // exactly the wrong moment.
+    if (within(tx.drugs.adrenaline_cpr, 240)) {
+      dHR += driftRate(v.hr, 130, 0.25);
+      dBPs += driftRate(v.bpSys, 165, 0.4);
+      dBPd += driftRate(v.bpDia, 95, 0.2);
+    }
+    // Adrenaline IM for anaphylaxis — same story, smaller.
+    if (within(tx.drugs.adrenaline_im_anaphylaxis, 300)) {
+      dHR += driftRate(v.hr, 115, 0.12);
+    }
+    // Amiodarone. Its headline adverse effects are hypotension and
+    // bradycardia, which is why it goes in slowly.
+    if (within(tx.drugs.amiodarone, 420)) {
+      dBPs += driftRate(v.bpSys, 88, 0.25);
+      dBPd += driftRate(v.bpDia, 52, 0.15);
+      dHR += driftRate(v.hr, 58, 0.1);
+    }
+    // Naloxone reverses the opiate — and with it the analgesia. The
+    // patient wakes agitated and their respiratory rate overshoots.
+    if (within(tx.drugs.naloxone, 300)) {
+      dRR += driftRate(v.rr, 26, 0.1);
+      dHR += driftRate(v.hr, 110, 0.15);
+    }
+    // Opiates and sedation the other way — respiratory depression.
+    if (within(tx.drugs.morphine, 600) || within(tx.drugs.fentanyl, 420)) {
+      dRR += driftRate(v.rr, 9, 0.05);
+      if (!onOxygen) dSpO2 += driftRate(v.spo2, 92, 0.06);
+    }
+    if (within(tx.drugs.midazolam_im, 600)) {
+      dRR += driftRate(v.rr, 10, 0.05);
+      dGCS += driftRate(v.gcs, 10, 0.03);
+    }
+    // Ketamine at RSI dose and propofol drop the pressure; metaraminol
+    // and noradrenaline are given precisely to put it back.
+    if (within(tx.drugs.propofol, 420)) {
+      dBPs += driftRate(v.bpSys, 85, 0.3);
+    }
+    if (within(tx.drugs.metaraminol, 420) || within(tx.drugs.noradrenaline, 600)) {
+      dBPs += driftRate(v.bpSys, 110, 0.35);
+      dBPd += driftRate(v.bpDia, 70, 0.2);
+    }
+    // GTN drops preload — the reason you check a pressure before giving it.
+    if (within(tx.drugs.gtn_spray, 420)) {
+      dBPs += driftRate(v.bpSys, 100, 0.2);
+    }
+    // Salbutamol — the tachycardia and tremor every asthmatic knows.
+    if (within(tx.drugs.salbutamol_neb, 420)) {
+      dHR += driftRate(v.hr, 118, 0.12);
+    }
+  }
+
   const prev = v;
   v = apply(v, {
     rr: dRR * dt,
