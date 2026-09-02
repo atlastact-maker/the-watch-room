@@ -3,7 +3,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
-import { setRole, deleteRole, setBan, deleteUser, setAdvisorDecline } from "./actions";
+import {
+  setRole,
+  deleteRole,
+  setBan,
+  deleteUser,
+  setAdvisorDecline,
+  addAdminNote,
+  deleteAdminNote,
+} from "./actions";
 
 // The admin area — overview numbers, advisor applications, access roles
 // and recent registrations, managed from the site instead of the
@@ -53,6 +61,14 @@ type Overview = {
   incidents_resolved: number;
 };
 
+type NoteRow = {
+  id: string;
+  subject_user_id: string;
+  note: string;
+  author_email: string;
+  created_at: string;
+};
+
 type UserRow = {
   user_id: string;
   email: string;
@@ -100,15 +116,16 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
     supabase.rpc("admin_list_users", { p_limit: 25 }),
+    supabase.rpc("admin_notes_all"),
   ]);
 
   const firstError =
-    advisorsRes.error ?? rolesRes.error ?? overviewRes.error ?? usersRes.error;
+    advisorsRes.error ?? rolesRes.error ?? overviewRes.error ?? usersRes.error ?? notesRes.error;
   const missing007 = advisorsRes.error?.message?.includes("admin_list_advisors");
   const missing008 = overviewRes.error?.message?.includes("admin_overview");
 
@@ -116,6 +133,15 @@ export default async function AdminPage() {
   const roles = (rolesRes.data ?? []) as RoleRow[];
   const overview = ((overviewRes.data ?? []) as Overview[])[0];
   const users = (usersRes.data ?? []) as UserRow[];
+  // Notes are fetched for every listed account in one call rather than
+  // per row — 25 round trips to render a page would be daft.
+  const notesByUser = new Map<string, NoteRow[]>();
+  for (const n of (notesRes.data ?? []) as NoteRow[]) {
+    const list = notesByUser.get(n.subject_user_id) ?? [];
+    list.push(n);
+    notesByUser.set(n.subject_user_id, list);
+  }
+  const missing011 = notesRes.error?.message?.includes("admin_notes_all");
   const pending = advisors.filter(
     (a) => a.assigned_role === null && !a.declined_at,
   );
@@ -147,7 +173,9 @@ export default async function AdminPage() {
               ? "Migration 007 (admin functions) has not been run in Supabase yet — run supabase/migrations/007_admin_functions.sql in the SQL editor, then reload."
               : missing008
                 ? "Migration 008 (admin overview) has not been run in Supabase yet — run supabase/migrations/008_admin_overview.sql in the SQL editor, then reload."
-                : `Database error: ${firstError.message}`}
+                : missing011
+                  ? "Migration 011 (admin notes) has not been run in Supabase yet — run supabase/migrations/011_admin_notes.sql in the SQL editor, then reload."
+                  : `Database error: ${firstError.message}`}
           </div>
         )}
 
@@ -498,6 +526,10 @@ export default async function AdminPage() {
                           </button>
                         </form>
                       </details>
+                      <AdminNotes
+                        userId={u.user_id}
+                        notes={notesByUser.get(u.user_id) ?? []}
+                      />
                     </div>
                   )}
                 </div>
@@ -507,5 +539,82 @@ export default async function AdminPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Notes on one account. Collapsed by default — a user list is for
+ * scanning, and notes are for when you have stopped scanning — but the
+ * summary carries the count so you can see at a glance which accounts
+ * have history without opening anything.
+ *
+ * No client JS: a <details> for the disclosure, server actions for the
+ * writes, same as the rest of this page.
+ */
+function AdminNotes({
+  userId,
+  notes,
+}: {
+  userId: string;
+  notes: NoteRow[];
+}) {
+  return (
+    <details className="w-full">
+      <summary
+        className={`${btnCls} inline-block cursor-pointer list-none border-(--color-info)/50 text-(--color-info) hover:bg-(--color-info)/10`}
+      >
+        Notes{notes.length > 0 ? ` · ${notes.length}` : ""}
+      </summary>
+
+      <div className="mt-2 space-y-1.5 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 p-2">
+        <p className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+          Admin only — never shown to the user
+        </p>
+
+        {notes.length > 0 && (
+          <ul className="space-y-1.5">
+            {notes.map((n) => (
+              <li
+                key={n.id}
+                className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/60 px-2 py-1.5"
+              >
+                <p className="text-[12px] leading-snug text-(--color-text)">{n.note}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                  <span className="break-all">{n.author_email}</span>
+                  <span>{fmtDate(n.created_at)}</span>
+                  <form action={deleteAdminNote} className="ml-auto">
+                    <input type="hidden" name="noteId" value={n.id} />
+                    <button
+                      type="submit"
+                      className="uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-critical)"
+                      title="Delete this note"
+                    >
+                      Delete
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form action={addAdminNote} className="flex flex-col gap-1.5 sm:flex-row">
+          <input type="hidden" name="userId" value={userId} />
+          <input
+            name="note"
+            required
+            maxLength={1000}
+            placeholder="Add a note — why accepted, background, anything worth remembering"
+            className={`${inputCls} flex-1`}
+          />
+          <button
+            type="submit"
+            className={`${btnCls} shrink-0 border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
+          >
+            Add note
+          </button>
+        </form>
+      </div>
+    </details>
   );
 }

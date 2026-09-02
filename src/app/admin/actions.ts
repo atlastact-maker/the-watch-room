@@ -144,3 +144,33 @@ export async function deleteUser(formData: FormData): Promise<void> {
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }
+
+/** Add a note to someone's profile. The author is taken from the JWT in
+ *  the database, not from anything the client sends, so a note can never
+ *  be written under another admin's name. */
+export async function addAdminNote(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!userId || !note) return;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_add_note", {
+    p_user_id: userId,
+    p_note: note,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+/** Remove a note. Any admin can delete any note — this is a shared
+ *  record, and a note nobody can remove is a note nobody writes
+ *  honestly. */
+export async function deleteAdminNote(formData: FormData): Promise<void> {
+  const noteId = String(formData.get("noteId") ?? "").trim();
+  if (!noteId) return;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_delete_note", {
+    p_note_id: noteId,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
