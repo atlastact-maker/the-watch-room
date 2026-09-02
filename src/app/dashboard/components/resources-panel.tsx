@@ -2,6 +2,7 @@
 
 import { Rnd } from "react-rnd";
 import { ResourcesBoard } from "./resources-board";
+import { CAD_VARS } from "./cad-theme";
 import type { StationWithAppliances } from "../page";
 import type { Eta } from "./deployment-board";
 
@@ -36,25 +37,32 @@ export function DraggableResourcesPanel({
       }}
       minWidth={360}
       minHeight={280}
-      bounds="window"
+      // Unbounded like the log and the stack — a panel you shove aside
+      // should go where it is put.
       dragHandleClassName="drag-handle"
       className="z-[1100]"
     >
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-border) bg-(--color-surface) shadow-2xl shadow-black/60">
-        <div className="drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) bg-(--color-surface-raised) px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-          <div className="flex items-center gap-2">
-            <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
-            <span className="text-(--color-text)">Resources</span>
+      {/* Same chassis as the dispatch log and the call stack: CAD palette,
+          full-bleed header, buttons as blocks in the bar. Amber marks it
+          out from the log's green and the stack's blue. */}
+      <div
+        style={CAD_VARS}
+        className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) text-(--color-text) shadow-2xl shadow-black/60"
+      >
+        <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#b45309] font-mono text-[11px] font-bold text-white">
+          <div className="flex min-w-0 items-center gap-2 px-3 py-1 tracking-[0.15em]">
+            <span className="dot-live size-1.5 shrink-0 rounded-full bg-white" />
+            <span className="truncate uppercase">Resources</span>
             {incidentActive && (
-              <span className="rounded-sm border border-(--color-critical)/50 bg-(--color-critical)/10 px-1.5 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">
-                Mobilise mode
+              <span className="shrink-0 bg-[#dc2626] px-1.5 text-[10px]">
+                DRAG TO DISPATCH
               </span>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-2 py-0.5 hover:bg-(--color-bg) hover:text-(--color-critical)"
+            className="flex items-center bg-[#92400e] px-3 transition-colors hover:bg-[#dc2626]"
             title="Close"
           >
             ✕
