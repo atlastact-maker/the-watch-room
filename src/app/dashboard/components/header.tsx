@@ -53,10 +53,9 @@ export function DashboardHeader({
   // operator chose on the briefing screen and runs forward in real time
   // from there, so the time on the bar is the time the crews are working
   // — which is what drives darkness, HEMS grounding and day-crewed
-  // turnout. Showing real UTC meant the bar was reading out a number
-  // with no bearing on the shift at all.
+  // turnout. Nothing on the bar reports real-world time any more — the
+  // only clock the operator sees is the one their crews are working to.
   const [time, setTime] = useState<string>("--:--:--");
-  const [elapsed, setElapsed] = useState<string>("0:00");
   useEffect(() => {
     const tick = () => {
       const ranMs = Date.now() - shiftStartedAt;
@@ -67,9 +66,6 @@ export function DashboardHeader({
       const sec = shiftSec % 60;
       setTime(
         [h, m, sec].map((n) => String(n).padStart(2, "0")).join(":"),
-      );
-      setElapsed(
-        Math.floor(secs / 3600) + ":" + String(Math.floor((secs % 3600) / 60)).padStart(2, "0"),
       );
     };
     tick();
@@ -98,9 +94,6 @@ export function DashboardHeader({
 
         <div className="hidden items-center gap-4 md:flex">
           <span className="tabular-nums text-(--color-text)">{time}</span>
-          <span className="tabular-nums text-(--color-text-dim)" title="Time on shift">
-            ON {elapsed}
-          </span>
           {weather && <WeatherChip weather={weather} />}
           <span className="text-(--color-border)">|</span>
           <UserMenu
