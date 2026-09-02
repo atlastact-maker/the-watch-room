@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CAD_VARS } from "./cad-theme";
 import {
   BASEMAP_STORAGE_KEY,
   OS_ERRORS_URL,
@@ -59,17 +60,22 @@ export function BasemapToggle({
 }) {
   if (options.length < 2) return null;
   return (
-    <div className="pointer-events-auto absolute right-3 top-3 z-[600] flex overflow-hidden rounded-sm border border-(--color-border) bg-(--color-bg)/90 shadow-lg">
+    // Same CAD treatment as the floating panels — a segmented control with
+    // the live option as a solid block rather than a tinted highlight.
+    <div
+      style={CAD_VARS}
+      className="pointer-events-auto absolute right-3 top-3 z-[600] flex overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) shadow-lg"
+    >
       {options.map((o) => (
         <button
           key={o.id}
           type="button"
           onClick={() => onChoose(o.id)}
           className={
-            "px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors " +
+            "px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest transition-colors " +
             (o.id === current
-              ? "bg-(--color-amber)/20 text-(--color-amber)"
-              : "text-(--color-text-dim) hover:text-(--color-text)")
+              ? "bg-[#b45309] text-white"
+              : "text-(--color-text-dim) hover:bg-(--color-surface-raised) hover:text-(--color-text)")
           }
         >
           {o.label}

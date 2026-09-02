@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Rnd } from "react-rnd";
+import { CAD_VARS } from "./cad-theme";
 import {
   type Deployment,
   type Incident,
@@ -80,41 +81,34 @@ export function DraggableIncidentPanel({
       dragHandleClassName="drag-handle"
       className="z-[1100]"
     >
+      {/* Same CAD chassis as the log, stack and resources panels. The
+          header takes the job's state as its colour: red while it is
+          running, green once it is closed. */}
       <div
-        className={
-          "flex h-full w-full flex-col overflow-hidden rounded-sm bg-(--color-surface) shadow-2xl shadow-black/60 " +
-          (resolved ? "border border-(--color-ok)/40" : "border border-(--color-amber)/40")
-        }
+        style={CAD_VARS}
+        className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) text-(--color-text) shadow-2xl shadow-black/60"
       >
         <div
           className={
-            "drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) px-3 py-2 font-mono text-[10px] uppercase tracking-widest " +
-            (resolved ? "bg-(--color-ok)/10" : "bg-(--color-amber)/10")
+            "drag-handle flex cursor-move items-stretch justify-between font-mono text-[11px] font-bold text-white " +
+            (resolved ? "bg-[#15803d]" : "bg-[#dc2626]")
           }
         >
-          <div
-            className={
-              "flex items-center gap-2 " + (resolved ? "text-(--color-ok)" : "text-(--color-amber)")
-            }
-          >
-            <span
-              className={
-                "dot-live size-1.5 rounded-full " +
-                (resolved ? "bg-(--color-ok)" : "bg-(--color-critical)")
-              }
-            />
-            <span>
+          <div className="flex min-w-0 items-center gap-2 px-3 py-1 tracking-[0.15em]">
+            <span className="dot-live size-1.5 shrink-0 rounded-full bg-white" />
+            <span className="truncate uppercase">
               {resolved ? "Debrief" : "Incident"} · #{incident.scenario.id}
             </span>
-            <span className="opacity-60">|</span>
-            <span>{incident.scenario.severity.toUpperCase()}</span>
+            <span className="shrink-0 bg-black/25 px-1.5 text-[10px]">
+              {incident.scenario.severity.toUpperCase()}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-stretch">
             {!resolved && (
               <button
                 type="button"
                 onClick={onResolve}
-                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-ok) hover:text-(--color-ok)"
+                className="flex items-center bg-[#b91c1c] px-3 transition-colors hover:bg-[#15803d]"
               >
                 Resolve
               </button>
@@ -123,7 +117,7 @@ export function DraggableIncidentPanel({
               <button
                 type="button"
                 onClick={onDismiss}
-                className="rounded-sm border border-(--color-border) px-2 py-0.5 text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+                className="flex items-center bg-[#166534] px-3 transition-colors hover:bg-[#dc2626]"
               >
                 End Shift Debrief
               </button>
@@ -131,7 +125,7 @@ export function DraggableIncidentPanel({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
+              className={"flex items-center px-3 transition-colors hover:bg-black/30 " + (resolved ? "bg-[#166534]" : "bg-[#b91c1c]")}
               title="Close panel"
             >
               ✕
