@@ -96,6 +96,48 @@ const inputCls =
 const btnCls =
   "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
 
+type AdminTab = "applications" | "users" | "advisors";
+
+function AdminTabLink({
+  tab,
+  current,
+  label,
+  count,
+  countTone,
+}: {
+  tab: AdminTab;
+  current: AdminTab;
+  label: string;
+  count: number;
+  countTone?: "amber";
+}) {
+  const active = tab === current;
+  return (
+    <Link
+      href={tab === "applications" ? "/admin" : `/admin?tab=${tab}`}
+      aria-current={active ? "page" : undefined}
+      className={
+        "-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 font-mono text-[11px] uppercase tracking-widest transition-colors " +
+        (active
+          ? "border-(--color-amber) text-(--color-text)"
+          : "border-transparent text-(--color-text-dim) hover:border-(--color-border) hover:text-(--color-text)")
+      }
+    >
+      {label}
+      <span
+        className={
+          "rounded-sm px-1.5 py-0.5 text-[10px] tabular-nums " +
+          (countTone === "amber"
+            ? "bg-(--color-amber)/15 text-(--color-amber)"
+            : "bg-(--color-surface-raised) text-(--color-text-dim)")
+        }
+      >
+        {count}
+      </span>
+    </Link>
+  );
+}
+
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
@@ -121,13 +163,17 @@ function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ missing?: string | string[] }>;
+  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[] }>;
 }) {
   // A write action that hit a missing database function sends us back
   // here with the migration number, so it can be reported the same way
   // a missing list function is.
-  const { missing } = await searchParams;
+  const { missing, tab: tabParam } = await searchParams;
   const missing015 = missing === "015";
+  // Which of the three lists is on screen. Applications first: it is the
+  // one with decisions waiting in it.
+  const tab: AdminTab =
+    tabParam === "users" || tabParam === "advisors" ? tabParam : "applications";
   const supabase = await createClient();
   const {
     data: { user },
@@ -226,7 +272,29 @@ export default async function AdminPage({
           </section>
         )}
 
+        {/* Tabs — one list at a time, so nothing needs scrolling for. */}
+        <nav
+          aria-label="Admin sections"
+          className="flex flex-wrap gap-1 border-b border-(--color-border-subtle)"
+        >
+          <AdminTabLink
+            tab="applications"
+            current={tab}
+            label="Advisor applications"
+            count={pending.length}
+            countTone={pending.length > 0 ? "amber" : undefined}
+          />
+          <AdminTabLink tab="users" current={tab} label="Registered users" count={users.length} />
+          <AdminTabLink
+            tab="advisors"
+            current={tab}
+            label="Current advisors"
+            count={roles.length}
+          />
+        </nav>
+
         {/* Advisor applications */}
+        {tab === "applications" && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
@@ -381,11 +449,14 @@ export default async function AdminPage({
             </div>
           )}
         </section>
+        )}
 
-        {/* Access roles */}
+        {/* Current advisors — the access-roles table: everyone who has
+            been granted something, with the Discord tick. */}
+        {tab === "advisors" && (
         <section className="space-y-3">
           <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-            Access roles
+            Current advisors · access roles
           </h2>
 
           <form
@@ -503,9 +574,10 @@ export default async function AdminPage({
             </div>
           )}
         </section>
+        )}
 
         {/* Recent registrations */}
-        {users.length > 0 && (
+        {tab === "users" && users.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
               Registered users
