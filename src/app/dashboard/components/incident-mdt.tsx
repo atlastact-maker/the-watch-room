@@ -1124,7 +1124,7 @@ function CommittedRow({
   if (r.phase === "mobile") {
     if (hems && !r.deployment.parkingPos) {
       if (now >= hems.overheadAt) {
-        status = "Overhead";
+        status = "Orbiting";
         right = "LZ req";
       } else {
         status = "Airborne";

@@ -67,13 +67,23 @@ export function DraggableIncidentPanel({
 
   const resolved = !!outcome;
 
+  // Centred on open. The panel is created when the operator double-
+  // clicks a job on the stack, so it should appear where they are
+  // looking — the middle of the board — not in a corner.
+  const panelWidth = 580;
+  const panelHeight = typeof window !== "undefined" ? window.innerHeight - 120 : 700;
+  const startX =
+    typeof window !== "undefined" ? Math.max(0, (window.innerWidth - panelWidth) / 2) : 24;
+  const startY =
+    typeof window !== "undefined" ? Math.max(0, (window.innerHeight - panelHeight) / 2) : 80;
+
   return (
     <Rnd
       default={{
-        x: 24,
-        y: 80,
-        width: 580,
-        height: typeof window !== "undefined" ? window.innerHeight - 120 : 700,
+        x: startX,
+        y: startY,
+        width: panelWidth,
+        height: panelHeight,
       }}
       minWidth={400}
       minHeight={320}

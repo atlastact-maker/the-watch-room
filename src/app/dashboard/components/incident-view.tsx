@@ -1,5 +1,6 @@
 "use client";
 
+import { PASS_SEC } from "@/lib/sim/flight";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Appliance } from "@/lib/sim/types";
@@ -25,7 +26,7 @@ import type { StationWithAppliances } from "../page";
 import { GroundSceneMap } from "./ground-scene-map";
 import type { MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
 import { DeploymentBoard, type DeployArgs, type Eta } from "./deployment-board";
-import type { InformantMessage } from "./informant-panel";
+import type { InformantMessage } from "@/lib/sim/incident_types";
 import { RadioFeed } from "./radio-feed";
 import { DraggableTreatmentPanel } from "./treatment-panel";
 
@@ -1950,15 +1951,30 @@ export function CrewLine({
   const caps = CAPABILITIES_BY_TYPE[r.appliance.type] ?? [];
   const isBaCapable = caps.includes("BA");
   const hemsFlight = r.deployment.hemsFlight;
+  const hemsLabel = (() => {
+    if (!hemsFlight) return null;
+    if (!r.deployment.parkingPos) {
+      return now >= hemsFlight.overheadAt
+        ? "Orbiting overhead — LZ required"
+        : `Airborne · overhead ${fmtMs(hemsFlight.overheadAt - now)}`;
+    }
+    const touchdownAt = r.deployment.arrivesAt - (hemsFlight.walkSec ?? 0) * 1000;
+    const descentStartAt = touchdownAt - hemsFlight.landingSec * 1000;
+    const passes = hemsFlight.passes ?? 1;
+    if (now < descentStartAt) {
+      const joinStartAt = Math.max(hemsFlight.lzConfirmedAt ?? now, hemsFlight.overheadAt);
+      const patternStartAt = joinStartAt + (hemsFlight.joinSec ?? 0) * 1000;
+      if (now < joinStartAt) return `Airborne · overhead ${fmtMs(joinStartAt - now)}`;
+      if (now < patternStartAt) return "Joining the approach";
+      const n = Math.min(passes, Math.floor((now - patternStartAt) / (PASS_SEC * 1000)) + 1);
+      return `Pass ${n} of ${passes} over the LZ`;
+    }
+    if (now < touchdownAt) return `Landing · touchdown ${fmtMs(touchdownAt - now)}`;
+    return `On the pad · crew on foot · ${fmtMs(r.deployment.arrivesAt - now)}`;
+  })();
   const phaseLabel =
     r.phase === "mobile"
-      ? hemsFlight && !r.deployment.parkingPos
-        ? now >= hemsFlight.overheadAt
-          ? "Overhead — LZ required"
-          : `Airborne · overhead ${fmtMs(hemsFlight.overheadAt - now)}`
-        : hemsFlight
-          ? `Landing · crew on foot · ${fmtMs(r.deployment.arrivesAt - now)}`
-          : `Mobile · ETA ${fmtMs(r.deployment.arrivesAt - now)}`
+      ? hemsLabel ?? `Mobile · ETA ${fmtMs(r.deployment.arrivesAt - now)}`
       : r.phase === "at_incident"
         ? `On scene · ${fmtMs(now - r.deployment.arrivesAt)}`
         : r.phase === "at_hospital"

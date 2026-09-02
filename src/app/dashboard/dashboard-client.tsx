@@ -28,6 +28,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
 import { PATCH, PATCH_AREAS, type Patch } from "@/lib/sim/areas";
 import {
+  flightPath,
+  pathLengthMeters,
+  passesForLz,
+  PASS_SEC,
+  bearingDeg as bearingBetween,
+  orbitPosition,
+  joinSecFor,
+} from "@/lib/sim/flight";
+import {
   type ApplianceTypeCode,
   type ServiceCode,
 } from "@/lib/sim/types";
@@ -114,7 +123,6 @@ import { EmbeddedMap } from "./components/map-panel";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
-import { InformantPanel } from "./components/informant-panel";
 import { DispatchLog } from "./components/dispatch-log";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import { SCENARIOS } from "@/lib/sim/scenarios";
@@ -220,7 +228,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
   }
   const [resourcesVisible, setResourcesVisible] = useState(true);
-  const [incidentPanelVisible, setIncidentPanelVisible] = useState(true);
+  // Hidden until the operator double-clicks the job on the call stack.
+  // A control room does not have the incident card thrown in its face
+  // the moment a call is picked up; it opens the job when it is ready to
+  // work it.
+  const [incidentPanelVisible, setIncidentPanelVisible] = useState(false);
+  // The ground view shares the flag (it gates the MDT tablet) and forces
+  // it on when opened. Remember what the area panel was doing so zooming
+  // back out puts it back, rather than popping the card open on every
+  // return from the ground.
+  const areaPanelBeforeGroundRef = useRef(false);
 
   // ---------------------------------------------------------------------
   // The call stack.
@@ -1990,7 +2007,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       }
       const base = hemsStation.coords;
       const target = activeIncident.scenario.location.coords;
-      const meters = haversineMeters(base, target);
+      // A flown line, not a ruler line — and the timing is priced off the
+      // line actually flown, so the bend costs the seconds it should.
+      const line = flightPath(base, target, `${heli.id}:${activeIncident.id}`);
+      const meters = pathLengthMeters(line);
       // H145: ~3 min lift, ~130 kt cruise (≈67 m/s).
       const flightSec = Math.round(180 + meters / 67);
       const now = Date.now();
@@ -1999,10 +2019,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         slotId: "clinician:hems",
         etaSeconds: flightSec,
         routeMeters: Math.round(meters),
-        routeCoords: [
-          [base.lat, base.lng],
-          [target.lat, target.lng],
-        ],
+        routeCoords: line,
       });
       setDeployments((prev) =>
         prev.map((d) =>
@@ -2287,14 +2304,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       const base = findStationForAppliance(appliance.id)?.coords;
       const target = activeIncident.scenario.location.coords;
       if (base) {
-        const meters = haversineMeters(base, target);
+        // Curved transit, priced off the line actually flown.
+        const line = flightPath(base, target, `${appliance.id}:${activeIncident.id}`);
+        const meters = pathLengthMeters(line);
         // H145 / EC135: ~3 min lift, ~130 kt cruise (≈67 m/s).
         etaSeconds = Math.round(180 + meters / 67);
         routeMeters = Math.round(meters);
-        routeCoords = [
-          [base.lat, base.lng],
-          [target.lat, target.lng],
-        ];
+        routeCoords = line;
         arrivesAt = mobilisedAt + etaSeconds * 1000;
         if (appliance.type === "HEMS") {
           // Hold overhead until an LZ is confirmed via the placement flow.
@@ -3474,7 +3490,33 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
         const walkSec = Math.max(20, Math.round(dist / 1.4)); // brisk walk with kit
         const now = Date.now();
-        const touchdownAt = Math.max(now, overheadAt) + landingSec * 1000;
+        // The pilot does not put it straight down. They fly the LZ first —
+        // once for an obvious field, three times for a road or ground the
+        // survey could not read — then commit. Passes start when the
+        // aircraft is overhead, or now if it already is.
+        const passes = passesForLz(kind);
+        // Where the aircraft is right now, so the map can fly it to the
+        // pattern rather than blink it there: on the orbit if it is
+        // overhead, otherwise still inbound and the leg starts at the
+        // scene when it arrives. The run-in is flown towards the scene.
+        const line = dep.routeCoords ?? [];
+        const sceneEnd = line[line.length - 1] ?? [inc.lat, inc.lng];
+        const priorPt = line[Math.max(0, line.length - 2)] ?? sceneEnd;
+        const arrivalBearing = bearingBetween(
+          { lat: priorPt[0], lng: priorPt[1] },
+          { lat: sceneEnd[0], lng: sceneEnd[1] },
+        );
+        const scene = { lat: sceneEnd[0], lng: sceneEnd[1] };
+        const joinFromPt =
+          now >= overheadAt
+            ? orbitPosition(scene, (now - overheadAt) / 1000, arrivalBearing)
+            : sceneEnd;
+        const joinFrom = { lat: joinFromPt[0], lng: joinFromPt[1] };
+        const runIn = bearingBetween({ lat, lng }, inc);
+        const joinSec = joinSecFor(joinFromPt, { lat, lng }, runIn);
+        const joinStartAt = Math.max(now, overheadAt);
+        const patternStartAt = joinStartAt + joinSec * 1000;
+        const touchdownAt = patternStartAt + passes * PASS_SEC * 1000 + landingSec * 1000;
         const arrivesAt = touchdownAt + walkSec * 1000;
         setDeployments((prev) =>
           prev.map((d) =>
@@ -3484,7 +3526,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                   parkingPos: { lat, lng },
                   parkingBearingDeg: bearingDeg,
                   arrivesAt,
-                  hemsFlight: { ...d.hemsFlight, walkSec, lzConfirmedAt: now },
+                  hemsFlight: {
+                    ...d.hemsFlight,
+                    walkSec,
+                    lzConfirmedAt: now,
+                    passes,
+                    lzKind: kind,
+                    joinFrom,
+                    joinSec,
+                  },
                 }
               : d,
           ),
@@ -3498,7 +3548,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 ? "open ground"
                 : "unverified ground (survey offline) — crew will visual-check on approach";
         logLine(
-          `LZ confirmed ${Math.round(dist)} m from the scene on ${surface} — ${applianceLabel(applianceId)} landing; doctor + CCP proceeding on foot, with casualty in ~${Math.max(1, Math.round((arrivesAt - now) / 60000))} min`,
+          `LZ confirmed ${Math.round(dist)} m from the scene on ${surface} — ${applianceLabel(applianceId)} flying ${passes} pass${passes === 1 ? "" : "es"} then landing; doctor + CCP proceeding on foot, with casualty in ~${Math.max(1, Math.round((arrivesAt - now) / 60000))} min`,
         );
       })();
       return;
@@ -4056,6 +4106,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               ? (view) => {
                   setGroundEntryView(view);
                   setGroundViewOpen(true);
+                  areaPanelBeforeGroundRef.current = incidentPanelVisible;
+                  setIncidentPanelVisible(true);
                 }
               : undefined
           }
@@ -4252,7 +4304,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }}
             rotatePendingApplianceId={rotatePendingApplianceId}
             onSetRotatePending={setRotatePendingApplianceId}
-            onClose={() => setGroundViewOpen(false)}
+            onClose={() => {
+              setGroundViewOpen(false);
+              setIncidentPanelVisible(areaPanelBeforeGroundRef.current);
+            }}
           />
         )}
         {/* Rugged MDT tablet — ground view's incident terminal. */}
@@ -4459,22 +4514,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             Log
           </button>
         )}
-        {/* 999 Informant panel — floats on the main dashboard while the
-            operator is still at the command desk. Once the ground view is
-            open, the Call Information tab carries the live caller log in
-            the left rail, so the floating version is hidden to keep the
-            ground view uncluttered. */}
-        {!groundViewOpen &&
-          activeIncident &&
-          (informantOnCall || informantLog.some((e) => e.text.length > 0)) && (
-            <InformantPanel
-              active={informantOnCall}
-              callOpenedAt={activeIncident.receivedAt}
-              messages={informantLog}
-              variant="dashboard"
-              onDismiss={() => setInformantLog([])}
-            />
-          )}
       </main>
     </div>
   );

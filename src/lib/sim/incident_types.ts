@@ -703,6 +703,19 @@ export type Deployment = {
     walkSec?: number;
     /** Epoch ms the operator confirmed the LZ. */
     lzConfirmedAt?: number;
+    /** Approach passes the pilot flies over the LZ before committing —
+     *  one for a clear field, three for a road or unverified ground.
+     *  Set with lzConfirmedAt; see lib/sim/flight passesForLz. */
+    passes?: 1 | 2 | 3;
+    /** What the LZ survey made of the surface. */
+    lzKind?: "field" | "carriageway" | "open" | "unknown";
+    /** The join leg from wherever the aircraft was when the LZ was
+     *  confirmed to the start of the pattern: where it began, and how
+     *  long it takes. Recorded so the map and the timing derive the same
+     *  path. Absent on a save from before this existed; treated as no
+     *  leg. */
+    joinFrom?: { lat: number; lng: number };
+    joinSec?: number;
   };
   /** True when this deployment is the NWAA critical-care car standing in
    *  for a grounded helicopter (night / weather) — same doctor + critical
@@ -1353,4 +1366,13 @@ export type IncidentOutcome = {
   totalCount: number;
   grade: "A" | "B" | "C" | "D" | "F";
   summary: string;
+};
+
+/** One line from the 999 caller, as it reaches the operator. Kept in
+ *  the shift log and on the ground view's Call Information tab. */
+export type InformantMessage = {
+  id: string;
+  text: string;
+  tone: "info" | "urgent" | "critical";
+  firedAt: number;
 };

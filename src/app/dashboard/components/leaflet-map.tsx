@@ -13,6 +13,14 @@ import {
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
+import {
+  bearingDeg,
+  orbitPosition,
+  orbitRing,
+  patternPosition,
+  patternRing,
+  patternStart,
+} from "@/lib/sim/flight";
 import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 import { PATCH_LABEL, type Patch } from "@/lib/sim/areas";
 import {
@@ -65,19 +73,28 @@ function trailStyle(color: string): L.PathOptions {
   return style;
 }
 
-/** HEMS trail extended with the descent leg to the confirmed LZ. Cached
- *  per appliance so the polyline keeps a stable array identity across
- *  the 4 Hz clock instead of being rebuilt every tick. */
+/** HEMS trail: the flight line extended with whatever the aircraft is
+ *  doing now — the orbit ring, the approach pattern, or the descent leg.
+ *  Cached per appliance and phase so the polyline keeps a stable array
+ *  identity across the 4 Hz clock instead of being rebuilt every tick. */
 const HEMS_TRAILS = new Map<string, { key: string; coords: [number, number][] }>();
 function hemsTrailTo(
   applianceId: string,
   flightLine: [number, number][],
-  pad: [number, number],
+  tail: [number, number][],
+  phase: "orbit" | "pattern" | "descent" | "join",
+  sortieAt: number,
 ): [number, number][] {
-  const key = `${flightLine.length}|${pad[0]},${pad[1]}`;
+  const last = tail[tail.length - 1];
+  const first = tail[0];
+  // The flight line's second point is the seeded departure vertex, unique
+  // per sortie — without it in the key a re-run of the same job with the
+  // same airframe would draw the previous sortie's curve.
+  const dep = flightLine[1] ?? flightLine[0];
+  const key = `${sortieAt}|${phase}|${flightLine.length}|${dep?.[0]},${dep?.[1]}|${tail.length}|${first?.[0]},${first?.[1]}|${last?.[0]},${last?.[1]}`;
   const hit = HEMS_TRAILS.get(applianceId);
   if (hit && hit.key === key) return hit.coords;
-  const coords: [number, number][] = [...flightLine, pad];
+  const coords: [number, number][] = [...flightLine, ...tail];
   HEMS_TRAILS.set(applianceId, { key, coords });
   return coords;
 }
@@ -532,28 +549,74 @@ export function PatchLayers({
           : fallbackRoutes.get(d.applianceId) ?? [];
       let currentCoords = interpolateAlongRoute(routeCoords, t);
       let trailCoords = routeCoords;
-      // HEMS with a confirmed LZ: the flight line bends to the pad. After
-      // the overhead hold the aircraft flies the short descent leg to the
-      // operator's LZ, then sits ON the pad through the crew's walk-in —
-      // its callsign never parks on the incident point.
-      if (d.hemsFlight?.lzConfirmedAt !== undefined && d.parkingPos) {
-        const touchdownAt = d.arrivesAt - (d.hemsFlight.walkSec ?? 0) * 1000;
-        const descentStartAt = touchdownAt - d.hemsFlight.landingSec * 1000;
-        if (mapNow >= descentStartAt && routeCoords.length >= 2) {
-          const overhead = routeCoords[routeCoords.length - 1];
-          const pad: [number, number] = [d.parkingPos.lat, d.parkingPos.lng];
-          const k = Math.min(
-            1,
-            Math.max(
-              0,
-              (mapNow - descentStartAt) / Math.max(1, touchdownAt - descentStartAt),
-            ),
-          );
-          currentCoords = [
-            overhead[0] + (pad[0] - overhead[0]) * k,
-            overhead[1] + (pad[1] - overhead[1]) * k,
-          ];
-          trailCoords = hemsTrailTo(d.applianceId, routeCoords, pad);
+      // A helicopter on the job does three things a road unit never does.
+      // Overhead with nowhere to land it ORBITS the scene. Given an LZ it
+      // flies a PATTERN over the site — one pass for a clear field, three
+      // for a road or unverified ground — and only then the DESCENT to the
+      // pad, where it sits through the crew's walk-in. Its callsign never
+      // parks on the incident point.
+      if (d.hemsFlight && routeCoords.length >= 2) {
+        const hf = d.hemsFlight;
+        const overhead = routeCoords[routeCoords.length - 1];
+        const scene = { lat: overhead[0], lng: overhead[1] };
+        const from = routeCoords[Math.max(0, routeCoords.length - 2)];
+        const arrivalBearing = bearingDeg({ lat: from[0], lng: from[1] }, scene);
+
+        if (hf.lzConfirmedAt === undefined || !d.parkingPos) {
+          // No LZ yet: run out to the ring and hold in the orbit from the
+          // moment it is overhead.
+          if (mapNow >= hf.overheadAt) {
+            currentCoords = orbitPosition(scene, (mapNow - hf.overheadAt) / 1000, arrivalBearing);
+            trailCoords = hemsTrailTo(d.applianceId, routeCoords, orbitRing(scene, arrivalBearing), "orbit", d.mobilisedAt);
+          }
+        } else {
+          const lz = { lat: d.parkingPos.lat, lng: d.parkingPos.lng };
+          // Run in over the LZ towards the scene, so each pass looks at the
+          // approach the crew will actually fly.
+          const runIn = bearingDeg(lz, scene);
+          const touchdownAt = d.arrivesAt - (hf.walkSec ?? 0) * 1000;
+          const descentStartAt = touchdownAt - hf.landingSec * 1000;
+          // Confirmed inbound: nothing happens until it is overhead, then
+          // the join leg starts from the scene. Confirmed while orbiting:
+          // the leg starts from wherever it was on the ring.
+          const joinStartAt = Math.max(hf.lzConfirmedAt, hf.overheadAt);
+          const joinSec = hf.joinSec ?? 0;
+          const patternStartAt = joinStartAt + joinSec * 1000;
+          const start = patternStart(lz, runIn);
+          if (mapNow >= descentStartAt) {
+            const pad: [number, number] = [lz.lat, lz.lng];
+            const k = Math.min(
+              1,
+              Math.max(0, (mapNow - descentStartAt) / Math.max(1, touchdownAt - descentStartAt)),
+            );
+            currentCoords = [
+              start[0] + (pad[0] - start[0]) * k,
+              start[1] + (pad[1] - start[1]) * k,
+            ];
+            trailCoords = hemsTrailTo(d.applianceId, routeCoords, [start, pad], "descent", d.mobilisedAt);
+          } else if (mapNow >= patternStartAt) {
+            currentCoords = patternPosition(lz, runIn, (mapNow - patternStartAt) / 1000);
+            trailCoords = hemsTrailTo(d.applianceId, routeCoords, patternRing(lz, runIn), "pattern", d.mobilisedAt);
+          } else if (mapNow >= joinStartAt) {
+            const from: [number, number] = hf.joinFrom
+              ? [hf.joinFrom.lat, hf.joinFrom.lng]
+              : start;
+            const k = Math.min(
+              1,
+              Math.max(0, (mapNow - joinStartAt) / Math.max(1, patternStartAt - joinStartAt)),
+            );
+            currentCoords = [
+              from[0] + (start[0] - from[0]) * k,
+              from[1] + (start[1] - from[1]) * k,
+            ];
+            trailCoords = hemsTrailTo(d.applianceId, routeCoords, [from, start], "join", d.mobilisedAt);
+          } else if (mapNow >= hf.overheadAt) {
+            // Only reachable inside the 250 ms clock lag between the
+            // confirm and the next tick; keep the aircraft on its orbit
+            // for that instant rather than dropping it on the scene.
+            currentCoords = orbitPosition(scene, (mapNow - hf.overheadAt) / 1000, arrivalBearing);
+            trailCoords = hemsTrailTo(d.applianceId, routeCoords, orbitRing(scene, arrivalBearing), "orbit", d.mobilisedAt);
+          }
         }
       }
       out.push({
