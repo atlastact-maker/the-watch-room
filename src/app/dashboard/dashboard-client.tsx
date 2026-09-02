@@ -219,25 +219,135 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [resourcesVisible, setResourcesVisible] = useState(true);
   const [incidentPanelVisible, setIncidentPanelVisible] = useState(true);
 
-  const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
-  // Informant transcript — scripted updates from the 999 caller that fire
-  // while crews are en route. Shape mirrors InformantUpdate with a
-  // firedAt timestamp so the UI can timestamp each message.
+  // ---------------------------------------------------------------------
+  // The call stack.
+  //
+  // The sim used to hold exactly one incident, and triggering a second
+  // one called clearIncidentState() first — silently destroying the
+  // first job's deployments, treatment records and log. Incidents are now
+  // a list, with one selected; `activeIncident` is DERIVED from that
+  // selection, which is what lets the sixty-odd places that read it carry
+  // on working untouched.
+  //
+  // State that belongs to a job rather than to the shift lives in a
+  // per-incident runtime slice. Each is exposed under its old name as a
+  // derived value with a setter of the same shape, so existing call sites
+  // read and write the SELECTED incident without knowing the stack
+  // exists.
+  //
+  // Deliberately NOT per-incident: deployments (already carry incidentId
+  // and must stay global so a unit can't be double-dispatched), the
+  // treatment and resus records (keyed by casualty, so a patient keeps
+  // their record while you work another job), and the log — a control
+  // room keeps one log for the whole shift.
+  // ---------------------------------------------------------------------
   type FiredInformantUpdate = {
     id: string;
     text: string;
     tone: "info" | "urgent" | "critical";
     firedAt: number;
   };
-  const [informantLog, setInformantLog] = useState<FiredInformantUpdate[]>([]);
-  // Whether the caller is still "on the phone". Flips to false the moment
-  // the first committed crew arrives on scene.
-  const [informantOnCall, setInformantOnCall] = useState(false);
-  // A real fire lit mid-incident by an informant beat (igniteFire) —
-  // alarm scenarios roll their false-vs-real reality through this.
-  const [fireIgnition, setFireIgnition] = useState<FireIgnition | null>(null);
-  // Persons-reality roll — casualty ids NOT in the building this run.
-  const [absentCasualtyIds, setAbsentCasualtyIds] = useState<string[]>([]);
+  type IncidentRuntime = {
+    tasks: Task[];
+    outcome: IncidentOutcome | null;
+    informantLog: FiredInformantUpdate[];
+    informantOnCall: boolean;
+    fireIgnition: FireIgnition | null;
+    absentCasualtyIds: string[];
+    tacticalMode: "offensive" | "defensive" | "transitional" | null;
+    sceneCommanderApplianceId: string | null;
+    muster: { lat: number; lng: number; radiusM: number } | null;
+  };
+  const emptyRuntime = (): IncidentRuntime => ({
+    tasks: [],
+    outcome: null,
+    informantLog: [],
+    informantOnCall: false,
+    fireIgnition: null,
+    absentCasualtyIds: [],
+    tacticalMode: null,
+    sceneCommanderApplianceId: null,
+    muster: null,
+  });
+
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [runtimes, setRuntimes] = useState<Record<string, IncidentRuntime>>({});
+
+  const activeIncident = useMemo(
+    () => incidents.find((i) => i.id === selectedIncidentId) ?? null,
+    [incidents, selectedIncidentId],
+  );
+
+  /** Selected incident id, readable from inside timers without making them
+   *  re-subscribe on every selection change. */
+  const selectedIdRef = useRef<string | null>(null);
+  selectedIdRef.current = selectedIncidentId;
+
+  const runtime = selectedIncidentId
+    ? runtimes[selectedIncidentId] ?? emptyRuntime()
+    : emptyRuntime();
+
+  /** Mutate one incident's runtime slice. */
+  const updateRuntime = useCallback(
+    (incidentId: string | null, fn: (rt: IncidentRuntime) => IncidentRuntime) => {
+      if (!incidentId) return;
+      setRuntimes((prev) => {
+        const cur = prev[incidentId] ?? emptyRuntime();
+        const next = fn(cur);
+        if (next === cur) return prev;
+        return { ...prev, [incidentId]: next };
+      });
+    },
+    [],
+  );
+
+  /** Build a setState-shaped setter for one field of the selected
+   *  incident's runtime, so existing `setX(v)` and `setX(prev => …)` call
+   *  sites keep working unchanged. */
+  function runtimeSetter<K extends keyof IncidentRuntime>(key: K) {
+    return (value: IncidentRuntime[K] | ((prev: IncidentRuntime[K]) => IncidentRuntime[K])) => {
+      updateRuntime(selectedIdRef.current, (rt) => {
+        const next =
+          typeof value === "function"
+            ? (value as (p: IncidentRuntime[K]) => IncidentRuntime[K])(rt[key])
+            : value;
+        return next === rt[key] ? rt : { ...rt, [key]: next };
+      });
+    };
+  }
+
+  /** Replace the selected incident record itself (resolvedAt, receivedAt
+   *  rewinds). Shaped like the old setActiveIncident. */
+  const setActiveIncident = useCallback(
+    (value: Incident | null | ((prev: Incident | null) => Incident | null)) => {
+      setIncidents((prev) => {
+        const id = selectedIdRef.current;
+        if (!id) return prev;
+        const idx = prev.findIndex((i) => i.id === id);
+        if (idx < 0) return prev;
+        const next =
+          typeof value === "function"
+            ? (value as (p: Incident | null) => Incident | null)(prev[idx])
+            : value;
+        if (!next) return prev.filter((i) => i.id !== id);
+        if (next === prev[idx]) return prev;
+        const out = [...prev];
+        out[idx] = next;
+        return out;
+      });
+    },
+    [],
+  );
+
+  const informantLog = runtime.informantLog;
+  const setInformantLog = runtimeSetter("informantLog");
+  const informantOnCall = runtime.informantOnCall;
+  const setInformantOnCall = runtimeSetter("informantOnCall");
+  const fireIgnition = runtime.fireIgnition;
+  const setFireIgnition = runtimeSetter("fireIgnition");
+  const absentCasualtyIds = runtime.absentCasualtyIds;
+  const setAbsentCasualtyIds = runtimeSetter("absentCasualtyIds");
   // Armed map placement — set by the Place / LZ button on a unit's row
   // in the MDT; the ground map performs the two-click flow and clears it.
   const [placePendingApplianceId, setPlacePendingApplianceId] = useState<string | null>(null);
@@ -268,9 +378,20 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // see the useEffect blocks near the bottom of this component.
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, StatusCode>>({});
+  /** Only the selected job's committed units. The map deliberately shows
+   *  ALL deployments — an operator wants to see every appliance moving,
+   *  on every job — but the incident view, MDT and debrief must only ever
+   *  see their own. */
+  const incidentDeployments = useMemo(
+    () => deployments.filter((d) => d.incidentId === selectedIncidentId),
+    [deployments, selectedIncidentId],
+  );
+
+
   const [preShiftStates, setPreShiftStates] = useState<Record<string, PreShiftState>>({});
   const [log, setLog] = useState<LogEntry[]>([]);
-  const [outcome, setOutcome] = useState<IncidentOutcome | null>(null);
+  const outcome = runtime.outcome;
+  const setOutcome = runtimeSetter("outcome");
   // The dispatch log sits on the map by default; the operator can hide it.
   const [showDispatchLog, setShowDispatchLog] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -282,11 +403,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [rotatePendingApplianceId, setRotatePendingApplianceId] = useState<string | null>(null);
   // Casualty muster / evacuation area — drawn on the ground map as a
   // circle; casualties and walking wounded RV inside it.
-  const [muster, setMuster] = useState<{
-    lat: number;
-    lng: number;
-    radiusM: number;
-  } | null>(null);
+  const muster = runtime.muster;
+  const setMuster = runtimeSetter("muster");
   // Unit whose control page fills the MDT Resourcing pane — set by MDT
   // clicks AND ground-map vehicle clicks (the map-side menu is gone).
   const [mdtUnitId, setMdtUnitId] = useState<string | null>(null);
@@ -311,8 +429,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [newlyConfirmedHazards, setNewlyConfirmedHazards] = useState<Set<string>>(new Set());
 
   // Task + scene commander + crew BA air state.
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [sceneCommanderApplianceId, setSceneCommanderApplianceId] = useState<string | null>(null);
+  const tasks = runtime.tasks;
+  const setTasks = runtimeSetter("tasks");
+  const sceneCommanderApplianceId = runtime.sceneCommanderApplianceId;
+  const setSceneCommanderApplianceId = runtimeSetter("sceneCommanderApplianceId");
   // Weather + time of day — rolled when the shift starts and re-rolled on
   // patch change. Feeds into blue-light ETAs, HEMS availability, BA
   // cylinder duration and fire growth inside the sim.
@@ -326,9 +446,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // Tactical mode declared by the IC. Null until an IC is in place + a mode
   // is set. Gates Interior Attack and is required on any SITREP going to
   // control at a major incident.
-  const [tacticalMode, setTacticalMode] = useState<
-    "offensive" | "defensive" | "transitional" | null
-  >(null);
+  const tacticalMode = runtime.tacticalMode;
+  const setTacticalMode = runtimeSetter("tacticalMode");
   // crewMemberId → airPct (0–100). Only tracked for members in a ba_sar task.
   const [crewAir, setCrewAir] = useState<Record<string, number>>({});
   const [lastAirTickAt, setLastAirTickAt] = useState<number>(0);
@@ -1022,8 +1141,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     clearIncidentState();
   }
 
+  /** Whole-shift wipe — used when the operator changes patch. Closing a
+   *  single job is dismissIncident(), which leaves the rest of the stack
+   *  standing. */
   function clearIncidentState() {
-    setActiveIncident(null);
+    setIncidents([]);
+    setSelectedIncidentId(null);
+    setRuntimes({});
     setDeployments([]);
     setStatusOverrides({});
     setLog([]);
@@ -1068,7 +1192,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }
 
   function triggerScenario(scenario: Scenario) {
-    clearIncidentState();
+    // A scenario can only be live once at a time. Casualty ids are
+    // authored per scenario ('cas-player'), and the treatment and resus
+    // records are keyed by casualty id — running the same job twice
+    // concurrently would have the two patients share one record.
+    if (incidents.some((i) => i.scenarioId === scenario.id && !runtimes[i.id]?.outcome)) {
+      setSelectedIncidentId(
+        incidents.find((i) => i.scenarioId === scenario.id)!.id,
+      );
+      return;
+    }
     bumpStats((s) => {
       s.callsAnswered += 1;
       s.byType[scenario.type] = (s.byType[scenario.type] ?? 0) + 1;
@@ -1082,7 +1215,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       if (c.presentProbability === undefined) continue;
       if (!rollPresent(c.presentProbability)) absentRoll.push(c.id);
     }
-    setAbsentCasualtyIds(absentRoll);
     // Fire-origin roll — one draw across the authored variants; the
     // winner is baked into this incident's own scenario copy so the sim,
     // scene canvas, maps and the 360 material reveal all see the rolled
@@ -1115,13 +1247,26 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
       }
     }
-    setActiveIncident({
-      id: `INC-${t}`,
-      scenarioId: scenario.id,
-      scenario: liveScenario,
-      receivedAt: t,
-    });
-    setLog([
+    const newId = `INC-${t}`;
+    setIncidents((prev) => [
+      ...prev,
+      { id: newId, scenarioId: scenario.id, scenario: liveScenario, receivedAt: t },
+    ]);
+    setRuntimes((prev) => ({
+      ...prev,
+      [newId]: {
+        ...emptyRuntime(),
+        absentCasualtyIds: absentRoll,
+        // The caller stays on the line from answering until the first
+        // crew lands. Seeded here rather than through the shadowed setter
+        // below, which would still be writing to the previous selection.
+        informantOnCall: true,
+      },
+    }));
+    setSelectedIncidentId(newId);
+    // The log belongs to the SHIFT, not the job — a control room keeps one.
+    setLog((prev) => [
+      ...prev,
       {
         id: `open:${t}`,
         timestamp: t,
@@ -1133,8 +1278,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // Caller stays on the line from the moment we answer the call until
     // the first crew lands on scene. Scenarios with no authored script
     // still get the banner briefly, since informantOnCall drives the UI.
-    setInformantOnCall(true);
-    setInformantLog([]);
   }
 
   function refuel(applianceId: string) {
@@ -2306,8 +2449,24 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     void syncCareerStats();
   }
 
+  /** Close one job and drop it off the stack, leaving everything else
+   *  running. Selection falls through to whatever is still open so the
+   *  operator is never left staring at nothing with calls outstanding. */
   function dismissIncident() {
-    clearIncidentState();
+    const id = selectedIncidentId;
+    if (!id) return;
+    setIncidents((prev) => {
+      const rest = prev.filter((i) => i.id !== id);
+      setSelectedIncidentId(rest.length > 0 ? rest[rest.length - 1].id : null);
+      return rest;
+    });
+    setRuntimes((prev) => {
+      const nx = { ...prev };
+      delete nx[id];
+      return nx;
+    });
+    // Units committed to the closed job are released.
+    setDeployments((prev) => prev.filter((d) => d.incidentId !== id));
   }
 
   // The "embellish" step applies shared runtime state (gauges, status
@@ -3895,7 +4054,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           <DraggableIncidentPanel
             incident={activeIncident}
             stations={allDeployableStations}
-            deployments={deployments}
+            deployments={incidentDeployments}
             log={log}
             outcome={outcome}
             onDeploy={deployAppliance}
@@ -3910,7 +4069,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             incident={activeIncident}
             stations={allDeployableStations}
             patch={patch}
-            deployments={deployments}
+            deployments={incidentDeployments}
             etas={etas}
             log={log}
             now={now}
@@ -4005,7 +4164,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           <DraggableIncidentMdt
             incident={activeIncident}
             stations={allDeployableStations}
-            deployments={deployments}
+            deployments={incidentDeployments}
             log={log}
             outcome={outcome}
             onDeploy={deployAppliance}
@@ -4099,7 +4258,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           <DebriefScreen
             incident={activeIncident}
             outcome={outcome}
-            deployments={deployments}
+            deployments={incidentDeployments}
             sim={incidentSim}
             treatmentByCasualtyId={treatmentByCasualtyId}
             log={log}
