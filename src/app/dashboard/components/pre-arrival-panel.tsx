@@ -11,6 +11,7 @@
 // so instructions given from the map carry straight through.
 
 import { Rnd } from "react-rnd";
+import { CAD_VARS } from "./cad-theme";
 import type { Appliance } from "@/lib/sim/types";
 import type { Deployment } from "@/lib/sim/incident_types";
 import { CAPABILITIES_BY_TYPE } from "@/lib/sim/incident_types";
@@ -178,18 +179,25 @@ export function PreArrivalPanel({
       // chips can open it for en-route pre-allocation.
       className="z-[1290]"
     >
-      <div className="flex w-full flex-col overflow-hidden rounded-sm border border-(--color-amber)/50 bg-(--color-surface) shadow-2xl shadow-black/60">
-        <div className="drag-handle flex cursor-move items-center justify-between gap-2 border-b border-(--color-border-subtle) bg-(--color-amber)/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-          <div className="flex items-center gap-2">
-            <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
-            <span>Pre-arrival · {appliance.callsign}</span>
-            <span className="opacity-60">|</span>
-            <span className="text-(--color-text-dim)">ETA {etaLabel}</span>
+      {/* CAD chassis, amber header — this is a unit still running, so it
+          shares the resources panel's colour rather than the vehicle
+          record's blue. The ETA sits in its own block. */}
+      <div
+        style={CAD_VARS}
+        className="flex w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) text-(--color-text) shadow-2xl shadow-black/60"
+      >
+        <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#b45309] font-mono text-[11px] font-bold text-white">
+          <div className="flex min-w-0 items-center gap-2 px-3 py-1 tracking-[0.15em]">
+            <span className="dot-live size-1.5 shrink-0 rounded-full bg-white" />
+            <span className="truncate uppercase">Pre-arrival · {appliance.callsign}</span>
+            <span className="shrink-0 bg-black/25 px-1.5 text-[10px] tracking-[0.1em]">
+              ETA {etaLabel}
+            </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
+            className="flex shrink-0 items-center bg-[#92400e] px-3 transition-colors hover:bg-[#dc2626]"
             title="Close"
           >
             ✕

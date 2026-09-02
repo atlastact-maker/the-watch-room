@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Rnd } from "react-rnd";
+import { CAD_VARS } from "./cad-theme";
 import { CAPABILITIES_BY_TYPE } from "@/lib/sim/incident_types";
 import { lookupKit } from "@/lib/sim/kit_catalog";
 import type { Appliance, CrewMember } from "@/lib/sim/types";
@@ -37,17 +38,25 @@ export function DraggableVehiclePanel({
       dragHandleClassName="drag-handle"
       className="z-[1100]"
     >
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-info)/40 bg-(--color-surface) shadow-2xl shadow-black/60">
-        <div className="drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) bg-(--color-info)/10 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-(--color-info)">
-          <div className="flex items-center gap-2">
-            <span>Vehicle · {appliance.callsign}</span>
-            <span className="opacity-60">|</span>
-            <span>{appliance.vrm}</span>
+      {/* Same CAD chassis as the rest of the suite. Blue header — this is
+          a vehicle record, the CAD's other reference view alongside the
+          call stack. The VRM sits in its own block the way a real record
+          card carries a plate. */}
+      <div
+        style={CAD_VARS}
+        className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) text-(--color-text) shadow-2xl shadow-black/60"
+      >
+        <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#1d4ed8] font-mono text-[11px] font-bold text-white">
+          <div className="flex min-w-0 items-center gap-2 px-3 py-1 tracking-[0.15em]">
+            <span className="truncate uppercase">Vehicle · {appliance.callsign}</span>
+            <span className="shrink-0 bg-black/25 px-1.5 text-[10px] tracking-[0.1em]">
+              {appliance.vrm}
+            </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-2 py-0.5 text-(--color-text-dim) hover:bg-(--color-bg) hover:text-(--color-critical)"
+            className="flex shrink-0 items-center bg-[#1e40af] px-3 transition-colors hover:bg-[#dc2626]"
             title="Close"
           >
             ✕

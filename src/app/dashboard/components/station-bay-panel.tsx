@@ -198,13 +198,18 @@ export function StationBayPanel({
       dragHandleClassName="drag-handle"
       className="z-[1120]"
     >
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-border-subtle) bg-[#050507] shadow-2xl shadow-black/60">
-        <div className="drag-handle flex cursor-move items-center justify-between border-b border-(--color-border-subtle) bg-[#0a0a0e] px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-          <span>Station · {station.id}</span>
+      {/* Header matches the CAD suite; the body deliberately stays dark.
+          It is a drawn bay diagram, not a document, and re-skinning it
+          light would wreck the contrast the appliance graphics rely on. */}
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-[#050507] shadow-2xl shadow-black/60">
+        <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#3f3f46] font-mono text-[11px] font-bold text-white">
+          <span className="flex min-w-0 items-center px-3 py-1 tracking-[0.15em]">
+            <span className="truncate uppercase">Station · {station.id}</span>
+          </span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-2 py-0.5 hover:bg-(--color-bg) hover:text-(--color-critical)"
+            className="flex shrink-0 items-center bg-[#27272a] px-3 transition-colors hover:bg-[#dc2626]"
             title="Close"
           >
             ✕
