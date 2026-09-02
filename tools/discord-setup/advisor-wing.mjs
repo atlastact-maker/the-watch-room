@@ -350,10 +350,27 @@ for (const want of WANTED) {
   // Case-insensitive: Discord lowercases text channel names on create but
   // leaves voice names as typed, so a strict compare would miss the voice
   // room on a re-run and duplicate it.
-  const existing = channels.find(
-    (c) =>
-      c.name.toLowerCase() === want.name.toLowerCase() && c.parent_id === wing.id,
-  );
+  const sameName = (c) =>
+    c.name.toLowerCase() === want.name.toLowerCase() && c.type === want.type;
+
+  // Prefer one already in the wing; otherwise adopt a stray of the same
+  // name and type from anywhere in the guild and MOVE it in, rather than
+  // creating a second copy alongside it. None of these names exist
+  // elsewhere in the blueprint, so there is nothing legitimate to hijack.
+  let existing = channels.find((c) => sameName(c) && c.parent_id === wing.id);
+  const stray = existing ? null : channels.find(sameName);
+  if (stray) {
+    const moved = await api("PATCH", `/channels/${stray.id}`, {
+      parent_id: wing.id,
+    });
+    console.log(
+      `#${want.name}: found outside the wing — ${
+        moved.__err ? `MOVE FAILED ${moved.__err} ${moved.__body}` : "moved in ✓"
+      }`,
+    );
+    existing = moved.__err ? stray : moved;
+    await sleep(300);
+  }
 
   if (existing) {
     // Converge the existing channel rather than duplicating it. Only send
@@ -495,6 +512,31 @@ if (Array.isArray(after)) {
       res.__err ? `reorder FAILED ${res.__err} ${res.__body}` : "set ✓",
     );
   }
+
+  // --- Parentage check. Every channel this script owns must sit under
+  // the ADVISORY WING category; anything adrift is called out by name.
+  console.log("\nParentage:");
+  let adrift = 0;
+  for (const want of WANTED) {
+    const c = after.find(
+      (x) => x.name.toLowerCase() === want.name.toLowerCase() && x.type === want.type,
+    );
+    if (!c) {
+      console.log(`  ✗ ${want.name} — missing`);
+      adrift++;
+    } else if (c.parent_id !== wing.id) {
+      const where = after.find((x) => x.id === c.parent_id);
+      console.log(`  ✗ ${want.name} — sitting under ${where ? where.name : "no category"}`);
+      adrift++;
+    } else {
+      console.log(`  ✓ ${want.name}`);
+    }
+  }
+  console.log(
+    adrift === 0
+      ? "  all channels are under ADVISORY WING ✓"
+      : `  ${adrift} channel(s) adrift — re-run to move them in`,
+  );
 }
 
 console.log(`
