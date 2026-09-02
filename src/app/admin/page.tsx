@@ -47,6 +47,8 @@ type RoleRow = {
   icon: string | null;
   note: string;
   created_at: string;
+  /** From their advisor application; empty until migration 014 is run. */
+  discord: string;
 };
 
 type Overview = {
@@ -402,12 +404,13 @@ export default async function AdminPage() {
 
           {roles.length > 0 && (
             <div className="overflow-x-auto rounded-sm border border-(--color-border-subtle)">
-              <table className="w-full min-w-[560px] text-left text-[12px]">
+              <table className="w-full min-w-[660px] text-left text-[12px]">
                 <thead>
                   <tr className="border-b border-(--color-border-subtle) text-[10px] uppercase tracking-widest text-(--color-text-dim)">
                     <th className="px-3 py-2">Email</th>
                     <th className="px-3 py-2">Role</th>
                     <th className="px-3 py-2">Icon</th>
+                    <th className="px-3 py-2">Discord</th>
                     <th className="px-3 py-2">Note</th>
                     <th className="px-3 py-2">Since</th>
                     <th className="px-3 py-2"></th>
@@ -421,6 +424,9 @@ export default async function AdminPage() {
                         {r.role}
                       </td>
                       <td className="px-3 py-2 text-(--color-text-dim)">{r.icon ?? "—"}</td>
+                      <td className="px-3 py-2 font-mono text-(--color-info)">
+                        {r.discord || <span className="text-(--color-text-dim)">—</span>}
+                      </td>
                       <td className="px-3 py-2 text-(--color-text-dim)">{r.note || "—"}</td>
                       <td className="px-3 py-2 text-(--color-text-dim)">{fmtDate(r.created_at)}</td>
                       <td className="px-3 py-2 text-right">
