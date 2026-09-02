@@ -26,11 +26,11 @@ const SVG_H = 880;
 const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
 // Reference palette: amber = available, blue = out the door, grey = off.
-const C_AVAIL = "#fbbf24";
-const C_OUT = "#60a5fa";
-const C_OFF = "#5a5a63";
-const C_TEXT = "#f4f4f5";
-const C_DIM = "#8b8b93";
+const C_AVAIL = "#b45309";
+const C_OUT = "#1d4ed8";
+const C_OFF = "#a1a1aa";
+const C_TEXT = "#18181b";
+const C_DIM = "#52525b";
 
 type BayArt = { key: VehicleSpriteKey; scale: number; y: number };
 
@@ -198,10 +198,10 @@ export function StationBayPanel({
       dragHandleClassName="drag-handle"
       className="z-[1120]"
     >
-      {/* Header matches the CAD suite; the body deliberately stays dark.
-          It is a drawn bay diagram, not a document, and re-skinning it
-          light would wreck the contrast the appliance graphics rely on. */}
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-[#050507] shadow-2xl shadow-black/60">
+      {/* Full CAD treatment — the bay drawing was re-toned for a light
+          ground rather than just having its background swapped, so the
+          slab, joints, hatching and vignette all still read. */}
+      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) shadow-2xl shadow-black/60">
         <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#3f3f46] font-mono text-[11px] font-bold text-white">
           <span className="flex min-w-0 items-center px-3 py-1 tracking-[0.15em]">
             <span className="truncate uppercase">Station · {station.id}</span>
@@ -233,9 +233,9 @@ export function StationBayPanel({
             `}</style>
             <defs>
               <linearGradient id="sb-concrete" x1="0%" y1="0%" x2="18%" y2="100%">
-                <stop offset="0%" stopColor="#3e3e44" />
-                <stop offset="40%" stopColor="#33333a" />
-                <stop offset="100%" stopColor="#26262c" />
+                <stop offset="0%" stopColor="#d8d8dc" />
+                <stop offset="40%" stopColor="#cfcfd4" />
+                <stop offset="100%" stopColor="#c3c3c9" />
               </linearGradient>
               <linearGradient id="sb-wallv" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#8f8f99" />
@@ -253,8 +253,8 @@ export function StationBayPanel({
                 <stop offset="100%" stopColor="#33333a" />
               </linearGradient>
               <linearGradient id="sb-apron" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#141419" />
-                <stop offset="100%" stopColor="#0a0a0e" />
+                <stop offset="0%" stopColor="#b8b8bf" />
+                <stop offset="100%" stopColor="#a8a8b0" />
               </linearGradient>
               <linearGradient id="sb-tyre" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#101015" stopOpacity="0" />
@@ -274,13 +274,16 @@ export function StationBayPanel({
               </filter>
               <radialGradient id="sb-vig" cx="50%" cy="45%" r="72%">
                 <stop offset="0%" stopColor="#000" stopOpacity="0" />
-                <stop offset="72%" stopColor="#000" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#000" stopOpacity="0.7" />
+                <stop offset="72%" stopColor="#000" stopOpacity="0.04" />
+                <stop offset="100%" stopColor="#000" stopOpacity="0.14" />
               </radialGradient>
             </defs>
 
             {/* Backdrop + apron */}
-            <rect width={svgW} height={SVG_H} fill="#050507" />
+            <rect width={svgW} height={SVG_H} fill="#e4e4e7" />
+            {/* Caption band behind the header text. */}
+            <rect width={svgW} height={118} fill="#f4f4f5" />
+            <rect y={116} width={svgW} height={2} fill="#a1a1aa" />
             <rect x={0} y={SLAB_BOT} width={svgW} height={SVG_H - SLAB_BOT} fill="url(#sb-apron)" />
 
             {bays.map((a, i) => {
@@ -303,8 +306,8 @@ export function StationBayPanel({
                   {/* Expansion joints */}
                   {[285, 420, 555].map((y) => (
                     <g key={y}>
-                      <line x1={x0} y1={y} x2={x0 + MOD_W} y2={y} stroke="#1c1c22" strokeWidth={2} opacity={0.55} />
-                      <line x1={x0} y1={y + 2} x2={x0 + MOD_W} y2={y + 2} stroke="#4a4a52" strokeWidth={1} opacity={0.35} />
+                      <line x1={x0} y1={y} x2={x0 + MOD_W} y2={y} stroke="#8a8a92" strokeWidth={2} opacity={0.7} />
+                      <line x1={x0} y1={y + 2} x2={x0 + MOD_W} y2={y + 2} stroke="#ffffff" strokeWidth={1} opacity={0.55} />
                     </g>
                   ))}
 
@@ -313,19 +316,19 @@ export function StationBayPanel({
                   <ellipse cx={x0 + 150} cy={580} rx={34} ry={26} fill="url(#sb-oil)" />
 
                   {/* Marked parking box */}
-                  <rect x={x0 + 88} y={188} width={184} height={450} fill="none" stroke="#e9e6dc" strokeWidth={4} opacity={0.3} />
+                  <rect x={x0 + 88} y={188} width={184} height={450} fill="none" stroke="#3f3f46" strokeWidth={4} opacity={0.35} />
 
                   {/* Yellow hatched strips, both edges */}
                   {[x0 + 10, x0 + 320].map((hx) => (
                     <g key={hx}>
-                      <rect x={hx} y={180} width={30} height={470} fill="#d8b41a" opacity={0.1} />
+                      <rect x={hx} y={180} width={30} height={470} fill="#d8b41a" opacity={0.35} />
                       {Array.from({ length: 18 }, (_, k) => (
                         <path
                           key={k}
                           d={`M${hx} ${206 + k * 26} L${hx + 28} ${182 + k * 26}`}
-                          stroke="#0e0e12"
+                          stroke="#3f3f46"
                           strokeWidth={7}
-                          opacity={0.3}
+                          opacity={0.28}
                         />
                       ))}
                     </g>
@@ -440,9 +443,9 @@ export function StationBayPanel({
                   {/* Roller-shutter threshold */}
                   <rect x={x0 + 4} y={664} width={MOD_W - 8} height={26} fill="url(#sb-shutter)" />
                   {[668, 674, 680, 686].map((y) => (
-                    <line key={y} x1={x0 + 4} y1={y} x2={x0 + MOD_W - 4} y2={y} stroke="#26262c" strokeWidth={2} opacity={0.7} />
+                    <line key={y} x1={x0 + 4} y1={y} x2={x0 + MOD_W - 4} y2={y} stroke="#9a9aa2" strokeWidth={2} opacity={0.7} />
                   ))}
-                  <rect x={x0 + 4} y={664} width={MOD_W - 8} height={2} fill="#a6a6b0" opacity={0.6} />
+                  <rect x={x0 + 4} y={664} width={MOD_W - 8} height={2} fill="#52525b" opacity={0.6} />
 
                   {/* Status light bar on the door line */}
                   <rect x={x0 + 4} y={688} width={MOD_W - 8} height={12} fill={stripColour} opacity={0.3} filter="url(#sb-soft-s)" />
@@ -516,7 +519,7 @@ export function StationBayPanel({
 
             {/* Header: station badge + name */}
             <rect x={80} y={46} width={badgeW} height={42} rx={4} fill={C_AVAIL} />
-            <text x={80 + badgeW / 2} y={76.4} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={27} fill="#050507">
+            <text x={80 + badgeW / 2} y={76.4} textAnchor="middle" fontFamily={MONO} fontWeight={700} fontSize={27} fill="#ffffff">
               {station.id}
             </text>
             <text
