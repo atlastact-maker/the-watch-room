@@ -42,6 +42,16 @@ import {
 } from "@/lib/sim/incident_types";
 import { ResusPanel, type CompressorOption } from "./resus-panel";
 import { postRoscIssues } from "@/lib/sim/resus";
+import {
+  OXYGEN_DEVICE_LABEL,
+  OXYGEN_FLOWS,
+  OXYGEN_HINT,
+  fiO2For,
+  oxygenLabel,
+  oxygenVerdict,
+  type OxygenDevice,
+  type OxygenState,
+} from "@/lib/sim/oxygen";
 import type { AirwayState, MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
 import type {
   HospitalDestinationType,
@@ -223,6 +233,7 @@ export function TreatmentTab({
   resusCandidates = [],
   lucasAvailable = false,
   monitorAvailable = false,
+  onSetOxygen,
   onSetResusAirway,
   onAttachMonitor,
   onToggleCapnography,
@@ -266,6 +277,7 @@ export function TreatmentTab({
   resusCandidates?: CompressorOption[];
   lucasAvailable?: boolean;
   monitorAvailable?: boolean;
+  onSetOxygen?: (casualtyId: string, device: OxygenDevice, flowLpm: number, by: string) => void;
   onSetResusAirway?: (a: AirwayState) => void;
   onAttachMonitor?: (m: MonitorMode) => void;
   onToggleCapnography?: () => void;
@@ -588,6 +600,17 @@ export function TreatmentTab({
                 );
               })}
             </Subgroup>
+            {/* Oxygen is a titration, not a switch. JRCALC targets a
+                saturation, and after an arrest you come DOWN. */}
+            <div className="col-span-full">
+              <OxygenControl
+                oxygen={treatment.oxygen}
+                spo2={(treatment.liveVitals ?? treatment.revealedVitals)?.spo2}
+                onSet={(device, flowLpm) =>
+                  onSetOxygen?.(casualtyId, device, flowLpm, byLabel)
+                }
+              />
+            </div>
             <Subgroup label="Circulation" regions="chest · arms · legs">
               {(Object.keys(CIRC_LABEL) as CirculationAction[]).map((a) => {
                 const done = treatment.circulation[a] !== undefined;
@@ -1238,4 +1261,100 @@ function fmtMin(s: number): string {
   if (s < 60) return `${Math.round(s)}s`;
   const m = Math.floor(s / 60);
   return `${m}m ${Math.round(s % 60)}s`;
+}
+
+/**
+ * Oxygen titration.
+ *
+ * The old control was a single chip meaning "15 litres through a
+ * non-rebreathe" — right for a crashing trauma patient, wrong for most
+ * people an ambulance sees, and impossible to turn DOWN. JRCALC targets a
+ * saturation rather than a flow, and after a cardiac arrest the whole
+ * instruction is to come down off high-flow because hyperoxia harms a
+ * brain that has just been reperfused.
+ */
+function OxygenControl({
+  oxygen,
+  spo2,
+  onSet,
+}: {
+  oxygen?: OxygenState;
+  spo2?: number;
+  onSet: (device: OxygenDevice, flowLpm: number) => void;
+}) {
+  const device = oxygen?.device ?? "none";
+  const flow = oxygen?.flowLpm ?? 0;
+  const verdict = oxygenVerdict(spo2);
+  const fio2 = Math.round(fiO2For(device, flow) * 100);
+
+  return (
+    <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 p-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-amber-dim)">
+          Oxygen
+        </span>
+        <span className="font-mono text-[10px] tabular-nums text-(--color-text-muted)">
+          {oxygenLabel(oxygen)} · FiO₂ {fio2}%
+        </span>
+      </div>
+
+      {/* Device */}
+      <div className="mt-1.5 grid grid-cols-3 gap-1">
+        {(Object.keys(OXYGEN_DEVICE_LABEL) as OxygenDevice[]).map((d) => (
+          <button
+            key={d}
+            type="button"
+            title={OXYGEN_HINT[d]}
+            onClick={() => onSet(d, OXYGEN_FLOWS[d][OXYGEN_FLOWS[d].length - 1])}
+            className={`rounded-sm border px-1.5 py-1 font-mono text-[9px] leading-tight transition-colors ${
+              device === d
+                ? "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)"
+                : "border-(--color-border) text-(--color-text-muted) hover:border-(--color-amber) hover:text-(--color-amber)"
+            }`}
+          >
+            {OXYGEN_DEVICE_LABEL[d]}
+          </button>
+        ))}
+      </div>
+
+      {/* Flow, only where there is a choice to make */}
+      {device !== "none" && OXYGEN_FLOWS[device].length > 1 && (
+        <div className="mt-1.5 flex items-center gap-1">
+          <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+            {device === "venturi" ? "Valve" : "Flow"}
+          </span>
+          <div className="flex flex-1 gap-1">
+            {OXYGEN_FLOWS[device].map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => onSet(device, f)}
+                className={`flex-1 rounded-sm border px-1 py-1 font-mono text-[10px] tabular-nums transition-colors ${
+                  flow === f
+                    ? "border-(--color-amber) bg-(--color-amber)/10 text-(--color-amber)"
+                    : "border-(--color-border) text-(--color-text-muted) hover:border-(--color-amber)"
+                }`}
+              >
+                {device === "venturi"
+                  ? `${Math.round(fiO2For(device, f) * 100)}%`
+                  : `${f} L`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`mt-1.5 font-mono text-[9px] leading-snug ${
+          verdict.tone === "good"
+            ? "text-(--color-ok)"
+            : verdict.tone === "warn"
+              ? "text-(--color-amber)"
+              : "text-(--color-critical)"
+        }`}
+      >
+        {verdict.text}
+      </div>
+    </div>
+  );
 }

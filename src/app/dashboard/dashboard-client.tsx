@@ -1,6 +1,7 @@
 "use client";
 
 import { applyDirectorParam, rollBeat, rollPresent } from "@/lib/sim/director";
+import type { OxygenDevice } from "@/lib/sim/oxygen";
 import {
   CYCLE_SEC,
   LUCAS_FIT_SEC,
@@ -676,8 +677,19 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             const tx = nx[cid];
             if (!tx) continue;
             const flags = tx.activeRedFlags ?? [];
-            if (!flags.includes("cardiac_arrest"))
-              nx[cid] = { ...tx, activeRedFlags: [...flags, "cardiac_arrest"] };
+            if (!flags.includes("cardiac_arrest")) {
+              const v = tx.liveVitals ?? tx.revealedVitals;
+              nx[cid] = {
+                ...tx,
+                activeRedFlags: [...flags, "cardiac_arrest"],
+                // Output lost again — the numbers go with it.
+                liveVitals: v
+                  ? { ...v, hr: 0, bpSys: 0, bpDia: 0, gcs: 3 }
+                  : v,
+                prevLiveVitals: v,
+                liveVitalsLastTickAt: Date.now(),
+              };
+            }
           }
           return nx;
         });
@@ -699,11 +711,33 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           for (const cid of achieved) {
             const tx = next[cid];
             if (!tx) continue;
+            // Clearing the flag is not enough on its own: the arrest left
+            // the numbers at zero and nothing in the vitals engine drives
+            // a heart rate back up, so the patient read as pulseless for
+            // ever after ROSC. Seed the post-ROSC picture instead — and
+            // it is deliberately an UNWELL picture, because that is what
+            // a freshly resuscitated patient looks like: tachycardic,
+            // hypotensive, hypoxic and still unconscious. It also gives
+            // the post-ROSC targets something real to work on.
+            const v = tx.liveVitals ?? tx.revealedVitals;
             next[cid] = {
               ...tx,
               activeRedFlags: (tx.activeRedFlags ?? []).filter(
                 (f) => f !== "cardiac_arrest",
               ),
+              liveVitals: v
+                ? {
+                    ...v,
+                    hr: 112,
+                    bpSys: 92,
+                    bpDia: 58,
+                    spo2: 90,
+                    rr: 12,
+                    gcs: 3,
+                  }
+                : v,
+              prevLiveVitals: v,
+              liveVitalsLastTickAt: Date.now(),
             };
           }
           return next;
@@ -1371,6 +1405,37 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ...s,
       monitor,
       events: resusEvent(s, `${monitor === "pads" ? "Defib pads" : monitor === "lead_3" ? "3-lead ECG" : "12-lead ECG"} attached`, "action"),
+    }));
+  }
+
+  /** Set the oxygen delivery. Recorded on the treatment state so the
+   *  vitals engine drives the saturation toward what that device and flow
+   *  can hold, in both directions. */
+  function setOxygen(
+    casualtyId: string,
+    device: OxygenDevice,
+    flowLpm: number,
+    by: string,
+  ) {
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) => ({
+      ...p,
+      oxygen: { device, flowLpm, at },
+      // Keep the legacy A-B-C tick in step so the timeline and debrief
+      // still register that oxygen was given at all.
+      breathing:
+        device === "none"
+          ? p.breathing
+          : { ...p.breathing, oxygen_15l: p.breathing.oxygen_15l ?? at },
+      events: [
+        ...p.events,
+        {
+          kind: "breathing" as const,
+          action: "oxygen_15l" as const,
+          at,
+          by,
+        },
+      ],
     }));
   }
 
@@ -3799,6 +3864,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onApplyBreathing={applyBreathing}
             onApplyCirculation={applyCirculation}
             resusByCasualtyId={resusByCasualtyId}
+            onSetOxygen={setOxygen}
             onSetResusAirway={setResusAirway}
             onAttachMonitor={attachMonitor}
             onToggleCapnography={toggleCapnography}
@@ -3876,6 +3942,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onApplyBreathing={applyBreathing}
             onApplyCirculation={applyCirculation}
             resusByCasualtyId={resusByCasualtyId}
+            onSetOxygen={setOxygen}
             onSetResusAirway={setResusAirway}
             onAttachMonitor={attachMonitor}
             onToggleCapnography={toggleCapnography}

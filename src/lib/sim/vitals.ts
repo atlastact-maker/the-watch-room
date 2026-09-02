@@ -11,6 +11,7 @@
 
 import type { PatientClinical, PatientRedFlag } from "./scene";
 import type { PatientTreatmentState } from "./incident_types";
+import { spo2TargetFor } from "./oxygen";
 
 type Vitals = PatientClinical["vitals"];
 
@@ -226,11 +227,21 @@ export function advanceLiveVitals(
   }
 
   // ----- Interventions that RECOVER vitals (no flag required) -----------
-  // Oxygen on a hypoxic patient — drift SpO2 toward 97 when no worse
-  // flag is eating it. We apply an additional recovery vector on top of
-  // whatever the flags say.
-  if (onOxygen && v.spo2 < 97) {
+  // Oxygen. The saturation is drawn toward whatever the chosen device and
+  // flow can actually hold it at — in BOTH directions, which is what makes
+  // titrating down a real action rather than a suggestion. Pathology still
+  // drags it the other way through the flag deltas above, so a hypoxic
+  // patient on a non-rebreathe settles wherever those two balance.
+  if (tx.oxygen && tx.oxygen.device !== "none") {
+    const target = spo2TargetFor(tx.oxygen.device, tx.oxygen.flowLpm);
+    dSpO2 += driftRate(v.spo2, target, v.spo2 < target ? 0.4 : 0.18);
+  } else if (onOxygen && v.spo2 < 97) {
+    // Legacy path: the old single oxygen action, before delivery was
+    // chosen explicitly.
     dSpO2 += driftRate(v.spo2, 97, 0.4);
+  } else if (!tx.oxygen && v.spo2 > 99) {
+    // Nobody is on 100% breathing room air for long.
+    dSpO2 += driftRate(v.spo2, 98, 0.1);
   }
   // Fluids without an active shock flag — small BP bump while running in.
   if (onFluidsOrBlood && v.bpSys < 100 && !flags.has("cardiac_arrest")) {
@@ -242,6 +253,24 @@ export function advanceLiveVitals(
     (tx.drugs.glucagon_im !== undefined || tx.drugs.dextrose_iv !== undefined)
   ) {
     dBM += driftRate(v.bm, 5.5, 0.05);
+  }
+
+  // A patient who is NOT in arrest must not be left reading as pulseless.
+  // Nothing in this engine previously drove a heart rate or a conscious
+  // level back up, so once an arrest had flattened them they stayed
+  // flattened even after ROSC. These are gentle floors, not a cure: the
+  // active flags above still pull the other way, so a patient who is
+  // still bleeding or hypoxic will not quietly recover on their own.
+  if (!flags.has("cardiac_arrest")) {
+    if (v.hr < 50) dHR += driftRate(v.hr, 92, 0.5);
+    if (v.bpSys < 90) dBPs += driftRate(v.bpSys, 96, 0.35);
+    if (v.bpDia < 55) dBPd += driftRate(v.bpDia, 60, 0.2);
+    if (v.rr < 8) dRR += driftRate(v.rr, 12, 0.12);
+    // Consciousness comes back slowly, and only once there is a pressure
+    // to perfuse the brain with.
+    if (v.gcs < 14 && v.bpSys > 85 && v.spo2 > 90) {
+      dGCS += driftRate(v.gcs, 14, 0.02);
+    }
   }
 
   // ----- Adverse effects -------------------------------------------------

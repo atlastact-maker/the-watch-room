@@ -32,12 +32,13 @@ export function DraggableTreatmentPanel({
 }: Props) {
   const label = treatmentProps.casualty.label ?? treatmentProps.casualty.id;
   const sev = treatmentProps.casualty.severity;
+  // Severity block in the header, coloured like the MDT's incident strip.
   const sevCls =
     sev === "critical"
-      ? "bg-red-600 text-white"
+      ? "bg-[#dc2626] text-white"
       : sev === "serious"
-        ? "bg-amber-500 text-black"
-        : "bg-green-600 text-white";
+        ? "bg-[#f59e0b] text-black"
+        : "bg-[#15803d] text-white";
 
   // Esc closes the top pop-out. Ignore if focus is inside a form control
   // so the operator doesn't lose in-progress input by accident.
@@ -70,46 +71,83 @@ export function DraggableTreatmentPanel({
       }}
       minWidth={480}
       minHeight={420}
-      bounds="window"
+      // Deliberately UNBOUNDED. bounds="window" pinned the box inside the
+      // viewport, which on a busy screen meant it could not be pushed out
+      // of the way of the MDT and read as though it were trapped by it.
+      // A patient window is something you shove aside, so let it go
+      // wherever the operator drags it.
       dragHandleClassName="drag-handle"
-      style={{ zIndex: 1300 + index }}
+      // Above the MDT chassis (z-1250) but below the full-screen overlays
+      // — debrief (2000), incoming call (2000), glossary (3000).
+      style={{ zIndex: 1400 + index }}
     >
-      <div
-        style={CAD_VARS}
-        className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-[#f4f4f5] shadow-2xl shadow-black/50"
-      >
-        <div className="drag-handle flex cursor-move items-center justify-between gap-2 border-b border-zinc-400 bg-[#e7e7ea] px-3 py-2 font-mono text-[10px] uppercase tracking-widest">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="dot-live size-1.5 shrink-0 rounded-full bg-green-600" />
-            <span className="truncate font-bold text-zinc-900">
-              Patient · {label}
+      {/* Same rugged chassis as the MDT, one size down, so a patient
+          window reads as another device on the desk rather than a
+          browser dialog that wandered in. */}
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[12px] border-[9px] border-[#26262b] bg-[#26262b] shadow-2xl shadow-black/70 ring-1 ring-[#3d3d45]">
+        <Screw className="left-[-7px] top-[-7px]" />
+        <Screw className="right-[-7px] top-[-7px]" />
+        <Screw className="bottom-[-7px] left-[-7px]" />
+        <Screw className="bottom-[-7px] right-[-7px]" />
+
+        <div
+          style={CAD_VARS}
+          className="flex h-full w-full flex-col overflow-hidden rounded-[5px] bg-[#e7e7ea] text-zinc-900"
+        >
+          {/* Header bar, built like the MDT's sync bar: full-bleed
+              colour blocks, no gaps, mono and tracked. */}
+          <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#1d4ed8] font-mono text-[11px] font-bold text-white">
+            <span className="flex min-w-0 items-center gap-2 px-3 py-1 tracking-[0.15em]">
+              <span className="dot-live size-1.5 shrink-0 rounded-full bg-white" />
+              <span className="truncate uppercase">Patient · {label}</span>
             </span>
-            <span
-              className={`shrink-0 rounded-[2px] px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-widest ${sevCls}`}
-            >
-              {sev.toUpperCase()}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {escToClose && (
-              <span className="hidden font-mono text-[9px] uppercase tracking-widest text-zinc-500 md:inline">
-                Esc
+            <span className="flex items-stretch">
+              <span
+                className={`flex items-center px-3 tracking-[0.1em] ${sevCls}`}
+              >
+                {sev.toUpperCase()}
               </span>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-sm border border-zinc-400 bg-white px-2 py-0.5 text-zinc-600 hover:border-red-600 hover:text-red-600"
-              title="Close treatment box"
-            >
-              ✕
-            </button>
+              {escToClose && (
+                <span className="hidden items-center bg-[#1e40af] px-2 text-[9px] tracking-[0.1em] text-white/70 md:flex">
+                  ESC
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center bg-[#1e40af] px-3 tracking-[0.1em] transition-colors hover:bg-[#dc2626]"
+                title="Close treatment box"
+              >
+                ✕
+              </button>
+            </span>
           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto bg-[#f4f4f5] px-4 py-4">
-          <TreatmentTab {...treatmentProps} />
+
+          <div className="flex-1 overflow-y-auto bg-(--color-bg) px-3 py-3 text-(--color-text)">
+            <TreatmentTab {...treatmentProps} />
+          </div>
+
+          {/* Resize affordance — matches the MDT's bottom bezel voice. */}
+          <div className="pointer-events-none flex items-center justify-between border-t border-zinc-400 bg-[#e7e7ea] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.3em] text-zinc-500">
+            <span>Drag header to move</span>
+            <span>Resize ⟋</span>
+          </div>
         </div>
       </div>
     </Rnd>
+  );
+}
+
+/** The MDT's corner screw, reused so the two devices match. */
+function Screw({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={
+        "absolute z-10 size-[6px] rounded-full bg-[#3d3d45] shadow-inner ring-1 ring-[#4c4c55] " +
+        className
+      }
+    >
+      <div className="absolute left-1/2 top-1/2 h-[1px] w-[4px] -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[#1b1b1f]" />
+    </div>
   );
 }

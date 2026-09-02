@@ -100,6 +100,7 @@ export type Props = {
     by: string,
   ) => void;
   resusByCasualtyId?: Record<string, ResusState>;
+  onSetOxygen?: (casualtyId: string, device: import("@/lib/sim/oxygen").OxygenDevice, flowLpm: number, by: string) => void;
   onSetResusAirway?: (casualtyId: string, airway: "igel" | "ett", by: string) => void;
   onAttachMonitor?: (casualtyId: string, monitor: MonitorMode) => void;
   onToggleCapnography?: (casualtyId: string) => void;
@@ -940,6 +941,7 @@ export function CasualtiesBody({
   onApplyBreathing,
   onApplyCirculation,
   resusByCasualtyId,
+  onSetOxygen,
   onSetResusAirway,
   onAttachMonitor,
   onToggleCapnography,
@@ -972,6 +974,7 @@ export function CasualtiesBody({
   onApplyBreathing?: Props["onApplyBreathing"];
   onApplyCirculation?: Props["onApplyCirculation"];
   resusByCasualtyId?: Props["resusByCasualtyId"];
+  onSetOxygen?: Props["onSetOxygen"];
   onSetResusAirway?: Props["onSetResusAirway"];
   onAttachMonitor?: Props["onAttachMonitor"];
   onToggleCapnography?: Props["onToggleCapnography"];
@@ -1041,26 +1044,51 @@ export function CasualtiesBody({
               <li
                 key={casualty.id}
                 className={
-                  "rounded-sm border px-2 py-1.5 transition-colors " +
+                  "overflow-hidden rounded-sm border bg-(--color-surface) transition-colors " +
                   (stage === "expectant"
-                    ? "border-(--color-critical)/60 bg-(--color-critical)/5"
+                    ? "border-(--color-critical)"
                     : severity === "critical"
-                      ? "border-(--color-critical)/40 bg-(--color-bg)/40"
-                      : "border-(--color-border-subtle) bg-(--color-bg)/40")
+                      ? "border-(--color-critical)/50"
+                      : "border-(--color-border)")
                 }
               >
+                {/* Severity spine down the left, the way the incident
+                    strip carries its severity block — readable at a
+                    glance across a list of patients. */}
+                <div className="flex">
+                  <div
+                    className={
+                      "w-[5px] shrink-0 " +
+                      (severity === "critical"
+                        ? "bg-(--color-critical)"
+                        : severity === "serious"
+                          ? "bg-(--color-amber)"
+                          : "bg-(--color-ok)")
+                    }
+                  />
+                  <div className="min-w-0 flex-1 px-2 py-1.5">
                 <button
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : casualty.id)}
                   className="flex w-full items-start justify-between gap-2 text-left"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="text-[12px] text-(--color-text)">
+                    <div className="font-mono text-[12px] font-bold uppercase tracking-[0.05em] text-(--color-text)">
                       {casualty.label ?? casualty.id}
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-baseline gap-1.5 font-mono text-[9px] uppercase tracking-widest">
-                      <span className={stageTone(stage)}>{stageLabel(stage)}</span>
-                      <span className="text-(--color-text-dim)">·</span>
+                      <span
+                        className={
+                          "px-1 font-bold " +
+                          (stage === "expectant"
+                            ? "bg-(--color-critical) text-white"
+                            : stage === "at_hospital" || stage === "conveying"
+                              ? "bg-(--color-ok) text-white"
+                              : "bg-(--color-surface-raised) " + stageTone(stage))
+                        }
+                      >
+                        {stageLabel(stage)}
+                      </span>
                       <span className={severityTone(severity)}>{severity}</span>
                       {tx?.revealedCondition && (
                         <>
@@ -1159,24 +1187,30 @@ export function CasualtiesBody({
                             prev.includes(casualty.id) ? prev : [...prev, casualty.id],
                           )
                         }
-                        className="flex w-full items-center justify-between rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-3 py-2 text-left transition-colors hover:border-(--color-ok) hover:bg-(--color-ok)/15"
+                        className="flex w-full items-stretch overflow-hidden rounded-sm border border-(--color-ok) text-left transition-colors hover:brightness-110"
                       >
-                        <div>
-                          <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
+                        <span className="flex items-center bg-(--color-ok) px-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+                          {openTreatmentIds.includes(casualty.id) ? "Open" : "Treat"}
+                        </span>
+                        <span className="flex-1 bg-(--color-ok)/10 px-2.5 py-1.5">
+                          <span className="block font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
                             {openTreatmentIds.includes(casualty.id)
                               ? "Treatment box open"
                               : "Open treatment box"}
-                          </div>
-                          <div className="mt-0.5 text-[11px] text-(--color-text-muted)">
-                            Pop-out clinical workflow · body diagram, ABC,
-                            drugs, packaging, ATMIST
-                          </div>
-                        </div>
-                        <span className="font-mono text-[11px] text-(--color-ok)">↗</span>
+                          </span>
+                          <span className="mt-0.5 block text-[10px] leading-tight text-(--color-text-muted)">
+                            Survey, A-B-C, oxygen, drugs, packaging, ATMIST
+                          </span>
+                        </span>
+                        <span className="flex items-center bg-(--color-ok)/10 px-2 font-mono text-[12px] text-(--color-ok)">
+                          ↗
+                        </span>
                       </button>
                     </div>
                   </div>
                 )}
+                  </div>
+                </div>
               </li>
             );
           })}
@@ -1239,6 +1273,7 @@ export function CasualtiesBody({
               monitorAvailable={paired.some(({ appliance }) =>
                 appliance.kit.some((k) => /cardiac monitor|defib/i.test(k)),
               )}
+              onSetOxygen={onSetOxygen}
               onSetResusAirway={(a) =>
                 a !== "none" &&
                 onSetResusAirway?.(
