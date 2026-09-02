@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { sendEmail } from "@/lib/email/send";
@@ -129,6 +130,13 @@ export async function setDiscordGranted(formData: FormData): Promise<void> {
     p_email: email,
     p_granted: granted,
   });
+  // The function only exists once migration 015 has been run. Until then
+  // PostgREST reports it missing from the schema cache; that is a banner
+  // on the page, not an error page. (redirect throws, so it stays outside
+  // any try/catch.)
+  if (error?.message?.includes("admin_set_discord_granted")) {
+    redirect("/admin?missing=015");
+  }
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }

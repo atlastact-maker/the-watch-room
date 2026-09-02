@@ -118,7 +118,16 @@ function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) 
   );
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ missing?: string | string[] }>;
+}) {
+  // A write action that hit a missing database function sends us back
+  // here with the migration number, so it can be reported the same way
+  // a missing list function is.
+  const { missing } = await searchParams;
+  const missing015 = missing === "015";
   const supabase = await createClient();
   const {
     data: { user },
@@ -177,15 +186,17 @@ export default async function AdminPage() {
           </Link>
         </div>
 
-        {firstError && (
+        {(firstError || missing015) && (
           <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-            {missing007
+            {missing015
+              ? "Migration 015 (Discord permission tick) has not been run in Supabase yet — run supabase/migrations/015_roles_discord_granted.sql in the SQL editor, then reload."
+              : missing007
               ? "Migration 007 (admin functions) has not been run in Supabase yet — run supabase/migrations/007_admin_functions.sql in the SQL editor, then reload."
               : missing008
                 ? "Migration 008 (admin overview) has not been run in Supabase yet — run supabase/migrations/008_admin_overview.sql in the SQL editor, then reload."
                 : missing011
                   ? "Migration 011 (admin notes) has not been run in Supabase yet — run supabase/migrations/011_admin_notes.sql in the SQL editor, then reload."
-                  : `Database error: ${firstError.message}`}
+                  : `Database error: ${firstError?.message ?? "unknown"}`}
           </div>
         )}
 
