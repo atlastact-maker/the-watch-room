@@ -203,7 +203,7 @@ export default async function StandbyPage() {
           >
             Join the Discord
           </a>
-          {accepted && (
+          {user && (
             <Link
               href="/settings"
               className="border border-(--color-border) px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text) transition-colors hover:border-(--color-info)/60 hover:text-(--color-info)"
