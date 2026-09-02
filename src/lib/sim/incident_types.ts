@@ -501,6 +501,10 @@ export type PatientTreatmentState = {
   prevLiveVitals?: import("./scene").PatientClinical["vitals"];
   /** When prevLiveVitals was last rolled forward — the trend baseline. */
   prevLiveVitalsAt?: number;
+  /** How good the chest compressions currently are, 0-1. Published by
+   *  the resus tick so the vitals engine can hold an arrested patient at
+   *  a floor that reflects the CPR actually being delivered. */
+  cprQuality?: number;
   /** Chosen oxygen delivery — device and flow. Drives the saturation in
    *  both directions, so titrating down is a real action. */
   oxygen?: import("./oxygen").OxygenState;

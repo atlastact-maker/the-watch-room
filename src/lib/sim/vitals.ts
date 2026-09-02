@@ -152,12 +152,20 @@ export function advanceLiveVitals(
   const onCPR = tx.circulation.cpr !== undefined;
 
   if (flags.has("cardiac_arrest")) {
-    // Without CPR: vitals collapse. With CPR: we hold some perfusion
-    // (SpO2 stays in the 70s, BP palpable) until defib resolves.
-    if (onCPR) {
-      dSpO2 += driftRate(v.spo2, 70, 0.05);
-      dBPs += driftRate(v.bpSys, 60, 0.1);
-      dBPd += driftRate(v.bpDia, 30, 0.05);
+    // The floor the patient is held at is a function of how good the
+    // compressions actually are, not merely whether someone is doing
+    // them. A fresh compressor or a LUCAS perfuses; someone five minutes
+    // in does not, and the numbers say so — which is the whole reason the
+    // guidance says swap every two minutes. cprQuality is published by
+    // the resus tick; the plain onCPR flag is the fallback for a patient
+    // being compressed without an arrest board open.
+    const q = tx.cprQuality ?? (onCPR ? 0.85 : 0);
+    if (q > 0.05) {
+      // Perfusion scales with quality: excellent CPR holds SpO2 around
+      // 75 and a palpable pressure, failing CPR barely holds anything.
+      dSpO2 += driftRate(v.spo2, 58 + q * 22, 0.08);
+      dBPs += driftRate(v.bpSys, 45 + q * 25, 0.14);
+      dBPd += driftRate(v.bpDia, 24 + q * 12, 0.07);
       dHR += driftRate(v.hr, 0, 0.2); // compressions don't generate intrinsic rhythm
       dGCS += driftRate(v.gcs, 3, 0.2);
     } else {

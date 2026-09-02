@@ -7,6 +7,7 @@ import {
   LUCAS_FIT_SEC,
   RHYTHM_LABEL,
   amiodaroneDoseMg,
+  compressionQuality,
   expectedEtco2,
   newResusState,
   postRoscIssues,
@@ -571,195 +572,203 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     treatmentRef.current = treatmentByCasualtyId;
   }, [treatmentByCasualtyId]);
 
+  // Mirror of the resus records so the tick can DECIDE synchronously.
+  // This matters more than it looks: the previous version pushed ROSC
+  // decisions into an array from inside a setState updater and read that
+  // array immediately afterwards. React makes no promise to run an
+  // updater synchronously, so the array was still empty when it was read
+  // — the arrest flag never cleared and the patient's vitals were never
+  // restored. A patient could reach ROSC on the board and stay pulseless
+  // on the monitor for ever.
+  const resusRef = useRef<Record<string, ResusState>>({});
+  useEffect(() => {
+    resusRef.current = resusByCasualtyId;
+  }, [resusByCasualtyId]);
+
   // Resuscitation tick. Runs the ALS clock: end-tidal CO2 chases whatever
   // the current compressions justify, and every two minutes the cycle
-  // rolls over into a rhythm check where ROSC is decided. This is also the
-  // only place the cardiac_arrest flag is ever cleared — before it, a
-  // patient in arrest could never be got back however well you played.
+  // rolls over into a rhythm check where ROSC is decided. It is also the
+  // only place the cardiac_arrest flag is ever cleared or put back.
   useEffect(() => {
     const id = setInterval(() => {
       const nowMs = Date.now();
+      const current = resusRef.current;
+      const ids = Object.keys(current);
+      if (ids.length === 0) return;
+
+      const nextResus: Record<string, ResusState> = {};
       const achieved: string[] = [];
       const reArrested: string[] = [];
-      setResusByCasualtyId((prev) => {
-        let changed = false;
-        const next: typeof prev = {};
-        for (const [cid, r] of Object.entries(prev)) {
-          if (r.roleAt !== undefined) {
-            next[cid] = r;
-            continue;
-          }
-          // --- Post-ROSC: fragile, and it can go back the other way -----
-          if (r.roscAt !== undefined) {
-            let s = r;
-            const target = expectedEtco2(s, nowMs);
-            const eased = s.etco2 + (target - s.etco2) * 0.12;
-            if (Math.abs(eased - s.etco2) > 0.02) {
-              s = { ...s, etco2: Math.round(eased * 10) / 10 };
-              changed = true;
-            }
-            // Re-arrest is rolled once a minute against how well the
-            // patient is being managed since they came back.
-            const sinceCheck = (nowMs - (s.lastPostRoscCheckAt ?? r.roscAt)) / 1000;
-            if (sinceCheck >= 60) {
-              const issues = postRoscIssues(s, treatmentRef.current[cid]?.liveVitals);
-              const p = reArrestChancePerMin(s, nowMs, issues);
-              if (rollBeat(p)) {
-                reArrested.push(cid);
-                s = {
-                  ...s,
-                  roscAt: undefined,
-                  reArrests: s.reArrests + 1,
-                  cycle: 0,
-                  cycleStartedAt: nowMs,
-                  rhythm: Math.random() < 0.35 ? "vf" : "pea",
-                  lastPostRoscCheckAt: undefined,
-                  events: [
-                    ...s.events,
-                    { at: nowMs, text: "RE-ARREST — output lost again", tone: "critical" },
-                  ],
-                };
-              } else {
-                s = { ...s, lastPostRoscCheckAt: nowMs };
-              }
-              changed = true;
-            }
-            next[cid] = s;
-            continue;
-          }
-          let s = r;
-          // ETCO2 eases toward what the compressions justify rather than
-          // snapping, so the trace reads like a trend.
+      // Compression quality per patient, published onto the treatment
+      // record so the vitals engine can reflect how good the CPR is.
+      const quality: Record<string, number> = {};
+      let changed = false;
+
+      for (const cid of ids) {
+        const r = current[cid];
+        if (r.roleAt !== undefined) {
+          nextResus[cid] = r;
+          continue;
+        }
+        let s = r;
+        quality[cid] = compressionQuality(s, nowMs);
+
+        const roscAt = s.roscAt;
+        if (roscAt !== undefined) {
+          // --- Post-ROSC: fragile, and it can go back the other way ---
           const target = expectedEtco2(s, nowMs);
-          const eased = s.etco2 + (target - s.etco2) * 0.2;
+          const eased = s.etco2 + (target - s.etco2) * 0.12;
           if (Math.abs(eased - s.etco2) > 0.02) {
             s = { ...s, etco2: Math.round(eased * 10) / 10 };
             changed = true;
           }
-          // Cycle rollover — the rhythm check.
-          if (secondsIntoCycle(s, nowMs) >= CYCLE_SEC) {
-            const p = roscChance(s, nowMs);
-            const won = rollBeat(p);
-            if (won) {
-              achieved.push(cid);
+          const sinceCheck = (nowMs - (s.lastPostRoscCheckAt ?? roscAt)) / 1000;
+          if (sinceCheck >= 60) {
+            const issues = postRoscIssues(s, treatmentRef.current[cid]?.liveVitals);
+            if (rollBeat(reArrestChancePerMin(s, nowMs, issues))) {
+              reArrested.push(cid);
               s = {
                 ...s,
-                roscAt: nowMs,
-                cycle: s.cycle + 1,
+                roscAt: undefined,
+                reArrests: s.reArrests + 1,
+                cycle: 0,
                 cycleStartedAt: nowMs,
+                rhythm: Math.random() < 0.35 ? "vf" : "pea",
+                lastPostRoscCheckAt: undefined,
                 events: [
                   ...s.events,
-                  { at: nowMs, text: "ROSC — output restored", tone: "good" },
+                  { at: nowMs, text: "RE-ARREST — output lost again", tone: "critical" },
                 ],
               };
             } else {
-              const degenerated = rhythmAfterFailedShock(s, nowMs, Math.random());
-              s = {
-                ...s,
-                cycle: s.cycle + 1,
-                cycleStartedAt: nowMs,
-                rhythm: degenerated,
-                events: [
-                  ...s.events,
-                  {
-                    at: nowMs,
-                    text: `Rhythm check — ${RHYTHM_LABEL[degenerated]}`,
-                    tone: "info",
-                  },
-                ],
-              };
+              s = { ...s, lastPostRoscCheckAt: nowMs };
             }
             changed = true;
           }
-          next[cid] = s;
+          nextResus[cid] = s;
+          continue;
         }
-        return changed ? next : prev;
-      });
-      // A re-arrest puts the flag back so the vitals engine drops them
-      // to the CPR floor again.
-      if (reArrested.length > 0) {
-        setTreatmentByCasualtyId((prev) => {
-          const nx = { ...prev };
-          for (const cid of reArrested) {
-            const tx = nx[cid];
-            if (!tx) continue;
-            const flags = tx.activeRedFlags ?? [];
-            if (!flags.includes("cardiac_arrest")) {
-              const v = tx.liveVitals ?? tx.revealedVitals;
-              nx[cid] = {
-                ...tx,
-                activeRedFlags: [...flags, "cardiac_arrest"],
-                // Output lost again — the numbers go with it.
-                liveVitals: v
-                  ? { ...v, hr: 0, bpSys: 0, bpDia: 0, gcs: 3 }
-                  : v,
-                prevLiveVitals: v,
-                liveVitalsLastTickAt: Date.now(),
-              };
-            }
+
+        // --- Still in arrest ---
+        const target = expectedEtco2(s, nowMs);
+        const eased = s.etco2 + (target - s.etco2) * 0.2;
+        if (Math.abs(eased - s.etco2) > 0.02) {
+          s = { ...s, etco2: Math.round(eased * 10) / 10 };
+          changed = true;
+        }
+        if (secondsIntoCycle(s, nowMs) >= CYCLE_SEC) {
+          if (rollBeat(roscChance(s, nowMs))) {
+            achieved.push(cid);
+            s = {
+              ...s,
+              roscAt: nowMs,
+              cycle: s.cycle + 1,
+              cycleStartedAt: nowMs,
+              events: [
+                ...s.events,
+                { at: nowMs, text: "ROSC — output restored", tone: "good" },
+              ],
+            };
+          } else {
+            const degenerated = rhythmAfterFailedShock(s, nowMs, Math.random());
+            s = {
+              ...s,
+              cycle: s.cycle + 1,
+              cycleStartedAt: nowMs,
+              rhythm: degenerated,
+              events: [
+                ...s.events,
+                {
+                  at: nowMs,
+                  text: `Rhythm check — ${RHYTHM_LABEL[degenerated]}`,
+                  tone: "info",
+                },
+              ],
+            };
           }
-          return nx;
-        });
+          changed = true;
+        }
+        nextResus[cid] = s;
+      }
+
+      if (changed) setResusByCasualtyId(nextResus);
+
+      // Everything below acts on plain values computed above, so it
+      // happens exactly once and in the right order.
+      setTreatmentByCasualtyId((prev) => {
+        let touched = false;
+        const nx = { ...prev };
+        for (const cid of ids) {
+          const tx = nx[cid];
+          if (!tx) continue;
+          let t = tx;
+          const q = quality[cid];
+          if (q !== undefined && Math.abs((t.cprQuality ?? -1) - q) > 0.01) {
+            t = { ...t, cprQuality: q };
+            touched = true;
+          }
+          if (achieved.includes(cid)) {
+            // Clearing the flag is not enough on its own: the arrest left
+            // the numbers at zero and nothing drives a heart rate back up.
+            // Seed the post-ROSC picture — deliberately an UNWELL one,
+            // because that is what a freshly resuscitated patient is.
+            const v = t.liveVitals ?? t.revealedVitals;
+            t = {
+              ...t,
+              activeRedFlags: (t.activeRedFlags ?? []).filter(
+                (f) => f !== "cardiac_arrest",
+              ),
+              liveVitals: v
+                ? { ...v, hr: 112, bpSys: 92, bpDia: 58, spo2: 90, rr: 12, gcs: 3 }
+                : v,
+              prevLiveVitals: v,
+              prevLiveVitalsAt: nowMs,
+              liveVitalsLastTickAt: nowMs,
+            };
+            touched = true;
+          }
+          if (reArrested.includes(cid)) {
+            const v = t.liveVitals ?? t.revealedVitals;
+            const flags = t.activeRedFlags ?? [];
+            t = {
+              ...t,
+              activeRedFlags: flags.includes("cardiac_arrest")
+                ? flags
+                : [...flags, "cardiac_arrest"],
+              liveVitals: v ? { ...v, hr: 0, bpSys: 0, bpDia: 0, gcs: 3 } : v,
+              prevLiveVitals: v,
+              prevLiveVitalsAt: nowMs,
+              liveVitalsLastTickAt: nowMs,
+            };
+            touched = true;
+          }
+          if (t !== tx) nx[cid] = t;
+        }
+        return touched ? nx : prev;
+      });
+
+      if (achieved.length > 0) {
         setLog((prev) => [
           ...prev,
           {
-            id: `rearrest:${Date.now()}`,
-            timestamp: Date.now(),
+            id: `rosc:${nowMs}`,
+            timestamp: nowMs,
+            kind: "annotation",
+            message:
+              "ROSC achieved — output restored. Post-ROSC care and a PPCI pre-alert.",
+          },
+        ]);
+      }
+      if (reArrested.length > 0) {
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `rearrest:${nowMs}`,
+            timestamp: nowMs,
             kind: "annotation",
             message: "RE-ARREST — output lost, resuscitation resumed.",
           },
         ]);
-      }
-      // ROSC clears the arrest so the vitals engine stops holding the
-      // patient at the CPR floor and starts recovering them.
-      if (achieved.length > 0) {
-        setTreatmentByCasualtyId((prev) => {
-          const next = { ...prev };
-          for (const cid of achieved) {
-            const tx = next[cid];
-            if (!tx) continue;
-            // Clearing the flag is not enough on its own: the arrest left
-            // the numbers at zero and nothing in the vitals engine drives
-            // a heart rate back up, so the patient read as pulseless for
-            // ever after ROSC. Seed the post-ROSC picture instead — and
-            // it is deliberately an UNWELL picture, because that is what
-            // a freshly resuscitated patient looks like: tachycardic,
-            // hypotensive, hypoxic and still unconscious. It also gives
-            // the post-ROSC targets something real to work on.
-            const v = tx.liveVitals ?? tx.revealedVitals;
-            next[cid] = {
-              ...tx,
-              activeRedFlags: (tx.activeRedFlags ?? []).filter(
-                (f) => f !== "cardiac_arrest",
-              ),
-              liveVitals: v
-                ? {
-                    ...v,
-                    hr: 112,
-                    bpSys: 92,
-                    bpDia: 58,
-                    spo2: 90,
-                    rr: 12,
-                    gcs: 3,
-                  }
-                : v,
-              prevLiveVitals: v,
-              liveVitalsLastTickAt: Date.now(),
-            };
-          }
-          return next;
-        });
-        for (const cid of achieved) {
-          setLog((prev) => [
-            ...prev,
-            {
-              id: `rosc:${cid}:${Date.now()}`,
-              timestamp: Date.now(),
-              kind: "annotation",
-              message: `ROSC achieved — output restored. Post-ROSC care and a PPCI pre-alert.`,
-            },
-          ]);
-        }
       }
     }, 500);
     return () => clearInterval(id);
