@@ -166,7 +166,12 @@ export function AdvisorQuestions({
           </span>
         </label>
         <Q label="Discord handle" optional>
+          {/* Keyed on the value so that saving the handle from the
+              account section above re-seeds this uncontrolled input
+              instead of leaving it holding the old one — without
+              resetting any other answer on the form. */}
           <input
+            key={defaults.discord ?? ""}
             name="advisorDiscord"
             type="text"
             defaultValue={defaults.discord ?? ""}

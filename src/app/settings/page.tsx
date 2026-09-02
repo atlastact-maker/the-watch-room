@@ -21,11 +21,6 @@ export default function SettingsPage() {
   const [initialDiscord, setInitialDiscord] = useState<string | null>(null);
   const [savingDiscord, setSavingDiscord] = useState(false);
   const [discordMsg, setDiscordMsg] = useState<string | null>(null);
-  // Bumped when the handle is saved above, so the advisor form remounts
-  // and picks the new value up as its default. Without this its
-  // uncontrolled input would still hold the old handle and quietly write
-  // it back on the next questionnaire save.
-  const [advisorFormKey, setAdvisorFormKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [muted, setMutedState] = useState(false);
@@ -99,6 +94,21 @@ export default function SettingsPage() {
     void refreshStanding();
   }, [refreshStanding]);
 
+  // The questionnaire carries a Discord field of its own, so a save
+  // there can move the handle. Re-read it, or the box above would still
+  // be holding the value from page load and would overwrite the newer
+  // one the next time it was used.
+  useEffect(() => {
+    if (!advState?.ok) return;
+    const supabase = createClient();
+    void supabase.auth.getUser().then(({ data }) => {
+      const meta = data.user?.user_metadata as { advisor_discord?: string } | null;
+      const dc = meta?.advisor_discord ?? "";
+      setDiscord(dc);
+      setInitialDiscord(dc);
+    });
+  }, [advState?.ok]);
+
   // saveAdvisorProfile only reports ok once the advisors row is upserted,
   // so a successful save is itself proof of at least "pending" — no need
   // to re-read the table to move the badge off "Not filed".
@@ -136,19 +146,24 @@ export default function SettingsPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const { error } = await supabase.auth.updateUser({
-      data: { advisor_discord: trimmed },
-    });
-    // Keep the advisors row in step. The admin lists read that row first
-    // and only fall back to metadata, so leaving it stale would show the
-    // old handle for anyone who has filed an application. Having no row
-    // is the normal case and matches nothing, which is not an error.
-    if (!error && user) {
-      await supabase
+
+    // The advisors row goes first, because it is what the admin lists
+    // read first — they only fall back to metadata. Writing metadata
+    // first and failing here would tell the operator it saved while the
+    // console still showed their old handle. Having no row is the normal
+    // case: it matches nothing, which is not an error.
+    let rowError = null;
+    if (user) {
+      const { error: e } = await supabase
         .from("advisors")
         .update({ discord: trimmed, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
+      rowError = e;
     }
+    const { error } = rowError
+      ? { error: rowError }
+      : await supabase.auth.updateUser({ data: { advisor_discord: trimmed } });
+
     setSavingDiscord(false);
     if (error) {
       setDiscordMsg("Could not save — try again");
@@ -156,7 +171,6 @@ export default function SettingsPage() {
     }
     setInitialDiscord(trimmed);
     setAdvisorMeta((m) => (m ? { ...m, discord: trimmed } : m));
-    setAdvisorFormKey((k) => k + 1);
     setDiscordMsg(trimmed ? "Discord handle updated" : "Discord handle removed");
   }
 
@@ -334,11 +348,7 @@ export default function SettingsPage() {
 
           {advisorOpen && advisorMeta && (
             <form action={advAction} className="mt-4 flex flex-col gap-3">
-              <AdvisorQuestions
-                key={advisorFormKey}
-                defaults={advisorMeta}
-                errors={advState?.errors}
-              />
+              <AdvisorQuestions defaults={advisorMeta} errors={advState?.errors} />
               {advState?.errors?.form?.map((msg) => (
                 <p key={msg} className="text-sm text-(--color-critical)">{msg}</p>
               ))}
