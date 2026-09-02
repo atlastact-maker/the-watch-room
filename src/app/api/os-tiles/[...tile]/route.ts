@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasShiftAccess } from "@/lib/auth/operator-access";
 
 // Ordnance Survey raster tile proxy.
 //
@@ -39,7 +40,11 @@ export async function GET(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
+  // Session alone is not enough: these proxy paid or rate-limited
+  // upstreams (OS Maps, OpenRouteService, Overpass), and anyone at
+  // all can register. Only accounts that can actually run a shift
+  // have a page that calls them.
+  if (!user || !(await hasShiftAccess(supabase, user.email))) return new Response("unauthorized", { status: 401 });
 
   const { tile } = await context.params;
   if (tile.length !== 4) return new Response("bad tile path", { status: 400 });
