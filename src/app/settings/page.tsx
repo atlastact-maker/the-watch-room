@@ -1,8 +1,9 @@
 "use client";
 
-// Operator settings — callsign, sound, and service-record reset, in the
-// ops-centre styling. Callsign writes to Supabase user metadata (the
-// same field signup collects); everything else is device-local.
+// Operator settings — callsign, Discord handle, sound, and service-record
+// reset, in the ops-centre styling. Callsign and Discord write to Supabase
+// user metadata (the same fields signup collects); everything else is
+// device-local.
 
 import { useActionState, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -16,6 +17,15 @@ import { advisorStanding, type AdvisorStanding } from "@/lib/auth/advisor-standi
 export default function SettingsPage() {
   const [callsign, setCallsign] = useState("");
   const [initialCallsign, setInitialCallsign] = useState<string | null>(null);
+  const [discord, setDiscord] = useState("");
+  const [initialDiscord, setInitialDiscord] = useState<string | null>(null);
+  const [savingDiscord, setSavingDiscord] = useState(false);
+  const [discordMsg, setDiscordMsg] = useState<string | null>(null);
+  // Bumped when the handle is saved above, so the advisor form remounts
+  // and picks the new value up as its default. Without this its
+  // uncontrolled input would still hold the old handle and quietly write
+  // it back on the next questionnaire save.
+  const [advisorFormKey, setAdvisorFormKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [muted, setMutedState] = useState(false);
@@ -68,6 +78,9 @@ export default function SettingsPage() {
       const cs = meta?.callsign ?? "";
       setCallsign(cs);
       setInitialCallsign(cs);
+      const dc = meta?.advisor_discord ?? "";
+      setDiscord(dc);
+      setInitialDiscord(dc);
       const isAdvisor = !!meta?.advisor;
       setAdvisorMeta({
         advisor: isAdvisor,
@@ -108,6 +121,43 @@ export default function SettingsPage() {
       setInitialCallsign(trimmed);
       setSaveMsg("Callsign updated");
     }
+  }
+
+  // The handle lives under advisor_discord because that is where the
+  // questionnaire has always written it, and where the admin lists read
+  // it from. Keeping the one key means the field here and the one on the
+  // application can never drift apart into two answers.
+  async function saveDiscord() {
+    const trimmed = discord.trim();
+    if (trimmed === (initialDiscord ?? "")) return;
+    setSavingDiscord(true);
+    setDiscordMsg(null);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error } = await supabase.auth.updateUser({
+      data: { advisor_discord: trimmed },
+    });
+    // Keep the advisors row in step. The admin lists read that row first
+    // and only fall back to metadata, so leaving it stale would show the
+    // old handle for anyone who has filed an application. Having no row
+    // is the normal case and matches nothing, which is not an error.
+    if (!error && user) {
+      await supabase
+        .from("advisors")
+        .update({ discord: trimmed, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id);
+    }
+    setSavingDiscord(false);
+    if (error) {
+      setDiscordMsg("Could not save — try again");
+      return;
+    }
+    setInitialDiscord(trimmed);
+    setAdvisorMeta((m) => (m ? { ...m, discord: trimmed } : m));
+    setAdvisorFormKey((k) => k + 1);
+    setDiscordMsg(trimmed ? "Discord handle updated" : "Discord handle removed");
   }
 
   function toggleSound() {
@@ -185,6 +235,38 @@ export default function SettingsPage() {
           )}
         </section>
 
+        {/* Discord */}
+        <section className="mt-4 rounded-sm border border-(--color-border-subtle) p-5">
+          <h2 className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
+            Discord
+          </h2>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-(--color-text-muted)">
+            Your handle on the community server, so we can match you to your
+            account. Optional — clear it to remove it.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <input
+              value={discord}
+              onChange={(e) => setDiscord(e.target.value.slice(0, 40))}
+              placeholder="e.g. watchroomfan"
+              className="h-10 flex-1 rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-sm text-(--color-text) outline-none placeholder:text-(--color-text-dim) focus:border-(--color-amber)"
+            />
+            <button
+              type="button"
+              onClick={saveDiscord}
+              disabled={savingDiscord || discord.trim() === (initialDiscord ?? "")}
+              className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {savingDiscord ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {discordMsg && (
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+              {discordMsg}
+            </p>
+          )}
+        </section>
+
         {/* Sound */}
         <section className="mt-4 rounded-sm border border-(--color-border-subtle) p-5">
           <div className="flex items-center justify-between gap-4">
@@ -252,7 +334,11 @@ export default function SettingsPage() {
 
           {advisorOpen && advisorMeta && (
             <form action={advAction} className="mt-4 flex flex-col gap-3">
-              <AdvisorQuestions defaults={advisorMeta} errors={advState?.errors} />
+              <AdvisorQuestions
+                key={advisorFormKey}
+                defaults={advisorMeta}
+                errors={advState?.errors}
+              />
               {advState?.errors?.form?.map((msg) => (
                 <p key={msg} className="text-sm text-(--color-critical)">{msg}</p>
               ))}
