@@ -2415,6 +2415,50 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     );
   }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph, fireIgnition, absentCasualtyIds]);
 
+  // Auto-resolve a job that is genuinely finished.
+  //
+  // Resolution was manual only, so an ambulance-led incident never closed
+  // itself: the patient could be handed over at hospital and the job would
+  // sit open indefinitely. Scoped deliberately to scenarios with NO fire —
+  // a medical or police-led job is over once the patients are dealt with,
+  // whereas a fire job still has damping down, investigation and cordons
+  // to run and must stay the operator's call.
+  //
+  // The trigger is HANDOVER, not arrival: an ambulance pulling onto the
+  // hospital ramp has not finished, it finishes when the offload window
+  // closes. A patient who died on scene counts as dealt with too.
+  const autoResolvedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeIncident || outcome || !incidentSim) return;
+    if (autoResolvedRef.current === activeIncident.id) return;
+    const seat = activeIncident.scenario.scene?.fireSeat;
+    const fireJob = (seat?.maxRadiusM ?? 0) > 0 || (seat?.radiusM ?? 0) > 0;
+    if (fireJob) return;
+    const found = incidentSim.foundCasualties;
+    if (found.length === 0) return;
+    const allDealtWith = found.every((c) => {
+      const st = incidentSim.casualtyProgression?.[c.id]?.stage;
+      return st === "at_hospital" || st === "expectant";
+    });
+    if (!allDealtWith) return;
+    // Every conveying ambulance must have finished its handover.
+    const conveying = deployments.filter((d) => d.offloadEndsAt !== undefined);
+    const handedOver = conveying.every((d) => now >= (d.offloadEndsAt ?? 0));
+    if (!handedOver) return;
+    autoResolvedRef.current = activeIncident.id;
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `autoresolve:${Date.now()}`,
+        timestamp: Date.now(),
+        kind: "annotation",
+        message:
+          "All patients dealt with and handed over — incident resolved.",
+      },
+    ]);
+    void resolveIncident();
+  }, [activeIncident, outcome, incidentSim, deployments, now]);
+
   // Exposure breach — log ONCE the moment the fire radius crosses the
   // scene's authored exposure threshold (fire into the attached
   // neighbour). The log entry is the durable record: scoring reads it at
