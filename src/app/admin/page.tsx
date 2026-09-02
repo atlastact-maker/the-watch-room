@@ -150,6 +150,11 @@ export default async function AdminPage({
 
   const advisors = (advisorsRes.data ?? []) as AdvisorRow[];
   const roles = (rolesRes.data ?? []) as RoleRow[];
+  // Rows without the column at all mean PostgREST is still serving the
+  // pre-015 shape of admin_list_roles from its schema cache. The ticks
+  // then cannot display however the database rows read.
+  const rolesLackTick =
+    roles.length > 0 && roles.every((r) => r.discord_granted === undefined);
   const overview = ((overviewRes.data ?? []) as Overview[])[0];
   const users = (usersRes.data ?? []) as UserRow[];
   // Notes are fetched for every listed account in one call rather than
@@ -186,11 +191,13 @@ export default async function AdminPage({
           </Link>
         </div>
 
-        {(firstError || missing015) && (
+        {(firstError || missing015 || rolesLackTick) && (
           <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
             {missing015
               ? "Migration 015 (Discord permission tick) has not been run in Supabase yet — run supabase/migrations/015_roles_discord_granted.sql in the SQL editor, then reload."
-              : missing007
+              : rolesLackTick
+                ? "The Discord tick column is not reaching the app yet — the API is still serving the old shape of admin_list_roles. In the Supabase SQL editor run:  notify pgrst, 'reload schema';  then reload this page."
+                : missing007
               ? "Migration 007 (admin functions) has not been run in Supabase yet — run supabase/migrations/007_admin_functions.sql in the SQL editor, then reload."
               : missing008
                 ? "Migration 008 (admin overview) has not been run in Supabase yet — run supabase/migrations/008_admin_overview.sql in the SQL editor, then reload."
