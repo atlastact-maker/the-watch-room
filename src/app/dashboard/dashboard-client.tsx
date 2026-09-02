@@ -4018,12 +4018,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         hasActiveIncident={!!activeIncident}
         onTriggerScenario={(sc) => queueCall(sc)}
         coveredServices={coveredServices}
-        viewMode={groundViewOpen && activeIncident ? "ground" : "area"}
-        groundViewEnabled={!!activeIncident && !outcome}
-        onSelectView={(mode) => {
-          setGroundEntryView(null);
-          setGroundViewOpen(mode === "ground" && !!activeIncident);
-        }}
       />
 
       <main id="main-content" className="relative flex-1 overflow-hidden" aria-label="Dispatch map and panels">

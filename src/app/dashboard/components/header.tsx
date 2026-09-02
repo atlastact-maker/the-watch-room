@@ -6,56 +6,9 @@ import type { AreaCode } from "@/lib/sim/types";
 import type { Scenario } from "@/lib/sim/incident_types";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { scenarioCovered } from "@/lib/sim/coverage";
+import { CAD_VARS } from "./cad-theme";
 import type { WeatherState } from "@/lib/sim/weather";
 import { WeatherChip } from "./weather-chip";
-
-/** Area ↔ Ground segmented switch. Ground is only selectable while a
- *  live incident exists; the ground view renders the same switch in its
- *  mission bar so the operator can flip back. */
-export function ViewSwitch({
-  mode,
-  groundEnabled,
-  onSelect,
-}: {
-  mode: "area" | "ground";
-  groundEnabled: boolean;
-  onSelect: (mode: "area" | "ground") => void;
-}) {
-  const base =
-    "px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest transition-colors";
-  return (
-    <div className="flex items-center overflow-hidden rounded-sm border border-(--color-border)">
-      <button
-        type="button"
-        onClick={() => onSelect("area")}
-        className={
-          base +
-          (mode === "area"
-            ? " bg-(--color-amber)/15 text-(--color-amber)"
-            : " text-(--color-text-dim) hover:text-(--color-text)")
-        }
-      >
-        Area
-      </button>
-      <button
-        type="button"
-        disabled={!groundEnabled}
-        onClick={() => groundEnabled && onSelect("ground")}
-        title={groundEnabled ? undefined : "No live incident — ground view opens when one is running"}
-        className={
-          base +
-          (mode === "ground"
-            ? " bg-(--color-amber)/15 text-(--color-amber)"
-            : groundEnabled
-              ? " text-(--color-text-dim) hover:text-(--color-text)"
-              : " cursor-not-allowed text-(--color-text-dim) opacity-40")
-        }
-      >
-        Ground
-      </button>
-    </div>
-  );
-}
 
 type Props = {
   userEmail: string;
@@ -73,10 +26,6 @@ type Props = {
   onTriggerScenario: (s: Scenario) => void;
   /** Services covered this shift — scenarios needing others are hidden. */
   coveredServices: import("@/lib/sim/types").ServiceCode[];
-  /** Area ↔ Ground view switch. Ground selectable only with a live incident. */
-  viewMode?: "area" | "ground";
-  groundViewEnabled?: boolean;
-  onSelectView?: (mode: "area" | "ground") => void;
 };
 
 export function DashboardHeader({
@@ -94,9 +43,6 @@ export function DashboardHeader({
   hasActiveIncident,
   onTriggerScenario,
   coveredServices,
-  viewMode,
-  groundViewEnabled,
-  onSelectView,
 }: Props) {
   const [time, setTime] = useState<string>("--:--:--");
   useEffect(() => {
@@ -118,37 +64,24 @@ export function DashboardHeader({
   );
 
   return (
-    <header className="border-b border-(--color-border-subtle) bg-(--color-surface)/60">
-      <div className="flex items-center justify-between px-6 py-3 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+    // Top bar on the CAD palette, matching the panels beneath it. The
+    // area/ground switch is gone — zooming the map past the detail
+    // threshold opens the ground view on its own, so the buttons were a
+    // second way to do something the map already does.
+    <header
+      style={CAD_VARS}
+      className="border-b-2 border-zinc-500 bg-(--color-surface-raised) text-(--color-text)"
+    >
+      <div className="flex items-center justify-between px-6 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
         <div className="flex items-center gap-3">
           <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
-          <span className="text-(--color-text)">The Watch Room</span>
-          <span className="text-(--color-border)">/</span>
-          <span>Multi-Agency</span>
-          <span className="text-(--color-border)">/</span>
-          <button
-            type="button"
-            onClick={onChangePatch}
-            className="text-(--color-amber) hover:text-amber-400"
-          >
-            {patch} Patch
-          </button>
+          <span className="font-bold text-(--color-text)">The Watch Room</span>
         </div>
 
         <div className="hidden items-center gap-4 md:flex">
-          <span>UTC {time}</span>
+          <span className="tabular-nums text-(--color-text)">UTC {time}</span>
           {weather && <WeatherChip weather={weather} />}
           <span className="text-(--color-border)">|</span>
-          {onSelectView && (
-            <>
-              <ViewSwitch
-                mode={viewMode ?? "area"}
-                groundEnabled={!!groundViewEnabled}
-                onSelect={onSelectView}
-              />
-              <span className="text-(--color-border)">|</span>
-            </>
-          )}
           <UserMenu
             userEmail={userEmail}
             audioMuted={audioMuted}
@@ -162,7 +95,7 @@ export function DashboardHeader({
             <button
               type="button"
               onClick={onOpenGlossary}
-              className="rounded-sm border border-(--color-border) px-2 py-1 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-amber-dim) hover:text-(--color-amber)"
+              className="rounded-sm border border-(--color-border) bg-(--color-surface) px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-(--color-text-dim) transition-colors hover:bg-(--color-amber) hover:text-white"
               title="Open glossary (shortcut: ?)"
               aria-label="Open glossary"
             >
@@ -174,7 +107,7 @@ export function DashboardHeader({
             <button
               type="button"
               onClick={onToggleIncidentPanel}
-              className="rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-3 py-1 text-(--color-amber) hover:border-(--color-amber)"
+              className="rounded-sm border border-(--color-amber) bg-(--color-amber) px-3 py-1 font-bold text-white transition-colors hover:brightness-110"
             >
               {incidentPanelVisible ? "Hide Incident" : "Show Incident"}
             </button>
@@ -182,7 +115,7 @@ export function DashboardHeader({
           <button
             type="button"
             onClick={onToggleResources}
-            className="rounded-sm border border-(--color-border) px-3 py-1 hover:border-(--color-amber-dim) hover:text-(--color-amber)"
+            className="rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-1 font-bold transition-colors hover:bg-(--color-amber) hover:text-white"
           >
             {resourcesVisible ? "Hide Resources" : "Show Resources"}
           </button>
@@ -350,7 +283,7 @@ function ScenarioMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="rounded-sm border border-(--color-border) px-3 py-1 hover:border-(--color-amber-dim) hover:text-(--color-amber)"
+        className="rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-1 font-bold transition-colors hover:bg-(--color-amber) hover:text-white"
       >
         ▶ Trigger Scenario
       </button>

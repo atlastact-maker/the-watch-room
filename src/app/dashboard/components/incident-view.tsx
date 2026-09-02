@@ -27,7 +27,6 @@ import { DeploymentBoard, type DeployArgs, type Eta } from "./deployment-board";
 import type { InformantMessage } from "./informant-panel";
 import { RadioFeed } from "./radio-feed";
 import { DraggableTreatmentPanel } from "./treatment-panel";
-import { ViewSwitch } from "./header";
 
 export type Props = {
   incident: Incident;
@@ -583,13 +582,17 @@ function MissionBar({
             MDT
           </button>
         )}
-        <ViewSwitch
-          mode="ground"
-          groundEnabled
-          onSelect={(m) => {
-            if (m === "area") onClose();
-          }}
-        />
+        {/* Plain close instead of an Area/Ground switch — the map opens
+            the ground view by zooming, so a two-state toggle was a second
+            way to do something that already happens on its own. */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-sm border border-(--color-border) px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber) hover:text-(--color-amber)"
+          title="Back to the dispatch map"
+        >
+          Close Ground
+        </button>
       </div>
     </header>
   );
