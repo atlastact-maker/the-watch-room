@@ -114,6 +114,7 @@ import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { InformantPanel } from "./components/informant-panel";
+import { DispatchLog } from "./components/dispatch-log";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
 import { StationBayPanel } from "./components/station-bay-panel";
@@ -270,6 +271,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [preShiftStates, setPreShiftStates] = useState<Record<string, PreShiftState>>({});
   const [log, setLog] = useState<LogEntry[]>([]);
   const [outcome, setOutcome] = useState<IncidentOutcome | null>(null);
+  // The dispatch log sits on the map by default; the operator can hide it.
+  const [showDispatchLog, setShowDispatchLog] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
   // Ground-view map interactions started from either the map action menu or
@@ -4103,6 +4106,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             tasks={tasks}
             onDismiss={dismissIncident}
           />
+        )}
+        {/* Dispatch log — the running record of the shift: timestamped,
+            typed, and never reordered. Movable and resizable, docked to
+            the left of the map. Hidden while the ground view is open,
+            which carries its own rails. */}
+        {!groundViewOpen && showDispatchLog && (
+          <DispatchLog log={log} onClose={() => setShowDispatchLog(false)} />
+        )}
+        {!groundViewOpen && !showDispatchLog && (
+          <button
+            type="button"
+            onClick={() => setShowDispatchLog(true)}
+            title="Show the dispatch log"
+            className="pointer-events-auto absolute left-3 top-24 z-[1180] rounded-sm border border-(--color-border) bg-(--color-surface)/95 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) shadow-lg hover:border-(--color-amber) hover:text-(--color-amber)"
+          >
+            Log
+          </button>
         )}
         {/* 999 Informant panel — floats on the main dashboard while the
             operator is still at the command desk. Once the ground view is
