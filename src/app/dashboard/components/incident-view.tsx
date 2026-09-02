@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Appliance, AreaCode } from "@/lib/sim/types";
+import type { Appliance } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 import type {
   Deployment,
   HoseType,
@@ -31,7 +32,7 @@ import { DraggableTreatmentPanel } from "./treatment-panel";
 export type Props = {
   incident: Incident;
   stations: StationWithAppliances[];
-  patch?: AreaCode | null;
+  patch?: Patch | null;
   deployments: Deployment[];
   etas: Record<string, Eta>;
   log: LogEntry[];
@@ -2095,7 +2096,7 @@ function BottomDeploymentBar({
   stations: StationWithAppliances[];
   etas: Record<string, Eta>;
   deployments: Deployment[];
-  patch?: AreaCode | null;
+  patch?: Patch | null;
   onDeploy: (args: DeployArgs) => void;
   onStandDownForWelfare: (applianceId: string) => void;
   onStandDown: (applianceId: string) => void;

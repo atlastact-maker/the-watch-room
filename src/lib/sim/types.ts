@@ -42,9 +42,7 @@ export type ApplianceCapability = "UHPL" | "HRET";
 
 /** Non-specialist front-line types — a generic pump or a regular double-
  *  crewed ambulance / RRV. Anything outside this set counts as a specialist
- *  asset (aerial, TRU, HART, USAR, HVP, BFU, HEMS, CCC, etc.) and should
- *  be mobilisable force-wide, even if the station sits outside the
- *  operator's chosen patch. */
+ *  asset (aerial, TRU, HART, USAR, HVP, BFU, HEMS, CCC, etc.). */
 const FRONTLINE_TYPES = new Set<ApplianceTypeCode>([
   "WrL",
   "DCA",
@@ -53,9 +51,9 @@ const FRONTLINE_TYPES = new Set<ApplianceTypeCode>([
 ]);
 
 /** Whether an appliance type counts as a specialist resource for dispatch
- *  purposes. Drives the "out-of-patch specialist mobilise" rule in the
- *  dashboard — specialists show up in the dispatch list regardless of
- *  patch, generic pumps / DCAs do not. */
+ *  purposes. Currently unused: it drove the out-of-patch specialist rule
+ *  while the operator held a third of the county, and it stays for the
+ *  day a second force is added and the distinction returns. */
 export function isSpecialistAppliance(type: ApplianceTypeCode): boolean {
   return !FRONTLINE_TYPES.has(type);
 }

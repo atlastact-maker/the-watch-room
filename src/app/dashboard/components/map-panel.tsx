@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
-import type { AreaCode } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 import type { StationWithAppliances } from "../page";
 
 // Leaflet must not run on the server (it touches `window`).
@@ -28,7 +28,7 @@ export function EmbeddedMap({
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
   deployments: Deployment[];
-  patch: AreaCode | null;
+  patch: Patch | null;
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
   onOpenStationBays?: (stationId: string) => void;

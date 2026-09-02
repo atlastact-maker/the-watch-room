@@ -33,7 +33,7 @@ import { CAD_VARS } from "./cad-theme";
 import { CrsPanel } from "./crs-panel";
 import { PreArrivalBody } from "./pre-arrival-panel";
 import { DeploymentBoard, type Eta } from "./deployment-board";
-import type { AreaCode } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 
 // Aerial property view — Leaflet must not run on the server.
 const PropertyAerial = dynamic(
@@ -106,7 +106,7 @@ type Props = {
 
   // Resourcing tab — committed crews + available fleet with mobilise.
   etas?: Record<string, Eta>;
-  patch?: AreaCode | null;
+  patch?: Patch | null;
   onStandDown?: (applianceId: string) => void;
   onSetPreCommitBaCrew?: IncidentViewProps["onSetPreCommitBaCrew"];
   sceneCommanderApplianceId?: string | null;

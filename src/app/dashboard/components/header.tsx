@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logout } from "@/lib/auth/actions";
-import type { AreaCode } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 import type { Scenario } from "@/lib/sim/incident_types";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { scenarioCovered } from "@/lib/sim/coverage";
@@ -12,7 +12,7 @@ import { WeatherChip } from "./weather-chip";
 
 type Props = {
   userEmail: string;
-  patch: AreaCode;
+  patch: Patch;
   weather?: WeatherState;
   audioMuted?: boolean;
   onToggleAudio?: () => void;
@@ -73,9 +73,9 @@ export function DashboardHeader({
     return () => clearInterval(id);
   }, [shiftStartedAt, shiftStartHour]);
 
-  const scenariosForPatch = SCENARIOS.filter(
-    (s) => s.patch === patch && scenarioCovered(s, coveredServices),
-  );
+  // Every scenario is on the patch now; only service coverage gates it.
+  void patch;
+  const scenariosForPatch = SCENARIOS.filter((s) => scenarioCovered(s, coveredServices));
 
   return (
     // Top bar on the CAD palette, matching the panels beneath it. The
@@ -141,7 +141,7 @@ export function DashboardHeader({
 
 /**
  * Hoverable user-menu dropdown. Sits where the raw email used to render —
- * operator sees their own ID, hovers to reveal a menu (Change patch /
+ * operator sees their own ID, hovers to reveal a menu (New shift /
  * Settings / End shift). Opens on hover, stays open while the mouse is
  * inside the dropdown, and closes when focus leaves.
  */
@@ -227,7 +227,7 @@ function UserMenu({
             }}
             className="block w-full px-3 py-2 text-left font-mono text-[11px] uppercase tracking-widest text-(--color-text) hover:bg-(--color-surface-raised) hover:text-(--color-amber)"
           >
-            Change patch
+            New shift
           </button>
           {onToggleAudio && (
             <button
@@ -305,7 +305,7 @@ function ScenarioMenu({
         <div className="absolute right-0 top-full z-[1500] mt-1 w-80 rounded-sm border border-(--color-border) bg-(--color-surface) p-2 shadow-2xl shadow-black/60">
           {scenarios.length === 0 ? (
             <p className="px-2 py-3 text-(--color-text-dim)">
-              No scenarios in this patch yet.
+              No scenarios available for the services you cover.
             </p>
           ) : (
             scenarios.map((s) => (

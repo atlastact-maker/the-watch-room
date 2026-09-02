@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { AREAS } from "@/lib/sim/areas";
+import { PATCH, PATCH_AREAS, PATCH_LABEL, type Patch } from "@/lib/sim/areas";
 import type { AreaCode, ServiceCode } from "@/lib/sim/types";
 import {
   ALL_SERVICES,
@@ -14,8 +14,6 @@ import { INTENSITY_META, type ShiftIntensity } from "@/lib/sim/shift";
 import { timeBandForHour } from "@/lib/sim/weather";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import type { StationWithAppliances } from "../page";
-
-type Patch = Exclude<AreaCode, "ForceWide">;
 
 // Leaflet touches window at import time — must be client-only.
 const PatchBriefingMap = dynamic(
@@ -98,7 +96,7 @@ function hintsForHour(hour: number): { tone: "ok" | "warn" | "dim"; text: string
 }
 
 export function PatchPicker({ stationsByArea, onSelect }: Props) {
-  const [patch, setPatch] = useState<Patch>("Southern");
+  const patch: Patch = PATCH;
   const [intensity, setIntensity] = useState<ShiftIntensity>("normal");
   const [startHour, setStartHour] = useState<number>(8);
   // Which services the operator is covering this shift. All on by
@@ -117,11 +115,9 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
     );
   }
 
-  const stationsForPatch = [
-    ...stationsByArea[patch],
-    ...stationsByArea.ForceWide,
-  ];
-  const scenariosForPatch = SCENARIOS.filter((s) => s.patch === patch);
+  // The whole county: every borough bucket plus the force-wide assets.
+  const stationsForPatch = PATCH_AREAS.flatMap((a) => stationsByArea[a]);
+  const scenariosForPatch = SCENARIOS;
   const availableForPatch = scenariosForPatch.filter((s) =>
     scenarioCovered(s, covered),
   );
@@ -152,67 +148,21 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
             Watch Room // Pre-shift Briefing
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            Pick your patch
+            {PATCH_LABEL}
           </h1>
           <p className="mt-1 text-sm">
             <strong className="font-bold text-(--color-text)">
-              The red boundary is the ground you&apos;ll cover this shift.
+              All ten boroughs are yours this shift.
             </strong>
           </p>
         </div>
         <div aria-hidden />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)_380px] gap-6">
-        {/* --- Left rail: patch list --- */}
-        <ul className="space-y-3 overflow-y-auto">
-          {AREAS.map((a) => {
-            const selected = a.code === patch;
-            const count = SCENARIOS.filter(
-              (s) => s.patch === a.code && scenarioCovered(s, covered),
-            ).length;
-            return (
-              <li key={a.code}>
-                <button
-                  type="button"
-                  onClick={() => setPatch(a.code)}
-                  className={
-                    "block w-full rounded-sm border p-4 text-left transition-colors " +
-                    (selected
-                      ? "border-(--color-amber) bg-(--color-amber)/10"
-                      : "border-(--color-border) bg-(--color-surface) hover:border-(--color-amber-dim)")
-                  }
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={
-                        "font-mono text-xs uppercase tracking-widest " +
-                        (selected
-                          ? "text-(--color-amber)"
-                          : "text-(--color-text-dim)")
-                      }
-                    >
-                      Area
-                    </span>
-                    <span className="font-mono text-xs uppercase tracking-widest text-(--color-text-dim)">
-                      {count} scenario{count === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  <h2 className="mt-2 text-xl font-semibold tracking-tight">
-                    {a.label}
-                  </h2>
-                  <p className="mt-2 text-sm leading-snug text-(--color-text-muted)">
-                    {a.blurb}
-                  </p>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* --- Centre: map --- */}
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_380px] gap-6">
+        {/* --- Left: map --- */}
         <div className="relative min-h-0 overflow-hidden rounded-sm border border-(--color-border) bg-(--color-surface)">
-          <PatchBriefingMap patch={patch} />
+          <PatchBriefingMap />
           <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-sm border border-(--color-border) bg-(--color-bg)/85 px-3 py-2 font-mono text-xs uppercase tracking-widest text-(--color-text-muted) backdrop-blur">
             <div className="flex items-center gap-4">
               <LegendDot colour={SERVICE_COLOUR.Fire} label={`Fire · ${stationCounts.Fire}`} />
@@ -246,8 +196,8 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
             </div>
             {scenariosForPatch.length === 0 ? (
               <p className="text-sm text-(--color-text-muted)">
-                No scenarios wired for this patch yet. The shift will run but
-                no 999 calls will come in — pick another patch to see incidents.
+                No scenarios wired yet. The shift will run but no 999 calls
+                will come in.
               </p>
             ) : (
               <ol className="max-h-36 space-y-2 overflow-y-auto pr-1">
@@ -405,7 +355,7 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
             onClick={() => onSelect(patch, intensity, startHour, covered)}
             className="mt-1 inline-flex h-14 w-full shrink-0 items-center justify-center rounded-sm bg-(--color-amber) font-mono text-base font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
           >
-            Begin Shift · {patch} · {String(startHour).padStart(2, "0")}:00 →
+            Begin Shift · {String(startHour).padStart(2, "0")}:00 →
           </button>
         </div>
       </div>

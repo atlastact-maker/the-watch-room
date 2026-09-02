@@ -12,8 +12,9 @@ import { scenario10 } from "./10_hospital_royal_bolton";
 import { scenario11 } from "./11_firearms_ashton";
 import { scenario12 } from "./12_cardiac_arrest_hough_end";
 
-// Registry of available scenarios — all ten of the approved set, converted
-// from data/research/fire/scenarios/*.md.
+// Registry of available scenarios — the ten approved fire jobs converted
+// from data/research/fire/scenarios/*.md, plus the police-led firearms
+// job and the ambulance-led arrest.
 export const SCENARIOS: Scenario[] = [
   scenario01,
   scenario02,

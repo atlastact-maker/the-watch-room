@@ -32,7 +32,8 @@ import type {
   Task,
   TaskKind,
 } from "@/lib/sim/incident_types";
-import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
+import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 import type { StationWithAppliances } from "../page";
 import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitDivIcon } from "./map-markers";
@@ -933,7 +934,7 @@ export function LeafletGroundMap({
    *  operator on familiar ground rather than a different screen. */
   stations: StationWithAppliances[];
   deployments: Deployment[];
-  patch?: AreaCode | null;
+  patch?: Patch | null;
   onOpenStationBays?: (stationId: string) => void;
   musterPick?: boolean;
   muster?: { lat: number; lng: number; radiusM: number } | null;

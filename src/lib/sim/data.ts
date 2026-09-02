@@ -90,11 +90,6 @@ export const STATIONS: Station[] = [
   ...buildStationList(gmpJson, "Police"),
 ];
 
-export function getStationsByArea(area: AreaCode): Station[] {
-  // `ForceWide` stations surface in every patch.
-  return STATIONS.filter((s) => s.area === area || s.area === "ForceWide");
-}
-
 export function getApplianceType(code: ApplianceTypeCode): ApplianceType | undefined {
   return APPLIANCE_TYPES[code];
 }

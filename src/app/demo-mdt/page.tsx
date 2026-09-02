@@ -6,6 +6,7 @@
 // Log, then an end card. 9:16 stage, auto-loops, built for screen
 // capture. Public route; nothing here touches real game state.
 
+import { PATCH } from "@/lib/sim/areas";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DraggableIncidentMdt } from "../dashboard/components/incident-mdt";
 import { SCENARIOS } from "@/lib/sim/scenarios";
@@ -256,7 +257,7 @@ export default function DemoMdtPage() {
               treatmentByCasualtyId={{}}
               hemsFlyable
               etas={world.etas}
-              patch={world.incident.scenario.patch}
+              patch={PATCH}
               onStandDown={() => {}}
               sceneCommanderApplianceId={world.commanderId}
               crewAir={world.crewAir}

@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, Polygon, TileLayer, useMap } from "react-leaflet";
-import type { AreaCode } from "@/lib/sim/types";
-
-type Patch = Exclude<AreaCode, "ForceWide">;
+import { PATCH, type Patch } from "@/lib/sim/areas";
 
 // World-covering rectangle used as the outer ring of the grey-out mask;
-// the patch's borough rings are punched into it as holes.
+// the county's ten borough rings are punched into it as holes.
 const WORLD_RECT: [number, number][] = [
   [-85, -180],
   [-85, 180],
@@ -17,14 +15,13 @@ const WORLD_RECT: [number, number][] = [
   [85, -180],
 ];
 
-// Fixed Greater Manchester frame — fitted ONCE on mount, never refitted,
-// so switching patches never moves the camera. Only the mask/outline swap.
+// Fixed Greater Manchester frame — fitted ONCE on mount, never refitted.
 const GM_BOUNDS = L.latLngBounds(
   L.latLng(53.32, -2.78),
   L.latLng(53.7, -1.9),
 );
 
-function usePatchBoundary(patch: Patch): [number, number][][] | null {
+function usePatchBoundary(patch: Patch = PATCH): [number, number][][] | null {
   const [rings, setRings] = useState<[number, number][][] | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -51,10 +48,10 @@ function FitGmOnce() {
 }
 
 type Props = {
-  patch: Patch;
+  patch?: Patch;
 };
 
-export function PatchBriefingMap({ patch }: Props) {
+export function PatchBriefingMap({ patch = PATCH }: Props) {
   const rings = usePatchBoundary(patch);
 
   return (
@@ -76,7 +73,7 @@ export function PatchBriefingMap({ patch }: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {/* Everything OUTSIDE the patch greys out: one world-covering
+      {/* Everything OUTSIDE the county greys out: one world-covering
           polygon with a hole cut per borough. The covered ground stays
           full-colour, so the patch reads instantly. */}
       {rings && rings.length > 0 && (
@@ -96,8 +93,8 @@ export function PatchBriefingMap({ patch }: Props) {
           key={i}
           positions={ring}
           pathOptions={{
-            // Red outline — this is the ground the operator is signing
-            // up to cover for the shift.
+            // Red outline per borough — this is the ground the operator
+            // is signing up to cover for the shift, all ten of them.
             color: "#ef4444",
             weight: 2.5,
             fill: false,

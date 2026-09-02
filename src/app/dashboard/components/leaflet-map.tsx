@@ -13,7 +13,8 @@ import {
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
-import type { ApplianceTypeCode, AreaCode, ServiceCode } from "@/lib/sim/types";
+import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
+import { PATCH_LABEL, type Patch } from "@/lib/sim/areas";
 import {
   chipServiceColour,
   incidentMarkerSvg,
@@ -215,7 +216,7 @@ type Props = {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
   deployments: Deployment[];
-  patch: AreaCode | null;
+  patch: Patch | null;
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
   /** Opens the top-down appliance-bay view for a fire station. */
@@ -253,7 +254,7 @@ export function LeafletMap({
         ]
       : [53.48, -2.24];
 
-  const patchLabel = patch && patch !== "ForceWide" ? `${patch} Command` : null;
+  const patchLabel = patch ? PATCH_LABEL : null;
   const {
     options: basemapOptions,
     basemap,

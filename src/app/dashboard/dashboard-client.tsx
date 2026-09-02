@@ -26,8 +26,8 @@ import {
 } from "@/lib/sim/resus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
+import { PATCH, PATCH_AREAS, type Patch } from "@/lib/sim/areas";
 import {
-  isSpecialistAppliance,
   type ApplianceTypeCode,
   type ServiceCode,
 } from "@/lib/sim/types";
@@ -140,7 +140,6 @@ import { syncCareerStats } from "@/lib/sim/stats-sync";
 const PATCH_STORAGE_KEY = "watch-room.patch";
 const INTENSITY_STORAGE_KEY = "watch-room.intensity";
 
-type Patch = Exclude<AreaCode, "ForceWide">;
 
 /** Human label for each fire-stage transition. Used when emitting SITREP
  *  log entries so the operator sees "Fully developed" rather than the raw
@@ -513,7 +512,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     ) {
       setIntensity(storedIntensity);
     }
-    if (storedPatch === "Southern" || storedPatch === "Eastern" || storedPatch === "Western") {
+    if (storedPatch === PATCH) {
       setPatch(storedPatch);
     } else {
       setPatch(undefined);
@@ -560,13 +559,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const discardSave = useCallback(() => {
     clearSave();
     setPendingSave(null);
-    // Fall back to the ordinary patch-picker briefing flow.
+    // Fall back to the ordinary briefing flow.
     const storedPatch = localStorage.getItem(PATCH_STORAGE_KEY);
-    if (
-      storedPatch === "Southern" ||
-      storedPatch === "Eastern" ||
-      storedPatch === "Western"
-    ) {
+    if (storedPatch === PATCH) {
       setPatch(storedPatch);
     } else {
       setPatch(undefined);
@@ -577,10 +572,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   useEffect(() => {
     if (!patch) return;
     if (Object.keys(preShiftStates).length > 0) return; // already rolled
-    const patchAppliances = [
-      ...stationsByArea[patch],
-      ...stationsByArea.ForceWide,
-    ].flatMap((s) => s.appliances);
+    const patchAppliances = PATCH_AREAS.flatMap((a) => stationsByArea[a]).flatMap(
+      (s) => s.appliances,
+    );
     setPreShiftStates(rollPreShiftStates(patchAppliances, intensity));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patch, intensity]);
@@ -1151,8 +1145,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // to what is actually happening over the patch if the forecast answers.
     setWeather(rollWeather(undefined, hour));
     void (async () => {
-      const centre = stationsByArea[area]?.[0]?.coords;
-      if (!centre) return;
+      // Manchester city centre — near enough the county's middle for a
+      // single forecast, which is all one shift needs.
+      const centre = { lat: 53.48, lng: -2.24 };
+      void area;
       try {
         const res = await fetch(
           '/api/weather?lat=' + centre.lat + '&lng=' + centre.lng,
@@ -1249,6 +1245,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // pre-shift screens stay quiet.
   const CALL_MIN_GAP_SEC = 240;
   const CALL_MAX_GAP_SEC = 480;
+  // Intensity finally means something to the timer. The per-patch pool
+  // used to cap how busy a shift got by running dry after a handful of
+  // jobs; with the whole county in one pool it would ring all twelve
+  // inside forty minutes whatever was chosen at the briefing. So the gap
+  // stretches or squeezes with intensity, and there is a ceiling on jobs
+  // open at once — a real control room holds calls in the queue too.
+  const CALL_GAP_SCALE: Record<ShiftIntensity, number> = {
+    quiet: 1.6,
+    normal: 1.0,
+    busy: 0.7,
+  };
+  const MAX_OPEN_INCIDENTS: Record<ShiftIntensity, number> = {
+    quiet: 2,
+    normal: 3,
+    busy: 5,
+  };
   const nextCallAtRef = useRef<number | null>(null);
   useEffect(() => {
     if (!patch) {
@@ -1263,11 +1275,17 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         return;
       }
       if (nowMs < nextCallAtRef.current) return;
+      // Hold the next call while the board is full; check again shortly
+      // rather than after a whole gap, so a job closing lets it through.
+      const open = incidents.filter((i) => !runtimes[i.id]?.outcome).length;
+      if (open >= MAX_OPEN_INCIDENTS[intensity]) {
+        nextCallAtRef.current = nowMs + 30_000;
+        return;
+      }
       const live = new Set(incidents.map((i) => i.scenarioId));
       const waiting = new Set(pendingCalls.map((c) => c.scenario.id));
       const candidates = SCENARIOS.filter(
         (sc) =>
-          sc.patch === patch &&
           scenarioCovered(sc, coveredServices) &&
           !live.has(sc.id) &&
           !waiting.has(sc.id),
@@ -1280,12 +1298,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       queueCall(pick);
       // Busier as it goes: the window narrows with each job already run.
       const pressure = Math.min(0.6, incidents.length * 0.12);
-      const lo = CALL_MIN_GAP_SEC * (1 - pressure);
-      const hi = CALL_MAX_GAP_SEC * (1 - pressure);
+      const scale = CALL_GAP_SCALE[intensity];
+      const lo = CALL_MIN_GAP_SEC * (1 - pressure) * scale;
+      const hi = CALL_MAX_GAP_SEC * (1 - pressure) * scale;
       nextCallAtRef.current = nowMs + (lo + Math.random() * (hi - lo)) * 1000;
     }, 5000);
     return () => clearInterval(id);
-  }, [patch, incidents, pendingCalls, coveredServices, queueCall]);
+  }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, queueCall]);
 
 
   function triggerScenario(scenario: Scenario) {
@@ -1516,7 +1535,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }
 
   function findStationForAppliance(applianceId: string) {
-    for (const area of ["Southern", "Eastern", "Western", "ForceWide"] as const) {
+    for (const area of PATCH_AREAS) {
       for (const s of stationsByArea[area]) {
         if (s.appliances.some((a) => a.id === applianceId)) return s;
       }
@@ -2349,16 +2368,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     if (!activeIncident || outcome) return;
     const resolvedAt = Date.now();
     const incidentCoords = activeIncident.scenario.location.coords;
-    // Include every station (all patches + ForceWide) so return legs for
-    // out-of-patch specialists can still be computed — they still go home.
-    const stations = patch
-      ? [
-          ...stationsByArea.Southern,
-          ...stationsByArea.Eastern,
-          ...stationsByArea.Western,
-          ...stationsByArea.ForceWide,
-        ]
-      : [];
+    const stations = patch ? PATCH_AREAS.flatMap((a) => stationsByArea[a]) : [];
 
     // For each deployment, compute the return leg. Ambulances go via the
     // nearest hospital (route incident → hospital, offload window, route
@@ -2602,34 +2612,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     [statusOverrides, preShiftStates, deployments, vehicleGauges, now],
   );
 
-  // Stations the operator owns on the map — patch plus ForceWide assets.
-  // Renders on the main map and in the side resources panel.
+  // Every station in the county — all four buckets. Renders on the main
+  // map and in the side resources panel.
   const myStations = useMemo<StationWithAppliances[]>(() => {
     if (!patch) return [];
-    return embellishStations([...stationsByArea[patch], ...stationsByArea.ForceWide]);
+    return embellishStations(PATCH_AREAS.flatMap((a) => stationsByArea[a]));
   }, [patch, stationsByArea, embellishStations]);
 
-  // Full dispatch pool. On top of `myStations`, the operator can also
-  // mobilise *specialist* assets from stations outside their patch — e.g.
-  // a BFU, USAR, HVP, HART, aerial etc. parked in another borough — but
-  // without those stations appearing on the map. Out-of-patch stations
-  // are trimmed to specialist appliances only (no neighbouring WrL pumps
-  // or DCAs poaching the patch's frontline demand).
-  const allDeployableStations = useMemo<StationWithAppliances[]>(() => {
-    if (!patch) return [];
-    const outsideAreas: AreaCode[] = (["Southern", "Eastern", "Western"] as AreaCode[]).filter(
-      (a) => a !== patch,
-    );
-    const outside: StationWithAppliances[] = [];
-    for (const area of outsideAreas) {
-      for (const s of stationsByArea[area]) {
-        const specialists = s.appliances.filter((a) => isSpecialistAppliance(a.type));
-        if (specialists.length === 0) continue;
-        outside.push({ ...s, appliances: specialists });
-      }
-    }
-    return [...myStations, ...embellishStations(outside)];
-  }, [patch, stationsByArea, myStations, embellishStations]);
+  // The dispatch pool used to add out-of-patch specialists on top of the
+  // map's stations. With one patch there is no outside, so the pool IS
+  // the map. Kept under its own name because a great many call sites
+  // read it, and the distinction may come back with a second force.
+  const allDeployableStations = myStations;
 
   /** Flat appliance lookup — the call stack needs callsign and type for
    *  every committed unit across every job, not just the selected one. */
@@ -4349,12 +4343,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         <GlossaryOverlay
           open={glossaryOpen}
           onClose={() => setGlossaryOpen(false)}
-          stations={[
-            ...stationsByArea.Southern,
-            ...stationsByArea.Eastern,
-            ...stationsByArea.Western,
-            ...stationsByArea.ForceWide,
-          ]}
+          stations={PATCH_AREAS.flatMap((a) => stationsByArea[a])}
         />
         {activeIncident && outcome && (
           <DebriefScreen

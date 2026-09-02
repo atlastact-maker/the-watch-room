@@ -4,6 +4,7 @@
 // shift save; if one exists, offers the resume path (the dashboard
 // shows its own Resume/Discard prompt on arrival).
 
+import { PATCH_LABEL } from "@/lib/sim/areas";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { loadSave, summariseSave } from "@/lib/sim/save";
@@ -36,7 +37,7 @@ export function MenuResumeBanner() {
             Shift in progress · saved {when}
           </div>
           <div className="mt-0.5 text-sm text-(--color-text)">
-            {summary.incidentTitle ?? "No active incident"} — {summary.patch} patch ·{" "}
+            {summary.incidentTitle ?? "No active incident"} — {PATCH_LABEL} ·{" "}
             {summary.intensity}
           </div>
         </div>

@@ -4,6 +4,15 @@
 
 ### S1 — Wikipedia, "Greater Manchester Fire and Rescue Service" (revision oldid=998453378)
 
+> **Also supplied by S1:** the Southern / Eastern / Western grouping in
+> `gmfrs_stations.json`. The revision sections its station list under
+> those three headings and states GMFRS ran three area commands (South,
+> East, West; HQs Stretford, Rochdale, Bolton) before reorganising onto
+> borough commands. The grouping is therefore historical, not invented —
+> and since 2026-09-02 the sim's operator patch is the whole county
+> (`src/lib/sim/areas.ts`), with the three names kept only to organise
+> the data.
+
 - **URL:** https://en.wikipedia.org/w/index.php?title=Greater_Manchester_Fire_and_Rescue_Service&oldid=998453378
 - **Revision date:** 5 January 2021, 12:59 UTC
 - **Type:** Secondary (Wikipedia)

@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { Appliance, AreaCode } from "@/lib/sim/types";
+import type { Appliance } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 import type { StationWithAppliances } from "../page";
 import type { Deployment, Incident, Task, TaskKind } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
@@ -61,7 +62,7 @@ export function GroundSceneMap(props: {
   /** Patch-scale data for the Patch and Approach detents. */
   stations: StationWithAppliances[];
   deployments: Deployment[];
-  patch?: AreaCode | null;
+  patch?: Patch | null;
   onOpenStationBays?: (stationId: string) => void;
   /** Casualty muster point: armed placement flag, current position, setter. */
   musterPick?: boolean;

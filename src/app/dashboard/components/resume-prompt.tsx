@@ -3,6 +3,7 @@
 // Modal shown on dashboard mount when a shift save exists. Offers a
 // resume-from-where-you-left-off or a discard-and-start-fresh path.
 
+import { PATCH_LABEL } from "@/lib/sim/areas";
 import { useEffect } from "react";
 import { summariseSave, type ShiftSave } from "@/lib/sim/save";
 
@@ -55,7 +56,7 @@ export function ResumePrompt({ save, onResume, onDiscard }: Props) {
         </h1>
 
         <dl className="mt-5 space-y-2 text-sm">
-          <Row label="Patch" value={`${s.patch} · ${s.intensity} intensity`} />
+          <Row label="Patch" value={`${PATCH_LABEL} · ${s.intensity} intensity`} />
           <Row
             label="Incident"
             value={s.incidentTitle ?? "No active incident yet"}

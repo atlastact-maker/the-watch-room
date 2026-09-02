@@ -599,7 +599,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ------------------------------ scene 3 ------------------------------ */
 
 const MENU_TILES: { label: string; sub: string; badge?: string; amber?: boolean }[] = [
-  { label: "Start Shift", sub: "Pick your patch. Take the calls.", amber: true },
+  { label: "Start Shift", sub: "Pick your start time. Take the calls.", amber: true },
   { label: "Campaign", sub: "Persistent shifts", badge: "Coming soon" },
   { label: "Joint Response", sub: "Crew one shift between operators", badge: "Multiplayer · in development" },
   { label: "Service Record", sub: "Your career on the patch" },

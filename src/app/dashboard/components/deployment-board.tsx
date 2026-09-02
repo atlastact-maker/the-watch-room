@@ -6,7 +6,8 @@
 // initial-deployment incident panel and the in-shift ground view.
 
 import { Fragment, useEffect, useState } from "react";
-import type { Appliance, AreaCode, PodTypeCode, ServiceCode } from "@/lib/sim/types";
+import type { Appliance, PodTypeCode, ServiceCode } from "@/lib/sim/types";
+import type { Patch } from "@/lib/sim/areas";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { pagerDelaySec } from "@/lib/sim/turnout";
 import {
@@ -50,10 +51,10 @@ export function DeploymentBoard({
   stations: StationWithAppliances[];
   etas: Record<string, Eta>;
   deployments: Deployment[];
-  /** The operator's patch. Stations outside this patch (and not ForceWide)
-   *  are flagged as "Out of patch" specialists so the operator sees at a
-   *  glance they're pulling a resource from a neighbouring borough. */
-  patch?: AreaCode | null;
+  /** The operator's patch. With one county-wide patch nothing is ever
+   *  outside it, so this no longer changes what the board shows; it is
+   *  kept on the props so the call sites need not change. */
+  patch?: Patch | null;
   onDeploy: (args: DeployArgs) => void;
   onStandDownForWelfare: (applianceId: string) => void;
   /** Stand the appliance down from this incident and send it back to
@@ -82,9 +83,7 @@ export function DeploymentBoard({
     appliance: Appliance;
     stationName: string;
     stationId: string;
-    stationArea: AreaCode;
     staffing?: string;
-    outOfPatch: boolean;
     eta?: Eta;
   };
   const rows: Row[] = [];
@@ -94,26 +93,19 @@ export function DeploymentBoard({
       if (usedIds.has(a.id)) continue;
       if (category !== "all" && categoryOf(a.type) !== category) continue;
       if (a.status !== 7 || a.crew.current < a.crew.min) continue;
-      const outOfPatch = !!patch && st.area !== patch && st.area !== "ForceWide";
       rows.push({
         appliance: a,
         stationName: st.name,
         stationId: st.id,
-        stationArea: st.area,
         staffing: st.staffing,
-        outOfPatch,
         eta: etas[st.id],
       });
     }
   }
-  // Sort in-patch / ForceWide first, then out-of-patch specialists, each
-  // group by ETA ascending. Keeps the operator's own ground at the top
-  // while still making neighbouring specialists visible and clickable.
-  rows.sort((a, b) => {
-    if (a.outOfPatch !== b.outOfPatch) return a.outOfPatch ? 1 : -1;
-    return (a.eta?.seconds ?? 1e9) - (b.eta?.seconds ?? 1e9);
-  });
-  const firstOutOfPatchIdx = rows.findIndex((r) => r.outOfPatch);
+  // Nearest first. The whole county is the operator's ground, so there
+  // is no longer an out-of-patch group to push to the bottom.
+  void patch;
+  rows.sort((a, b) => (a.eta?.seconds ?? 1e9) - (b.eta?.seconds ?? 1e9));
 
   const cats = categoriesForService(service);
 
@@ -210,7 +202,6 @@ export function DeploymentBoard({
           const availablePods = isPm ? (station?.availablePods ?? []) : [];
           const isPickingPod =
             pmPicker !== null && pmPicker.applianceId === r.appliance.id;
-          const showOutOfPatchDivider = idx === firstOutOfPatchIdx && firstOutOfPatchIdx > 0;
 
           function mobilise(selectedPodType?: PodTypeCode) {
             if (!r.eta) return;
@@ -227,23 +218,7 @@ export function DeploymentBoard({
 
           return (
             <Fragment key={r.appliance.id}>
-              {showOutOfPatchDivider && (
-                <li className="pt-1">
-                  <div className="flex items-center gap-2 px-0.5 pb-0.5 font-mono text-[9px] uppercase tracking-widest text-(--color-info)">
-                    <span className="h-px flex-1 bg-(--color-info)/30" aria-hidden />
-                    <span>Out-of-patch specialists</span>
-                    <span className="h-px flex-1 bg-(--color-info)/30" aria-hidden />
-                  </div>
-                </li>
-              )}
-              <li
-                className={
-                  "rounded-sm border hover:border-(--color-amber-dim) " +
-                  (r.outOfPatch
-                    ? "border-(--color-info)/30 bg-(--color-info)/5"
-                    : "border-(--color-border-subtle)")
-                }
-              >
+              <li className="rounded-sm border border-(--color-border-subtle) hover:border-(--color-amber-dim)">
                 <div className="flex items-center justify-between gap-3 px-2 py-1.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-2 text-sm">
@@ -254,14 +229,6 @@ export function DeploymentBoard({
                       {recommended && (
                         <span className="rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
                           Recommended
-                        </span>
-                      )}
-                      {r.outOfPatch && (
-                        <span
-                          className="rounded-sm border border-(--color-info)/50 bg-(--color-info)/10 px-1 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-info)"
-                          title={`Out-of-patch specialist from ${r.stationArea} command`}
-                        >
-                          Out of patch · {r.stationArea}
                         </span>
                       )}
                     </div>

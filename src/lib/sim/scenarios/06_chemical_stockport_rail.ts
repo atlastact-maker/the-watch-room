@@ -132,7 +132,7 @@ export const scenario06: Scenario = {
 
   evaluation: {
     targets: [
-      { metric: "DIM on scene", target: "< 40 minutes (Eastern → Southern transit)" },
+      { metric: "DIM on scene", target: "< 40 minutes — the DIM unit crosses the county to reach Stockport" },
       { metric: "Initial cordon", target: "75 m held; expanded only on substance ID" },
       { metric: "Decon established", target: "before the first casualty leaves the warm zone" },
       { metric: "Drain protection", target: "EPU bunding before run-off reaches the Mersey" },

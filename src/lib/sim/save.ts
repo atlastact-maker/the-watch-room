@@ -16,7 +16,8 @@ import type {
 import { sanitiseLoadout } from "./crew_carry";
 import type { PreShiftState, ShiftIntensity } from "./shift";
 import type { WeatherState } from "./weather";
-import type { AreaCode, StatusCode } from "./types";
+import type { StatusCode } from "./types";
+import type { Patch } from "./areas";
 
 /** Same shape dashboard-client uses inline. Kept public here so save.ts
  *  can type the informantLog snapshot without cross-importing UI code. */
@@ -28,12 +29,12 @@ export type FiredInformant = {
 };
 
 export const SHIFT_SAVE_KEY = "watch-room.shift-save";
-export const SHIFT_SAVE_VERSION = 1;
+// 2: the patch collapsed to Greater Manchester. A v1 save carries a
+// borough patch and station lists that no longer match; loadSave drops it.
+export const SHIFT_SAVE_VERSION = 2;
 /** Saves older than 48 hours are dropped on load — a stale shift is
  *  almost never what the operator wants to resume. */
 export const SAVE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
-
-type Patch = Exclude<AreaCode, "ForceWide">;
 
 export type ShiftSave = {
   version: number;

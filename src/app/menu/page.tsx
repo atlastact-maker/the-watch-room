@@ -129,8 +129,9 @@ export default async function MenuPage() {
               </span>
             </div>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-(--color-text-muted)">
-              One scored, self-contained shift. Pick your patch and start
-              time, take the 999 calls, run the board.
+              One scored, self-contained shift across all of Greater
+              Manchester. Pick your start time, take the 999 calls, run
+              the board.
             </p>
           </Link>
 
