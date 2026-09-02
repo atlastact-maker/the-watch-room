@@ -7,7 +7,10 @@ import {
   LUCAS_FIT_SEC,
   RHYTHM_LABEL,
   amiodaroneDoseMg,
+  ANALYSE_MAX_SEC,
+  ANALYSE_MIN_SEC,
   compressionQuality,
+  isAnalysing,
   expectedEtco2,
   newResusState,
   postRoscIssues,
@@ -656,7 +659,24 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           s = { ...s, etco2: Math.round(eased * 10) / 10 };
           changed = true;
         }
-        if (secondsIntoCycle(s, nowMs) >= CYCLE_SEC) {
+        // A rhythm check is two phases: the monitor analyses with hands
+        // off the chest for 7-10 seconds, and only then does the result
+        // come back. Instant results made the most important moment of
+        // the whole loop pass without being noticed.
+        if (s.analysingSince === undefined && secondsIntoCycle(s, nowMs) >= CYCLE_SEC) {
+          s = {
+            ...s,
+            analysingSince: nowMs,
+            analyseSec:
+              ANALYSE_MIN_SEC + Math.random() * (ANALYSE_MAX_SEC - ANALYSE_MIN_SEC),
+            events: [
+              ...s.events,
+              { at: nowMs, text: 'Stand clear — analysing rhythm', tone: 'info' },
+            ],
+          };
+          changed = true;
+        } else if (s.analysingSince !== undefined && !isAnalysing(s, nowMs)) {
+          s = { ...s, analysingSince: undefined, analyseSec: undefined };
           if (rollBeat(roscChance(s, nowMs))) {
             achieved.push(cid);
             s = {

@@ -136,8 +136,12 @@ export type ResusState = {
   cycleStartedAt: number;
   shocks: number;
   lastShockAt?: number;
-  /** Set at a rhythm check; cleared when the operator shocks or resumes. */
-  awaitingRhythmCheckSince?: number;
+  /** Rhythm analysis in progress — the monitor is looking at the trace
+   *  with hands OFF the chest. Set when a cycle ends, cleared when the
+   *  result comes back. */
+  analysingSince?: number;
+  /** How long this particular analysis takes, seconds. */
+  analyseSec?: number;
   adrenalineDoses: number;
   lastAdrenalineAt?: number;
   amiodaroneDoses: number;
@@ -170,12 +174,30 @@ export const ADRENALINE_MAX_SEC = 300;
 /** Compressor fatigue sets in from two minutes; this is why crews swap. */
 export const COMPRESSOR_FRESH_SEC = 120;
 export const COMPRESSOR_SPENT_SEC = 300;
+/** A rhythm check is not instant. The monitor has to look at a clean
+ *  trace with nobody touching the patient, which is the whole reason the
+ *  pause matters — and the reason a shock decision costs you compressions. */
+export const ANALYSE_MIN_SEC = 7;
+export const ANALYSE_MAX_SEC = 10;
+
 /** Fitting a LUCAS costs a short pause in compressions. */
 export const LUCAS_FIT_SEC = 20;
 /** Physiology-guided CPR target. */
 export const ETCO2_TARGET_KPA = 3.3;
 /** Below this, ROSC is very unlikely — the strongest negative marker. */
 export const ETCO2_FUTILE_KPA = 1.33;
+
+/** True while the monitor is analysing. Compressions are off the chest. */
+export function isAnalysing(s: ResusState, now: number): boolean {
+  if (s.analysingSince === undefined) return false;
+  return now < s.analysingSince + (s.analyseSec ?? ANALYSE_MIN_SEC) * 1000;
+}
+
+/** Seconds left on the analysis. */
+export function analyseRemaining(s: ResusState, now: number): number {
+  if (s.analysingSince === undefined) return 0;
+  return Math.max(0, (s.analysingSince + (s.analyseSec ?? ANALYSE_MIN_SEC) * 1000 - now) / 1000);
+}
 
 export function firstShockJoules(): number {
   // RCUK 2025: at least 150 J for rectilinear or truncated exponential
@@ -197,6 +219,10 @@ export function shockJoules(shockNumber: number): number {
  * five, which is exactly why the guidance says swap every cycle.
  */
 export function compressionQuality(s: ResusState, now: number): number {
+  // Hands off during a rhythm check — that is what a rhythm check IS.
+  // The end-tidal sags while it happens, which is the honest cost of a
+  // long analysis and the reason the guidance wants the pause short.
+  if (isAnalysing(s, now)) return 0;
   if (s.lucasFittedAt !== undefined && now >= s.lucasFittedAt + LUCAS_FIT_SEC * 1000) {
     return 1;
   }

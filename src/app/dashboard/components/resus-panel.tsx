@@ -21,6 +21,8 @@ import {
   REVERSIBLE_TREATMENT,
   RHYTHM_LABEL,
   adrenalineDue,
+  analyseRemaining,
+  isAnalysing,
   amiodaroneDoseMg,
   amiodaroneDue,
   compressionQuality,
@@ -96,6 +98,7 @@ export function ResusPanel({
   const toCheck = secondsToRhythmCheck(state, now);
   const down = downtimeSec(state, now);
   const monitored = state.monitor !== "none";
+  const analysing = isAnalysing(state, now);
   const lucasFitting =
     state.lucasFittedAt !== undefined && now < state.lucasFittedAt + LUCAS_FIT_SEC * 1000;
   const lucasOn = state.lucasFittedAt !== undefined && !lucasFitting;
@@ -169,10 +172,24 @@ export function ResusPanel({
       <div className="grid grid-cols-3 gap-1.5">
         <Stat label="Cycle" value={String(state.cycle + 1)} sub="2 min each" />
         <Stat
-          label="Rhythm check"
-          value={rosc ? "—" : `${Math.ceil(toCheck)}s`}
-          sub={rosc ? "" : toCheck <= 10 ? "stand clear" : "continue CPR"}
-          tone={!rosc && toCheck <= 10 ? "amber" : undefined}
+          label={analysing ? "Analysing" : "Rhythm check"}
+          value={
+            rosc
+              ? "—"
+              : analysing
+                ? `${Math.ceil(analyseRemaining(state, now))}s`
+                : `${Math.ceil(toCheck)}s`
+          }
+          sub={
+            rosc
+              ? ""
+              : analysing
+                ? "hands off"
+                : toCheck <= 10
+                  ? "stand clear"
+                  : "continue CPR"
+          }
+          tone={!rosc && (analysing || toCheck <= 10) ? "amber" : undefined}
         />
         <Stat label="Downtime" value={fmtClock(down)} sub={`${state.shocks} shock${state.shocks === 1 ? "" : "s"}`} />
       </div>
@@ -182,6 +199,19 @@ export function ResusPanel({
             className="h-full bg-(--color-amber)"
             style={{ width: `${((CYCLE_SEC - toCheck) / CYCLE_SEC) * 100}%` }}
           />
+        </div>
+      )}
+
+      {analysing && !rosc && (
+        <div className="rounded-sm border border-(--color-amber) bg-(--color-amber)/10 px-2.5 py-2">
+          <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-amber)">
+            Stand clear · analysing rhythm
+          </div>
+          <p className="mt-0.5 font-mono text-[10px] leading-snug text-(--color-text-muted)">
+            Hands off the chest — the monitor cannot read a trace through
+            compressions. The end-tidal will sag while this runs; that is
+            the cost of the pause, and why it is kept short.
+          </p>
         </div>
       )}
 

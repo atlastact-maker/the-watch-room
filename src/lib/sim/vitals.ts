@@ -163,11 +163,18 @@ export function advanceLiveVitals(
     if (q > 0.05) {
       // Perfusion scales with quality: excellent CPR holds SpO2 around
       // 75 and a palpable pressure, failing CPR barely holds anything.
-      dSpO2 += driftRate(v.spo2, 58 + q * 22, 0.08);
-      dBPs += driftRate(v.bpSys, 45 + q * 25, 0.14);
-      dBPd += driftRate(v.bpDia, 24 + q * 12, 0.07);
+      //
+      // The rates are deliberately brisk. Compressions take effect over a
+      // handful of beats, and an operator watching the monitor needs to
+      // SEE their decision land — at the old rates the saturation moved a
+      // point every twelve seconds, which reads as a frozen display.
+      dSpO2 += driftRate(v.spo2, 58 + q * 22, 0.35);
+      dBPs += driftRate(v.bpSys, 45 + q * 25, 0.55);
+      dBPd += driftRate(v.bpDia, 24 + q * 12, 0.3);
       dHR += driftRate(v.hr, 0, 0.2); // compressions don't generate intrinsic rhythm
       dGCS += driftRate(v.gcs, 3, 0.2);
+      // Ventilations are being delivered with the compressions.
+      dRR += driftRate(v.rr, tx.airway?.igel || tx.airway?.rsi ? 10 : 8, 0.25);
     } else {
       dSpO2 -= 2.0;
       dBPs -= 1.5;
