@@ -115,6 +115,9 @@ import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { InformantPanel } from "./components/informant-panel";
 import { DispatchLog } from "./components/dispatch-log";
+import { CallStack, type PendingCall } from "./components/call-stack";
+import { SCENARIOS } from "@/lib/sim/scenarios";
+import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
 import { StationBayPanel } from "./components/station-bay-panel";
@@ -369,6 +372,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   ]);
   // Held scenario awaiting operator answer-or-decline from the 999 call modal.
   const [pendingCall, setPendingCall] = useState<Scenario | null>(null);
+  // The unanswered queue. Calls land here — from the menu or from the
+  // shift's own timer — and wait, visibly, until somebody picks them up.
+  const [pendingCalls, setPendingCalls] = useState<PendingCall[]>([]);
+  const [showCallStack, setShowCallStack] = useState(true);
   // Audible 999 ring when a call comes in.
   useEffect(() => {
     if (pendingCall) incomingCall();
@@ -1190,6 +1197,70 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       },
     ]);
   }
+
+  /** Put a call on the stack. Nothing happens to the world until an
+   *  operator answers it — which is the point: an unanswered call is a
+   *  decision being deferred, and the stack keeps score. */
+  const queueCall = useCallback((scenario: Scenario) => {
+    setPendingCalls((prev) => {
+      if (prev.some((c) => c.scenario.id === scenario.id)) return prev;
+      return [
+        ...prev,
+        {
+          id: `CALL-${scenario.id}-${Date.now()}`,
+          scenario,
+          receivedAt: Date.now(),
+        },
+      ];
+    });
+    incomingCall();
+  }, []);
+
+  // Calls arrive on their own during a shift. The gap tightens as the
+  // shift runs — a control room gets busier, it does not stay level — and
+  // a call is never generated for a scenario already live or already
+  // waiting. Only fires once a patch is chosen, so the picker and the
+  // pre-shift screens stay quiet.
+  const CALL_MIN_GAP_SEC = 240;
+  const CALL_MAX_GAP_SEC = 480;
+  const nextCallAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!patch) {
+      nextCallAtRef.current = null;
+      return;
+    }
+    const id = setInterval(() => {
+      const nowMs = Date.now();
+      if (nextCallAtRef.current === null) {
+        // First call of the shift lands sooner than a full gap.
+        nextCallAtRef.current = nowMs + 90_000;
+        return;
+      }
+      if (nowMs < nextCallAtRef.current) return;
+      const live = new Set(incidents.map((i) => i.scenarioId));
+      const waiting = new Set(pendingCalls.map((c) => c.scenario.id));
+      const candidates = SCENARIOS.filter(
+        (sc) =>
+          sc.patch === patch &&
+          scenarioCovered(sc, coveredServices) &&
+          !live.has(sc.id) &&
+          !waiting.has(sc.id),
+      );
+      if (candidates.length === 0) {
+        nextCallAtRef.current = nowMs + CALL_MIN_GAP_SEC * 1000;
+        return;
+      }
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      queueCall(pick);
+      // Busier as it goes: the window narrows with each job already run.
+      const pressure = Math.min(0.6, incidents.length * 0.12);
+      const lo = CALL_MIN_GAP_SEC * (1 - pressure);
+      const hi = CALL_MAX_GAP_SEC * (1 - pressure);
+      nextCallAtRef.current = nowMs + (lo + Math.random() * (hi - lo)) * 1000;
+    }, 5000);
+    return () => clearInterval(id);
+  }, [patch, incidents, pendingCalls, coveredServices, queueCall]);
+
 
   function triggerScenario(scenario: Scenario) {
     // A scenario can only be live once at a time. Casualty ids are
@@ -3936,7 +4007,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         incidentPanelVisible={incidentPanelVisible}
         onToggleIncidentPanel={() => setIncidentPanelVisible((v) => !v)}
         hasActiveIncident={!!activeIncident}
-        onTriggerScenario={setPendingCall}
+        onTriggerScenario={(sc) => queueCall(sc)}
         coveredServices={coveredServices}
         viewMode={groundViewOpen && activeIncident ? "ground" : "area"}
         groundViewEnabled={!!activeIncident && !outcome}
@@ -4265,6 +4336,66 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             tasks={tasks}
             onDismiss={dismissIncident}
           />
+        )}
+        {/* The call stack — unanswered calls above the line, running jobs
+            below, and the drop target for dragging a unit onto a job.
+            Hidden in the ground view, which is a single-incident space. */}
+        {!groundViewOpen && showCallStack && (
+          <CallStack
+            pending={pendingCalls}
+            incidents={incidents}
+            selectedIncidentId={selectedIncidentId}
+            now={now}
+            resourceCount={deployments.reduce<Record<string, number>>((acc, d) => {
+              acc[d.incidentId] = (acc[d.incidentId] ?? 0) + 1;
+              return acc;
+            }, {})}
+            isResolved={(id) => !!runtimes[id]?.outcome}
+            onAnswer={(call) => {
+              setPendingCalls((prev) => prev.filter((c) => c.id !== call.id));
+              setPendingCall(call.scenario);
+            }}
+            onDecline={(call) =>
+              setPendingCalls((prev) => prev.filter((c) => c.id !== call.id))
+            }
+            onSelectIncident={(id) => {
+              setSelectedIncidentId(id);
+              setIncidentPanelVisible(true);
+            }}
+            onDropAppliance={(incidentId, applianceId, stationId) => {
+              // Dropping onto a job that is not the one on screen would
+              // otherwise mobilise to the WRONG incident, because
+              // deployAppliance reads the current selection. Select first,
+              // then mobilise on the next tick.
+              const eta = etas[stationId];
+              if (!eta) return;
+              const go = () =>
+                deployAppliance({
+                  applianceId,
+                  slotId: "extra",
+                  etaSeconds: eta.seconds,
+                  routeMeters: eta.meters,
+                  routeCoords: eta.coords ?? undefined,
+                });
+              if (incidentId === selectedIncidentId) {
+                go();
+              } else {
+                setSelectedIncidentId(incidentId);
+                setTimeout(go, 0);
+              }
+            }}
+            onClose={() => setShowCallStack(false)}
+          />
+        )}
+        {!groundViewOpen && !showCallStack && (
+          <button
+            type="button"
+            onClick={() => setShowCallStack(true)}
+            title="Show the call stack"
+            className="pointer-events-auto absolute right-3 top-24 z-[1190] rounded-sm border border-(--color-border) bg-(--color-surface)/95 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) shadow-lg hover:border-(--color-amber) hover:text-(--color-amber)"
+          >
+            Calls{pendingCalls.length > 0 ? ` · ${pendingCalls.length}` : ""}
+          </button>
         )}
         {/* Dispatch log — the running record of the shift: timestamped,
             typed, and never reordered. Movable and resizable, docked to

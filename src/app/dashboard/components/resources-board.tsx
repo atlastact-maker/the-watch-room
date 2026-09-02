@@ -5,6 +5,7 @@ import { STATUS_LABELS, type Appliance, type ServiceCode, type StatusCode } from
 import { categoryOf, categoriesForService, SERVICE_LABEL, unitNoun, type VehicleCategory } from "@/lib/sim/categories";
 import type { StationWithAppliances } from "../page";
 import { rescaleBlueLightSeconds } from "@/lib/sim/eta";
+import { DRAG_MIME } from "./call-stack";
 
 const SERVICE_ORDER: ServiceCode[] = ["Fire", "Ambulance", "Police"];
 
@@ -143,6 +144,8 @@ export function ResourcesBoard({
               key={row.appliance.id}
               appliance={row.appliance}
               stationName={row.stationName}
+              stationId={row.stationId}
+              draggable={!deployed && isReady(row.appliance)}
               deployed={deployed}
               eta={eta}
               canMobilise={canMobilise}
@@ -188,6 +191,8 @@ function CategoryChip({
 function VehicleRow({
   appliance,
   stationName,
+  stationId,
+  draggable,
   deployed,
   eta,
   canMobilise,
@@ -196,6 +201,9 @@ function VehicleRow({
 }: {
   appliance: Appliance;
   stationName: string;
+  stationId: string;
+  /** Only an available unit can be dragged onto a job. */
+  draggable: boolean;
   deployed: boolean;
   eta?: { seconds: number; source: "ors" | "fallback" };
   canMobilise: boolean;
@@ -205,7 +213,21 @@ function VehicleRow({
   return (
     <li
       onClick={onSelect}
-      className="grid cursor-pointer grid-cols-[2.25rem_1fr_auto] items-center gap-3 px-3 py-2 hover:bg-(--color-surface-raised)"
+      // Dragged onto a job in the call stack to mobilise. Safe alongside
+      // react-rnd because only the panel's header bar is its drag handle,
+      // so a native drag starting on a row never fights the window move.
+      draggable={draggable}
+      onDragStart={(e) => {
+        if (!draggable) return;
+        e.dataTransfer.setData(
+          DRAG_MIME,
+          JSON.stringify({ applianceId: appliance.id, stationId }),
+        );
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      className={`grid grid-cols-[2.25rem_1fr_auto] items-center gap-3 px-3 py-2 hover:bg-(--color-surface-raised) ${
+        draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      }`}
     >
       <StatusBadge status={appliance.status} />
       <div className="min-w-0">
