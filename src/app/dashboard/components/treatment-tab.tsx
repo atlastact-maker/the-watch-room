@@ -215,6 +215,7 @@ export function TreatmentTab({
   casualty,
   treatment,
   pairedDeployments,
+  pairedInbound = [],
   extractionRequired,
   now,
   onStartSurvey,
@@ -234,7 +235,13 @@ export function TreatmentTab({
   /** On-scene ambulances currently paired with this casualty (in any
    *  phase — at-scene, conveying, or at hospital). Drives the clinical-
    *  scope computation and the conveyance picker. */
+  /** Clinicians physically with the patient — already filtered to
+   *  arrived units that actually carry a clinical scope. */
   pairedDeployments: { deployment: Deployment; appliance: Appliance }[];
+  /** Assigned to this patient but still running. Nothing can be done to
+   *  the patient on their account yet, but the panel should say who is
+   *  coming and when rather than claiming no crew is assigned. */
+  pairedInbound?: { deployment: Deployment; appliance: Appliance }[];
   /** True while the casualty is still inside the hazard zone and has
    *  not been extracted yet. When true the treatment menu is locked —
    *  paramedics don't enter the fire. */
@@ -280,22 +287,56 @@ export function TreatmentTab({
     );
   }
 
-  if (!treatment) {
-    // No treatment record yet — seeded on first pairing.
-    if (pairedDeployments.length === 0) {
+  // Nothing can be done to a patient nobody is standing over. This gate
+  // runs before the treatment record is considered, because the record
+  // survives a crew being released — without it, a casualty whose crew
+  // had been stood down still offered a primary survey.
+  if (pairedDeployments.length === 0) {
+    if (pairedInbound.length > 0) {
+      const next = pairedInbound.reduce((soonest, p) =>
+        p.deployment.arrivesAt < soonest.deployment.arrivesAt ? p : soonest,
+      );
+      const etaSec = Math.max(0, Math.round((next.deployment.arrivesAt - now) / 1000));
+      const etaLabel =
+        etaSec >= 3600
+          ? "awaiting a landing zone"
+          : etaSec >= 60
+            ? `${Math.round(etaSec / 60)} min`
+            : `${etaSec}s`;
       return (
-        <div className="rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 p-3">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-            No crew assigned
+        <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-3">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-info)">
+            Crew running
           </div>
           <p className="mt-1 font-mono text-[10px] leading-snug text-(--color-text-muted)">
-            Assign a paramedic (or higher-scope clinician) from the list above
-            to start the treatment workflow.
+            {next.appliance.callsign} assigned to this patient — ETA {etaLabel}.
+            The survey starts when they are physically with the patient, not
+            when they are mobilised.
           </p>
+          {pairedInbound.length > 1 && (
+            <p className="mt-1 font-mono text-[10px] leading-snug text-(--color-text-dim)">
+              {pairedInbound.length} resources assigned and running.
+            </p>
+          )}
         </div>
       );
     }
-    // Rare: paired but tx record hasn't been seeded — render skeleton.
+    return (
+      <div className="rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 p-3">
+        <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+          No crew assigned
+        </div>
+        <p className="mt-1 font-mono text-[10px] leading-snug text-(--color-text-muted)">
+          Assign a paramedic (or higher-scope clinician) from the list above
+          to start the treatment workflow. A vehicle carrying a defib is not
+          a clinician — it takes an ambulance resource on scene.
+        </p>
+      </div>
+    );
+  }
+
+  if (!treatment) {
+    // Paired but the record hasn't been seeded yet — render skeleton.
     return (
       <p className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
         Preparing patient record…

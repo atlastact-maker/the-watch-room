@@ -972,6 +972,8 @@ export function CasualtiesBody({
     .filter(
       (r) =>
         r.appliance.service === "Ambulance" &&
+        // Carries a clinician, not just a green paint job.
+        scopeOfApplianceType(r.appliance.type) !== "none" &&
         (r.phase === "at_incident" || r.phase === "at_hospital"),
     )
     .map((r) => ({
@@ -1149,12 +1151,27 @@ export function CasualtiesBody({
           const pairedForTarget = deployments.filter(
             (d) => d.treatingCasualtyId === c.id,
           );
-          const paired = pairedForTarget
+          const pairedResolved = pairedForTarget
             .map((d) => {
               const r = resolved.find((x) => x.appliance.id === d.applianceId);
               return r ? { deployment: d, appliance: r.appliance } : null;
             })
             .filter((x): x is NonNullable<typeof x> => x !== null);
+          // A clinician only counts once they are physically with the
+          // patient. requestClinician tags the casualty at DISPATCH — so
+          // without this filter, calling for HEMS would open the whole
+          // treatment workflow while the aircraft was still on the ground
+          // at Barton. Carrying a defib is not the same as being a
+          // clinician either, hence the scope check: an ATV carrier or a
+          // fire pump brings neither.
+          const paired = pairedResolved.filter(
+            (p) =>
+              now >= p.deployment.arrivesAt &&
+              scopeOfApplianceType(p.appliance.type) !== "none",
+          );
+          const pairedInbound = pairedResolved.filter(
+            (p) => now < p.deployment.arrivesAt,
+          );
           // Portal to <body>: the casualties body can sit inside the MDT
           // tablet (a transformed react-rnd container), which would otherwise
           // trap and clip this draggable panel.
@@ -1166,6 +1183,7 @@ export function CasualtiesBody({
               casualty={c}
               treatment={treatmentByCasualtyId?.[c.id] ?? null}
               pairedDeployments={paired}
+              pairedInbound={pairedInbound}
               extractionRequired={isExtractionRequired(c, tasks)}
               now={now}
               onStartSurvey={(id) => onStartPatientSurvey?.(id)}
