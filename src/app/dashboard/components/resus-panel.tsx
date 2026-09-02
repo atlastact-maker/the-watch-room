@@ -37,6 +37,8 @@ import {
   type ReversibleCause,
 } from "@/lib/sim/resus";
 import { SCOPE_LEVEL, type ClinicianScope } from "@/lib/sim/incident_types";
+import { MonitorScreen } from "./monitor-screen";
+import type { PatientClinical } from "@/lib/sim/scene";
 
 export type CompressorOption = {
   id: string;
@@ -53,6 +55,7 @@ export function ResusPanel({
   lucasAvailable,
   monitorAvailable,
   postRoscIssues,
+  vitals,
   onSetAirway,
   onAttachMonitor,
   onToggleCapnography,
@@ -73,6 +76,7 @@ export function ResusPanel({
   lucasAvailable: boolean;
   monitorAvailable: boolean;
   postRoscIssues: PostRoscIssue[];
+  vitals?: PatientClinical["vitals"];
   onSetAirway: (a: AirwayState) => void;
   onAttachMonitor: (m: MonitorMode) => void;
   onToggleCapnography: () => void;
@@ -217,53 +221,69 @@ export function ResusPanel({
           </>
         )}
 
-        {/* Rhythm + ETCO2 readouts */}
-        <div className="grid grid-cols-2 gap-1.5">
-          <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-2 py-1.5">
-            <div className="text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-              Rhythm
+        {/* The screen itself. Nothing until something is on the patient —
+            an unmonitored arrest genuinely has no trace to read. */}
+        {monitored ? (
+          <MonitorScreen
+            rhythm={rosc ? "sinus" : state.rhythm}
+            compressions={!rosc && quality > 0}
+            capnographyOn={state.capnographyOn}
+            etco2={etco2}
+            hr={vitals?.hr}
+            spo2={vitals?.spo2}
+            bpSys={vitals?.bpSys}
+            bpDia={vitals?.bpDia}
+            leadLabel={state.monitor === "lead_12" ? "12-LEAD" : state.monitor === "lead_3" ? "LEAD II" : "PADS"}
+            hasOutput={rosc}
+          />
+        ) : (
+          <div className="rounded-sm border border-(--color-border) bg-[#05070a] px-3 py-6 text-center">
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-(--color-text-dim)">
+              No trace — nothing attached
             </div>
-            <div
-              className={`mt-0.5 font-mono text-[11px] ${
-                monitored
-                  ? isShockable(state.rhythm)
+          </div>
+        )}
+
+        {/* What the trace means, in words, under the screen. */}
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+          <span
+            className={`font-mono text-[11px] ${
+              monitored
+                ? rosc
+                  ? "text-(--color-ok)"
+                  : isShockable(state.rhythm)
                     ? "text-(--color-critical)"
                     : "text-(--color-text)"
-                  : "text-(--color-text-dim)"
+                : "text-(--color-text-dim)"
+            }`}
+          >
+            {rosc
+              ? "Organised — output present"
+              : monitored
+                ? RHYTHM_LABEL[state.rhythm]
+                : "Rhythm unknown — not monitored"}
+          </span>
+          {state.capnographyOn && (
+            <span
+              className={`font-mono text-[10px] ${
+                cap.tone === "good"
+                  ? "text-(--color-ok)"
+                  : cap.tone === "warn"
+                    ? "text-(--color-amber)"
+                    : "text-(--color-critical)"
               }`}
             >
-              {rosc
-                ? "Organised — output present"
-                : monitored
-                  ? RHYTHM_LABEL[state.rhythm]
-                  : "Unknown — not monitored"}
-            </div>
-          </div>
-          <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/40 px-2 py-1.5">
-            <div className="text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-              End-tidal CO₂
-            </div>
-            <div
-              className={`mt-0.5 font-mono text-[11px] tabular-nums ${
-                !state.capnographyOn
-                  ? "text-(--color-text-dim)"
-                  : cap.tone === "good"
-                    ? "text-(--color-ok)"
-                    : cap.tone === "warn"
-                      ? "text-(--color-amber)"
-                      : "text-(--color-critical)"
-              }`}
-            >
-              {state.capnographyOn ? `${etco2.toFixed(1)} kPa` : "—"}
-            </div>
-            {state.capnographyOn && (
-              <div className="mt-0.5 text-[9px] leading-tight text-(--color-text-dim)">
-                {cap.text} · target ≥{ETCO2_TARGET_KPA} kPa
-                {etco2 < ETCO2_FUTILE_KPA ? ` · below ${ETCO2_FUTILE_KPA}` : ""}
-              </div>
-            )}
-          </div>
+              {cap.text} · target ≥{ETCO2_TARGET_KPA} kPa
+              {etco2 < ETCO2_FUTILE_KPA ? ` · below ${ETCO2_FUTILE_KPA}` : ""}
+            </span>
+          )}
         </div>
+        {monitored && !rosc && quality > 0 && (
+          <Note tone="amber">
+            The trace is buried in compression artefact — this is why the
+            rhythm is assessed at the two-minute check, not continuously.
+          </Note>
+        )}
       </Group>
 
       {/* ---- Compressions ---- */}

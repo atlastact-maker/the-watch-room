@@ -486,6 +486,7 @@ export function TreatmentTab({
             lucasAvailable={lucasAvailable}
             monitorAvailable={monitorAvailable}
             postRoscIssues={postRoscIssues(resus, treatment.liveVitals ?? treatment.revealedVitals)}
+            vitals={treatment.liveVitals ?? treatment.revealedVitals}
             onSetAirway={(a) => onSetResusAirway?.(a)}
             onAttachMonitor={(m) => onAttachMonitor?.(m)}
             onToggleCapnography={() => onToggleCapnography?.()}
