@@ -11,6 +11,7 @@ import {
   setAdvisorDecline,
   addAdminNote,
   deleteAdminNote,
+  setDiscordGranted,
 } from "./actions";
 
 // The admin area — overview numbers, advisor applications, access roles
@@ -49,6 +50,10 @@ type RoleRow = {
   created_at: string;
   /** From their advisor application; empty until migration 014 is run. */
   discord: string;
+  /** Whether the Discord permission has been handed out for this role.
+   *  Undefined until migration 015 is run, which the control treats as
+   *  false. */
+  discord_granted?: boolean;
 };
 
 type Overview = {
@@ -425,7 +430,38 @@ export default async function AdminPage() {
                       </td>
                       <td className="px-3 py-2 text-(--color-text-dim)">{r.icon ?? "—"}</td>
                       <td className="px-3 py-2 font-mono text-(--color-info)">
-                        {r.discord || <span className="text-(--color-text-dim)">—</span>}
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {r.discord || <span className="text-(--color-text-dim)">—</span>}
+                          </span>
+                          <form action={setDiscordGranted} className="flex">
+                            <input type="hidden" name="email" value={r.email} />
+                            <input
+                              type="hidden"
+                              name="granted"
+                              value={r.discord_granted ? "false" : "true"}
+                            />
+                            <button
+                              type="submit"
+                              role="checkbox"
+                              aria-checked={!!r.discord_granted}
+                              aria-label="Discord permission given"
+                              title={
+                                r.discord_granted
+                                  ? "Discord permission given — click to clear"
+                                  : "Discord permission not yet given — click to tick"
+                              }
+                              className={
+                                "inline-flex h-5 w-5 items-center justify-center rounded-[2px] border text-[12px] leading-none transition-colors " +
+                                (r.discord_granted
+                                  ? "border-(--color-ok) bg-(--color-ok)/15 text-(--color-ok)"
+                                  : "border-(--color-border) text-transparent hover:border-(--color-ok)/60")
+                              }
+                            >
+                              ✓
+                            </button>
+                          </form>
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-(--color-text-dim)">{r.note || "—"}</td>
                       <td className="px-3 py-2 text-(--color-text-dim)">{fmtDate(r.created_at)}</td>

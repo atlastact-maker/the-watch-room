@@ -117,6 +117,22 @@ export async function deleteRole(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/** Tick or untick "Discord permission given" against a role. The site
+ *  role and the Discord role are granted by hand in two different places,
+ *  and this is the only record of whether the second has been done. */
+export async function setDiscordGranted(formData: FormData): Promise<void> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return;
+  const granted = String(formData.get("granted") ?? "") === "true";
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_discord_granted", {
+    p_email: email,
+    p_granted: granted,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
 /** Suspend or reinstate an account. A banned account cannot sign in or
  *  refresh its session; an already-live session lasts until its token
  *  expires (about an hour). */
