@@ -400,7 +400,8 @@
         "Paramedic kit",
         "Defib / AED",
         "Oxygen",
-        "Trolley bed"
+        "Trolley bed",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "RRV": {
@@ -418,7 +419,8 @@
       "kit": [
         "Solo paramedic response",
         "Defib / AED",
-        "Airway"
+        "Airway",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "HART_vehicle": {
@@ -434,7 +436,9 @@
         "Rope / water / confined-space kit",
         "Safe access safe egress kit",
         "Paramedic kit",
-        "Defib / AED"
+        "Defib / AED",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "NWAS_IRU": {
@@ -475,7 +479,8 @@
       "kit": [
         "Safe access safe egress kit",
         "Paramedic kit",
-        "Defib / AED"
+        "Defib / AED",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "HART_ATV": {
@@ -514,7 +519,8 @@
       "kit": [
         "Solo paramedic response",
         "Defib / AED",
-        "Airway"
+        "Airway",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "HEMS": {
@@ -531,7 +537,9 @@
       "kit": [
         "Doctor-paramedic team",
         "Critical care / trauma kit",
-        "Blood"
+        "Blood",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "BASICS": {
@@ -562,7 +570,9 @@
         "Solo paramedic response",
         "Defib / AED",
         "Airway",
-        "Extended clinical formulary"
+        "Extended clinical formulary",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "OD": {
@@ -575,7 +585,8 @@
       "waterLitres": 0,
       "kit": [
         "Incident command kit",
-        "Comms"
+        "Comms",
+        "Mechanical CPR device"
       ]
     },
     "CCC": {
@@ -589,7 +600,9 @@
       "kit": [
         "Doctor-paramedic team",
         "Critical care / trauma kit",
-        "Blood"
+        "Blood",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
       ]
     },
     "Police_Response": {

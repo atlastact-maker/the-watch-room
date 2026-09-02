@@ -22,6 +22,7 @@ import {
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { StationWithAppliances } from "../page";
 import { GroundSceneMap } from "./ground-scene-map";
+import type { MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
 import { DeploymentBoard, type DeployArgs, type Eta } from "./deployment-board";
 import type { InformantMessage } from "./informant-panel";
 import { RadioFeed } from "./radio-feed";
@@ -98,6 +99,18 @@ export type Props = {
     drug: import("@/lib/sim/incident_types").DrugName,
     by: string,
   ) => void;
+  resusByCasualtyId?: Record<string, ResusState>;
+  onAttachMonitor?: (casualtyId: string, monitor: MonitorMode) => void;
+  onToggleCapnography?: (casualtyId: string) => void;
+  onSetCompressor?: (casualtyId: string, crew: { id: string; name: string; role: string }) => void;
+  onFitLucas?: (casualtyId: string) => void;
+  onDeliverShock?: (casualtyId: string) => void;
+  onMovePads?: (casualtyId: string) => void;
+  onArrestAdrenaline?: (casualtyId: string, by: string) => void;
+  onAmiodarone?: (casualtyId: string, by: string) => void;
+  onSuspectReversible?: (casualtyId: string, cause: ReversibleCause) => void;
+  onTreatReversible?: (casualtyId: string, cause: ReversibleCause) => void;
+  onStopResus?: (casualtyId: string) => void;
   onApplyPackaging?: (
     casualtyId: string,
     action: import("@/lib/sim/incident_types").PackagingAction,
@@ -925,6 +938,18 @@ export function CasualtiesBody({
   onApplyAirway,
   onApplyBreathing,
   onApplyCirculation,
+  resusByCasualtyId,
+  onAttachMonitor,
+  onToggleCapnography,
+  onSetCompressor,
+  onFitLucas,
+  onDeliverShock,
+  onMovePads,
+  onArrestAdrenaline,
+  onAmiodarone,
+  onSuspectReversible,
+  onTreatReversible,
+  onStopResus,
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
@@ -944,6 +969,18 @@ export function CasualtiesBody({
   onApplyAirway?: Props["onApplyAirway"];
   onApplyBreathing?: Props["onApplyBreathing"];
   onApplyCirculation?: Props["onApplyCirculation"];
+  resusByCasualtyId?: Props["resusByCasualtyId"];
+  onAttachMonitor?: Props["onAttachMonitor"];
+  onToggleCapnography?: Props["onToggleCapnography"];
+  onSetCompressor?: Props["onSetCompressor"];
+  onFitLucas?: Props["onFitLucas"];
+  onDeliverShock?: Props["onDeliverShock"];
+  onMovePads?: Props["onMovePads"];
+  onArrestAdrenaline?: Props["onArrestAdrenaline"];
+  onAmiodarone?: Props["onAmiodarone"];
+  onSuspectReversible?: Props["onSuspectReversible"];
+  onTreatReversible?: Props["onTreatReversible"];
+  onStopResus?: Props["onStopResus"];
   onAdministerDrug?: Props["onAdministerDrug"];
   onApplyPackaging?: Props["onApplyPackaging"];
   onRequestClinician?: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
@@ -1184,6 +1221,32 @@ export function CasualtiesBody({
               treatment={treatmentByCasualtyId?.[c.id] ?? null}
               pairedDeployments={paired}
               pairedInbound={pairedInbound}
+              resus={resusByCasualtyId?.[c.id]}
+              resusCandidates={paired.flatMap(({ appliance }) =>
+                appliance.crewMembers.map((m) => ({
+                  id: m.id,
+                  name: m.name,
+                  role: m.role,
+                  callsign: appliance.callsign,
+                })),
+              )}
+              lucasAvailable={paired.some(({ appliance }) =>
+                appliance.kit.some((k) => /mechanical cpr/i.test(k)),
+              )}
+              monitorAvailable={paired.some(({ appliance }) =>
+                appliance.kit.some((k) => /cardiac monitor|defib/i.test(k)),
+              )}
+              onAttachMonitor={(m) => onAttachMonitor?.(c.id, m)}
+              onToggleCapnography={() => onToggleCapnography?.(c.id)}
+              onSetCompressor={(crew) => onSetCompressor?.(c.id, crew)}
+              onFitLucas={() => onFitLucas?.(c.id)}
+              onDeliverShock={() => onDeliverShock?.(c.id)}
+              onMovePads={() => onMovePads?.(c.id)}
+              onArrestAdrenaline={(by) => onArrestAdrenaline?.(c.id, by)}
+              onAmiodarone={(by) => onAmiodarone?.(c.id, by)}
+              onSuspectReversible={(cause) => onSuspectReversible?.(c.id, cause)}
+              onTreatReversible={(cause) => onTreatReversible?.(c.id, cause)}
+              onStopResus={() => onStopResus?.(c.id)}
               extractionRequired={isExtractionRequired(c, tasks)}
               now={now}
               onStartSurvey={(id) => onStartPatientSurvey?.(id)}

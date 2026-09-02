@@ -40,6 +40,8 @@ import {
   SCOPE_LEVEL,
   scopeOfApplianceType,
 } from "@/lib/sim/incident_types";
+import { ResusPanel, type CompressorOption } from "./resus-panel";
+import type { MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
 import type {
   HospitalDestinationType,
   PatientClinical,
@@ -216,6 +218,21 @@ export function TreatmentTab({
   treatment,
   pairedDeployments,
   pairedInbound = [],
+  resus,
+  resusCandidates = [],
+  lucasAvailable = false,
+  monitorAvailable = false,
+  onAttachMonitor,
+  onToggleCapnography,
+  onSetCompressor,
+  onFitLucas,
+  onDeliverShock,
+  onMovePads,
+  onArrestAdrenaline,
+  onAmiodarone,
+  onSuspectReversible,
+  onTreatReversible,
+  onStopResus,
   extractionRequired,
   now,
   onStartSurvey,
@@ -242,6 +259,22 @@ export function TreatmentTab({
    *  the patient on their account yet, but the panel should say who is
    *  coming and when rather than claiming no crew is assigned. */
   pairedInbound?: { deployment: Deployment; appliance: Appliance }[];
+  /** Arrest board — present only while this patient is in cardiac arrest. */
+  resus?: ResusState;
+  resusCandidates?: CompressorOption[];
+  lucasAvailable?: boolean;
+  monitorAvailable?: boolean;
+  onAttachMonitor?: (m: MonitorMode) => void;
+  onToggleCapnography?: () => void;
+  onSetCompressor?: (crew: CompressorOption) => void;
+  onFitLucas?: () => void;
+  onDeliverShock?: () => void;
+  onMovePads?: () => void;
+  onArrestAdrenaline?: (by: string) => void;
+  onAmiodarone?: (by: string) => void;
+  onSuspectReversible?: (cause: ReversibleCause) => void;
+  onTreatReversible?: (cause: ReversibleCause) => void;
+  onStopResus?: () => void;
   /** True while the casualty is still inside the hazard zone and has
    *  not been extracted yet. When true the treatment menu is locked —
    *  paramedics don't enter the fire. */
@@ -435,6 +468,35 @@ export function TreatmentTab({
         </Section>
       )}
 
+      {/* ---- Resuscitation ----
+          Owns the arrest once one is running: the cycle clock, the
+          monitor, whoever is on the chest, the shocks and the drugs.
+          CPR and defib are deliberately pulled out of the Circulation
+          group below so there is exactly one place to run an arrest. */}
+      {resus && (
+        <Section title="Resuscitation · ALS">
+          <ResusPanel
+            state={resus}
+            now={now}
+            scope={scope}
+            candidates={resusCandidates}
+            lucasAvailable={lucasAvailable}
+            monitorAvailable={monitorAvailable}
+            onAttachMonitor={(m) => onAttachMonitor?.(m)}
+            onToggleCapnography={() => onToggleCapnography?.()}
+            onSetCompressor={(c) => onSetCompressor?.(c)}
+            onFitLucas={() => onFitLucas?.()}
+            onShock={() => onDeliverShock?.()}
+            onMovePads={() => onMovePads?.()}
+            onAdrenaline={() => onArrestAdrenaline?.(byLabel)}
+            onAmiodarone={() => onAmiodarone?.(byLabel)}
+            onSuspectReversible={(c) => onSuspectReversible?.(c)}
+            onTreatReversible={(c) => onTreatReversible?.(c)}
+            onStopResus={() => onStopResus?.()}
+          />
+        </Section>
+      )}
+
       {/* ---- Clinical findings ---- */}
       {surveyDone && (treatment.liveVitals ?? treatment.revealedVitals) && (
         <Section title="Clinical findings">
@@ -525,8 +587,15 @@ export function TreatmentTab({
                 const done = treatment.circulation[a] !== undefined;
                 // CPR/defib only relevant on cardiac arrest.
                 const relevant =
+                  // CPR and defib belong to the resuscitation board above,
+                  // which runs them as a cycle rather than a one-off tick.
+                  // They only appear here as a fallback if no arrest board
+                  // has been opened for this patient.
                   (a !== "cpr" && a !== "defib") ||
-                  (treatment.revealedRedFlags ?? []).includes("cardiac_arrest");
+                  (!resus &&
+                    (treatment.activeRedFlags ?? treatment.revealedRedFlags ?? []).includes(
+                      "cardiac_arrest",
+                    ));
                 if (!relevant) return null;
                 const outOfRegion = !actionMatchesRegion(
                   CIRCULATION_ACTION_REGIONS[a],

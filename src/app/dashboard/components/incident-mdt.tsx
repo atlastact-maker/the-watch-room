@@ -79,6 +79,18 @@ type Props = {
   onApplyAirway?: IncidentViewProps["onApplyAirway"];
   onApplyBreathing?: IncidentViewProps["onApplyBreathing"];
   onApplyCirculation?: IncidentViewProps["onApplyCirculation"];
+  resusByCasualtyId?: IncidentViewProps["resusByCasualtyId"];
+  onAttachMonitor?: IncidentViewProps["onAttachMonitor"];
+  onToggleCapnography?: IncidentViewProps["onToggleCapnography"];
+  onSetCompressor?: IncidentViewProps["onSetCompressor"];
+  onFitLucas?: IncidentViewProps["onFitLucas"];
+  onDeliverShock?: IncidentViewProps["onDeliverShock"];
+  onMovePads?: IncidentViewProps["onMovePads"];
+  onArrestAdrenaline?: IncidentViewProps["onArrestAdrenaline"];
+  onAmiodarone?: IncidentViewProps["onAmiodarone"];
+  onSuspectReversible?: IncidentViewProps["onSuspectReversible"];
+  onTreatReversible?: IncidentViewProps["onTreatReversible"];
+  onStopResus?: IncidentViewProps["onStopResus"];
   onAdministerDrug?: IncidentViewProps["onAdministerDrug"];
   onApplyPackaging?: IncidentViewProps["onApplyPackaging"];
   onRequestClinician?: IncidentViewProps["onRequestClinician"];
@@ -198,6 +210,18 @@ export function DraggableIncidentMdt({
   onApplyAirway,
   onApplyBreathing,
   onApplyCirculation,
+  resusByCasualtyId,
+  onAttachMonitor,
+  onToggleCapnography,
+  onSetCompressor,
+  onFitLucas,
+  onDeliverShock,
+  onMovePads,
+  onArrestAdrenaline,
+  onAmiodarone,
+  onSuspectReversible,
+  onTreatReversible,
+  onStopResus,
   onAdministerDrug,
   onApplyPackaging,
   onRequestClinician,
@@ -705,6 +729,18 @@ export function DraggableIncidentMdt({
                   onApplyAirway={onApplyAirway}
                   onApplyBreathing={onApplyBreathing}
                   onApplyCirculation={onApplyCirculation}
+                  resusByCasualtyId={resusByCasualtyId}
+                  onAttachMonitor={onAttachMonitor}
+                  onToggleCapnography={onToggleCapnography}
+                  onSetCompressor={onSetCompressor}
+                  onFitLucas={onFitLucas}
+                  onDeliverShock={onDeliverShock}
+                  onMovePads={onMovePads}
+                  onArrestAdrenaline={onArrestAdrenaline}
+                  onAmiodarone={onAmiodarone}
+                  onSuspectReversible={onSuspectReversible}
+                  onTreatReversible={onTreatReversible}
+                  onStopResus={onStopResus}
                   onAdministerDrug={onAdministerDrug}
                   onApplyPackaging={onApplyPackaging}
                   onRequestClinician={onRequestClinician}

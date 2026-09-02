@@ -1,6 +1,22 @@
 "use client";
 
 import { applyDirectorParam, rollBeat, rollPresent } from "@/lib/sim/director";
+import {
+  CYCLE_SEC,
+  LUCAS_FIT_SEC,
+  RHYTHM_LABEL,
+  amiodaroneDoseMg,
+  expectedEtco2,
+  newResusState,
+  rhythmAfterFailedShock,
+  roscChance,
+  secondsIntoCycle,
+  shockJoules,
+  type ArrestRhythm,
+  type MonitorMode,
+  type ResusState,
+  type ReversibleCause,
+} from "@/lib/sim/resus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
 import {
@@ -222,6 +238,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // survives ambulance hand-off. Grows as the operator runs a primary
   // survey, applies A-B-C interventions, administers drugs, picks a
   // destination, and sends ATMIST.
+  const [resusByCasualtyId, setResusByCasualtyId] = useState<
+    Record<string, ResusState>
+  >({});
   const [treatmentByCasualtyId, setTreatmentByCasualtyId] = useState<
     Record<string, PatientTreatmentState>
   >({});
@@ -533,6 +552,116 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }, 3000);
     return () => clearInterval(id);
   }, []);
+
+  // Resuscitation tick. Runs the ALS clock: end-tidal CO2 chases whatever
+  // the current compressions justify, and every two minutes the cycle
+  // rolls over into a rhythm check where ROSC is decided. This is also the
+  // only place the cardiac_arrest flag is ever cleared — before it, a
+  // patient in arrest could never be got back however well you played.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const nowMs = Date.now();
+      const achieved: string[] = [];
+      setResusByCasualtyId((prev) => {
+        let changed = false;
+        const next: typeof prev = {};
+        for (const [cid, r] of Object.entries(prev)) {
+          if (r.roscAt !== undefined || r.roleAt !== undefined) {
+            next[cid] = r;
+            continue;
+          }
+          let s = r;
+          // ETCO2 eases toward what the compressions justify rather than
+          // snapping, so the trace reads like a trend.
+          const target = expectedEtco2(s, nowMs);
+          const eased = s.etco2 + (target - s.etco2) * 0.35;
+          if (Math.abs(eased - s.etco2) > 0.02) {
+            s = { ...s, etco2: Math.round(eased * 10) / 10 };
+            changed = true;
+          }
+          // Cycle rollover — the rhythm check.
+          if (secondsIntoCycle(s, nowMs) >= CYCLE_SEC) {
+            const p = roscChance(s, nowMs);
+            const won = rollBeat(p);
+            if (won) {
+              achieved.push(cid);
+              s = {
+                ...s,
+                roscAt: nowMs,
+                cycle: s.cycle + 1,
+                cycleStartedAt: nowMs,
+                events: [
+                  ...s.events,
+                  { at: nowMs, text: "ROSC — output restored", tone: "good" },
+                ],
+              };
+            } else {
+              const degenerated = rhythmAfterFailedShock(s, nowMs, Math.random());
+              s = {
+                ...s,
+                cycle: s.cycle + 1,
+                cycleStartedAt: nowMs,
+                rhythm: degenerated,
+                events: [
+                  ...s.events,
+                  {
+                    at: nowMs,
+                    text: `Rhythm check — ${RHYTHM_LABEL[degenerated]}`,
+                    tone: "info",
+                  },
+                ],
+              };
+            }
+            changed = true;
+          }
+          next[cid] = s;
+        }
+        return changed ? next : prev;
+      });
+      // ROSC clears the arrest so the vitals engine stops holding the
+      // patient at the CPR floor and starts recovering them.
+      if (achieved.length > 0) {
+        setTreatmentByCasualtyId((prev) => {
+          const next = { ...prev };
+          for (const cid of achieved) {
+            const tx = next[cid];
+            if (!tx) continue;
+            next[cid] = {
+              ...tx,
+              activeRedFlags: (tx.activeRedFlags ?? []).filter(
+                (f) => f !== "cardiac_arrest",
+              ),
+            };
+          }
+          return next;
+        });
+        for (const cid of achieved) {
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `rosc:${cid}:${Date.now()}`,
+              timestamp: Date.now(),
+              kind: "annotation",
+              message: `ROSC achieved — output restored. Post-ROSC care and a PPCI pre-alert.`,
+            },
+          ]);
+        }
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Open an arrest record as soon as a patient is found to be in cardiac
+  // arrest. Keys off activeRedFlags rather than revealedRedFlags so a
+  // patient who arrests AFTER the primary survey still gets a board.
+  useEffect(() => {
+    for (const [cid, tx] of Object.entries(treatmentByCasualtyId)) {
+      const flags = tx.activeRedFlags ?? tx.revealedRedFlags ?? [];
+      if (flags.includes("cardiac_arrest") && !resusByCasualtyId[cid]) {
+        ensureResus(cid);
+      }
+    }
+  }, [treatmentByCasualtyId, resusByCasualtyId]);
 
   // Sweep expired pre-shift commitments so appliances return to Available.
   useEffect(() => {
@@ -1124,6 +1253,161 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ...p,
       circulation: { ...p.circulation, [action]: at },
       events: [...p.events, { kind: "circulation", action, at, by }],
+    }));
+  }
+
+  // --- Resuscitation ------------------------------------------------------
+  // The arrest board. Each of these is a single, deliberate act on the
+  // patient, so they all stamp the resus event log; the ALS clock itself
+  // is advanced by the tick above.
+
+  /** Open a resus record for a casualty in arrest. The underlying rhythm
+   *  is rolled once, here, and stays hidden until a monitor goes on. */
+  function ensureResus(casualtyId: string) {
+    setResusByCasualtyId((prev) => {
+      if (prev[casualtyId]) return prev;
+      // Roughly 40% of out-of-hospital arrests present shockable when a
+      // crew first gets a monitor on. Director mode forces the dramatic
+      // side for filming.
+      const shockableRoll = rollBeat(0.4);
+      const rhythm: ArrestRhythm = shockableRoll
+        ? Math.random() < 0.85
+          ? "vf"
+          : "pvt"
+        : Math.random() < 0.6
+          ? "asystole"
+          : "pea";
+      return { ...prev, [casualtyId]: newResusState(casualtyId, Date.now(), rhythm) };
+    });
+  }
+
+  function updateResus(casualtyId: string, fn: (s: ResusState) => ResusState) {
+    setResusByCasualtyId((prev) => {
+      const cur = prev[casualtyId];
+      if (!cur) return prev;
+      return { ...prev, [casualtyId]: fn(cur) };
+    });
+  }
+
+  function resusEvent(s: ResusState, text: string, tone: ResusState["events"][number]["tone"]) {
+    return [...s.events, { at: Date.now(), text, tone }];
+  }
+
+  function attachMonitor(casualtyId: string, monitor: MonitorMode) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      monitor,
+      events: resusEvent(s, `${monitor === "pads" ? "Defib pads" : monitor === "lead_3" ? "3-lead ECG" : "12-lead ECG"} attached`, "action"),
+    }));
+  }
+
+  function toggleCapnography(casualtyId: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      capnographyOn: !s.capnographyOn,
+      events: resusEvent(
+        s,
+        s.capnographyOn ? "Capnography removed" : "Waveform capnography attached",
+        "action",
+      ),
+    }));
+  }
+
+  function setCompressor(
+    casualtyId: string,
+    crew: { id: string; name: string; role: string },
+  ) {
+    updateResus(casualtyId, (s) => {
+      if (s.compressorCrewId === crew.id) return s;
+      const swapping = s.compressorCrewId !== undefined;
+      return {
+        ...s,
+        compressorCrewId: crew.id,
+        compressorName: crew.name,
+        compressorSinceAt: Date.now(),
+        events: resusEvent(
+          s,
+          swapping
+            ? `Compressor swapped — ${crew.name} (${crew.role}) on the chest`
+            : `${crew.name} (${crew.role}) on the chest`,
+          "action",
+        ),
+      };
+    });
+  }
+
+  function fitLucas(casualtyId: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      lucasFittedAt: Date.now(),
+      events: resusEvent(
+        s,
+        `LUCAS being fitted — compressions paused ~${LUCAS_FIT_SEC}s`,
+        "action",
+      ),
+    }));
+  }
+
+  function deliverShock(casualtyId: string) {
+    updateResus(casualtyId, (s) => {
+      const j = shockJoules(s.shocks + 1);
+      return {
+        ...s,
+        shocks: s.shocks + 1,
+        lastShockAt: Date.now(),
+        events: resusEvent(s, `Shock ${s.shocks + 1} delivered — ${j} J`, "critical"),
+      };
+    });
+  }
+
+  function movePads(casualtyId: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      padPosition: "antero_posterior",
+      events: resusEvent(s, "Fresh pads — anterior-posterior for refractory VF", "action"),
+    }));
+  }
+
+  function giveArrestAdrenaline(casualtyId: string, by: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      adrenalineDoses: s.adrenalineDoses + 1,
+      lastAdrenalineAt: Date.now(),
+      events: resusEvent(s, `Adrenaline 1 mg IV — dose ${s.adrenalineDoses + 1}`, "action"),
+    }));
+    administerDrug(casualtyId, "adrenaline_cpr", by);
+  }
+
+  function giveAmiodarone(casualtyId: string, by: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      amiodaroneDoses: s.amiodaroneDoses + 1,
+      events: resusEvent(s, `Amiodarone ${amiodaroneDoseMg(s)} mg IV`, "action"),
+    }));
+    administerDrug(casualtyId, "amiodarone", by);
+  }
+
+  function suspectReversible(casualtyId: string, cause: ReversibleCause) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      reversibles: { ...s.reversibles, [cause]: "suspected" },
+      events: resusEvent(s, `Reversible cause suspected — ${cause.replace(/_/g, " ")}`, "info"),
+    }));
+  }
+
+  function treatReversible(casualtyId: string, cause: ReversibleCause) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      reversibles: { ...s.reversibles, [cause]: "treated" },
+      events: resusEvent(s, `Reversible cause treated — ${cause.replace(/_/g, " ")}`, "good"),
+    }));
+  }
+
+  function stopResus(casualtyId: string) {
+    updateResus(casualtyId, (s) => ({
+      ...s,
+      roleAt: Date.now(),
+      events: resusEvent(s, "Resuscitation discontinued — life recognised extinct", "critical"),
     }));
   }
   function administerDrug(casualtyId: string, drug: DrugName, by: string) {
@@ -3424,6 +3708,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onApplyAirway={applyAirway}
             onApplyBreathing={applyBreathing}
             onApplyCirculation={applyCirculation}
+            resusByCasualtyId={resusByCasualtyId}
+            onAttachMonitor={attachMonitor}
+            onToggleCapnography={toggleCapnography}
+            onSetCompressor={setCompressor}
+            onFitLucas={fitLucas}
+            onDeliverShock={deliverShock}
+            onMovePads={movePads}
+            onArrestAdrenaline={giveArrestAdrenaline}
+            onAmiodarone={giveAmiodarone}
+            onSuspectReversible={suspectReversible}
+            onTreatReversible={treatReversible}
+            onStopResus={stopResus}
             onAdministerDrug={administerDrug}
             onApplyPackaging={applyPackaging}
             onRequestClinician={requestClinician}
@@ -3488,6 +3784,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onApplyAirway={applyAirway}
             onApplyBreathing={applyBreathing}
             onApplyCirculation={applyCirculation}
+            resusByCasualtyId={resusByCasualtyId}
+            onAttachMonitor={attachMonitor}
+            onToggleCapnography={toggleCapnography}
+            onSetCompressor={setCompressor}
+            onFitLucas={fitLucas}
+            onDeliverShock={deliverShock}
+            onMovePads={movePads}
+            onArrestAdrenaline={giveArrestAdrenaline}
+            onAmiodarone={giveAmiodarone}
+            onSuspectReversible={suspectReversible}
+            onTreatReversible={treatReversible}
+            onStopResus={stopResus}
             onAdministerDrug={administerDrug}
             onApplyPackaging={applyPackaging}
             onRequestClinician={requestClinician}
