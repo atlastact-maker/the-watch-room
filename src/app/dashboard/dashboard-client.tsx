@@ -1345,7 +1345,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         message: `Incident opened — ${scenario.title}`,
       },
     ]);
-    setIncidentPanelVisible(true);
     // Caller stays on the line from the moment we answer the call until
     // the first crew lands on scene. Scenarios with no authored script
     // still get the banner briefly, since informantOnCall drives the UI.
@@ -2605,6 +2604,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
     return [...myStations, ...embellishStations(outside)];
   }, [patch, stationsByArea, myStations, embellishStations]);
+
+  /** Flat appliance lookup — the call stack needs callsign and type for
+   *  every committed unit across every job, not just the selected one. */
+  const applianceById = useMemo(() => {
+    const m = new Map<string, Appliance>();
+    for (const st of allDeployableStations) {
+      for (const a of st.appliances) m.set(a.id, a);
+    }
+    return m;
+  }, [allDeployableStations]);
 
   const selectedAppliance = useMemo<Appliance | null>(() => {
     if (!selectedApplianceId) return null;
@@ -4346,19 +4355,44 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             incidents={incidents}
             selectedIncidentId={selectedIncidentId}
             now={now}
-            resourceCount={deployments.reduce<Record<string, number>>((acc, d) => {
-              acc[d.incidentId] = (acc[d.incidentId] ?? 0) + 1;
+            unitsByIncident={deployments.reduce<
+              Record<
+                string,
+                { id: string; callsign: string; typeName: string; label: string; tone: "mobile" | "onscene" | "other" }[]
+              >
+            >((acc, d) => {
+              const ap = applianceById.get(d.applianceId);
+              if (!ap) return acc;
+              const onScene = now >= d.arrivesAt;
+              const returning = d.returnStartedAt !== undefined && now >= d.returnStartedAt;
+              const etaSec = Math.max(0, Math.round((d.arrivesAt - now) / 1000));
+              (acc[d.incidentId] ??= []).push({
+                id: d.applianceId,
+                callsign: ap.callsign,
+                typeName: ap.typeName,
+                label: returning
+                  ? "Returning"
+                  : onScene
+                    ? "On scene"
+                    : etaSec > 3600
+                      ? "Awaiting LZ"
+                      : `ETA ${Math.max(1, Math.round(etaSec / 60))}m`,
+                tone: returning ? "other" : onScene ? "onscene" : "mobile",
+              });
               return acc;
             }, {})}
             isResolved={(id) => !!runtimes[id]?.outcome}
             onAnswer={(call) => {
+              // Answered in place on the stack — a control room does not
+              // stop for a call, it picks it up. No full-screen takeover.
               setPendingCalls((prev) => prev.filter((c) => c.id !== call.id));
-              setPendingCall(call.scenario);
+              triggerScenario(call.scenario);
             }}
             onDecline={(call) =>
               setPendingCalls((prev) => prev.filter((c) => c.id !== call.id))
             }
-            onSelectIncident={(id) => {
+            onSelectIncident={(id) => setSelectedIncidentId(id)}
+            onOpenIncident={(id) => {
               setSelectedIncidentId(id);
               setIncidentPanelVisible(true);
             }}

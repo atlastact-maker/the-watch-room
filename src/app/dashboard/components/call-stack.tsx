@@ -16,6 +16,7 @@
 
 import { Rnd } from "react-rnd";
 import { useState } from "react";
+import { CAD_VARS } from "./cad-theme";
 import type { Incident } from "@/lib/sim/incident_types";
 import type { Scenario, Severity } from "@/lib/sim/incident_types";
 
@@ -80,11 +81,12 @@ export function CallStack({
   incidents,
   selectedIncidentId,
   now,
-  resourceCount,
+  unitsByIncident,
   isResolved,
   onAnswer,
   onDecline,
   onSelectIncident,
+  onOpenIncident,
   onDropAppliance,
   onClose,
 }: {
@@ -92,12 +94,17 @@ export function CallStack({
   incidents: Incident[];
   selectedIncidentId: string | null;
   now: number;
-  /** Committed units per incident id. */
-  resourceCount: Record<string, number>;
+  /** Committed units per incident id — shown when a job is expanded. */
+  unitsByIncident: Record<
+    string,
+    { id: string; callsign: string; typeName: string; label: string; tone: "mobile" | "onscene" | "other" }[]
+  >;
   isResolved: (incidentId: string) => boolean;
   onAnswer: (call: PendingCall) => void;
   onDecline: (call: PendingCall) => void;
   onSelectIncident: (incidentId: string) => void;
+  /** Double-click — open the incident screen for this job. */
+  onOpenIncident: (incidentId: string) => void;
   onDropAppliance: (incidentId: string, applianceId: string, stationId: string) => void;
   onClose?: () => void;
 }) {
@@ -108,6 +115,9 @@ export function CallStack({
     return { x: Math.max(16, w - 360), y: 96, width: 330, height: 380 };
   });
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Which job has its resource list dropped down. Independent of
+  // selection, so you can peek at another job without switching to it.
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
     <Rnd
@@ -122,26 +132,26 @@ export function CallStack({
       style={{ zIndex: 1190 }}
       className="pointer-events-auto"
     >
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-border) bg-(--color-surface)/95 shadow-2xl shadow-black/60 backdrop-blur-sm">
-        <div className="stack-drag flex cursor-move items-center justify-between gap-2 border-b border-(--color-border) bg-(--color-surface-raised) px-2 py-1">
-          <div className="flex min-w-0 items-center gap-1.5">
+      <div
+        style={CAD_VARS}
+        className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) text-(--color-text) shadow-2xl shadow-black/60"
+      >
+        <style>{`@keyframes call-flash { 0%,100% { background-color: rgba(220,38,38,0.10);} 50% { background-color: rgba(220,38,38,0.28);} }`}</style>
+        <div className="stack-drag flex cursor-move items-stretch justify-between bg-[#1d4ed8] font-mono text-[11px] font-bold text-white">
+          <div className="flex min-w-0 items-center gap-1.5 px-3 py-1 tracking-[0.15em]">
             {pending.length > 0 && (
               <span className="dot-live size-1.5 shrink-0 rounded-full bg-(--color-critical)" />
             )}
-            <span className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-(--color-text)">
-              Call stack
-            </span>
+            <span className="truncate uppercase">Call stack</span>
             {pending.length > 0 && (
-              <span className="shrink-0 rounded-[2px] bg-(--color-critical) px-1 font-mono text-[9px] font-bold text-white">
-                {pending.length} waiting
-              </span>
+              <span className="shrink-0 bg-[#dc2626] px-1.5 text-[10px]">{pending.length} WAITING</span>
             )}
           </div>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="rounded-sm border border-(--color-border) px-1.5 font-mono text-[10px] leading-4 text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+              className="flex items-center bg-[#1e40af] px-3 transition-colors hover:bg-[#dc2626]"
             >
               ✕
             </button>
@@ -164,13 +174,9 @@ export function CallStack({
                       key={c.id}
                       className="border-b border-(--color-border-subtle)/60 bg-(--color-critical)/5"
                     >
-                      <div className="flex items-stretch">
+                      <div className="flex items-stretch" style={{ animation: "call-flash 1.1s ease-in-out infinite" }}>
                         <div className={`w-[3px] shrink-0 ${tone.bar}`} />
-                        <button
-                          type="button"
-                          onClick={() => onAnswer(c)}
-                          className="min-w-0 flex-1 px-2 py-1.5 text-left hover:bg-(--color-critical)/10"
-                        >
+                        <div className="min-w-0 flex-1 px-2 py-1.5 text-left">
                           <div className="flex items-baseline justify-between gap-2">
                             <span className="truncate font-mono text-[11px] font-bold text-(--color-text)">
                               {c.scenario.title}
@@ -191,15 +197,27 @@ export function CallStack({
                               {c.scenario.location.address}
                             </span>
                           </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDecline(c)}
-                          title="Discard this call"
-                          className="shrink-0 px-1.5 font-mono text-[10px] text-(--color-text-dim) hover:bg-(--color-critical)/20 hover:text-(--color-critical)"
-                        >
-                          ✕
-                        </button>
+                          {/* Answer or decline in place. A 999 call used to
+                              take the whole screen; a control room does not
+                              stop for one, it picks it up off the stack. */}
+                          <div className="mt-1.5 flex items-stretch gap-1">
+                            <button
+                              type="button"
+                              onClick={() => onAnswer(c)}
+                              className="flex-1 bg-(--color-ok) px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-white hover:brightness-110"
+                            >
+                              Answer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDecline(c)}
+                              title="Discard this call"
+                              className="border border-(--color-border) px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </li>
                   );
@@ -222,14 +240,21 @@ export function CallStack({
                 {incidents.map((inc) => {
                   const selected = inc.id === selectedIncidentId;
                   const resolved = isResolved(inc.id);
-                  const units = resourceCount[inc.id] ?? 0;
+                  const unitList = unitsByIncident[inc.id] ?? [];
+                  const units = unitList.length;
+                  const open = expanded === inc.id;
                   const mins = Math.floor((now - inc.receivedAt) / 60000);
                   const hot = dragOver === inc.id;
                   return (
                     <li key={inc.id}>
                       <button
                         type="button"
-                        onClick={() => onSelectIncident(inc.id)}
+                        onClick={() => {
+                          onSelectIncident(inc.id);
+                          setExpanded((e) => (e === inc.id ? null : inc.id));
+                        }}
+                        onDoubleClick={() => onOpenIncident(inc.id)}
+                        title="Click to select and see resources · double-click to open the incident"
                         onDragOver={(e) => {
                           if (resolved) return;
                           if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
@@ -316,6 +341,49 @@ export function CallStack({
                           )}
                         </div>
                       </button>
+
+                      {/* What is committed to this job. Dropped down from
+                          the row rather than hidden in another panel, so
+                          the stack answers "what have I got on this?"
+                          without leaving it. */}
+                      {open && (
+                        <div className="border-b border-(--color-border-subtle) bg-(--color-bg)/60 pl-[3px]">
+                          {unitList.length === 0 ? (
+                            <p className="px-2 py-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">
+                              Nothing committed — this job has no resources
+                            </p>
+                          ) : (
+                            <ul className="py-0.5">
+                              {unitList.map((u) => (
+                                <li
+                                  key={u.id}
+                                  className="flex items-baseline justify-between gap-2 px-2 py-[3px]"
+                                >
+                                  <span className="min-w-0 truncate">
+                                    <span className="font-mono text-[10px] font-bold text-(--color-text)">
+                                      {u.callsign}
+                                    </span>
+                                    <span className="ml-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                                      {u.typeName}
+                                    </span>
+                                  </span>
+                                  <span
+                                    className={`shrink-0 font-mono text-[9px] uppercase tracking-widest ${
+                                      u.tone === "onscene"
+                                        ? "text-(--color-ok)"
+                                        : u.tone === "mobile"
+                                          ? "text-(--color-amber)"
+                                          : "text-(--color-text-dim)"
+                                    }`}
+                                  >
+                                    {u.label}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
                     </li>
                   );
                 })}

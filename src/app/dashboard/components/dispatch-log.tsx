@@ -13,6 +13,7 @@
 
 import { Rnd } from "react-rnd";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CAD_VARS } from "./cad-theme";
 import type { LogEntry } from "@/lib/sim/incident_types";
 
 type Frame = { x: number; y: number; width: number; height: number };
@@ -205,24 +206,23 @@ export function DispatchLog({
       style={{ zIndex: 1180 }}
       className="pointer-events-auto"
     >
-      <div className="flex h-full w-full flex-col overflow-hidden rounded-sm border border-(--color-border) bg-(--color-surface)/95 shadow-2xl shadow-black/60 backdrop-blur-sm">
+      <div
+        style={CAD_VARS}
+        className="flex h-full w-full flex-col overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) text-(--color-text) shadow-2xl shadow-black/60"
+      >
         {/* Title bar / drag handle */}
-        <div className="log-drag flex cursor-move items-center justify-between gap-2 border-b border-(--color-border) bg-(--color-surface-raised) px-2 py-1">
-          <div className="flex min-w-0 items-center gap-1.5">
+        <div className="log-drag flex cursor-move items-stretch justify-between bg-[#16a34a] font-mono text-[11px] font-bold text-white">
+          <div className="flex min-w-0 items-center gap-1.5 px-3 py-1 tracking-[0.15em]">
             <span className="dot-live size-1.5 shrink-0 rounded-full bg-(--color-amber)" />
-            <span className="truncate font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-(--color-text)">
-              Dispatch log
-            </span>
-            <span className="shrink-0 font-mono text-[9px] tabular-nums text-(--color-text-dim)">
-              {log.length}
-            </span>
+            <span className="truncate uppercase">Dispatch log</span>
+            <span className="shrink-0 text-[10px] tabular-nums opacity-80">{log.length}</span>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-stretch">
             <button
               type="button"
               onClick={() => setCollapsed((c) => !c)}
               title={collapsed ? "Expand" : "Collapse"}
-              className="rounded-sm border border-(--color-border) px-1.5 font-mono text-[10px] leading-4 text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)"
+              className="flex items-center bg-[#15803d] px-2.5 transition-colors hover:brightness-125"
             >
               {collapsed ? "▸" : "▾"}
             </button>
@@ -231,7 +231,7 @@ export function DispatchLog({
                 type="button"
                 onClick={onClose}
                 title="Hide the log"
-                className="rounded-sm border border-(--color-border) px-1.5 font-mono text-[10px] leading-4 text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
+                className="flex items-center bg-[#15803d] px-3 transition-colors hover:bg-[#dc2626]"
               >
                 ✕
               </button>
