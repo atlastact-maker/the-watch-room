@@ -29,6 +29,7 @@ import {
   useBasemapChoice,
 } from "./basemap-controls";
 import { VectorBasemap } from "./vector-basemap";
+import { CAD_VARS } from "./cad-theme";
 import { STREET } from "@/lib/map-basemaps";
 
 /** The zoom at which scene detail takes over from patch furniture. One
@@ -271,15 +272,18 @@ export function LeafletMap({
 
   return (
     <div className="relative h-full w-full">
+      {/* Operator patch — same CAD chassis as the panels: a bordered
+          light body under a full-bleed amber caption bar, rather than a
+          glowing tinted chip floating on the map. */}
       {patchLabel && (
         <div
-          className="pointer-events-none absolute left-16 top-3 z-[1000] rounded-sm border border-(--color-amber)/60 bg-(--color-bg)/80 px-2.5 py-1 backdrop-blur-sm"
-          style={{ boxShadow: "0 0 8px rgba(251,191,36,0.25)" }}
+          style={CAD_VARS}
+          className="pointer-events-none absolute left-16 top-3 z-[1000] overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) shadow-lg"
         >
-          <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber-dim)">
+          <div className="bg-[#b45309] px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-white">
             Operator patch
           </div>
-          <div className="font-mono text-[12px] font-semibold tracking-widest text-(--color-amber)">
+          <div className="px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-widest text-(--color-text)">
             {patchLabel}
           </div>
         </div>
