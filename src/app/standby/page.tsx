@@ -111,6 +111,11 @@ export default async function StandbyPage() {
                 our Discord and website in due course.
               </p>
               <p className="text-(--color-text-dim)">
+                If you haven&apos;t given us your Discord handle, add it in
+                your account settings — it is how we match you to the
+                closed room.
+              </p>
+              <p className="text-(--color-text-dim)">
                 Shifts aren&apos;t open yet. Pre-Alpha testing
                 applications open to registered operators in October
                 2026.
@@ -198,6 +203,14 @@ export default async function StandbyPage() {
           >
             Join the Discord
           </a>
+          {accepted && (
+            <Link
+              href="/settings"
+              className="border border-(--color-border) px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text) transition-colors hover:border-(--color-info)/60 hover:text-(--color-info)"
+            >
+              Account settings
+            </Link>
+          )}
           {user && (
             <form action={logout}>
               <button
