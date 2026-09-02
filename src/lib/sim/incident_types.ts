@@ -499,6 +499,8 @@ export type PatientTreatmentState = {
   activeRedFlags?: import("./scene").PatientRedFlag[];
   /** Previous liveVitals for trend-arrow display. Updated each tick. */
   prevLiveVitals?: import("./scene").PatientClinical["vitals"];
+  /** When prevLiveVitals was last rolled forward — the trend baseline. */
+  prevLiveVitalsAt?: number;
   /** Chosen oxygen delivery — device and flow. Drives the saturation in
    *  both directions, so titrating down is a real action. */
   oxygen?: import("./oxygen").OxygenState;

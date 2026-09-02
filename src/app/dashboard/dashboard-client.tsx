@@ -524,7 +524,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return () => clearInterval(id);
   }, []);
 
-  // Live-vitals tick. Every 3 s, advance each casualty's live vitals based
+  // Live-vitals tick. Runs at 2 Hz so the numbers move continuously
+  // rather than sitting still and then leaping every few seconds — the
+  // deltas are per-second rates, so a shorter tick just means smaller,
+  // more frequent steps. The trend ARROWS still compare against a
+  // several-second baseline (see TREND_BASELINE_SEC), because an arrow
+  // drawn against half a second ago would be noise.
+  //
+  // Advance each casualty's live vitals based
   // on active red flags (degrade) and interventions (recover / clear
   // flags). Casualties who haven't had a primary survey yet have no
   // liveVitals and are skipped. Once the patient is conveying (paired
@@ -542,7 +549,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             continue;
           }
           const dtSec = (nowMs - tx.liveVitalsLastTickAt) / 1000;
-          if (dtSec < 2.5) {
+          if (dtSec < 0.35) {
             next[cid] = tx;
             continue;
           }
@@ -552,7 +559,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
         return changed ? next : prev;
       });
-    }, 3000);
+    }, 500);
     return () => clearInterval(id);
   }, []);
 
@@ -586,7 +593,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           if (r.roscAt !== undefined) {
             let s = r;
             const target = expectedEtco2(s, nowMs);
-            const eased = s.etco2 + (target - s.etco2) * 0.2;
+            const eased = s.etco2 + (target - s.etco2) * 0.12;
             if (Math.abs(eased - s.etco2) > 0.02) {
               s = { ...s, etco2: Math.round(eased * 10) / 10 };
               changed = true;
@@ -624,7 +631,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           // ETCO2 eases toward what the compressions justify rather than
           // snapping, so the trace reads like a trend.
           const target = expectedEtco2(s, nowMs);
-          const eased = s.etco2 + (target - s.etco2) * 0.35;
+          const eased = s.etco2 + (target - s.etco2) * 0.2;
           if (Math.abs(eased - s.etco2) > 0.02) {
             s = { ...s, etco2: Math.round(eased * 10) / 10 };
             changed = true;
@@ -754,7 +761,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           ]);
         }
       }
-    }, 1000);
+    }, 500);
     return () => clearInterval(id);
   }, []);
 

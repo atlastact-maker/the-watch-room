@@ -13,6 +13,10 @@ import type { PatientClinical, PatientRedFlag } from "./scene";
 import type { PatientTreatmentState } from "./incident_types";
 import { spo2TargetFor } from "./oxygen";
 
+/** How far back the trend arrows compare. Fast enough to feel live,
+ *  slow enough that an arrow means something. */
+export const TREND_BASELINE_SEC = 4;
+
 type Vitals = PatientClinical["vitals"];
 
 const MIN = {
@@ -347,10 +351,19 @@ export function advanceLiveVitals(
     bm: dBM * dt,
   });
 
+  // The trend baseline is deliberately NOT the previous tick. The tick is
+  // fast so the numbers move smoothly, but a trend arrow drawn against
+  // half a second ago would be noise — it needs a few seconds of distance
+  // to mean anything. So the baseline only rolls forward every
+  // TREND_BASELINE_SEC, and the arrows compare against that.
+  const baselineAge = nowMs - (tx.prevLiveVitalsAt ?? 0);
+  const rollBaseline = baselineAge >= TREND_BASELINE_SEC * 1000;
+
   return {
     ...tx,
     liveVitals: v,
-    prevLiveVitals: prev,
+    prevLiveVitals: rollBaseline ? prev : (tx.prevLiveVitals ?? prev),
+    prevLiveVitalsAt: rollBaseline ? nowMs : (tx.prevLiveVitalsAt ?? nowMs),
     liveVitalsLastTickAt: nowMs,
     activeRedFlags: Array.from(flags),
   };
