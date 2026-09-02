@@ -389,10 +389,18 @@
           "address": "BTTG Testing & Certification Ltd, 14 Wheel Forge Way, Trafford Park",
           "postcode": "M17 1EH",
           "coords": { "lat": 53.4697, "lng": -2.3332, "approximate": false },
-          "resources": ["3x HART vehicle", "1x IRU"],
+          "resources": [
+            "3x HART IRU",
+            "2x HART personnel carrier",
+            "1x HART multi-casualty",
+            "1x HART off-road IRU",
+            "1x HART ATV carrier",
+            "1x HART ATV",
+            "1x HART RRV"
+          ],
           "station_verified": true,
-          "sources": ["U1"],
-          "notes": "Address verbatim from user 2026-04-18. HART base for NWAS in Manchester is co-located at BTTG Testing & Certification Ltd. Covers the whole NWAS region, not just GM."
+          "sources": ["U1", "F1", "F2"],
+          "notes": "Address verbatim from user 2026-04-18. HART base for NWAS in Manchester is co-located at BTTG Testing & Certification Ltd. Covers the whole NWAS region, not just GM. Fleet reconciled 2026-09-02 against the NWAS HART vehicle register (FOI24474, 14 Apr 2025, 'Manchester Central' division = 12 vehicles: 8x MAN TGE 5.160, 1x Toyota Hilux, 1x DAF LF 45.170, 1x Polaris Ranger, 1x Skoda Kodiaq) and the vehicle-role descriptions NWAS gave in FOI24477 (9 Apr 2025). The 8 MAN TGEs split 5 IRU (3 live + 2 spare) + 2 personnel carriers (1 overt, 1 covert) + 1 multi-casualty; only the 3 live IRUs are modelled as mobilisable, so 10 units here against 12 on the register. This is the 3rd-generation NARU/NHS ECU national fleet, delivered Sep 2024 - Jan 2025. Callsigns use the published Z (HART) prefix from FOI2376; the 3xx block is enthusiast observation (Z301/Z304), not an NWAS disclosure - NWAS withholds callsign numbers under s24."
         },
         {
           "id": "A-HEMS",
@@ -408,14 +416,15 @@
         },
         {
           "id": "A-OD",
-          "name": "NWAS Operational Duty Officer (EOC)",
+          "name": "NWAS Duty Officer (Operational Commander)",
           "town": "Manchester",
           "address": null,
           "postcode": null,
           "coords": { "lat": 53.48, "lng": -2.24, "approximate": true },
-          "resources": ["1x OD"],
+          "resources": ["2x OD"],
           "station_verified": false,
-          "notes": "Operational Delivery Manager / EOC Duty Officer — coordinates NWAS resources force-wide. Mobile from EOC (or wherever the on-duty officer is roving). Coords placeholder at central Manchester."
+          "sources": ["F1", "N1", "N2"],
+          "notes": "The Duty Officer is the Band 7 post NWAS created in its 2024/25 leadership review: senior paramedics 'fully trained to NARU Operational Commander level' providing 'a 24/7 Operational Command response throughout the whole footprint of the trust' (NHS Jobs C9242-25-0000, 3 Jan 2025). The Annual Report 2024/25 records 'six duty officers, our first line operational leadership response to incidents, available across the region 24/7' — two are modelled here as the Greater Manchester share. Callsign prefix BX (Operational Commander) per FOI2376. Mobile from the ICC or wherever the on-duty officer is roving; coords are a placeholder at central Manchester."
         },
         {
           "id": "A-BASICS",

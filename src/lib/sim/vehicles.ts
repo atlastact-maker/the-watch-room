@@ -30,8 +30,14 @@ export const MAKE_MODEL: Record<ApplianceTypeCode, { make: string; model: string
   // NWAS
   DCA:           { make: "Fiat",           model: "Ducato Emergency Ambulance" },
   RRV:           { make: "Škoda",          model: "Superb Estate RRV" },
-  HART_vehicle:  { make: "Mercedes-Benz",  model: "Sprinter HART" },
-  NWAS_IRU:      { make: "DAF",            model: "LF Incident Response Unit" },
+  // HART, from the NWAS register (FOI24474, Manchester Central, Apr 2025).
+  HART_vehicle:  { make: "MAN",            model: "TGE 5.160 Incident Response Unit" },
+  NWAS_IRU:      { make: "MAN",            model: "TGE 5.160 Multi-Casualty Vehicle" },
+  HART_PCV:      { make: "MAN",            model: "TGE 5.160 Personnel Carrier" },
+  HART_ORIRU:    { make: "Toyota",         model: "Hilux Active D-4D 4WD" },
+  HART_ATV:      { make: "Polaris",        model: "Ranger 6x6 UTV" },
+  HART_carrier:  { make: "DAF",            model: "LF 45.170 ATV Carrier" },
+  HART_RRV:      { make: "Škoda",          model: "Kodiaq SE L 4x4" },
   HEMS:          { make: "Airbus",         model: "H145 HEMS" },
   BASICS:        { make: "Volunteer",      model: "Responder vehicle" },
   QR:            { make: "Škoda",          model: "Kodiaq Advanced Paramedic" },

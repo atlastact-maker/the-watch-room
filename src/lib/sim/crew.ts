@@ -277,7 +277,10 @@ const COMPOSITION: Partial<Record<ApplianceTypeCode, (keyof typeof ROLES)[]>> = 
 
   DCA: ["paramedic", "emt"],
   RRV: ["paramedic"],
-  HART_vehicle: [
+  // NWAS FOI24477: the Incident Response Unit is "crewed by 2 HART
+  // Paramedics per vehicle"; the personnel carrier takes "a full team of 6".
+  HART_vehicle: ["hart_responder", "hart_responder"],
+  HART_PCV: [
     "hart_responder",
     "hart_responder",
     "hart_responder",
@@ -285,7 +288,11 @@ const COMPOSITION: Partial<Record<ApplianceTypeCode, (keyof typeof ROLES)[]>> = 
     "hart_responder",
     "hart_responder",
   ],
-  NWAS_IRU: ["nwas_iru_operator", "nwas_iru_operator"],
+  HART_ORIRU: ["hart_responder", "hart_responder"],
+  HART_ATV: ["hart_responder", "hart_responder"],
+  HART_carrier: ["hart_responder", "hart_responder"],
+  HART_RRV: ["hart_responder"],
+  NWAS_IRU: ["hart_responder", "hart_responder"],
   HEMS: ["pilot", "ccp", "doctor"],
   BASICS: ["basics_doctor"],
   QR: ["advanced_paramedic"],

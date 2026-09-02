@@ -152,10 +152,22 @@ function parseApplianceString(raw: string): Parsed[] {
     ]);
   }
 
-  // "3x HART vehicle" (multi-word type) — normalise to HART_vehicle
-  const hartVehicle = /^(\d+)x\s+HART\s+vehicle$/i.exec(trimmed);
-  if (hartVehicle) {
-    return decorate([{ count: Number(hartVehicle[1]), type: "HART_vehicle" }]);
+  // HART fleet, written out in NWAS's own vehicle-role language (FOI24477)
+  // rather than type codes, so the station file still reads like the
+  // source document. Longest phrases first — "ATV carrier" must win over
+  // "ATV", and "off-road IRU" over "IRU".
+  const HART_RESOURCE: [RegExp, ApplianceTypeCode][] = [
+    [/^(\d+)x\s+HART\s+off-road\s+IRU$/i, "HART_ORIRU"],
+    [/^(\d+)x\s+HART\s+ATV\s+carrier$/i, "HART_carrier"],
+    [/^(\d+)x\s+HART\s+ATV$/i, "HART_ATV"],
+    [/^(\d+)x\s+HART\s+personnel\s+carrier$/i, "HART_PCV"],
+    [/^(\d+)x\s+HART\s+multi-casualty$/i, "NWAS_IRU"],
+    [/^(\d+)x\s+HART\s+RRV$/i, "HART_RRV"],
+    [/^(\d+)x\s+HART\s+(?:IRU|vehicle)$/i, "HART_vehicle"],
+  ];
+  for (const [re, type] of HART_RESOURCE) {
+    const m = re.exec(trimmed);
+    if (m) return decorate([{ count: Number(m[1]), type }]);
   }
 
   // "1x HEMS helicopter" / "1x IRU" / "1x BASICS volunteer…" — match first capitalised token
@@ -218,16 +230,59 @@ function seeded2(seed: string): string {
   return String(10 + (Math.abs(h) % 90));
 }
 
-// NWAS over-air callsigns use a service-wide prefix + 3-digit unit number.
-//   A-XXX   — Double-Crewed Ambulance
-//   RX-XXX  — Rapid Response Vehicle
-//   QR-XXX  — Advanced Paramedic (not currently in the dataset; reserved)
+// NWAS over-air callsigns: a service-wide prefix followed immediately by a
+// unit number — no separator. Real examples from the Southport Inquiry
+// evidence (NWAS001083): A611, A645 (emergency ambulances), R646 (a Senior
+// Paramedic Team Leader solo on an RRV), QX616 / QX617 (Advanced
+// Paramedics), BX1792 (Operational Commander), MX5877 (a MERIT doctor),
+// H08 / H58 (HEMS assets).
+//
+// The prefix table is NWAS's own, published in FOI2376 (3 June 2021):
+//   A  Ambulance (Emergency)          R   Rapid Response Vehicle
+//   QX Advanced Paramedic             MX  Medical / Consultant Paramedic
+//   BX Operational Commander          SX  Tactical Commander
+//   GX Strategic Commander            Z   Hazardous Area Response Team
+//   H  HEMS Vehicle                   MA  Medical Advisor / MERIT
+//
+// BX carries the Duty Officer — the Band 7 post NWAS created in its
+// 2024/25 leadership review, trained to NARU Operational Commander level
+// and fielded as the "first line operational leadership response to
+// incidents" (NWAS Annual Report 2024/25). That is this sim's incident
+// officer.
+//
+// The NUMBERS are ours: NWAS withholds the callsign-number-to-area mapping
+// under s24 (national security), refused in FOI24459 and FOI25042. They are
+// seeded off the station id so they stay stable across renders.
 const NWAS_CALLSIGN_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
   DCA: "A",
-  RRV: "RX",
-  QR: "QR",
-  OD: "OD",
+  RRV: "R",
+  QR: "QX",
+  OD: "BX",
+  CCC: "H",
+  BASICS: "MA",
+  // HART runs a single Z series across the whole team, whatever the
+  // vehicle — Z is the published prefix; the 3xx block is enthusiast
+  // observation (Z301 / Z304), not an NWAS disclosure.
+  HART_vehicle: "Z",
+  NWAS_IRU: "Z",
+  HART_PCV: "Z",
+  HART_ORIRU: "Z",
+  HART_ATV: "Z",
+  HART_carrier: "Z",
+  HART_RRV: "Z",
 };
+
+/** Types whose unit numbers come from the HART 3xx block rather than the
+ *  general 100-999 pool. */
+const HART_TYPES = new Set<ApplianceTypeCode>([
+  "HART_vehicle",
+  "NWAS_IRU",
+  "HART_PCV",
+  "HART_ORIRU",
+  "HART_ATV",
+  "HART_carrier",
+  "HART_RRV",
+]);
 
 // GMP over-air callsigns follow a typical UK police pattern: a division
 // letter code (MP = Manchester P-division / Greater Manchester) plus a
@@ -273,8 +328,17 @@ export function buildAppliances(
         let designator: string;
         let callsign: string;
         if (nwasPrefix) {
-          // NWAS: service-wide unit-number callsign, not tied to the station.
-          designator = `${nwasPrefix}-${seeded3(`${station.id}-${parsed.type}-${ordinal}`)}`;
+          // NWAS: service-wide unit-number callsign, not tied to the
+          // station, and no separator — "A645", not "A-645".
+          const seed = `${station.id}-${parsed.type}-${ordinal}`;
+          const unit = HART_TYPES.has(parsed.type)
+            ? // HART runs a 3xx block — Z301, Z304 in the wild.
+              String(300 + (Number(seeded3(seed)) % 90))
+            : parsed.type === "CCC"
+              ? // NWAA assets carry short H numbers: H03, H08, H58, H75.
+                String(Number(seeded3(seed)) % 100).padStart(2, "0")
+              : seeded3(seed);
+          designator = `${nwasPrefix}${unit}`;
           callsign = designator;
         } else if (gmpPrefix) {
           // GMP: divisional unit number. Response cars get a division

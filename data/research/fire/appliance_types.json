@@ -422,38 +422,99 @@
       ]
     },
     "HART_vehicle": {
-      "fullName": "HART Response Vehicle",
+      "fullName": "HART Incident Response Unit",
       "callsignCategory": "Z",
-      "designators": [
-        "Z301",
-        "Z302",
-        "Z303"
-      ],
-      "crew": {
-        "min": 6,
-        "max": 9
-      },
-      "waterLitres": 0,
-      "kit": [
-        "CBRN PPE",
-        "Rope / water / confined-space kit",
-        "Casualty decon"
-      ]
-    },
-    "NWAS_IRU": {
-      "fullName": "Incident Response Unit (ambulance)",
-      "callsignCategory": "IRU",
-      "designators": [
-        "IRU1"
-      ],
       "crew": {
         "min": 2,
         "max": 2
       },
       "waterLitres": 0,
       "kit": [
-        "Mass casualty decon",
+        "CBRN PPE",
+        "Rope / water / confined-space kit",
+        "Safe access safe egress kit",
+        "Paramedic kit",
+        "Defib / AED"
+      ]
+    },
+    "NWAS_IRU": {
+      "fullName": "HART Multi-Casualty Vehicle",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Mass casualty equipment",
         "Specialist PPE"
+      ]
+    },
+    "HART_PCV": {
+      "fullName": "HART Personnel Carrier",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 6
+      },
+      "waterLitres": 0,
+      "kit": [
+        "HART team",
+        "CBRN PPE",
+        "Specialist PPE"
+      ]
+    },
+    "HART_ORIRU": {
+      "fullName": "HART Off-Road Incident Response Unit",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Safe access safe egress kit",
+        "Paramedic kit",
+        "Defib / AED"
+      ]
+    },
+    "HART_ATV": {
+      "fullName": "HART All-Terrain Vehicle (Polaris 6x6)",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Polaris 6x6 UTV",
+        "Stretcher"
+      ]
+    },
+    "HART_carrier": {
+      "fullName": "HART ATV Carrier",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Polaris 6x6 UTV"
+      ]
+    },
+    "HART_RRV": {
+      "fullName": "HART Rapid Response Vehicle",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Solo paramedic response",
+        "Defib / AED",
+        "Airway"
       ]
     },
     "HEMS": {
@@ -505,8 +566,8 @@
       ]
     },
     "OD": {
-      "fullName": "Duty Officer / EOC Manager",
-      "callsignCategory": "OD",
+      "fullName": "Duty Officer (Operational Commander)",
+      "callsignCategory": "BX",
       "crew": {
         "min": 1,
         "max": 1

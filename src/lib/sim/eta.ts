@@ -46,8 +46,18 @@ export function blueLightFactorFor(type: ApplianceTypeCode | undefined): number 
     case "DCA":
     case "HART_vehicle":
     case "NWAS_IRU":
+    case "HART_PCV":
     case "Police_Search":
       return 0.7;
+    // HART access vehicles. The Hilux and the RRV are cars; the DAF
+    // carrying the Polaris is a 7.5-tonner, and the Polaris itself only
+    // moves under its own power once it is off the back of it.
+    case "HART_ORIRU":
+    case "HART_RRV":
+      return 0.85;
+    case "HART_carrier":
+    case "HART_ATV":
+      return 0.6;
     // Fire pumps — 12–18 t appliances.
     case "WrL":
     case "WrT":

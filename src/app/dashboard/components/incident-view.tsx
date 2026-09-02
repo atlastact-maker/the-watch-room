@@ -13,7 +13,12 @@ import type {
   Task,
   TaskKind,
 } from "@/lib/sim/incident_types";
-import { CAPABILITIES_BY_TYPE } from "@/lib/sim/incident_types";
+import {
+  CAPABILITIES_BY_TYPE,
+  SCOPE_LEVEL,
+  scopeOfApplianceType,
+  type ClinicianScope,
+} from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { StationWithAppliances } from "../page";
 import { GroundSceneMap } from "./ground-scene-map";
@@ -974,7 +979,7 @@ export function CasualtiesBody({
       deployment: r.deployment,
       scope: scopeOfAppliance(r.appliance),
     }))
-    .sort((a, b) => SCOPE_RANK[b.scope] - SCOPE_RANK[a.scope]);
+    .sort((a, b) => SCOPE_LEVEL[b.scope] - SCOPE_LEVEL[a.scope]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 text-xs">
@@ -1215,21 +1220,12 @@ function isExtractionRequired(
   return !extracted;
 }
 
-const SCOPE_RANK: Record<"dca" | "ap" | "ccc" | "basics" | "hems", number> = {
-  dca: 1,
-  ap: 2,
-  ccc: 3,
-  basics: 4,
-  hems: 5,
-};
-
-function scopeOfAppliance(a: Appliance): "dca" | "ap" | "ccc" | "basics" | "hems" {
-  const id = a.id.toLowerCase();
-  if (id.includes("hems") || id.includes("helimed")) return "hems";
-  if (id.includes("basics") || id.includes("dr")) return "basics";
-  if (id.includes("ccc")) return "ccc";
-  if (id.startsWith("qr-") || id.includes("-qr")) return "ap";
-  return "dca";
+// Scope comes from the appliance type via SCOPE_BY_TYPE — the same table
+// the Treatment tab uses. This file previously kept its own id-string
+// guess AND its own ranking (basics:4/hems:5 against SCOPE_LEVEL's 3/4),
+// so the two could disagree about who the clinical lead was.
+function scopeOfAppliance(a: Appliance): ClinicianScope {
+  return scopeOfApplianceType(a.type);
 }
 
 function stageLabel(stage: string): string {

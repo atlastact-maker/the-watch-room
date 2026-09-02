@@ -14,8 +14,15 @@ export type ApplianceTypeCode =
   | "HLL" | "PM"
   | "TRU_pump" | "TRU_van" | "USAR" | "SDU" | "DIM"
   // Ambulance (NWAS)
-  | "DCA" | "RRV" | "HART_vehicle" | "NWAS_IRU" | "HEMS" | "BASICS"
+  | "DCA" | "RRV" | "HEMS" | "BASICS"
   | "QR" | "OD" | "CCC"
+  // HART (Trafford Park). Vehicle roles are NWAS's own, from FOI24477
+  // (9 Apr 2025); the register behind them is FOI24474 (14 Apr 2025).
+  // HART_vehicle is the Incident Response Unit and NWAS_IRU the
+  // multi-casualty vehicle — both kept under their original codes because
+  // scenarios 06 and 09 mobilise HART_vehicle by name.
+  | "HART_vehicle" | "NWAS_IRU"
+  | "HART_PCV" | "HART_ORIRU" | "HART_ATV" | "HART_carrier" | "HART_RRV"
   // Police (GMP)
   | "Police_Response"   // single-crew response car
   | "Police_ARV"        // Armed Response Vehicle (typically 3-crew)

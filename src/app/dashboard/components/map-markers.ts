@@ -38,7 +38,16 @@ export function serviceMarker(
   if (service === "Police") return { colour: "#1d4ed8", code: "PC" };
   if (type === "ATV") return { colour: "#9a3412", code: "AT" };
   if (service === "Ambulance") {
-    if (type === "HART_vehicle" || type === "NWAS_IRU" || type === "HEMS")
+    if (
+      type === "HART_vehicle" ||
+      type === "NWAS_IRU" ||
+      type === "HART_PCV" ||
+      type === "HART_ORIRU" ||
+      type === "HART_ATV" ||
+      type === "HART_carrier" ||
+      type === "HART_RRV" ||
+      type === "HEMS"
+    )
       return { colour: "#0d9488", code: "HT" };
     if (type === "RRV" || type === "QR" || type === "OD" || type === "CCC" || type === "BASICS")
       return { colour: "#65a30d", code: "RV" };

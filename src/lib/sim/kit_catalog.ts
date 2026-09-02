@@ -160,6 +160,30 @@ const ENTRIES: KitEntry[] = [
     use: "Enables ambulance responders to operate in slightly-warmer zones than the standard cold zone.",
   },
   {
+    name: "Safe access safe egress kit",
+    description:
+      "HART's SASE capability — working-at-height lines, confined-space entry gear, inland water rescue equipment and casualty extrication packaging.",
+    use: "Gets a clinician to a patient who is somewhere a standard crew cannot reach — down a bank, up a structure, in a confined space or in water — and gets both of them back out again.",
+  },
+  {
+    name: "Mass casualty equipment",
+    description:
+      "Bulk triage, airway, haemorrhage-control and packaging stock for a multi-casualty scene, plus triage cards and casualty-clearing-station kit.",
+    use: "Turns a scene with more patients than crews into a working casualty clearing station — carried on the HART multi-casualty vehicle.",
+  },
+  {
+    name: "HART team",
+    description:
+      "A full six-person HART team carried in the personnel carrier, all trained to the national NHS ECU (formerly NARU) standard.",
+    use: "Delivers a complete team to a protracted incident, or relieves a committed crew mid-job — HART works as a team, not as individual responders.",
+  },
+  {
+    name: "Polaris 6x6 UTV",
+    description:
+      "Polaris Ranger six-wheel utility terrain vehicle with a casualty-carrying bed, transported on the back of a DAF 7.5-tonne carrier.",
+    use: "Reaches patients on ground no road vehicle can cross — moorland, riverbank, festival fields, rail embankment — when even the 4x4 cannot get there.",
+  },
+  {
     name: "Foam concentrate",
     description: "Bulk supply of firefighting foam concentrate (AFFF or fluorine-free).",
     use: "Metered into the water stream via foam-making branches to form suppression blanket on fuel / flammable-liquid fires.",

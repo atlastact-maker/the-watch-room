@@ -38,6 +38,7 @@ import {
   DRUG_LABEL,
   DRUG_MIN_SCOPE,
   SCOPE_LEVEL,
+  scopeOfApplianceType,
 } from "@/lib/sim/incident_types";
 import type {
   HospitalDestinationType,
@@ -309,7 +310,7 @@ export function TreatmentTab({
   const paired = pairedDeployments.map(({ appliance, deployment }) => ({
     applianceId: deployment.applianceId,
     callsign: appliance.callsign,
-    scope: scopeOfDeployment(deployment),
+    scope: scopeOfApplianceType(appliance.type),
     canConvey:
       appliance.type === "DCA" ||
       (appliance.type === "HEMS" && hemsFlyable !== false),
@@ -1009,34 +1010,6 @@ function TreatmentSummary({ treatment }: { treatment: PatientTreatmentState }) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Compute the highest clinical scope paired with this casualty, across
- *  every on-scene deployment. HEMS > BASICS = CCC > AP > DCA. */
-function highestScopeOnScene(
-  casualtyId: string,
-  onScene: Deployment[],
-): ClinicianScope {
-  let best: ClinicianScope = "none";
-  for (const d of onScene) {
-    if (d.treatingCasualtyId !== casualtyId) continue;
-    const s = scopeOfDeployment(d);
-    if (SCOPE_LEVEL[s] > SCOPE_LEVEL[best]) best = s;
-  }
-  return best;
-}
-
-function scopeOfDeployment(d: Deployment): ClinicianScope {
-  // Infer scope from appliance id pattern. This is a pragmatic mapping —
-  // full appliance metadata is available on the appliance itself, but
-  // these deployments only carry the id. Centralising the lookup here
-  // keeps the Treatment tab self-contained.
-  const id = d.applianceId.toLowerCase();
-  if (id.includes("hems") || id.includes("helimed")) return "hems";
-  if (id.includes("basics") || id.includes("dr")) return "basics";
-  if (id.includes("ccc")) return "ccc";
-  if (id.startsWith("qr-") || id.includes("-qr")) return "ap";
-  return "dca";
-}
 
 function drugRelevantFor(drug: DrugName, redFlags: PatientRedFlag[]): boolean {
   // Always show analgesia + IV access drugs. Condition-specific drugs are

@@ -146,7 +146,16 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
   // Ambulance (NWAS)
   DCA: ["Medical"],
   RRV: ["Medical"],
+  // HART. The IRU is the capability-carrying vehicle — safe access/safe
+  // egress, inland water, working at height, confined space and CBRN all
+  // ride on it. The access vehicles carry the team to ground the IRU
+  // cannot reach; the carrier and multi-casualty unit are logistics.
   HART_vehicle: ["Medical", "HART", "Rope", "WaterRescue", "HAZMAT_DIM"],
+  HART_PCV: ["Medical", "HART"],
+  HART_ORIRU: ["Medical", "HART", "Rope"],
+  HART_ATV: ["Medical", "HART"],
+  HART_carrier: ["HART"],
+  HART_RRV: ["Medical"],
   NWAS_IRU: ["HAZMAT_DIM"],
   HEMS: ["Medical", "Trauma", "HEMS"],
   BASICS: ["Medical", "Trauma"],
@@ -277,6 +286,40 @@ export const SCOPE_LEVEL: Record<ClinicianScope, number> = {
   basics: 3,
   hems: 4,
 };
+
+/**
+ * Clinical scope by appliance type — the single source of truth.
+ *
+ * This used to be guessed from the appliance id string, which was both
+ * fragile (`id.includes("dr")` matched any id containing "dr") and wrong
+ * the moment a callsign changed: the critical care car now carries an
+ * NWAS `H` callsign, which the old check read as HEMS. The type is
+ * authoritative and is always to hand at the call sites.
+ *
+ * Anything not listed carries no clinician — a fire appliance's AED does
+ * not make its crew paramedics.
+ */
+export const SCOPE_BY_TYPE: Partial<Record<ApplianceTypeCode, ClinicianScope>> = {
+  DCA: "dca",
+  RRV: "dca",
+  HART_vehicle: "dca",
+  HART_ORIRU: "dca",
+  HART_ATV: "dca",
+  HART_PCV: "dca",
+  HART_RRV: "dca",
+  HART_carrier: "dca",
+  NWAS_IRU: "dca",   // multi-casualty vehicle — HART-crewed like the rest
+  QR: "ap",        // Advanced Paramedic (QX)
+  OD: "ap",        // Duty Officer (BX) — Band 7 paramedic commander
+  CCC: "ccc",
+  BASICS: "basics",
+  HEMS: "hems",
+};
+
+/** Scope an appliance type brings to a patient, "none" if it brings none. */
+export function scopeOfApplianceType(type: ApplianceTypeCode): ClinicianScope {
+  return SCOPE_BY_TYPE[type] ?? "none";
+}
 
 /** Drugs the operator can administer. Split by scope — the Treatment tab
  *  filters the list by the highest clinician available on scene. */
