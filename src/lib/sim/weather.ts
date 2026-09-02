@@ -222,3 +222,77 @@ function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+// ---------------------------------------------------------------------------
+// Live weather
+// ---------------------------------------------------------------------------
+
+/** What /api/weather returns — Open-Meteo's current block, trimmed. */
+export type LiveWeatherReading = {
+  tempC: number;
+  humidityPct: number;
+  precipMm: number;
+  weatherCode: number;
+  windMph: number;
+  windFromDeg: number;
+  isDay: boolean;
+  observedAt: string | null;
+};
+
+/** Compass point a wind is blowing FROM, from a bearing in degrees. */
+export function windDirFromDegrees(deg: number): WindDirection {
+  const dirs: WindDirection[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const idx = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
+  return dirs[idx];
+}
+
+/**
+ * WMO weather code → the sim's precipitation state.
+ *
+ * Open-Meteo publishes the WMO 4677 code table. The sim only cares how
+ * hard it is coming down and whether it is frozen, because that is what
+ * drives fire behaviour, road speeds and whether the aircraft flies.
+ */
+export function precipFromWmoCode(code: number, precipMm: number): Precipitation {
+  // 71-77 snow, 85-86 snow showers.
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+  // 66-67 freezing rain, 56-57 freezing drizzle.
+  if (code === 66 || code === 67 || code === 56 || code === 57) return "sleet";
+  // 51-55 drizzle.
+  if (code >= 51 && code <= 55) return "drizzle";
+  // 95-99 thunderstorm, 82 violent showers, 65 heavy rain.
+  if (code >= 95 || code === 82 || code === 65) return "heavy_rain";
+  // 61-63 rain, 80-81 showers.
+  if ((code >= 61 && code <= 63) || code === 80 || code === 81) {
+    return precipMm >= 4 ? "heavy_rain" : "rain";
+  }
+  return "clear";
+}
+
+/**
+ * Turn a live reading into the shift's weather state.
+ *
+ * `hourOfDay` stays the operator's chosen shift hour rather than the real
+ * clock — they picked a night shift because they wanted to run one, and
+ * the sim's darkness, HEMS grounding and day-crewed turnout all key off
+ * it. Everything else is what is actually happening outside.
+ */
+export function weatherFromLive(
+  live: LiveWeatherReading,
+  hourOfDay: number,
+): WeatherState {
+  const windDir = windDirFromDegrees(live.windFromDeg);
+  const windMph = Math.round(live.windMph);
+  const tempC = Math.round(live.tempC * 10) / 10;
+  const humidityPct = Math.round(live.humidityPct);
+  const precip = precipFromWmoCode(live.weatherCode, live.precipMm);
+  return {
+    hourOfDay,
+    windDir,
+    windMph,
+    tempC,
+    humidityPct,
+    precip,
+    summary: buildSummary({ windDir, windMph, tempC, precip }),
+  };
+}

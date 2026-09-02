@@ -26,6 +26,9 @@ type Props = {
   onTriggerScenario: (s: Scenario) => void;
   /** Services covered this shift — scenarios needing others are hidden. */
   coveredServices: import("@/lib/sim/types").ServiceCode[];
+  /** Real time the shift began, and the in-world hour it began at. */
+  shiftStartedAt: number;
+  shiftStartHour: number;
 };
 
 export function DashboardHeader({
@@ -43,21 +46,36 @@ export function DashboardHeader({
   hasActiveIncident,
   onTriggerScenario,
   coveredServices,
+  shiftStartedAt,
+  shiftStartHour,
 }: Props) {
+  // The SHIFT clock, not the wall clock. It starts at the hour the
+  // operator chose on the briefing screen and runs forward in real time
+  // from there, so the time on the bar is the time the crews are working
+  // — which is what drives darkness, HEMS grounding and day-crewed
+  // turnout. Showing real UTC meant the bar was reading out a number
+  // with no bearing on the shift at all.
   const [time, setTime] = useState<string>("--:--:--");
+  const [elapsed, setElapsed] = useState<string>("0:00");
   useEffect(() => {
     const tick = () => {
-      const now = new Date();
+      const ranMs = Date.now() - shiftStartedAt;
+      const secs = Math.floor(ranMs / 1000);
+      const shiftSec = shiftStartHour * 3600 + secs;
+      const h = Math.floor(shiftSec / 3600) % 24;
+      const m = Math.floor((shiftSec % 3600) / 60);
+      const sec = shiftSec % 60;
       setTime(
-        [now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()]
-          .map((n) => String(n).padStart(2, "0"))
-          .join(":"),
+        [h, m, sec].map((n) => String(n).padStart(2, "0")).join(":"),
+      );
+      setElapsed(
+        Math.floor(secs / 3600) + ":" + String(Math.floor((secs % 3600) / 60)).padStart(2, "0"),
       );
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [shiftStartedAt, shiftStartHour]);
 
   const scenariosForPatch = SCENARIOS.filter(
     (s) => s.patch === patch && scenarioCovered(s, coveredServices),
@@ -79,7 +97,10 @@ export function DashboardHeader({
         </div>
 
         <div className="hidden items-center gap-4 md:flex">
-          <span className="tabular-nums text-(--color-text)">UTC {time}</span>
+          <span className="tabular-nums text-(--color-text)">{time}</span>
+          <span className="tabular-nums text-(--color-text-dim)" title="Time on shift">
+            ON {elapsed}
+          </span>
           {weather && <WeatherChip weather={weather} />}
           <span className="text-(--color-border)">|</span>
           <UserMenu

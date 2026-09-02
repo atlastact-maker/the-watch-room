@@ -73,6 +73,7 @@ import {
   fireGrowthWindMultiplier,
   hemsAvailable,
   rollWeather,
+  weatherFromLive,
   type WeatherState,
 } from "@/lib/sim/weather";
 import { simulateIncident } from "@/lib/sim/incident_sim";
@@ -444,6 +445,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // patch change. Feeds into blue-light ETAs, HEMS availability, BA
   // cylinder duration and fire growth inside the sim.
   const [weather, setWeather] = useState<WeatherState>(() => rollWeather());
+  // When this shift began, in real time, and the hour it began AT. The
+  // header clock runs from these rather than showing wall-clock UTC,
+  // which had nothing to do with the shift the operator chose.
+  const [shiftStartedAt, setShiftStartedAt] = useState<number>(() => Date.now());
+  const [shiftStartHour, setShiftStartHour] = useState<number>(8);
   // Per-appliance crew-fatigue percentage (0 = fresh, 100 = exhausted).
   // Accumulates with on-scene time + active task load; welfare breaks
   // reset it. Past ~70 % it extends task durations and raises the odds
@@ -1138,7 +1144,27 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // Fresh weather for the new shift, pinned to the operator's chosen
     // start time so time-of-day effects (HEMS grounding, rush hour,
     // darkness) match the briefing hints.
-    setWeather(rollWeather(undefined, startHour));
+    const hour = startHour ?? 8;
+    setShiftStartedAt(Date.now());
+    setShiftStartHour(hour);
+    // Rolled weather first so the shift can start instantly, then upgrade
+    // to what is actually happening over the patch if the forecast answers.
+    setWeather(rollWeather(undefined, hour));
+    void (async () => {
+      const centre = stationsByArea[area]?.[0]?.coords;
+      if (!centre) return;
+      try {
+        const res = await fetch(
+          '/api/weather?lat=' + centre.lat + '&lng=' + centre.lng,
+        );
+        if (!res.ok) return;
+        const live = await res.json();
+        if (typeof live?.windMph !== 'number') return;
+        setWeather(weatherFromLive(live, hour));
+      } catch {
+        // Rolled weather stands — a flaky forecast never stops a shift.
+      }
+    })();
   }
 
   function changePatch() {
@@ -4018,6 +4044,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         hasActiveIncident={!!activeIncident}
         onTriggerScenario={(sc) => queueCall(sc)}
         coveredServices={coveredServices}
+        shiftStartedAt={shiftStartedAt}
+        shiftStartHour={shiftStartHour}
       />
 
       <main id="main-content" className="relative flex-1 overflow-hidden" aria-label="Dispatch map and panels">
