@@ -160,6 +160,22 @@ function ZoomIntoGroundWatcher({
   return null;
 }
 
+/** Where the dashboard has asked the map to go. `key` changes on every
+ *  request so asking for the same place twice still moves the camera. */
+export type MapFocus = { lat: number; lng: number; zoom?: number; key: number };
+
+/** Flies the map to the current focus request. */
+function MapFocusFlyer({ focus }: { focus: MapFocus | null | undefined }) {
+  const map = useMap();
+  const lastKey = useRef<number | null>(null);
+  useEffect(() => {
+    if (!focus || focus.key === lastKey.current) return;
+    lastKey.current = focus.key;
+    map.flyTo([focus.lat, focus.lng], focus.zoom ?? 15, { duration: 0.8 });
+  }, [map, focus]);
+  return null;
+}
+
 /** Live map zoom, so markers can pick their tier. */
 function useMapZoom(): number {
   const map = useMap();
@@ -238,6 +254,9 @@ type Props = {
   selectedApplianceId?: string | null;
   /** Opens the top-down appliance-bay view for a fire station. */
   onOpenStationBays?: (stationId: string) => void;
+  /** A place the dashboard wants shown — a search result, a record's
+   *  address. */
+  focus?: MapFocus | null;
   /** Called when the operator zooms in past the ground-detail threshold —
    *  the dashboard opens the ground view AT this view, so the handover
    *  continues from wherever the operator was looking. */
@@ -258,6 +277,7 @@ export function LeafletMap({
   selectedApplianceId,
   onOpenStationBays,
   onZoomIntoGround,
+  focus,
 }: Props) {
   const center: [number, number] = activeIncident
     ? [
@@ -338,6 +358,7 @@ export function LeafletMap({
         />
       )}
       {onZoomIntoGround && <ZoomIntoGroundWatcher onReach={onZoomIntoGround} />}
+      <MapFocusFlyer focus={focus} />
       <PatchLayers
         stations={stations}
         activeIncident={activeIncident}

@@ -125,7 +125,12 @@ import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { DispatchLog } from "./components/dispatch-log";
 import { ToolMenu } from "./components/tool-menu";
+import type { MapFocus } from "./components/leaflet-map";
 import { CallLogPanel } from "./components/call-log-panel";
+import { SearchPanel } from "./components/search-panel";
+import { buildRecordIndex } from "@/lib/sim/records";
+import { SCENARIO_RECORDS } from "@/lib/sim/records/index";
+import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { scenarioCovered } from "@/lib/sim/coverage";
@@ -429,6 +434,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // default: the operator asked for the desk to stay clear until they
   // bring something up.
   const [showCallLog, setShowCallLog] = useState(false);
+  // The desk's search — people, vehicles, addresses.
+  const [showSearch, setShowSearch] = useState(false);
+  // Where the map has been asked to go. Bumping the key re-fires the
+  // request even for the same place.
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
+  const focusMap = useCallback((lat: number, lng: number, zoom?: number) => {
+    setMapFocus({ lat, lng, zoom, key: Date.now() });
+  }, []);
   const [now, setNow] = useState(Date.now());
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
   // Ground-view map interactions started from either the map action menu or
@@ -2665,6 +2678,36 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // read it, and the distinction may come back with a second force.
   const allDeployableStations = myStations;
 
+  const recordIndex = useMemo(() => {
+    const crews: Parameters<typeof buildRecordIndex>[0]["crews"] = [];
+    const fleet: Parameters<typeof buildRecordIndex>[0]["fleet"] = [];
+    for (const s of allDeployableStations) {
+      for (const a of s.appliances) {
+        fleet.push({
+          applianceId: a.id,
+          callsign: a.callsign,
+          stationName: s.name,
+          make: a.make,
+          model: a.model,
+          vrm: a.vrm,
+          typeName: a.typeName,
+        });
+        for (const m of a.crewMembers) {
+          crews.push({ applianceId: a.id, callsign: a.callsign, stationName: s.name, member: m });
+        }
+      }
+    }
+    return buildRecordIndex({
+      sets: SCENARIO_RECORDS,
+      stations: allDeployableStations,
+      hospitals: HOSPITALS,
+      scenarios: SCENARIOS,
+      incidents,
+      crews,
+      fleet,
+    });
+  }, [allDeployableStations, incidents]);
+
   /** Flat appliance lookup — the call stack needs callsign and type for
    *  every committed unit across every job, not just the selected one. */
   const applianceById = useMemo(() => {
@@ -4120,6 +4163,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onSelectAppliance={setSelectedApplianceId}
           selectedApplianceId={selectedApplianceId}
           onOpenStationBays={setBayStationId}
+          focus={mapFocus}
           onZoomIntoGround={
             activeIncident && !outcome
               ? (view) => {
@@ -4438,6 +4482,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           <ToolMenu
             tools={[
               {
+                id: "search",
+                label: "Search",
+                hint: "person · vehicle · address",
+                on: showSearch,
+                onToggle: () => setShowSearch((v) => !v),
+              },
+              {
                 id: "stack",
                 label: "Call stack",
                 hint: pendingCalls.length > 0 ? `${pendingCalls.length} waiting` : undefined,
@@ -4495,6 +4546,17 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 onToggle: () => setGlossaryOpen((v) => !v),
               },
             ]}
+          />
+        )}
+        {/* Search — people, vehicles, addresses; the map shows the answer. */}
+        {!groundViewOpen && showSearch && (
+          <SearchPanel
+            index={recordIndex}
+            onFocusPlace={focusMap}
+            onSelectAppliance={setSelectedApplianceId}
+            onOpenStationBays={setBayStationId}
+            onSelectIncident={(id) => setSelectedIncidentId(id)}
+            onClose={() => setShowSearch(false)}
           />
         )}
         {/* The 999 call log — the caller's words, the on-the-line state

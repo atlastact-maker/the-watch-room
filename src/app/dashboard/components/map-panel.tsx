@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import type { Patch } from "@/lib/sim/areas";
+import type { MapFocus } from "./leaflet-map";
 import type { StationWithAppliances } from "../page";
 
 // Leaflet must not run on the server (it touches `window`).
@@ -24,6 +25,7 @@ export function EmbeddedMap({
   selectedApplianceId,
   onOpenStationBays,
   onZoomIntoGround,
+  focus,
 }: {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
@@ -33,6 +35,7 @@ export function EmbeddedMap({
   selectedApplianceId?: string | null;
   onOpenStationBays?: (stationId: string) => void;
   onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
+  focus?: MapFocus | null;
 }) {
   return (
     <div className="absolute inset-0 bg-(--color-bg)">
@@ -45,6 +48,7 @@ export function EmbeddedMap({
         selectedApplianceId={selectedApplianceId}
         onOpenStationBays={onOpenStationBays}
         onZoomIntoGround={onZoomIntoGround}
+        focus={focus}
       />
     </div>
   );
