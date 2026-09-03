@@ -589,6 +589,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setFatigueByApplianceId(shifted.fatigueByApplianceId);
     setTreatmentByCasualtyId(shifted.treatmentByCasualtyId);
     setSceneCommanderApplianceId(shifted.sceneCommanderApplianceId);
+    setHandover(shifted.handover ?? null);
     setTacticalMode(shifted.tacticalMode);
     setLog(shifted.log);
     setInformantLog(shifted.informantLog);
@@ -650,6 +651,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         treatmentByCasualtyId,
         sceneCommanderApplianceId,
         tacticalMode,
+        handover,
         log,
         informantLog,
         informantOnCall,
@@ -2466,6 +2468,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const atMs = Date.now();
     setHandover({ applianceId, callsign: a.callsign, atMs, clearAtMs: atMs + sec * 1000 });
     setSceneCommanderApplianceId(applianceId);
+    // The caller stops reaching this desk: the job is the commander's,
+    // and its beats would be noise on a stack being used for other calls.
+    setInformantOnCall(false);
+    setInformantLog([]);
     // Leaving the ground view is part of the trade, so do it for them
     // rather than letting them sit in a view that no longer updates.
     if (groundViewOpen) setGroundViewOpen(false);
@@ -3199,6 +3205,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // the caller "hangs up" and no further updates fire.
   useEffect(() => {
     if (!activeIncident) return;
+    // A delegated job is the commander's: its caller stops reaching here.
+    if (handover) return;
     const script = activeIncident.scenario.informantScript;
     if (!script || script.length === 0) {
       // Still track first-arrival to flip the "on call" flag — even when
@@ -4675,6 +4683,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               return acc;
             }, {})}
             isResolved={(id) => !!runtimes[id]?.outcome}
+            handoverOf={(id) => {
+              const h = runtimes[id]?.handover;
+              return h ? { callsign: h.callsign, clearAtMs: h.clearAtMs } : null;
+            }}
             onAnswer={(call) => {
               // Answered in place on the stack — a control room does not
               // stop for a call, it picks it up. No full-screen takeover.

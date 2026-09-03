@@ -56,6 +56,14 @@ export type ShiftSave = {
   treatmentByCasualtyId: Record<string, PatientTreatmentState>;
   sceneCommanderApplianceId: string | null;
   tacticalMode: "offensive" | "defensive" | "transitional" | null;
+  /** Command handed to an on-scene unit. Optional — absent in saves
+   *  written before delegation existed, which resume as ordinary jobs. */
+  handover?: {
+    applianceId: string;
+    callsign: string;
+    atMs: number;
+    clearAtMs: number;
+  } | null;
   log: LogEntry[];
   informantLog: FiredInformant[];
   informantOnCall: boolean;
@@ -254,6 +262,13 @@ export function applyResumeOffset(
       ...e,
       firedAt: e.firedAt + offset,
     })),
+    handover: save.handover
+      ? {
+          ...save.handover,
+          atMs: save.handover.atMs + offset,
+          clearAtMs: save.handover.clearAtMs + offset,
+        }
+      : save.handover,
     fireIgnition: save.fireIgnition
       ? { ...save.fireIgnition, atMs: save.fireIgnition.atMs + offset }
       : save.fireIgnition,

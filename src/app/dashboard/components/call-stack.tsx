@@ -76,6 +76,15 @@ const SEV_CLS: Record<Severity, string> = {
   major: "bg-(--color-critical) text-white",
 };
 
+/** Time until the commander expects to close the job. */
+function StopIn({ at, now }: { at: number; now: number }) {
+  const left = Math.max(0, Math.round((at - now) / 1000));
+  if (left === 0) return <>stop due</>;
+  const m = Math.floor(left / 60);
+  const s = left % 60;
+  return <>{m > 0 ? `${m}m` : `${s}s`}</>;
+}
+
 export function CallStack({
   pending,
   incidents,
@@ -83,6 +92,7 @@ export function CallStack({
   now,
   unitsByIncident,
   isResolved,
+  handoverOf,
   onAnswer,
   onDecline,
   onSelectIncident,
@@ -102,6 +112,9 @@ export function CallStack({
     { id: string; callsign: string; typeName: string; label: string; tone: "mobile" | "onscene" | "other" }[]
   >;
   isResolved: (incidentId: string) => boolean;
+  /** Set for a job whose command has been handed over: who has it, and
+   *  when they expect to close it. */
+  handoverOf?: (incidentId: string) => { callsign: string; clearAtMs: number } | null;
   onAnswer: (call: PendingCall) => void;
   onDecline: (call: PendingCall) => void;
   onSelectIncident: (incidentId: string) => void;
@@ -280,6 +293,7 @@ export function CallStack({
                 {incidents.map((inc) => {
                   const selected = inc.id === selectedIncidentId;
                   const resolved = isResolved(inc.id);
+                  const delegated = resolved ? null : handoverOf?.(inc.id) ?? null;
                   const unitList = unitsByIncident[inc.id] ?? [];
                   const units = unitList.length;
                   const open = expanded === inc.id;
@@ -330,9 +344,11 @@ export function CallStack({
                           className={`w-[3px] shrink-0 ${
                             resolved
                               ? "bg-(--color-text-dim)"
-                              : selected
-                                ? "bg-(--color-amber)"
-                                : "bg-(--color-border)"
+                              : delegated
+                                ? "bg-(--color-ok)"
+                                : selected
+                                  ? "bg-(--color-amber)"
+                                  : "bg-(--color-border)"
                           }`}
                         />
                         <div className="min-w-0 flex-1 border-b border-(--color-border-subtle)/60 px-2 py-1.5">
@@ -354,6 +370,14 @@ export function CallStack({
                             {resolved ? (
                               <span className="px-1 bg-(--color-text-dim)/30 text-(--color-text-dim)">
                                 Closed
+                              </span>
+                            ) : delegated ? (
+                              <span
+                                className="px-1 bg-(--color-ok)/20 text-(--color-ok)"
+                                title={`${delegated.callsign} has command — control is clear of this incident`}
+                              >
+                                {delegated.callsign} has command ·{" "}
+                                <StopIn at={delegated.clearAtMs} now={now} />
                               </span>
                             ) : (
                               <span
