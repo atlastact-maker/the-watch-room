@@ -18,24 +18,15 @@ import type { ApplianceTypeCode } from "./types";
 import type { Deployment, Incident, IncidentTypeCode, PdaSlot, Scenario } from "./incident_types";
 import { SCENARIOS } from "./scenarios";
 import type { StationWithAppliances } from "@/app/dashboard/page";
+import { STANDARD_PDA_TEMPLATES, type PdaSource, type PdaTemplate } from "./pda-standard";
 
-export type PdaSource = "GMFRS" | "LFB" | "WMFS" | "NOG" | "scenario" | "modelled";
+export type { PdaSource, PdaTemplate };
 
-export type PdaTemplate = {
-  type: IncidentTypeCode;
-  label: string;
-  slots: PdaSlot[];
-  /** Where this attendance comes from. "scenario" = seeded from the
-   *  authored scenario for this type; a sourced tag names the service
-   *  whose published attendance it follows. */
-  source: PdaSource;
-  note?: string;
-};
-
-/** The standard attendance per incident type. Seeded from each
- *  scenario's authored slots — one scenario per type at present. */
+/** The standard attendance per incident type: the transcribed, sourced
+ *  template from data/research/fire/pda.md where there is one, and the
+ *  scenario's own authored slots as a fallback for any type without. */
 export const STANDARD_PDA: Partial<Record<IncidentTypeCode, PdaTemplate>> = (() => {
-  const out: Partial<Record<IncidentTypeCode, PdaTemplate>> = {};
+  const out: Partial<Record<IncidentTypeCode, PdaTemplate>> = { ...STANDARD_PDA_TEMPLATES };
   for (const sc of SCENARIOS as Scenario[]) {
     if (out[sc.type]) continue;
     out[sc.type] = {
@@ -43,7 +34,7 @@ export const STANDARD_PDA: Partial<Record<IncidentTypeCode, PdaTemplate>> = (() 
       label: labelForType(sc.type),
       slots: sc.pda,
       source: "scenario",
-      note: `Seeded from the authored attendance for "${sc.title}". Sourced tables: data/research/fire/pda.md.`,
+      basis: [`Seeded from the authored attendance for "${sc.title}" — no sourced table for this type yet.`],
     };
   }
   return out;
@@ -99,11 +90,12 @@ export function pdaFillState(
   incident: Incident,
   deployments: Deployment[],
   stations: StationWithAppliances[],
+  slots: PdaSlot[] = incident.scenario.pda,
 ): { fills: SlotFill[]; extras: string[] } {
   const byId = new Map<string, { type: ApplianceTypeCode; callsign: string }>();
   for (const s of stations) for (const a of s.appliances) byId.set(a.id, { type: a.type, callsign: a.callsign });
 
-  const fills: SlotFill[] = incident.scenario.pda.map((slot) => ({ slot }));
+  const fills: SlotFill[] = slots.map((slot) => ({ slot }));
   const extras: string[] = [];
   for (const d of deployments) {
     if (d.incidentId !== incident.id) continue;
@@ -144,8 +136,9 @@ export function proposePda(
   deployments: Deployment[],
   stations: StationWithAppliances[],
   etas: Record<string, { seconds: number; meters: number; coords: [number, number][] | null }>,
+  slots: PdaSlot[] = incident.scenario.pda,
 ): { proposals: PdaProposal[]; uncovered: PdaSlot[] } {
-  const { fills } = pdaFillState(incident, deployments, stations);
+  const { fills } = pdaFillState(incident, deployments, stations, slots);
   const used = new Set(deployments.map((d) => d.applianceId));
   const proposals: PdaProposal[] = [];
   const uncovered: PdaSlot[] = [];

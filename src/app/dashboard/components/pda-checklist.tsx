@@ -27,17 +27,23 @@ export function PdaChecklist({
   onDeploy: (args: DeployArgs) => void;
 }) {
   const [showProposal, setShowProposal] = useState(false);
+  // Which attendance the checklist is measured against: the job's own
+  // authored slots, or the standard for its incident type — the sourced
+  // one, where a source exists.
+  const [mode, setMode] = useState<"scenario" | "standard">("scenario");
+  const [showBasis, setShowBasis] = useState(false);
+  const standard = STANDARD_PDA[incident.scenario.type];
+  const slots = mode === "standard" && standard ? standard.slots : incident.scenario.pda;
 
   const { fills, extras } = useMemo(
-    () => pdaFillState(incident, deployments, stations),
-    [incident, deployments, stations],
+    () => pdaFillState(incident, deployments, stations, slots),
+    [incident, deployments, stations, slots],
   );
   const empty = fills.filter((f) => !f.applianceId).length;
   const proposal = useMemo(
-    () => (showProposal ? proposePda(incident, deployments, stations, etas) : null),
-    [showProposal, incident, deployments, stations, etas],
+    () => (showProposal ? proposePda(incident, deployments, stations, etas, slots) : null),
+    [showProposal, incident, deployments, stations, etas, slots],
   );
-  const standard = STANDARD_PDA[incident.scenario.type];
 
   function accept(p: NonNullable<typeof proposal>["proposals"][number]) {
     onDeploy({
@@ -61,13 +67,40 @@ export function PdaChecklist({
           <span className="font-mono text-[10px] tabular-nums text-(--color-text-dim)">
             {fills.length - empty}/{fills.length}
           </span>
-          {standard && (
-            <span
-              className="rounded-sm border border-(--color-border) px-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)"
-              title={standard.note}
-            >
-              {standard.source === "scenario" ? "scenario PDA" : standard.source}
+          {standard && standard.source !== "scenario" && (
+            <span className="inline-flex overflow-hidden rounded-sm border border-(--color-border)">
+              <button
+                type="button"
+                onClick={() => setMode("scenario")}
+                className={
+                  "px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest transition-colors " +
+                  (mode === "scenario" ? "bg-[#b45309] text-white" : "text-(--color-text-dim) hover:text-(--color-text)")
+                }
+                title="The attendance authored for this job"
+              >
+                Job
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("standard")}
+                className={
+                  "px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest transition-colors " +
+                  (mode === "standard" ? "bg-[#b45309] text-white" : "text-(--color-text-dim) hover:text-(--color-text)")
+                }
+                title={`The standard attendance for ${standard.label} — ${standard.source}`}
+              >
+                Standard · {standard.source}
+              </button>
             </span>
+          )}
+          {mode === "standard" && standard && (
+            <button
+              type="button"
+              onClick={() => setShowBasis((v) => !v)}
+              className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim) underline-offset-2 hover:underline"
+            >
+              {showBasis ? "hide sources" : "sources"}
+            </button>
           )}
         </div>
         {empty > 0 && (
@@ -86,6 +119,15 @@ export function PdaChecklist({
         )}
       </div>
 
+      {mode === "standard" && standard && showBasis && (
+        <ul className="space-y-1 border-b border-(--color-border-subtle) bg-(--color-bg) px-2 py-1.5 text-[10px] leading-snug text-(--color-text-dim)">
+          {standard.basis.map((b, i) => (
+            <li key={i}>{b}</li>
+          ))}
+          {standard.note && <li className="text-(--color-amber)">{standard.note}</li>}
+          <li className="text-(--color-text-dim)/70">Full tables: data/research/fire/pda.md</li>
+        </ul>
+      )}
       <ul className="divide-y divide-(--color-border-subtle)/60">
         {fills.map((f) => {
           const p = proposal?.proposals.find((x) => x.slot.id === f.slot.id);
