@@ -22,6 +22,9 @@ export type ApplianceTypeCode =
   // multi-casualty vehicle — both kept under their original codes because
   // scenarios 06 and 09 mobilise HART_vehicle by name.
   | "HART_vehicle" | "NWAS_IRU"
+  | "FIRE_SM"          // GS050–GS099 — Station Manager
+  | "FIRE_GM"          // GG020–GG049 — Group Manager
+  | "FIRE_AM"          // GA010–GA019 — Area Manager
   | "RCV"              // S6 — GMFRS / British Red Cross vehicle (F3)
   | "MTA"              // R5 — MTA response unit (U6; station unsourced)
   | "HART_PCV" | "HART_ORIRU" | "HART_ATV" | "HART_carrier" | "HART_RRV"

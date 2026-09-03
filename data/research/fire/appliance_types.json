@@ -928,6 +928,50 @@
         "Ballistic PPE",
         "Rapid triage and evacuation"
       ]
+    },
+    "FIRE_SM": {
+      "fullName": "Station Manager",
+      "callsignCategory": "GS",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Command support tabard",
+        "Comms"
+      ],
+      "$note": "Duty Station Manager — the officer on a life-risk PDA (S5, S26)."
+    },
+    "FIRE_GM": {
+      "fullName": "Group Manager",
+      "callsignCategory": "GG",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Comms",
+        "Tactical adviser access"
+      ],
+      "$note": "Duty Group Manager — mobilised on a make-up, not on an initial attendance."
+    },
+    "FIRE_AM": {
+      "fullName": "Area Manager",
+      "callsignCategory": "GA",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Strategic command kit",
+        "Comms"
+      ],
+      "$note": "Duty Area Manager — county-wide, strategic command."
     }
   },
   "pods": {

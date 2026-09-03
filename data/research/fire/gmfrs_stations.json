@@ -35,7 +35,15 @@
             "parliamentary_constituency": "Stretford and Urmston",
             "police_force_area": "Greater Manchester"
           },
-          "notes": "Fire Investigation Unit (2007 Iveco Daily) per the fleet register F3, which redacts its callsign as G10*****; the R7 designator is the owner's (U6)."
+          "notes": "Fire Investigation Unit (2007 Iveco Daily) per the fleet register F3, which redacts its callsign as G10*****; the R7 designator is the owner's (U6). Duty officer base (modelled): GS058 SM, GG020 GM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md.",
+          "callsigns": {
+            "FIRE_SM": [
+              "GS058"
+            ],
+            "FIRE_GM": [
+              "GG020"
+            ]
+          }
         },
         {
           "id": "G11",
@@ -166,7 +174,15 @@
             "parliamentary_constituency": "Manchester Central",
             "police_force_area": "Greater Manchester"
           },
-          "notes": "G16S6 GMFRS / British Red Cross vehicle (2013 Fiat Tribute, LF63 OSM) per the fleet register F3."
+          "notes": "G16S6 GMFRS / British Red Cross vehicle (2013 Fiat Tribute, LF63 OSM) per the fleet register F3. Duty officer base (modelled): GS052 SM, GA010 AM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md.",
+          "callsigns": {
+            "FIRE_SM": [
+              "GS052"
+            ],
+            "FIRE_AM": [
+              "GA010"
+            ]
+          }
         },
         {
           "id": "G17",
@@ -265,7 +281,12 @@
             "lat": 53.424461,
             "lng": -2.165853
           },
-          "notes": "Temporarily based at Whitehill (G20) during the Stockport Central rebuild — real callsign G21P1 stays on the run from the Whitehill site."
+          "notes": "Temporarily based at Whitehill (G20) during the Stockport Central rebuild — real callsign G21P1 stays on the run from the Whitehill site. Duty officer base (modelled): GS056 SM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md.",
+          "callsigns": {
+            "FIRE_SM": [
+              "GS056"
+            ]
+          }
         },
         {
           "id": "G22",
@@ -356,7 +377,16 @@
             "ward": "Central Rochdale",
             "parliamentary_constituency": "Rochdale",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS054"
+            ],
+            "FIRE_GM": [
+              "GG021"
+            ]
+          },
+          "notes": "Duty officer base (modelled): GS054 SM, GG021 GM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md."
         },
         {
           "id": "G31",
@@ -422,7 +452,13 @@
             "ward": "St Mary's",
             "parliamentary_constituency": "Oldham East and Saddleworth",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS053"
+            ]
+          },
+          "notes": "Duty officer base (modelled): GS053 SM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md."
         },
         {
           "id": "G34",
@@ -488,7 +524,13 @@
             "ward": "Moorside",
             "parliamentary_constituency": "Bury North",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS051"
+            ]
+          },
+          "notes": "Duty officer base (modelled): GS051 SM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md."
         },
         {
           "id": "G37",
@@ -555,7 +597,13 @@
             "ward": "St Peter's",
             "parliamentary_constituency": "Ashton-under-Lyne",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS057"
+            ]
+          },
+          "notes": "Duty officer base (modelled): GS057 SM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md."
         },
         {
           "id": "G40",
@@ -653,7 +701,16 @@
             "ward": "Queens Park & Central",
             "parliamentary_constituency": "Bolton South and Walkden",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS050"
+            ],
+            "FIRE_GM": [
+              "GG022"
+            ]
+          },
+          "notes": "Duty officer base (modelled): GS050 SM, GG022 GM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md."
         },
         {
           "id": "G51",
@@ -735,7 +792,7 @@
           "address": "Robin Park Road",
           "town": "Wigan",
           "postcode": "WN5 0UU",
-          "notes": "Joint Fire and Ambulance station",
+          "notes": "Joint Fire and Ambulance station Duty officer base (modelled): GS059 SM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md.",
           "coords": {
             "lat": 53.540983,
             "lng": -2.650829
@@ -745,6 +802,11 @@
             "ward": "Douglas",
             "parliamentary_constituency": "Wigan",
             "police_force_area": "Greater Manchester"
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS059"
+            ]
           }
         },
         {
@@ -835,7 +897,13 @@
             "ward": "Ordsall",
             "parliamentary_constituency": "Salford",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "callsigns": {
+            "FIRE_SM": [
+              "GS055"
+            ]
+          },
+          "notes": "Duty officer base (modelled): GS055 SM. Callsign blocks GS050-099 / GG020-049 / GA010-019 are the owner's (U6); who is on duty and where is the sim's model — see gaps.md."
         },
         {
           "id": "G59",

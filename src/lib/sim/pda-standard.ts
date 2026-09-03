@@ -45,8 +45,10 @@ const officer = (notes = "Nearest Station Manager — the officer on every NWFC-
   id: "officer",
   label: "Station Manager",
   service: "Fire",
-  requiredApplianceTypes: ["ICU", "CSU"],
-  requiredCapabilities: [],
+  // A real officer, since there is one now — the slot used to ask for a
+  // command vehicle, which is not the same thing at all.
+  requiredApplianceTypes: ["FIRE_SM"],
+  requiredCapabilities: ["Command"],
   notes,
 });
 

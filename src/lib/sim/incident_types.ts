@@ -163,6 +163,9 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
   OD: ["Command", "Medical"],
   // The Red Cross vehicle brings welfare, not an operational capability;
   // the MTA unit's role detail is unsourced, so it claims none.
+  FIRE_SM: ["Command"],
+  FIRE_GM: ["Command"],
+  FIRE_AM: ["Command"],
   RCV: [],
   MTA: [],
   CCC: ["Medical", "Trauma"],

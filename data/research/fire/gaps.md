@@ -48,3 +48,22 @@ Anything in this file blocks treating the dataset as sim-ready.
   cross-checked against the register. Worth confirming.
 - **`N861` GMFRS Drone Unit** (Headquarters, per F3) — in the register, not in
   the owner's list, not modelled.
+
+## Officer cover (2026-09-03) — blocks sourced, deployment modelled
+
+The callsign blocks are the owner's (U6): **GS050–GS099** Station Manager,
+**GG020–GG049** Group Manager, **GA010–GA019** Area Manager. A block is not
+a duty roster, and no source says how many GMFRS officers are on duty at
+once or where they sit. The sim models:
+
+- **Ten Station Managers**, GS050–GS059, one at each borough command station.
+  GMFRS reorganised onto borough commands, and no station is then further
+  than 10 km from a duty SM — which matters because *the nearest Station
+  Manager* is the officer on every life-risk PDA in `pda.md`.
+- **Three Group Managers**, GG020–GG022, at Stretford, Rochdale and Bolton
+  Central — the three former area-command HQs, which are also the sim's
+  three station groupings.
+- **One Area Manager**, GA010, county-wide from Manchester Central.
+
+All of that placement is **MODELLED**. If a duty-officer structure is ever
+sourced, replace it.
