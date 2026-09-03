@@ -124,6 +124,8 @@ import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { DispatchLog } from "./components/dispatch-log";
+import { ToolMenu } from "./components/tool-menu";
+import { CallLogPanel } from "./components/call-log-panel";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { scenarioCovered } from "@/lib/sim/coverage";
@@ -418,6 +420,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const setOutcome = runtimeSetter("outcome");
   // The dispatch log sits on the map by default; the operator can hide it.
   const [showDispatchLog, setShowDispatchLog] = useState(true);
+  // The 999 caller's words as a movable panel on the area map. Off by
+  // default: the operator asked for the desk to stay clear until they
+  // bring something up.
+  const [showCallLog, setShowCallLog] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
   // Ground-view map interactions started from either the map action menu or
@@ -4087,11 +4093,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         onToggleAudio={toggleAudioMuted}
         onOpenGlossary={() => setGlossaryOpen(true)}
         onChangePatch={changePatch}
-        resourcesVisible={resourcesVisible}
-        onToggleResources={() => setResourcesVisible((v) => !v)}
-        incidentPanelVisible={incidentPanelVisible}
-        onToggleIncidentPanel={() => setIncidentPanelVisible((v) => !v)}
-        hasActiveIncident={!!activeIncident}
         onTriggerScenario={(sc) => queueCall(sc)}
         coveredServices={coveredServices}
         shiftStartedAt={shiftStartedAt}
@@ -4418,6 +4419,82 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onDismiss={dismissIncident}
           />
         )}
+        {/* Tools — one place to bring a panel up or put it away. Every
+            entry is a toggle, so it also shows what is open. Hidden in
+            the ground view, which has its own rails. */}
+        {!groundViewOpen && (
+          <ToolMenu
+            tools={[
+              {
+                id: "stack",
+                label: "Call stack",
+                hint: pendingCalls.length > 0 ? `${pendingCalls.length} waiting` : undefined,
+                on: showCallStack,
+                onToggle: () => setShowCallStack((v) => !v),
+              },
+              {
+                id: "log",
+                label: "Dispatch log",
+                hint: String(log.length),
+                on: showDispatchLog,
+                onToggle: () => setShowDispatchLog((v) => !v),
+              },
+              {
+                id: "resources",
+                label: "Resources",
+                on: resourcesVisible,
+                onToggle: () => setResourcesVisible((v) => !v),
+              },
+              {
+                id: "incident",
+                label: "Incident card",
+                hint: activeIncident ? undefined : "no job",
+                on: !!activeIncident && incidentPanelVisible,
+                onToggle: () => setIncidentPanelVisible((v) => !v),
+                disabled: !activeIncident,
+                disabledNote: "Opens once a job is on the stack — double-click it there",
+              },
+              {
+                id: "calllog",
+                label: "999 call log",
+                hint: activeIncident
+                  ? informantOnCall
+                    ? "on the line"
+                    : undefined
+                  : "no job",
+                on: !!activeIncident && showCallLog,
+                onToggle: () => setShowCallLog((v) => !v),
+                disabled: !activeIncident,
+                disabledNote: "There is no call to show until a job is answered",
+              },
+              {
+                id: "anpr",
+                label: "ANPR console",
+                hint: "soon",
+                on: false,
+                onToggle: () => {},
+                disabled: true,
+                disabledNote: "Not built yet",
+              },
+              {
+                id: "glossary",
+                label: "Glossary",
+                on: glossaryOpen,
+                onToggle: () => setGlossaryOpen((v) => !v),
+              },
+            ]}
+          />
+        )}
+        {/* The 999 call log — the caller's words, the on-the-line state
+            and the job's risk lines, as a movable panel. */}
+        {!groundViewOpen && showCallLog && activeIncident && (
+          <CallLogPanel
+            incident={activeIncident}
+            informantLog={informantLog}
+            informantOnCall={informantOnCall}
+            onClose={() => setShowCallLog(false)}
+          />
+        )}
         {/* The call stack — unanswered calls above the line, running jobs
             below, and the drop target for dragging a unit onto a job.
             Hidden in the ground view, which is a single-incident space. */}
@@ -4493,32 +4570,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onClose={() => setShowCallStack(false)}
           />
         )}
-        {!groundViewOpen && !showCallStack && (
-          <button
-            type="button"
-            onClick={() => setShowCallStack(true)}
-            title="Show the call stack"
-            className="pointer-events-auto absolute right-3 top-24 z-[1190] rounded-sm border border-(--color-border) bg-(--color-surface)/95 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) shadow-lg hover:border-(--color-amber) hover:text-(--color-amber)"
-          >
-            Calls{pendingCalls.length > 0 ? ` · ${pendingCalls.length}` : ""}
-          </button>
-        )}
         {/* Dispatch log — the running record of the shift: timestamped,
             typed, and never reordered. Movable and resizable, docked to
             the left of the map. Hidden while the ground view is open,
             which carries its own rails. */}
         {!groundViewOpen && showDispatchLog && (
           <DispatchLog log={log} onClose={() => setShowDispatchLog(false)} />
-        )}
-        {!groundViewOpen && !showDispatchLog && (
-          <button
-            type="button"
-            onClick={() => setShowDispatchLog(true)}
-            title="Show the dispatch log"
-            className="pointer-events-auto absolute left-3 top-24 z-[1180] rounded-sm border border-(--color-border) bg-(--color-surface)/95 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) shadow-lg hover:border-(--color-amber) hover:text-(--color-amber)"
-          >
-            Log
-          </button>
         )}
       </main>
     </div>

@@ -18,11 +18,6 @@ type Props = {
   onToggleAudio?: () => void;
   onOpenGlossary?: () => void;
   onChangePatch: () => void;
-  resourcesVisible: boolean;
-  onToggleResources: () => void;
-  incidentPanelVisible: boolean;
-  onToggleIncidentPanel: () => void;
-  hasActiveIncident: boolean;
   onTriggerScenario: (s: Scenario) => void;
   /** Services covered this shift — scenarios needing others are hidden. */
   coveredServices: import("@/lib/sim/types").ServiceCode[];
@@ -39,11 +34,6 @@ export function DashboardHeader({
   onToggleAudio,
   onOpenGlossary,
   onChangePatch,
-  resourcesVisible,
-  onToggleResources,
-  incidentPanelVisible,
-  onToggleIncidentPanel,
-  hasActiveIncident,
   onTriggerScenario,
   coveredServices,
   shiftStartedAt,
@@ -116,23 +106,8 @@ export function DashboardHeader({
               ? Help
             </button>
           )}
+          {/* Panel toggles moved to the Tools menu on the map. */}
           <ScenarioMenu scenarios={scenariosForPatch} onTrigger={onTriggerScenario} />
-          {hasActiveIncident && (
-            <button
-              type="button"
-              onClick={onToggleIncidentPanel}
-              className="rounded-sm border border-(--color-amber) bg-(--color-amber) px-3 py-1 font-bold text-white transition-colors hover:brightness-110"
-            >
-              {incidentPanelVisible ? "Hide Incident" : "Show Incident"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onToggleResources}
-            className="rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-1 font-bold transition-colors hover:bg-(--color-amber) hover:text-white"
-          >
-            {resourcesVisible ? "Hide Resources" : "Show Resources"}
-          </button>
         </div>
       </div>
     </header>
