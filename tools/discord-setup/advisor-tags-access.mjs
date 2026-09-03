@@ -1,3 +1,8 @@
+// SUPERSEDED for the five per-service rooms, 2026-09-03. The owner's
+// decision changed: a fire advisor should NOT see the ambulance or police
+// rooms. advisor-service-split.mjs partitions them. Running THIS script
+// afterwards reopens all five to every advisor tag and undoes that.
+//
 // Give every per-service advisor tag the same view of the Advisory Wing
 // that the Advisor role has. Idempotent.
 //
