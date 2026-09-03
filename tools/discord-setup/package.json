@@ -7,7 +7,8 @@
     "setup": "node --env-file=.env setup.mjs",
     "setup:reset": "node --env-file=.env setup.mjs --reset",
     "support-desk": "node support-desk.mjs .env",
-    "advisor-access": "node advisor-tags-access.mjs .env"
+    "advisor-access": "node advisor-tags-access.mjs .env",
+    "ticket-prep": "node ticket-tool-prep.mjs .env"
   },
   "dependencies": {
     "discord.js": "^14.16.3"
