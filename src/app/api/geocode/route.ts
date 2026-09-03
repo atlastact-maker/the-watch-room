@@ -23,10 +23,16 @@ type Hit = {
 type Success = { results: Hit[]; source: "os-names" };
 type Failure = { error: string; source: "os-names" };
 
-// Greater Manchester, generously, in BNG metres.
-const GM_BBOX = "340000,375000,415000,425000";
+// Greater Manchester, generously, in BNG metres. `bounds` steers the
+// ranking upstream; the hard filter is ours, below, so a Whitehall in
+// Westminster never comes back for a Whitehall in Bury.
+const GM = { minX: 340000, minY: 375000, maxX: 415000, maxY: 425000 };
+const GM_BBOX = `${GM.minX},${GM.minY},${GM.maxX},${GM.maxY}`;
 
-// The local types worth a control room's time.
+// The local types worth a control room's time — only ones in the OS
+// Open Names codelist. Metrolink stops, the Trafford Centre and the
+// industrial estates are not in Names at all; the authored places cover
+// those.
 const LOCAL_TYPES = [
   "Named_Road",
   "Section_Of_Named_Road",
@@ -43,10 +49,6 @@ const LOCAL_TYPES = [
   "Secondary_Education",
   "Primary_Education",
   "Railway_Station",
-  "Tram_Station",
-  "Sports_And_Leisure_Centre",
-  "Shopping_Centre",
-  "Industrial_Estate",
   "Airport",
 ];
 
@@ -79,12 +81,17 @@ export async function GET(request: NextRequest): Promise<Response> {
   upstream.searchParams.set("maxresults", "8");
   upstream.searchParams.set("bounds", GM_BBOX);
   upstream.searchParams.set("fq", LOCAL_TYPES.map((t) => `LOCAL_TYPE:${t}`).join(" "));
+  upstream.searchParams.set("format", "JSON");
   upstream.searchParams.set("key", key);
 
   let body: unknown;
   try {
     const res = await fetch(upstream, { signal: AbortSignal.timeout(6000) });
     if (!res.ok) {
+      // Say why in the server log: a 400 here almost always means the
+      // Names product is not on the key, or a filter the API rejects.
+      const detail = (await res.text().catch(() => "")).slice(0, 200);
+      console.warn(`[geocode] OS Names ${res.status}: ${detail}`);
       return NextResponse.json(
         { error: `OS Names upstream ${res.status}`, source: "os-names" } satisfies Failure,
         { status: 502 },
@@ -98,15 +105,29 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 
-  const rows = ((body as { results?: { GAZETTEER_ENTRY?: Record<string, unknown> }[] }).results ?? [])
-    .map((r) => r.GAZETTEER_ENTRY)
-    .filter((e): e is Record<string, unknown> => !!e);
+  // Shape defensively: a body that is valid JSON but not the shape the
+  // API promises is a 502 to the panel, not a crash.
+  const rawResults =
+    body && typeof body === "object" ? (body as { results?: unknown }).results : undefined;
+  if (rawResults !== undefined && !Array.isArray(rawResults)) {
+    return NextResponse.json(
+      { error: "OS Names returned an unexpected body", source: "os-names" } satisfies Failure,
+      { status: 502 },
+    );
+  }
+  const rows: Record<string, unknown>[] = [];
+  for (const r of (rawResults ?? []) as unknown[]) {
+    const e = r && typeof r === "object" ? (r as { GAZETTEER_ENTRY?: unknown }).GAZETTEER_ENTRY : undefined;
+    if (e && typeof e === "object") rows.push(e as Record<string, unknown>);
+  }
 
   const results: Hit[] = [];
   for (const e of rows) {
     const x = Number(e.GEOMETRY_X);
     const y = Number(e.GEOMETRY_Y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    // Inside the county, or not at all.
+    if (x < GM.minX || x > GM.maxX || y < GM.minY || y > GM.maxY) continue;
     const { lat, lng } = bngToWgs84(x, y);
     const name = String(e.NAME1 ?? "");
     const type = String(e.LOCAL_TYPE ?? "").replace(/_/g, " ");

@@ -10,9 +10,12 @@ import type { RecordSet } from "../records";
 //
 // The scene lists two casualties: cas-12b (the caller, F ~29, trapped in
 // the fire flat) and cas-14th (M ~81, mobility-restricted, 14th floor).
-// The informant script has a concierge on a second line and neighbours
-// either side of 12B reporting smells but no smoke. The scene draws
-// three cars on the front plaza, one in the marked concierge bay.
+// The informant script has a concierge on a second line. The neighbours
+// either side of 12B and the flat above are on the desk only as
+// contacts the concierge made under stay-put — the later beats (smells
+// but no smoke; smoke on 13 via the riser cupboard) are probabilistic
+// and are NOT pre-empted here. The scene draws three cars on the front
+// plaza, one in the marked concierge bay.
 
 export const records07: RecordSet = {
   scenarioId: "07",
@@ -27,7 +30,7 @@ export const records07: RecordSet = {
       address: "Flat 12B, Quay Heights, The Quays, Salford",
       postcode: "M50 3AZ",
       phone: "07700 900429",
-      roles: ["caller", "patient", "occupant"],
+      roles: ["caller", "patient", "occupant", "keeper"],
       scenarioId: "07",
       casualtyId: "cas-12b",
       vehicleIds: ["v07-caller-fiesta"],
@@ -68,7 +71,7 @@ export const records07: RecordSet = {
       address: "Concierge desk (podium), Quay Heights, The Quays, Salford",
       postcode: "M50 3AZ",
       phone: "0161 496 0330",
-      roles: ["witness"],
+      roles: ["witness", "keeper"],
       scenarioId: "07",
       vehicleIds: ["v07-concierge-astra"],
       notes: [
@@ -77,7 +80,7 @@ export const records07: RecordSet = {
       ],
     },
 
-    // Neighbours either side of 12B — smells but no smoke, stay-put given.
+    // Neighbours either side of 12B — contacted by the concierge, stay-put given.
     {
       id: "p07-occupant-12a-kowalska",
       name: "KOWALSKA, Justyna",
@@ -89,7 +92,7 @@ export const records07: RecordSet = {
       roles: ["occupant", "witness"],
       scenarioId: "07",
       notes: [
-        "Reported a smell of smoke to the concierge — no smoke in the flat. Stay-put advice given per building policy.",
+        "Contacted by the concierge — stay-put advice given per building policy.",
         "Occupancy per managing agent: 2 adults, 1 child (3).",
       ],
     },
@@ -104,13 +107,12 @@ export const records07: RecordSet = {
       roles: ["occupant", "witness"],
       scenarioId: "07",
       notes: [
-        "Reported a smell of smoke to the concierge — no smoke in the flat. Stay-put advice given per building policy.",
+        "Contacted by the concierge — stay-put advice given per building policy.",
         "Occupancy per managing agent: 1 adult.",
       ],
     },
 
-    // The flat directly above — where smoke shows first if the riser
-    // cupboard lets go.
+    // The flat directly above the fire flat.
     {
       id: "p07-occupant-13b-odonnell",
       name: "O'DONNELL, Siobhan",
@@ -122,7 +124,7 @@ export const records07: RecordSet = {
       roles: ["occupant"],
       scenarioId: "07",
       notes: [
-        "Directly above the fire flat. Contacted by the concierge — stay-put advice given; asked to report any smoke at the riser cupboard on the 13th-floor lobby.",
+        "Directly above the fire flat. Contacted by the concierge — stay-put advice given per building policy.",
         "Occupancy per managing agent: 1 adult.",
       ],
     },
@@ -179,7 +181,7 @@ export const records07: RecordSet = {
       kind: "premises",
       name: "Westbrook Point (neighbour tower)",
       address: "Westbrook Point, Huron Basin, Salford",
-      postcode: "M50 3BJ",
+      postcode: "M50",
       coords: { lat: 53.4731, lng: -2.2928 },
       scenarioId: "07",
       notes: [
@@ -229,7 +231,7 @@ export const records07: RecordSet = {
       scenarioId: "07",
       notes: [
         "Landing area 200 m north-east of the tower per the Quay Heights PRI. Access on foot along the quayside walk; vehicle access from Anchorage Quay.",
-        "HEMS option for the Flat 12B casualty if airway compromise progresses.",
+        "HEMS landing option per the Quay Heights PRI.",
       ],
     },
   ],

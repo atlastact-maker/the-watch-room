@@ -25,7 +25,12 @@ export function bngToOsgb36(E: number, N: number): LatLon {
 
   let lat = lat0;
   let M = 0;
+  // Sane inputs converge in a handful of passes. The cap is for inputs
+  // so large that a double's resolution exceeds the tolerance and the
+  // residual would oscillate for ever.
+  let passes = 0;
   do {
+    if (++passes > 24) break;
     lat = (N - N0 - M) / (a * F0) + lat;
     const Ma = (1 + n + (5 / 4) * n * n + (5 / 4) * n * n * n) * (lat - lat0);
     const Mb = (3 * n + 3 * n * n + (21 / 8) * n * n * n) * Math.sin(lat - lat0) * Math.cos(lat + lat0);

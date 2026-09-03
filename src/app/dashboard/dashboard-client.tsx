@@ -2681,7 +2681,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const recordIndex = useMemo(() => {
     const crews: Parameters<typeof buildRecordIndex>[0]["crews"] = [];
     const fleet: Parameters<typeof buildRecordIndex>[0]["fleet"] = [];
-    for (const s of allDeployableStations) {
+    // The static station list: identity, callsigns, crews and plates do
+    // not move with the clock, so the index does not either.
+    const staticStations = PATCH_AREAS.flatMap((a) => stationsByArea[a]);
+    for (const s of staticStations) {
       for (const a of s.appliances) {
         fleet.push({
           applianceId: a.id,
@@ -2699,14 +2702,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
     return buildRecordIndex({
       sets: SCENARIO_RECORDS,
-      stations: allDeployableStations,
+      stations: staticStations,
       hospitals: HOSPITALS,
       scenarios: SCENARIOS,
       incidents,
       crews,
       fleet,
     });
-  }, [allDeployableStations, incidents]);
+  }, [stationsByArea, incidents]);
 
   /** Flat appliance lookup — the call stack needs callsign and type for
    *  every committed unit across every job, not just the selected one. */

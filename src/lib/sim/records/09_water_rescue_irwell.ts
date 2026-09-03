@@ -79,8 +79,9 @@ export const records09: RecordSet = {
       ],
     },
 
-    // The lad taking his coat and shoes off — the second casualty the
-    // scenario is really about.
+    // A lad on the Lowry-side quayside, close to the edge — the second
+    // casualty the scenario is really about, if the 'bystander-coat' beat
+    // fires. The record must not say he has taken his coat off.
     {
       id: "p09-witness-przybylski",
       name: "PRZYBYLSKI, Kacper",
@@ -92,12 +93,14 @@ export const records09: RecordSet = {
       roles: ["witness"],
       scenarioId: S,
       notes: [
-        "On the Lowry-side quayside with friends — took his coat and shoes off to go in after the casualty; talked down by the caller. Keep him back from the edge until GMP arrive.",
+        "On the Lowry-side quayside with friends, close to the edge — keep back from the railing until GMP arrive.",
         "No previous.",
       ],
     },
 
-    // The throwline attempt from the Lowry-side railing board.
+    // The steward who knows the Lowry-side railing throwline board — the
+    // 'throwline-short' beat, if it fires. The record must not say a throw
+    // has been made.
     {
       id: "p09-witness-adebayo",
       name: "ADEBAYO, Yetunde",
@@ -107,7 +110,7 @@ export const records09: RecordSet = {
       roles: ["witness"],
       scenarioId: S,
       notes: [
-        "Front-of-house steward at The Lowry — took the throwline from the railing board east of the footbridge; first throw landed short, casualty ~40 m out.",
+        "Front-of-house steward at The Lowry — knows the throwline board on the railing east of the footbridge.",
         "Contact via The Lowry front of house on 0161 496 0810 if her mobile is unanswered.",
       ],
     },

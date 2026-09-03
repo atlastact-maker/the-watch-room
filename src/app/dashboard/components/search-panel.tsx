@@ -75,6 +75,10 @@ type LiveHit = {
   lng: number;
 };
 
+// Once OS Names has said no (the product is not on the key, or it is
+// down), stop asking until the page is reloaded.
+let namesUnavailable = false;
+
 const TABS: { kind: SearchKind; label: string; placeholder: string }[] = [
   { kind: "person", label: "Person", placeholder: "Surname, forename · phone · address" },
   { kind: "vehicle", label: "Vehicle", placeholder: "VRM · make / model · keeper" },
@@ -161,9 +165,13 @@ export function SearchPanel({
   const [live, setLive] = useState<LiveHit[]>([]);
   const [liveState, setLiveState] = useState<"idle" | "loading" | "unavailable">("idle");
   useEffect(() => {
+    setLive([]);
     if (kind !== "place" || query.trim().length < 3) {
-      setLive([]);
       setLiveState("idle");
+      return;
+    }
+    if (namesUnavailable) {
+      setLiveState("unavailable");
       return;
     }
     const ctrl = new AbortController();
@@ -178,6 +186,7 @@ export function SearchPanel({
         })
         .catch((e) => {
           if ((e as Error).name === "AbortError") return;
+          namesUnavailable = true;
           setLive([]);
           setLiveState("unavailable");
         });
@@ -192,12 +201,10 @@ export function SearchPanel({
     setOpen(h);
     if (h.kind === "place") {
       const p = h.record;
-      onFocusPlace(p.coords.lat, p.coords.lng, p.kind === "station" || p.kind === "hospital" ? 15 : 16);
+      // 15 everywhere: the ground view opens at 17, and an address
+      // search should never be one wheel-tick from opening it.
+      onFocusPlace(p.coords.lat, p.coords.lng, 15);
       if (p.incidentId) onSelectIncident(p.incidentId);
-    } else if (h.kind === "vehicle" && h.record.applianceId) {
-      onSelectAppliance(h.record.applianceId);
-    } else if (h.kind === "person" && h.record.applianceId) {
-      onSelectAppliance(h.record.applianceId);
     }
   }
 
@@ -217,7 +224,7 @@ export function SearchPanel({
         current.current = { x: pos.x, y: pos.y, width: ref.offsetWidth, height: ref.offsetHeight };
         saveFrame(current.current);
       }}
-      style={{ zIndex: 1188 }}
+      style={{ zIndex: 1090 }}
       className="pointer-events-auto"
     >
       <div
@@ -271,6 +278,15 @@ export function SearchPanel({
               setQuery(e.target.value);
               setOpen(null);
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                if (open) setOpen(null);
+                else onClose();
+              } else if (e.key === "Enter" && !open && hits.length > 0) {
+                pick(hits[0]);
+              }
+            }}
+            aria-label={`Search ${tab.label.toLowerCase()} records`}
             placeholder={tab.placeholder}
             spellCheck={false}
             autoComplete="off"
@@ -305,7 +321,7 @@ export function SearchPanel({
                     <li key={"live:" + i}>
                       <button
                         type="button"
-                        onClick={() => onFocusPlace(p.lat, p.lng, 16)}
+                        onClick={() => onFocusPlace(p.lat, p.lng, 15)}
                         className="flex w-full items-start gap-2 border-b border-(--color-border-subtle)/60 px-3 py-2 text-left hover:bg-(--color-surface-raised)"
                       >
                         <span className="mt-0.5 shrink-0 rounded-sm border border-(--color-info)/50 px-1 font-mono text-[9px] uppercase tracking-widest text-(--color-info)">
@@ -401,6 +417,7 @@ function HitRow({ hit }: { hit: SearchHit }) {
     <>
       <span className="mt-0.5 shrink-0 rounded-sm border border-(--color-border) px-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
         {p.kind}
+        {p.service ? ` · ${p.service === "Fire" ? "GMFRS" : p.service === "Ambulance" ? "NWAS" : "GMP"}` : ""}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[12px] font-semibold">{p.name}</span>
@@ -577,7 +594,7 @@ function RecordCard({
       <div className="flex flex-wrap gap-2 px-3 py-2">
         <button
           type="button"
-          onClick={() => onFocusPlace(p.coords.lat, p.coords.lng, 16)}
+          onClick={() => onFocusPlace(p.coords.lat, p.coords.lng, 15)}
           className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/20"
         >
           Show on map

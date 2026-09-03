@@ -86,7 +86,7 @@ export const records11: RecordSet = {
       address: "Curzon Road, Ashton-under-Lyne",
       postcode: "OL6",
       phone: "07700 900712",
-      roles: ["victim", "patient", "occupant"],
+      roles: ["victim", "occupant"],
       casualtyId: "cas-partner",
       scenarioId: "11",
       notes: [
@@ -113,7 +113,7 @@ export const records11: RecordSet = {
       ],
     },
 
-    // The shopkeeper at the junction — where the crowd gathers.
+    // The shopkeeper at the junction — keyholder, and the CCTV that covers it.
     {
       id: "p11-witness-raza",
       name: "RAZA, Imran",
@@ -124,7 +124,7 @@ export const records11: RecordSet = {
       scenarioId: "11",
       notes: [
         "Shopkeeper and keyholder — corner shop at the Curzon Road / Katherine Street junction. Shop CCTV covers the junction and the east end of Curzon Road.",
-        "Reports a crowd forming outside the shop, some filming on phones, children among them.",
+        "Can be asked to shutter the shop and clear the frontage if the outer cordon comes to the junction.",
       ],
     },
 
@@ -135,7 +135,8 @@ export const records11: RecordSet = {
       name: "KEANE, Liam",
       sex: "M",
       age: 31,
-      address: "217 Mossley Road, Ashton-under-Lyne",
+      address: "Mossley Road, Ashton-under-Lyne",
+      postcode: "OL6",
       phone: "07700 900887",
       roles: ["keeper"],
       vehicleIds: ["v11-astra"],
@@ -158,7 +159,7 @@ export const records11: RecordSet = {
       keeperName: "KEANE, Liam",
       scenarioId: "11",
       notes: [
-        "Parked on Curzon Road outside No. 34 — believed the subject's usual vehicle. Keeper is his brother at Mossley Road.",
+        "Parked on Curzon Road outside the target — believed the subject's usual vehicle. Keeper is his brother at Mossley Road.",
         "Tax and MOT in date. No markers.",
       ],
     },
@@ -171,7 +172,7 @@ export const records11: RecordSet = {
       keeperId: "p11-witness-brierley-m",
       keeperName: "BRIERLEY, Mark",
       scenarioId: "11",
-      notes: ["Parked on Curzon Road outside No. 36 — the caller's household car. Not involved."],
+      notes: ["Parked on Curzon Road outside the caller's house — the household car. Not involved."],
     },
   ],
 
@@ -210,7 +211,7 @@ export const records11: RecordSet = {
       coords: { lat: 53.49602, lng: -2.08609 },
       scenarioId: "11",
       notes: [
-        "Corner shop at the Curzon Road / Katherine Street junction — crowd gathering point; the outer cordon line runs here.",
+        "Corner shop at the Curzon Road / Katherine Street junction — public footfall on the school route; the outer cordon line runs here.",
         "CCTV covers the junction and the east end of Curzon Road. Keyholder: Mr I. Raza.",
       ],
     },

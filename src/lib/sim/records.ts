@@ -115,6 +115,8 @@ export type PlaceKind = "station" | "hospital" | "scene" | "premises" | "landmar
 export type PlaceRecord = {
   id: string;
   kind: PlaceKind;
+  /** For stations: whose. Three services share town names. */
+  service?: "Fire" | "Ambulance" | "Police";
   name: string;
   address: string;
   postcode?: string;
@@ -151,8 +153,20 @@ export function normaliseVrm(v: string): string {
   return v.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+/** Case-folded, punctuation-stripped, single-spaced — so "O'Donnell",
+ *  "odonnell" and "J Shaw" / "J. Shaw" all meet in the middle. */
 function norm(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+  return s
+    .toLowerCase()
+    .replace(/['’.\-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Digits and letters only — for phone numbers and postcodes typed as
+ *  read off a screen, with or without the spaces. */
+function squash(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 /** Build the searchable index: authored record sets plus what the sim
@@ -176,6 +190,13 @@ export function buildRecordIndex(args: {
     people.push(...set.people);
     vehicles.push(...set.vehicles);
     places.push(...set.places);
+  }
+
+  // Keepers: anyone a vehicle names as its keeper is a keeper, whatever
+  // the authored roles say — so the files cannot drift.
+  const keeperIds = new Set(vehicles.map((v) => v.keeperId).filter(Boolean));
+  for (const p of people) {
+    if (keeperIds.has(p.id) && !p.roles.includes("keeper")) p.roles = [...p.roles, "keeper"];
   }
 
   // Crews: every named rider in the fleet.
@@ -207,6 +228,7 @@ export function buildRecordIndex(args: {
     places.push({
       id: `station:${s.id}`,
       kind: "station",
+      service: s.service,
       name: s.name,
       address: [s.address, s.town].filter(Boolean).join(", "),
       postcode: s.postcode,
@@ -274,12 +296,31 @@ function scoreText(query: string, fields: (string | undefined)[]): number {
     const t = norm(f);
     if (t === q) return 100;
     if (t.startsWith(q)) best = Math.max(best, 80);
-    else if (t.includes(q)) best = Math.max(best, 60);
+    // At the start of a word — "shaw" finds SHAW before it finds
+    // Wythenshawe.
+    else if (t.includes(" " + q) || t.includes("," + q)) best = Math.max(best, 70);
+    else if (t.includes(q)) best = Math.max(best, 45);
     else {
       // Every token present somewhere in the field.
       const all = tokens.every((tok) => t.includes(tok));
       if (all) best = Math.max(best, 40 + Math.min(19, tokens.length * 5));
     }
+  }
+  return best;
+}
+
+/** Phone numbers and postcodes, spacing-blind. */
+function scoreSquashed(query: string, fields: (string | undefined)[]): number {
+  const q = squash(query);
+  if (q.length < 3) return 0;
+  let best = 0;
+  for (const f of fields) {
+    if (!f) continue;
+    const t = squash(f);
+    if (!t) continue;
+    if (t === q) return 100;
+    if (t.startsWith(q)) best = Math.max(best, 85);
+    else if (t.includes(q)) best = Math.max(best, 65);
   }
   return best;
 }
@@ -291,10 +332,17 @@ export function searchRecords(index: RecordIndex, kind: SearchKind, query: strin
 
   if (kind === "person") {
     for (const p of index.people) {
+      const isCrew = p.id.startsWith("crew:");
       const s = Math.max(
-        scoreText(q, [p.name, p.address, p.postcode, p.phone, p.dob]),
+        scoreText(q, [p.name, p.address, p.dob]),
         // "surname, forename" and "forename surname" both find them.
         scoreText(q, [p.name.split(",").reverse().join(" ")]),
+        // Phone and postcode as typed off a screen, spaces or not.
+        scoreSquashed(q, [p.phone, p.postcode]),
+        // A crew rider's line is rank · callsign · station — searchable,
+        // so "G50P1" lists its riders. Authored people's notes are
+        // intelligence, not a search key.
+        isCrew ? scoreText(q, [p.notes?.[0]]) - 5 : 0,
       );
       if (s > 0) hits.push({ kind: "person", score: s, record: p });
     }
@@ -308,12 +356,16 @@ export function searchRecords(index: RecordIndex, kind: SearchKind, query: strin
         else if (nv.startsWith(qv)) s = 85;
         else if (nv.includes(qv)) s = 65;
       }
-      s = Math.max(s, scoreText(q, [`${v.make} ${v.model}`, v.colour, v.keeperName, ...(v.notes ?? [])]) - 10);
+      // Make, model, keeper and notes only once there is something to go
+      // on — two letters would list half the fleet.
+      if (q.length >= 3) {
+        s = Math.max(s, scoreText(q, [`${v.make} ${v.model}`, v.colour, v.keeperName, ...(v.notes ?? [])]) - 10);
+      }
       if (s > 0) hits.push({ kind: "vehicle", score: s, record: v });
     }
   } else {
     for (const p of index.places) {
-      const s = scoreText(q, [p.name, p.address, p.postcode]);
+      const s = Math.max(scoreText(q, [p.name, p.address, p.postcode]), scoreSquashed(q, [p.postcode]));
       if (s > 0) hits.push({ kind: "place", score: s, record: p });
     }
   }

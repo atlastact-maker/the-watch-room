@@ -7,9 +7,13 @@ import type { RecordSet } from "../records";
 //
 // The scenario has no CRS vehicles; the two cars in the A635 layby are
 // scene landmarks ("Walker's car (caller)" and an unlabelled second car)
-// and are recorded here as the caller's car and the missing walkers'
-// car. The single scene casualty ("cas-walker", F ~60) is one of the two
-// walkers the caller saw ahead of her on the Pennine Way.
+// and are recorded here as the caller's car and a second car whose
+// keeper is known only from the plate. The single scene casualty
+// ("cas-walker", F ~60) is linked to the keeper's wife by casualtyId,
+// but nothing in her record says so: the desk cannot know at time of
+// call that anyone is on the hill — the caller's walker sighting is a
+// 50% beat at 130 s, and the walker herself is found by crews sweeping
+// the path.
 
 export const records05: RecordSet = {
   scenarioId: "05",
@@ -17,7 +21,7 @@ export const records05: RecordSet = {
   people: [
     {
       id: "p05-caller-harrison",
-      name: "HARRISON, Gemma",
+      name: "HARRISON, Sophie",
       sex: "F",
       age: 34,
       address: "27 Manchester Road, Mossley, Ashton-under-Lyne",
@@ -27,28 +31,27 @@ export const records05: RecordSet = {
       vehicleIds: ["v05-caller-octavia"],
       notes: [
         "999 caller 1 — walker, at her car in the A635 layby. Reports a line of flame ~100m wide across the moor above the reservoir, wind pushing it uphill away from her.",
-        "Saw two walkers ahead of her on the Pennine Way earlier — believes they are now on the far side of the smoke; cannot see them.",
         "No previous contact.",
       ],
     },
     {
       id: "p05-whittaker-pauline",
-      name: "WHITTAKER, Pauline",
+      name: "SCHOFIELD, Christine",
       sex: "F",
       age: 61,
       address: "14 High Street, Uppermill, Oldham",
       phone: "07700 900518",
-      roles: ["patient"],
+      roles: ["witness"],
       scenarioId: "05",
       casualtyId: "cas-walker",
       notes: [
-        "Walking the Pennine Way with husband Graham (same address) — reported by caller 1 as ahead of her on the path, north of the fire line. Unaccounted for at time of call.",
+        "Not at the vehicle in the layby — believed walking the Pennine Way with husband Peter (same address), per the keeper check on MV16 RJA.",
         "No medical history held.",
       ],
     },
     {
       id: "p05-whittaker-graham",
-      name: "WHITTAKER, Graham",
+      name: "SCHOFIELD, Peter",
       sex: "M",
       age: 63,
       address: "14 High Street, Uppermill, Oldham",
@@ -57,7 +60,7 @@ export const records05: RecordSet = {
       scenarioId: "05",
       vehicleIds: ["v05-walkers-golf"],
       notes: [
-        "On the Pennine Way with wife Pauline — both reported north of the fire line by caller 1. Unaccounted for at time of call.",
+        "Not at the vehicle in the layby — believed walking the Pennine Way with wife Christine (same address), per the keeper check on MV16 RJA.",
         "Registered keeper of MV16 RJA — the second car in the A635 layby.",
       ],
     },
@@ -87,7 +90,7 @@ export const records05: RecordSet = {
       scenarioId: "05",
       vehicleIds: ["v05-motorist-transit"],
       notes: [
-        "999 caller 2 — motorist on the A635, Greenfield-bound. Smoke blowing across the carriageway, vehicles stopping in it.",
+        "999 caller 2 — motorist on the A635, Greenfield-bound. Reports smoke visible from the A635 above the reservoir.",
         "No previous contact.",
       ],
     },
@@ -101,7 +104,7 @@ export const records05: RecordSet = {
       model: "Octavia Estate",
       colour: "Grey",
       keeperId: "p05-caller-harrison",
-      keeperName: "HARRISON, Gemma",
+      keeperName: "HARRISON, Sophie",
       scenarioId: "05",
       notes: [
         "Caller 1's car — parked in the A635 layby. Will need moving if the layby is taken as the RVP.",
@@ -114,10 +117,10 @@ export const records05: RecordSet = {
       model: "Golf",
       colour: "Blue",
       keeperId: "p05-whittaker-graham",
-      keeperName: "WHITTAKER, Graham",
+      keeperName: "SCHOFIELD, Peter",
       scenarioId: "05",
       notes: [
-        "Second car in the A635 layby — keeper and his wife believed on the Pennine Way north of the fire line.",
+        "Second car in the A635 layby — keeper not at the vehicle.",
       ],
     },
     {
@@ -143,7 +146,7 @@ export const records05: RecordSet = {
       keeperName: "AKHTAR, Imran",
       scenarioId: "05",
       notes: [
-        "Caller 2's van — stopped on the A635 in smoke, Greenfield-bound.",
+        "Caller 2's van — on the A635, Greenfield-bound.",
       ],
     },
   ],
@@ -159,7 +162,7 @@ export const records05: RecordSet = {
       scenarioId: "05",
       notes: [
         "RVP for the moor — pumps hold here as relay base and crew welfare; wildfire units and 4×4 only beyond the road.",
-        "Two cars parked at time of call: caller 1's Skoda (MK19 HZW) and the Whittakers' Golf (MV16 RJA).",
+        "Two cars parked at time of call: caller 1's Skoda (MK19 HZW) and a Golf, MV16 RJA (keeper SCHOFIELD, Peter).",
         "GMP closure point — A635 both directions at the layby if the wind brings smoke across the road.",
       ],
     },
@@ -173,7 +176,6 @@ export const records05: RecordSet = {
       scenarioId: "05",
       notes: [
         "Footpath access from the road — start point for a sweep of walkers north of the fire line.",
-        "Two walkers (WHITTAKER, Pauline and Graham) believed on this path north of the burn area.",
         "Rangers can marshal the path at the road under the PDNPA partnership protocol.",
       ],
     },

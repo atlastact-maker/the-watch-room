@@ -64,7 +64,7 @@ export const records04: RecordSet = {
       phone: "07700 900633",
       roles: ["patient", "occupant"],
       notes: [
-        "Unaccounted on the duty manager's headcount — last seen near the dispatch office.",
+        "Not at the assembly point on the duty manager's headcount — last seen near the dispatch office.",
         "Shift operative, dispatch. Staff car (Astra) parked in the yard, Sector 1.",
       ],
       scenarioId: "04",
@@ -82,7 +82,7 @@ export const records04: RecordSet = {
       phone: "07700 900271",
       roles: ["patient", "occupant"],
       notes: [
-        "Unaccounted on the duty manager's headcount — last seen near the dispatch office with HUSSAIN.",
+        "Not at the assembly point on the duty manager's headcount — last seen near the dispatch office with HUSSAIN.",
         "Shift operative, dispatch office. Staff car (Fiesta) parked in the yard, Sector 1.",
       ],
       scenarioId: "04",
@@ -118,7 +118,7 @@ export const records04: RecordSet = {
       keeperId: "p04-patient-hussain",
       keeperName: "HUSSAIN, Adnan",
       notes: [
-        "Staff car — parked in the yard, Sector 1, on the molten-run line from the roller door.",
+        "Staff car — parked in the yard, Sector 1, nearest the roller door.",
       ],
       scenarioId: "04",
     },
@@ -176,7 +176,7 @@ export const records04: RecordSet = {
       coords: { lat: 53.4697, lng: -2.3271 },
       notes: [
         "Exposure — east of the maintenance bay (nitrogen + acetylene); inside a 200 m cylinder cordon.",
-        "Palletised goods, 24-hour operation — staff on site; evacuate if the BLEVE clock starts.",
+        "Palletised goods, 24-hour operation — staff on site; evacuate if the cylinders become involved.",
         "Duty contact via the security desk, 0161 496 0844.",
       ],
       scenarioId: "04",

@@ -1,9 +1,9 @@
 // Scenario 06 — Chemical leak, Stockport Rail Freight Terminal. What a
 // control room would hold for the job: site control (the 999 caller),
 // the two yard staff who walked through the vapour, the security officer
-// on the gate, the shunter driver, a resident downwind who rings in about
-// the smell, the cars inside the gate and the Network Rail response van,
-// and the places around the synthetic yard the job turns on.
+// on the gate, the shunter driver, a downwind resident on the site's
+// shelter-in-place list, the cars inside the gate and the Network Rail
+// response van, and the places around the synthetic yard the job turns on.
 //
 // Everyone and every vehicle here is fictional. Addresses follow the
 // house rule — a real street from the Hillgate / Portwood streets around
@@ -102,13 +102,13 @@ export const records06: RecordSet = {
       phone: "07700 900188",
       roles: ["witness"],
       notes: [
-        "Shunter driver — left the diesel shunter running in siding 6, within 50 m of the leak, when staff were pulled back. Withdrew to the gate; not exposed.",
-        "Can shut the shunter down on instruction — not to go back trackside without the incident commander's say-so.",
+        "Shunter driver — withdrew to the gate with the rest of the staff when the site alarm went; not exposed.",
+        "Told at the gate not to go back trackside without the incident commander's say-so.",
       ],
       scenarioId: SCENARIO,
     },
 
-    // --- Downwind: the second 999 call ------------------------------------
+    // --- Downwind: resident on the shelter-in-place list ------------------
     {
       id: "p06-caller-dixon",
       name: "DIXON, Marjorie",
@@ -117,10 +117,10 @@ export const records06: RecordSet = {
       address: "22 Canal Street, Stockport",
       postcode: "SK1",
       phone: "0161 496 0733",
-      roles: ["caller"],
+      roles: ["occupant"],
       notes: [
-        "Second 999 call — resident south-west of the yard: sweet, solvent-type smell in the street and coming in at the back door. Advised to shut windows and doors and stay in; to ring back if it gets stronger.",
-        "Previous: none.",
+        "Resident on the downwind side of the yard — on the shelter-in-place list for Canal Street / Middle Hillgate held with the site's PRI.",
+        "Previous: none held for this address.",
       ],
       scenarioId: SCENARIO,
     },
@@ -191,7 +191,6 @@ export const records06: RecordSet = {
       coords: { lat: 53.40764, lng: -2.15042 },
       notes: [
         "Drain plan (PRI annex): closing the interceptor isolates the yard drainage from the River Mersey outfall. Bunding points marked on the apron.",
-        "First job for the EPU crew — once the pool clears the ballast edge it runs along the drainage channel beside the apron.",
       ],
       scenarioId: SCENARIO,
     },
@@ -203,7 +202,7 @@ export const records06: RecordSet = {
       postcode: "SK1 1PE",
       coords: { lat: 53.40749, lng: -2.14945 },
       notes: [
-        "Yard surface water discharges to the Mersey here. Environment Agency to be told at once if run-off passes the interceptor — 3YE is a water pollutant.",
+        "Yard surface water discharges to the Mersey here. Environment Agency to be told at once if run-off passes the interceptor — the product is a water pollutant.",
       ],
       scenarioId: SCENARIO,
     },
@@ -225,12 +224,12 @@ export const records06: RecordSet = {
     {
       id: "pl06-dixon-22-canal-street",
       kind: "premises",
-      name: "22 Canal Street — second caller",
+      name: "22 Canal Street — shelter-in-place list",
       address: "22 Canal Street, Stockport",
       postcode: "SK1",
       coords: { lat: 53.40625, lng: -2.15272 },
       notes: [
-        "Home of the second 999 caller (DIXON) — solvent smell reaching the street. Advised to shelter in place.",
+        "Home of DIXON — resident on the downwind side of the yard; on the shelter-in-place list for Canal Street / Middle Hillgate.",
       ],
       scenarioId: SCENARIO,
     },

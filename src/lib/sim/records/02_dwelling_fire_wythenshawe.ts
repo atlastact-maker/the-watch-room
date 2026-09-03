@@ -12,20 +12,30 @@ import type { RecordSet } from "../records";
 // the family at no. 285 is on the line from the caller's handset.
 //
 // The family of four on the housing register (adults 41 and 38, children
-// 8 and 5) are all recorded. The boy (5) is the scene's cas-1 — present on
-// about two-thirds of runs, asleep in the back bedroom, and slower to wake
-// because of his hearing impairment. The father (38) is cas-2, who only
-// exists when the second-casualty beat fires on a slow attendance; his
-// record reads as an occupant accounted for at the time of the call, with
-// the informant's warning that he wants to go back in.
+// 8 and 5) are all recorded — but only as the desk could know them at
+// 02:34. The persons reality is rolled per run (about a third of runs the
+// whole family is out; on the rest the boy is in the back bedroom, and on
+// a slow attendance his father may go back in after him), so nobody here
+// is a "patient": the boy (cas-1) and the father (cas-2) keep their
+// casualty links for the sim, but their records say where they were when
+// the alarm went and that the pavement head-count is still being taken.
+// The heat through the party wall, the father going back in and the seat
+// of fire are things the crews find out, not things the desk holds.
 //
 // There are no CRS vehicles in this scenario. The two vehicles are the
 // kerbside "Parked" cars the scene draws either side of the driveway —
 // the family's and the neighbour's — because they are what police will
 // be asked to move for the aerial pitch.
 //
-// Everyone and every vehicle below is fictional. The street is real and
-// the house numbers follow the scenario's own scene (283 / 285 / 287).
+// Everyone and every vehicle below is fictional. The street is real, and
+// the door numbers in the notes (283 / 285 / 287) follow the scenario's
+// own scene — whose target is a real, OSM-verified building — rather than
+// the records house rule of a fictional number. So the searchable fields
+// stop at the street and the outward code (address "Hollyhedge Road,
+// Wythenshawe, Manchester", postcode "M22", no door number in a place
+// name or a vehicle note): a search by door number or full postcode does
+// not put named occupants on a real front door. The scenario's derived
+// scene record carries the full address on its own.
 
 export const records02: RecordSet = {
   scenarioId: "02",
@@ -36,8 +46,8 @@ export const records02: RecordSet = {
       name: "HARGREAVES, Pauline",
       sex: "F",
       age: 67,
-      address: "287 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       phone: "07700 900412",
       roles: ["caller"],
       notes: [
@@ -53,13 +63,13 @@ export const records02: RecordSet = {
       name: "HARGREAVES, Graham",
       sex: "M",
       age: 69,
-      address: "287 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       phone: "0161 496 0287",
       roles: ["occupant"],
       notes: [
-        "Occupant of no. 287, the attached semi. Inside the property at the time of the call — reported banging on the party wall, says there is heat coming through it.",
-        "To be brought out to the pavement; no. 287 is the exposure if the fire is not knocked down.",
+        "Occupant of no. 287, the attached semi — inside the property at the time of the call; to be brought out to the pavement.",
+        "No. 287 is the direct exposure if the fire is not knocked down.",
       ],
       scenarioId: "02",
     },
@@ -68,12 +78,12 @@ export const records02: RecordSet = {
       name: "MARSH, Kelly",
       sex: "F",
       age: 41,
-      address: "285 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       phone: "07700 900187",
       roles: ["occupant", "caller"],
       notes: [
-        "On the line from the caller's handset — outside no. 287 with her daughter. States her son (5) was asleep in the back bedroom and she cannot get back in; hallway smoke-logged.",
+        "On the line from the caller's handset — outside no. 287 with her daughter. States her son (5) was asleep in the back bedroom when the alarm went; whereabouts being confirmed on the pavement. House reported smoke-logged.",
         "Mother of the family at no. 285 — adults 41 and 38, children 8 and 5 on the housing register.",
         "No previous contact.",
       ],
@@ -84,12 +94,12 @@ export const records02: RecordSet = {
       name: "MARSH, Daniel",
       sex: "M",
       age: 38,
-      address: "285 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       phone: "07700 900233",
-      roles: ["occupant", "patient"],
+      roles: ["occupant"],
       notes: [
-        "Occupant of no. 285 — accounted for on the pavement at 02:34 per the informant. Informant states he wants to go back in for his son; crews to be told if he does.",
+        "Occupant of no. 285 — accounted for on the pavement at 02:34 per the informant.",
         "Father of the family. Registered keeper of the grey Focus parked kerbside outside.",
       ],
       scenarioId: "02",
@@ -101,8 +111,8 @@ export const records02: RecordSet = {
       name: "MARSH, Ella",
       sex: "F",
       age: 8,
-      address: "285 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       roles: ["occupant"],
       markers: ["CHILD"],
       notes: [
@@ -115,12 +125,12 @@ export const records02: RecordSet = {
       name: "MARSH, Theo",
       sex: "M",
       age: 5,
-      address: "285 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
-      roles: ["occupant", "patient"],
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
+      roles: ["occupant"],
       markers: ["CHILD", "VULNERABLE"],
       notes: [
-        "Son of the family at no. 285. Informant states he was asleep in the rear first-floor bedroom and has not been seen since the alarm.",
+        "Son of the family at no. 285. Was asleep in the rear first-floor bedroom when the alarm went; whereabouts being confirmed on the pavement.",
         "Hearing impairment — wears hearing aids, removed at night; slower to wake to an alarm (vulnerability flag on the housing register).",
       ],
       scenarioId: "02",
@@ -131,8 +141,8 @@ export const records02: RecordSet = {
       name: "IQBAL, Nasreen",
       sex: "F",
       age: 54,
-      address: "283 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       phone: "07700 900658",
       roles: ["occupant", "witness"],
       notes: [
@@ -153,7 +163,7 @@ export const records02: RecordSet = {
       keeperId: "p02-patient-marsh-daniel",
       keeperName: "MARSH, Daniel",
       notes: [
-        "Parked kerbside on Hollyhedge Road outside no. 283 / 285 — the driveway of no. 285 is clear. May need moving for the aerial pitch.",
+        "Parked kerbside on Hollyhedge Road outside the fire property, west of the driveway — the driveway itself is clear. May need moving for the aerial pitch.",
         "No markers.",
       ],
       scenarioId: "02",
@@ -167,7 +177,7 @@ export const records02: RecordSet = {
       keeperId: "p02-caller-hargreaves",
       keeperName: "HARGREAVES, Pauline",
       notes: [
-        "Parked kerbside on Hollyhedge Road outside no. 287. Keys with the caller on the pavement.",
+        "Parked kerbside on Hollyhedge Road outside the attached neighbour's, east of the driveway. Keys with the caller on the pavement.",
         "No markers.",
       ],
       scenarioId: "02",
@@ -178,12 +188,12 @@ export const records02: RecordSet = {
     {
       id: "pl02-neighbour-287",
       kind: "premises",
-      name: "287 Hollyhedge Road — attached neighbour (caller)",
-      address: "287 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      name: "Hollyhedge Road — attached neighbour (caller)",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       coords: { lat: 53.3878415, lng: -2.2447021 },
       notes: [
-        "Semi-detached partner of no. 285 — shared party wall. The fire is into this property at about 6 m radius (roughly 15 unsuppressed minutes from a kitchen seat).",
+        "Semi-detached partner of no. 285 — shared party wall; the direct exposure.",
         "Occupants: 2 — HARGREAVES Pauline (67, the caller, outside) and Graham (69, inside at the time of the call).",
         "Same council-built stock as no. 285: 1950s brick cavity wall, slate roof, uPVC multi-point front door. Gas meter in the cupboard under the stairs, mirror-image of no. 285.",
       ],
@@ -192,9 +202,9 @@ export const records02: RecordSet = {
     {
       id: "pl02-neighbour-283",
       kind: "premises",
-      name: "283 Hollyhedge Road — neighbour",
-      address: "283 Hollyhedge Road, Wythenshawe, Manchester",
-      postcode: "M22 4QR",
+      name: "Hollyhedge Road — neighbour, west side",
+      address: "Hollyhedge Road, Wythenshawe, Manchester",
+      postcode: "M22",
       coords: { lat: 53.3878415, lng: -2.2450646 },
       notes: [
         "Next house on the west side of no. 285, separated by the driveway — not attached. Occupant: IQBAL Nasreen (54), out on the pavement.",

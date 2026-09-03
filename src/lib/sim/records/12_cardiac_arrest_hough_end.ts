@@ -1,7 +1,7 @@
 // Scenario 12 — Cardiac arrest, Hough End playing fields, Chorlton.
 //
 // What a control room would hold at the time of the call: the coach on
-// the phone, the player on the grass, his mother on her way, the
+// the phone, the player on the grass, his mother as next of kin, the
 // teammates taking turns on his chest, the runner sent for the defib,
 // the two cars they came in, and the three places the job turns on —
 // the pavilion with the community defib, the car park gate the players
@@ -26,10 +26,10 @@ export const records12: RecordSet = {
       address: "63 Egerton Road North, Chorlton-cum-Hardy",
       postcode: "M21 0RZ",
       phone: "07700 900471",
-      roles: ["caller"],
+      roles: ["caller", "keeper"],
       notes: [
-        "Coach of the patient's Sunday league side — on pitch 11 with the patient, relaying call-handler CPR instructions to the teammates on his chest",
-        "Has sent two players to the Hough End Centre car park on Mauldeth Road West to marshal the gate for crews",
+        "Coach of the patient's Sunday league side — on pitch 11 with the patient, relaying call-handler CPR instructions to the teammates on his chest.",
+        "Has sent two players to the Hough End Centre car park on Mauldeth Road West to marshal the gate for crews.",
       ],
       scenarioId: "12",
       vehicleIds: ["v12-transit"],
@@ -46,9 +46,9 @@ export const records12: RecordSet = {
       phone: "07700 900165",
       roles: ["patient"],
       notes: [
-        "Witnessed non-contact collapse mid-match on pitch 11 — agonal breathing, bystander CPR from the moment of collapse",
-        "Next of kin: mother, BRENNAN Sinead, same address — called by teammates, making her way to the fields",
-        "No previous ambulance contact held for this person",
+        "Witnessed non-contact collapse mid-match on pitch 11 — agonal breathing, bystander CPR from the moment of collapse.",
+        "Next of kin: mother, BRENNAN Sinead, same address.",
+        "No previous ambulance contact held for this person.",
       ],
       scenarioId: "12",
       casualtyId: "cas-player",
@@ -66,8 +66,8 @@ export const records12: RecordSet = {
       phone: "07700 900725",
       roles: ["keeper"],
       notes: [
-        "Patient's mother and next of kin — en route to pitch 11 on foot; will need family liaison and holding clear of the resus",
-        "Registered keeper of the grey Vauxhall Corsa the patient drove to the fixture — parked in the Hough End Centre car park",
+        "Patient's mother and next of kin — same address as the patient.",
+        "Registered keeper of the grey Vauxhall Corsa the patient drove to the fixture — parked in the Hough End Centre car park.",
       ],
       scenarioId: "12",
       vehicleIds: ["v12-corsa"],
@@ -84,7 +84,7 @@ export const records12: RecordSet = {
       phone: "07700 900372",
       roles: ["witness"],
       notes: [
-        "Team manager — on pitch 11; knew of the community defib on the Hough End Centre foyer wall and sent a runner for it",
+        "Team manager — on pitch 11; knew of the community defib on the Hough End Centre foyer wall and sent a runner for it.",
       ],
       scenarioId: "12",
     },
@@ -100,7 +100,7 @@ export const records12: RecordSet = {
       phone: "07700 900586",
       roles: ["witness"],
       notes: [
-        "Teammate — first on the patient's chest; rotating compressions with ADEYEMI every two minutes on the call handler's count",
+        "Teammate — first on the patient's chest; rotating compressions with ADEYEMI every two minutes on the call handler's count.",
       ],
       scenarioId: "12",
     },
@@ -114,7 +114,7 @@ export const records12: RecordSet = {
       phone: "07700 900629",
       roles: ["witness"],
       notes: [
-        "Teammate — second compressor, swapping with WALSH; saw the collapse from a few yards away, no contact with any other player",
+        "Teammate — second compressor, swapping with WALSH; saw the collapse from a few yards away, no contact with any other player.",
       ],
       scenarioId: "12",
     },
@@ -130,7 +130,7 @@ export const records12: RecordSet = {
       phone: "07700 900344",
       roles: ["witness"],
       notes: [
-        "Substitute — sent sprinting to the Hough End Centre foyer for the community defib; call handler to give him the cabinet code",
+        "Substitute — sent sprinting to the Hough End Centre foyer for the community defib; call handler to give him the cabinet code.",
       ],
       scenarioId: "12",
     },
@@ -147,7 +147,7 @@ export const records12: RecordSet = {
       keeperId: "p12-keeper-brennan",
       keeperName: "BRENNAN, Sinead",
       notes: [
-        "Parked in the Hough End Centre car park off Mauldeth Road West — driven to the fixture by the patient, keeper is his mother",
+        "Parked in the Hough End Centre car park off Mauldeth Road West — driven to the fixture by the patient, keeper is his mother.",
       ],
       scenarioId: "12",
     },
@@ -162,7 +162,7 @@ export const records12: RecordSet = {
       keeperId: "p12-caller-okafor",
       keeperName: "OKAFOR, Daniel",
       notes: [
-        "Team kit van — parked in the Hough End Centre car park; keeper is the 999 caller, on pitch 11 with the patient",
+        "Team kit van — parked in the Hough End Centre car park; keeper is the 999 caller, on pitch 11 with the patient.",
       ],
       scenarioId: "12",
     },
@@ -178,9 +178,9 @@ export const records12: RecordSet = {
       postcode: "M21 7SX",
       coords: { lat: 53.4383, lng: -2.2553 },
       notes: [
-        "Community defib (PAD) on the foyer wall — code-locked cabinet, registered on The Circuit; the call handler issues the code to the runner",
-        "Changing rooms, café and foyer — pavilion staffed on Sunday match days",
-        "Car park off Mauldeth Road West is the hard standing for every pitch to the south; spine path beyond the gate is foot / 4x4 only",
+        "Community defib (PAD) on the foyer wall — code-locked cabinet, registered on The Circuit; the call handler issues the code to the runner.",
+        "Changing rooms, café and foyer — pavilion staffed on Sunday match days.",
+        "Car park off Mauldeth Road West is the hard standing for every pitch to the south; spine path beyond the gate is foot / 4x4 only.",
       ],
       scenarioId: "12",
     },
@@ -194,8 +194,8 @@ export const records12: RecordSet = {
       postcode: "M21 7SX",
       coords: { lat: 53.43854, lng: -2.25603 },
       notes: [
-        "RVP for the pitches — caller has two players at the gate to wave crews through",
-        "~450 m of soft ground from here to pitch 11 — kit goes forward by hand, conveying DCA stays on the hard standing",
+        "RVP for the pitches — caller has two players at the gate to wave crews through.",
+        "~450 m of soft ground from here to pitch 11 — kit goes forward by hand, conveying DCA stays on the hard standing.",
       ],
       scenarioId: "12",
     },
@@ -209,8 +209,8 @@ export const records12: RecordSet = {
       postcode: "M21 7SX",
       coords: { lat: 53.43595, lng: -2.25006 },
       notes: [
-        "Flat open grass immediately south of pitch 11 — cleared of players and marked before the aircraft commits",
-        "Rotor wash across the resus and the crowd line — brief Sector 2 before Helimed is on finals",
+        "Flat open grass immediately south of pitch 11 — cleared of players and marked before the aircraft commits.",
+        "Rotor wash reaches the resus and the crowd line.",
       ],
       scenarioId: "12",
     },
