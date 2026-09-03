@@ -130,7 +130,16 @@ is what this document recommends `STANDARD_PDA` should carry, with the reason.
 
 ## 2. Automatic fire alarm — commercial / non-sleeping premises
 
-Scenario 01 (Trafford Centre, retail). `IncidentTypeCode: automatic_fire_alarm`.
+Scenario 01 (Unit 7, Agecroft Commerce Park — small commercial, closed).
+`IncidentTypeCode: automatic_fire_alarm`.
+
+**Moved 2026-09-03.** The scenario used to be the Trafford Centre. Row S17
+ below says an AFA at premises with no sleeping accommodation gets NO
+ attendance 08:00-19:00 unless a fire is believed, so a daytime mall zone
+ activation was a call-challenge rather than a mobilisation — the scenario
+ was teaching an attendance that would not have happened. It is now an
+ out-of-hours alarm at a closed unit, which S17 *does* send a pump to, and
+ the 20-minute closed-premises limit is the scenario clock.
 
 | Slot | What is sent | Scope | Src |
 |---|---|---|---|

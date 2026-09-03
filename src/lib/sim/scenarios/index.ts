@@ -1,5 +1,5 @@
 import type { Scenario } from "../incident_types";
-import { scenario01 } from "./01_afa_trafford_centre";
+import { scenario01 } from "./01_afa_agecroft";
 import { scenario02 } from "./02_dwelling_fire_wythenshawe";
 import { scenario03 } from "./03_rtc_m60_entrapment";
 import { scenario04 } from "./04_industrial_trafford_park";
