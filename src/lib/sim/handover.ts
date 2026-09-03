@@ -163,6 +163,46 @@ export function commandShortfall(incident: Incident, rank: 0 | 1 | 2 | 3): 0 | 1
   return Math.max(0, Math.min(3, demand - rank)) as 0 | 1 | 2 | 3;
 }
 
+/** Which attendance slots nobody is standing in.
+ *
+ *  Two passes. First honour any unit mobilised against a named slot from
+ *  the PDA checklist, because that is the operator saying what it is for.
+ *  Then fill what is left by what the remaining units ARE, in attendance
+ *  order — a pump dragged onto the stack still covers the pump slot. One
+ *  unit covers at most one slot: four pumps on a four-pump attendance is
+ *  a full attendance, four pumps on a six-pump one is not. */
+function unfilledSlots(
+  incident: Incident,
+  deployments: Deployment[],
+  pdaSlots: PdaSlot[],
+  typeOf?: (applianceId: string) => string | undefined,
+): PdaSlot[] {
+  const pool = deployments.filter((d) => d.incidentId === incident.id);
+  const used = new Set<string>();
+  const filled = new Set<string>();
+
+  for (const s of pdaSlots) {
+    const named = pool.find((d) => !used.has(d.applianceId) && d.slotId === s.id);
+    if (named) {
+      used.add(named.applianceId);
+      filled.add(s.id);
+    }
+  }
+  for (const s of pdaSlots) {
+    if (filled.has(s.id)) continue;
+    const fit = pool.find((d) => {
+      if (used.has(d.applianceId)) return false;
+      const t = typeOf?.(d.applianceId);
+      return t !== undefined && s.requiredApplianceTypes.includes(t as ApplianceTypeCode);
+    });
+    if (fit) {
+      used.add(fit.applianceId);
+      filled.add(s.id);
+    }
+  }
+  return pdaSlots.filter((s) => !filled.has(s.id));
+}
+
 /** The assistance messages this commander will send, and when.
  *
  *  They ask for the PDA slot nobody filled first — that is the gap they
@@ -176,15 +216,13 @@ export function planRequests(
   rank: 0 | 1 | 2 | 3,
   atMs: number,
   clearSec: number,
+  /** What each committed unit actually is. Without it the match falls
+   *  back to slot ids, which only the PDA checklist ever sets. */
+  typeOf?: (applianceId: string) => string | undefined,
 ): MakeUpRequest[] {
   const count = SHORTFALL_REQUESTS[commandShortfall(incident, rank)];
   if (count === 0) return [];
-
-  const committedTypes = new Set<string>();
-  for (const d of deployments) {
-    if (d.incidentId === incident.id) committedTypes.add(d.slotId);
-  }
-  const unfilled = pdaSlots.filter((s) => !committedTypes.has(s.id));
+  const unfilled = unfilledSlots(incident, deployments, pdaSlots, typeOf);
 
   const out: MakeUpRequest[] = [];
   for (let i = 0; i < count; i++) {
@@ -247,6 +285,9 @@ export function commandCandidates(
   for (const d of deployments) {
     if (d.incidentId !== incident.id) continue;
     if (nowMs < d.arrivesAt) continue; // not on scene yet
+    // Off the ground: released back to station, or conveying to hospital.
+    if (d.returnStartedAt !== undefined && nowMs >= d.returnStartedAt) continue;
+    if (d.hospitalLegStartedAt !== undefined && nowMs >= d.hospitalLegStartedAt) continue;
     const a = applianceOf(d.applianceId);
     if (!a) continue;
     out.push({

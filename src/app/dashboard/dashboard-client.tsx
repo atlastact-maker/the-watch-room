@@ -443,7 +443,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [preShiftStates, setPreShiftStates] = useState<Record<string, PreShiftState>>({});
   const [log, setLog] = useState<LogEntry[]>([]);
   const outcome = runtime.outcome;
-  const setOutcome = runtimeSetter("outcome");
   // The dispatch log sits on the map by default; the operator can hide it.
   const [showDispatchLog, setShowDispatchLog] = useState(true);
   // The 999 caller's words as a movable panel on the area map. Off by
@@ -498,7 +497,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const sceneCommanderApplianceId = runtime.sceneCommanderApplianceId;
   const setSceneCommanderApplianceId = runtimeSetter("sceneCommanderApplianceId");
   const handover = runtime.handover;
-  const setHandover = runtimeSetter("handover");
   // Weather + time of day — rolled when the shift starts and re-rolled on
   // patch change. Feeds into blue-light ETAs, HEMS availability, BA
   // cylinder duration and fire growth inside the sim.
@@ -590,22 +588,37 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setIntensity(shifted.intensity);
     setWeather(shifted.weather);
     setPreShiftStates(shifted.preShiftStates);
-    setActiveIncident(shifted.activeIncident);
+    const saved = shifted.activeIncident;
+    if (saved) {
+      setIncidents([saved]);
+      setSelectedIncidentId(saved.id);
+      // Written straight through as well: the ref is only refreshed on
+      // render, and the runtime below must not wait for one.
+      selectedIdRef.current = saved.id;
+      setRuntimes({
+        [saved.id]: {
+          tasks: shifted.tasks,
+          // A shift is only ever saved while the job is live, so a resumed
+          // incident is by definition still open.
+          outcome: null,
+          informantLog: shifted.informantLog,
+          informantOnCall: shifted.informantOnCall,
+          fireIgnition: shifted.fireIgnition ?? null,
+          absentCasualtyIds: shifted.absentCasualtyIds ?? [],
+          tacticalMode: shifted.tacticalMode,
+          sceneCommanderApplianceId: shifted.sceneCommanderApplianceId,
+          muster: null,
+          handover: shifted.handover ?? null,
+        },
+      });
+    }
     setDeployments(shifted.deployments);
     setStatusOverrides(shifted.statusOverrides);
-    setTasks(shifted.tasks);
     setCrewAir(shifted.crewAir);
     setVehicleGauges(shifted.vehicleGauges);
     setFatigueByApplianceId(shifted.fatigueByApplianceId);
     setTreatmentByCasualtyId(shifted.treatmentByCasualtyId);
-    setSceneCommanderApplianceId(shifted.sceneCommanderApplianceId);
-    setHandover(shifted.handover ?? null);
-    setTacticalMode(shifted.tacticalMode);
     setLog(shifted.log);
-    setInformantLog(shifted.informantLog);
-    setInformantOnCall(shifted.informantOnCall);
-    setFireIgnition(shifted.fireIgnition ?? null);
-    setAbsentCasualtyIds(shifted.absentCasualtyIds ?? []);
     setCoveredServices(shifted.coveredServices ?? [...ALL_SERVICES]);
     setNewlyFoundCasualties(new Set(shifted.newlyFoundCasualties));
     setNewlyConfirmedHazards(new Set(shifted.newlyConfirmedHazards));
@@ -1241,11 +1254,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setDeployments([]);
     setStatusOverrides({});
     setLog([]);
-    setOutcome(null);
     setNewlyFoundCasualties(new Set());
     setNewlyConfirmedHazards(new Set());
-    setTasks([]);
-    setSceneCommanderApplianceId(null);
     setCrewAir({});
     setLastAirTickAt(0);
     setInformantLog([]);
@@ -1556,6 +1566,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const d = deployments.find((x) => x.applianceId === applianceId);
     if (!d) return;
     if (d.returnStartedAt) return; // already returning
+    if (handover?.applianceId === applianceId) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `sd-refused:${applianceId}:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "annotation",
+          message: `${applianceLabel(applianceId)} has command of this incident and cannot be released.`,
+        },
+      ]);
+      return;
+    }
     const station = findStationForAppliance(applianceId);
     if (!station) return;
     const now = Date.now();
@@ -2294,14 +2316,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     routeMeters?: number;
     routeCoords?: [number, number][];
     selectedPodType?: import("@/lib/sim/types").PodTypeCode;
+    /** The job to mobilise to. Defaults to the one on screen; the call
+     *  stack names it explicitly, because a unit dropped on a row is
+     *  meant for that row whatever happens to be selected. */
+    incidentId?: string;
   }) {
-    if (!activeIncident) return;
+    const incident = args.incidentId
+      ? incidents.find((i) => i.id === args.incidentId) ?? null
+      : activeIncident;
+    if (!incident) return;
     const mobilisedAt = Date.now();
     dispatchBeep();
     bumpStats((s) => {
       s.resourcesAllocated += 1;
       if (deployments.length === 0) {
-        s.firstAllocSumSec += Math.max(0, (mobilisedAt - activeIncident.receivedAt) / 1000);
+        s.firstAllocSumSec += Math.max(0, (mobilisedAt - incident.receivedAt) / 1000);
         s.firstAllocCount += 1;
       }
     });
@@ -2354,10 +2383,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const isAircraft = appliance?.type === "HEMS" || appliance?.type === "Police_NPAS";
     if (isAircraft && appliance) {
       const base = findStationForAppliance(appliance.id)?.coords;
-      const target = activeIncident.scenario.location.coords;
+      const target = incident.scenario.location.coords;
       if (base) {
         // Curved transit, priced off the line actually flown.
-        const line = flightPath(base, target, `${appliance.id}:${activeIncident.id}`);
+        const line = flightPath(base, target, `${appliance.id}:${incident.id}`);
         const meters = pathLengthMeters(line);
         // Crew to airborne: two to five minutes on the pad. Then H145 /
         // EC135 cruise at ~130 kt (≈67 m/s) for the line's length.
@@ -2379,7 +2408,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ...prev,
       {
         applianceId: args.applianceId,
-        incidentId: activeIncident.id,
+        incidentId: incident.id,
         slotId: args.slotId,
         mobilisedAt,
         etaSeconds,
@@ -2419,7 +2448,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // jumps mid-run. Aircraft are excluded — their straight line IS the route.
     if (!isAircraft && (!args.routeCoords || args.routeCoords.length < 2)) {
       const station = findStationForAppliance(args.applianceId);
-      const target = activeIncident.scenario.location.coords;
+      const target = incident.scenario.location.coords;
       if (station) {
         void routeEta(station.coords, target)
           .then((r) => {
@@ -2536,52 +2565,74 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return () => clearInterval(id);
   }, [incidents, runtimes, selectedIncidentId]);
 
-  /** Units on scene that could take command of the selected incident. */
-  function commandOptions() {
-    if (!activeIncident) return [];
-    return commandCandidates(activeIncident, incidentDeployments, now, (id) => {
+  /** Units on scene that could take command of a given incident. Empty
+   *  for a job that is closed or already delegated, so the picker simply
+   *  stops being offered rather than being offered and refused. */
+  function commandOptionsFor(incidentId: string) {
+    const inc = incidents.find((i) => i.id === incidentId);
+    if (!inc) return [];
+    const rt = runtimes[incidentId];
+    if (rt?.outcome || rt?.handover) return [];
+    const deps = deployments.filter((d) => d.incidentId === incidentId);
+    return commandCandidates(inc, deps, now, (id) => {
       const a = applianceById.get(id);
       return a ? { callsign: a.callsign, type: a.type, typeName: a.typeName } : undefined;
     }).map((c) => ({
       ...c,
-      advice: commandAdvice(activeIncident, c.rank),
-      comfortable: commandShortfall(activeIncident, c.rank) === 0,
+      advice: commandAdvice(inc, c.rank),
+      comfortable: commandShortfall(inc, c.rank) === 0,
     }));
+  }
+
+  /** The same, for the incident on screen. */
+  function commandOptions() {
+    return activeIncident ? commandOptionsFor(activeIncident.id) : [];
   }
 
   /** Hand the incident to an on-scene unit. The desk stops working it:
    *  no ground view, no tasks, no treatment — the commander closes it in
    *  their own time and the debrief scores the mobilising. */
-  function handCommandTo(applianceId: string) {
-    if (!activeIncident || outcome || handover) return;
+  function handCommandToFor(incidentId: string, applianceId: string) {
+    const inc = incidents.find((i) => i.id === incidentId);
+    if (!inc) return;
+    const rt = runtimes[incidentId];
+    if (rt?.outcome || rt?.handover) return;
     const a = applianceById.get(applianceId);
     if (!a) return;
-    const standard = STANDARD_PDA[activeIncident.scenario.type];
-    const slots = standard?.slots ?? activeIncident.scenario.pda;
+    const standard = STANDARD_PDA[inc.scenario.type];
+    const slots = standard?.slots ?? inc.scenario.pda;
+    const deps = deployments.filter((d) => d.incidentId === incidentId);
     const rank = commandRank(a.type);
-    const sec = clearSeconds(activeIncident, incidentDeployments, slots, rank);
+    const sec = clearSeconds(inc, deps, slots, rank);
     const atMs = Date.now();
-    const requests = planRequests(activeIncident, incidentDeployments, slots, rank, atMs, sec);
-    setHandover({
-      applianceId,
-      callsign: a.callsign,
-      commandRank: rank,
-      atMs,
-      clearAtMs: atMs + sec * 1000,
-      requests,
-    });
-    setSceneCommanderApplianceId(applianceId);
-    // The caller stops reaching this desk: the job is the commander's,
-    // and its beats would be noise on a stack being used for other calls.
-    setInformantOnCall(false);
-    setInformantLog([]);
-    // Leaving the ground view is part of the trade, so do it for them
-    // rather than letting them sit in a view that no longer updates.
-    if (groundViewOpen) setGroundViewOpen(false);
+    const requests = planRequests(inc, deps, slots, rank, atMs, sec, (id) =>
+      applianceById.get(id)?.type,
+    );
+    // One write, so a job delegated from the stack lands on its OWN
+    // runtime slice rather than on whichever job happens to be selected.
+    updateRuntime(incidentId, (r) => ({
+      ...r,
+      handover: {
+        applianceId,
+        callsign: a.callsign,
+        commandRank: rank,
+        atMs,
+        clearAtMs: atMs + sec * 1000,
+        requests,
+      },
+      sceneCommanderApplianceId: applianceId,
+      // The caller stops reaching this desk: the job is the commander's,
+      // and its beats would be noise on a stack being used for other calls.
+      informantOnCall: false,
+      informantLog: [],
+    }));
+    // The ground view only ever shows the selected job, so only that job
+    // being handed over should close it.
+    if (incidentId === selectedIncidentId && groundViewOpen) setGroundViewOpen(false);
     setLog((prev) => [
       ...prev,
       {
-        id: `handover:${activeIncident.id}:${atMs}`,
+        id: `handover:${incidentId}:${atMs}`,
         timestamp: atMs,
         kind: "commander_assigned",
         message: `${a.callsign} has command — incident delegated to the incident commander. Control clear; expected stop in about ${Math.max(1, Math.round(sec / 60))} min.`,
@@ -2589,8 +2640,38 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     ]);
   }
 
+  /** Hand the incident on screen to an on-scene unit. The desk stops
+   *  working it: no ground view, no tasks, no treatment — the commander
+   *  closes it in their own time and the debrief scores the mobilising. */
+  function handCommandTo(applianceId: string) {
+    if (!activeIncident) return;
+    handCommandToFor(activeIncident.id, applianceId);
+  }
+
+  /** Incidents whose close is mid-flight. The return routes are real
+   *  network round-trips and the outcome does not land until after them,
+   *  so the 2 s auto-resolve tick would otherwise fire again and close
+   *  the same job twice — double-counting the career stats and taking
+   *  the wear off every appliance a second time. */
+  const resolvingRef = useRef<Set<string>>(new Set());
+
+  /** Close the incident on screen. */
   async function resolveIncident() {
-    if (!activeIncident || outcome) return;
+    if (!activeIncident) return;
+    await resolveIncidentById(activeIncident.id);
+  }
+
+  /** Close a named incident. Everything below is scoped to it: a job
+   *  closing itself must not send another job's crews home, and must not
+   *  be graded on their mobilising. */
+  async function resolveIncidentById(incidentId: string) {
+    const activeIncident = incidents.find((i) => i.id === incidentId) ?? null;
+    if (!activeIncident || runtimes[incidentId]?.outcome) return;
+    if (resolvingRef.current.has(incidentId)) return;
+    resolvingRef.current.add(incidentId);
+    const deps = deployments.filter((d) => d.incidentId === incidentId);
+    const handover = runtimes[incidentId]?.handover ?? null;
+    const tasks = runtimes[incidentId]?.tasks ?? [];
     const resolvedAt = Date.now();
     const incidentCoords = activeIncident.scenario.location.coords;
     const stations = patch ? PATCH_AREAS.flatMap((a) => stationsByArea[a]) : [];
@@ -2614,7 +2695,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       returnCoords: [number, number][] | null;
     };
     const legs: Leg[] = await Promise.all(
-      deployments.map(async (d): Promise<Leg> => {
+      deps.map(async (d): Promise<Leg> => {
         const station = stations.find((s) =>
           s.appliances.some((a) => a.id === d.applianceId),
         );
@@ -2670,7 +2751,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const byId = new Map(legs.map((l) => [l.id, l]));
     setDeployments((prev) =>
       prev.map((d) => {
-        const l = byId.get(d.applianceId);
+        const l = d.incidentId === incidentId ? byId.get(d.applianceId) : undefined;
         if (!l) return d;
         const rehabSeconds = Math.round(20 * 60 + Math.random() * 10 * 60);
         if (l.hospital) {
@@ -2716,7 +2797,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // pump), condition -3%. Refuel/refill/maintenance actions reset these.
     setVehicleGauges((prev) => {
       const next = { ...prev };
-      for (const d of deployments) {
+      for (const d of deps) {
         const current = next[d.applianceId] ?? { fuelPct: 100, waterPct: 100, conditionPct: 100 };
         next[d.applianceId] = {
           fuelPct: Math.max(0, current.fuelPct - 20),
@@ -2727,7 +2808,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       return next;
     });
 
-    setActiveIncident((inc) => (inc ? { ...inc, resolvedAt } : inc));
+    setIncidents((prev) =>
+      prev.map((i) => (i.id === incidentId ? { ...i, resolvedAt } : i)),
+    );
     setLog((prev) => [
       ...prev,
       {
@@ -2736,7 +2819,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         kind: "resolved",
         message: "Stop message sent — incident resolved",
       },
-      ...deployments.map(
+      ...deps.map(
         (d): LogEntry => ({
           id: `ret:${d.applianceId}:${resolvedAt}`,
           timestamp: resolvedAt,
@@ -2747,7 +2830,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     ]);
     const scored = scoreIncident(
       activeIncident,
-      deployments,
+      deps,
       incidentSim,
       treatmentByCasualtyId,
       log,
@@ -2760,7 +2843,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           }
         : null,
     );
-    setOutcome(scored);
+    updateRuntime(incidentId, (r) => (r.outcome ? r : { ...r, outcome: scored }));
+    resolvingRef.current.delete(incidentId);
     // Career record: grade, targets and the casualty balance at close.
     const stages = Object.values(incidentSim?.casualtyProgression ?? {}).map((c) => c.stage);
     bumpStats((s) => {
@@ -4775,6 +4859,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               if (!ap) return acc;
               const onScene = now >= d.arrivesAt;
               const returning = d.returnStartedAt !== undefined && now >= d.returnStartedAt;
+              const conveying =
+                !returning &&
+                d.hospitalLegStartedAt !== undefined &&
+                now >= d.hospitalLegStartedAt;
               const etaSec = Math.max(0, Math.round((d.arrivesAt - now) / 1000));
               (acc[d.incidentId] ??= []).push({
                 id: d.applianceId,
@@ -4782,16 +4870,20 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 typeName: ap.typeName,
                 label: returning
                   ? "Returning"
-                  : onScene
+                  : conveying
+                    ? "To hospital"
+                    : onScene
                     ? "On scene"
                     : etaSec > 3600
                       ? "Awaiting LZ"
                       : `ETA ${Math.max(1, Math.round(etaSec / 60))}m`,
-                tone: returning ? "other" : onScene ? "onscene" : "mobile",
+                tone: returning || conveying ? "other" : onScene ? "onscene" : "mobile",
               });
               return acc;
             }, {})}
             isResolved={(id) => !!runtimes[id]?.outcome}
+            commandOptionsOf={commandOptionsFor}
+            onHandCommandTo={handCommandToFor}
             handoverOf={(id) => {
               const h = runtimes[id]?.handover;
               if (!h) return null;
@@ -4825,20 +4917,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               // then mobilise on the next tick.
               const eta = etas[stationId];
               if (!eta) return;
-              const go = () =>
-                deployAppliance({
-                  applianceId,
-                  slotId: "extra",
-                  etaSeconds: eta.seconds,
-                  routeMeters: eta.meters,
-                  routeCoords: eta.coords ?? undefined,
-                });
-              if (incidentId === selectedIncidentId) {
-                go();
-              } else {
-                setSelectedIncidentId(incidentId);
-                setTimeout(go, 0);
-              }
+              deployAppliance({
+                applianceId,
+                slotId: "extra",
+                incidentId,
+                etaSeconds: eta.seconds,
+                routeMeters: eta.meters,
+                routeCoords: eta.coords ?? undefined,
+              });
+              // Follow the drop, so the operator sees where it went.
+              if (incidentId !== selectedIncidentId) setSelectedIncidentId(incidentId);
             }}
             onClose={() => setShowCallStack(false)}
             ready={callsReady}

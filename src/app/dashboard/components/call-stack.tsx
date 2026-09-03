@@ -85,6 +85,84 @@ function StopIn({ at, now }: { at: number; now: number }) {
   return <>{m > 0 ? `${m}m` : `${s}s`}</>;
 }
 
+/** Handing command from the stack itself.
+ *
+ *  Sits under the committed units in the expanded row, because those are
+ *  the units it is choosing between: the drawer answers "what have I got
+ *  on this" and then "who can I give it to". */
+function HandOverInStack({
+  incidentId,
+  options,
+  onHandOver,
+}: {
+  incidentId: string;
+  options: {
+    applianceId: string;
+    callsign: string;
+    typeName: string;
+    advice?: string;
+    comfortable?: boolean;
+  }[];
+  onHandOver: (incidentId: string, applianceId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (options.length === 0) {
+    return (
+      <div className="border-t border-(--color-border-subtle)/60 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+        Nothing on scene to take command
+      </div>
+    );
+  }
+  return (
+    <div className="border-t border-(--color-border-subtle)/60">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Give the incident to a commander on scene and clear the desk"
+        className="flex w-full items-center justify-between gap-2 px-2 py-1 text-left font-mono text-[9px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/10"
+      >
+        <span>Hand over command</span>
+        <span className="shrink-0 text-(--color-text-dim)">{open ? "Cancel" : "Choose"}</span>
+      </button>
+      {open && (
+        <ul className="pb-1">
+          <li className="px-2 pb-1 text-[10px] leading-snug text-(--color-text-muted)">
+            The incident closes on their word, and you lose the ground view for it.
+          </li>
+          {options.map((o) => (
+            <li key={o.applianceId}>
+              <button
+                type="button"
+                onClick={() => onHandOver(incidentId, o.applianceId)}
+                className="block w-full px-2 py-1 text-left hover:bg-(--color-amber)/10"
+              >
+                <span className="flex items-baseline gap-1.5">
+                  <span className="font-mono text-[10px] font-bold text-(--color-text)">
+                    {o.callsign}
+                  </span>
+                  <span className="truncate font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                    {o.typeName}
+                  </span>
+                </span>
+                {o.advice && (
+                  <span
+                    className={
+                      "mt-0.5 block text-[10px] leading-snug " +
+                      (o.comfortable ? "text-(--color-ok)" : "text-(--color-amber)")
+                    }
+                  >
+                    {o.advice}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function CallStack({
   pending,
   incidents,
@@ -93,6 +171,8 @@ export function CallStack({
   unitsByIncident,
   isResolved,
   handoverOf,
+  commandOptionsOf,
+  onHandCommandTo,
   onAnswer,
   onDecline,
   onSelectIncident,
@@ -112,6 +192,16 @@ export function CallStack({
     { id: string; callsign: string; typeName: string; label: string; tone: "mobile" | "onscene" | "other" }[]
   >;
   isResolved: (incidentId: string) => boolean;
+  /** Units on scene that could take command of this job, most senior
+   *  first. Empty once command has been handed over. */
+  commandOptionsOf?: (incidentId: string) => {
+    applianceId: string;
+    callsign: string;
+    typeName: string;
+    advice?: string;
+    comfortable?: boolean;
+  }[];
+  onHandCommandTo?: (incidentId: string, applianceId: string) => void;
   /** Set for a job whose command has been handed over: who has it, and
    *  when they expect to close it. */
   handoverOf?: (
@@ -465,6 +555,13 @@ export function CallStack({
                                 </li>
                               ))}
                             </ul>
+                          )}
+                          {!resolved && !delegated && commandOptionsOf && onHandCommandTo && (
+                            <HandOverInStack
+                              incidentId={inc.id}
+                              options={commandOptionsOf(inc.id)}
+                              onHandOver={onHandCommandTo}
+                            />
                           )}
                         </div>
                       )}
