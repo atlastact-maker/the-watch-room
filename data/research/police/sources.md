@@ -122,3 +122,19 @@ logged.
 - **Supersedes:** the invented scheme previously in `data.ts`, which
   produced `MP-Trafford 12` and `AR-14` and was labelled synthetic in its
   own comment.
+
+### U7a — GMP roads covers in full, from the project owner
+
+- **Source:** the project owner, in conversation, 2026-09-03, following U7.
+- **Road patrol (XT):** area 1 Bolton, Bury, Wigan (XT11 / XT14 / XT18);
+  area 5 Salford, Trafford (XT51 / XT54 / XT58); area 7 "the south
+  district, whatever is left" (XT71 / XT74 / XT78).
+- **Motorway (ME):** area 1 north force network (ME11 / ME14 / ME18);
+  area 2 east (ME21 / ME24 / ME28); area 4 west (ME41 / ME44 / ME48);
+  area 5 south (ME51 / ME54 / ME58). There is no area 3.
+- **Confirms** the area-then-shift digit order three times over, and that
+  road-patrol and motorway area numbers are separate namespaces — XT area
+  1 and ME area 1 are different ground.
+- **Also:** motorbikes are out of the sim for now.
+- **Confidence:** all 21 callsigns are built and read back correctly by
+  `police-callsigns.ts` and are asserted individually in the test probe.

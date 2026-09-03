@@ -10,8 +10,7 @@
           "name": "Manchester Central",
           "staffing": "24/7 divisional HQ",
           "resources": [
-            "4x Police_Response",
-            "1x Police_TraffMot"
+            "4x Police_Response"
           ],
           "address": "Bootle Street",
           "town": "Manchester",
@@ -130,8 +129,7 @@
           "name": "Salford",
           "staffing": "24/7 divisional HQ",
           "resources": [
-            "3x Police_Response",
-            "1x Police_TraffMot"
+            "3x Police_Response"
           ],
           "address": "The Crescent",
           "town": "Salford",
@@ -161,8 +159,7 @@
           "name": "Roads Policing — Eccles",
           "staffing": "Force Roads Policing Unit",
           "resources": [
-            "3x Police_RPU",
-            "2x Police_TraffMot"
+            "7x Police_RPU"
           ],
           "address": "Gilda Brook Road",
           "town": "Eccles",

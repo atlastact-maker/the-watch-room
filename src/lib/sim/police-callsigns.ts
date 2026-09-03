@@ -87,24 +87,36 @@ export const ROADS_UNIT = {
 } as const;
 export type RoadsUnit = keyof typeof ROADS_UNIT;
 
-/** Roads areas we have been told. The numbers are GMP's, and the ones
- *  absent here are absent because nobody has told us — see GAPS. */
-export const ROADS_AREA: Record<string, { area: string; covers: string[] }> = {
-  "1": { area: "1", covers: ["Bolton", "Bury", "Wigan"] },
-  "5": { area: "5", covers: ["Salford", "Trafford"] },
+// Road patrol and motorway areas are SEPARATE NUMBERINGS. XT area 1 is
+// Bolton, Bury and Wigan; ME area 1 is the north motorway network. They
+// share nothing but a digit, so they get a table each — reading an ME
+// callsign off the XT table would name the wrong ground entirely.
+
+/** Road-patrol areas. Three patches, three shifts each: nine XT covers. */
+export const XT_AREA: Record<string, string[]> = {
+  "1": ["Bolton", "Bury", "Wigan"],
+  "5": ["Salford", "Trafford"],
+  // The owner's words: "the south district, whatever is left". DERIVED:
+  // that is everything areas 1 and 5 do not hold — listed here so the
+  // glossary can name it, but the derivation is ours, not GMP's.
+  "7": ["Manchester", "Stockport", "Tameside", "Oldham", "Rochdale"],
 };
 
-/** The road-patrol areas the force covers, in the order the roads
- *  station issues them. ONE XT cover per patch, routinely — so this list
- *  is also the count of XT callsigns in the force.
- *
- *  Only the two areas we have been told are here. The others exist in
- *  reality and are missing from the sim because nobody has given us their
- *  numbers, not because the force has two patches — see GAPS. */
-export const XT_AREAS: number[] = [1, 5];
+/** Motorway areas. Four quadrants of the force network — note there is
+ *  no area 3. */
+export const ME_AREA: Record<string, string[]> = {
+  "1": ["North force motorway network"],
+  "2": ["East force motorway network"],
+  "4": ["West force motorway network"],
+  "5": ["South force motorway network"],
+};
 
-/** Motorway areas. We hold one, from the worked example ME28. */
-export const ME_AREAS: number[] = [2];
+/** The road-patrol patches, in the order the roads station staffs them.
+ *  One XT cover per patch on any given shift. */
+export const XT_AREAS: number[] = Object.keys(XT_AREA).map(Number);
+
+/** The motorway quadrants, likewise one ME per quadrant per shift. */
+export const ME_AREAS: number[] = Object.keys(ME_AREA).map(Number);
 
 /** The station that holds the force's road-patrol and motorway cover.
  *  Roads vehicles based at divisional stations are not the patch's XT —
@@ -149,7 +161,7 @@ export function parseCallsign(
       unitType: roads[1],
       area: roads[2],
       shift,
-      covers: ROADS_AREA[roads[2]]?.covers,
+      covers: (roads[1] === "ME" ? ME_AREA : XT_AREA)[roads[2]],
     };
   }
   const div = /^([AFGIJKLMNPQ])([A-Z])(\d)(\d{1,3})$/.exec(cs.toUpperCase());

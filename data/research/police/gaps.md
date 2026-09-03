@@ -106,78 +106,52 @@ Trafford, Wigan)
 
 ## P5 — GMP callsigns
 
-The scheme itself came from the owner (U7) and is implemented in
-`src/lib/sim/police-callsigns.ts`. What is still missing:
-
-- [ ] **Roads areas 2, 3 and 4** — and whether the numbering runs past 5.
-  We hold area 1 = Bolton, Bury, Wigan and area 5 = Salford, Trafford,
-  plus ME area 2 from the worked example `ME28`. Every other district
-  therefore gets NO roads callsign, only a placeholder: a Manchester
-  roads bike currently reads `RP-10`, not an `XT`, because borrowing
-  area 5 would have put it on Salford and Trafford's ground.
-- [ ] **Role letters beyond P (patrol) and T (taser)** — nothing is known
-  for armed response, dogs, specialist search, the SIO car or the roads
-  motorbike. They keep obviously-synthetic prefixes (`AR-`, `PD-`,
-  `POLSA-`, `RP-`) so they cannot be mistaken for real callsigns.
-- [ ] **The shift-code conflict.** The owner said traffic patrol "follow
-  the same" as divisional, then gave 1 = early, 4 = lates, 8 = nights
-  with three worked examples — against 1/2/3 for divisional. The worked
-  examples are what the code implements. Worth confirming that divisional
-  really is 1/2/3.
-- [ ] **What SRTT stands for.** `XB` is implemented; the expansion is not
-  written anywhere because we do not know it.
-- [ ] **Unit-number ranges** per division — whether they restart each
-  shift and how high they run. The sim numbers from 01 upward.
-- [ ] **How two cars on the same patch and shift are told apart.** A roads
-  callsign names ground and a turn, not a vehicle, so five Eccles cars
-  all answer to `XT51`. A dispatch board cannot work like that, so the
-  sim appends a letter — `XT51A` … `XT51E`. **That letter is the sim's,
-  not GMP's**, and it is labelled as such wherever a callsign is
-  explained. If GMP does distinguish them somehow, that is what should
-  replace it.
-- [ ] **Shift is baked in at build time.** A GMP callsign carries the
-  shift, so the same car is `KP114` on an early and `KP314` that night.
-  The station list is currently built before the operator picks a shift,
-  so the fleet is built for earlies. `buildAppliances` already takes a
-  shift; threading the operator's chosen one through means building the
-  station list after the briefing rather than before.
-
-## P5 — GMP callsigns
-
 The scheme came from the owner (U7) and lives in
-`src/lib/sim/police-callsigns.ts`. What is still missing:
+`src/lib/sim/police-callsigns.ts`.
 
-- [ ] **Road-patrol areas beyond 1 and 5.** We hold area 1 = Bolton, Bury,
-  Wigan and area 5 = Salford, Trafford. There is routinely one XT cover
-  per patch, so the force has as many XT callsigns as it has patches —
-  the sim currently issues two, which is certainly fewer than the real
-  number. Every other district's roads vehicle gets a placeholder rather
-  than borrowing an area that belongs to different ground.
-- [ ] **Motorway areas beyond 2.** `ME28` gives us area 2. The owner says
-  there are "a number of ME patrols", so there are more areas than that,
-  and the sim can only name one until we have them.
+### Settled
+
+- **Divisional form** — division letter, role letter, shift digit, unit
+  number; shifts 1 early, 2 afternoon, 3 night.
+- **Roads form** — prefix, area, shift; shifts 1 early, 4 lates, 8 nights.
+  The digit order is area-then-shift, confirmed against the owner's own
+  worked examples after a later message described it the other way round.
+- **All 21 roads covers**, given in full: three road-patrol patches
+  (XT area 1 Bolton/Bury/Wigan, area 5 Salford/Trafford, area 7 the south
+  district) and four motorway quadrants (ME area 1 north, 2 east, 4 west,
+  5 south — there is no area 3), three shifts each. Every one is
+  reproduced by the code and covered by tests.
+- **One callsign, one vehicle.** An earlier pass had five cars sharing
+  XT51 with a letter bolted on; removed.
+- **Road-patrol and motorway areas are separate numberings.** XT area 1 is
+  Bolton, Bury and Wigan; ME area 1 is the north motorway network. They
+  get a table each.
+- **Motorbikes are out** of the sim for now, at the owner's direction.
+
+### Still open
+
 - [ ] **Role letters beyond P (patrol) and T (taser)** — nothing is known
-  for armed response, dogs, specialist search, the SIO car or a roads
-  motorbike. They keep obviously-synthetic prefixes (`AR-`, `PD-`,
-  `POLSA-`, `RP-`) so they cannot be mistaken for real callsigns.
-- [ ] **The shift-code conflict.** The owner said traffic "follow the
-  same" as divisional, then gave 1 = early, 4 = lates, 8 = nights with
-  three worked examples — against 1/2/3 for divisional. The worked
-  examples are what the code implements. Confirmed 2026-09-03 that the
-  digit order is area-then-shift; the divisional 1/2/3 is still
-  unconfirmed.
+  for armed response, dogs, specialist search or the SIO car. They keep
+  obviously-synthetic prefixes (`AR-`, `PD-`, `POLSA-`) so they cannot
+  be mistaken for real callsigns.
 - [ ] **What SRTT stands for.** `XB` is implemented; the expansion is not
-  written down because we do not know it.
-- [ ] **Unit-number ranges** per division — whether they restart each
-  shift and how high they run. The sim numbers from 01 upward.
+  written down because we do not know it. No XB unit is currently
+  fielded — we have no areas for it either.
+- [ ] **Unit-number ranges** per division: whether they restart each shift
+  and how high they run. The sim numbers from 01 upward.
+- [ ] **Taser as a thing the sim fields.** `T` is implemented as a role
+  letter but there is no taser unit in the fleet, because taser is a
+  capability rather than a vehicle type in this sim. Worth deciding
+  whether a division should field a dedicated taser car.
 - [ ] **Shift is baked in at build time.** A GMP callsign carries the
-  shift, so the same car is `KP114` on an early and `KP314` that night.
-  The station list is built before the operator picks a shift, so the
-  fleet is built for earlies. `buildAppliances` already takes a shift;
-  threading the operator's choice through means building the station list
-  after the briefing rather than before.
-
-Settled 2026-09-03, so not gaps: one callsign belongs to one vehicle (an
-earlier pass had five cars sharing XT51 and papered over it with a letter
-suffix — removed), and there is routinely one XT cover per patch plus a
-number of ME patrols.
+  shift, so the same car is `KP114` on an early and `KP314` that night,
+  and the whole roads board changes with the turn. The station list is
+  built before the operator picks a shift, so the fleet is built for
+  earlies. `buildAppliances` already takes a shift; threading the
+  operator's choice through means building the station list after the
+  briefing rather than before. **This is the biggest remaining gap** —
+  right now a night shift still shows the early-turn callsigns.
+- [ ] **DERIVED, not given:** the districts listed for XT area 7. The
+  owner said "the south district, whatever is left"; the sim lists
+  Manchester, Stockport, Tameside, Oldham and Rochdale as the remainder,
+  which is our arithmetic rather than GMP's wording.
