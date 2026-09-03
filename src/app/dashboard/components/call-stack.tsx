@@ -114,7 +114,14 @@ export function CallStack({
   isResolved: (incidentId: string) => boolean;
   /** Set for a job whose command has been handed over: who has it, and
    *  when they expect to close it. */
-  handoverOf?: (incidentId: string) => { callsign: string; clearAtMs: number } | null;
+  handoverOf?: (
+    incidentId: string,
+  ) => {
+    callsign: string;
+    clearAtMs: number;
+    /** The commander is waiting on something, and by when. */
+    pending?: { label: string; dueAtMs: number } | null;
+  } | null;
   onAnswer: (call: PendingCall) => void;
   onDecline: (call: PendingCall) => void;
   onSelectIncident: (incidentId: string) => void;
@@ -366,10 +373,23 @@ export function CallStack({
                               {mins}m
                             </span>
                           </div>
-                          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest">
+                          {delegated?.pending && (
+                          <div className="mt-0.5 truncate text-[11px] leading-snug text-(--color-critical)">
+                            {delegated.callsign}: {delegated.pending.label}
+                          </div>
+                        )}
+                        <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest">
                             {resolved ? (
                               <span className="px-1 bg-(--color-text-dim)/30 text-(--color-text-dim)">
                                 Closed
+                              </span>
+                            ) : delegated?.pending ? (
+                              <span
+                                className="px-1 font-bold bg-(--color-critical) text-white"
+                                style={{ animation: "call-flash 1s ease-in-out infinite" }}
+                                title={`${delegated.callsign}: ${delegated.pending.label}`}
+                              >
+                                Assistance · <StopIn at={delegated.pending.dueAtMs} now={now} />
                               </span>
                             ) : delegated ? (
                               <span

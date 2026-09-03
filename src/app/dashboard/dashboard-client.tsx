@@ -27,7 +27,17 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
 import { PATCH, PATCH_AREAS, type Patch } from "@/lib/sim/areas";
-import { clearSeconds, commandCandidates, type Handover } from "@/lib/sim/handover";
+import {
+  clearSeconds,
+  commandCandidates,
+  commandAdvice,
+  commandRank,
+  commandShortfall,
+  missPenaltyMs,
+  planRequests,
+  requestMet,
+  type Handover,
+} from "@/lib/sim/handover";
 import { STANDARD_PDA } from "@/lib/sim/pda";
 import {
   flightPath,
@@ -2427,6 +2437,86 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
   }
 
+  // Assistance messages: the commander asks, the desk answers or the job
+  // runs late. Checked for every delegated incident on the board, not
+  // just the one on screen — that is the point of delegating.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const nowMs = Date.now();
+      for (const inc of incidents) {
+        const rt = runtimes[inc.id];
+        const h = rt?.handover;
+        if (!h || rt.outcome) continue;
+        const standard = STANDARD_PDA[inc.scenario.type];
+        const slots = standard?.slots ?? inc.scenario.pda;
+        let changed = false;
+        let extraMs = 0;
+        const next = h.requests.map((req) => {
+          if (req.metAtMs !== undefined || req.missed) return req;
+          if (nowMs < req.atMs) return req;
+          const typeOf = (id2: string) =>
+            findStationForAppliance(id2)?.appliances.find((a) => a.id === id2)?.type;
+          if (requestMet(req, inc.id, deployments, typeOf)) {
+            changed = true;
+            setLog((prev) => [
+              ...prev,
+              {
+                id: `mu-met:${req.id}`,
+                timestamp: nowMs,
+                kind: "annotation",
+                message: `${h.callsign} — assistance message answered: ${req.label}`,
+              },
+            ]);
+            return { ...req, metAtMs: nowMs };
+          }
+          if (nowMs >= req.dueAtMs) {
+            changed = true;
+            extraMs += missPenaltyMs(inc, slots);
+            setLog((prev) => [
+              ...prev,
+              {
+                id: `mu-missed:${req.id}`,
+                timestamp: nowMs,
+                kind: "hazard_confirmed",
+                message: `${h.callsign} — assistance message unanswered: ${req.label}. The incident will run long.`,
+              },
+            ]);
+            return { ...req, missed: true };
+          }
+          // Just asked: put it on the desk.
+          if (!req.announced) {
+            changed = true;
+            setLog((prev) => [
+              ...prev,
+              {
+                id: `mu-ask:${req.id}`,
+                timestamp: nowMs,
+                kind: "make_pumps",
+                message: `ASSISTANCE MESSAGE from ${h.callsign} — ${req.label}. Three minutes to mobilise.`,
+              },
+            ]);
+            return { ...req, announced: true };
+          }
+          return req;
+        });
+        if (changed) {
+          setRuntimes((prev) => ({
+            ...prev,
+            [inc.id]: {
+              ...prev[inc.id],
+              handover: {
+                ...h,
+                requests: next,
+                clearAtMs: h.clearAtMs + extraMs,
+              },
+            },
+          }));
+        }
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [incidents, runtimes, deployments]);
+
   // A delegated incident closes itself when its commander's time is up.
   const resolveRef = useRef(resolveIncident);
   resolveRef.current = resolveIncident;
@@ -2452,7 +2542,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return commandCandidates(activeIncident, incidentDeployments, now, (id) => {
       const a = applianceById.get(id);
       return a ? { callsign: a.callsign, type: a.type, typeName: a.typeName } : undefined;
-    });
+    }).map((c) => ({
+      ...c,
+      advice: commandAdvice(activeIncident, c.rank),
+      comfortable: commandShortfall(activeIncident, c.rank) === 0,
+    }));
   }
 
   /** Hand the incident to an on-scene unit. The desk stops working it:
@@ -2464,9 +2558,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     if (!a) return;
     const standard = STANDARD_PDA[activeIncident.scenario.type];
     const slots = standard?.slots ?? activeIncident.scenario.pda;
-    const sec = clearSeconds(activeIncident, incidentDeployments, slots);
+    const rank = commandRank(a.type);
+    const sec = clearSeconds(activeIncident, incidentDeployments, slots, rank);
     const atMs = Date.now();
-    setHandover({ applianceId, callsign: a.callsign, atMs, clearAtMs: atMs + sec * 1000 });
+    const requests = planRequests(activeIncident, incidentDeployments, slots, rank, atMs, sec);
+    setHandover({
+      applianceId,
+      callsign: a.callsign,
+      commandRank: rank,
+      atMs,
+      clearAtMs: atMs + sec * 1000,
+      requests,
+    });
     setSceneCommanderApplianceId(applianceId);
     // The caller stops reaching this desk: the job is the commander's,
     // and its beats would be noise on a stack being used for other calls.
@@ -2650,6 +2753,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       log,
       tasks,
       handover?.callsign ?? null,
+      handover
+        ? {
+            asked: handover.requests.length,
+            met: handover.requests.filter((r) => r.metAtMs !== undefined).length,
+          }
+        : null,
     );
     setOutcome(scored);
     // Career record: grade, targets and the casualty balance at close.
@@ -4685,7 +4794,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             isResolved={(id) => !!runtimes[id]?.outcome}
             handoverOf={(id) => {
               const h = runtimes[id]?.handover;
-              return h ? { callsign: h.callsign, clearAtMs: h.clearAtMs } : null;
+              if (!h) return null;
+              const pending = h.requests.find(
+                (r) => r.announced && r.metAtMs === undefined && !r.missed,
+              );
+              return {
+                callsign: h.callsign,
+                clearAtMs: h.clearAtMs,
+                pending: pending ? { label: pending.label, dueAtMs: pending.dueAtMs } : null,
+              };
             }}
             onAnswer={(call) => {
               // Answered in place on the stack — a control room does not

@@ -30,6 +30,9 @@ export function scoreIncident(
   /** Set when command was handed to an on-scene commander. Only the
    *  mobilising decisions are the operator's to answer for. */
   delegatedTo?: string | null,
+  /** Assistance messages the commander sent, and how many were answered.
+   *  Finding resources is control's job whoever has command. */
+  assistance?: { asked: number; met: number } | null,
 ): IncidentOutcome {
   const metrics: OutcomeMetric[] = [];
 
@@ -98,6 +101,19 @@ export function scoreIncident(
       actual: `Handed to ${delegatedTo}`,
       passed: true,
     });
+    if (assistance && assistance.asked > 0) {
+      metrics.push({
+        label: "Assistance messages answered",
+        target: `${assistance.asked} of ${assistance.asked}`,
+        actual: `${assistance.met} of ${assistance.asked}`,
+        passed:
+          assistance.met === assistance.asked
+            ? true
+            : assistance.met > 0
+              ? "partial"
+              : false,
+      });
+    }
     return {
       metrics,
       passedCount: passedCount + 1,

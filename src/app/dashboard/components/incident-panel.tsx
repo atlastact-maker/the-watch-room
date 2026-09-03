@@ -30,10 +30,29 @@ type Props = {
   onResolve: () => void;
   onDismiss: () => void;
   /** Units on scene that could take command. */
-  commandOptions?: { applianceId: string; callsign: string; typeName: string }[];
+  commandOptions?: {
+    applianceId: string;
+    callsign: string;
+    typeName: string;
+    /** Plain words on whether this unit is up to this job. */
+    advice?: string;
+    /** True when they will cope without troubling the desk. */
+    comfortable?: boolean;
+  }[];
   /** Command already handed over: who has it, and when they expect to
    *  close the job. */
-  handover?: { callsign: string; clearAtMs: number } | null;
+  handover?: {
+    callsign: string;
+    clearAtMs: number;
+    requests?: {
+      id: string;
+      label: string;
+      dueAtMs: number;
+      announced?: boolean;
+      metAtMs?: number;
+      missed?: boolean;
+    }[];
+  } | null;
   onHandCommandTo?: (applianceId: string) => void;
   onClose: () => void;
 };
@@ -59,7 +78,13 @@ function HandOverStrip({
   options,
   onHandOver,
 }: {
-  options: { applianceId: string; callsign: string; typeName: string }[];
+  options: {
+    applianceId: string;
+    callsign: string;
+    typeName: string;
+    advice?: string;
+    comfortable?: boolean;
+  }[];
   onHandOver: (applianceId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -106,10 +131,22 @@ function HandOverStrip({
                 <button
                   type="button"
                   onClick={() => onHandOver(o.applianceId)}
-                  className="flex w-full items-center gap-2 rounded-sm border border-(--color-border-subtle) px-2 py-1.5 text-left text-[12px] hover:border-(--color-amber) hover:bg-(--color-surface-raised)"
+                  className="block w-full rounded-sm border border-(--color-border-subtle) px-2 py-1.5 text-left hover:border-(--color-amber) hover:bg-(--color-surface-raised)"
                 >
-                  <span className="font-mono text-(--color-text)">{o.callsign}</span>
-                  <span className="truncate text-(--color-text-dim)">{o.typeName}</span>
+                  <span className="flex items-center gap-2 text-[12px]">
+                    <span className="font-mono text-(--color-text)">{o.callsign}</span>
+                    <span className="truncate text-(--color-text-dim)">{o.typeName}</span>
+                  </span>
+                  {o.advice && (
+                    <span
+                      className={
+                        "mt-0.5 block text-[11px] leading-snug " +
+                        (o.comfortable ? "text-(--color-ok)" : "text-(--color-amber)")
+                      }
+                    >
+                      {o.advice}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -259,6 +296,30 @@ export function DraggableIncidentPanel({
           commandOptions &&
           commandOptions.length > 0 &&
           onHandCommandTo && <HandOverStrip options={commandOptions} onHandOver={onHandCommandTo} />
+        )}
+        {handover?.requests?.some((r) => r.announced && r.metAtMs === undefined && !r.missed) && (
+          <div className="border-b border-(--color-critical)/50 bg-(--color-critical)/10 px-5 py-2">
+            {handover.requests
+              .filter((r) => r.announced && r.metAtMs === undefined && !r.missed)
+              .map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-critical)">
+                      Assistance message · {handover.callsign}
+                    </div>
+                    <div className="mt-0.5 truncate text-[12px] text-(--color-text)">{r.label}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                      Mobilise within
+                    </div>
+                    <div className="font-mono text-[13px] tabular-nums text-(--color-critical)">
+                      <CountdownTo at={r.dueAtMs} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
         )}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <h1 className="text-xl font-semibold tracking-tight">

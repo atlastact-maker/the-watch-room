@@ -61,8 +61,18 @@ export type ShiftSave = {
   handover?: {
     applianceId: string;
     callsign: string;
+    commandRank: 0 | 1 | 2 | 3;
     atMs: number;
     clearAtMs: number;
+    requests: {
+      id: string;
+      atMs: number;
+      dueAtMs: number;
+      wants: import("./types").ApplianceTypeCode[];
+      label: string;
+      metAtMs?: number;
+      missed?: boolean;
+    }[];
   } | null;
   log: LogEntry[];
   informantLog: FiredInformant[];
@@ -267,6 +277,12 @@ export function applyResumeOffset(
           ...save.handover,
           atMs: save.handover.atMs + offset,
           clearAtMs: save.handover.clearAtMs + offset,
+          requests: (save.handover.requests ?? []).map((r) => ({
+            ...r,
+            atMs: r.atMs + offset,
+            dueAtMs: r.dueAtMs + offset,
+            metAtMs: r.metAtMs === undefined ? undefined : r.metAtMs + offset,
+          })),
         }
       : save.handover,
     fireIgnition: save.fireIgnition
