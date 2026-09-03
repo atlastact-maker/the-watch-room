@@ -2,6 +2,15 @@ import fireJson from "@/../data/research/fire/gmfrs_stations.json";
 import typesJson from "@/../data/research/fire/appliance_types.json";
 import nwasJson from "@/../data/research/ambulance/nwas_stations.json";
 import gmpJson from "@/../data/research/police/gmp_stations.json";
+import {
+  DIVISION_BY_STATION,
+  ME_AREAS,
+  ROADS_STATION,
+  XT_AREAS,
+  divisionalCallsign,
+  roadsCallsign,
+  type Shift,
+} from "./police-callsigns";
 import type {
   Appliance,
   ApplianceCapability,
@@ -319,25 +328,31 @@ const HART_TYPES = new Set<ApplianceTypeCode>([
   "HART_RRV",
 ]);
 
-// GMP over-air callsigns follow a typical UK police pattern: a division
-// letter code (MP = Manchester P-division / Greater Manchester) plus a
-// numeric unit. We synthesise unit numbers from a deterministic seed so
-// they stay stable across renders without needing to author every one.
-//   MPx-XXX  — Response vehicle
-//   AR-XX   — Armed Response Vehicle (Tactical Aid / specialist)
-//   NPAS    — Helicopter (fixed designator)
-//   PD-XX   — Dog unit
-//   RPU-XX  — Roads Policing motorbike
-//   POLSA-X — Specialist search team
-//   SIO-X   — Senior Investigating Officer car
-const GMP_CALLSIGN_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
-  Police_Response: "MP",
+// GMP over-air callsigns. The real scheme now — see police-callsigns.ts
+// for the rules and the worked examples it was checked against. What was
+// here before was invented, and said so.
+//
+// Response cars take the divisional form: division letter, role letter,
+// shift digit, unit number. KP114 is a Bolton patrol on an early. Roads
+// cars take the other form entirely, which names a patch and a shift
+// rather than a vehicle: XT51 is whoever has Salford and Trafford this
+// early turn.
+//
+// The rest keep placeholder prefixes. That is deliberate and it is not a
+// claim: nobody has told us the role letters for armed response, dogs,
+// search or the SIO car, so rather than guess a letter and have it read
+// as fact, they stay obviously synthetic. See GAPS in police-callsigns.ts.
+const GMP_PLACEHOLDER_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
   Police_ARV: "AR",
   Police_Dog: "PD",
-  Police_TraffMot: "RPU",
-  Police_RPU: "RP",
   Police_Search: "POLSA",
+  // Only reached on ground whose roads area number we do not hold — the
+  // ones we do hold are handled above and get a real XT callsign.
+  Police_RPU: "RP",
+  Police_TraffMot: "RP",
 };
+
+
 
 /** Real pod callsigns from the GMFRS fleet register (F3). A pod is
  *  demountable, so its callsign belongs to the station that holds it and
@@ -380,10 +395,21 @@ const RESERVED_CALLSIGNS: Set<string> = (() => {
   return out;
 })();
 
+/** Which turn the fleet is built for. GMP callsigns carry the shift, so
+ *  the same car is KP114 on an early and KP314 that night. The station
+ *  list is built before the operator picks a shift, so this defaults to
+ *  earlies; threading the chosen shift through is a follow-up, noted in
+ *  gaps.md. */
+/** Which turn the fleet is built for. GMP callsigns carry the shift, so
+ *  the same car is KP114 on an early and KP314 that night. The station
+ *  list is currently built before the operator picks their shift, so this
+ *  defaults to earlies; threading the chosen shift through is a follow-up
+ *  and is noted in gaps.md. */
 export function buildAppliances(
   station: Station,
   rawList: string[],
   authored?: Record<string, string[] | undefined>,
+  shift: Shift = "early",
 ): Appliance[] {
   const out: Appliance[] = [];
   // Short station id for callsign composition. GMFRS keeps the "G" prefix so
@@ -417,7 +443,8 @@ export function buildAppliances(
         const authoredCallsign = authored?.[parsed.type]?.[ordinal - 1];
 
         const nwasPrefix = NWAS_CALLSIGN_PREFIX[parsed.type];
-        const gmpPrefix = GMP_CALLSIGN_PREFIX[parsed.type];
+        const gmpDivision = DIVISION_BY_STATION[station.id];
+        const gmpPlaceholder = GMP_PLACEHOLDER_PREFIX[parsed.type];
         let designator: string;
         let callsign: string;
         if (authoredCallsign) {
@@ -444,17 +471,37 @@ export function buildAppliances(
           }
           designator = `${nwasPrefix}${unit}`;
           callsign = designator;
-        } else if (gmpPrefix) {
-          // GMP: divisional unit number. Response cars get a division
-          // letter ("MP"/station-stub) + 2-digit unit. Specialist cars
-          // (ARV/Dog/RPU/POLSA) get a flat prefix + unit.
-          if (parsed.type === "Police_Response") {
-            // Use a short station stub so callsigns read like "MP-Trafford 12".
-            const stub = station.id.replace(/^MP-/, "");
-            designator = `${gmpPrefix}${stub}-${seeded2(`${station.id}-${parsed.type}-${ordinal}`)}`;
+        } else if (parsed.type === "Police_Response" && gmpDivision) {
+          // A divisional patrol: KP114.
+          designator = divisionalCallsign(gmpDivision, "patrol", shift, ordinal);
+          callsign = designator;
+        } else if (
+          (parsed.type === "Police_RPU" || parsed.type === "Police_TraffMot") &&
+          station.id === ROADS_STATION
+        ) {
+          // Roads cover is issued by AREA, not per vehicle: one XT per
+          // patch, then the motorway patrols. The nth roads vehicle at the
+          // roads station takes the nth cover, so no two share a callsign
+          // and no patch gets two XTs. Beyond the covers we can name, a
+          // vehicle falls through to a placeholder rather than inventing
+          // an area number.
+          const nth = countSoFar(out, "Police_RPU") + countSoFar(out, "Police_TraffMot");
+          const cover =
+            nth < XT_AREAS.length
+              ? { unit: "road" as const, area: XT_AREAS[nth] }
+              : nth - XT_AREAS.length < ME_AREAS.length
+                ? { unit: "motorway" as const, area: ME_AREAS[nth - XT_AREAS.length] }
+                : null;
+          if (cover) {
+            designator = roadsCallsign(cover.unit, cover.area, shift);
+            callsign = designator;
           } else {
-            designator = `${gmpPrefix}-${seeded2(`${station.id}-${parsed.type}-${ordinal}`)}`;
+            designator = `RP-${seeded2(`${station.id}-${parsed.type}-${ordinal}`)}`;
+            callsign = designator;
           }
+        } else if (gmpPlaceholder) {
+          // No role letter known for these — see GAPS.
+          designator = `${gmpPlaceholder}-${seeded2(`${station.id}-${parsed.type}-${ordinal}`)}`;
           callsign = designator;
         } else {
           const designators = type.designators ?? [];
