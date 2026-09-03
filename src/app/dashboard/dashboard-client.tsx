@@ -30,6 +30,8 @@ import { PATCH, PATCH_AREAS, type Patch } from "@/lib/sim/areas";
 import {
   clearSeconds,
   commandCandidates,
+  commandStartsAt,
+  slotCoverage,
   commandAdvice,
   commandRank,
   commandShortfall,
@@ -608,7 +610,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           tacticalMode: shifted.tacticalMode,
           sceneCommanderApplianceId: shifted.sceneCommanderApplianceId,
           muster: null,
-          handover: shifted.handover ?? null,
+          handover: shifted.handover
+            ? {
+                ...shifted.handover,
+                // A save from before command could be allocated en route
+                // has no effective time: that commander was already there.
+                effectiveAtMs: shifted.handover.effectiveAtMs ?? shifted.handover.atMs,
+              }
+            : null,
         },
       });
     }
@@ -2581,7 +2590,33 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ...c,
       advice: commandAdvice(inc, c.rank),
       comfortable: commandShortfall(inc, c.rank) === 0,
+      etaSeconds: Math.max(0, Math.round((c.arrivesAt - now) / 1000)),
     }));
+  }
+
+  /** The pre-determined attendance for a job, and who is covering each
+   *  slot. The stack shows it so the operator can see what the incident
+   *  type asks for without opening the job. */
+  function pdaFor(incidentId: string) {
+    const inc = incidents.find((i) => i.id === incidentId);
+    if (!inc) return [];
+    const standard = STANDARD_PDA[inc.scenario.type];
+    const slots = standard?.slots ?? inc.scenario.pda;
+    const deps = deployments.filter((d) => d.incidentId === incidentId);
+    return slotCoverage(inc, deps, slots, (id) => applianceById.get(id)?.type).map((c) => {
+      const d = c.applianceId ? deps.find((x) => x.applianceId === c.applianceId) : undefined;
+      const ap = c.applianceId ? applianceById.get(c.applianceId) : undefined;
+      const onScene = d ? now >= d.arrivesAt : false;
+      return {
+        label: c.slot.label,
+        callsign: ap?.callsign ?? null,
+        tone: (!ap ? "missing" : onScene ? "onscene" : "mobile") as
+          | "missing"
+          | "onscene"
+          | "mobile",
+        etaSeconds: d && !onScene ? Math.max(0, Math.round((d.arrivesAt - now) / 1000)) : 0,
+      };
+    });
   }
 
   /** The same, for the incident on screen. */
@@ -2605,7 +2640,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const rank = commandRank(a.type);
     const sec = clearSeconds(inc, deps, slots, rank);
     const atMs = Date.now();
-    const requests = planRequests(inc, deps, slots, rank, atMs, sec, (id) =>
+    // Designated now, in command on arrival. Everything downstream — the
+    // expected stop, the assistance messages — runs from the latter.
+    const arrivesAt = deps.find((d) => d.applianceId === applianceId)?.arrivesAt ?? atMs;
+    const effectiveAtMs = commandStartsAt(atMs, arrivesAt);
+    const requests = planRequests(inc, deps, slots, rank, effectiveAtMs, sec, (id) =>
       applianceById.get(id)?.type,
     );
     // One write, so a job delegated from the stack lands on its OWN
@@ -2617,7 +2656,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         callsign: a.callsign,
         commandRank: rank,
         atMs,
-        clearAtMs: atMs + sec * 1000,
+        effectiveAtMs,
+        clearAtMs: effectiveAtMs + sec * 1000,
         requests,
       },
       sceneCommanderApplianceId: applianceId,
@@ -2635,7 +2675,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         id: `handover:${incidentId}:${atMs}`,
         timestamp: atMs,
         kind: "commander_assigned",
-        message: `${a.callsign} has command — incident delegated to the incident commander. Control clear; expected stop in about ${Math.max(1, Math.round(sec / 60))} min.`,
+        message:
+          effectiveAtMs > atMs
+            ? `${a.callsign} designated incident commander — takes command on arrival, about ${Math.max(1, Math.round((effectiveAtMs - atMs) / 60000))} min. Control clear of this incident.`
+            : `${a.callsign} has command — incident delegated to the incident commander. Control clear; expected stop in about ${Math.max(1, Math.round(sec / 60))} min.`,
       },
     ]);
   }
@@ -4883,6 +4926,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             }, {})}
             isResolved={(id) => !!runtimes[id]?.outcome}
             commandOptionsOf={commandOptionsFor}
+            pdaOf={pdaFor}
             onHandCommandTo={handCommandToFor}
             handoverOf={(id) => {
               const h = runtimes[id]?.handover;
@@ -4893,6 +4937,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               return {
                 callsign: h.callsign,
                 clearAtMs: h.clearAtMs,
+                effectiveAtMs: h.effectiveAtMs ?? h.atMs,
                 pending: pending ? { label: pending.label, dueAtMs: pending.dueAtMs } : null,
               };
             }}

@@ -63,6 +63,10 @@ export type ShiftSave = {
     callsign: string;
     commandRank: 0 | 1 | 2 | 3;
     atMs: number;
+    /** When the commander takes command. Optional — a save written
+     *  before command could be allocated en route has none, and resumes
+     *  as a commander who was already there. */
+    effectiveAtMs?: number;
     clearAtMs: number;
     requests: {
       id: string;
@@ -276,6 +280,7 @@ export function applyResumeOffset(
       ? {
           ...save.handover,
           atMs: save.handover.atMs + offset,
+          effectiveAtMs: (save.handover.effectiveAtMs ?? save.handover.atMs) + offset,
           clearAtMs: save.handover.clearAtMs + offset,
           requests: (save.handover.requests ?? []).map((r) => ({
             ...r,

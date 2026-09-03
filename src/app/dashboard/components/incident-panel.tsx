@@ -34,6 +34,8 @@ type Props = {
     applianceId: string;
     callsign: string;
     typeName: string;
+    /** Seconds until they reach the ground. 0 if already there. */
+    etaSeconds?: number;
     /** Plain words on whether this unit is up to this job. */
     advice?: string;
     /** True when they will cope without troubling the desk. */
@@ -44,6 +46,8 @@ type Props = {
   handover?: {
     callsign: string;
     clearAtMs: number;
+    /** When they take command — their arrival. */
+    effectiveAtMs?: number;
     requests?: {
       id: string;
       label: string;
@@ -82,6 +86,7 @@ function HandOverStrip({
     applianceId: string;
     callsign: string;
     typeName: string;
+    etaSeconds?: number;
     advice?: string;
     comfortable?: boolean;
   }[];
@@ -123,7 +128,8 @@ function HandOverStrip({
             </button>
           </div>
           <p className="mt-1 text-[11px] leading-snug text-(--color-text-muted)">
-            The incident closes on their word, and you lose the ground view for it.
+            They take command on arrival. The incident closes on their word, and you lose the
+            ground view for it.
           </p>
           <ul className="mt-1.5 space-y-1">
             {options.map((o) => (
@@ -135,7 +141,19 @@ function HandOverStrip({
                 >
                   <span className="flex items-center gap-2 text-[12px]">
                     <span className="font-mono text-(--color-text)">{o.callsign}</span>
-                    <span className="truncate text-(--color-text-dim)">{o.typeName}</span>
+                    <span className="min-w-0 flex-1 truncate text-(--color-text-dim)">
+                      {o.typeName}
+                    </span>
+                    <span
+                      className={
+                        "shrink-0 font-mono text-[10px] uppercase tracking-widest " +
+                        (o.etaSeconds ? "text-(--color-amber)" : "text-(--color-ok)")
+                      }
+                    >
+                      {o.etaSeconds
+                        ? "in " + Math.max(1, Math.round(o.etaSeconds / 60)) + "m"
+                        : "On scene"}
+                    </span>
                   </span>
                   {o.advice && (
                     <span
@@ -278,8 +296,11 @@ export function DraggableIncidentPanel({
                 Command delegated
               </div>
               <div className="mt-0.5 truncate text-[12px] text-(--color-text)">
-                <span className="font-mono">{handover.callsign}</span> has command. Control is
-                clear of this incident.
+                <span className="font-mono">{handover.callsign}</span>{" "}
+                {handover.effectiveAtMs && Date.now() < handover.effectiveAtMs
+                  ? "is designated incident commander and takes command on arrival."
+                  : "has command."}{" "}
+                Control is clear of this incident.
               </div>
             </div>
             <div className="shrink-0 text-right">

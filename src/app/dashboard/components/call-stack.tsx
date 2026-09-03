@@ -85,6 +85,65 @@ function StopIn({ at, now }: { at: number; now: number }) {
   return <>{m > 0 ? `${m}m` : `${s}s`}</>;
 }
 
+/** The pre-determined attendance: one row per slot the incident type
+ *  calls for, and the unit standing in it. Red for a slot nobody is
+ *  covering — that is the line the operator is working to close. */
+function Attendance({
+  rows,
+}: {
+  rows: { label: string; callsign: string | null; tone: "missing" | "onscene" | "mobile"; etaSeconds: number }[];
+}) {
+  if (rows.length === 0) return null;
+  const short = rows.filter((r) => r.tone === "missing").length;
+  return (
+    <div className="border-b border-(--color-border-subtle)/60 pb-1">
+      <div className="flex items-baseline justify-between gap-2 px-2 pt-1">
+        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
+          Attendance
+        </span>
+        <span
+          className={
+            "font-mono text-[9px] uppercase tracking-widest " +
+            (short > 0 ? "text-(--color-critical)" : "text-(--color-ok)")
+          }
+        >
+          {short > 0 ? short + " short" : "Complete"}
+        </span>
+      </div>
+      <ul className="mt-0.5">
+        {rows.map((r, i) => (
+          <li key={r.label + i} className="flex items-baseline justify-between gap-2 px-2 py-[2px]">
+            <span
+              className={
+                "min-w-0 truncate font-mono text-[9px] uppercase tracking-widest " +
+                (r.tone === "missing" ? "text-(--color-critical)" : "text-(--color-text-dim)")
+              }
+            >
+              {r.label}
+            </span>
+            <span
+              className={
+                "shrink-0 font-mono text-[10px] " +
+                (r.tone === "missing"
+                  ? "text-(--color-critical)"
+                  : r.tone === "mobile"
+                    ? "text-(--color-amber)"
+                    : "text-(--color-ok)")
+              }
+            >
+              {r.callsign === null
+                ? "NOT SENT"
+                : r.tone === "mobile"
+                  ? r.callsign + " · " + Math.max(1, Math.round(r.etaSeconds / 60)) + "m"
+                  : r.callsign}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** Handing command from the stack itself.
  *
  *  Sits under the committed units in the expanded row, because those are
@@ -102,6 +161,7 @@ function HandOverInStack({
     typeName: string;
     advice?: string;
     comfortable?: boolean;
+    etaSeconds?: number;
   }[];
   onHandOver: (incidentId: string, applianceId: string) => void;
 }) {
@@ -109,7 +169,7 @@ function HandOverInStack({
   if (options.length === 0) {
     return (
       <div className="border-t border-(--color-border-subtle)/60 px-2 py-1 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-        Nothing on scene to take command
+        Nothing mobilised to take command
       </div>
     );
   }
@@ -127,7 +187,8 @@ function HandOverInStack({
       {open && (
         <ul className="pb-1">
           <li className="px-2 pb-1 text-[10px] leading-snug text-(--color-text-muted)">
-            The incident closes on their word, and you lose the ground view for it.
+            They take command on arrival. The incident closes on their word, and you lose the
+            ground view for it.
           </li>
           {options.map((o) => (
             <li key={o.applianceId}>
@@ -140,8 +201,18 @@ function HandOverInStack({
                   <span className="font-mono text-[10px] font-bold text-(--color-text)">
                     {o.callsign}
                   </span>
-                  <span className="truncate font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                  <span className="min-w-0 flex-1 truncate font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
                     {o.typeName}
+                  </span>
+                  <span
+                    className={
+                      "shrink-0 font-mono text-[9px] uppercase tracking-widest " +
+                      (o.etaSeconds ? "text-(--color-amber)" : "text-(--color-ok)")
+                    }
+                  >
+                    {o.etaSeconds
+                      ? "in " + Math.max(1, Math.round(o.etaSeconds / 60)) + "m"
+                      : "On scene"}
                   </span>
                 </span>
                 {o.advice && (
@@ -172,6 +243,7 @@ export function CallStack({
   isResolved,
   handoverOf,
   commandOptionsOf,
+  pdaOf,
   onHandCommandTo,
   onAnswer,
   onDecline,
@@ -202,6 +274,14 @@ export function CallStack({
     comfortable?: boolean;
   }[];
   onHandCommandTo?: (incidentId: string, applianceId: string) => void;
+  /** The pre-determined attendance for this job, and who is covering
+   *  each slot. */
+  pdaOf?: (incidentId: string) => {
+    label: string;
+    callsign: string | null;
+    tone: "missing" | "onscene" | "mobile";
+    etaSeconds: number;
+  }[];
   /** Set for a job whose command has been handed over: who has it, and
    *  when they expect to close it. */
   handoverOf?: (
@@ -209,6 +289,9 @@ export function CallStack({
   ) => {
     callsign: string;
     clearAtMs: number;
+    /** When they take command — their arrival. Until then the job is
+     *  allocated, not commanded. */
+    effectiveAtMs: number;
     /** The commander is waiting on something, and by when. */
     pending?: { label: string; dueAtMs: number } | null;
   } | null;
@@ -481,6 +564,14 @@ export function CallStack({
                               >
                                 Assistance · <StopIn at={delegated.pending.dueAtMs} now={now} />
                               </span>
+                            ) : delegated && now < delegated.effectiveAtMs ? (
+                              <span
+                                className="px-1 bg-(--color-amber)/20 text-(--color-amber)"
+                                title={`${delegated.callsign} designated incident commander — takes command on arrival`}
+                              >
+                                {delegated.callsign} designated ·{" "}
+                                <StopIn at={delegated.effectiveAtMs} now={now} />
+                              </span>
                             ) : delegated ? (
                               <span
                                 className="px-1 bg-(--color-ok)/20 text-(--color-ok)"
@@ -522,6 +613,10 @@ export function CallStack({
                           without leaving it. */}
                       {open && (
                         <div className="border-b border-(--color-border-subtle) bg-(--color-bg)/60 pl-[3px]">
+                          {pdaOf && <Attendance rows={pdaOf(inc.id)} />}
+                          <div className="px-2 pt-1 font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
+                            Committed
+                          </div>
                           {unitList.length === 0 ? (
                             <p className="px-2 py-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">
                               Nothing committed — this job has no resources

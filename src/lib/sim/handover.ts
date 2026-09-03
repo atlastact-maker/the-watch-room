@@ -57,6 +57,10 @@ export type Handover = {
   commandRank: 0 | 1 | 2 | 3;
   /** Epoch ms the operator handed over. */
   atMs: number;
+  /** Epoch ms the commander actually takes command — their arrival, or
+   *  the moment of handover if they were already on the ground. The
+   *  clear clock and the assistance messages both run from here. */
+  effectiveAtMs: number;
   /** Epoch ms the incident is expected to be closed by its commander.
    *  Pushed back each time an assistance message goes unanswered. */
   clearAtMs: number;
@@ -171,25 +175,25 @@ export function commandShortfall(incident: Incident, rank: 0 | 1 | 2 | 3): 0 | 1
  *  order — a pump dragged onto the stack still covers the pump slot. One
  *  unit covers at most one slot: four pumps on a four-pump attendance is
  *  a full attendance, four pumps on a six-pump one is not. */
-function unfilledSlots(
+export function slotCoverage(
   incident: Incident,
   deployments: Deployment[],
   pdaSlots: PdaSlot[],
   typeOf?: (applianceId: string) => string | undefined,
-): PdaSlot[] {
+): { slot: PdaSlot; applianceId: string | null }[] {
   const pool = deployments.filter((d) => d.incidentId === incident.id);
   const used = new Set<string>();
-  const filled = new Set<string>();
+  const fills = new Map<string, string>();
 
   for (const s of pdaSlots) {
     const named = pool.find((d) => !used.has(d.applianceId) && d.slotId === s.id);
     if (named) {
       used.add(named.applianceId);
-      filled.add(s.id);
+      fills.set(s.id, named.applianceId);
     }
   }
   for (const s of pdaSlots) {
-    if (filled.has(s.id)) continue;
+    if (fills.has(s.id)) continue;
     const fit = pool.find((d) => {
       if (used.has(d.applianceId)) return false;
       const t = typeOf?.(d.applianceId);
@@ -197,10 +201,22 @@ function unfilledSlots(
     });
     if (fit) {
       used.add(fit.applianceId);
-      filled.add(s.id);
+      fills.set(s.id, fit.applianceId);
     }
   }
-  return pdaSlots.filter((s) => !filled.has(s.id));
+  return pdaSlots.map((s) => ({ slot: s, applianceId: fills.get(s.id) ?? null }));
+}
+
+/** The slots nobody is standing in. */
+function unfilledSlots(
+  incident: Incident,
+  deployments: Deployment[],
+  pdaSlots: PdaSlot[],
+  typeOf?: (applianceId: string) => string | undefined,
+): PdaSlot[] {
+  return slotCoverage(incident, deployments, pdaSlots, typeOf)
+    .filter((c) => c.applianceId === null)
+    .map((c) => c.slot);
 }
 
 /** The assistance messages this commander will send, and when.
@@ -271,20 +287,31 @@ export function requestMet(
   );
 }
 
+export type CommandCandidate = {
+  applianceId: string;
+  callsign: string;
+  typeName: string;
+  rank: 0 | 1 | 2 | 3;
+  /** Epoch ms they reach the incident ground. In the past for a unit
+   *  already there. */
+  arrivesAt: number;
+};
+
 /** Which committed units may take command. In order of who a real
  *  control room would expect to: an officer first, then the senior rider
- *  on the first appliance in attendance. Only units already ON SCENE —
- *  nobody takes command of a job they have not reached. */
+ *  on the first appliance in attendance.
+ *
+ *  Includes units still running in — the desk designates a commander
+ *  before arrival — but not units that have left the ground. */
 export function commandCandidates(
   incident: Incident,
   deployments: Deployment[],
   nowMs: number,
   applianceOf: (id: string) => { callsign: string; type: string; typeName: string } | undefined,
-): { applianceId: string; callsign: string; typeName: string; rank: 0 | 1 | 2 | 3 }[] {
-  const out: { applianceId: string; callsign: string; typeName: string; rank: 0 | 1 | 2 | 3 }[] = [];
+): CommandCandidate[] {
+  const out: CommandCandidate[] = [];
   for (const d of deployments) {
     if (d.incidentId !== incident.id) continue;
-    if (nowMs < d.arrivesAt) continue; // not on scene yet
     // Off the ground: released back to station, or conveying to hospital.
     if (d.returnStartedAt !== undefined && nowMs >= d.returnStartedAt) continue;
     if (d.hospitalLegStartedAt !== undefined && nowMs >= d.hospitalLegStartedAt) continue;
@@ -295,13 +322,23 @@ export function commandCandidates(
       callsign: a.callsign,
       typeName: a.typeName,
       rank: commandRank(a.type),
+      arrivesAt: d.arrivesAt,
     });
   }
-  // Most senior first, then by callsign so the order never wobbles.
-  return out.sort((x, y) => y.rank - x.rank || x.callsign.localeCompare(y.callsign));
+  // Most senior first; between equals, whoever gets there soonest. Then
+  // by callsign, so the order never wobbles.
+  return out.sort(
+    (x, y) => y.rank - x.rank || x.arrivesAt - y.arrivesAt || x.callsign.localeCompare(y.callsign),
+  );
 }
 
-/** Plain words for what handing to this unit means for this job. */
+/** When a unit designated now would actually take command. */
+export function commandStartsAt(nowMs: number, arrivesAt: number): number {
+  return Math.max(nowMs, arrivesAt);
+}
+
+/** Plain words for whether this unit is up to this job. The wait for
+ *  them to arrive is shown separately — it is a different question. */
 export function commandAdvice(incident: Incident, rank: 0 | 1 | 2 | 3): string {
   switch (commandShortfall(incident, rank)) {
     case 0:
