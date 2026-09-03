@@ -4,9 +4,7 @@ import nwasJson from "@/../data/research/ambulance/nwas_stations.json";
 import gmpJson from "@/../data/research/police/gmp_stations.json";
 import {
   DIVISION_BY_STATION,
-  ME_AREAS,
-  ROADS_STATION,
-  XT_AREAS,
+  ROADS_BASE_COVERS,
   divisionalCallsign,
   roadsCallsign,
   type Shift,
@@ -477,21 +475,16 @@ export function buildAppliances(
           callsign = designator;
         } else if (
           (parsed.type === "Police_RPU" || parsed.type === "Police_TraffMot") &&
-          station.id === ROADS_STATION
+          ROADS_BASE_COVERS[station.id]
         ) {
           // Roads cover is issued by AREA, not per vehicle: one XT per
-          // patch, then the motorway patrols. The nth roads vehicle at the
-          // roads station takes the nth cover, so no two share a callsign
-          // and no patch gets two XTs. Beyond the covers we can name, a
-          // vehicle falls through to a placeholder rather than inventing
-          // an area number.
+          // patch and one ME per motorway quadrant, each held by the base
+          // that works that ground. The nth roads car at a base takes the
+          // nth of that base's covers, so no two cars anywhere share a
+          // callsign. A car beyond its base's covers falls through to a
+          // placeholder rather than borrowing somebody else's patch.
           const nth = countSoFar(out, "Police_RPU") + countSoFar(out, "Police_TraffMot");
-          const cover =
-            nth < XT_AREAS.length
-              ? { unit: "road" as const, area: XT_AREAS[nth] }
-              : nth - XT_AREAS.length < ME_AREAS.length
-                ? { unit: "motorway" as const, area: ME_AREAS[nth - XT_AREAS.length] }
-                : null;
+          const cover = ROADS_BASE_COVERS[station.id][nth] ?? null;
           if (cover) {
             designator = roadsCallsign(cover.unit, cover.area, shift);
             callsign = designator;
@@ -555,7 +548,7 @@ export function buildAppliances(
   }
 }
 
-export function getStationAppliances(stationId: string): Appliance[] {
+export function getStationAppliances(stationId: string, shift: Shift = "early"): Appliance[] {
   for (const area of fireJson.areas) {
     const s = (area.stations as RawStation[]).find((x) => x.id === stationId);
     if (s) {
@@ -569,7 +562,7 @@ export function getStationAppliances(stationId: string): Appliance[] {
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.resources ?? [], s.callsigns);
+      return buildAppliances(station, s.resources ?? [], s.callsigns, shift);
     }
   }
   for (const area of gmpJson.areas) {
@@ -577,7 +570,7 @@ export function getStationAppliances(stationId: string): Appliance[] {
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.resources ?? [], s.callsigns);
+      return buildAppliances(station, s.resources ?? [], s.callsigns, shift);
     }
   }
   return [];

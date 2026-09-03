@@ -41,6 +41,8 @@ import {
   type Handover,
 } from "@/lib/sim/handover";
 import { STANDARD_PDA } from "@/lib/sim/pda";
+import { getStationAppliances } from "@/lib/sim/data";
+import { shiftForHour, inHandover, hoursToRelief, nextShift } from "@/lib/sim/police-callsigns";
 import {
   flightPath,
   pathLengthMeters,
@@ -508,6 +510,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // which had nothing to do with the shift the operator chose.
   const [shiftStartedAt, setShiftStartedAt] = useState<number>(() => Date.now());
   const [shiftStartHour, setShiftStartHour] = useState<number>(8);
+
+  // Where the shift clock has got to. The header runs the same sum; this
+  // is the same clock, read for the relief rather than for display.
+  const clock = useMemo(() => {
+    const secs = Math.floor((now - shiftStartedAt) / 1000);
+    const total = shiftStartHour * 3600 + secs;
+    return { hour: Math.floor(total / 3600) % 24, minute: Math.floor((total % 3600) / 60) };
+  }, [now, shiftStartedAt, shiftStartHour]);
+
+  /** Which police relief is on the air. A GMP callsign carries the turn,
+   *  so this is not cosmetic — the whole police board changes with it. */
+  const policeShift = shiftForHour(clock.hour);
+  /** The half hour before a change: the outgoing relief is making its way
+   *  back to the station and should not be sent to anything new. */
+  const policeHandover = inHandover(clock.hour, clock.minute);
   // Per-appliance crew-fatigue percentage (0 = fresh, 100 = exhausted).
   // Accumulates with on-scene time + active task load; welfare breaks
   // reset it. Past ~70 % it extends task durations and raises the odds
@@ -2555,6 +2572,29 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return () => clearInterval(id);
   }, [incidents, runtimes, deployments]);
 
+  // Handover, announced. The board changing under the operator without a
+  // word would read as a bug; a relief change is a thing control is told.
+  const lastReliefRef = useRef<string>("");
+  useEffect(() => {
+    const key = `${policeShift}:${policeHandover}`;
+    if (lastReliefRef.current === key) return;
+    const first = lastReliefRef.current === "";
+    lastReliefRef.current = key;
+    if (first) return;
+    const word = { early: "earlies", afternoon: "lates", night: "nights" } as const;
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `relief:${key}:${Date.now()}`,
+        timestamp: Date.now(),
+        kind: "annotation",
+        message: policeHandover
+          ? `GMP relief change in ${Math.round(hoursToRelief(clock.hour, clock.minute) * 60)} minutes — the ${word[policeShift]} are returning to station and going off the run. The ${word[nextShift(clock.hour, clock.minute)]} book on at the change.`
+          : `GMP ${word[policeShift]} have booked on. Police callsigns have changed with the relief.`,
+      },
+    ]);
+  }, [policeShift, policeHandover, clock.hour, clock.minute]);
+
   // A delegated incident closes itself when its commander's time is up.
   const resolveRef = useRef(resolveIncident);
   resolveRef.current = resolveIncident;
@@ -2973,10 +3013,28 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   // Every station in the county — all four buckets. Renders on the main
   // map and in the side resources panel.
+  //
+  // Police stations are rebuilt for the relief on duty. Their appliance
+  // ids are built from the callsign, and the callsign carries the shift,
+  // so at 15:00 KP101 simply ceases to exist and KP201 appears in its
+  // place: the earlies have gone home and the lates have booked on. In
+  // the half hour before that, the outgoing relief goes off the run where
+  // it stands — back at the station, not available for anything new.
+  const shiftedStations = useMemo(() => {
+    const all = PATCH_AREAS.flatMap((a) => stationsByArea[a]);
+    return all.map((s) => {
+      if (s.service !== "Police") return s;
+      const appliances = getStationAppliances(s.id, policeShift).map((a) =>
+        policeHandover ? { ...a, status: 8 as const } : a,
+      );
+      return { ...s, appliances };
+    });
+  }, [stationsByArea, policeShift, policeHandover]);
+
   const myStations = useMemo<StationWithAppliances[]>(() => {
     if (!patch) return [];
-    return embellishStations(PATCH_AREAS.flatMap((a) => stationsByArea[a]));
-  }, [patch, stationsByArea, embellishStations]);
+    return embellishStations(shiftedStations);
+  }, [patch, shiftedStations, embellishStations]);
 
   // The dispatch pool used to add out-of-patch specialists on top of the
   // map's stations. With one patch there is no outside, so the pool IS

@@ -61,6 +61,81 @@ export const DIVISION_BY_STATION: Record<string, string> = {
 
 export type Shift = "early" | "afternoon" | "night";
 
+// ---------------------------------------------------------------------------
+// Reliefs
+// ---------------------------------------------------------------------------
+// A GMP callsign carries the turn, so the whole board changes at a relief
+// change: KP101 goes home and KP401 comes on, XT11 becomes XT14. The
+// outgoing relief is not simply deleted — it makes its way back to the
+// station first, goes off the run there, and is gone when the incoming
+// relief books on.
+//
+// Times from the owner: 07:00, 15:00, 21:00. Unequal turns — earlies get
+// eight hours, lates six, nights ten — which is the owner's answer and
+// not a mistake in the arithmetic.
+
+/** The hour each relief books on. */
+export const RELIEF_START: Record<Shift, number> = {
+  early: 7,
+  afternoon: 15,
+  night: 21,
+};
+
+/** In relief order round the clock. */
+const RELIEF_ORDER: { shift: Shift; from: number }[] = [
+  { shift: "early", from: 7 },
+  { shift: "afternoon", from: 15 },
+  { shift: "night", from: 21 },
+];
+
+/** How long before the change the outgoing relief starts making its way
+ *  back. They are still on the air, but the desk should not be sending
+ *  them to anything new. */
+export const HANDOVER_LEAD_MIN = 30;
+
+/** Which relief is on at this hour of the clock. Nights run over
+ *  midnight, so anything before 07:00 belongs to the turn that booked on
+ *  at 21:00 the day before. */
+export function shiftForHour(hour: number): Shift {
+  const h = ((hour % 24) + 24) % 24;
+  if (h >= 21 || h < 7) return "night";
+  if (h >= 15) return "afternoon";
+  return "early";
+}
+
+/** Hours until the next relief change, as a fraction. */
+export function hoursToRelief(hour: number, minute = 0): number {
+  const now = (((hour % 24) + 24) % 24) + minute / 60;
+  let best = Infinity;
+  for (const { from } of RELIEF_ORDER) {
+    let d = from - now;
+    if (d <= 0) d += 24;
+    best = Math.min(best, d);
+  }
+  return best;
+}
+
+/** True inside the run-back window before a change. */
+export function inHandover(hour: number, minute = 0): boolean {
+  return hoursToRelief(hour, minute) * 60 <= HANDOVER_LEAD_MIN;
+}
+
+/** The relief coming on next. */
+export function nextShift(hour: number, minute = 0): Shift {
+  const h = ((hour % 24) + 24) % 24 + minute / 60;
+  let bestShift: Shift = "early";
+  let best = Infinity;
+  for (const { shift, from } of RELIEF_ORDER) {
+    let d = from - h;
+    if (d <= 0) d += 24;
+    if (d < best) {
+      best = d;
+      bestShift = shift;
+    }
+  }
+  return bestShift;
+}
+
 /** Divisional shift digit: 1 early, 2 afternoon, 3 night. */
 const DIVISIONAL_SHIFT: Record<Shift, string> = { early: "1", afternoon: "2", night: "3" };
 
@@ -111,17 +186,41 @@ export const ME_AREA: Record<string, string[]> = {
   "5": ["South force motorway network"],
 };
 
-/** The road-patrol patches, in the order the roads station staffs them.
- *  One XT cover per patch on any given shift. */
+/** The road-patrol patches. One XT cover per patch on any given shift. */
 export const XT_AREAS: number[] = Object.keys(XT_AREA).map(Number);
 
 /** The motorway quadrants, likewise one ME per quadrant per shift. */
 export const ME_AREAS: number[] = Object.keys(ME_AREA).map(Number);
 
-/** The station that holds the force's road-patrol and motorway cover.
- *  Roads vehicles based at divisional stations are not the patch's XT —
- *  there is only one of those — so they get no roads callsign. */
-export const ROADS_STATION = "MP-RPU";
+/** Which covers each roads base puts out.
+ *
+ *  The three bases are the owner's — Eccles, Whitefield and Ashton. WHICH
+ *  COVER SITS AT WHICH BASE IS INFERRED, by nearest ground: Whitefield in
+ *  the north takes the northern road patch and the north motorway, Ashton
+ *  in the east takes the east motorway, Eccles in the west keeps its own
+ *  patch and the western network. It is one line each to correct — see
+ *  gaps.md. */
+export const ROADS_BASE_COVERS: Record<
+  string,
+  { unit: "road" | "motorway"; area: number }[]
+> = {
+  "MP-RPU": [
+    { unit: "road", area: 5 }, // Salford, Trafford — the base's own ground
+    { unit: "motorway", area: 4 }, // west
+    { unit: "motorway", area: 5 }, // south
+  ],
+  "MP-RPU-WHI": [
+    { unit: "road", area: 1 }, // Bolton, Bury, Wigan
+    { unit: "motorway", area: 1 }, // north
+  ],
+  "MP-RPU-ASH": [
+    { unit: "road", area: 7 }, // the south district
+    { unit: "motorway", area: 2 }, // east
+  ],
+};
+
+/** Every roads base. */
+export const ROADS_STATIONS = Object.keys(ROADS_BASE_COVERS);
 
 /** A divisional callsign: KT114. */
 export function divisionalCallsign(
