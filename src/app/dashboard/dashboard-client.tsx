@@ -44,6 +44,14 @@ import { STANDARD_PDA } from "@/lib/sim/pda";
 import { getStationAppliances } from "@/lib/sim/data";
 import { shiftForHour, inHandover, hoursToRelief, nextShift } from "@/lib/sim/police-callsigns";
 import {
+  PATROL_CIRCUITS,
+  circuitForCallsign,
+  measure,
+  offsetFor,
+  patrolPosition,
+  type Coords as PatrolCoords,
+} from "@/lib/sim/patrol";
+import {
   flightPath,
   pathLengthMeters,
   passesForLz,
@@ -518,6 +526,55 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const total = shiftStartHour * 3600 + secs;
     return { hour: Math.floor(total / 3600) % 24, minute: Math.floor((total % 3600) / 60) };
   }, [now, shiftStartedAt, shiftStartHour]);
+
+  /** Each roads circuit as an actual driven line: the router's geometry
+   *  between consecutive waypoints, joined, and closed back to the start.
+   *  A circuit that fails to route is left OUT rather than falling back to
+   *  straight lines — a car cutting across country is worse than a car
+   *  that is not drawn. */
+  const [patrolLines, setPatrolLines] = useState<
+    Record<string, { line: PatrolCoords[]; measured: { cum: number[]; total: number } }>
+  >({});
+
+  useEffect(() => {
+    if (!patch) return;
+    let cancelled = false;
+    (async () => {
+      for (const circuit of Object.values(PATROL_CIRCUITS)) {
+        if (cancelled) return;
+        const pts = circuit.waypoints;
+        const legs: PatrolCoords[][] = [];
+        let ok = true;
+        // Round the waypoints and back to the first — patrols loop.
+        for (let i = 0; i < pts.length && ok; i++) {
+          const from = pts[i];
+          const to = pts[(i + 1) % pts.length];
+          try {
+            const r = await routeEta(from, to);
+            if (!r.coords || r.coords.length < 2) {
+              ok = false;
+              break;
+            }
+            legs.push(r.coords.map(([lat, lng]) => ({ lat, lng })));
+          } catch {
+            ok = false;
+          }
+        }
+        if (cancelled) return;
+        if (!ok) {
+          console.warn(`patrol circuit ${circuit.id}: no route — not drawn`);
+          continue;
+        }
+        // Join, dropping each leg's duplicated first point.
+        const line = legs.flatMap((leg, i) => (i === 0 ? leg : leg.slice(1)));
+        setPatrolLines((prev) => ({ ...prev, [circuit.id]: { line, measured: measure(line) } }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [patch]);
+
 
   /** Which police relief is on the air. A GMP callsign carries the turn,
    *  so this is not cosmetic — the whole police board changes with it. */
@@ -3042,6 +3099,48 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // read it, and the distinction may come back with a second force.
   const allDeployableStations = myStations;
 
+  /** Where every roads unit is right now. A unit committed to an incident
+   *  is not patrolling — it is on a job, and the deployment layer draws
+   *  it — so it drops out of here the moment it is mobilised. */
+  const patrols = useMemo(() => {
+    const committed = new Set(deployments.map((d) => d.applianceId));
+    const elapsedSec = Math.max(0, (now - shiftStartedAt) / 1000);
+    const out: {
+      applianceId: string;
+      callsign: string;
+      circuitLabel: string;
+      coords: { lat: number; lng: number };
+      bearing: number;
+      selected?: boolean;
+    }[] = [];
+    for (const s of shiftedStations) {
+      if (s.service !== "Police") continue;
+      for (const a of s.appliances) {
+        if (committed.has(a.id)) continue;
+        const circuit = circuitForCallsign(a.callsign);
+        if (!circuit) continue;
+        const built = patrolLines[circuit.id];
+        if (!built) continue;
+        const pos = patrolPosition(
+          built.line,
+          circuit,
+          elapsedSec,
+          offsetFor(a.callsign, built.measured.total),
+          built.measured,
+        );
+        out.push({
+          applianceId: a.id,
+          callsign: a.callsign,
+          circuitLabel: circuit.label,
+          coords: pos.coords,
+          bearing: pos.bearing,
+          selected: a.id === selectedApplianceId,
+        });
+      }
+    }
+    return out;
+  }, [shiftedStations, patrolLines, deployments, now, shiftStartedAt, selectedApplianceId]);
+
   const recordIndex = useMemo(() => {
     const crews: Parameters<typeof buildRecordIndex>[0]["crews"] = [];
     const fleet: Parameters<typeof buildRecordIndex>[0]["fleet"] = [];
@@ -4528,6 +4627,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           stations={myStations}
           activeIncident={activeIncident}
           deployments={deployments}
+          patrols={patrols}
           patch={patch ?? null}
           onSelectAppliance={setSelectedApplianceId}
           selectedApplianceId={selectedApplianceId}

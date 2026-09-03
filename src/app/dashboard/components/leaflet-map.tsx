@@ -9,6 +9,7 @@ import {
   Polyline,
   Popup,
   TileLayer,
+  Tooltip,
   useMap,
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
@@ -249,6 +250,15 @@ type Props = {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
   deployments: Deployment[];
+  /** Roads units out on their patch rather than sitting at a base. */
+  patrols?: {
+    applianceId: string;
+    callsign: string;
+    circuitLabel: string;
+    coords: { lat: number; lng: number };
+    bearing: number;
+    selected?: boolean;
+  }[];
   patch: Patch | null;
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
@@ -272,6 +282,7 @@ export function LeafletMap({
   stations,
   activeIncident,
   deployments,
+  patrols,
   patch,
   onSelectAppliance,
   selectedApplianceId,
@@ -363,6 +374,7 @@ export function LeafletMap({
         stations={stations}
         activeIncident={activeIncident}
         deployments={deployments}
+        patrols={patrols}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
         selectedApplianceId={selectedApplianceId}
@@ -385,6 +397,7 @@ export function PatchLayers({
   stations,
   activeIncident,
   deployments,
+  patrols,
   patch,
   onSelectAppliance,
   selectedApplianceId,
@@ -681,6 +694,35 @@ export function PatchLayers({
   }, [deployments, stations, mapNow, activeIncident]);
   return (
     <>
+      {/* Roads policing on patrol — out on their patch rather than
+          parked at a base, and drawn as available because that is what
+          they are. Their position comes off the routed road line, so a
+          car is only ever at a point that lies on a real road. */}
+      {(patrols ?? []).map((p) => (
+        <Marker
+          key={`patrol-${p.applianceId}`}
+          position={[p.coords.lat, p.coords.lng]}
+          icon={chipIcon({
+            callsign: p.callsign,
+            status: "available",
+            ...(() => {
+              const sm = serviceMarker("Police");
+              return { serviceColour: sm.colour, resourceCode: sm.code };
+            })(),
+            zoom: zoom,
+            subtitle: `PATROL · ${p.circuitLabel.toUpperCase()}`,
+            selected: p.selected,
+          })}
+          eventHandlers={{ click: () => onSelectAppliance?.(p.applianceId) }}
+          zIndexOffset={p.selected ? 400 : 100}
+        >
+          <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+            <span className="font-mono text-[11px]">
+              {p.callsign} — patrolling {p.circuitLabel}
+            </span>
+          </Tooltip>
+        </Marker>
+      ))}
 
       {/* Stations */}
       {stations.map((s) => {

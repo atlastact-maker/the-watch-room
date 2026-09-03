@@ -20,6 +20,7 @@ export function EmbeddedMap({
   stations,
   activeIncident,
   deployments,
+  patrols,
   patch,
   onSelectAppliance,
   selectedApplianceId,
@@ -30,6 +31,15 @@ export function EmbeddedMap({
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
   deployments: Deployment[];
+  /** Roads units out on their patch rather than parked at a base. */
+  patrols?: {
+    applianceId: string;
+    callsign: string;
+    circuitLabel: string;
+    coords: { lat: number; lng: number };
+    bearing: number;
+    selected?: boolean;
+  }[];
   patch: Patch | null;
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
@@ -43,6 +53,7 @@ export function EmbeddedMap({
         stations={stations}
         activeIncident={activeIncident}
         deployments={deployments}
+        patrols={patrols}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
         selectedApplianceId={selectedApplianceId}
