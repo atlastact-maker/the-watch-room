@@ -144,6 +144,11 @@ import type { StationWithAppliances } from "./page";
 import { DashboardHeader } from "./components/header";
 import { PatchPicker } from "./components/patch-picker";
 import { EmbeddedMap } from "./components/map-panel";
+import {
+  DEFAULT_MAP_FILTER,
+  MapFilters,
+  type MapFilter,
+} from "./components/map-filters";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
@@ -428,6 +433,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // shift's own timer — and wait, visibly, until somebody picks them up.
   const [pendingCalls, setPendingCalls] = useState<PendingCall[]>([]);
   const [showCallStack, setShowCallStack] = useState(true);
+  const [mapFilter, setMapFilter] = useState<MapFilter>(() => {
+    if (typeof window === "undefined") return DEFAULT_MAP_FILTER;
+    try {
+      const raw = window.localStorage.getItem("twr:map-filter:v1");
+      return raw ? { ...DEFAULT_MAP_FILTER, ...(JSON.parse(raw) as MapFilter) } : DEFAULT_MAP_FILTER;
+    } catch {
+      return DEFAULT_MAP_FILTER;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("twr:map-filter:v1", JSON.stringify(mapFilter));
+    } catch {
+      /* best effort */
+    }
+  }, [mapFilter]);
   // Ready / Not Ready on the stack. The timer reads the ref so a toggle
   // does not tear the interval down and re-arm it.
   const [callsReady, setCallsReady] = useState(true);
@@ -575,6 +596,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     };
   }, [patch]);
 
+
+
+  /** The circuits, as lines, for the optional route layer. */
+  const patrolRouteLines = useMemo(
+    () =>
+      Object.entries(patrolLines).map(([id, v]) => ({
+        id,
+        label: PATROL_CIRCUITS[id]?.label ?? id,
+        line: v.line,
+      })),
+    [patrolLines],
+  );
 
   /** Which police relief is on the air. A GMP callsign carries the turn,
    *  so this is not cosmetic — the whole police board changes with it. */
@@ -3099,6 +3132,31 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // read it, and the distinction may come back with a second force.
   const allDeployableStations = myStations;
 
+  /** The appliance types on the map right now, and how many of each.
+   *  Built from what is actually drawn — a filter offering to hide a DIM
+   *  when no DIM is out is noise, and one that silently omits something
+   *  that IS out is worse. */
+  const mapContents = useMemo(() => {
+    const byType = new Map<string, { label: string; count: number }>();
+    const byService: Record<string, number> = { Fire: 0, Ambulance: 0, Police: 0 };
+    const seen = new Set<string>();
+    const note = (a: { id: string; type: string; typeName: string; service: string }) => {
+      if (seen.has(a.id)) return;
+      seen.add(a.id);
+      const hit = byType.get(a.type);
+      if (hit) hit.count += 1;
+      else byType.set(a.type, { label: a.typeName, count: 1 });
+      byService[a.service] = (byService[a.service] ?? 0) + 1;
+    };
+    for (const s of myStations) for (const a of s.appliances) note({ ...a, service: s.service });
+    return {
+      types: [...byType.entries()]
+        .map(([code, v]) => ({ code, label: v.label, count: v.count }))
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+      countsByService: byService as Record<"Fire" | "Ambulance" | "Police", number>,
+    };
+  }, [myStations]);
+
   /** Where every roads unit is right now. A unit committed to an incident
    *  is not patrolling — it is on a job, and the deployment layer draws
    *  it — so it drops out of here the moment it is mobilised. */
@@ -4628,6 +4686,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           activeIncident={activeIncident}
           deployments={deployments}
           patrols={patrols}
+          patrolRoutes={patrolRouteLines}
+          filter={mapFilter}
           patch={patch ?? null}
           onSelectAppliance={setSelectedApplianceId}
           selectedApplianceId={selectedApplianceId}
@@ -4947,6 +5007,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onDismiss={dismissIncident}
           />
         )}
+        {/* Map layers — what is on the board, and what the operator has
+            chosen not to look at. Sits under the tool menu on the same
+            rail, and is hidden in the ground view which draws its own
+            world. */}
+        {!groundViewOpen && (
+          <div className="pointer-events-none absolute right-3 top-24 z-[1190]">
+            <MapFilters
+              filter={mapFilter}
+              onChange={setMapFilter}
+              typesPresent={mapContents.types}
+              countsByService={mapContents.countsByService}
+            />
+          </div>
+        )}
+
         {/* Tools — one place to bring a panel up or put it away. Every
             entry is a toggle, so it also shows what is open. Hidden in
             the ground view, which has its own rails. */}

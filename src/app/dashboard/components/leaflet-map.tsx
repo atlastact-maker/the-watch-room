@@ -250,6 +250,10 @@ type Props = {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
   deployments: Deployment[];
+  /** What the operator has chosen to see. Absent means everything. */
+  filter?: import("./map-filters").MapFilter;
+  /** The circuits patrols are driving, for the optional route layer. */
+  patrolRoutes?: { id: string; label: string; line: { lat: number; lng: number }[] }[];
   /** Roads units out on their patch rather than sitting at a base. */
   patrols?: {
     applianceId: string;
@@ -283,6 +287,8 @@ export function LeafletMap({
   activeIncident,
   deployments,
   patrols,
+  patrolRoutes,
+  filter,
   patch,
   onSelectAppliance,
   selectedApplianceId,
@@ -375,6 +381,8 @@ export function LeafletMap({
         activeIncident={activeIncident}
         deployments={deployments}
         patrols={patrols}
+        patrolRoutes={patrolRoutes}
+        filter={filter}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
         selectedApplianceId={selectedApplianceId}
@@ -398,6 +406,8 @@ export function PatchLayers({
   activeIncident,
   deployments,
   patrols,
+  patrolRoutes,
+  filter,
   patch,
   onSelectAppliance,
   selectedApplianceId,
@@ -407,6 +417,18 @@ export function PatchLayers({
   // Markers pick their tier from live zoom — symbol only when pulled back,
   // symbol + callsign at working scale, plus a type line on the ground.
   const zoom = useMapZoom();
+
+  // One answer to "is this shown", used by a unit's marker AND its trail,
+  // so a filtered-out unit can never leave its route hanging on the map.
+  const shown = useCallback(
+    (service?: string, type?: string) => {
+      if (!filter) return true;
+      if (service && filter.services[service as keyof typeof filter.services] === false) return false;
+      if (type && filter.types[type] === false) return false;
+      return true;
+    },
+    [filter],
+  );
 
   // Internal high-frequency clock so ghost-movers animate smoothly between
   // the dashboard-client's 1Hz status ticks.
@@ -698,7 +720,18 @@ export function PatchLayers({
           parked at a base, and drawn as available because that is what
           they are. Their position comes off the routed road line, so a
           car is only ever at a point that lies on a real road. */}
-      {(patrols ?? []).map((p) => (
+      {(filter?.patrolRoutes ?? false) &&
+        (patrolRoutes ?? []).map((r) => (
+          <Polyline
+            key={`circuit-${r.id}`}
+            positions={r.line.map((c) => [c.lat, c.lng] as [number, number])}
+            pathOptions={{ color: "#1d4ed8", weight: 2, opacity: 0.35, dashArray: "6 6" }}
+            interactive={false}
+          />
+        ))}
+      {(filter?.patrols ?? true) &&
+        shown("Police") &&
+        (patrols ?? []).map((p) => (
         <Marker
           key={`patrol-${p.applianceId}`}
           position={[p.coords.lat, p.coords.lng]}
@@ -725,7 +758,10 @@ export function PatchLayers({
       ))}
 
       {/* Stations */}
-      {stations.map((s) => {
+      {(filter?.stations ?? true) &&
+        stations
+          .filter((s) => shown(s.service))
+          .map((s) => {
         const deployable = s.appliances.filter(
           (a) => a.status === 7 && a.crew.current >= a.crew.min,
         ).length;
@@ -796,7 +832,11 @@ export function PatchLayers({
       })}
 
       {/* Ghost-mover trails: full route polyline, colour depends on phase/service */}
-      {inFlight.map((m) =>
+      {(filter?.routes ?? true) &&
+        (filter?.units ?? true) &&
+        inFlight
+          .filter((m) => shown(m.service, m.applianceType))
+          .map((m) =>
         m.routeCoords && m.routeCoords.length >= 2 ? (
           <Polyline
             key={`${m.key}-trail`}
@@ -812,7 +852,10 @@ export function PatchLayers({
       )}
 
       {/* Ghost-mover markers (with callsign labels) */}
-      {inFlight.map((m) => (
+      {(filter?.units ?? true) &&
+        inFlight
+          .filter((m) => shown(m.service, m.applianceType))
+          .map((m) => (
         <Marker
           key={`${m.key}-mover`}
           position={m.currentCoords}
@@ -829,7 +872,7 @@ export function PatchLayers({
       ))}
 
       {/* Active incident */}
-      {activeIncident && showIncidentMarker && (
+      {activeIncident && showIncidentMarker && (filter?.incident ?? true) && (
         <Marker
           position={[
             activeIncident.scenario.location.coords.lat,

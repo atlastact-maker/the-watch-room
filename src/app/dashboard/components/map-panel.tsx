@@ -21,6 +21,8 @@ export function EmbeddedMap({
   activeIncident,
   deployments,
   patrols,
+  patrolRoutes,
+  filter,
   patch,
   onSelectAppliance,
   selectedApplianceId,
@@ -40,6 +42,10 @@ export function EmbeddedMap({
     bearing: number;
     selected?: boolean;
   }[];
+  /** The circuits those units drive, for the optional route layer. */
+  patrolRoutes?: { id: string; label: string; line: { lat: number; lng: number }[] }[];
+  /** What the operator has chosen to see. */
+  filter?: import("./map-filters").MapFilter;
   patch: Patch | null;
   onSelectAppliance: (applianceId: string) => void;
   selectedApplianceId?: string | null;
@@ -54,6 +60,8 @@ export function EmbeddedMap({
         activeIncident={activeIncident}
         deployments={deployments}
         patrols={patrols}
+        patrolRoutes={patrolRoutes}
+        filter={filter}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
         selectedApplianceId={selectedApplianceId}
