@@ -27,6 +27,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
 import { PATCH, PATCH_AREAS, type Patch } from "@/lib/sim/areas";
+import { clearSeconds, commandCandidates, type Handover } from "@/lib/sim/handover";
+import { STANDARD_PDA } from "@/lib/sim/pda";
 import {
   flightPath,
   pathLengthMeters,
@@ -284,6 +286,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     tacticalMode: "offensive" | "defensive" | "transitional" | null;
     sceneCommanderApplianceId: string | null;
     muster: { lat: number; lng: number; radiusM: number } | null;
+    /** Command handed to an on-scene unit: the desk is done with this
+     *  job and it will close itself. Costs the ground view. */
+    handover: Handover | null;
   };
   const emptyRuntime = (): IncidentRuntime => ({
     tasks: [],
@@ -295,6 +300,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     tacticalMode: null,
     sceneCommanderApplianceId: null,
     muster: null,
+    handover: null,
   });
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -481,6 +487,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const setTasks = runtimeSetter("tasks");
   const sceneCommanderApplianceId = runtime.sceneCommanderApplianceId;
   const setSceneCommanderApplianceId = runtimeSetter("sceneCommanderApplianceId");
+  const handover = runtime.handover;
+  const setHandover = runtimeSetter("handover");
   // Weather + time of day — rolled when the shift starts and re-rolled on
   // patch change. Feeds into blue-light ETAs, HEMS availability, BA
   // cylinder duration and fire growth inside the sim.
@@ -2417,6 +2425,61 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
   }
 
+  // A delegated incident closes itself when its commander's time is up.
+  const resolveRef = useRef(resolveIncident);
+  resolveRef.current = resolveIncident;
+  useEffect(() => {
+    const id = setInterval(() => {
+      const due = incidents.find((i) => {
+        const rt = runtimes[i.id];
+        return rt?.handover && !rt.outcome && Date.now() >= rt.handover.clearAtMs;
+      });
+      if (!due) return;
+      if (selectedIncidentId !== due.id) {
+        setSelectedIncidentId(due.id);
+        return; // resolve on the next pass, once the selection has landed
+      }
+      void resolveRef.current();
+    }, 2000);
+    return () => clearInterval(id);
+  }, [incidents, runtimes, selectedIncidentId]);
+
+  /** Units on scene that could take command of the selected incident. */
+  function commandOptions() {
+    if (!activeIncident) return [];
+    return commandCandidates(activeIncident, incidentDeployments, now, (id) => {
+      const a = applianceById.get(id);
+      return a ? { callsign: a.callsign, type: a.type, typeName: a.typeName } : undefined;
+    });
+  }
+
+  /** Hand the incident to an on-scene unit. The desk stops working it:
+   *  no ground view, no tasks, no treatment — the commander closes it in
+   *  their own time and the debrief scores the mobilising. */
+  function handCommandTo(applianceId: string) {
+    if (!activeIncident || outcome || handover) return;
+    const a = applianceById.get(applianceId);
+    if (!a) return;
+    const standard = STANDARD_PDA[activeIncident.scenario.type];
+    const slots = standard?.slots ?? activeIncident.scenario.pda;
+    const sec = clearSeconds(activeIncident, incidentDeployments, slots);
+    const atMs = Date.now();
+    setHandover({ applianceId, callsign: a.callsign, atMs, clearAtMs: atMs + sec * 1000 });
+    setSceneCommanderApplianceId(applianceId);
+    // Leaving the ground view is part of the trade, so do it for them
+    // rather than letting them sit in a view that no longer updates.
+    if (groundViewOpen) setGroundViewOpen(false);
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `handover:${activeIncident.id}:${atMs}`,
+        timestamp: atMs,
+        kind: "commander_assigned",
+        message: `${a.callsign} has command — incident delegated to the incident commander. Control clear; expected stop in about ${Math.max(1, Math.round(sec / 60))} min.`,
+      },
+    ]);
+  }
+
   async function resolveIncident() {
     if (!activeIncident || outcome) return;
     const resolvedAt = Date.now();
@@ -2580,6 +2643,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       treatmentByCasualtyId,
       log,
       tasks,
+      handover?.callsign ?? null,
     );
     setOutcome(scored);
     // Career record: grade, targets and the casualty balance at close.
@@ -4168,7 +4232,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onOpenStationBays={setBayStationId}
           focus={mapFocus}
           onZoomIntoGround={
-            activeIncident && !outcome
+            activeIncident && !outcome && !handover
               ? (view) => {
                   setGroundEntryView(view);
                   setGroundViewOpen(true);
@@ -4276,6 +4340,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onResolve={resolveIncident}
             onDismiss={dismissIncident}
             onClose={() => setIncidentPanelVisible(false)}
+            commandOptions={commandOptions()}
+            handover={handover}
+            onHandCommandTo={handCommandTo}
           />
         )}
         {activeIncident && groundViewOpen && incidentSim && (

@@ -29,8 +29,96 @@ type Props = {
   onStandDownForWelfare: (applianceId: string) => void;
   onResolve: () => void;
   onDismiss: () => void;
+  /** Units on scene that could take command. */
+  commandOptions?: { applianceId: string; callsign: string; typeName: string }[];
+  /** Command already handed over: who has it, and when they expect to
+   *  close the job. */
+  handover?: { callsign: string; clearAtMs: number } | null;
+  onHandCommandTo?: (applianceId: string) => void;
   onClose: () => void;
 };
+
+/** Time remaining, ticking. */
+function CountdownTo({ at }: { at: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, Math.round((at - now) / 1000));
+  const m = Math.floor(left / 60);
+  const s = left % 60;
+  return <>{left === 0 ? "any moment" : `${m}:${String(s).padStart(2, "0")}`}</>;
+}
+
+/** Hand the job to a unit on scene. A control room does this the moment
+ *  the right resources are committed and an officer is there to take it:
+ *  the incident becomes the commander's and the desk goes back to the
+ *  stack. The ground view goes with it. */
+function HandOverStrip({
+  options,
+  onHandOver,
+}: {
+  options: { applianceId: string; callsign: string; typeName: string }[];
+  onHandOver: (applianceId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b border-(--color-border-subtle) bg-(--color-surface-raised)/40 px-5 py-2">
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+              Hand over command
+            </span>
+            <span className="mt-0.5 block truncate text-[12px] text-(--color-text-muted)">
+              Give the incident to a commander on scene and clear the desk.
+            </span>
+          </span>
+          <span className="shrink-0 rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+            Choose
+          </span>
+        </button>
+      ) : (
+        <div>
+          <div className="flex items-baseline justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
+              Who takes command?
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-text)"
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] leading-snug text-(--color-text-muted)">
+            The incident closes on their word, and you lose the ground view for it.
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {options.map((o) => (
+              <li key={o.applianceId}>
+                <button
+                  type="button"
+                  onClick={() => onHandOver(o.applianceId)}
+                  className="flex w-full items-center gap-2 rounded-sm border border-(--color-border-subtle) px-2 py-1.5 text-left text-[12px] hover:border-(--color-amber) hover:bg-(--color-surface-raised)"
+                >
+                  <span className="font-mono text-(--color-text)">{o.callsign}</span>
+                  <span className="truncate text-(--color-text-dim)">{o.typeName}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function DraggableIncidentPanel({
   incident,
@@ -42,6 +130,9 @@ export function DraggableIncidentPanel({
   onStandDownForWelfare,
   onResolve,
   onDismiss,
+  commandOptions,
+  handover,
+  onHandCommandTo,
   onClose,
 }: Props) {
   const [etas, setEtas] = useState<Record<string, Eta>>({});
@@ -143,6 +234,32 @@ export function DraggableIncidentPanel({
           </div>
         </div>
 
+        {handover ? (
+          <div className="flex items-center justify-between gap-3 border-b border-(--color-border-subtle) bg-(--color-ok)/10 px-5 py-2">
+            <div className="min-w-0">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
+                Command delegated
+              </div>
+              <div className="mt-0.5 truncate text-[12px] text-(--color-text)">
+                <span className="font-mono">{handover.callsign}</span> has command. Control is
+                clear of this incident.
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
+                Expected stop
+              </div>
+              <div className="font-mono text-[13px] tabular-nums text-(--color-ok)">
+                <CountdownTo at={handover.clearAtMs} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          !resolved &&
+          commandOptions &&
+          commandOptions.length > 0 &&
+          onHandCommandTo && <HandOverStrip options={commandOptions} onHandOver={onHandCommandTo} />
+        )}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <h1 className="text-xl font-semibold tracking-tight">
             {incident.scenario.title}

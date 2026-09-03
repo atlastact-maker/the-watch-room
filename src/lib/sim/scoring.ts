@@ -27,6 +27,9 @@ export function scoreIncident(
   treatmentByCasualtyId?: Record<string, PatientTreatmentState>,
   log?: LogEntry[],
   tasks?: Task[],
+  /** Set when command was handed to an on-scene commander. Only the
+   *  mobilising decisions are the operator's to answer for. */
+  delegatedTo?: string | null,
 ): IncidentOutcome {
   const metrics: OutcomeMetric[] = [];
 
@@ -78,6 +81,41 @@ export function scoreIncident(
     actual: `${deployments.length}${over > 0 ? ` (+${over})` : ""}`,
     passed: over <= 0 ? true : "partial",
   });
+
+  // Command was handed over: the mobilising is scored, the ground is
+  // the commander's, and the debrief says so rather than marking a row
+  // of failures against work the operator gave away.
+  if (delegatedTo) {
+    const passedCount = metrics.filter((m) => m.passed === true).length;
+    const partialCount = metrics.filter((m) => m.passed === "partial").length;
+    const totalCount = metrics.length;
+    const ratio = totalCount === 0 ? 0 : (passedCount + partialCount * 0.5) / totalCount;
+    const grade: IncidentOutcome["grade"] =
+      ratio >= 0.95 ? "A" : ratio >= 0.75 ? "B" : ratio >= 0.5 ? "C" : ratio >= 0.25 ? "D" : "F";
+    metrics.push({
+      label: "Command",
+      target: "Incident commander appointed",
+      actual: `Handed to ${delegatedTo}`,
+      passed: true,
+    });
+    return {
+      metrics,
+      passedCount: passedCount + 1,
+      totalCount: totalCount + 1,
+      grade,
+      summary:
+        `Command handed to ${delegatedTo}; the incident closed on their word. ` +
+        (grade === "A"
+          ? "The mobilising was exemplary."
+          : grade === "B"
+            ? "The mobilising was sound, with small margins missed."
+            : grade === "C"
+              ? "The mobilising had notable gaps."
+              : grade === "D"
+                ? "The mobilising missed several targets."
+                : "The mobilising fell well short."),
+    };
+  }
 
   // 5. Fire outcome — did we extinguish / did it flash over?
   if (sim && incident.scenario.scene?.fireSeat) {
