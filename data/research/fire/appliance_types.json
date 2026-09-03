@@ -442,7 +442,7 @@
       ]
     },
     "NWAS_IRU": {
-      "fullName": "HART Multi-Casualty Vehicle",
+      "fullName": "HART Incident Support Unit (ISU)",
       "callsignCategory": "Z",
       "crew": {
         "min": 2,
@@ -469,7 +469,7 @@
       ]
     },
     "HART_ORIRU": {
-      "fullName": "HART Off-Road Incident Response Unit",
+      "fullName": "HART 4x4 (Off-Road Incident Response Unit)",
       "callsignCategory": "Z",
       "crew": {
         "min": 2,
@@ -544,7 +544,7 @@
     },
     "BASICS": {
       "fullName": "BASICS Doctor",
-      "callsignCategory": "DR",
+      "callsignCategory": "MX",
       "designators": [
         "DR1",
         "DR2"
@@ -591,7 +591,7 @@
     },
     "CCC": {
       "fullName": "Critical Care Car",
-      "callsignCategory": "CCC",
+      "callsignCategory": "HX",
       "crew": {
         "min": 2,
         "max": 3
@@ -738,6 +738,160 @@
         "Wildfire beaters",
         "Knapsack sprayers",
         "Stretcher"
+      ]
+    },
+    "UCA": {
+      "fullName": "Urgent Care Ambulance",
+      "callsignCategory": "U",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Paramedic kit",
+        "Defib / AED",
+        "Carry chair",
+        "Urgent care pathways"
+      ]
+    },
+    "CYC": {
+      "fullName": "Cycle Response Unit",
+      "callsignCategory": "C",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Solo responder",
+        "Defib / AED",
+        "Airway",
+        "Oxygen"
+      ]
+    },
+    "DUTY_OFF": {
+      "fullName": "Duty Officer",
+      "callsignCategory": "DX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Comms",
+        "Mechanical CPR device"
+      ]
+    },
+    "CHAP": {
+      "fullName": "Clinical Hub Advanced Practitioner",
+      "callsignCategory": "CX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Extended clinical practice",
+        "Defib / AED",
+        "Airway",
+        "Drugs"
+      ]
+    },
+    "MIV": {
+      "fullName": "Major Incident Vehicle",
+      "callsignCategory": "M",
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Mass casualty equipment",
+        "Command support",
+        "Triage kit"
+      ]
+    },
+    "MERIT": {
+      "fullName": "Medical Emergency Response Incident Team",
+      "callsignCategory": "MA",
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Doctor-paramedic team",
+        "Critical care / trauma kit",
+        "Blood"
+      ]
+    },
+    "TAC_CMD": {
+      "fullName": "Tactical Commander",
+      "callsignCategory": "SX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Tactical command kit",
+        "Comms"
+      ]
+    },
+    "STRAT_CMD": {
+      "fullName": "Strategic Commander",
+      "callsignCategory": "GX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Strategic command kit",
+        "Comms"
+      ]
+    },
+    "TAC_ADV": {
+      "fullName": "Tactical Advisor",
+      "callsignCategory": "TX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Tactical advice",
+        "Comms",
+        "Specialist capability advice"
+      ]
+    },
+    "CFR": {
+      "fullName": "Community First Responder",
+      "callsignCategory": "FR",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Defib / AED",
+        "Oxygen",
+        "Basic life support"
+      ]
+    },
+    "STAFF_RESP": {
+      "fullName": "Staff Responder",
+      "callsignCategory": "SR",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Defib / AED",
+        "Basic life support"
       ]
     }
   },

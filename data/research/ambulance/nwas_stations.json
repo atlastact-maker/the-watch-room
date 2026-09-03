@@ -2,7 +2,12 @@
   "$comment": "NWAS resources in the Greater Manchester area. Full 30-station list supplied by user 2026-04-18 with verified addresses and postcodes. Coords from postcodes.io. PTS (Patient Transport Service) stations are included for map completeness and flagged pts_only — they do not carry front-line 999 resources. HART base at BTTG Trafford Park and NWAA at Barton Aerodrome confirmed earlier. BASICS modelled as a force-wide capability.",
   "service": "NWAS",
   "inventorySnapshotDate": "2026-04-18",
-  "sources": ["U1", "U2", "H1", "I1"],
+  "sources": [
+    "U1",
+    "U2",
+    "H1",
+    "I1"
+  ],
   "areas": [
     {
       "name": "Southern",
@@ -13,10 +18,19 @@
           "town": "Altrincham",
           "address": "Princes Road",
           "postcode": "WA14 4EX",
-          "coords": { "lat": 53.39617, "lng": -2.35309, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.39617,
+            "lng": -2.35309,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-CEN",
@@ -24,11 +38,33 @@
           "town": "Manchester",
           "address": "Site of BTS, Plymouth Grove",
           "postcode": "M13 9LL",
-          "coords": { "lat": 53.46387, "lng": -2.22496, "approximate": false },
-          "resources": ["3x DCA", "1x RRV", "1x QR"],
+          "coords": {
+            "lat": 53.46387,
+            "lng": -2.22496,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV",
+            "1x QR"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
-          "notes": "Southern-patch Advanced Paramedic based here."
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "notes": "Southern-patch Advanced Paramedic based here. Callsigns authored (U6): 1x CYC, 4x RRV.",
+          "callsigns": {
+            "CYC": [
+              "C301"
+            ],
+            "RRV": [
+              "R301",
+              "R302",
+              "R303",
+              "R305"
+            ]
+          }
         },
         {
           "id": "A-CHE",
@@ -36,10 +72,19 @@
           "town": "Cheadle Hulme",
           "address": "Turves Road",
           "postcode": "SK8 6AY",
-          "coords": { "lat": 53.37594, "lng": -2.19574, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.37594,
+            "lng": -2.19574,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Co-located with GMFRS G22 Cheadle."
         },
         {
@@ -48,10 +93,19 @@
           "town": "Manchester",
           "address": "Briscoe Lane",
           "postcode": "M40 2XG",
-          "coords": { "lat": 53.49162, "lng": -2.19846, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.49162,
+            "lng": -2.19846,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Co-located with GMFRS G18 Philips Park."
         },
         {
@@ -60,10 +114,19 @@
           "town": "Sale",
           "address": "Cranleigh Drive",
           "postcode": "M33 7NT",
-          "coords": { "lat": 53.42568, "lng": -2.32795, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.42568,
+            "lng": -2.32795,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Co-located with GMFRS G11 Sale."
         },
         {
@@ -72,10 +135,36 @@
           "town": "Wythenshawe",
           "address": "Leestone Road, Sharston",
           "postcode": "M22 4RN",
-          "coords": { "lat": 53.39711, "lng": -2.25388, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.39711,
+            "lng": -2.25388,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "callsigns": {
+            "DUTY_OFF": [
+              "DX350",
+              "DX351"
+            ],
+            "QR": [
+              "QX354",
+              "QX355"
+            ],
+            "RRV": [
+              "R355",
+              "R372",
+              "R374"
+            ]
+          },
+          "notes": "Callsigns authored (U6): 2x DUTY_OFF, 2x QR, 3x RRV."
         },
         {
           "id": "A-STK",
@@ -83,10 +172,27 @@
           "town": "Stockport",
           "address": "Hope Street, off Heaton Lane",
           "postcode": "SK4 1AY",
-          "coords": { "lat": 53.41019, "lng": -2.17004, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.41019,
+            "lng": -2.17004,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "callsigns": {
+            "RRV": [
+              "R344",
+              "R405"
+            ]
+          },
+          "notes": "Callsigns authored (U6): 2x RRV."
         },
         {
           "id": "A-STP",
@@ -94,10 +200,19 @@
           "town": "Old Trafford",
           "address": "Talbot Road",
           "postcode": "M32 0UX",
-          "coords": { "lat": 53.45902, "lng": -2.28748, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.45902,
+            "lng": -2.28748,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Ambulance response point co-located with Stretford Police Station."
         },
         {
@@ -106,10 +221,16 @@
           "town": "Stretford",
           "address": "Unit 4 Christie Road",
           "postcode": "M32 0XX",
-          "coords": { "lat": 53.45100, "lng": -2.30940, "approximate": true },
+          "coords": {
+            "lat": 53.451,
+            "lng": -2.3094,
+            "approximate": true
+          },
           "resources": [],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "pts_only": true,
           "notes": "PTS-only site (non-emergency patient transport). Coords are M32 outcode centroid — M32 0XX didn't resolve via postcodes.io."
         },
@@ -119,10 +240,19 @@
           "town": "Urmston",
           "address": "Bowfell Road",
           "postcode": "M41 5RR",
-          "coords": { "lat": 53.45102, "lng": -2.37020, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.45102,
+            "lng": -2.3702,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         }
       ]
     },
@@ -135,10 +265,19 @@
           "town": "Ashton-under-Lyne",
           "address": "Cambridge Street",
           "postcode": "OL7 0RJ",
-          "coords": { "lat": 53.47953, "lng": -2.10666, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.47953,
+            "lng": -2.10666,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-AUD",
@@ -146,10 +285,16 @@
           "town": "Audenshaw",
           "address": "Unit 5 Shepley Industrial Estate, Shepley Road",
           "postcode": "M34 5DR",
-          "coords": { "lat": 53.46966, "lng": -2.10629, "approximate": false },
+          "coords": {
+            "lat": 53.46966,
+            "lng": -2.10629,
+            "approximate": false
+          },
           "resources": [],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "pts_only": true,
           "notes": "PTS-only site."
         },
@@ -159,10 +304,28 @@
           "town": "Bury",
           "address": "Birch Street",
           "postcode": "BL9 5AL",
-          "coords": { "lat": 53.59901, "lng": -2.29127, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.59901,
+            "lng": -2.29127,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "callsigns": {
+            "RRV": [
+              "R422",
+              "R451",
+              "R452"
+            ]
+          },
+          "notes": "Callsigns authored (U6): 3x RRV."
         },
         {
           "id": "A-DUK",
@@ -170,10 +333,19 @@
           "town": "Dukinfield",
           "address": "Dewsnap Lane",
           "postcode": "SK16 5AW",
-          "coords": { "lat": 53.47012, "lng": -2.07977, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.47012,
+            "lng": -2.07977,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-GLO",
@@ -181,10 +353,19 @@
           "town": "Glossop",
           "address": "Chapel Street",
           "postcode": "SK13 8AT",
-          "coords": { "lat": 53.44279, "lng": -1.95284, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.44279,
+            "lng": -1.95284,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Geographically in Derbyshire (High Peak) but on the NWAS GM Eastern border — covers Tameside fringe."
         },
         {
@@ -193,10 +374,19 @@
           "town": "Heywood",
           "address": "Hind Hill Street",
           "postcode": "OL10 1AN",
-          "coords": { "lat": 53.59022, "lng": -2.21978, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.59022,
+            "lng": -2.21978,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-MID",
@@ -204,10 +394,19 @@
           "town": "Middleton",
           "address": "Highfield Street",
           "postcode": "M24 2JR",
-          "coords": { "lat": 53.55024, "lng": -2.18437, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.55024,
+            "lng": -2.18437,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-OLD",
@@ -215,11 +414,27 @@
           "town": "Oldham",
           "address": "Crofton Street",
           "postcode": "OL8 3DA",
-          "coords": { "lat": 53.52597, "lng": -2.11303, "approximate": false },
-          "resources": ["3x DCA", "1x RRV", "1x QR"],
+          "coords": {
+            "lat": 53.52597,
+            "lng": -2.11303,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV",
+            "1x QR"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
-          "notes": "Eastern-patch Advanced Paramedic based here."
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "notes": "Eastern-patch Advanced Paramedic based here. Callsigns authored (U6): 1x RRV.",
+          "callsigns": {
+            "RRV": [
+              "R398"
+            ]
+          }
         },
         {
           "id": "A-OLP",
@@ -227,10 +442,16 @@
           "town": "Oldham",
           "address": "Unit 5 Mount Pleasant Business Park, Jackson Street",
           "postcode": "OL4 1HU",
-          "coords": { "lat": 53.54240, "lng": -2.09208, "approximate": false },
+          "coords": {
+            "lat": 53.5424,
+            "lng": -2.09208,
+            "approximate": false
+          },
           "resources": [],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "pts_only": true,
           "notes": "PTS-only site."
         },
@@ -240,10 +461,19 @@
           "town": "Ramsbottom",
           "address": "Cemetery Road",
           "postcode": "BL0 9PU",
-          "coords": { "lat": 53.63750, "lng": -2.32791, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.6375,
+            "lng": -2.32791,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-ROC",
@@ -251,10 +481,26 @@
           "town": "Rochdale",
           "address": "Whitehall Street",
           "postcode": "OL12 0LE",
-          "coords": { "lat": 53.62327, "lng": -2.15762, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.62327,
+            "lng": -2.15762,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "callsigns": {
+            "RRV": [
+              "R460"
+            ]
+          },
+          "notes": "Callsigns authored (U6): 1x RRV."
         },
         {
           "id": "A-WHI",
@@ -262,10 +508,19 @@
           "town": "Whitefield",
           "address": "Bury New Road",
           "postcode": "M45 7SY",
-          "coords": { "lat": 53.55555, "lng": -2.29579, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.55555,
+            "lng": -2.29579,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Co-located with GMFRS G37 Whitefield."
         }
       ]
@@ -279,10 +534,19 @@
           "town": "Blackrod",
           "address": "Scot Lane End",
           "postcode": "BL6 5SG",
-          "coords": { "lat": 53.57882, "lng": -2.56810, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.57882,
+            "lng": -2.5681,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-BON",
@@ -290,10 +554,20 @@
           "town": "Bolton",
           "address": "1 Shoreswood",
           "postcode": "BL1 7DD",
-          "coords": { "lat": 53.60805, "lng": -2.44299, "approximate": false },
-          "resources": ["3x DCA", "1x RRV", "1x QR"],
+          "coords": {
+            "lat": 53.60805,
+            "lng": -2.44299,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV",
+            "1x QR"
+          ],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "notes": "Western-patch Advanced Paramedic based here."
         },
         {
@@ -302,10 +576,16 @@
           "town": "Bolton",
           "address": "Moor Lane",
           "postcode": "BL3 5DB",
-          "coords": { "lat": 53.57539, "lng": -2.43500, "approximate": false },
+          "coords": {
+            "lat": 53.57539,
+            "lng": -2.435,
+            "approximate": false
+          },
           "resources": [],
           "station_verified": true,
-          "sources": ["U2"],
+          "sources": [
+            "U2"
+          ],
           "pts_only": true,
           "notes": "PTS-only; co-located with GMFRS G50 Bolton Central."
         },
@@ -315,10 +595,36 @@
           "town": "Farnworth",
           "address": "Redgate Way, off Plodder Lane",
           "postcode": "BL4 0JX",
-          "coords": { "lat": 53.54970, "lng": -2.42992, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.5497,
+            "lng": -2.42992,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "callsigns": {
+            "DUTY_OFF": [
+              "DX500",
+              "DX501"
+            ],
+            "QR": [
+              "QX498",
+              "QX499"
+            ],
+            "RRV": [
+              "R397",
+              "R498",
+              "R502"
+            ]
+          },
+          "notes": "Callsigns authored (U6): 2x DUTY_OFF, 2x QR, 3x RRV."
         },
         {
           "id": "A-ECC",
@@ -326,10 +632,19 @@
           "town": "Eccles",
           "address": "130 Barton Lane",
           "postcode": "M30 0FG",
-          "coords": { "lat": 53.48038, "lng": -2.34338, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.48038,
+            "lng": -2.34338,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-IRL",
@@ -337,10 +652,19 @@
           "town": "Irlam",
           "address": "Fairhills Road",
           "postcode": "M44 6BA",
-          "coords": { "lat": 53.44032, "lng": -2.42025, "approximate": false },
-          "resources": ["1x DCA"],
+          "coords": {
+            "lat": 53.44032,
+            "lng": -2.42025,
+            "approximate": false
+          },
+          "resources": [
+            "1x DCA"
+          ],
           "station_verified": true,
-          "sources": ["U2", "S3"],
+          "sources": [
+            "U2",
+            "S3"
+          ],
           "notes": "Joint Fire, Police and Ambulance station — co-located with GMFRS G62 Irlam."
         },
         {
@@ -349,10 +673,27 @@
           "town": "Pendleton",
           "address": "Charles Street, Pendleton",
           "postcode": "M6 7DU",
-          "coords": { "lat": 53.49422, "lng": -2.29247, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.49422,
+            "lng": -2.29247,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2",
+            "U6"
+          ],
+          "callsigns": {
+            "RRV": [
+              "R572",
+              "R573"
+            ]
+          },
+          "notes": "Callsigns authored (U6): 2x RRV."
         },
         {
           "id": "A-SWI",
@@ -360,10 +701,19 @@
           "town": "Swinton",
           "address": "Stanwell Road",
           "postcode": "M27 5TD",
-          "coords": { "lat": 53.50888, "lng": -2.34028, "approximate": false },
-          "resources": ["2x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.50888,
+            "lng": -2.34028,
+            "approximate": false
+          },
+          "resources": [
+            "2x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U2"]
+          "sources": [
+            "U2"
+          ]
         },
         {
           "id": "A-WIG",
@@ -371,10 +721,20 @@
           "town": "Wigan",
           "address": "Robin Park Road",
           "postcode": "WN5 0UU",
-          "coords": { "lat": 53.549, "lng": -2.6574, "approximate": false },
-          "resources": ["3x DCA", "1x RRV"],
+          "coords": {
+            "lat": 53.549,
+            "lng": -2.6574,
+            "approximate": false
+          },
+          "resources": [
+            "3x DCA",
+            "1x RRV"
+          ],
           "station_verified": true,
-          "sources": ["U3", "S3"],
+          "sources": [
+            "U3",
+            "S3"
+          ],
           "notes": "Joint Fire and Ambulance station — co-located with GMFRS G54 Wigan. Confirmed by user 2026-04-19 that NWAS still uses this site."
         }
       ]
@@ -388,19 +748,46 @@
           "town": "Stretford",
           "address": "BTTG Testing & Certification Ltd, 14 Wheel Forge Way, Trafford Park",
           "postcode": "M17 1EH",
-          "coords": { "lat": 53.4697, "lng": -2.3332, "approximate": false },
+          "coords": {
+            "lat": 53.4697,
+            "lng": -2.3332,
+            "approximate": false
+          },
           "resources": [
-            "3x HART IRU",
-            "2x HART personnel carrier",
-            "1x HART multi-casualty",
-            "1x HART off-road IRU",
-            "1x HART ATV carrier",
+            "4x HART IRU",
+            "1x HART 4x4",
+            "1x HART ISU",
             "1x HART ATV",
             "1x HART RRV"
           ],
           "station_verified": true,
-          "sources": ["U1", "F1", "F2"],
-          "notes": "Address verbatim from user 2026-04-18. HART base for NWAS in Manchester is co-located at BTTG Testing & Certification Ltd. Covers the whole NWAS region, not just GM. Fleet reconciled 2026-09-02 against the NWAS HART vehicle register (FOI24474, 14 Apr 2025, 'Manchester Central' division = 12 vehicles: 8x MAN TGE 5.160, 1x Toyota Hilux, 1x DAF LF 45.170, 1x Polaris Ranger, 1x Skoda Kodiaq) and the vehicle-role descriptions NWAS gave in FOI24477 (9 Apr 2025). The 8 MAN TGEs split 5 IRU (3 live + 2 spare) + 2 personnel carriers (1 overt, 1 covert) + 1 multi-casualty; only the 3 live IRUs are modelled as mobilisable, so 10 units here against 12 on the register. This is the 3rd-generation NARU/NHS ECU national fleet, delivered Sep 2024 - Jan 2025. Callsigns use the published Z (HART) prefix from FOI2376; the 3xx block is enthusiast observation (Z301/Z304), not an NWAS disclosure - NWAS withholds callsign numbers under s24."
+          "sources": [
+            "U1",
+            "F1",
+            "F2",
+            "U6"
+          ],
+          "notes": "Address verbatim from user 2026-04-18. HART base for NWAS in Manchester is co-located at BTTG Testing & Certification Ltd. Covers the whole NWAS region, not just GM. Fleet reconciled 2026-09-02 against the NWAS HART vehicle register (FOI24474, 14 Apr 2025, 'Manchester Central' division = 12 vehicles: 8x MAN TGE 5.160, 1x Toyota Hilux, 1x DAF LF 45.170, 1x Polaris Ranger, 1x Skoda Kodiaq) and the vehicle-role descriptions NWAS gave in FOI24477 (9 Apr 2025). The 8 MAN TGEs split 5 IRU (3 live + 2 spare) + 2 personnel carriers (1 overt, 1 covert) + 1 multi-casualty; only the 3 live IRUs are modelled as mobilisable, so 10 units here against 12 on the register. This is the 3rd-generation NARU/NHS ECU national fleet, delivered Sep 2024 - Jan 2025. Callsigns use the published Z (HART) prefix from FOI2376; the 3xx block is enthusiast observation (Z301/Z304), not an NWAS disclosure - NWAS withholds callsign numbers under s24. Callsigns authored (U6): 4x HART_vehicle, 1x HART_ORIRU, 1x NWAS_IRU, 1x HART_ATV, 1x HART_RRV.",
+          "callsigns": {
+            "HART_vehicle": [
+              "Z302",
+              "Z303",
+              "Z304",
+              "Z306"
+            ],
+            "HART_ORIRU": [
+              "Z308"
+            ],
+            "NWAS_IRU": [
+              "Z310"
+            ],
+            "HART_ATV": [
+              "Z311"
+            ],
+            "HART_RRV": [
+              "Z312"
+            ]
+          }
         },
         {
           "id": "A-HEMS",
@@ -408,10 +795,19 @@
           "town": "Eccles",
           "address": "Barton Aerodrome (City Airport Manchester), Liverpool Road",
           "postcode": "M30 7SA",
-          "coords": { "lat": 53.4697, "lng": -2.3871, "approximate": false },
-          "resources": ["1x HEMS helicopter", "1x CCC"],
+          "coords": {
+            "lat": 53.4697,
+            "lng": -2.3871,
+            "approximate": false
+          },
+          "resources": [
+            "1x HEMS helicopter",
+            "1x CCC"
+          ],
           "station_verified": true,
-          "sources": ["U1"],
+          "sources": [
+            "U1"
+          ],
           "notes": "NWAA base covering Greater Manchester (one of three NWAA bases — Barton, Hawarden, Blackpool). Critical Care Car (CCC) operates from the same base through the night and when weather grounds the aircraft — same doctor-paramedic team, road response."
         },
         {
@@ -420,10 +816,20 @@
           "town": "Manchester",
           "address": null,
           "postcode": null,
-          "coords": { "lat": 53.48, "lng": -2.24, "approximate": true },
-          "resources": ["2x OD"],
+          "coords": {
+            "lat": 53.48,
+            "lng": -2.24,
+            "approximate": true
+          },
+          "resources": [
+            "2x OD"
+          ],
           "station_verified": false,
-          "sources": ["F1", "N1", "N2"],
+          "sources": [
+            "F1",
+            "N1",
+            "N2"
+          ],
           "notes": "The Duty Officer is the Band 7 post NWAS created in its 2024/25 leadership review: senior paramedics 'fully trained to NARU Operational Commander level' providing 'a 24/7 Operational Command response throughout the whole footprint of the trust' (NHS Jobs C9242-25-0000, 3 Jan 2025). The Annual Report 2024/25 records 'six duty officers, our first line operational leadership response to incidents, available across the region 24/7' — two are modelled here as the Greater Manchester share. Callsign prefix BX (Operational Commander) per FOI2376. Mobile from the ICC or wherever the on-duty officer is roving; coords are a placeholder at central Manchester."
         },
         {
@@ -433,7 +839,9 @@
           "address": null,
           "postcode": null,
           "coords": null,
-          "resources": ["BASICS volunteer doctors (dispatched on request)"],
+          "resources": [
+            "BASICS volunteer doctors (dispatched on request)"
+          ],
           "station_verified": false,
           "notes": "BASICS (British Association for Immediate Care) doctors are volunteer GPs / hospital doctors who self-deploy from home or work to serious incidents. No fixed base; NWAS calls them on request for trauma, paediatric arrest, or entrapment. Confirmed to be in-scope by user."
         }

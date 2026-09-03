@@ -32,6 +32,11 @@ type RawStation = {
   notes?: string;
   closedSince2021?: boolean;
   pts_only?: boolean;
+  /** Exact callsigns, per type code — the real over-air identities where
+   *  the project knows them. An authored list also SETS the count for
+   *  that type, so it can add a type the resources line never mentioned.
+   *  See NWAS_CALLSIGN_PREFIX for the scheme the numbers sit in. */
+  callsigns?: Record<string, string[] | undefined>;
 };
 
 /** Parse a "pods: 2x HVP/HVHL" line from the raw station data into a list
@@ -152,11 +157,11 @@ function parseApplianceString(raw: string): Parsed[] {
   // source document. Longest phrases first — "ATV carrier" must win over
   // "ATV", and "off-road IRU" over "IRU".
   const HART_RESOURCE: [RegExp, ApplianceTypeCode][] = [
-    [/^(\d+)x\s+HART\s+off-road\s+IRU$/i, "HART_ORIRU"],
+    [/^(\d+)x\s+HART\s+(?:off-road\s+IRU|4x4)$/i, "HART_ORIRU"],
     [/^(\d+)x\s+HART\s+ATV\s+carrier$/i, "HART_carrier"],
     [/^(\d+)x\s+HART\s+ATV$/i, "HART_ATV"],
     [/^(\d+)x\s+HART\s+personnel\s+carrier$/i, "HART_PCV"],
-    [/^(\d+)x\s+HART\s+multi-casualty$/i, "NWAS_IRU"],
+    [/^(\d+)x\s+HART\s+(?:multi-casualty|ISU)$/i, "NWAS_IRU"],
     [/^(\d+)x\s+HART\s+RRV$/i, "HART_RRV"],
     [/^(\d+)x\s+HART\s+(?:IRU|vehicle)$/i, "HART_vehicle"],
   ];
@@ -267,13 +272,29 @@ function seeded2(seed: string): string {
 // The NUMBERS are ours: NWAS withholds the callsign-number-to-area mapping
 // under s24 (national security), refused in FOI24459 and FOI25042. They are
 // seeded off the station id so they stay stable across renders.
+// The NWAS callsign scheme in full, as supplied by the project owner
+// (U6). Two entries changed with it: BASICS moves from MA to MX, because
+// MA is the Medical Advisor / MERIT series; and the critical care car
+// moves from H to HX, because H is the helicopter and HX is the HEMS
+// response car. Both were the sim's own guesses before.
 const NWAS_CALLSIGN_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
-  DCA: "A",
-  RRV: "R",
-  QR: "QX",
-  OD: "BX",
-  CCC: "H",
-  BASICS: "MA",
+  DCA: "A",          // Ambulance (emergency)
+  UCA: "U",          // Urgent Care Ambulance
+  RRV: "R",          // Rapid Response Vehicle
+  CYC: "C",          // Cycle Responder
+  QR: "QX",          // Advanced Paramedic
+  DUTY_OFF: "DX",    // Duty Officer
+  BASICS: "MX",      // BASICS
+  CHAP: "CX",        // Clinical Hub Advanced Practitioner
+  MIV: "M",          // Major Incident Vehicle
+  MERIT: "MA",       // Medical Advisor / MERIT
+  OD: "BX",          // Operational Commander
+  TAC_CMD: "SX",     // Tactical Commander
+  STRAT_CMD: "GX",   // Strategic Commander
+  TAC_ADV: "TX",     // Tactical Advisor
+  CCC: "HX",         // HEMS RRV — the NWAA critical care car
+  CFR: "FR",         // Community First Responder
+  STAFF_RESP: "SR",  // Staff Responder
   // HART runs a single Z series across the whole team, whatever the
   // vehicle — Z is the published prefix; the 3xx block is enthusiast
   // observation (Z301 / Z304), not an NWAS disclosure.
@@ -318,9 +339,29 @@ const GMP_CALLSIGN_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
   Police_Search: "POLSA",
 };
 
+/** Every callsign the station files author by hand. Generated numbers
+ *  steer around these. */
+const RESERVED_CALLSIGNS: Set<string> = (() => {
+  const out = new Set<string>();
+  const files = [fireJson, nwasJson, gmpJson] as unknown as {
+    areas: { stations: RawStation[] }[];
+  }[];
+  for (const file of files) {
+    for (const area of file.areas) {
+      for (const s of area.stations) {
+        for (const list of Object.values(s.callsigns ?? {})) {
+          for (const cs of list ?? []) out.add(cs);
+        }
+      }
+    }
+  }
+  return out;
+})();
+
 export function buildAppliances(
   station: Station,
   rawList: string[],
+  authored?: Record<string, string[] | undefined>,
 ): Appliance[] {
   const out: Appliance[] = [];
   // Short station id for callsign composition. GMFRS keeps the "G" prefix so
@@ -330,28 +371,55 @@ export function buildAppliances(
   const isForceWide = station.area === "ForceWide";
   const separator = station.service === "Fire" ? "" : "-";
 
-  for (const raw of rawList) {
-    for (const parsed of parseApplianceString(raw)) {
+  // What this station holds: the resources line, then any authored
+  // callsign list, which sets the count for its type and can introduce a
+  // type the resources line never mentioned.
+  const plan: Parsed[] = [];
+  for (const raw of rawList) plan.push(...parseApplianceString(raw));
+  if (authored) {
+    for (const [key, list] of Object.entries(authored)) {
+      if (!Array.isArray(list) || list.length === 0) continue;
+      const t = key as ApplianceTypeCode;
+      const existing = plan.find((p) => p.type === t);
+      if (existing) existing.count = list.length;
+      else plan.push({ count: list.length, type: t });
+    }
+  }
+
+  for (const parsed of plan) {
+    {
       const type = APPLIANCE_TYPES[parsed.type];
       if (!type) continue;
       for (let i = 1; i <= parsed.count; i++) {
         const ordinal = countSoFar(out, parsed.type) + 1;
+        const authoredCallsign = authored?.[parsed.type]?.[ordinal - 1];
 
         const nwasPrefix = NWAS_CALLSIGN_PREFIX[parsed.type];
         const gmpPrefix = GMP_CALLSIGN_PREFIX[parsed.type];
         let designator: string;
         let callsign: string;
-        if (nwasPrefix) {
+        if (authoredCallsign) {
+          // A real over-air identity the project knows. It is the
+          // callsign and the designator both — nothing is composed.
+          designator = authoredCallsign;
+          callsign = authoredCallsign;
+        } else if (nwasPrefix) {
           // NWAS: service-wide unit-number callsign, not tied to the
           // station, and no separator — "A645", not "A-645".
-          const seed = `${station.id}-${parsed.type}-${ordinal}`;
-          const unit = HART_TYPES.has(parsed.type)
-            ? // HART runs a 3xx block — Z301, Z304 in the wild.
-              String(300 + (Number(seeded3(seed)) % 90))
-            : parsed.type === "CCC"
-              ? // NWAA assets carry short H numbers: H03, H08, H58, H75.
-                String(Number(seeded3(seed)) % 100).padStart(2, "0")
-              : seeded3(seed);
+          const unitFor = (seed: string): string =>
+            HART_TYPES.has(parsed.type)
+              ? // HART runs a 3xx block — Z302, Z304 in the wild.
+                String(300 + (Number(seeded3(seed)) % 90))
+              : parsed.type === "CCC"
+                ? // NWAA assets carry short numbers: HX03, HX58, HX75.
+                  String(Number(seeded3(seed)) % 100).padStart(2, "0")
+                : seeded3(seed);
+          const baseSeed = `${station.id}-${parsed.type}-${ordinal}`;
+          let unit = unitFor(baseSeed);
+          // Steer off any callsign the station files author by hand.
+          for (let salt = 1; salt <= 64 && RESERVED_CALLSIGNS.has(`${nwasPrefix}${unit}`); salt++) {
+            unit = unitFor(`${baseSeed}#${salt}`);
+          }
           designator = `${nwasPrefix}${unit}`;
           callsign = designator;
         } else if (gmpPrefix) {
@@ -424,7 +492,7 @@ export function getStationAppliances(stationId: string): Appliance[] {
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.appliances ?? []);
+      return buildAppliances(station, s.appliances ?? [], s.callsigns);
     }
   }
   for (const area of nwasJson.areas) {
@@ -432,7 +500,7 @@ export function getStationAppliances(stationId: string): Appliance[] {
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.resources ?? []);
+      return buildAppliances(station, s.resources ?? [], s.callsigns);
     }
   }
   for (const area of gmpJson.areas) {
@@ -440,7 +508,7 @@ export function getStationAppliances(stationId: string): Appliance[] {
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.resources ?? []);
+      return buildAppliances(station, s.resources ?? [], s.callsigns);
     }
   }
   return [];

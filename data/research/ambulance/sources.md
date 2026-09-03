@@ -74,3 +74,26 @@ Per-town ambulance station addresses, postcodes, and current resource allocation
 - FOI disclosures on `whatdotheyknow.com`: NWAS has responded to multiple FOIs about station locations and vehicle counts.
 - ORCATS / station-finder third-party sites for cross-reference.
 - NWAS annual reports and Board papers.
+
+### U6 — Project owner, NWAS callsign scheme and unit list (2026-09-03)
+
+Supplied directly by the project owner: the NWAS callsign prefix scheme
+(A ambulance, U urgent care, R RRV, C cycle, QX advanced paramedic,
+DX duty officer, MX BASICS, CX clinical hub advanced practitioner,
+Z HART, M major incident vehicle, MA medical advisor/MERIT,
+BX operational commander, SX tactical commander, GX strategic commander,
+TX tactical advisor, H helicopter, HX HEMS RRV, FR community first
+responder, SR staff responder), twenty-eight unit callsigns against their
+stations, and the eight-vehicle HART fleet (Z302/303/304/306 IRU, Z308
+4x4, Z310 ISU, Z311 Polaris, Z312 RRV).
+
+**Not a published document.** This is the owner's own knowledge, and it is
+the authority for these callsigns in the sim. Two earlier guesses of ours
+are corrected by it: BASICS was on MA (MA is the MERIT series) and the
+critical care car was on H (H is the aircraft; the car is HX). It also
+restores DX, which an earlier pass could not verify and set aside in
+favour of BX — both exist, and they are different roles: DX is the duty
+officer, BX the operational commander.
+
+If a citable NWAS source for the scheme turns up, replace this entry with
+it rather than adding to it.

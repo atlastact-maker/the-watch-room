@@ -32,7 +32,7 @@ export const MAKE_MODEL: Record<ApplianceTypeCode, { make: string; model: string
   RRV:           { make: "Škoda",          model: "Superb Estate RRV" },
   // HART, from the NWAS register (FOI24474, Manchester Central, Apr 2025).
   HART_vehicle:  { make: "MAN",            model: "TGE 5.160 Incident Response Unit" },
-  NWAS_IRU:      { make: "MAN",            model: "TGE 5.160 Multi-Casualty Vehicle" },
+  NWAS_IRU:      { make: "MAN",            model: "TGE 5.160 Incident Support Unit" },
   HART_PCV:      { make: "MAN",            model: "TGE 5.160 Personnel Carrier" },
   HART_ORIRU:    { make: "Toyota",         model: "Hilux Active D-4D 4WD" },
   HART_ATV:      { make: "Polaris",        model: "Ranger 6x6 UTV" },
@@ -43,6 +43,17 @@ export const MAKE_MODEL: Record<ApplianceTypeCode, { make: string; model: string
   QR:            { make: "Škoda",          model: "Kodiaq Advanced Paramedic" },
   OD:            { make: "BMW",            model: "3-Series Touring Duty Officer" },
   CCC:           { make: "BMW",            model: "X5 Critical Care Car" },
+  UCA:           { make: "Fiat",          model: "Ducato Urgent Care Ambulance" },
+  CYC:           { make: "Cannondale",    model: "F-Si Response Bike" },
+  DUTY_OFF:      { make: "Škoda",         model: "Kodiaq Duty Officer" },
+  CHAP:          { make: "Škoda",         model: "Superb Estate Advanced Practitioner" },
+  MIV:           { make: "MAN",           model: "TGE 5.160 Major Incident Vehicle" },
+  MERIT:         { make: "Volvo",         model: "XC90 MERIT" },
+  TAC_CMD:       { make: "BMW",           model: "X3 Tactical Commander" },
+  STRAT_CMD:     { make: "BMW",           model: "5-Series Strategic Commander" },
+  TAC_ADV:       { make: "Škoda",         model: "Kodiaq Tactical Advisor" },
+  CFR:           { make: "Volunteer",     model: "Responder vehicle" },
+  STAFF_RESP:    { make: "Staff",         model: "Own vehicle" },
 
   // GMP
   Police_Response:  { make: "BMW",           model: "3-Series Touring Response" },

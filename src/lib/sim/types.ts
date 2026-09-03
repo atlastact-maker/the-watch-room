@@ -23,6 +23,20 @@ export type ApplianceTypeCode =
   // scenarios 06 and 09 mobilise HART_vehicle by name.
   | "HART_vehicle" | "NWAS_IRU"
   | "HART_PCV" | "HART_ORIRU" | "HART_ATV" | "HART_carrier" | "HART_RRV"
+  // The rest of the NWAS callsign scheme (owner-supplied, U6). Registered
+  // as types so any of them can be stationed and will carry the right
+  // prefix; only the ones with authored callsigns are on the run today.
+  | "UCA"              // U  — Urgent Care Ambulance
+  | "CYC"              // C  — Cycle Responder
+  | "DUTY_OFF"         // DX — Duty Officer
+  | "CHAP"             // CX — Clinical Hub Advanced Practitioner
+  | "MIV"              // M  — Major Incident Vehicle
+  | "MERIT"            // MA — Medical Advisor / MERIT
+  | "TAC_CMD"          // SX — Tactical Commander
+  | "STRAT_CMD"        // GX — Strategic Commander
+  | "TAC_ADV"          // TX — Tactical Advisor
+  | "CFR"              // FR — Community First Responder
+  | "STAFF_RESP"       // SR — Staff Responder
   // Police (GMP)
   | "Police_Response"   // single-crew response car
   | "Police_ARV"        // Armed Response Vehicle (typically 3-crew)

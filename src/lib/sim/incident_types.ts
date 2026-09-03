@@ -162,6 +162,17 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
   QR: ["Medical", "Trauma"],
   OD: ["Command", "Medical"],
   CCC: ["Medical", "Trauma"],
+  UCA: ["Medical"],
+  CYC: ["Medical"],
+  DUTY_OFF: ["Command", "Medical"],
+  CHAP: ["Medical", "Trauma"],
+  MIV: ["Medical", "Command"],
+  MERIT: ["Medical", "Trauma"],
+  TAC_CMD: ["Command"],
+  STRAT_CMD: ["Command"],
+  TAC_ADV: ["Command", "Medical"],
+  CFR: ["Medical"],
+  STAFF_RESP: ["Medical"],
 
   // Police (GMP)
   Police_Response: ["Police_Response"],
@@ -312,6 +323,14 @@ export const SCOPE_BY_TYPE: Partial<Record<ApplianceTypeCode, ClinicianScope>> =
   QR: "ap",        // Advanced Paramedic (QX)
   OD: "ap",        // Duty Officer (BX) — Band 7 paramedic commander
   CCC: "ccc",
+  UCA: "dca",           // U — Urgent Care Ambulance
+  CYC: "dca",           // C — Cycle Response Unit
+  DUTY_OFF: "ap",      // DX — Duty Officer
+  CHAP: "ap",          // CX — Clinical Hub Advanced Practitioner
+  MIV: "dca",           // M — Major Incident Vehicle
+  MERIT: "basics",         // MA — Medical Emergency Response Incident Team
+  TAC_CMD: "ap",       // SX — Tactical Commander
+  TAC_ADV: "ap",       // TX — Tactical Advisor
   BASICS: "basics",
   HEMS: "hems",
 };
