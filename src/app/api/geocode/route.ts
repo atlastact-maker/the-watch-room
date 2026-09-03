@@ -86,10 +86,19 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   let body: unknown;
   try {
-    const res = await fetch(upstream, { signal: AbortSignal.timeout(6000) });
+    let res = await fetch(upstream, { signal: AbortSignal.timeout(6000) });
+    if (res.status === 400 && upstream.searchParams.has("fq")) {
+      // The spec lists the LOCAL_TYPE values but not how several combine
+      // in one fq. If that is what OS objected to, drop the filter and
+      // let the county post-filter below do the narrowing.
+      const detail = (await res.text().catch(() => "")).slice(0, 200);
+      console.warn(`[geocode] OS Names 400 with fq — retrying unfiltered: ${detail}`);
+      upstream.searchParams.delete("fq");
+      res = await fetch(upstream, { signal: AbortSignal.timeout(6000) });
+    }
     if (!res.ok) {
       // Say why in the server log: a 400 here almost always means the
-      // Names product is not on the key, or a filter the API rejects.
+      // Names product is not on the key.
       const detail = (await res.text().catch(() => "")).slice(0, 200);
       console.warn(`[geocode] OS Names ${res.status}: ${detail}`);
       return NextResponse.json(
@@ -131,11 +140,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     const { lat, lng } = bngToWgs84(x, y);
     const name = String(e.NAME1 ?? "");
     const type = String(e.LOCAL_TYPE ?? "").replace(/_/g, " ");
-    const parts = [
-      e.POPULATED_PLACE,
-      e.DISTRICT_BOROUGH,
-      e.COUNTY_UNITARY,
-    ]
+    // The spec's entry has POPULATED_PLACE, COUNTY_UNITARY and REGION;
+    // the county is what reads as "where" for a Greater Manchester desk.
+    const parts = [e.POPULATED_PLACE, e.COUNTY_UNITARY]
       .map((p) => (p ? String(p) : ""))
       .filter((p) => p && p !== name);
     results.push({
