@@ -5,6 +5,7 @@
 // already-deployed crews and their welfare controls. Reused by both the
 // initial-deployment incident panel and the in-shift ground view.
 
+import { PdaChecklist } from "./pda-checklist";
 import { Fragment, useEffect, useState } from "react";
 import type { Appliance, PodTypeCode, ServiceCode } from "@/lib/sim/types";
 import type { Patch } from "@/lib/sim/areas";
@@ -172,6 +173,16 @@ export function DeploymentBoard({
           );
         })}
       </div>
+
+      {/* The attendance first: what this job's PDA calls for, what is
+          covered, and the system's proposal for the rest. */}
+      <PdaChecklist
+        incident={incident}
+        stations={stations}
+        etas={etas}
+        deployments={deployments}
+        onDeploy={onDeploy}
+      />
 
       <div className="flex flex-wrap gap-1">
         <CategoryChip

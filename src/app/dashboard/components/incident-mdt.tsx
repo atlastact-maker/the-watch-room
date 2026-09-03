@@ -8,6 +8,7 @@
 // runs a light "CAD app" theme so it reads as a separate device sitting
 // on top of the dark ops-room UI.
 
+import { DRAG_MIME } from "./call-stack";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Rnd } from "react-rnd";
@@ -263,6 +264,8 @@ export function DraggableIncidentMdt({
 }: Props) {
   const resolved = !!outcome;
   const [tab, setTab] = useState<TabKey>("overview");
+  // A unit is being dragged over the Committed column.
+  const [dropHot, setDropHot] = useState(false);
   // Committed unit whose control page fills the Resourcing right pane.
   // Controlled by the dashboard when the props are supplied (ground-map
   // clicks open the tablet's unit page); internal state otherwise.
@@ -567,9 +570,52 @@ export function DraggableIncidentMdt({
                       </ul>
                     </div>
                   )}
-                  <div className="flex-1 overflow-y-auto px-3 py-2 text-xs">
+                  <div
+                    className={
+                      "flex-1 overflow-y-auto px-3 py-2 text-xs transition-colors " +
+                      (dropHot ? "bg-(--color-amber)/10 outline outline-1 -outline-offset-2 outline-(--color-amber)" : "")
+                    }
+                    // Drop a unit from the resources panel here to commit
+                    // it to this job — the same payload the call stack
+                    // takes. The station ETA the board already priced is
+                    // what the mobilisation is timed on.
+                    onDragOver={(e) => {
+                      if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "copy";
+                      if (!dropHot) setDropHot(true);
+                    }}
+                    onDragLeave={() => setDropHot(false)}
+                    onDrop={(e) => {
+                      setDropHot(false);
+                      const raw = e.dataTransfer.getData(DRAG_MIME);
+                      if (!raw) return;
+                      e.preventDefault();
+                      try {
+                        const { applianceId, stationId } = JSON.parse(raw) as {
+                          applianceId?: string;
+                          stationId?: string;
+                        };
+                        if (!applianceId || !stationId) return;
+                        if (deployments.some((d) => d.applianceId === applianceId)) return;
+                        const eta = etas?.[stationId];
+                        if (!eta) return;
+                        onDeploy({
+                          applianceId,
+                          slotId: "drop",
+                          etaSeconds: eta.seconds,
+                          routeMeters: eta.meters,
+                          routeCoords: eta.coords ?? undefined,
+                        });
+                      } catch {
+                        /* malformed payload — ignore */
+                      }
+                    }}
+                  >
                     {resolvedDeps.length === 0 ? (
-                      <p className="text-(--color-text-dim)">No crews committed yet.</p>
+                      <p className="text-(--color-text-dim)">
+                        No crews committed yet — drag a unit here from the resources panel, or send the attendance below.
+                      </p>
                     ) : (
                       <ul className="space-y-1">
                         {resolvedDeps.map((r) => (
