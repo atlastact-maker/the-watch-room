@@ -29,3 +29,22 @@ Anything in this file blocks treating the dataset as sim-ready.
 
 - [ ] **Call signs.** Source uses station identifiers (G10–G62) but not appliance call signs. Mobilising messages typically use call signs (e.g. "P50P1" for Bolton Central pump 1).
 - [x] **NWFC mobilising rules.** How NWFC actually selects appliances in real life (nearest available, station of first turn-out, etc.). Drives realism of the dispatch suggestions in the sim. *Answered 2026-09-03 in `pda.md` §1.3:* nearest appliance across all four NWFC counties regardless of boundary (S12, S16), by AVLS road speed not station grounds (S28), quickest engines regardless of 4/5 crewing (S10), GPS pre-alert on every 999 call expiring after five minutes (S9), incident type + priority + PDA + GMFRS action plans applied without discretion (S11).
+
+## Callsigns still unsettled (2026-09-03, from the owner's list U6)
+
+- **`R5` MTA response unit** — the owner's list gives the callsign and the
+  abbreviation. `MTA` is read here as *Marauding Terrorist Attack*, the fire
+  service's standard shorthand, but that expansion is ours and the fleet
+  register (F3) has no row for it. **No source places this vehicle at a
+  station**, so it is registered as a type and stationed nowhere.
+- **`N570` vs `N591` for the mass decontamination pod** — the owner's list says
+  N570; the register (F3) says `G53N591` at Farnworth. The register is
+  modelled. One of the two numbers is wrong.
+- **`R7` Fire Investigation** — the register redacts this callsign as
+  `G10*****`, so the owner's `R7` is the only source. The sim previously
+  guessed `F1`.
+- **`P8` Water Tower, `C3` Operational Support Unit, `R9` Search and Rescue
+  Dog Unit** — the sim's own designators; not in the owner's list and not
+  cross-checked against the register. Worth confirming.
+- **`N861` GMFRS Drone Unit** (Headquarters, per F3) — in the register, not in
+  the owner's list, not modelled.

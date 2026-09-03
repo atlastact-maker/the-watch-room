@@ -19,7 +19,8 @@
             "1x WrL +UHPL",
             "1x TL",
             "1x PM",
-            "pods: 1x HVP, 1x HVHL"
+            "pods: 1x HVP, 1x HVHL",
+            "1x FIU"
           ],
           "address": "Park Road",
           "town": "Stretford",
@@ -33,7 +34,8 @@
             "ward": "Gorse Hill & Cornbrook",
             "parliamentary_constituency": "Stretford and Urmston",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "notes": "Fire Investigation Unit (2007 Iveco Daily) per the fleet register F3, which redacts its callsign as G10*****; the R7 designator is the owner's (U6)."
         },
         {
           "id": "G11",
@@ -148,7 +150,8 @@
           "staffing": "Wholetime",
           "appliances": [
             "2x WrL +UHPL",
-            "1x TL"
+            "1x TL",
+            "1x RCV"
           ],
           "address": "Thompson Street",
           "town": "Manchester",
@@ -162,7 +165,8 @@
             "ward": "Piccadilly",
             "parliamentary_constituency": "Manchester Central",
             "police_force_area": "Greater Manchester"
-          }
+          },
+          "notes": "G16S6 GMFRS / British Red Cross vehicle (2013 Fiat Tribute, LF63 OSM) per the fleet register F3."
         },
         {
           "id": "G17",

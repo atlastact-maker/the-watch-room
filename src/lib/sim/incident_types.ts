@@ -161,6 +161,10 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
   BASICS: ["Medical", "Trauma"],
   QR: ["Medical", "Trauma"],
   OD: ["Command", "Medical"],
+  // The Red Cross vehicle brings welfare, not an operational capability;
+  // the MTA unit's role detail is unsourced, so it claims none.
+  RCV: [],
+  MTA: [],
   CCC: ["Medical", "Trauma"],
   UCA: ["Medical"],
   CYC: ["Medical"],

@@ -42,6 +42,8 @@ export const MAKE_MODEL: Record<ApplianceTypeCode, { make: string; model: string
   BASICS:        { make: "Volunteer",      model: "Responder vehicle" },
   QR:            { make: "Škoda",          model: "Kodiaq Advanced Paramedic" },
   OD:            { make: "BMW",            model: "3-Series Touring Duty Officer" },
+  RCV:           { make: "Fiat",           model: "Tribute (British Red Cross)" },
+  MTA:           { make: "Mercedes-Benz",  model: "Sprinter MTA Response Unit" },
   CCC:           { make: "BMW",            model: "X5 Critical Care Car" },
   UCA:           { make: "Fiat",          model: "Ducato Urgent Care Ambulance" },
   CYC:           { make: "Cannondale",    model: "F-Si Response Bike" },

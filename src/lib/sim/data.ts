@@ -339,6 +339,28 @@ const GMP_CALLSIGN_PREFIX: Partial<Record<ApplianceTypeCode, string>> = {
   Police_Search: "POLSA",
 };
 
+/** Real pod callsigns from the GMFRS fleet register (F3). A pod is
+ *  demountable, so its callsign belongs to the station that holds it and
+ *  not to the Prime Mover that happens to be carrying it: Stretford's
+ *  high volume pump is G10N981 whoever lifts it. The register's own form
+ *  is station id + number, which is what podCallsign returns.
+ *
+ *  N591 is the register's number for the Farnworth mass decontamination
+ *  pod. The owner's list gives N570 for the MDU; one of the two is
+ *  wrong and the register wins until that is settled — see gaps.md. */
+const POD_CALLSIGN_SUFFIX: Record<string, Partial<Record<PodTypeCode, string>>> = {
+  G10: { HVP: "N981", HVHL: "N991" },
+  G50: { HVP: "N982", HVHL: "N992" },
+  G36: { EPU: "N851" },
+  G53: { MDU: "N591", UTC: "N755" },
+};
+
+/** The pod's real callsign at this station, e.g. "G53N755". */
+export function podCallsign(stationId: string, pod: PodTypeCode): string | undefined {
+  const suffix = POD_CALLSIGN_SUFFIX[stationId]?.[pod];
+  return suffix ? `${stationId}${suffix}` : undefined;
+}
+
 /** Every callsign the station files author by hand. Generated numbers
  *  steer around these. */
 const RESERVED_CALLSIGNS: Set<string> = (() => {
@@ -457,7 +479,7 @@ export function buildAppliances(
           service: station.service,
           type: parsed.type,
           typeName: parsed.podType
-            ? `${type.fullName} (carrying ${POD_TYPES[parsed.podType]?.fullName ?? parsed.podType})`
+            ? `${type.fullName} (carrying ${[podCallsign(station.id, parsed.podType), POD_TYPES[parsed.podType]?.fullName ?? parsed.podType].filter(Boolean).join(" ")})`
             : type.fullName,
           podType: parsed.podType,
           capabilities: parsed.capabilities,

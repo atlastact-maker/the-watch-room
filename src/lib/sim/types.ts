@@ -22,6 +22,8 @@ export type ApplianceTypeCode =
   // multi-casualty vehicle — both kept under their original codes because
   // scenarios 06 and 09 mobilise HART_vehicle by name.
   | "HART_vehicle" | "NWAS_IRU"
+  | "RCV"              // S6 — GMFRS / British Red Cross vehicle (F3)
+  | "MTA"              // R5 — MTA response unit (U6; station unsourced)
   | "HART_PCV" | "HART_ORIRU" | "HART_ATV" | "HART_carrier" | "HART_RRV"
   // The rest of the NWAS callsign scheme (owner-supplied, U6). Registered
   // as types so any of them can be stationed and will carry the right

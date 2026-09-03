@@ -72,6 +72,8 @@ const TYPE_TO_CATEGORY: Record<ApplianceTypeCode, VehicleCategory> = {
   HART_RRV: "amb_specialist",
   HEMS: "amb_critical_care",
   BASICS: "amb_critical_care",
+  RCV: "fire_support",
+  MTA: "fire_specialist",
   CCC: "amb_critical_care",
   UCA: "amb_ambulances",
   CYC: "amb_response",

@@ -169,9 +169,9 @@
     },
     "FIU": {
       "fullName": "Fire Investigation Unit",
-      "callsignCategory": "F",
+      "callsignCategory": "R",
       "designators": [
-        "F1"
+        "R7"
       ],
       "crew": {
         "min": 1,
@@ -893,6 +893,41 @@
         "Defib / AED",
         "Basic life support"
       ]
+    },
+    "RCV": {
+      "fullName": "GMFRS / British Red Cross Vehicle",
+      "callsignCategory": "S",
+      "designators": [
+        "S6"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Casualty welfare",
+        "Rest and shelter",
+        "Refreshments",
+        "Emergency clothing"
+      ]
+    },
+    "MTA": {
+      "fullName": "MTA Response Unit",
+      "callsignCategory": "R",
+      "designators": [
+        "R5"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Casualty extraction under threat",
+        "Ballistic PPE",
+        "Rapid triage and evacuation"
+      ]
     }
   },
   "pods": {
@@ -913,10 +948,10 @@
       ]
     },
     "HVHL": {
-      "fullName": "High Volume Hose Layer",
+      "fullName": "Double Hose Box",
       "kit": [
-        "Bulk LDH hose",
-        "Pairs with HVP"
+        "Bulk LDH hose, double box",
+        "Pairs with a High Volume Pump"
       ]
     },
     "UTC": {
