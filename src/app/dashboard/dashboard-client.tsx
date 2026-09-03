@@ -395,6 +395,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // shift's own timer — and wait, visibly, until somebody picks them up.
   const [pendingCalls, setPendingCalls] = useState<PendingCall[]>([]);
   const [showCallStack, setShowCallStack] = useState(true);
+  // Ready / Not Ready on the stack. The timer reads the ref so a toggle
+  // does not tear the interval down and re-arm it.
+  const [callsReady, setCallsReady] = useState(true);
+  const callsReadyRef = useRef(true);
+  callsReadyRef.current = callsReady;
   // Audible 999 ring when a call comes in.
   useEffect(() => {
     if (pendingCall) incomingCall();
@@ -1295,6 +1300,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       if (nextCallAtRef.current === null) {
         // First call of the shift lands sooner than a full gap.
         nextCallAtRef.current = nowMs + 90_000;
+        return;
+      }
+      // Not Ready: hold the queue. Keep the schedule ticking so coming
+      // back does not dump a call on the operator the same second — the
+      // next one lands a short grace after they are ready.
+      if (!callsReadyRef.current) {
+        if (nextCallAtRef.current < nowMs) nextCallAtRef.current = nowMs + 30_000;
         return;
       }
       if (nowMs < nextCallAtRef.current) return;
@@ -4568,6 +4580,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               }
             }}
             onClose={() => setShowCallStack(false)}
+            ready={callsReady}
+            onToggleReady={() => setCallsReady((v) => !v)}
           />
         )}
         {/* Dispatch log — the running record of the shift: timestamped,

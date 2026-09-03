@@ -89,6 +89,8 @@ export function CallStack({
   onOpenIncident,
   onDropAppliance,
   onClose,
+  ready,
+  onToggleReady,
 }: {
   pending: PendingCall[];
   incidents: Incident[];
@@ -107,6 +109,10 @@ export function CallStack({
   onOpenIncident: (incidentId: string) => void;
   onDropAppliance: (incidentId: string, applianceId: string, stationId: string) => void;
   onClose?: () => void;
+  /** Ready to take calls. Not Ready holds the queue — nothing new is
+   *  offered until the operator comes back. */
+  ready: boolean;
+  onToggleReady: () => void;
 }) {
   const [frame] = useState<Frame>(() => {
     const saved = loadFrame();
@@ -147,16 +153,50 @@ export function CallStack({
               <span className="shrink-0 bg-[#dc2626] px-1.5 text-[10px]">{pending.length} WAITING</span>
             )}
           </div>
-          {onClose && (
+          <div className="flex shrink-0 items-stretch">
+            {/* Ready / Not Ready. Solid green when taking calls, solid amber
+                when holding them — the state must read from across the
+                room, so it is a block of colour, not a tinted chip. */}
             <button
               type="button"
-              onClick={onClose}
-              className="flex items-center bg-[#1e40af] px-3 transition-colors hover:bg-[#dc2626]"
+              role="switch"
+              aria-checked={ready}
+              onClick={onToggleReady}
+              title={
+                ready
+                  ? "Ready — taking calls. Click to hold incoming calls."
+                  : "Not ready — incoming calls held. Click to take calls again."
+              }
+              className={
+                "flex items-center gap-1.5 px-3 text-[10px] tracking-[0.2em] transition-colors " +
+                (ready
+                  ? "bg-[#15803d] hover:bg-[#166534]"
+                  : "bg-[#b45309] hover:bg-[#92400e]")
+              }
             >
-              ✕
+              <span
+                aria-hidden
+                className={"size-1.5 rounded-full " + (ready ? "dot-live bg-white" : "bg-white/70")}
+              />
+              {ready ? "READY" : "NOT READY"}
             </button>
-          )}
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center bg-[#1e40af] px-3 transition-colors hover:bg-[#dc2626]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
+        {!ready && (
+          <div className="flex items-center gap-2 border-b border-(--color-border-subtle) bg-[#b45309]/10 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-[#b45309]">
+            <span aria-hidden>⏸</span>
+            Not ready — incoming calls held
+          </div>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* ---- Waiting to be answered ---- */}
