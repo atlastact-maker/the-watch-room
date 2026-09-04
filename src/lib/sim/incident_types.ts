@@ -21,7 +21,12 @@ export type IncidentTypeCode =
   | "ambulance_chest_pain"
   | "special_service_lift_release"
   | "vehicle_fire"
-  | "special_service_effecting_entry";
+  | "special_service_effecting_entry"
+  | "ambulance_transfer"
+  | "ambulance_mental_health"
+  | "secondary_fire_refuse"
+  | "chimney_fire"
+  | "special_service_gas_leak";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 

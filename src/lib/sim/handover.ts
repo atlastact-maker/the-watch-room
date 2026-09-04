@@ -76,6 +76,14 @@ const CLEAR_MINUTES: Record<IncidentTypeCode, [number, number]> = {
   special_service_effecting_entry: [6, 11],
   ambulance_fall_elderly: [7, 12],
   ambulance_chest_pain: [9, 15],
+  secondary_fire_refuse: [4, 9],
+  chimney_fire: [11, 19],
+  special_service_gas_leak: [14, 26],
+  ambulance_mental_health: [22, 40],
+  // A transfer is not urgent and not dramatic. It simply takes an
+  // ambulance away for most of what is left of the turn, which is how
+  // resources actually disappear.
+  ambulance_transfer: [40, 62],
   healthcare_premises_fire_alarm: [5, 9],
   ambulance_cardiac_arrest: [8, 13],
   rtc_entrapment: [9, 16],
