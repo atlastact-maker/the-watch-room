@@ -25,6 +25,7 @@
 
 import type { PersonRecord, RecordIndex, VehicleRecord } from "./records";
 import { norm, squash } from "./records";
+import { generateAddress, generatePerson, generateVehicle } from "./leds-db";
 
 /** Why the check is being made. A check without one is refused.
  *
@@ -80,14 +81,26 @@ export type PersonReturn = {
   vehicleIds: string[];
 };
 
-export type LedsReturn = VehicleReturn | PersonReturn;
+export type AddressReturn = {
+  kind: "address";
+  address: string;
+  trace: boolean;
+  postcode?: string;
+  /** Who the system holds at it. */
+  occupants: { name: string; age?: number; markers: LedsMarker[] }[];
+  /** Vehicles kept there. */
+  vehicles: { vrm: string; make?: string; model?: string; markers: LedsMarker[] }[];
+  notes: string[];
+};
+
+export type LedsReturn = VehicleReturn | PersonReturn | AddressReturn;
 
 /** One entry in the audit. Written whether the check found anything or
  *  not — an enquiry that came back no-trace is still an enquiry. */
 export type LedsCheck = {
   id: string;
   atMs: number;
-  kind: "vehicle" | "person";
+  kind: "vehicle" | "person" | "address";
   /** What was typed. */
   query: string;
   purpose: PolicingPurpose;
@@ -105,9 +118,13 @@ const PERSON_HOT = new Set(["VIOLENT", "FIREARMS", "WEAPONS", "ESCAPER", "WANTED
 
 export function isHot(r: LedsReturn): boolean {
   if (!r.trace) return false;
-  return r.kind === "vehicle"
-    ? r.markers.some((m) => VEHICLE_HOT.has(m.code))
-    : r.warnings.some((m) => PERSON_HOT.has(m.code)) || r.wanted;
+  if (r.kind === "vehicle") return r.markers.some((m) => VEHICLE_HOT.has(m.code));
+  if (r.kind === "person") return r.warnings.some((m) => PERSON_HOT.has(m.code)) || r.wanted;
+  // An address is hot if somebody at it is, or something on the drive is.
+  return (
+    r.occupants.some((o) => o.markers.some((m) => PERSON_HOT.has(m.code))) ||
+    r.vehicles.some((v) => v.markers.some((m) => VEHICLE_HOT.has(m.code)))
+  );
 }
 
 /** Tidy a typed plate into display form: "bn69kvd" → "BN69 KVD".
@@ -168,10 +185,12 @@ export function vehicleCheck(index: RecordIndex, vrm: string): VehicleReturn {
   if (want.length < 2) {
     return { kind: "vehicle", vrm: formatVrm(vrm), trace: false, markers: [], notes: [] };
   }
+  // The authored records always win: a scenario's vehicle keeps the detail
+  // its author gave it. Anything else is generated, deterministically, so
+  // the operator can type any plate and the same plate always answers the
+  // same way.
   const hit = index.vehicles.find((v) => squash(v.vrm) === want);
-  return hit
-    ? vehicleFrom(hit, vrm)
-    : { kind: "vehicle", vrm: formatVrm(vrm), trace: false, markers: [], notes: [] };
+  return vehicleFrom(hit ?? generateVehicle(vrm), vrm);
 }
 
 /** A person enquiry by name. A real terminal would want a date of birth
@@ -197,12 +216,53 @@ export function personCheck(
       ambiguous: hits.slice(0, 8),
     };
   }
-  return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [], vehicleIds: [] };
+  // Nobody authored under that name, so the system holds a generated one.
+  // A name typed with no surname is still ambiguous in reality, but the
+  // sim answers it rather than stonewalling the operator.
+  return personFrom(generatePerson(name), name);
+}
+
+/** An address enquiry: who is there, and what is kept there. */
+export function addressCheck(index: RecordIndex, query: string): AddressReturn {
+  const q = norm(query);
+  if (q.length < 3) {
+    return { kind: "address", address: query.trim(), trace: false, occupants: [], vehicles: [], notes: [] };
+  }
+  // An authored place first — a scenario's premises carries its own notes.
+  const authored = index.places.find(
+    (p) => norm(p.address ?? "").includes(q) || norm(p.name).includes(q) || squash(p.postcode ?? "") === squash(query),
+  );
+  const gen = generateAddress(query);
+  const occupants = gen.occupants.map((o) => ({
+    name: o.name,
+    age: o.age,
+    markers: (o.markers ?? []).map((m) => ({ code: String(m) })),
+  }));
+  const vehicles = gen.vehicles.map((v) => ({
+    vrm: v.vrm,
+    make: v.make,
+    model: v.model,
+    markers: (v.markers ?? []).map((m) => ({ code: String(m) })),
+  }));
+  return {
+    kind: "address",
+    address: (authored?.address ?? query).trim(),
+    trace: true,
+    postcode: authored?.postcode ?? gen.postcode,
+    occupants,
+    vehicles,
+    notes: authored?.notes ?? [],
+  };
 }
 
 /** One line for the audit, and for the dispatch log. */
 export function auditLine(c: LedsCheck): string {
-  const what = c.kind === "vehicle" ? `vehicle ${(c.result as VehicleReturn).vrm}` : `person ${c.query.trim()}`;
+  const what =
+    c.kind === "vehicle"
+      ? `vehicle ${(c.result as VehicleReturn).vrm}`
+      : c.kind === "address"
+        ? `address ${c.query.trim()}`
+        : `person ${c.query.trim()}`;
   const outcome = !c.result.trace
     ? "no trace"
     : isHot(c.result)

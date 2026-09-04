@@ -14,11 +14,12 @@
 // detail. Markers are not a footnote at the bottom.
 
 import { Rnd } from "react-rnd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CAD_VARS } from "./cad-theme";
 import type { RecordIndex } from "@/lib/sim/records";
 import {
   POLICING_PURPOSES,
+  addressCheck,
   auditLine,
   isHot,
   personCheck,
@@ -133,7 +134,13 @@ function Return({
   r: LedsReturn & { ambiguous?: { id: string; name: string }[] };
   enquiryRef: string;
 }) {
-  const head = r.kind === "vehicle" ? "VEHICLE ENQUIRY" : "PERSON ENQUIRY";
+  const head =
+    r.kind === "vehicle"
+      ? "VEHICLE ENQUIRY"
+      : r.kind === "address"
+        ? "ADDRESS ENQUIRY"
+        : "PERSON ENQUIRY";
+  const asked = r.kind === "vehicle" ? r.vrm : r.kind === "address" ? r.address : r.name;
   return (
     <div className="border border-(--color-border) bg-(--color-surface) px-2 py-1.5">
       <div className={MONO + " flex justify-between text-(--color-text-dim)"}>
@@ -147,7 +154,7 @@ function Return({
           <div className={MONO + " py-0.5 font-bold text-(--color-text)"}>
             {r.ambiguous?.length ? "MULTIPLE TRACE - NOT IDENTIFIED" : "NO TRACE"}
           </div>
-          <Line label="Enquiry" value={r.kind === "vehicle" ? r.vrm : r.name} />
+          <Line label="Enquiry" value={asked} />
           {r.ambiguous?.length ? (
             <>
               <Rule />
@@ -169,7 +176,19 @@ function Return({
       ) : (
         <>
           <WarningBanner
-            codes={(r.kind === "vehicle" ? r.markers : r.warnings).map((m) => m.code)}
+            codes={
+              r.kind === "vehicle"
+                ? r.markers.map((m) => m.code)
+                : r.kind === "person"
+                  ? r.warnings.map((m) => m.code)
+                  : // An address shows what is held against anyone at it.
+                    [
+                      ...new Set([
+                        ...r.occupants.flatMap((o) => o.markers.map((m) => m.code)),
+                        ...r.vehicles.flatMap((v) => v.markers.map((m) => m.code)),
+                      ]),
+                    ]
+            }
           />
           {r.kind === "vehicle" ? (
             <>
@@ -184,7 +203,7 @@ function Return({
               <Line label="MOT" value={r.mot === false ? "NO TRACE OF TEST" : "APPARENT"} tone={r.mot === false ? "bad" : "good"} />
               <Line label="Insurance" value={r.insured === false ? "NO TRACE OF POLICY" : "APPARENT"} tone={r.insured === false ? "bad" : "good"} />
             </>
-          ) : (
+          ) : r.kind === "person" ? (
             <>
               <Line label="Name" value={r.name} />
               <Line label="Sex" value={r.sex} />
@@ -199,6 +218,70 @@ function Return({
                   <Line label="Status" value={r.wanted ? "WANTED" : "REPORTED MISSING"} tone="bad" />
                 </>
               )}
+            </>
+          ) : (
+            <>
+              <Line label="Address" value={r.address} />
+              <Line label="Postcode" value={r.postcode} />
+              <Rule />
+              <div className={MONO + " text-(--color-text-dim)"}>
+                OCCUPANTS ({r.occupants.length})
+              </div>
+              {r.occupants.map((o, i) => (
+                <div key={o.name + i} className={MONO + " whitespace-pre-wrap"}>
+                  <span className="text-(--color-text-dim)">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-(--color-text)">
+                    {o.name.toUpperCase()}
+                    {o.age ? `  ${o.age}` : ""}
+                  </span>
+                  {o.markers.length > 0 && (
+                    <span
+                      className={
+                        "  font-bold " +
+                        (o.markers.some((m) => HOT.has(m.code))
+                          ? "text-(--color-critical)"
+                          : "text-(--color-amber)")
+                      }
+                    >
+                      {"  "}
+                      {o.markers.map((m) => m.code).join(" / ")}
+                    </span>
+                  )}
+                </div>
+              ))}
+              <Rule />
+              <div className={MONO + " text-(--color-text-dim)"}>
+                VEHICLES AT ADDRESS ({r.vehicles.length})
+              </div>
+              {r.vehicles.length === 0 && (
+                <div className={MONO + " text-(--color-text-muted)"}>NONE HELD</div>
+              )}
+              {r.vehicles.map((v, i) => (
+                <div key={v.vrm + i} className={MONO + " whitespace-pre-wrap"}>
+                  <span className="text-(--color-text-dim)">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-(--color-text)">
+                    {v.vrm.padEnd(10)}
+                    {[v.make, v.model].filter(Boolean).join(" ")}
+                  </span>
+                  {v.markers.length > 0 && (
+                    <span
+                      className={
+                        "  font-bold " +
+                        (v.markers.some((m) => HOT.has(m.code))
+                          ? "text-(--color-critical)"
+                          : "text-(--color-amber)")
+                      }
+                    >
+                      {"  "}
+                      {v.markers.map((m) => m.code).join(" / ")}
+                    </span>
+                  )}
+                </div>
+              ))}
             </>
           )}
 
@@ -227,12 +310,20 @@ export function LedsTerminal({
   activeIncidentId,
   checks,
   onCheck,
+  prefill,
+  onPrefillUsed,
   onClose,
 }: {
   index: RecordIndex;
   activeIncidentId: string | null;
   checks: LedsCheck[];
   onCheck: (c: LedsCheck) => void;
+  /** A plate handed over from an ANPR hit. Fills the box and switches to
+   *  the vehicle tab, but does NOT run the enquiry — the purpose is the
+   *  operator's to choose, and choosing it for them would defeat the
+   *  point of asking. */
+  prefill?: string | null;
+  onPrefillUsed?: () => void;
   onClose?: () => void;
 }) {
   const [frame] = useState<Frame>(() => {
@@ -242,7 +333,7 @@ export function LedsTerminal({
     const h = typeof window !== "undefined" ? window.innerHeight : 900;
     return { width: 380, height: 520, x: Math.max(12, w - 800), y: Math.max(60, h - 620) };
   });
-  const [kind, setKind] = useState<"vehicle" | "person">("vehicle");
+  const [kind, setKind] = useState<"vehicle" | "person" | "address">("vehicle");
   const [query, setQuery] = useState("");
   // A live job is a purpose in itself, so that is the sensible default.
   const [purpose, setPurpose] = useState<PolicingPurpose>("incident");
@@ -251,16 +342,27 @@ export function LedsTerminal({
     { r: LedsReturn & { ambiguous?: never[] }; ref: string } | null
   >(null);
 
+  useEffect(() => {
+    if (!prefill) return;
+    setKind("vehicle");
+    setQuery(prefill);
+    setResult(null);
+    onPrefillUsed?.();
+  }, [prefill, onPrefillUsed]);
+
   // Running with no job on the desk and nothing typed is the thing an
   // audit picks out. Say so before it is run, not after.
   const willBeFlagged = !activeIncidentId && !reason.trim();
 
   const run = () => {
     if (query.trim().length < 2) return;
-    const r =
+    const r = (
       kind === "vehicle"
         ? vehicleCheck(index, query)
-        : (personCheck(index, query) as LedsReturn & { ambiguous?: never[] });
+        : kind === "address"
+          ? addressCheck(index, query)
+          : personCheck(index, query)
+    ) as LedsReturn & { ambiguous?: never[] };
     const at = Date.now();
     const d = new Date(at);
     // Time of the enquiry and its number this shift — the shape of
@@ -300,7 +402,7 @@ export function LedsTerminal({
       <div className="flex h-full w-full flex-col border border-(--color-border) bg-(--color-bg) text-(--color-text) shadow-2xl">
         <div className="leds-drag flex cursor-move items-center justify-between gap-2 border-b border-(--color-border) px-2 py-1">
           <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
-            LEDS · GMP CONTROL · TERM 01
+            LEDS · CONTROL ROOM TERMINAL 01
           </span>
           {onClose && (
             <button
@@ -314,7 +416,7 @@ export function LedsTerminal({
         </div>
 
         <div className="flex border-b border-(--color-border-subtle)">
-          {(["vehicle", "person"] as const).map((k) => (
+          {(["vehicle", "person", "address"] as const).map((k) => (
             <button
               key={k}
               type="button"
@@ -329,7 +431,7 @@ export function LedsTerminal({
                   : "text-(--color-text-dim) hover:bg-(--color-surface-raised)")
               }
             >
-              {k === "vehicle" ? "F1 VEHICLE" : "F2 PERSON"}
+              {k === "vehicle" ? "F1 VEH" : k === "person" ? "F2 PER" : "F3 ADR"}
             </button>
           ))}
         </div>
@@ -369,7 +471,13 @@ export function LedsTerminal({
               onKeyDown={(e) => {
                 if (e.key === "Enter") run();
               }}
-              placeholder={kind === "vehicle" ? "VRM" : "SURNAME, FORENAME"}
+              placeholder={
+                kind === "vehicle"
+                  ? "VRM"
+                  : kind === "address"
+                    ? "STREET / POSTCODE"
+                    : "SURNAME, FORENAME"
+              }
               className="min-w-0 flex-1 rounded-none border border-(--color-border) bg-(--color-surface) px-1.5 py-1 font-mono text-[13px] uppercase tracking-wider text-(--color-text) placeholder:tracking-normal placeholder:text-(--color-text-dim)"
             />
             <button

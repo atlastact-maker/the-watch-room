@@ -155,3 +155,34 @@ The scheme came from the owner (U7) and lives in
   owner said "the south district, whatever is left"; the sim lists
   Manchester, Stockport, Tameside, Oldham and Rochdale as the remainder,
   which is our arithmetic rather than GMP's wording.
+
+## P6 — LEDS and ANPR
+
+Both are MODELLED. Nothing in either is transcribed from a real system.
+
+- **LEDS screens and field names are not public.** What is modelled is the
+  shape of a police data enquiry: a policing purpose on every check, an
+  audit of who ran what, and a structured return. The wording, the field
+  order and the  framing are the sim's.
+- **The policing purposes** are the ones a control room operator here
+  would plausibly choose between, not a force's actual list.
+- **The generated population is fictional.** Common British forenames and
+  surnames combined at random, ordinary street names attached to real
+  districts, and plates in the current UK format that are not checked
+  against anything. No generated record is intended to correspond to a
+  real person, vehicle or household. Authored scenario records always
+  take precedence over generated ones.
+- **The marker rates are the sim's own** — roughly six vehicles in seven
+  clean, and a stop-worthy marker on about one in seventy. Chosen so a
+  flag means something rather than to match any published figure.
+- [ ] **ANPR camera positions are not published** and none is claimed. The
+  twelve sites use real coordinates lifted from the project's own station
+  files and name real roads, but where GMP actually has cameras is not
+  known. If a real list is ever obtained,  is one edit.
+- [ ] **Flow figures per site are invented** — 42 plates a minute at
+  Eccles Interchange down to 14 on Oldham Road. The ratio between
+  motorway and A-road sites is the point; the absolute numbers are not
+  sourced.
+- [ ] **What a real ANPR hit actually contains**, and how it reaches a
+  control room, is not modelled from anything. The sim shows time, plate,
+  direction, site, marker and vehicle description.

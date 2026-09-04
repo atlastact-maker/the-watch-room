@@ -150,6 +150,8 @@ import {
   type MapFilter,
 } from "./components/map-filters";
 import { LedsTerminal } from "./components/leds-terminal";
+import { AnprConsole } from "./components/anpr-console";
+import { hitsBetween } from "@/lib/sim/anpr";
 import { auditLine, unexplainedChecks, type LedsCheck } from "@/lib/sim/leds";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
@@ -436,6 +438,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [pendingCalls, setPendingCalls] = useState<PendingCall[]>([]);
   const [showCallStack, setShowCallStack] = useState(true);
   const [showLeds, setShowLeds] = useState(false);
+  const [showAnpr, setShowAnpr] = useState(false);
+  /** Hits the operator has dealt with. Shift state, like the audit. */
+  const [anprActioned, setAnprActioned] = useState<Record<string, boolean>>({});
+  /** A plate sent from an ANPR hit to the terminal, so "Enquire" on a hit
+   *  lands in the enquiry box rather than making the operator retype it. */
+  const [ledsPrefill, setLedsPrefill] = useState<string | null>(null);
   /** Every LEDS enquiry made this shift. Survives the panel being closed
    *  — an audit you can dismiss is not an audit. */
   const [ledsChecks, setLedsChecks] = useState<LedsCheck[]>([]);
@@ -614,6 +622,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       })),
     [patrolLines],
   );
+
+  /** How many ANPR hits the operator has not dealt with. Recomputed on
+   *  the minute, which is as often as the feed changes. */
+  const anprOpenCount = useMemo(() => {
+    const minute = Math.floor(now / 60_000);
+    return hitsBetween(shiftStartedAt, minute * 60_000 + 60_000).filter(
+      (h) => !anprActioned[h.id],
+    ).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shiftStartedAt, Math.floor(now / 60_000), anprActioned]);
 
   /** Which police relief is on the air. A GMP callsign carries the turn,
    *  so this is not cosmetic — the whole police board changes with it. */
@@ -5115,9 +5133,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               {
                 id: "anpr",
                 label: "ANPR console",
-                hint: "soon",
-                on: false,
-                onToggle: () => {},
+                hint: anprOpenCount > 0 ? `${anprOpenCount} open` : "camera hits",
+                on: showAnpr,
+                onToggle: () => setShowAnpr((v) => !v),
                 disabled: true,
                 disabledNote: "Not built yet",
               },
@@ -5154,12 +5172,28 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         {/* The call stack — unanswered calls above the line, running jobs
             below, and the drop target for dragging a unit onto a job.
             Hidden in the ground view, which is a single-incident space. */}
+        {!groundViewOpen && showAnpr && (
+          <AnprConsole
+            shiftStartedAt={shiftStartedAt}
+            now={now}
+            actioned={anprActioned}
+            onAction={(id) => setAnprActioned((prev) => ({ ...prev, [id]: true }))}
+            onEnquire={(vrm) => {
+              setLedsPrefill(vrm);
+              setShowLeds(true);
+            }}
+            onLocate={(c) => setMapFocus({ lat: c.lat, lng: c.lng, zoom: 14, key: Date.now() })}
+            onClose={() => setShowAnpr(false)}
+          />
+        )}
         {!groundViewOpen && showLeds && (
           <LedsTerminal
             index={recordIndex}
             activeIncidentId={activeIncident?.id ?? null}
             checks={ledsChecks}
             onCheck={recordLedsCheck}
+            prefill={ledsPrefill}
+            onPrefillUsed={() => setLedsPrefill(null)}
             onClose={() => setShowLeds(false)}
           />
         )}
