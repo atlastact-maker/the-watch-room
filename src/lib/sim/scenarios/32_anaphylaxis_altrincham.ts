@@ -144,6 +144,16 @@ export const scenario32: Scenario = {
         pos: { x: -2, y: -15 },
         severity: "critical",
         discoverAfterMinBa: 0,
+        clinical: {
+          // One auto-injector has already been given and she is rebounding:
+          // still tachycardic, still hypotensive, still wheezing.
+          vitals: { rr: 30, spo2: 90, hr: 132, bpSys: 84, bpDia: 50, gcs: 14, temp: 36.9, bm: 5.9 },
+          presumedCondition: "Anaphylaxis — airway swelling, wheeze, urticaria, hypotension",
+          redFlags: ["anaphylaxis", "airway_compromise"],
+          preferredDestination: "nearest_a_e",
+          // Adrenaline is the treatment. Everything else supports it.
+          criticalInterventions: ["adrenaline_im", "oxygen", "iv_access", "fluids"],
+        },
       },
     ],
     sectors: [

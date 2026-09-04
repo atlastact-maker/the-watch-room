@@ -168,6 +168,16 @@ export const scenario26: Scenario = {
         pos: { x: -13, y: -18 },
         severity: "walking",
         discoverAfterMinBa: 0,
+        clinical: {
+          // Not injured. Cold, stubborn, and standing in water — which is
+          // a life risk rather than a clinical one, and the reason he
+          // comes before anybody's carpet.
+          vitals: { rr: 18, spo2: 96, hr: 88, bpSys: 138, bpDia: 82, gcs: 15, temp: 35.1, bm: 5.4 },
+          presumedCondition: "Cold and immersed to the ankles — refusing to leave the property",
+          redFlags: [],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: [],
+        },
       },
     ],
     sectors: [

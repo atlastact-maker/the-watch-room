@@ -125,6 +125,16 @@ export const scenario18: Scenario = {
         pos: { x: 0, y: -18 },
         severity: "walking",
         discoverAfterMinBa: 0,
+        clinical: {
+          // Entirely unremarkable, deliberately. A stable transfer patient
+          // has normal observations, which is the whole reason this job
+          // keeps getting deferred.
+          vitals: { rr: 16, spo2: 97, hr: 78, bpSys: 128, bpDia: 76, gcs: 15, temp: 36.8, bm: 5.6 },
+          presumedCondition: "Stable — ward to ward transfer, no escort required",
+          redFlags: [],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: [],
+        },
       },
     ],
     sectors: [

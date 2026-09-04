@@ -129,6 +129,16 @@ export const scenario37: Scenario = {
         pos: { x: -2, y: -12 },
         severity: "critical",
         discoverAfterMinBa: 0,
+        clinical: {
+          // Three years old: paediatric numbers, not adult ones. A heart
+          // rate of 150 is normal for her and would be alarming in a man
+          // of fifty.
+          vitals: { rr: 38, spo2: 86, hr: 150, bpSys: 92, bpDia: 56, gcs: 14, temp: 37.1, bm: 5.2 },
+          presumedCondition: "Partial airway obstruction — foreign body, weak ineffective cough",
+          redFlags: ["airway_compromise"],
+          preferredDestination: "paed_ed",
+          criticalInterventions: ["oxygen"],
+        },
       },
     ],
     sectors: [

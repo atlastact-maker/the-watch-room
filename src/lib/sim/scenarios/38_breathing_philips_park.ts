@@ -128,6 +128,15 @@ export const scenario38: Scenario = {
         pos: { x: 0, y: -24 },
         severity: "critical",
         discoverAfterMinBa: 2,
+        clinical: {
+          // Exhausted rather than wheezing: the respiratory rate has come
+          // DOWN and the saturations with it, which is the bad direction.
+          vitals: { rr: 32, spo2: 88, hr: 128, bpSys: 132, bpDia: 78, gcs: 14, temp: 37.0, bm: 6.0 },
+          presumedCondition: "Acute severe asthma — poor air entry, unable to complete sentences",
+          redFlags: ["severe_asthma"],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["salbutamol_neb", "oxygen", "iv_access"],
+        },
       },
     ],
     sectors: [

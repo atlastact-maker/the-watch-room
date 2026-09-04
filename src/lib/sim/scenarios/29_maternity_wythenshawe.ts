@@ -128,6 +128,15 @@ export const scenario29: Scenario = {
         pos: { x: -4, y: -13 },
         severity: "serious",
         discoverAfterMinBa: 0,
+        clinical: {
+          // Second stage of labour. Tachycardic and breathing hard because
+          // she is pushing, not because anything is wrong.
+          vitals: { rr: 24, spo2: 98, hr: 108, bpSys: 126, bpDia: 74, gcs: 15, temp: 37.2, bm: 5.8 },
+          presumedCondition: "Second stage of labour — 39 weeks, imminent delivery",
+          redFlags: [],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen"],
+        },
       },
     ],
     sectors: [

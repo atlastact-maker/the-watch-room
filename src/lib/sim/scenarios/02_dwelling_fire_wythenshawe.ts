@@ -253,7 +253,9 @@ export const scenario02: Scenario = {
             gcs: 9, temp: 37.2, bm: 6.4,
           },
           presumedCondition: "Smoke-inhalation · burns ~ 8% · paediatric trauma",
-          redFlags: ["airway_compromise", "major_haemorrhage"],
+          // Shocked, not bleeding. A burn loses fluid; it does not
+          // haemorrhage, and tXA is a drug for traumatic bleeding.
+          redFlags: ["airway_compromise", "hypovolaemic_shock"],
           preferredDestination: "paed_ed",
           criticalInterventions: ["oxygen", "iv_access", "fluids"],
         },

@@ -129,6 +129,16 @@ export const scenario31: Scenario = {
         pos: { x: -4, y: -13 },
         severity: "serious",
         discoverAfterMinBa: 0,
+        clinical: {
+          // In atrial fibrillation, which is both why she has had it and a
+          // reason the anticoagulant matters to whoever thrombolyses her.
+          vitals: { rr: 16, spo2: 96, hr: 96, bpSys: 176, bpDia: 94, gcs: 14, temp: 36.7, bm: 6.4 },
+          presumedCondition: "FAST positive — facial droop, left arm weakness, dysarthria",
+          redFlags: ["stroke_fast_positive"],
+          // Past the nearest department, to a unit that can thrombolyse.
+          preferredDestination: "hasu",
+          criticalInterventions: ["oxygen", "iv_access"],
+        },
       },
     ],
     sectors: [

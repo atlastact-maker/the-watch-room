@@ -122,6 +122,16 @@ export const scenario33: Scenario = {
         pos: { x: 0, y: -14 },
         severity: "serious",
         discoverAfterMinBa: 0,
+        clinical: {
+          // BM 2.1. The generic fallback gave him 5.8, which is a normal
+          // blood sugar on a hypoglycaemia job — the single most obviously
+          // wrong number the missing clinical data produced.
+          vitals: { rr: 20, spo2: 97, hr: 112, bpSys: 138, bpDia: 84, gcs: 12, temp: 36.2, bm: 2.1 },
+          presumedCondition: "Hypoglycaemia — sweating, confusion, combative, not taking oral glucose",
+          redFlags: ["hypoglycaemia"],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["glucagon", "iv_access"],
+        },
       },
     ],
     sectors: [

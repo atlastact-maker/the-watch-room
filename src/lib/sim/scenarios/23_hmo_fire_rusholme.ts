@@ -197,6 +197,13 @@ export const scenario23: Scenario = {
         severity: "serious",
         discoverAfterMinBa: 6,
         presentProbability: 0.55,
+        clinical: {
+          vitals: { rr: 26, spo2: 91, hr: 118, bpSys: 118, bpDia: 72, gcs: 13, temp: 36.9, bm: 5.7 },
+          presumedCondition: "Smoke inhalation — soot around the mouth, hoarse voice, coughing",
+          redFlags: ["airway_compromise"],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen", "iv_access"],
+        },
       },
       {
         id: "cas-23-cellar",
@@ -205,6 +212,15 @@ export const scenario23: Scenario = {
         severity: "critical",
         discoverAfterMinBa: 9,
         presentProbability: 0.3,
+        clinical: {
+          // Found last, in the cellar room with one way out. Longest
+          // exposure of anyone in the house.
+          vitals: { rr: 8, spo2: 76, hr: 138, bpSys: 88, bpDia: 52, gcs: 5, temp: 36.4, bm: 5.2 },
+          presumedCondition: "Severe smoke inhalation, unresponsive — prolonged exposure in the cellar room",
+          redFlags: ["airway_compromise", "head_injury_severe"],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen", "rsi", "iv_access", "fluids"],
+        },
       },
     ],
     sectors: [

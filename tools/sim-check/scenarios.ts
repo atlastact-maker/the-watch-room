@@ -211,7 +211,104 @@ for (const s of SCENARIOS) {
     }
   }
 
-  // -- 7. Evaluation --------------------------------------------------------
+  // -- 7. Casualty care -----------------------------------------------------
+  for (const cas of sc?.casualties ?? []) {
+    const cl = cas.clinical;
+    if (!cl) {
+      // The sim falls back to a generic patient by severity. That is fine
+      // for a walking-wounded extra and wrong for anything the scenario is
+      // actually about, and it is silent either way.
+      note(s, "NO CLINICAL DETAIL", cas.id + " falls back to the generic " + cas.severity + " patient");
+      continue;
+    }
+
+    const v = cl.vitals;
+    const range = (name: string, val: number, lo: number, hi: number) => {
+      if (val < lo || val > hi) {
+        note(s, "IMPLAUSIBLE VITAL", cas.id + " " + name + "=" + val + " (expected " + lo + "-" + hi + ")");
+      }
+    };
+    // A patient in cardiac arrest has no pulse and no blood pressure.
+    // Zero is not an implausible reading there, it is the diagnosis.
+    const arrested = cl.redFlags.includes("cardiac_arrest");
+    range("rr", v.rr, arrested ? 0 : 4, 60);
+    range("spo2", v.spo2, arrested ? 0 : 40, 100);
+    range("gcs", v.gcs, 3, 15);
+    range("temp", v.temp, 24, 43);
+    range("bm", v.bm, 0.5, 40);
+    if (!arrested) {
+      range("hr", v.hr, 20, 220);
+      range("bpSys", v.bpSys, 40, 260);
+      range("bpDia", v.bpDia, 20, 160);
+      if (v.bpDia >= v.bpSys) {
+        note(s, "BP INVERTED", cas.id + " diastolic " + v.bpDia + " is not below systolic " + v.bpSys);
+      }
+    } else if (v.hr !== 0 || v.bpSys !== 0) {
+      note(s, "ARREST WITH OUTPUT", cas.id + " flags cardiac_arrest but has a pulse and a pressure");
+    }
+
+    // A red flag with no matching treatment is a flag the crew cannot act
+    // on; the treatment menu gates its actions on these.
+    const NEEDS: Record<string, string> = {
+      anaphylaxis: "adrenaline_im",
+      hypoglycaemia: "glucagon",
+      overdose_opioid: "naloxone",
+      severe_asthma: "salbutamol_neb",
+      cardiac_arrest: "defib",
+      seizure_active: "midazolam",
+      major_haemorrhage: "tXA",
+      tension_pneumothorax: "needle_decomp",
+    };
+    for (const [flag, needed] of Object.entries(NEEDS)) {
+      if (cl.redFlags.includes(flag as never) && !cl.criticalInterventions.includes(needed as never)) {
+        note(s, "FLAG WITHOUT ITS TREATMENT", cas.id + " flags " + flag + " but does not list " + needed);
+      }
+    }
+
+    // The specific-destination flags exist so the debrief can mark the
+    // choice. A STEMI bound for the nearest A&E scores the opposite of
+    // what the scenario teaches.
+    const DEST: Record<string, string> = {
+      stemi: "pci",
+      stroke_fast_positive: "hasu",
+    };
+    for (const [flag, dest] of Object.entries(DEST)) {
+      if (cl.redFlags.includes(flag as never) && cl.preferredDestination !== dest) {
+        note(
+          s,
+          "FLAG AGAINST ITS DESTINATION",
+          cas.id + " flags " + flag + " but is bound for " + cl.preferredDestination,
+        );
+      }
+    }
+
+    if (!cl.presumedCondition || cl.presumedCondition.length < 12) {
+      note(s, "THIN PRESUMED CONDITION", cas.id + ": " + cl.presumedCondition);
+    }
+    // A critical patient with nothing to do for them is a scene with no
+    // treatment in it.
+    if (cas.severity === "critical" && cl.criticalInterventions.length === 0) {
+      note(s, "CRITICAL WITH NO INTERVENTIONS", cas.id);
+    }
+  }
+
+  // A scenario whose evaluation talks about a destination must have a
+  // casualty that actually wants one, or the target cannot be scored.
+  const destTarget = s.evaluation.targets.find((t) => /destination/i.test(t.metric));
+  if (destTarget) {
+    const wants = (sc?.casualties ?? []).some(
+      (c) => c.clinical && c.clinical.preferredDestination !== "nearest_a_e",
+    );
+    if (!wants) {
+      note(
+        s,
+        "DESTINATION TARGET UNSCORABLE",
+        'evaluation asks for "' + destTarget.target.slice(0, 44) + '" but no casualty prefers anywhere',
+      );
+    }
+  }
+
+  // -- 8. Evaluation --------------------------------------------------------
   const metrics = s.evaluation.targets.map((t) => t.metric);
   if (new Set(metrics).size !== metrics.length) note(s, "DUPLICATE METRIC", metrics.join(", "));
 }

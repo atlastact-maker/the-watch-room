@@ -188,6 +188,16 @@ export const scenario28: Scenario = {
         pos: { x: -4, y: -16 },
         severity: "critical",
         discoverAfterMinBa: 1,
+        clinical: {
+          // SpO2 96% on a patient who is unconscious from hypoxia. That is
+          // not an error — the oximeter is reading carboxyhaemoglobin as
+          // if it were oxygen, and believing it is the trap.
+          vitals: { rr: 24, spo2: 96, hr: 122, bpSys: 102, bpDia: 60, gcs: 8, temp: 36.6, bm: 6.3 },
+          presumedCondition: "Carbon monoxide exposure — collapsed, oximetry falsely reassuring",
+          redFlags: ["airway_compromise"],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen", "iv_access"],
+        },
       },
       {
         id: "cas-28-adult-2",
@@ -195,6 +205,13 @@ export const scenario28: Scenario = {
         pos: { x: 0, y: -10 },
         severity: "serious",
         discoverAfterMinBa: 1,
+        clinical: {
+          vitals: { rr: 20, spo2: 97, hr: 104, bpSys: 128, bpDia: 78, gcs: 13, temp: 36.8, bm: 5.8 },
+          presumedCondition: "Carbon monoxide exposure — headache, nausea, confused",
+          redFlags: [],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen"],
+        },
       },
       {
         id: "cas-28-child-1",
@@ -202,6 +219,16 @@ export const scenario28: Scenario = {
         pos: { x: -6, y: -21 },
         severity: "serious",
         discoverAfterMinBa: 2,
+        clinical: {
+          // Paediatric observations. Children take up CO faster than
+          // adults for the same exposure, which is why the two youngest in
+          // this house are worse than the mother.
+          vitals: { rr: 28, spo2: 97, hr: 132, bpSys: 98, bpDia: 60, gcs: 14, temp: 37.0, bm: 5.4 },
+          presumedCondition: "Carbon monoxide exposure — headache and vomiting, child",
+          redFlags: [],
+          preferredDestination: "paed_ed",
+          criticalInterventions: ["oxygen"],
+        },
       },
       {
         id: "cas-28-child-2",
@@ -209,6 +236,15 @@ export const scenario28: Scenario = {
         pos: { x: 2, y: -23 },
         severity: "serious",
         discoverAfterMinBa: 3,
+        clinical: {
+          // Upstairs, so a longer exposure than her sibling, and found
+          // last. Drowsy and hard to rouse on saturations of 98%.
+          vitals: { rr: 26, spo2: 98, hr: 138, bpSys: 94, bpDia: 56, gcs: 11, temp: 36.9, bm: 5.1 },
+          presumedCondition: "Carbon monoxide exposure — drowsy, difficult to rouse, child",
+          redFlags: ["airway_compromise"],
+          preferredDestination: "paed_ed",
+          criticalInterventions: ["oxygen", "iv_access"],
+        },
       },
     ],
     sectors: [

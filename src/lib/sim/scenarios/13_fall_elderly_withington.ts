@@ -147,6 +147,16 @@ export const scenario13: Scenario = {
         // She is in the hallway with the neighbour standing over her.
         // Nobody has to search for her.
         discoverAfterMinBa: 0,
+        clinical: {
+          // The observations of a long lie rather than an injury: cold,
+          // slightly dry, a bit tachycardic. Nothing here is dramatic and
+          // that is exactly why she keeps getting left.
+          vitals: { rr: 18, spo2: 95, hr: 96, bpSys: 112, bpDia: 68, gcs: 15, temp: 35.4, bm: 5.1 },
+          presumedCondition: "Fall with a prolonged lie — cold, no obvious injury, unable to self-rise",
+          redFlags: [],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: [],
+        },
       },
     ],
     sectors: [

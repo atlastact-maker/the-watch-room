@@ -143,6 +143,15 @@ export const scenario16: Scenario = {
         pos: { x: -2, y: -10 },
         severity: "serious",
         discoverAfterMinBa: 1,
+        clinical: {
+          // COPD on home oxygen, found down and cold. Saturations that
+          // would frighten you in anybody else are closer to his normal.
+          vitals: { rr: 26, spo2: 84, hr: 116, bpSys: 104, bpDia: 62, gcs: 10, temp: 34.9, bm: 4.6 },
+          presumedCondition: "Collapse, unknown down-time — COPD, on home oxygen",
+          redFlags: ["airway_compromise"],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen", "iv_access"],
+        },
       },
     ],
     sectors: [

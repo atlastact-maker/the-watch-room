@@ -123,6 +123,16 @@ export const scenario36: Scenario = {
         pos: { x: 0, y: -13 },
         severity: "walking",
         discoverAfterMinBa: 0,
+        clinical: {
+          // A chest infection in an 83-year-old: febrile, a little fast,
+          // saturations sliding. Not an emergency yet, and every hour she
+          // waits at home moves her closer to being one.
+          vitals: { rr: 24, spo2: 92, hr: 102, bpSys: 118, bpDia: 68, gcs: 15, temp: 38.3, bm: 5.5 },
+          presumedCondition: "Chest infection — GP referred for admission, bed arranged",
+          redFlags: [],
+          preferredDestination: "nearest_a_e",
+          criticalInterventions: ["oxygen"],
+        },
       },
     ],
     sectors: [

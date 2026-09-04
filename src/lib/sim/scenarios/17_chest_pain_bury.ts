@@ -128,6 +128,15 @@ export const scenario17: Scenario = {
         pos: { x: 0, y: -13 },
         severity: "serious",
         discoverAfterMinBa: 0,
+        clinical: {
+          // Sweaty, grey, tachycardic and hypertensive with the pain.
+          vitals: { rr: 22, spo2: 95, hr: 104, bpSys: 158, bpDia: 92, gcs: 15, temp: 36.6, bm: 6.1 },
+          presumedCondition: "Central chest pain radiating to the left arm — ACS suspected",
+          redFlags: ["stemi"],
+          // The whole job. A catheter lab, not the hospital down the road.
+          preferredDestination: "pci",
+          criticalInterventions: ["aspirin", "gtn", "oxygen", "iv_access"],
+        },
       },
     ],
     sectors: [
