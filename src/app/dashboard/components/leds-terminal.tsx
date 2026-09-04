@@ -63,141 +63,160 @@ const HOT = new Set([
   "STOLEN", "PNC MARKER", "ANPR INTEREST",
 ]);
 
-function Marker({ code }: { code: string }) {
-  const hot = HOT.has(code);
-  return (
-    <span
-      className={
-        "px-1 font-mono text-[9px] font-bold uppercase tracking-widest " +
-        (hot ? "bg-(--color-critical) text-white" : "bg-(--color-amber)/25 text-(--color-amber)")
-      }
-    >
-      {code}
-    </span>
-  );
-}
+/** Monospace everywhere in the readout. A police return lines up because
+ *  the font is fixed-width, and half of why it reads as real is that the
+ *  label column is genuinely a column. */
+const MONO = "font-mono text-[11px] leading-[1.45] tracking-tight";
 
-/** A yes/no the controller reads out. Absent means the record says nothing,
- *  which is not the same as "in order". */
-function Status({ label, ok }: { label: string; ok?: boolean }) {
-  if (ok === undefined) return null;
-  return (
-    <span
-      className={
-        "font-mono text-[9px] uppercase tracking-widest " +
-        (ok ? "text-(--color-ok)" : "text-(--color-critical)")
-      }
-    >
-      {label} {ok ? "OK" : "NO"}
-    </span>
-  );
-}
-
-function Field({ label, value }: { label: string; value?: string | number | null }) {
+/** One line of the return: a fixed label column, then the value.
+ *  The label is padded in CHARACTERS, not pixels, so it aligns the way a
+ *  terminal does. */
+function Line({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value?: string | number | null;
+  tone?: "plain" | "bad" | "good";
+}) {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <div className="flex items-baseline gap-2">
-      <span className="w-[74px] shrink-0 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-        {label}
+    <div className={MONO + " whitespace-pre-wrap"}>
+      <span className="text-(--color-text-dim)">{label.toUpperCase().padEnd(12, " ")}</span>
+      <span
+        className={
+          tone === "bad"
+            ? "text-(--color-critical)"
+            : tone === "good"
+              ? "text-(--color-ok)"
+              : "text-(--color-text)"
+        }
+      >
+        {String(value).toUpperCase()}
       </span>
-      <span className="min-w-0 flex-1 text-[12px] text-(--color-text)">{value}</span>
     </div>
   );
 }
 
-function Return({ r }: { r: LedsReturn & { ambiguous?: { id: string; name: string }[] } }) {
-  if (!r.trace) {
-    return (
-      <div className="border border-(--color-border-subtle) bg-(--color-surface-raised)/40 p-3">
-        <div className="font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-          No trace
-        </div>
-        <p className="mt-1 text-[11px] leading-snug text-(--color-text-muted)">
-          {r.ambiguous?.length
-            ? "More than one record matches. Narrow it — a surname alone is not an identification."
-            : "Nothing held against that. The enquiry is still recorded."}
-        </p>
-        {r.ambiguous?.length ? (
-          <ul className="mt-1.5 space-y-0.5">
-            {r.ambiguous.map((p) => (
-              <li key={p.id} className="font-mono text-[11px] text-(--color-text)">
-                {p.name}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    );
-  }
+/** A rule the width of the readout, the way a terminal separates blocks. */
+function Rule() {
+  return <div className={MONO + " select-none text-(--color-border)"}>{"-".repeat(46)}</div>;
+}
 
-  const hot = isHot(r);
+/** The warning banner. Full width, inverted, unmissable — this is the bit
+ *  a controller reads out before anything else. */
+function WarningBanner({ codes }: { codes: string[] }) {
+  if (codes.length === 0) return null;
+  const hot = codes.some((c) => HOT.has(c));
   return (
     <div
       className={
-        "border p-3 " +
-        (hot
-          ? "border-(--color-critical) bg-(--color-critical)/10"
-          : "border-(--color-border-subtle) bg-(--color-surface-raised)/40")
+        MONO +
+        " my-1 px-1 py-0.5 font-bold " +
+        (hot ? "bg-(--color-critical) text-white" : "bg-(--color-amber) text-white")
       }
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono text-[13px] font-bold text-(--color-text)">
-          {r.kind === "vehicle" ? r.vrm : r.name}
-        </span>
-        <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-ok)">
-          Trace
-        </span>
+      {"*** "}
+      {hot ? "WARNING SIGNALS" : "MARKERS"}
+      {": "}
+      {codes.join(" / ")}
+      {" ***"}
+    </div>
+  );
+}
+
+function Return({
+  r,
+  enquiryRef,
+}: {
+  r: LedsReturn & { ambiguous?: { id: string; name: string }[] };
+  enquiryRef: string;
+}) {
+  const head = r.kind === "vehicle" ? "VEHICLE ENQUIRY" : "PERSON ENQUIRY";
+  return (
+    <div className="border border-(--color-border) bg-(--color-surface) px-2 py-1.5">
+      <div className={MONO + " flex justify-between text-(--color-text-dim)"}>
+        <span>{head}</span>
+        <span>REF {enquiryRef}</span>
       </div>
+      <Rule />
 
-      {/* What changes how a unit approaches goes second, not last. */}
-      {(r.kind === "vehicle" ? r.markers : r.warnings).length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {(r.kind === "vehicle" ? r.markers : r.warnings).map((m) => (
-            <Marker key={m.code} code={m.code} />
-          ))}
-        </div>
-      )}
-      {r.kind === "person" && (r.wanted || r.missing) && (
-        <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-(--color-critical)">
-          {r.wanted ? "Wanted" : ""} {r.missing ? "Reported missing" : ""}
-        </div>
-      )}
-
-      <div className="mt-2 space-y-0.5">
-        {r.kind === "vehicle" ? (
-          <>
-            <Field label="Vehicle" value={[r.make, r.model].filter(Boolean).join(" ")} />
-            <Field label="Colour" value={r.colour} />
-            <Field label="Keeper" value={r.keeperName} />
-            <div className="flex items-baseline gap-2 pt-0.5">
-              <span className="w-[74px] shrink-0 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                DVLA
-              </span>
-              <span className="flex flex-wrap gap-2">
-                <Status label="Tax" ok={r.taxed} />
-                <Status label="MOT" ok={r.mot} />
-                <Status label="Ins" ok={r.insured} />
-              </span>
+      {!r.trace ? (
+        <>
+          <div className={MONO + " py-0.5 font-bold text-(--color-text)"}>
+            {r.ambiguous?.length ? "MULTIPLE TRACE - NOT IDENTIFIED" : "NO TRACE"}
+          </div>
+          <Line label="Enquiry" value={r.kind === "vehicle" ? r.vrm : r.name} />
+          {r.ambiguous?.length ? (
+            <>
+              <Rule />
+              {r.ambiguous.map((x) => (
+                <Line key={x.id} label="Candidate" value={x.name} />
+              ))}
+              <div className={MONO + " pt-1 text-(--color-text-muted)"}>
+                A SURNAME IS NOT AN IDENTIFICATION. NARROW THE ENQUIRY.
+              </div>
+            </>
+          ) : (
+            <div className={MONO + " pt-1 text-(--color-text-muted)"}>
+              NOTHING HELD. ENQUIRY RECORDED.
             </div>
-          </>
-        ) : (
-          <>
-            <Field label="Sex" value={r.sex} />
-            <Field label="Age" value={r.age} />
-            <Field label="DOB" value={r.dob} />
-            <Field label="Address" value={[r.address, r.postcode].filter(Boolean).join(", ")} />
-          </>
-        )}
-      </div>
+          )}
+          <Rule />
+          <div className={MONO + " text-(--color-text-dim)"}>END OF RECORD</div>
+        </>
+      ) : (
+        <>
+          <WarningBanner
+            codes={(r.kind === "vehicle" ? r.markers : r.warnings).map((m) => m.code)}
+          />
+          {r.kind === "vehicle" ? (
+            <>
+              <Line label="VRM" value={r.vrm} />
+              <Line label="Make" value={r.make} />
+              <Line label="Model" value={r.model} />
+              <Line label="Colour" value={r.colour} />
+              <Rule />
+              <Line label="Keeper" value={r.keeperName ?? "NOT RECORDED"} />
+              <Rule />
+              <Line label="Tax" value={r.taxed === false ? "NO TRACE OF TAX" : "APPARENT"} tone={r.taxed === false ? "bad" : "good"} />
+              <Line label="MOT" value={r.mot === false ? "NO TRACE OF TEST" : "APPARENT"} tone={r.mot === false ? "bad" : "good"} />
+              <Line label="Insurance" value={r.insured === false ? "NO TRACE OF POLICY" : "APPARENT"} tone={r.insured === false ? "bad" : "good"} />
+            </>
+          ) : (
+            <>
+              <Line label="Name" value={r.name} />
+              <Line label="Sex" value={r.sex} />
+              <Line label="Age" value={r.age} />
+              <Line label="DOB" value={r.dob} />
+              <Rule />
+              <Line label="Address" value={r.address} />
+              <Line label="Postcode" value={r.postcode} />
+              {(r.wanted || r.missing) && (
+                <>
+                  <Rule />
+                  <Line label="Status" value={r.wanted ? "WANTED" : "REPORTED MISSING"} tone="bad" />
+                </>
+              )}
+            </>
+          )}
 
-      {r.notes.length > 0 && (
-        <ul className="mt-2 space-y-1 border-t border-(--color-border-subtle)/60 pt-2">
-          {r.notes.map((n, i) => (
-            <li key={i} className="text-[11px] leading-snug text-(--color-text-muted)">
-              {n}
-            </li>
-          ))}
-        </ul>
+          {r.notes.length > 0 && (
+            <>
+              <Rule />
+              {r.notes.map((n, i) => (
+                <div key={i} className={MONO + " whitespace-pre-wrap text-(--color-text)"}>
+                  <span className="text-(--color-text-dim)">{String(i + 1).padStart(2, "0")}  </span>
+                  {n.toUpperCase()}
+                </div>
+              ))}
+            </>
+          )}
+
+          <Rule />
+          <div className={MONO + " text-(--color-text-dim)"}>END OF RECORD</div>
+        </>
       )}
     </div>
   );
@@ -228,7 +247,9 @@ export function LedsTerminal({
   // A live job is a purpose in itself, so that is the sensible default.
   const [purpose, setPurpose] = useState<PolicingPurpose>("incident");
   const [reason, setReason] = useState("");
-  const [result, setResult] = useState<(LedsReturn & { ambiguous?: never[] }) | null>(null);
+  const [result, setResult] = useState<
+    { r: LedsReturn & { ambiguous?: never[] }; ref: string } | null
+  >(null);
 
   // Running with no job on the desk and nothing typed is the thing an
   // audit picks out. Say so before it is run, not after.
@@ -240,10 +261,17 @@ export function LedsTerminal({
       kind === "vehicle"
         ? vehicleCheck(index, query)
         : (personCheck(index, query) as LedsReturn & { ambiguous?: never[] });
-    setResult(r);
+    const at = Date.now();
+    const d = new Date(at);
+    // Time of the enquiry and its number this shift — the shape of
+    // reference a controller would quote back over the air.
+    const enquiryRef =
+      `${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}` +
+      `/${String(checks.length + 1).padStart(4, "0")}`;
+    setResult({ r, ref: enquiryRef });
     onCheck({
-      id: `leds-${Date.now()}-${Math.round(Math.random() * 1e6)}`,
-      atMs: Date.now(),
+      id: `leds-${at}-${enquiryRef}`,
+      atMs: at,
       kind,
       query,
       purpose,
@@ -272,7 +300,7 @@ export function LedsTerminal({
       <div className="flex h-full w-full flex-col border border-(--color-border) bg-(--color-bg) text-(--color-text) shadow-2xl">
         <div className="leds-drag flex cursor-move items-center justify-between gap-2 border-b border-(--color-border) px-2 py-1">
           <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
-            LEDS · police enquiry
+            LEDS · GMP CONTROL · TERM 01
           </span>
           {onClose && (
             <button
@@ -295,13 +323,13 @@ export function LedsTerminal({
                 setResult(null);
               }}
               className={
-                "flex-1 px-2 py-1 font-mono text-[10px] uppercase tracking-widest " +
+                "flex-1 border-r border-(--color-border-subtle) px-2 py-1 font-mono text-[10px] uppercase tracking-widest last:border-r-0 " +
                 (kind === k
-                  ? "bg-(--color-amber)/15 text-(--color-amber)"
+                  ? "bg-(--color-text) text-(--color-bg)"
                   : "text-(--color-text-dim) hover:bg-(--color-surface-raised)")
               }
             >
-              {k}
+              {k === "vehicle" ? "F1 VEHICLE" : "F2 PERSON"}
             </button>
           ))}
         </div>
@@ -309,12 +337,12 @@ export function LedsTerminal({
         <div className="space-y-1.5 border-b border-(--color-border-subtle) p-2">
           <label className="block">
             <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-              Policing purpose
+              Purpose
             </span>
             <select
               value={purpose}
               onChange={(e) => setPurpose(e.target.value as PolicingPurpose)}
-              className="mt-0.5 w-full border border-(--color-border-subtle) bg-(--color-bg) px-1.5 py-1 text-[12px] text-(--color-text)"
+              className="mt-0.5 w-full rounded-none border border-(--color-border) bg-(--color-surface) px-1.5 py-1 font-mono text-[11px] uppercase text-(--color-text)"
             >
               {Object.entries(POLICING_PURPOSES).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -327,10 +355,10 @@ export function LedsTerminal({
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={activeIncidentId ? "Note (optional)" : "Reason — no job on the desk"}
+            placeholder={activeIncidentId ? "NOTE (OPTIONAL)" : "REASON — NO JOB ON THE DESK"}
             className={
-              "w-full border bg-(--color-bg) px-1.5 py-1 text-[12px] text-(--color-text) placeholder:text-(--color-text-dim) " +
-              (willBeFlagged ? "border-(--color-amber)/60" : "border-(--color-border-subtle)")
+              "w-full rounded-none border bg-(--color-surface) px-1.5 py-1 font-mono text-[11px] uppercase text-(--color-text) placeholder:text-(--color-text-dim) " +
+              (willBeFlagged ? "border-(--color-amber)" : "border-(--color-border)")
             }
           />
 
@@ -341,39 +369,39 @@ export function LedsTerminal({
               onKeyDown={(e) => {
                 if (e.key === "Enter") run();
               }}
-              placeholder={kind === "vehicle" ? "Registration" : "SURNAME, Forename"}
-              className="min-w-0 flex-1 border border-(--color-border-subtle) bg-(--color-bg) px-1.5 py-1 font-mono text-[13px] uppercase tracking-wider text-(--color-text) placeholder:normal-case placeholder:tracking-normal placeholder:text-(--color-text-dim)"
+              placeholder={kind === "vehicle" ? "VRM" : "SURNAME, FORENAME"}
+              className="min-w-0 flex-1 rounded-none border border-(--color-border) bg-(--color-surface) px-1.5 py-1 font-mono text-[13px] uppercase tracking-wider text-(--color-text) placeholder:tracking-normal placeholder:text-(--color-text-dim)"
             />
             <button
               type="button"
               onClick={run}
               disabled={query.trim().length < 2}
-              className="shrink-0 border border-(--color-amber)/60 bg-(--color-amber)/10 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/20 disabled:opacity-40"
+              className="shrink-0 rounded-none border border-(--color-text) bg-(--color-text) px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-bg) hover:bg-(--color-text-dim) disabled:opacity-30"
             >
-              Check
+              Enquire
             </button>
           </div>
 
           {willBeFlagged && (
-            <p className="text-[10px] leading-snug text-(--color-amber)">
-              No job on the desk and no reason given — this check will show on the audit.
+            <p className="font-mono text-[10px] leading-snug text-(--color-amber)">
+              NO JOB, NO REASON — THIS ENQUIRY WILL SHOW ON THE AUDIT
             </p>
           )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
           {result ? (
-            <Return r={result} />
+            <Return r={result.r} enquiryRef={result.ref} />
           ) : (
-            <p className="px-1 py-4 text-center font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-              No enquiry run
+            <p className="px-1 py-3 font-mono text-[11px] text-(--color-text-dim)">
+              READY.
             </p>
           )}
 
           {recent.length > 0 && (
             <>
-              <div className="mt-3 border-t border-(--color-border-subtle) px-1 pt-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
-                Audit · this shift
+              <div className="mt-3 border-t border-(--color-border) px-1 pt-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
+                Audit — this shift ({checks.length})
               </div>
               <ul className="mt-0.5">
                 {recent.map((c) => {
@@ -381,17 +409,18 @@ export function LedsTerminal({
                   return (
                     <li
                       key={c.id}
-                      className="flex items-baseline gap-1.5 px-1 py-[3px] text-[10px] leading-snug"
+                      className="flex items-baseline gap-1 px-1 py-[2px] font-mono text-[10px] leading-snug"
                     >
                       <span
-                        aria-hidden
                         className={
-                          "mt-[3px] h-1.5 w-1.5 shrink-0 " +
-                          (flagged ? "bg-(--color-amber)" : "bg-(--color-border)")
+                          "shrink-0 " +
+                          (flagged ? "font-bold text-(--color-amber)" : "text-(--color-border)")
                         }
-                      />
+                      >
+                        {flagged ? "!" : " "}
+                      </span>
                       <span className="min-w-0 flex-1 text-(--color-text-muted)">
-                        {auditLine(c)}
+                        {auditLine(c).replace("LEDS check — ", "").toUpperCase()}
                       </span>
                     </li>
                   );
