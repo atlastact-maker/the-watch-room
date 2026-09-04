@@ -21,6 +21,14 @@ import { scenario19 } from "./19_skip_fire_gorton";
 import { scenario20 } from "./20_gas_leak_wigan";
 import { scenario21 } from "./21_chimney_fire_marple";
 import { scenario22 } from "./22_mental_health_stockport";
+import { scenario23 } from "./23_hmo_fire_rusholme";
+import { scenario24 } from "./24_ev_fire_sale";
+import { scenario25 } from "./25_farm_fire_ramsbottom";
+import { scenario26 } from "./26_flooding_littleborough";
+import { scenario27 } from "./27_rope_rescue_healey";
+import { scenario28 } from "./28_co_exposure_hyde";
+import { scenario29 } from "./29_maternity_wythenshawe";
+import { scenario30 } from "./30_overdose_leigh";
 
 // Registry of available scenarios — the ten approved fire jobs converted
 // from data/research/fire/scenarios/*.md, plus the police-led firearms
@@ -48,6 +56,14 @@ export const SCENARIOS: Scenario[] = [
   scenario20,
   scenario21,
   scenario22,
+  scenario23,
+  scenario24,
+  scenario25,
+  scenario26,
+  scenario27,
+  scenario28,
+  scenario29,
+  scenario30,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {

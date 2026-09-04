@@ -84,6 +84,14 @@ const CLEAR_MINUTES: Record<IncidentTypeCode, [number, number]> = {
   // ambulance away for most of what is left of the turn, which is how
   // resources actually disappear.
   ambulance_transfer: [40, 62],
+  ambulance_overdose: [12, 20],
+  ambulance_maternity: [14, 24],
+  special_service_co_exposure: [16, 28],
+  vehicle_fire_ev: [20, 38],
+  special_service_rope_rescue: [24, 42],
+  special_service_flooding: [26, 46],
+  hmo_fire: [22, 38],
+  agricultural_fire: [34, 58],
   healthcare_premises_fire_alarm: [5, 9],
   ambulance_cardiac_arrest: [8, 13],
   rtc_entrapment: [9, 16],

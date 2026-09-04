@@ -26,7 +26,15 @@ export type IncidentTypeCode =
   | "ambulance_mental_health"
   | "secondary_fire_refuse"
   | "chimney_fire"
-  | "special_service_gas_leak";
+  | "special_service_gas_leak"
+  | "hmo_fire"
+  | "vehicle_fire_ev"
+  | "agricultural_fire"
+  | "special_service_flooding"
+  | "special_service_rope_rescue"
+  | "special_service_co_exposure"
+  | "ambulance_maternity"
+  | "ambulance_overdose";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
