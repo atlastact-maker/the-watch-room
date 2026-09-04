@@ -92,6 +92,17 @@ const CLEAR_MINUTES: Record<IncidentTypeCode, [number, number]> = {
   special_service_flooding: [26, 46],
   hmo_fire: [22, 38],
   agricultural_fire: [34, 58],
+  // Ambulance work, ordered by how long the crew are tied up rather than
+  // by how sick the patient is — a choking that resolves is over in
+  // minutes, an admission the GP already arranged is an hour of driving.
+  ambulance_choking: [6, 11],
+  ambulance_diabetic: [9, 16],
+  ambulance_anaphylaxis: [11, 18],
+  ambulance_breathing: [13, 22],
+  ambulance_assault: [16, 28],
+  ambulance_stroke: [17, 27],
+  ambulance_hcp_admission: [24, 38],
+  ambulance_major_trauma: [26, 44],
   healthcare_premises_fire_alarm: [5, 9],
   ambulance_cardiac_arrest: [8, 13],
   rtc_entrapment: [9, 16],

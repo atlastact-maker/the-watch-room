@@ -34,7 +34,15 @@ export type IncidentTypeCode =
   | "special_service_rope_rescue"
   | "special_service_co_exposure"
   | "ambulance_maternity"
-  | "ambulance_overdose";
+  | "ambulance_overdose"
+  | "ambulance_stroke"
+  | "ambulance_anaphylaxis"
+  | "ambulance_breathing"
+  | "ambulance_diabetic"
+  | "ambulance_major_trauma"
+  | "ambulance_assault"
+  | "ambulance_hcp_admission"
+  | "ambulance_choking";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
