@@ -30,6 +30,78 @@ for (const a of fleet) {
 // Greater Manchester, generously bounded.
 const GM = { latMin: 53.32, latMax: 53.70, lngMin: -2.75, lngMax: -1.90 };
 
+// Everything the treatment tab can actually perform, by its real name.
+// If an action is added to the menu it goes here too, or the check starts
+// reporting things that are perfectly fine.
+const PERFORMABLE = new Set([
+  // airway
+  "position", "opa", "npa", "igel", "suction",
+  "back_blows", "abdominal_thrusts", "magill_forceps", "rsi",
+  // breathing
+  "oxygen_15l", "bvm", "needle_decomp", "finger_thoracostomy",
+  // circulation
+  "iv_access", "io_access", "fluids_250", "fluids_500", "cpr", "defib",
+  // packaging
+  "spine_board", "scoop_stretcher", "ked", "pelvic_binder",
+  "tourniquet", "traction_splint", "dressings",
+  // drugs
+  "paracetamol", "entonox", "morphine", "aspirin_300", "gtn_spray", "salbutamol_neb",
+  "ipratropium_neb", "adrenaline_im_anaphylaxis", "adrenaline_cpr", "midazolam_im",
+  "glucagon_im", "dextrose_iv", "naloxone", "ondansetron", "tXA_iv",
+  "ketamine_analgesia", "fentanyl", "amiodarone", "magnesium_sulfate", "hydrocortisone",
+  "chlorphenamine", "calcium_chloride", "ketamine_rsi", "rocuronium", "propofol",
+  "metaraminol", "noradrenaline",
+]);
+
+/** A casualty's criticalIntervention is a promise the crew can do that
+ *  thing. These are different words for the same acts, and nothing else
+ *  in the codebase reconciles the two vocabularies. */
+const INTERVENTION_MAPS: Record<string, string[]> = {
+  oxygen: ["oxygen_15l"],
+  foreign_body_removal: ["back_blows", "abdominal_thrusts", "magill_forceps"],
+  iv_access: ["iv_access", "io_access"],
+  fluids: ["fluids_250", "fluids_500"],
+  tXA: ["tXA_iv"],
+  needle_decomp: ["needle_decomp"],
+  finger_thoracostomy: ["finger_thoracostomy"],
+  rsi: ["rsi", "ketamine_rsi"],
+  blood_products: [],
+  adrenaline_im: ["adrenaline_im_anaphylaxis"],
+  salbutamol_neb: ["salbutamol_neb"],
+  aspirin: ["aspirin_300"],
+  gtn: ["gtn_spray"],
+  midazolam: ["midazolam_im"],
+  glucagon: ["glucagon_im", "dextrose_iv"],
+  naloxone: ["naloxone"],
+  defib: ["defib"],
+  cpr: ["cpr"],
+  pelvic_binder: ["pelvic_binder"],
+  tourniquet: ["tourniquet"],
+  spine_board: ["spine_board", "scoop_stretcher"],
+};
+
+/** What a crew would actually reach for, per red flag. A flag with no
+ *  path is a flag the operator can see and nobody can act on. */
+const FLAG_PATH: Record<string, string[]> = {
+  tension_pneumothorax: ["needle_decomp", "finger_thoracostomy"],
+  hypovolaemic_shock: ["fluids_250", "fluids_500", "iv_access"],
+  airway_compromise: [
+    "position", "opa", "npa", "igel", "suction",
+    "back_blows", "abdominal_thrusts", "magill_forceps", "rsi",
+  ],
+  head_injury_severe: ["oxygen_15l", "rsi", "spine_board"],
+  spinal_injury_suspected: ["spine_board", "scoop_stretcher", "ked"],
+  cardiac_arrest: ["cpr", "defib", "adrenaline_cpr"],
+  stemi: ["aspirin_300", "gtn_spray", "morphine"],
+  stroke_fast_positive: ["oxygen_15l", "iv_access"],
+  anaphylaxis: ["adrenaline_im_anaphylaxis", "hydrocortisone", "chlorphenamine"],
+  severe_asthma: ["salbutamol_neb", "ipratropium_neb", "magnesium_sulfate"],
+  hypoglycaemia: ["glucagon_im", "dextrose_iv"],
+  seizure_active: ["midazolam_im"],
+  major_haemorrhage: ["tourniquet", "tXA_iv", "dressings"],
+  overdose_opioid: ["naloxone", "bvm"],
+};
+
 for (const s of SCENARIOS) {
   const slots = STANDARD_PDA[s.type]?.slots ?? s.pda;
 
@@ -220,6 +292,20 @@ for (const s of SCENARIOS) {
       // actually about, and it is silent either way.
       note(s, "NO CLINICAL DETAIL", cas.id + " falls back to the generic " + cas.severity + " patient");
       continue;
+    }
+
+    // Can the crew actually do what this patient needs?
+    for (const iv of cl.criticalInterventions) {
+      const targets = INTERVENTION_MAPS[iv] ?? [];
+      if (!targets.some((t) => PERFORMABLE.has(t))) {
+        note(s, "INTERVENTION NOT PERFORMABLE", cas.id + ' needs "' + iv + '" and no action on the menu does it');
+      }
+    }
+    for (const flag of cl.redFlags) {
+      const path = FLAG_PATH[flag] ?? [];
+      if (!path.some((t) => PERFORMABLE.has(t))) {
+        note(s, "RED FLAG WITH NO TREATMENT", cas.id + ' flags "' + flag + '" and nothing on the menu treats it');
+      }
     }
 
     const v = cl.vitals;

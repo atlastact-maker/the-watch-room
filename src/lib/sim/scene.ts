@@ -135,6 +135,10 @@ export type HospitalDestinationType =
 
 export type CriticalIntervention =
   | "oxygen"
+  // Clearing a foreign body: back blows, thrusts, or laryngoscopy and
+  // forceps. Any of the three satisfies it — what matters is that the
+  // obstruction came out, not which hand did it.
+  | "foreign_body_removal"
   | "iv_access"
   | "fluids"
   | "tXA"

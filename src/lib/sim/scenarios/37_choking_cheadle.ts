@@ -137,7 +137,10 @@ export const scenario37: Scenario = {
           presumedCondition: "Partial airway obstruction — foreign body, weak ineffective cough",
           redFlags: ["airway_compromise"],
           preferredDestination: "paed_ed",
-          criticalInterventions: ["oxygen"],
+          // Oxygen is what you give her afterwards. Getting the
+          // obstruction out is the job, and until the airway menu carried
+          // back blows and forceps there was no way to do it.
+          criticalInterventions: ["foreign_body_removal", "oxygen"],
         },
       },
     ],

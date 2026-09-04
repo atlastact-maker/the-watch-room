@@ -102,6 +102,9 @@ const AIRWAY_LABEL: Record<AirwayAction, string> = {
   npa: "Insert NPA",
   igel: "Insert iGel",
   suction: "Suction",
+  back_blows: "Back blows",
+  abdominal_thrusts: "Abdominal thrusts",
+  magill_forceps: "Laryngoscopy · Magill forceps",
   rsi: "RSI · intubate",
 };
 
@@ -150,6 +153,12 @@ const AIRWAY_HINT: Record<AirwayAction, string> = {
   npa: "Nasopharyngeal airway. Tolerated by semi-conscious patients; avoid on basal skull #.",
   igel: "Supraglottic airway. Protects a deeply unconscious airway when intubation isn't available.",
   suction: "Clear vomit, blood or secretions from the upper airway.",
+  back_blows:
+    "Five sharp blows between the shoulder blades. First-line for a choking patient with an ineffective cough.",
+  abdominal_thrusts:
+    "Five thrusts, alternating with back blows. Chest thrusts instead for an infant under one, or a pregnant patient.",
+  magill_forceps:
+    "Laryngoscope to look, Magill forceps to remove. For an obstruction you can see and the blows have not shifted.",
   rsi: "Rapid-Sequence Induction. Doctor-led drug-assisted intubation. CCC / HEMS only.",
 };
 

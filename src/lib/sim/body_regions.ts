@@ -94,6 +94,12 @@ export const AIRWAY_ACTION_REGIONS: Record<AirwayAction, BodyRegion[]> = {
   npa:      ["head", "neck"],
   igel:     ["head", "neck"],
   suction:  ["head", "neck"],
+  // Back blows land between the shoulder blades and thrusts on the
+  // abdomen, so these are the only airway actions that are not a
+  // head-and-neck job.
+  back_blows:        ["chest", "head"],
+  abdominal_thrusts: ["abdomen", "chest"],
+  magill_forceps:    ["head", "neck"],
   rsi:      ["head", "neck"],
 };
 

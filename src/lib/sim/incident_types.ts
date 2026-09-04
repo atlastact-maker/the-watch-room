@@ -478,7 +478,18 @@ export const DRUG_LABEL: Record<DrugName, string> = {
 };
 
 /** Airway / breathing / circulation interventions. */
-export type AirwayAction = "position" | "opa" | "npa" | "igel" | "suction" | "rsi";
+export type AirwayAction =
+  | "position"
+  | "opa"
+  | "npa"
+  | "igel"
+  | "suction"
+  // Foreign body obstruction. Nothing else on this list treats one — an
+  // i-gel and a tube both sit below something stuck above the cords.
+  | "back_blows"
+  | "abdominal_thrusts"
+  | "magill_forceps"
+  | "rsi";
 export type BreathingAction =
   | "oxygen_15l"
   | "bvm"
@@ -502,6 +513,12 @@ export const AIRWAY_MIN_SCOPE: Record<AirwayAction, ClinicianScope> = {
   npa: "dca",
   igel: "dca",
   suction: "dca",
+  // Basic life support. A bystander is doing these before anybody
+  // arrives; the crew simply carry on.
+  back_blows: "dca",
+  abdominal_thrusts: "dca",
+  // Laryngoscopy to look, forceps to grab. Needs the kit and the training.
+  magill_forceps: "dca",
   rsi: "ccc",      // needs doctor (CCC w/ doctor, BASICS, or HEMS)
 };
 export const BREATHING_MIN_SCOPE: Record<BreathingAction, ClinicianScope> = {
