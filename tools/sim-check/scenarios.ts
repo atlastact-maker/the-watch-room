@@ -42,6 +42,7 @@ const PERFORMABLE = new Set([
   // circulation
   "iv_access", "io_access", "fluids_250", "fluids_500", "cpr", "defib",
   // packaging
+  "warming", "assisted_delivery",
   "spine_board", "scoop_stretcher", "ked", "pelvic_binder",
   "tourniquet", "traction_splint", "dressings",
   // drugs
@@ -58,6 +59,8 @@ const PERFORMABLE = new Set([
  *  in the codebase reconciles the two vocabularies. */
 const INTERVENTION_MAPS: Record<string, string[]> = {
   oxygen: ["oxygen_15l"],
+  warming: ["warming"],
+  assisted_delivery: ["assisted_delivery"],
   foreign_body_removal: ["back_blows", "abdominal_thrusts", "magill_forceps"],
   iv_access: ["iv_access", "io_access"],
   fluids: ["fluids_250", "fluids_500"],

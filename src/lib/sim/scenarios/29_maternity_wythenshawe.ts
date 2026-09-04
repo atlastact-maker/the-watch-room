@@ -135,7 +135,9 @@ export const scenario29: Scenario = {
           presumedCondition: "Second stage of labour — 39 weeks, imminent delivery",
           redFlags: [],
           preferredDestination: "nearest_a_e",
-          criticalInterventions: ["oxygen"],
+          // Once the head is visible she is not going anywhere, and the
+          // job stops being a journey and becomes a delivery.
+          criticalInterventions: ["assisted_delivery", "oxygen"],
         },
       },
     ],

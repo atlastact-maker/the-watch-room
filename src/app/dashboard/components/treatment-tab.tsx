@@ -125,6 +125,8 @@ const CIRC_LABEL: Record<CirculationAction, string> = {
 };
 
 const PACKAGING_LABEL: Record<PackagingAction, string> = {
+  warming: "Active warming",
+  assisted_delivery: "Assisted delivery",
   spine_board: "Spine board",
   scoop_stretcher: "Scoop stretcher",
   ked: "KED",
@@ -213,6 +215,10 @@ const DRUG_HINT: Partial<Record<DrugName, string>> = {
 };
 
 const PACKAGING_HINT: Record<PackagingAction, string> = {
+  warming:
+    "Blankets, heat pack, warm the saloon. Passive rewarming is all that happens out of hospital — and it is the difference between a cold patient holding and getting colder.",
+  assisted_delivery:
+    "Deliver in situ. Once the head is visible she is not going anywhere, and you have a second patient coming.",
   spine_board: "Full-spine immobilisation for suspected spinal injury extrication.",
   scoop_stretcher: "Split stretcher — lift onto trolley without axial loading.",
   ked: "Kendrick Extrication Device — seated extrication from vehicles.",

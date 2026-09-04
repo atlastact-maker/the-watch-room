@@ -176,7 +176,8 @@ export const scenario26: Scenario = {
           presumedCondition: "Cold and immersed to the ankles — refusing to leave the property",
           redFlags: [],
           preferredDestination: "nearest_a_e",
-          criticalInterventions: [],
+          // Once he does come out, this is the whole of his treatment.
+          criticalInterventions: ["warming"],
         },
       },
     ],

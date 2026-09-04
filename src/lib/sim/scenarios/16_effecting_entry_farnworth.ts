@@ -150,7 +150,7 @@ export const scenario16: Scenario = {
           presumedCondition: "Collapse, unknown down-time — COPD, on home oxygen",
           redFlags: ["airway_compromise"],
           preferredDestination: "nearest_a_e",
-          criticalInterventions: ["oxygen", "iv_access"],
+          criticalInterventions: ["oxygen", "iv_access", "warming"],
         },
       },
     ],

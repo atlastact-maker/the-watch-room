@@ -218,7 +218,10 @@ export const scenario09: Scenario = {
             "Cold-water immersion — cold shock, early hypothermia, aspiration risk; crisis presentation",
           redFlags: ["airway_compromise"],
           preferredDestination: "nearest_a_e",
-          criticalInterventions: ["oxygen", "iv_access"],
+          criticalInterventions: [
+            // 33.4degC. Everything else on this list matters less than
+            // getting her dry, wrapped and into a warm saloon.
+            "warming","oxygen", "iv_access"],
         },
       },
     ],

@@ -155,7 +155,9 @@ export const scenario13: Scenario = {
           presumedCondition: "Fall with a prolonged lie — cold, no obvious injury, unable to self-rise",
           redFlags: [],
           preferredDestination: "nearest_a_e",
-          criticalInterventions: [],
+          // The only thing to do for her, and the whole reason a long lie
+          // is its own injury rather than a delay.
+          criticalInterventions: ["warming"],
         },
       },
     ],

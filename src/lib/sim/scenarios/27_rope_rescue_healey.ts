@@ -177,7 +177,7 @@ export const scenario27: Scenario = {
           redFlags: ["spinal_injury_suspected", "hypovolaemic_shock"],
           // Twelve metres meets the trauma criteria on mechanism alone.
           preferredDestination: "mtc",
-          criticalInterventions: ["oxygen", "iv_access", "fluids", "spine_board"],
+          criticalInterventions: ["oxygen", "iv_access", "fluids", "spine_board", "warming"],
         },
       },
     ],

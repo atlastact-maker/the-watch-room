@@ -120,6 +120,9 @@ export const CIRCULATION_ACTION_REGIONS: Record<CirculationAction, BodyRegion[]>
 };
 
 export const PACKAGING_ACTION_REGIONS: Record<PackagingAction, BodyRegion[]> = {
+  // Warming is a whole-body measure, which is what "systemic" is for.
+  warming: ["systemic"],
+  assisted_delivery: ["pelvis", "abdomen"],
   spine_board:     ["back", "neck"],
   scoop_stretcher: ["systemic"],
   ked:             ["back", "neck"],

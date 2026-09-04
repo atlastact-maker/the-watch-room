@@ -497,6 +497,13 @@ export type BreathingAction =
   | "finger_thoracostomy";
 export type CirculationAction = "iv_access" | "io_access" | "fluids_250" | "fluids_500" | "cpr" | "defib";
 export type PackagingAction =
+  // Blankets, a heat pack and a warm saloon. Passive at this level —
+  // anything more is a hospital's job — but it is the difference between
+  // a cold patient getting colder and not.
+  | "warming"
+  // A birth is not packaging, but neither is a dressing; this group is
+  // where hands-on care that is not A-B-C has always lived.
+  | "assisted_delivery"
   | "spine_board"
   | "scoop_stretcher"
   | "ked"

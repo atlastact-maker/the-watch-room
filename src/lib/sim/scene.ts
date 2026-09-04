@@ -139,6 +139,10 @@ export type CriticalIntervention =
   // forceps. Any of the three satisfies it — what matters is that the
   // obstruction came out, not which hand did it.
   | "foreign_body_removal"
+  // Blankets and a warm vehicle. Unglamorous and the only thing that
+  // helps a patient who has been on a cold floor for hours.
+  | "warming"
+  | "assisted_delivery"
   | "iv_access"
   | "fluids"
   | "tXA"
