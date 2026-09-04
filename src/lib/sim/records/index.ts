@@ -16,6 +16,7 @@ import { records09 } from "./09_water_rescue_irwell";
 import { records10 } from "./10_hospital_royal_bolton";
 import { records11 } from "./11_firearms_ashton";
 import { records12 } from "./12_cardiac_arrest_hough_end";
+import { records13to16 } from "./13_16_volume";
 
 export const SCENARIO_RECORDS: RecordSet[] = [
   records01,
@@ -30,4 +31,7 @@ export const SCENARIO_RECORDS: RecordSet[] = [
   records10,
   records11,
   records12,
+  // The volume jobs ship as a set — each holds a handful of people
+  // rather than a casualty board, so one file carries all four.
+  ...records13to16,
 ];

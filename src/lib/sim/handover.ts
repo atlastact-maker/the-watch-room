@@ -71,6 +71,11 @@ export type Handover = {
  *  stop-times are ordered. */
 const CLEAR_MINUTES: Record<IncidentTypeCode, [number, number]> = {
   automatic_fire_alarm: [3, 6],
+  special_service_lift_release: [4, 8],
+  vehicle_fire: [5, 10],
+  special_service_effecting_entry: [6, 11],
+  ambulance_fall_elderly: [7, 12],
+  ambulance_chest_pain: [9, 15],
   healthcare_premises_fire_alarm: [5, 9],
   ambulance_cardiac_arrest: [8, 13],
   rtc_entrapment: [9, 16],

@@ -13,7 +13,15 @@ export type IncidentTypeCode =
   | "special_service_water_rescue"
   | "healthcare_premises_fire_alarm"
   | "police_firearms_incident"
-  | "ambulance_cardiac_arrest";
+  | "ambulance_cardiac_arrest"
+  // Volume work — the jobs a shift is actually made of. Short, small
+  // attendances, and their pressure comes from competing for the same
+  // units as the set-pieces rather than from their own drama.
+  | "ambulance_fall_elderly"
+  | "ambulance_chest_pain"
+  | "special_service_lift_release"
+  | "vehicle_fire"
+  | "special_service_effecting_entry";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
