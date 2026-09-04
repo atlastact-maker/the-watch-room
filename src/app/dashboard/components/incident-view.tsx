@@ -119,6 +119,11 @@ export type Props = {
     action: import("@/lib/sim/incident_types").PackagingAction,
     by: string,
   ) => void;
+  onApplyEgress?: (
+    casualtyId: string,
+    action: import("@/lib/sim/incident_types").EgressAction,
+    by: string,
+  ) => void;
   onRequestClinician?: (
     scope: "ap" | "ccc" | "basics" | "hems",
     casualtyId: string,
@@ -961,6 +966,9 @@ export function CasualtiesBody({
   onStopResus,
   onAdministerDrug,
   onApplyPackaging,
+  onApplyEgress,
+  egressBlocked,
+  egressExtraSeconds,
   onRequestClinician,
   hemsFlyable,
   onSetTreatmentDestination,
@@ -994,6 +1002,9 @@ export function CasualtiesBody({
   onStopResus?: Props["onStopResus"];
   onAdministerDrug?: Props["onAdministerDrug"];
   onApplyPackaging?: Props["onApplyPackaging"];
+  onApplyEgress?: Props["onApplyEgress"];
+  egressBlocked?: import("@/lib/sim/scene").EgressBlock[];
+  egressExtraSeconds?: number;
   onRequestClinician?: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
   hemsFlyable?: boolean;
   onSetTreatmentDestination?: Props["onSetTreatmentDestination"];
@@ -1308,6 +1319,9 @@ export function CasualtiesBody({
               }
               onAdministerDrug={(id, d, by) => onAdministerDrug?.(id, d, by)}
               onApplyPackaging={(id, a, by) => onApplyPackaging?.(id, a, by)}
+              onApplyEgress={(id, a, by) => onApplyEgress?.(id, a, by)}
+              egressBlocked={egressBlocked}
+              egressExtraSeconds={egressExtraSeconds}
               onRequestClinician={(s, id) => onRequestClinician?.(s, id)}
               hemsFlyable={hemsFlyable}
               onSetDestination={(id, type, name) =>

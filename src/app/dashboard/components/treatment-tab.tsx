@@ -30,10 +30,13 @@ import type {
   Deployment,
   DrugName,
   PackagingAction,
+  EgressAction,
   PatientTreatmentState,
 } from "@/lib/sim/incident_types";
 import {
   AIRWAY_MIN_SCOPE,
+  EGRESS_CLINICAL_BLOCKS,
+  EGRESS_SECONDS,
   BREATHING_MIN_SCOPE,
   DRUG_LABEL,
   DRUG_MIN_SCOPE,
@@ -229,6 +232,33 @@ const PACKAGING_HINT: Record<PackagingAction, string> = {
   wound_pack: "Deep cavity haemorrhage — pack with haemostatic gauze, apply pressure.",
 };
 
+const EGRESS_LABEL: Record<EgressAction, string> = {
+  walked: "Walked to the vehicle",
+  carry_chair: "Carry chair",
+  carry_sheet: "Carry sheet",
+  manual_carry: "Manual carry",
+  trolley: "Trolley",
+  vacuum_mattress: "Vacuum mattress",
+  wheelchair: "Wheelchair",
+};
+
+const EGRESS_HINT: Record<EgressAction, string> = {
+  walked:
+    "With an arm, if they are steady and nothing is unstable. Quickest by a long way and correct more often than not.",
+  carry_chair:
+    "Stair chair. The workhorse — but it needs room to turn at the foot of the stairs, and it sits the patient up.",
+  carry_sheet:
+    "Where a chair will not go: a tight bend, a spiral, a loft ladder. Slower, and it takes more hands.",
+  manual_carry:
+    "Rough or open ground where nothing rolls. Tiring, slow, and sometimes the only way off.",
+  trolley:
+    "The ambulance trolley. On the flat, through a door wide enough, with no steps in the way.",
+  vacuum_mattress:
+    "Moulds around the patient and goes rigid. For a long carry with something unstable in it.",
+  wheelchair:
+    "Hospital to hospital, or a patient who simply cannot walk far. Not for anything acute.",
+};
+
 const DESTINATION_HINT: Record<HospitalDestinationType, string> = {
   nearest_a_e: "Local Emergency Department — default when no specialist need.",
   mtc: "Major Trauma Centre (Salford Royal NW) — multi-system trauma, ISS > 15.",
@@ -269,6 +299,9 @@ export function TreatmentTab({
   onApplyCirculation,
   onAdministerDrug,
   onApplyPackaging,
+  onApplyEgress,
+  egressBlocked,
+  egressExtraSeconds,
   onRequestClinician,
   hemsFlyable,
   onSetDestination,
@@ -316,6 +349,11 @@ export function TreatmentTab({
   onApplyCirculation: (casualtyId: string, action: CirculationAction, by: string) => void;
   onAdministerDrug: (casualtyId: string, drug: DrugName, by: string) => void;
   onApplyPackaging: (casualtyId: string, action: PackagingAction, by: string) => void;
+  onApplyEgress: (casualtyId: string, action: EgressAction, by: string) => void;
+  /** Ways out this scene will not allow, each with its reason. */
+  egressBlocked?: import("@/lib/sim/scene").EgressBlock[];
+  /** Seconds this scene adds to any carry — height, distance, ground. */
+  egressExtraSeconds?: number;
   onRequestClinician: (scope: "ap" | "ccc" | "basics" | "hems", casualtyId: string) => void;
   /** Whether the NWAA airframe can fly right now (daylight + weather).
    *  Undefined is treated as flyable. */
@@ -690,6 +728,71 @@ export function TreatmentTab({
                 );
               })}
           </div>
+        </Section>
+      )}
+
+      {/* ---- Egress ----
+          Not what is strapped to the patient but how they physically
+          reach the vehicle, which the building decides more than the
+          injury does. A method the scene will not take is shown with the
+          reason on it — a greyed button that does not say why is just a
+          broken button. */}
+      {surveyDone && (
+        <Section title="Egress · to the vehicle">
+          <div className="grid grid-cols-2 gap-1">
+            {(Object.keys(EGRESS_LABEL) as EgressAction[]).map((a) => {
+              const done = (treatment.egress ?? {})[a] !== undefined;
+              const block = egressBlocked?.find(
+                (b: import("@/lib/sim/scene").EgressBlock) => b.action === a,
+              );
+              // What the patient will take. Live flags, so treating the
+              // thing that stopped them walking unlocks walking.
+              const flags = treatment.activeRedFlags ?? [];
+              const clinical = EGRESS_CLINICAL_BLOCKS.find(
+                (r) => r.actions.includes(a) && flags.includes(r.flag),
+              );
+              const reason = block?.reason ?? clinical?.reason;
+              return (
+                <ActionChip
+                  key={a}
+                  label={EGRESS_LABEL[a]}
+                  hint={reason ?? EGRESS_HINT[a]}
+                  done={done}
+                  allowed={!reason}
+                  onClick={() => onApplyEgress(casualtyId, a, byLabel)}
+                />
+              );
+            })}
+          </div>
+          {(() => {
+            const moves = (
+              Object.entries(treatment.egress ?? {}) as [EgressAction, number][]
+            ).sort((a, b) => b[1] - a[1]);
+            if (moves.length === 0) return null;
+            const [method, startedAt] = moves[0];
+            const total =
+              (EGRESS_SECONDS[method] + (egressExtraSeconds ?? 0)) * 1000;
+            const left = Math.max(0, startedAt + total - now);
+            const mins = Math.floor(left / 60000);
+            const secs = Math.floor((left % 60000) / 1000);
+            return (
+              <div
+                className={
+                  "mt-1.5 font-mono text-[10px] uppercase tracking-widest " +
+                  (left > 0 ? "text-(--color-amber)" : "text-(--color-ok)")
+                }
+              >
+                {left > 0
+                  ? EGRESS_LABEL[method] +
+                    " · " +
+                    mins +
+                    ":" +
+                    String(secs).padStart(2, "0") +
+                    " to the vehicle"
+                  : EGRESS_LABEL[method] + " · at the vehicle"}
+              </div>
+            );
+          })()}
         </Section>
       )}
 
@@ -1216,6 +1319,8 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
       return "Primary survey started";
     case "survey_completed":
       return "Primary survey complete · findings revealed";
+    case "egress":
+      return "Moved · " + EGRESS_LABEL[e.action];
     case "airway":
       return `Airway: ${AIRWAY_LABEL[e.action]} (${e.by})`;
     case "breathing":

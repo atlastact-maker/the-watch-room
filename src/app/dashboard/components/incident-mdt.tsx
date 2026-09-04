@@ -96,6 +96,7 @@ type Props = {
   onStopResus?: IncidentViewProps["onStopResus"];
   onAdministerDrug?: IncidentViewProps["onAdministerDrug"];
   onApplyPackaging?: IncidentViewProps["onApplyPackaging"];
+  onApplyEgress?: IncidentViewProps["onApplyEgress"];
   onRequestClinician?: IncidentViewProps["onRequestClinician"];
   hemsFlyable?: boolean;
   onSetTreatmentDestination?: IncidentViewProps["onSetTreatmentDestination"];
@@ -229,6 +230,7 @@ export function DraggableIncidentMdt({
   onStopResus,
   onAdministerDrug,
   onApplyPackaging,
+  onApplyEgress,
   onRequestClinician,
   hemsFlyable,
   onSetTreatmentDestination,
@@ -795,6 +797,9 @@ export function DraggableIncidentMdt({
                   onStopResus={onStopResus}
                   onAdministerDrug={onAdministerDrug}
                   onApplyPackaging={onApplyPackaging}
+                  onApplyEgress={onApplyEgress}
+                  egressBlocked={incident.scenario.scene?.egressBlocked}
+                  egressExtraSeconds={incident.scenario.scene?.egressExtraSeconds}
                   onRequestClinician={onRequestClinician}
                   hemsFlyable={hemsFlyable}
                   onSetTreatmentDestination={onSetTreatmentDestination}

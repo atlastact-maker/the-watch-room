@@ -138,6 +138,13 @@ export const scenario23: Scenario = {
   scene: {
     viewBox: { x: -45, y: -40, width: 90, height: 80 },
     compassNorth: "up",
+    // Three storeys of Victorian terrace with a half-landing.
+    egressExtraSeconds: 180,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Victorian terrace stair with a half-landing turn, and a cellar room under it — the trolley stays on Dickenson Road" },
+    ],
     buildings: [
       { shape: { x: -10, y: -30, w: 20, h: 32 }, kind: "target", label: "212 — HMO" },
       { shape: { x: -32, y: -30, w: 20, h: 32 }, kind: "neighbour", label: "210" },

@@ -106,6 +106,13 @@ export const scenario32: Scenario = {
   scene: {
     viewBox: { x: -50, y: -35, width: 100, height: 70 },
     compassNorth: "up",
+    // Sixty metres of pedestrianised lane, through forty covers.
+    egressExtraSeconds: 180,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Pedestrianised, and forty covers between her and the top of the lane — the trolley does not get near" },
+    ],
     buildings: [
       { shape: { x: -12, y: -26, w: 24, h: 22 }, kind: "target", label: "Restaurant" },
       { shape: { x: -40, y: -26, w: 26, h: 22 }, kind: "neighbour", label: "Adjoining units" },

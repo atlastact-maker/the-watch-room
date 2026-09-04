@@ -127,6 +127,15 @@ export const scenario27: Scenario = {
   scene: {
     viewBox: { x: -60, y: -50, width: 120, height: 100 },
     compassNorth: "up",
+    // Twelve metres of quarry face, then eight hundred of wet path.
+    egressExtraSeconds: 1200,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "A quarry face and eight hundred metres of steep wet path — nothing with wheels comes down here" },
+      { action: "carry_chair", reason: "He is twelve metres down a rock face. A chair is for stairs, not for this" },
+      { action: "wheelchair", reason: "No vehicular access to the face, and no path a wheel would stay on if there were" },
+    ],
     buildings: [],
     roads: [
       { shape: { x: -56, y: 30, w: 30, h: 14 }, kind: "driveway", label: "Broadley car park" },

@@ -80,12 +80,14 @@ import type {
   IncidentOutcome,
   LogEntry,
   PackagingAction,
+  EgressAction,
   PatientTreatmentState,
   Scenario,
   Task,
   TaskKind,
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
+import { EGRESS_SECONDS } from "@/lib/sim/incident_types";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
 import {
   blueLight,
@@ -2108,6 +2110,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       events: [...p.events, { kind: "packaging", action, at, by }],
     }));
   }
+  /** Record how the patient was moved to the vehicle. */
+  function applyEgress(casualtyId: string, action: EgressAction, by: string) {
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) => ({
+      ...p,
+      egress: { ...p.egress, [action]: at },
+      events: [...p.events, { kind: "egress", action, at, by }],
+    }));
+  }
+
   function setTreatmentDestination(
     casualtyId: string,
     type: HospitalDestinationType,
@@ -2392,6 +2404,44 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ]);
       return;
     }
+    // Nothing leaves until the patient is physically at the vehicle.
+    // Which method was used decides how long that took, and the scene
+    // adds its own penalty — eight flights is eight flights.
+    const tx = treatmentByCasualtyId[casualtyId];
+    const moves = Object.entries(tx?.egress ?? {}) as [EgressAction, number][];
+    if (moves.length === 0) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `noegress:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "setback",
+          message: `${applianceLabel(applianceId)} — nobody has moved the patient yet. Pick how they come out on the patient card before starting the hospital leg.`,
+        },
+      ]);
+      return;
+    }
+    // The last method chosen is the one in use.
+    const [method, startedAt] = moves.sort((a, b) => b[1] - a[1])[0];
+    const carryMs =
+      (EGRESS_SECONDS[method] +
+        (activeIncident.scenario.scene?.egressExtraSeconds ?? 0)) *
+      1000;
+    const readyAt = startedAt + carryMs;
+    if (Date.now() < readyAt) {
+      const leftMin = Math.max(1, Math.ceil((readyAt - Date.now()) / 60000));
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `carrying:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "setback",
+          message: `${applianceLabel(applianceId)} — still bringing the patient out. About ${leftMin} min before they are at the vehicle.`,
+        },
+      ]);
+      return;
+    }
+
     const incidentCoords = activeIncident.scenario.location.coords;
     const hospital = nearestHospital(incidentCoords);
     const now = Date.now();
@@ -4906,6 +4956,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onStopResus={stopResus}
             onAdministerDrug={administerDrug}
             onApplyPackaging={applyPackaging}
+            onApplyEgress={applyEgress}
             onRequestClinician={requestClinician}
             hemsFlyable={hemsAvailable(weather)}
             onSetTreatmentDestination={setTreatmentDestination}
@@ -4987,6 +5038,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onStopResus={stopResus}
             onAdministerDrug={administerDrug}
             onApplyPackaging={applyPackaging}
+            onApplyEgress={applyEgress}
             onRequestClinician={requestClinician}
             hemsFlyable={hemsAvailable(weather)}
             onSetTreatmentDestination={setTreatmentDestination}
@@ -5535,6 +5587,7 @@ function emptyTreatmentState(casualtyId: string): PatientTreatmentState {
     circulation: {},
     drugs: {},
     packaging: {},
+    egress: {},
     events: [],
   };
 }

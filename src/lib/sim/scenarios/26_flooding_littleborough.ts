@@ -113,6 +113,14 @@ export const scenario26: Scenario = {
   scene: {
     viewBox: { x: -70, y: -40, width: 140, height: 80 },
     compassNorth: "up",
+    // Wading out over ground nobody can see.
+    egressExtraSeconds: 240,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Standing water of unknown depth over unknown ground — nothing on wheels goes down Canal Street" },
+      { action: "wheelchair", reason: "Standing water over kerbs, covers and a culvert. Wheels find the hole first" },
+    ],
     buildings: [
       { shape: { x: -60, y: -28, w: 18, h: 20 }, kind: "neighbour", label: "1–5" },
       { shape: { x: -40, y: -28, w: 18, h: 20 }, kind: "neighbour", label: "7" },

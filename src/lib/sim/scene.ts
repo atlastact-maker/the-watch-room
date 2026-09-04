@@ -184,6 +184,14 @@ export type SceneCasualty = {
   presentProbability?: number;
 };
 
+/** An egress method this scene will not take, and why. The reason is
+ *  shown to the operator on the disabled option — a greyed button that
+ *  does not say why is just a broken button. */
+export type EgressBlock = {
+  action: import("./incident_types").EgressAction;
+  reason: string;
+};
+
 export type SceneSector = {
   id: 1 | 2 | 3 | 4;
   label: string;
@@ -208,6 +216,16 @@ export type FireOriginVariant = {
 export type Scene = {
   viewBox: { x: number; y: number; width: number; height: number };
   compassNorth: "up" | "down" | "left" | "right";
+  /** Ways out this scene will not allow. A terraced hallway will not take
+   *  a carry chair round the stair foot; a fourth floor with the lift out
+   *  will not take a trolley at all. Absent means everything is possible,
+   *  which is true of most flat, open jobs. */
+  egressBlocked?: EgressBlock[];
+  /** Seconds added to whichever egress method is used, for scenes where
+   *  the distance or the height is the job — eight flights with the lift
+   *  out, eight hundred metres of wooded path, sixty metres of
+   *  pedestrianised lane. Absent means a normal front door. */
+  egressExtraSeconds?: number;
   buildings: SceneBuilding[];
   roads: SceneRoad[];
   hydrants: SceneHydrant[];

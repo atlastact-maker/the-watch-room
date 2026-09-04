@@ -97,6 +97,11 @@ export const scenario29: Scenario = {
   scene: {
     viewBox: { x: -40, y: -32, width: 80, height: 64 },
     compassNorth: "up",
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Small front room with the sofa against the wall — there is no line to bring a trolley in" },
+    ],
     buildings: [
       { shape: { x: -12, y: -24, w: 22, h: 24 }, kind: "target", label: "No. 74" },
       { shape: { x: 12, y: -24, w: 20, h: 24 }, kind: "neighbour", label: "No. 76" },

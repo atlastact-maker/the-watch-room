@@ -118,6 +118,8 @@ export const scenario30: Scenario = {
   scene: {
     viewBox: { x: -60, y: -45, width: 120, height: 90 },
     compassNorth: "up",
+    // A hundred and fifty metres of grass from the gate.
+    egressExtraSeconds: 180,
     buildings: [
       { shape: { x: -8, y: -22, w: 16, h: 12 }, kind: "neighbour", label: "Bandstand" },
       { shape: { x: 34, y: 18, w: 14, h: 10 }, kind: "neighbour", label: "Park keeper's hut" },

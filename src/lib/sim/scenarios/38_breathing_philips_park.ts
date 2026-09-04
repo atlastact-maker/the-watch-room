@@ -98,6 +98,14 @@ export const scenario38: Scenario = {
   scene: {
     viewBox: { x: -45, y: -40, width: 90, height: 80 },
     compassNorth: "up",
+    // Eight flights down, with the lift out.
+    egressExtraSeconds: 480,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Lift out of service — eight flights, and nothing on wheels goes down them" },
+      { action: "wheelchair", reason: "Eight flights with the lift out. A wheelchair is a carry with extra weight in it" },
+    ],
     buildings: [
       { shape: { x: -18, y: -32, w: 36, h: 34 }, kind: "target", label: "Ryebank Court — flat 14, 4th" },
       { shape: { x: 22, y: -20, w: 20, h: 18 }, kind: "neighbour", label: "Bin store" },

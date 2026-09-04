@@ -496,6 +496,124 @@ export type BreathingAction =
   | "needle_decomp"
   | "finger_thoracostomy";
 export type CirculationAction = "iv_access" | "io_access" | "fluids_250" | "fluids_500" | "cpr" | "defib";
+
+/** How the patient reaches the vehicle. Not what is strapped to them —
+ *  that is packaging — but how they physically get out, which the
+ *  building decides more than the injury does. */
+export type EgressAction =
+  | "walked"           // ambulant with an arm. The commonest of the lot
+  | "carry_chair"      // stair chair — the workhorse of UK ambulance work
+  | "carry_sheet"      // where a chair will not go: tight stairs, a bend
+  | "manual_carry"     // rough or open ground, no wheels of any kind
+  | "trolley"          // the ambulance trolley, on the flat
+  | "vacuum_mattress"  // a long carry with something unstable
+  | "wheelchair";      // hospital to hospital, and nothing acute
+
+/** Roughly how long each method takes to get the patient from where
+ *  they are to the back of the vehicle, on a normal job — a house with a
+ *  drive, a shop with a door onto the street. The scene adds its own
+ *  penalty on top (see Scene.egressExtraSeconds) for the ones where the
+ *  distance or the height is the whole problem. */
+export const EGRESS_SECONDS: Record<EgressAction, number> = {
+  walked: 90,
+  carry_chair: 300,
+  carry_sheet: 420,
+  manual_carry: 480,
+  trolley: 180,
+  vacuum_mattress: 600,
+  wheelchair: 240,
+};
+
+export const EGRESS_MIN_SCOPE: Record<EgressAction, ClinicianScope> = {
+  walked: "dca",
+  carry_chair: "dca",
+  carry_sheet: "dca",
+  manual_carry: "dca",
+  trolley: "dca",
+  vacuum_mattress: "dca",
+  wheelchair: "dca",
+};
+
+/** Egress methods a patient's condition rules out, and why.
+ *
+ *  The scene decides what the building will take; this decides what the
+ *  patient will take, and they are different problems. Keyed on the LIVE
+ *  red flags, so treating the thing unlocks the option — the asthmatic
+ *  who has had his salbutamol can be walked down the stairs he could not
+ *  be walked down before it. A flag that never clears (a STEMI is fixed
+ *  in a cath lab, not in a hallway) keeps its block for the whole job,
+ *  which is also correct. */
+export const EGRESS_CLINICAL_BLOCKS: {
+  flag: import("./scene").PatientRedFlag;
+  actions: EgressAction[];
+  reason: string;
+}[] = [
+  {
+    flag: "spinal_injury_suspected",
+    actions: ["walked", "carry_chair", "wheelchair"],
+    reason: "Suspected spinal injury — this sits them up or walks them",
+  },
+  {
+    flag: "cardiac_arrest",
+    actions: ["walked", "carry_chair", "wheelchair"],
+    reason: "In arrest — flat, and compressions do not stop for the stairs",
+  },
+  {
+    flag: "stemi",
+    actions: ["walked"],
+    reason: "Never walk a STEMI — every step is myocardial work you cannot give back",
+  },
+  {
+    flag: "hypovolaemic_shock",
+    actions: ["walked", "wheelchair"],
+    reason: "Shocked — sitting or standing them takes the pressure down further",
+  },
+  {
+    flag: "major_haemorrhage",
+    actions: ["walked", "wheelchair"],
+    reason: "Bleeding — keep them flat and keep them still",
+  },
+  {
+    flag: "head_injury_severe",
+    actions: ["walked", "wheelchair"],
+    reason: "Serious head injury — assume the neck with it until somebody clears it",
+  },
+  {
+    flag: "tension_pneumothorax",
+    actions: ["walked", "wheelchair"],
+    reason: "Decompress it first. Nothing else moves until that needle is in",
+  },
+  {
+    flag: "airway_compromise",
+    actions: ["walked"],
+    reason: "The airway is the whole job — hands stay on it, so they do not walk",
+  },
+  {
+    flag: "severe_asthma",
+    actions: ["walked"],
+    reason: "Do not walk a severe asthmatic — exertion is the one thing left that can tip them",
+  },
+  {
+    flag: "anaphylaxis",
+    actions: ["walked"],
+    reason: "Do not stand or walk anaphylaxis — standing has killed patients who were improving (Resus Council UK)",
+  },
+  {
+    flag: "seizure_active",
+    actions: ["walked", "carry_chair", "wheelchair"],
+    reason: "Still fitting — nothing that needs them to sit up or hold on",
+  },
+  {
+    flag: "overdose_opioid",
+    actions: ["walked", "wheelchair"],
+    reason: "Not rousable enough to walk — a carry until the naloxone is in and holding",
+  },
+  {
+    flag: "hypoglycaemia",
+    actions: ["walked"],
+    reason: "Not while the BM is on the floor — sugar first, then see if they can walk",
+  },
+];
 export type PackagingAction =
   // Blankets, a heat pack and a warm saloon. Passive at this level —
   // anything more is a hospital's job — but it is the difference between
@@ -545,6 +663,7 @@ export type TreatmentEvent =
   | { kind: "circulation"; action: CirculationAction; at: number; by: string }
   | { kind: "drug"; drug: DrugName; at: number; by: string }
   | { kind: "packaging"; action: PackagingAction; at: number; by: string }
+  | { kind: "egress"; action: EgressAction; at: number; by: string }
   | { kind: "clinician_requested"; scope: ClinicianScope; at: number }
   | { kind: "clinician_on_scene"; scope: ClinicianScope; at: number }
   | { kind: "destination_set"; destination: import("./scene").HospitalDestinationType; name: string; at: number }
@@ -594,6 +713,8 @@ export type PatientTreatmentState = {
   /** Drugs administered — unordered set with timestamps (one per drug at most). */
   drugs: Partial<Record<DrugName, number>>;
   packaging: Partial<Record<PackagingAction, number>>;
+  /** How the patient was moved to the vehicle, and when. */
+  egress: Partial<Record<EgressAction, number>>;
   /** Chosen destination (the actual receiving hospital). */
   chosenDestination?: {
     type: import("./scene").HospitalDestinationType;

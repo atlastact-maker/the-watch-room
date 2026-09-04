@@ -114,6 +114,13 @@ export const scenario02: Scenario = {
   scene: {
     viewBox: { x: -40, y: -30, width: 80, height: 60 },
     compassNorth: "up",
+    // Stairs from the back bedroom, in a fire.
+    egressExtraSeconds: 120,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Stairs to the back bedroom with a loft conversion above them — the trolley waits on the drive" },
+    ],
     buildings: [
       {
         shape: { x: -4, y: -6, w: 8, h: 12 },

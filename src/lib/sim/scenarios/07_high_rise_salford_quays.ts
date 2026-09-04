@@ -158,6 +158,14 @@ export const scenario07: Scenario = {
   scene: {
     viewBox: { x: -70, y: -50, width: 140, height: 100 },
     compassNorth: "up",
+    // Twelfth floor, single staircase, bridgehead on it.
+    egressExtraSeconds: 600,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "trolley", reason: "Lift in fire mode and a single staircase with the bridgehead on it — nothing on wheels leaves the twelfth floor" },
+      { action: "wheelchair", reason: "Twelve floors of stairs. A wheelchair is a way of not carrying somebody, and here you are carrying them" },
+    ],
     buildings: [
       {
         shape: { x: -16, y: -24, w: 28, h: 28 },

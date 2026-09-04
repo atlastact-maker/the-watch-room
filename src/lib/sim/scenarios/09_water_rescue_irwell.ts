@@ -143,6 +143,8 @@ export const scenario09: Scenario = {
   scene: {
     viewBox: { x: -80, y: -45, width: 160, height: 90 },
     compassNorth: "up",
+    // Bank to the vehicle, over railings and moorings.
+    egressExtraSeconds: 180,
     buildings: [
       { shape: { x: -74, y: -42, w: 34, h: 18 }, kind: "neighbour", label: "The Lowry" },
       { shape: { x: 30, y: 26, w: 40, h: 16 }, kind: "neighbour", label: "Imperial War Museum North" },

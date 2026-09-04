@@ -7,6 +7,7 @@ import { SCENARIOS } from "@/lib/sim/scenarios";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import { STANDARD_PDA } from "@/lib/sim/pda";
 import { clearSeconds } from "@/lib/sim/handover";
+import { EGRESS_CLINICAL_BLOCKS, EGRESS_SECONDS } from "@/lib/sim/incident_types";
 import type { Incident, Scenario } from "@/lib/sim/incident_types";
 
 type Problem = { id: string; title: string; kind: string; detail: string };
@@ -379,6 +380,52 @@ for (const s of SCENARIOS) {
     if (cas.severity === "critical" && cl.criticalInterventions.length === 0) {
       note(s, "CRITICAL WITH NO INTERVENTIONS", cas.id);
     }
+
+    // -- Egress: can this patient actually be got to the vehicle? --------
+    // The scene rules out what the building will not take; the flags rule
+    // out what the patient will not take. Between them they have to leave
+    // at least one way out, or the job cannot be finished at all. Worst
+    // case is taken deliberately: every authored flag active at once,
+    // which is where the patient starts.
+    const shut = new Set<string>((sc?.egressBlocked ?? []).map((b) => b.action));
+    for (const rule of EGRESS_CLINICAL_BLOCKS) {
+      if (cl.redFlags.includes(rule.flag)) for (const a of rule.actions) shut.add(a);
+    }
+    const waysOut = Object.keys(EGRESS_SECONDS).filter((a) => !shut.has(a));
+    if (waysOut.length === 0) {
+      note(
+        s,
+        "NO WAY OUT",
+        cas.id + " — the scene and the patient between them block every egress method",
+      );
+    }
+  }
+
+  // A scenario whose prose says the way out is the problem should say so
+  // in data as well, or the operator reads about eight flights of stairs
+  // and then walks the patient down them in ninety seconds.
+  const accessProse = [
+    s.property.access,
+    ...s.property.knownHazards,
+    ...s.property.vulnerabilities,
+  ]
+    .join(" ")
+    .toLowerCase();
+  const hardEgress =
+    /\bstairs?\b|lift out|on foot|\bcarry\b|pedestrianis|\bflights?\b|scaffold|no vehicular access/.test(
+      accessProse,
+    );
+  if (
+    hardEgress &&
+    (sc?.casualties?.length ?? 0) > 0 &&
+    !sc?.egressBlocked &&
+    sc?.egressExtraSeconds === undefined
+  ) {
+    note(
+      s,
+      "HARD EGRESS NOT MODELLED",
+      "access prose describes a carry, but the scene authors no egress block or penalty",
+    );
   }
 
   // A scenario whose evaluation talks about a destination must have a

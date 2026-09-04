@@ -124,6 +124,16 @@ export const scenario34: Scenario = {
   scene: {
     viewBox: { x: -60, y: -45, width: 120, height: 90 },
     compassNorth: "up",
+    // First-floor scaffold — he has to come down before he goes anywhere.
+    egressExtraSeconds: 420,
+    // What this building will not take. Prose above; a locked option
+    // with its reason on it here.
+    egressBlocked: [
+      { action: "walked", reason: "First-floor scaffold boards. Nobody walks off that, and he could not if he wanted to" },
+      { action: "carry_chair", reason: "A chair on a scaffold ladder is how you make a second casualty" },
+      { action: "trolley", reason: "He is at first-floor level on boards — the trolley cannot be got to him" },
+      { action: "wheelchair", reason: "He is at first-floor level on boards — the trolley cannot be got to him" },
+    ],
     buildings: [
       { shape: { x: -26, y: -32, w: 52, h: 34 }, kind: "target", label: "Frame — scaffolded" },
       { shape: { x: 30, y: -20, w: 20, h: 14 }, kind: "neighbour", label: "Site cabins" },
