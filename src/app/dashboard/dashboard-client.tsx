@@ -4716,6 +4716,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         coveredServices={coveredServices}
         shiftStartedAt={shiftStartedAt}
         shiftStartHour={shiftStartHour}
+        hasLiveIncident={incidents.some((i) => !runtimes[i.id]?.outcome)}
+        // The same condition the autosave effect uses, so the dialog can
+        // only ever promise a save that is really happening.
+        shiftSaved={!!patch && !!activeIncident && !outcome}
       />
 
       <main id="main-content" className="relative flex-1 overflow-hidden" aria-label="Dispatch map and panels">

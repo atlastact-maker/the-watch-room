@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth/actions";
 import type { Patch } from "@/lib/sim/areas";
 import type { Scenario } from "@/lib/sim/incident_types";
@@ -24,6 +26,12 @@ type Props = {
   /** Real time the shift began, and the in-world hour it began at. */
   shiftStartedAt: number;
   shiftStartHour: number;
+  /** True while any job is running. Leaving then asks first. */
+  hasLiveIncident?: boolean;
+  /** True only while the autosave is actually writing — it is gated on
+   *  the SELECTED job being live, because the save format holds one
+   *  incident. The dialog says what is true rather than what is usual. */
+  shiftSaved?: boolean;
 };
 
 export function DashboardHeader({
@@ -38,7 +46,11 @@ export function DashboardHeader({
   coveredServices,
   shiftStartedAt,
   shiftStartHour,
+  hasLiveIncident,
+  shiftSaved,
 }: Props) {
+  const router = useRouter();
+  const [confirmLeave, setConfirmLeave] = useState(false);
   // The SHIFT clock, not the wall clock. It starts at the hour the
   // operator chose on the briefing screen and runs forward in real time
   // from there, so the time on the bar is the time the crews are working
@@ -76,10 +88,70 @@ export function DashboardHeader({
       style={CAD_VARS}
       className="border-b-2 border-zinc-500 bg-(--color-surface-raised) text-(--color-text)"
     >
+      {confirmLeave && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 p-6">
+          <div className="w-full max-w-[420px] border border-(--color-border) bg-(--color-bg) p-5 text-(--color-text)">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-(--color-amber)">
+              Leave the shift
+            </p>
+            <p className="mt-2 text-[13px] leading-snug">
+              {shiftSaved ? (
+                <>
+                  There is a job running. The shift is being saved as you go, so you can
+                  pick it up where you left it — but nothing on the ground stops while
+                  you are away.
+                </>
+              ) : (
+                <>
+                  There is a job running and{" "}
+                  <span className="text-(--color-amber)">it is not being saved</span> —
+                  the autosave only runs on the job you have selected. Select the live
+                  one before you go, or leave and lose it.
+                </>
+              )}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmLeave(false)}
+                className="border border-(--color-border) px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-text)"
+              >
+                Stay on
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/menu")}
+                className="border border-(--color-amber) bg-(--color-amber)/15 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/25"
+              >
+                Ops Room
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between px-6 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
         <div className="flex items-center gap-3">
           <span className="dot-live size-1.5 rounded-full bg-(--color-amber)" />
-          <span className="font-bold text-(--color-text)">The Watch Room</span>
+          {hasLiveIncident ? (
+            <button
+              type="button"
+              onClick={() => setConfirmLeave(true)}
+              title="Back to the Ops Room"
+              className="group flex items-center gap-2 font-bold text-(--color-text) hover:text-(--color-amber)"
+            >
+              <span className="opacity-0 transition-opacity group-hover:opacity-100">←</span>
+              The Watch Room
+            </button>
+          ) : (
+            <Link
+              href="/menu"
+              title="Back to the Ops Room"
+              className="group flex items-center gap-2 font-bold text-(--color-text) hover:text-(--color-amber)"
+            >
+              <span className="opacity-0 transition-opacity group-hover:opacity-100">←</span>
+              The Watch Room
+            </Link>
+          )}
         </div>
 
         <div className="hidden items-center gap-4 md:flex">
