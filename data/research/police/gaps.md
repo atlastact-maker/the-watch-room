@@ -163,7 +163,7 @@ Both are MODELLED. Nothing in either is transcribed from a real system.
 - **LEDS screens and field names are not public.** What is modelled is the
   shape of a police data enquiry: a policing purpose on every check, an
   audit of who ran what, and a structured return. The wording, the field
-  order and the  framing are the sim's.
+  order and the `END OF RECORD` framing are the sim's.
 - **The policing purposes** are the ones a control room operator here
   would plausibly choose between, not a force's actual list.
 - **The generated population is fictional.** Common British forenames and
@@ -178,7 +178,7 @@ Both are MODELLED. Nothing in either is transcribed from a real system.
 - [ ] **ANPR camera positions are not published** and none is claimed. The
   twelve sites use real coordinates lifted from the project's own station
   files and name real roads, but where GMP actually has cameras is not
-  known. If a real list is ever obtained,  is one edit.
+  known. If a real list is ever obtained, `ANPR_SITES` is one edit.
 - [ ] **Flow figures per site are invented** — 42 plates a minute at
   Eccles Interchange down to 14 on Oldham Road. The ratio between
   motorway and A-road sites is the point; the absolute numbers are not
