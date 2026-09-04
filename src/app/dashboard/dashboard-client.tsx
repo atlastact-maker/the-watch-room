@@ -149,6 +149,8 @@ import {
   MapFilters,
   type MapFilter,
 } from "./components/map-filters";
+import { LedsTerminal } from "./components/leds-terminal";
+import { auditLine, unexplainedChecks, type LedsCheck } from "@/lib/sim/leds";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
@@ -433,6 +435,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // shift's own timer — and wait, visibly, until somebody picks them up.
   const [pendingCalls, setPendingCalls] = useState<PendingCall[]>([]);
   const [showCallStack, setShowCallStack] = useState(true);
+  const [showLeds, setShowLeds] = useState(false);
+  /** Every LEDS enquiry made this shift. Survives the panel being closed
+   *  — an audit you can dismiss is not an audit. */
+  const [ledsChecks, setLedsChecks] = useState<LedsCheck[]>([]);
   const [mapFilter, setMapFilter] = useState<MapFilter>(() => {
     if (typeof window === "undefined") return DEFAULT_MAP_FILTER;
     try {
@@ -2723,6 +2729,20 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       etaSeconds: Math.max(0, Math.round((c.arrivesAt - now) / 1000)),
     }));
   }
+
+  /** Runs a LEDS enquiry into the shift's audit and onto the log. */
+  const recordLedsCheck = useCallback((c: LedsCheck) => {
+    setLedsChecks((prev) => [...prev, c]);
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `leds:${c.id}`,
+        timestamp: c.atMs,
+        kind: "annotation",
+        message: auditLine(c),
+      },
+    ]);
+  }, []);
 
   /** The pre-determined attendance for a job, and who is covering each
    *  slot. The stack shows it so the operator can see what the incident
@@ -5078,6 +5098,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 disabledNote: "There is no call to show until a job is answered",
               },
               {
+                id: "leds",
+                label: "LEDS",
+                // An unexplained check is the one thing here worth
+                // interrupting the operator about, so it takes the hint
+                // line off the plain count when there is one.
+                hint:
+                  unexplainedChecks(ledsChecks).length > 0
+                    ? `${unexplainedChecks(ledsChecks).length} unexplained`
+                    : ledsChecks.length > 0
+                      ? `${ledsChecks.length} check${ledsChecks.length === 1 ? "" : "s"}`
+                      : "vehicle · person",
+                on: showLeds,
+                onToggle: () => setShowLeds((v) => !v),
+              },
+              {
                 id: "anpr",
                 label: "ANPR console",
                 hint: "soon",
@@ -5119,6 +5154,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         {/* The call stack — unanswered calls above the line, running jobs
             below, and the drop target for dragging a unit onto a job.
             Hidden in the ground view, which is a single-incident space. */}
+        {!groundViewOpen && showLeds && (
+          <LedsTerminal
+            index={recordIndex}
+            activeIncidentId={activeIncident?.id ?? null}
+            checks={ledsChecks}
+            onCheck={recordLedsCheck}
+            onClose={() => setShowLeds(false)}
+          />
+        )}
         {!groundViewOpen && showCallStack && (
           <CallStack
             pending={pendingCalls}
