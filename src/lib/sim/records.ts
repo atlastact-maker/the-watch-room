@@ -155,7 +155,7 @@ export function normaliseVrm(v: string): string {
 
 /** Case-folded, punctuation-stripped, single-spaced — so "O'Donnell",
  *  "odonnell" and "J Shaw" / "J. Shaw" all meet in the middle. */
-function norm(s: string): string {
+export function norm(s: string): string {
   return s
     .toLowerCase()
     .replace(/['’.\-]/g, "")
@@ -165,7 +165,7 @@ function norm(s: string): string {
 
 /** Digits and letters only — for phone numbers and postcodes typed as
  *  read off a screen, with or without the spaces. */
-function squash(s: string): string {
+export function squash(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
