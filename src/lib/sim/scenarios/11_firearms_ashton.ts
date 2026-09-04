@@ -216,9 +216,11 @@ export const scenario11: Scenario = {
       tone: "info",
     },
     {
+      // No probability, deliberately. shot-heard has already taken its
+      // 35%; this is the other 65% and it has to be certain, or a share
+      // of runs hear neither and the stand-off never resolves.
       id: "surrender",
       atSec: 640,
-      probability: 0.85,
       suppressesIds: ["shot-heard"],
       text: "The front door's opening — he's got his hands on his head, he's coming out slow. The police are shouting instructions at him.",
       tone: "urgent",

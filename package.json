@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:scenarios": "npx esbuild tools/sim-check/scenarios.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/scenario-check.cjs --log-level=error && node node_modules/.cache/scenario-check.cjs"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",
