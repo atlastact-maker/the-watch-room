@@ -140,6 +140,7 @@ export const scenario38: Scenario = {
           // Exhausted rather than wheezing: the respiratory rate has come
           // DOWN and the saturations with it, which is the bad direction.
           vitals: { rr: 32, spo2: 88, hr: 128, bpSys: 132, bpDia: 78, gcs: 14, temp: 37.0, bm: 6.0 },
+          ageYears: 24,
           presumedCondition: "Acute severe asthma — poor air entry, unable to complete sentences",
           redFlags: ["severe_asthma"],
           preferredDestination: "nearest_a_e",

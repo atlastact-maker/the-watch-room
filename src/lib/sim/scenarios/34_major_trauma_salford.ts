@@ -183,6 +183,7 @@ export const scenario34: Scenario = {
           // Talking on arrival and quietly bleeding into his pelvis and
           // thigh. The blood pressure is the thing to watch, not the leg.
           vitals: { rr: 26, spo2: 94, hr: 124, bpSys: 96, bpDia: 58, gcs: 14, temp: 36.1, bm: 6.0 },
+          ageYears: 34,
           presumedCondition: "Fall from height approximately 4 m — open lower limb deformity, pelvic pain",
           redFlags: ["hypovolaemic_shock", "spinal_injury_suspected", "major_haemorrhage"],
           preferredDestination: "mtc",

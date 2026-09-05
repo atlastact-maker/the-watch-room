@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:scenarios": "npx esbuild tools/sim-check/scenarios.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/scenario-check.cjs --log-level=error && node node_modules/.cache/scenario-check.cjs",
-    "check:patients": "npx esbuild tools/sim-check/patients.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/patient-check.cjs --log-level=error && node node_modules/.cache/patient-check.cjs"
+    "check:patients": "npx esbuild tools/sim-check/patients.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/patient-check.cjs --log-level=error && node node_modules/.cache/patient-check.cjs",
+    "check:hospitals": "npx esbuild tools/sim-check/hospitals.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/hospital-check.cjs --log-level=error && node node_modules/.cache/hospital-check.cjs"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",

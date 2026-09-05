@@ -83,7 +83,7 @@ const GLOSSARY: Section[] = [
       { term: "DCA", def: "Paramedic + EMT — baseline UK ambulance scope" },
       { term: "QR (AP)", def: "Advanced Paramedic — extended formulary (Ketamine, Fentanyl, Amiodarone)" },
       { term: "CCC", def: "Critical Care Car — doctor-paramedic team, blood products, finger thoracostomy, PHEA" },
-      { term: "BASICS", def: "Volunteer pre-hospital doctor — PHEA, blood, prolonged entrapment" },
+      { term: "BASICS", def: "Volunteer immediate-care doctor from NWPCCC, the one BASICS-affiliated scheme whose area reaches GM. Warrington-based; alerted by text through the NWAS Complex Incident Hub, not dispatched. Response into Greater Manchester is not guaranteed and often unavailable" },
       { term: "HEMS", def: "Helicopter-borne doctor team — PHEA, surgical airway, direct to MTC" },
     ],
   },

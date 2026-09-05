@@ -216,6 +216,7 @@ export const scenario09: Scenario = {
             rr: 28, spo2: 90, hr: 128, bpSys: 112, bpDia: 74,
             gcs: 13, temp: 33.4, bm: 5.2,
           },
+          ageYears: 33,
           presumedCondition:
             "Cold-water immersion — cold shock, early hypothermia, aspiration risk; crisis presentation",
           redFlags: ["airway_compromise"],

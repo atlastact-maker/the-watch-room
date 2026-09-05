@@ -158,6 +158,7 @@ export const scenario13: Scenario = {
           // slightly dry, a bit tachycardic. Nothing here is dramatic and
           // that is exactly why she keeps getting left.
           vitals: { rr: 18, spo2: 95, hr: 96, bpSys: 112, bpDia: 68, gcs: 15, temp: 35.4, bm: 5.1 },
+          ageYears: 81,
           presumedCondition: "Fall with a prolonged lie — cold, no obvious injury, unable to self-rise",
           redFlags: [],
           preferredDestination: "nearest_a_e",

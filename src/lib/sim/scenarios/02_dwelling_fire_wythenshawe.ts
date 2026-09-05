@@ -259,6 +259,7 @@ export const scenario02: Scenario = {
             rr: 32, spo2: 86, hr: 148, bpSys: 88, bpDia: 52,
             gcs: 9, temp: 37.2, bm: 6.4,
           },
+          ageYears: 5,
           presumedCondition: "Smoke-inhalation · burns ~ 8% · paediatric trauma",
           // Shocked, not bleeding. A burn loses fluid; it does not
           // haemorrhage, and tXA is a drug for traumatic bleeding.
@@ -281,6 +282,7 @@ export const scenario02: Scenario = {
             rr: 24, spo2: 91, hr: 118, bpSys: 104, bpDia: 68,
             gcs: 14, temp: 36.9, bm: 5.6,
           },
+          ageYears: 38,
           presumedCondition: "Smoke-inhalation · superficial burns ~ 4%",
           redFlags: ["airway_compromise"],
           preferredDestination: "nearest_a_e",

@@ -665,6 +665,9 @@ export type TreatmentEvent =
   | { kind: "packaging"; action: PackagingAction; at: number; by: string }
   | { kind: "egress"; action: EgressAction; at: number; by: string }
   | { kind: "clinician_requested"; scope: ClinicianScope; at: number }
+  // The BASICS alert as it plays out — hub, broadcast, and either a
+  // named responder or nothing.
+  | { kind: "basics_alert"; stage: "cih" | "broadcast" | "answered" | "none" | "declined"; callsign?: string; at: number }
   | { kind: "clinician_on_scene"; scope: ClinicianScope; at: number }
   | { kind: "destination_set"; destination: import("./scene").HospitalDestinationType; name: string; at: number }
   | { kind: "atmist_sent"; at: number };
@@ -672,8 +675,29 @@ export type TreatmentEvent =
 /** Full treatment state for one casualty. Persisted in dashboard-client
  *  state keyed by casualty id; survives ambulance hand-off (if HEMS takes
  *  over the patient, the same record keeps growing). */
+/** A BASICS request in flight. Rolled once when the operator asks, then
+ *  advanced by the clock: the hub interrogates, the broadcast goes out,
+ *  and somebody answers or nobody does. */
+export type BasicsRequest = {
+  requestedAt: number;
+  stage: "cih" | "broadcast" | "answered" | "none" | "declined";
+  /** Epoch ms the current stage resolves. */
+  nextAt: number;
+  /** How many handsets the broadcast reaches. Zero is the honest answer
+   *  north of the M62. */
+  alerted: number;
+  /** Fixed at request time. */
+  winnerApplianceId: string | null;
+  winnerCallsign: string | null;
+  cihDeclined: boolean;
+  answerSec: number;
+  turnoutSec: number;
+};
+
 export type PatientTreatmentState = {
   casualtyId: string;
+  /** The volunteer-doctor request, if one has been made. */
+  basicsRequest?: BasicsRequest;
   surveyStartedAt?: number;
   surveyCompletedAt?: number;
   /** Once the survey completes, these fields are populated from the

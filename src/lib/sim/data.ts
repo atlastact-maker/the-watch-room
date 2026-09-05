@@ -44,6 +44,10 @@ type RawStation = {
    *  that type, so it can add a type the resources line never mentioned.
    *  See NWAS_CALLSIGN_PREFIX for the scheme the numbers sit in. */
   callsigns?: Record<string, string[] | undefined>;
+  /** A scheme address rather than a station — see Station.virtual. */
+  virtual?: boolean;
+  /** Per-callsign home anchors for a virtual scheme's responders. */
+  responders?: Record<string, { lat: number; lng: number; label: string }>;
 };
 
 /** Parse a "pods: 2x HVP/HVHL" line from the raw station data into a list
@@ -91,6 +95,7 @@ function buildStationList(
           coordsApproximate: s.coords!.approximate === true,
           ptsOnly: s.pts_only === true,
           availablePods: extractAvailablePods(s.appliances ?? s.resources),
+          virtual: s.virtual === true,
         }),
       ),
   );
@@ -408,6 +413,7 @@ export function buildAppliances(
   rawList: string[],
   authored?: Record<string, string[] | undefined>,
   shift: Shift = "early",
+  responders?: Record<string, { lat: number; lng: number; label: string }>,
 ): Appliance[] {
   const out: Appliance[] = [];
   // Short station id for callsign composition. GMFRS keeps the "G" prefix so
@@ -531,6 +537,8 @@ export function buildAppliances(
             ? [...type.kit, ...(POD_TYPES[parsed.podType]?.kit ?? [])]
             : type.kit,
           note: parsed.note,
+          homeAnchor: responders?.[designator],
+          schemeVirtual: station.virtual || undefined,
           make: mm.make,
           model: mm.model,
           vrm: generateVrm(seededRng(`${applianceId}:vrm`)),
@@ -562,7 +570,7 @@ export function getStationAppliances(stationId: string, shift: Shift = "early"):
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.resources ?? [], s.callsigns, shift);
+      return buildAppliances(station, s.resources ?? [], s.callsigns, shift, s.responders);
     }
   }
   for (const area of gmpJson.areas) {
@@ -570,7 +578,7 @@ export function getStationAppliances(stationId: string, shift: Shift = "early"):
     if (s) {
       const station = STATIONS.find((st) => st.id === stationId);
       if (!station) return [];
-      return buildAppliances(station, s.resources ?? [], s.callsigns, shift);
+      return buildAppliances(station, s.resources ?? [], s.callsigns, shift, s.responders);
     }
   }
   return [];

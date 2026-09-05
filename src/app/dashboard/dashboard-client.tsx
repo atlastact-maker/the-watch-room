@@ -88,6 +88,7 @@ import type {
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
 import { EGRESS_SECONDS } from "@/lib/sim/incident_types";
+import { rollBasicsResponse, type BasicsResponder } from "@/lib/sim/basics";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
 import {
   blueLight,
@@ -99,7 +100,12 @@ import {
 import { pagerDelaySec } from "@/lib/sim/turnout";
 import { scoreIncident } from "@/lib/sim/scoring";
 import { rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
-import { nearestHospital, rollOffloadSeconds } from "@/lib/sim/hospitals";
+import {
+  hasHelipad,
+  nearestHospital,
+  resolveDestination,
+  rollOffloadSeconds,
+} from "@/lib/sim/hospitals";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
 import {
   baDurationMultiplier,
@@ -2110,6 +2116,145 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       events: [...p.events, { kind: "packaging", action, at, by }],
     }));
   }
+  /** Put an answered volunteer doctor on the road from wherever they are. */
+  async function mobiliseBasics(casualtyId: string, applianceId: string, turnoutSec: number) {
+    if (!activeIncident) return;
+    const appliance = allDeployableStations
+      .flatMap((s) => s.appliances)
+      .find((a) => a.id === applianceId);
+    if (!appliance?.homeAnchor) return;
+    const anchor = appliance.homeAnchor;
+    const scene = activeIncident.scenario.location.coords;
+    const route = await routeEta(anchor, scene);
+    deployAppliance({
+      applianceId,
+      slotId: "clinician:basics",
+      etaSeconds: route.seconds,
+      routeMeters: route.meters,
+      routeCoords: route.coords ?? undefined,
+    });
+    // They are at home or at work, not sat in a cab — the turnout goes on
+    // top of the drive, and they are the patient's clinician on arrival.
+    setDeployments((prev) =>
+      prev.map((d) =>
+        d.applianceId === applianceId
+          ? {
+              ...d,
+              etaSeconds: d.etaSeconds + turnoutSec,
+              arrivesAt: d.arrivesAt + turnoutSec * 1000,
+              treatingCasualtyId: casualtyId,
+            }
+          : d,
+      ),
+    );
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `reqc:basicsgo:${Date.now()}`,
+        timestamp: Date.now(),
+        kind: "annotation",
+        message: `${appliance.callsign} — volunteer doctor answered, mobilising from ${anchor.label} in own vehicle · ETA about ${Math.max(1, Math.round((route.seconds * 0.6 + turnoutSec) / 60))} min`,
+      },
+    ]);
+  }
+
+  useEffect(() => {
+    for (const tx of Object.values(treatmentByCasualtyId)) {
+      const r = tx.basicsRequest;
+      if (!r || now < r.nextAt) continue;
+      if (r.stage !== "cih" && r.stage !== "broadcast") continue;
+      const at = Date.now();
+
+      if (r.stage === "cih") {
+        // The hub has looked at it. Three ways out of this stage: it
+        // picks another asset, there is nobody in range to alert, or the
+        // broadcast goes out.
+        if (r.cihDeclined) {
+          updateTreatment(tx.casualtyId, (p) => ({
+            ...p,
+            basicsRequest: { ...r, stage: "declined", nextAt: at },
+            events: [...p.events, { kind: "basics_alert", stage: "declined", at }],
+          }));
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `basics:declined:${at}`,
+              timestamp: at,
+              kind: "annotation",
+              message: "Complex Incident Hub: no BASICS activation — an NWAA critical care asset is the better fit. Request HEMS or the critical care car.",
+            },
+          ]);
+        } else if (r.alerted === 0) {
+          updateTreatment(tx.casualtyId, (p) => ({
+            ...p,
+            basicsRequest: { ...r, stage: "none", nextAt: at },
+            events: [...p.events, { kind: "basics_alert", stage: "none", at }],
+          }));
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `basics:none:${at}`,
+              timestamp: at,
+              kind: "setback",
+              message: "No BASICS responder within the 20-mile alert radius. Nearest scheme cover is Warrington-based. Alternatives: NWAA critical care car, HEMS if flying, Advanced Paramedic.",
+            },
+          ]);
+        } else {
+          updateTreatment(tx.casualtyId, (p) => ({
+            ...p,
+            basicsRequest: { ...r, stage: "broadcast", nextAt: at + r.answerSec * 1000 },
+            events: [...p.events, { kind: "basics_alert", stage: "broadcast", at }],
+          }));
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `basics:bcast:${at}`,
+              timestamp: at,
+              kind: "annotation",
+              message: `Automated alert sent to ${r.alerted} responder handset${r.alerted === 1 ? "" : "s"} within 20 miles. Awaiting an answer.`,
+            },
+          ]);
+        }
+        continue;
+      }
+
+      // Broadcast stage has run its course.
+      if (r.winnerApplianceId && r.winnerCallsign) {
+        updateTreatment(tx.casualtyId, (p) => ({
+          ...p,
+          basicsRequest: { ...r, stage: "answered", nextAt: at },
+          events: [...p.events, { kind: "basics_alert", stage: "answered", callsign: r.winnerCallsign ?? undefined, at }],
+        }));
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `basics:ans:${at}`,
+            timestamp: at,
+            kind: "annotation",
+            message: `${r.winnerCallsign} answered the alert — Complex Incident Hub phoning back to confirm and dispatch.`,
+          },
+        ]);
+        void mobiliseBasics(tx.casualtyId, r.winnerApplianceId, r.turnoutSec);
+      } else {
+        updateTreatment(tx.casualtyId, (p) => ({
+          ...p,
+          basicsRequest: { ...r, stage: "none", nextAt: at },
+          events: [...p.events, { kind: "basics_alert", stage: "none", at }],
+        }));
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `basics:timeout:${at}`,
+            timestamp: at,
+            kind: "setback",
+            message: "No BASICS response — nobody answered the alert. Alternatives: NWAA critical care car, HEMS if flying, Advanced Paramedic.",
+          },
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
+
   /** Record how the patient was moved to the vehicle. */
   function applyEgress(casualtyId: string, action: EgressAction, by: string) {
     const at = Date.now();
@@ -2275,12 +2420,69 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ]);
       return;
     }
+    // A volunteer doctor is not dispatched; they are alerted, and they
+    // may not answer. The whole thing is rolled now and played out by
+    // the clock in the effect below.
+    if (scope === "basics") {
+      const existing = treatmentByCasualtyId[casualtyId]?.basicsRequest;
+      if (existing && (existing.stage === "cih" || existing.stage === "broadcast")) {
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `reqc:basicsdup:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: "BASICS request already with the Complex Incident Hub — wait for the answer.",
+          },
+        ]);
+        return;
+      }
+      const responders: BasicsResponder[] = allDeployableStations
+        .flatMap((s) => s.appliances)
+        .filter((a) => a.type === "BASICS" && a.homeAnchor && a.status === 7)
+        .filter((a) => !deployments.some((d) => d.applianceId === a.id))
+        .map((a) => ({ applianceId: a.id, callsign: a.callsign, anchor: a.homeAnchor! }));
+      const roll = rollBasicsResponse(
+        activeIncident.scenario.location.coords,
+        responders,
+        new Date().getHours(),
+      );
+      const at = Date.now();
+      updateTreatment(casualtyId, (p) => ({
+        ...p,
+        basicsRequest: {
+          requestedAt: at,
+          stage: "cih",
+          nextAt: at + roll.cihSec * 1000,
+          alerted: roll.alerted.length,
+          winnerApplianceId: roll.winner?.applianceId ?? null,
+          winnerCallsign: roll.winner?.callsign ?? null,
+          cihDeclined: roll.cihDeclined,
+          answerSec: roll.answerSec,
+          turnoutSec: roll.turnoutSec,
+        },
+        events: [
+          ...p.events,
+          { kind: "clinician_requested", scope, at },
+          { kind: "basics_alert", stage: "cih", at },
+        ],
+      }));
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `reqc:basics:${at}`,
+          timestamp: at,
+          kind: "annotation",
+          message: "BASICS request passed to the NWAS Complex Incident Hub for interrogation.",
+        },
+      ]);
+      return;
+    }
+
     const wantedTypes: import("@/lib/sim/types").ApplianceTypeCode[] =
       scope === "ap"
         ? ["QR"]
-        : scope === "ccc"
-          ? ["CCC"]
-          : ["BASICS"]; // basics
+        : ["CCC"]; // ccc
     // Find the closest free appliance of the wanted type with an ETA.
     const candidates = allDeployableStations
       .flatMap((s) =>
@@ -2443,12 +2645,100 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
 
     const incidentCoords = activeIncident.scenario.location.coords;
-    const hospital = nearestHospital(incidentCoords);
     const now = Date.now();
-    const [toHosp, toStation] = await Promise.all([
-      // Hospital leg runs on blues at ambulance (box-body) pace.
-      routeEta(incidentCoords, hospital.coords).then((r) => blueLightFor(r, "DCA")),
-      routeEta(hospital.coords, station.coords),
+
+    // Where they are actually going. The chosen type resolves to a real
+    // site through the GM routing rules — Pathfinder for trauma, the
+    // clock for stroke, the pit-stop override when the patient cannot
+    // survive the longer run. Nothing chosen means the nearest ED, which
+    // is what an undecided operator gets in real life too.
+    const sceneCas = activeIncident.scenario.scene?.casualties?.find((c) => c.id === casualtyId);
+    const decision = resolveDestination(
+      tx?.chosenDestination?.type ?? "nearest_a_e",
+      incidentCoords,
+      {
+        ageYears: sceneCas?.clinical?.ageYears,
+        redFlags: tx?.activeRedFlags ?? tx?.revealedRedFlags ?? [],
+        injuryPattern: sceneCas?.clinical?.injuryPattern,
+        gcs: tx?.liveVitals?.gcs ?? tx?.revealedVitals?.gcs,
+      },
+      { hhmm: clockHhmm() },
+    );
+    if (!decision) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `nonconvey:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "annotation",
+          message: `${applianceLabel(applianceId)} — patient is see-and-treat, not conveying.`,
+        },
+      ]);
+      return;
+    }
+    const hospital = decision.hospital;
+
+    // The aircraft. Only two places in the patch can take it — MRI and
+    // Salford Royal — and it flies by day, not with a patient in arrest.
+    // Everything else, and it is the doctor's ride to the scene, not the
+    // patient's ride to hospital: they go by road with the HEMS crew
+    // aboard the DCA.
+    const byAir = conveyor.type === "HEMS";
+    if (byAir) {
+      const refuse = (why: string) => {
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `noair:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "setback",
+            message: `${conveyor.callsign} cannot fly the patient — ${why}. Convey by road in the DCA with the HEMS crew aboard.`,
+          },
+        ]);
+      };
+      if (!hasHelipad(hospital)) {
+        refuse(`${hospital.name} has no recorded helipad`);
+        return;
+      }
+      if (!hemsAvailable(weather)) {
+        refuse("aircraft not flying (night or weather)");
+        return;
+      }
+      if ((tx?.activeRedFlags ?? []).includes("cardiac_arrest")) {
+        refuse("patient in cardiac arrest");
+        return;
+      }
+    }
+
+    // Price the leg. Road at box-body blue-light pace; the aircraft on a
+    // flown line at cruise, with a couple of minutes on the pad each end.
+    const [toHosp, toStation] = byAir
+      ? (() => {
+          const line = flightPath(incidentCoords, hospital.coords, `${conveyor.id}:convey:${activeIncident.id}`);
+          const meters = Math.round(pathLengthMeters(line));
+          const home = flightPath(hospital.coords, station.coords, `${conveyor.id}:home:${activeIncident.id}`);
+          return [
+            { seconds: 120 + Math.round(meters / 67) + 90, meters, coords: line },
+            { seconds: 120 + Math.round(pathLengthMeters(home) / 67), meters: Math.round(pathLengthMeters(home)), coords: home },
+          ] as const;
+        })()
+      : await Promise.all([
+          // Hospital leg runs on blues at ambulance (box-body) pace.
+          routeEta(incidentCoords, hospital.coords).then((r) => blueLightFor(r, "DCA")),
+          routeEta(hospital.coords, station.coords),
+        ]);
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `dest:${Date.now()}`,
+        timestamp: Date.now(),
+        kind: decision.pitStop || decision.downgraded ? "setback" : "annotation",
+        message:
+          `${applianceLabel(applianceId)} ${byAir ? "lifting" : "mobile"} to ${hospital.name} · ${decision.rule}` +
+          (decision.bypassed ? ` · passing ${decision.bypassed.name}` : "") +
+          (decision.warnings.length ? ` · ${decision.warnings.join("; ")}` : "") +
+          ` · ETA ${Math.max(1, Math.round(toHosp.seconds / 60))} min`,
+      },
     ]);
     const offloadSec = rollOffloadSeconds();
     const hospitalArrivesAt = now + toHosp.seconds * 1000;
@@ -2954,6 +3244,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       returnSeconds: number;
       returnMeters: number;
       returnCoords: [number, number][] | null;
+      /** A scheme responder — no rehab, and off the run afterwards. */
+      virtual?: boolean;
     };
     const legs: Leg[] = await Promise.all(
       deps.map(async (d): Promise<Leg> => {
@@ -2974,7 +3266,42 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
 
         if (service === "Ambulance") {
-          const hospital = nearestHospital(incidentCoords);
+          // The aircraft does not convey on clear-down. It has either
+          // already flown the patient (operator action) or the patient
+          // went by road with its crew aboard; either way it goes home.
+          // A volunteer doctor has no station to go back to at all.
+          if (appliance?.type === "HEMS" || appliance?.schemeVirtual) {
+            return {
+              id: d.applianceId,
+              service,
+              returnSeconds: appliance.type === "HEMS" ? 60 : 1,
+              returnMeters: 0,
+              returnCoords: null,
+              virtual: appliance.schemeVirtual === true,
+            };
+          }
+          // Where the patient they were treating was bound for. Nobody
+          // paired means nobody aboard; the vehicle still clears via the
+          // nearest ED, which is the shape of a job that ended on scene.
+          const pairedId = d.treatingCasualtyId ?? null;
+          const pairedTx = pairedId ? treatmentByCasualtyId[pairedId] : undefined;
+          const pairedCas = pairedId
+            ? activeIncident.scenario.scene?.casualties?.find((c) => c.id === pairedId)
+            : undefined;
+          const decision = pairedTx
+            ? resolveDestination(
+                pairedTx.chosenDestination?.type ?? "nearest_a_e",
+                incidentCoords,
+                {
+                  ageYears: pairedCas?.clinical?.ageYears,
+                  redFlags: pairedTx.activeRedFlags ?? pairedTx.revealedRedFlags ?? [],
+                  injuryPattern: pairedCas?.clinical?.injuryPattern,
+                  gcs: pairedTx.liveVitals?.gcs ?? pairedTx.revealedVitals?.gcs,
+                },
+                { hhmm: clockHhmm() },
+              )
+            : null;
+          const hospital = decision?.hospital ?? nearestHospital(incidentCoords);
           // Conveying a patient — blue lights on the incident → hospital leg
           // at ambulance (box-body) pace. Return to station is a normal
           // driving leg once the crew clear.
@@ -3042,6 +3369,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
         // Fire / other: direct return
         const returnArrivesAt = resolvedAt + l.returnSeconds * 1000;
+        const rehab = l.virtual ? 1 : rehabSeconds;
         return {
           ...d,
           returnStartedAt: resolvedAt,
@@ -3049,11 +3377,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           returnArrivesAt,
           returnRouteMeters: l.returnMeters,
           returnRouteCoords: l.returnCoords ?? undefined,
-          rehabSeconds,
-          rehabUntil: returnArrivesAt + rehabSeconds * 1000,
+          rehabSeconds: rehab,
+          rehabUntil: returnArrivesAt + rehab * 1000,
         };
       }),
     );
+    // Volunteer responders went back to their own jobs. One shot per
+    // shift: they are off the run from here, and the row says why.
+    const stoodDown = legs.filter((l) => l.virtual).map((l) => l.id);
+    if (stoodDown.length) {
+      setPreShiftStates((prev) => {
+        const next = { ...prev };
+        for (const id of stoodDown) {
+          next[id] = { status: 8, reason: "Stood down — returned to own duties" };
+        }
+        return next;
+      });
+    }
     // Apply wear-and-tear per deployed appliance: fuel -20%, water -20% (if
     // pump), condition -3%. Refuel/refill/maintenance actions reset these.
     setVehicleGauges((prev) => {
@@ -5371,6 +5711,12 @@ function hashPct(s: string): number {
 
 function applianceLabel(id: string): string {
   return id.replace("-", " ");
+}
+
+/** Wall clock as "HH:MM" — the hyperacute stroke pathway is gated on it. */
+function clockHhmm(): string {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
 }
 
 /** Default kit pre-populated on a crew member at the point of deployment.

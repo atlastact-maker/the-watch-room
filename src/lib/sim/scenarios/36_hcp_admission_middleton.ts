@@ -128,6 +128,7 @@ export const scenario36: Scenario = {
           // saturations sliding. Not an emergency yet, and every hour she
           // waits at home moves her closer to being one.
           vitals: { rr: 24, spo2: 92, hr: 102, bpSys: 118, bpDia: 68, gcs: 15, temp: 38.3, bm: 5.5 },
+          ageYears: 83,
           presumedCondition: "Chest infection — GP referred for admission, bed arranged",
           redFlags: [],
           preferredDestination: "nearest_a_e",

@@ -102,6 +102,13 @@ export type PatientClinical = {
   /** Preferred destination type for debrief scoring. Delivering a STEMI
    *  to a generic A&E instead of a PCI centre is penalised. */
   preferredDestination: HospitalDestinationType;
+  /** Age in years. 15 and under is paediatric for trauma routing (GMMTN
+   *  is explicit that 16 is hard); absent is treated as adult. */
+  ageYears?: number;
+  /** What the GM supplementary Pathfinder splits on — penetrating and
+   *  thoraco-abdominal trauma go to MRI, cranial to Salford. Absent means
+   *  blunt or not applicable. */
+  injuryPattern?: import("./hospitals").InjuryPattern[];
   /** Authored "critical interventions" — actions the patient needs to
    *  stabilise. If not performed before deterioration completes, the
    *  casualty gets worse faster. */

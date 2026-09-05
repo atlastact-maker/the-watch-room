@@ -1,17 +1,2122 @@
 {
-  "$comment": "Major A&E (ED) sites in Greater Manchester that NWAS DCAs convey to. Coords from postcodes.io 2026-04-18. Trafford General is downgraded (not a full ED); Rochdale Infirmary is urgent care only (no ED since 2011). Both omitted.",
-  "snapshotDate": "2026-04-18",
-  "sources": ["H1"],
+  "$comment": "Hospitals a Greater Manchester crew conveys to, with the capabilities dispatch actually routes on. Every non-identity field is an evidence record — value / confidence / sources / note — and 'unknown' is a shipping value: the sim treats it as not available rather than guessing. Ten in-patch EDs as before, plus RMCH (the paediatric MTC, campus-shared with MRI), the two GM sites with no ED (Trafford, Rochdale) so routing can be honest about them, and four out-of-patch destinations the network edges need (Preston, Aintree, Whiston, Macclesfield). Researched and adversarially checked 2026-09-05; see data/research/ambulance/hospitals_research.md for the unverified list.",
+  "snapshotDate": "2026-09-05",
+  "sources": {
+    "T1": "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf",
+    "HELP": "https://helpappeal.org.uk/key-projects",
+    "GMNISDN": "https://gmnisdn.org.uk/topic/local-stroke-units"
+  },
+  "network": {
+    "mtcModel": "two_site_collaborative",
+    "note": "GMMTN v4.0: 'the Major Trauma Centre function is provided by a collaborative which comprises Manchester Royal Infirmary (MRI)... Salford Royal Hospital (SRH)'. GM does not have two independent MTCs; it has one MTC function delivered by a two-site collaborative.",
+    "underReview": true,
+    "reviewNote": "Four successive peer reviews between 2014 and 2024 found GM non-compliant with national major trauma standards. NHS Greater Manchester is running a site-selection study to choose a single specialist site; as of 2026 it is still undecided. Two MTC sites are modelled today and the designation is flagged as provisional.",
+    "confidence": "likely",
+    "traumaAdultAgeFloor": 16,
+    "rmchEdAgeCeiling": 16
+  },
   "hospitals": [
-    { "id": "H-MRI",   "name": "Manchester Royal Infirmary",        "address": "Oxford Road",        "town": "Manchester",      "postcode": "M13 9WL",  "coords": { "lat": 53.46245, "lng": -2.22771 } },
-    { "id": "H-WYT",   "name": "Wythenshawe Hospital",              "address": "Southmoor Road",     "town": "Wythenshawe",     "postcode": "M23 9LT",  "coords": { "lat": 53.38794, "lng": -2.29318 } },
-    { "id": "H-NMG",   "name": "North Manchester General Hospital", "address": "Delaunays Road",     "town": "Crumpsall",       "postcode": "M8 5RB",   "coords": { "lat": 53.51790, "lng": -2.22950 } },
-    { "id": "H-SRH",   "name": "Salford Royal Hospital",            "address": "Stott Lane",         "town": "Salford",         "postcode": "M6 8HD",   "coords": { "lat": 53.48756, "lng": -2.32342 } },
-    { "id": "H-RBH",   "name": "Royal Bolton Hospital",             "address": "Minerva Road",       "town": "Farnworth",       "postcode": "BL4 0JR",  "coords": { "lat": 53.55397, "lng": -2.42989 } },
-    { "id": "H-FGH",   "name": "Fairfield General Hospital",        "address": "Rochdale Old Road",  "town": "Bury",            "postcode": "BL9 7TD",  "coords": { "lat": 53.60044, "lng": -2.25562 } },
-    { "id": "H-ROH",   "name": "Royal Oldham Hospital",             "address": "Rochdale Road",      "town": "Oldham",          "postcode": "OL1 2JH",  "coords": { "lat": 53.55326, "lng": -2.12183 } },
-    { "id": "H-SHH",   "name": "Stepping Hill Hospital",            "address": "Poplar Grove",       "town": "Stockport",       "postcode": "SK2 7JE",  "coords": { "lat": 53.38379, "lng": -2.13202 } },
-    { "id": "H-TGH",   "name": "Tameside General Hospital",         "address": "Fountain Street",    "town": "Ashton-under-Lyne", "postcode": "OL6 9RW","coords": { "lat": 53.49155, "lng": -2.07143 } },
-    { "id": "H-RAE",   "name": "Royal Albert Edward Infirmary",     "address": "Wigan Lane",         "town": "Wigan",           "postcode": "WN1 2NN",  "coords": { "lat": 53.55776, "lng": -2.62909 } }
-  ]
+    {
+      "id": "H-MRI",
+      "name": "Manchester Royal Infirmary",
+      "address": "Oxford Road",
+      "town": "Manchester",
+      "postcode": "M13 9WL",
+      "coords": {
+        "lat": 53.46245,
+        "lng": -2.22771
+      },
+      "inPatch": true,
+      "trust": "Manchester University NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf",
+          "https://mft.nhs.uk/rmch/helipad/"
+        ],
+        "note": "Adult ED; paediatric emergencies go to Royal Manchester Children's Hospital on the same campus (H-RMCH)."
+      },
+      "trauma": {
+        "value": {
+          "tier": "mtc_adult",
+          "pathfinderRole": "penetrating_vascular",
+          "ttlPreAlert": "0161 276 4012"
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "One of the two sites of the GM Major Trauma Centre Collaborative. GMMTN v4.0: the NWAS GM pathfinder directs all penetrating injury trauma, thoraco-abdominal / suspected vascular injury, isolated penetrating thoracic injury, pregnant >20 weeks with head injury, and suspected isolated hepatic trauma to MRI.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": true,
+          "hours": "24_7"
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "24/7 primary PCI is stated in MFT catheter-lab recruitment adverts, not a service specification. A 2017 Royal Oldham protocol described an in-hours/out-of-hours rota with a 17:30 handover; nine years stale. Do not ship any hotline numbers."
+      },
+      "stroke": {
+        "value": {
+          "role": "dsc",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": [
+            "Central Manchester"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "District Stroke Centre per the GMNISDN local stroke units page dated 12 Jul 2022 — the sole source for the DSC list. Does not take hyperacute stroke.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Adult neurosurgery for GM is at Salford Royal; paediatric at RMCH."
+      },
+      "vascular": {
+        "value": {
+          "role": "mft_site"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": true,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "GMMTN routes isolated penetrating thoracic injury directly to the MRI cardiothoracic team."
+      },
+      "helipad": {
+        "value": {
+          "present": "yes",
+          "kind": "elevated_rooftop",
+          "nightUse": "unknown",
+          "servesSites": [
+            "H-MRI",
+            "H-RMCH",
+            "Saint Mary's Hospital",
+            "Manchester Royal Eye Hospital"
+          ],
+          "openedOn": "2021-05-10",
+          "landingsPerYear": 100,
+          "outOfService": null,
+          "physicalLimits": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://mft.nhs.uk/rmch/helipad/",
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Elevated pad on the roof of the Grafton Street multi-storey car park, MFT Oxford Road campus, linked by a high-level transfer corridor: under 3 min to the MRI ED, under 6 min to the RMCH paediatric ED. Opened to patients 10 May 2021; £3.9m, £1.36m of it HELP Appeal. Projected ~300 airlifts/yr; actual 197 landings in the first two years. Night landing clearance could not be established — the '24-hour access' phrasing refers to the link bridge, not night flying.",
+        "asOf": "2023-05"
+      },
+      "offSiteHls": {
+        "value": {
+          "present": "yes",
+          "name": "Platt Fields Park (historical, pre-2021)",
+          "approxDistanceM": 1800
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "Before the pad opened, air ambulances landed in Platt Fields Park about a mile away and patients were transferred by road. Single trade-press source (Architects' Journal). Whether it was daylight-only is unverified."
+      }
+    },
+    {
+      "id": "H-RMCH",
+      "name": "Royal Manchester Children's Hospital",
+      "address": "Oxford Road",
+      "town": "Manchester",
+      "postcode": "M13 9WL",
+      "coords": {
+        "lat": 53.46245,
+        "lng": -2.22771
+      },
+      "inPatch": true,
+      "trust": "Manchester University NHS Foundation Trust",
+      "sharedCampusWith": "H-MRI",
+      "coordsNote": "Campus-shared with H-MRI; the paediatric ED entrance is not separately geocoded. Road distance to MRI and RMCH is treated as identical.",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://mft.nhs.uk/rmch/helipad/"
+        ],
+        "note": "24-hour paediatric ED and paediatric MTC well supported. The '~50,000 children a year' figure is MFT self-description on an undated page and is not used."
+      },
+      "trauma": {
+        "value": {
+          "tier": "mtc_paediatric",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "GM MTN and the MTC Collaborative are adult-only (16+). Children 15 and under are managed by the North West Children's Major Trauma Network. GMMTN routing line: 'All paediatric patients refer to RMCH'.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "Paediatric site; no stroke role."
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "burn_service"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ],
+        "note": "The British Burn Association listing (20 Oct 2017) records RMCH under Paediatrics as a 'Burn Service', not a 'Burn Centre'. MFT markets it as a Centre. The dispatch consequence is the same: a badly burned child goes to Oxford Road.",
+        "asOf": "2017-10-20"
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": true
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "yes",
+          "kind": "elevated_rooftop",
+          "nightUse": "unknown",
+          "servesSites": [
+            "H-MRI",
+            "H-RMCH"
+          ],
+          "openedOn": "2021-05-10",
+          "landingsPerYear": null,
+          "outOfService": null,
+          "physicalLimits": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://mft.nhs.uk/rmch/helipad/"
+        ],
+        "note": "The Oxford Road campus pad (see H-MRI). Under 6 min from the pad to the RMCH paediatric ED by the high-level corridor."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-SRH",
+      "name": "Salford Royal Hospital",
+      "address": "Stott Lane",
+      "town": "Salford",
+      "postcode": "M6 8HD",
+      "coords": {
+        "lat": 53.48756,
+        "lng": -2.32342
+      },
+      "inPatch": true,
+      "trust": "Northern Care Alliance NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Paediatric emergencies seen in the Panda Unit up to the 16th birthday."
+      },
+      "trauma": {
+        "value": {
+          "tier": "mtc_adult",
+          "pathfinderRole": "cranial_gcs_lt12",
+          "ttlPreAlert": "0161 206 2226"
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "One of the two sites of the GM Major Trauma Centre Collaborative, and home of the purpose-built Greater Manchester Major Trauma Hospital (opened May 2024). GMMTN v4.0: cranial trauma with GCS <12 goes directly to Salford Royal via the supplementary Pathfinder; the collaborative describes it as taking 'nine out of ten' GM major trauma patients — a service claim, not a measured statistic. Alternative TTL number 0161 206 5354.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "csc",
+          "hours": "24/7",
+          "thrombectomy": "24_7",
+          "remoteCoverAfter": null,
+          "catchment": [
+            "Bolton",
+            "Central Manchester",
+            "Salford",
+            "Trafford",
+            "Wigan"
+          ]
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "The Comprehensive Stroke Centre for Greater Manchester: 24/7 hyperacute admissions and, since March 2022, 24/7 mechanical thrombectomy. Takes every GM hyperacute stroke outside the ASCs' 06:45–22:45 hours.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": true,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "gm_hub"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "yes",
+          "kind": "rooftop",
+          "nightUse": "unknown",
+          "servesSites": [
+            "H-SRH"
+          ],
+          "openedOn": "2024-06",
+          "landingsPerYear": 58,
+          "outOfService": null,
+          "physicalLimits": {
+            "maxRotorM": 25,
+            "maxWeightT": 8.6
+          }
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://www.northerncarealliance.nhs.uk/news/helipad-salford-royal",
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Rooftop pad on the Greater Manchester Major Trauma Hospital building with a dedicated lift shaft to the ED. £2m HELP Appeal, first instalment presented 11–12 April 2022. Structure completed October 2022; operational with the hospital — the June 2024 date is press inference from '117 landings in two years' reported 1 June 2026, not an NHS commissioning date. Anticipated ~360 landings/yr; actual ~58. OSM tags lit=no but the same record calls an aluminium deck 'paved' — near-zero weight. Physical limits are from one anonymous OSM edit: uncertain.",
+        "asOf": "2026-06-01"
+      },
+      "offSiteHls": {
+        "value": {
+          "present": "yes",
+          "name": "Sports field (historical, pre-2022, unnamed)",
+          "approxDistanceM": 700
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.nwaa.net/about-us/our-fleet"
+        ],
+        "note": "Before the rooftop pad, air ambulance patients landed on a nearby sports field 'less than half a mile away' — the distance is Dr Beattie quoted by NWAA, not an institutional measurement. No source names the field."
+      }
+    },
+    {
+      "id": "H-WYT",
+      "name": "Wythenshawe Hospital",
+      "address": "Southmoor Road",
+      "town": "Wythenshawe",
+      "postcode": "M23 9LT",
+      "coords": {
+        "lat": 53.38794,
+        "lng": -2.29318
+      },
+      "inPatch": true,
+      "trust": "Manchester University NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "unknown",
+          "paediatricNote": "UNKNOWN. MFT's 2020 notice diverting paediatric emergencies to RMCH is still live on the trust site with no published reopening, while MFT's Wythenshawe children's services page describes a working five-bay department. The trust's own pages contradict each other. Do not route a child here until MFT confirms."
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Adult ED confirmed via the GM MTN designation. Paediatric provision is genuinely unknown — see paediatricNote."
+      },
+      "trauma": {
+        "value": {
+          "tier": "local_emergency",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": true,
+          "hours": "24_7"
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "24/7 primary PCI is stated in MFT catheter-lab recruitment adverts, not a service specification. The assertion that Wythenshawe is the hub of an 'MFT Single Cardiac Service (Manchester Heart Institute)' has no source and is treated as invented."
+      },
+      "stroke": {
+        "value": {
+          "role": "dsc",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": [
+            "South Manchester"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "District Stroke Centre per the GMNISDN local stroke units page dated 12 Jul 2022 — the sole source for the DSC list. Does not take hyperacute stroke.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "burn_centre",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ],
+        "note": "The North West adult Burn Centre. Paediatric burns go to RMCH.",
+        "asOf": "2017-10-20"
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": true,
+          "transplant": true,
+          "ecmo": true
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "Regional cardiothoracic and transplant centre; ECMO. Not a trauma routing factor in GMMTN."
+      },
+      "helipad": {
+        "value": {
+          "present": "unknown",
+          "kind": "unknown",
+          "nightUse": "unknown",
+          "servesSites": [],
+          "openedOn": null,
+          "landingsPerYear": null,
+          "outOfService": null,
+          "physicalLimits": null
+        },
+        "confidence": "uncertain",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Helicopters are observed landing on site (video evidence, but of the Children's Air Ambulance, a different charity from NWAA). Every specific — 'ground-level asphalt pad at 53.3884, -2.2896' — traces to a single OurAirports record GB-0344 last updated 28 June 2016, republished by UK Airfield Guide, PilotNav, AirportMap and a flight-sim scenery pack, and copied into OSM way 1218638533 which carries ref=GB-0344. That is one 2016 crowd-sourced source, not four. Listed by the HELP Appeal under PLANNED A&E helipads, which at Royal Preston meant an upgrade-to-compliance of an existing pad, not a new build. NOT an NWAA air destination.",
+        "asOf": "2016-06-28"
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      },
+      "otherOperatorLandingsObserved": true
+    },
+    {
+      "id": "H-NMG",
+      "name": "North Manchester General Hospital",
+      "address": "Delaunays Road",
+      "town": "Crumpsall",
+      "postcode": "M8 5RB",
+      "coords": {
+        "lat": 53.5179,
+        "lng": -2.2295
+      },
+      "inPatch": true,
+      "trust": "Manchester University NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "NHS.uk record R0A66 has no accident-and-emergency service page; its departments page redirects to the trust site. 24-hour opening is stated by third-party directories only, none dated. Closable by telephoning MFT. Paediatric ED likewise directory-sourced."
+      },
+      "trauma": {
+        "value": {
+          "tier": "local_emergency",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "No hyperacute or district stroke role recorded for this site in the GMNISDN list (12 Jul 2022)."
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-RBH",
+      "name": "Royal Bolton Hospital",
+      "address": "Minerva Road",
+      "town": "Farnworth",
+      "postcode": "BL4 0JR",
+      "coords": {
+        "lat": 53.55397,
+        "lng": -2.42989
+      },
+      "inPatch": true,
+      "trust": "Bolton NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": 16,
+          "paediatric": "yes",
+          "paediatricNote": "A separate paediatric emergency department exists — two resus beds, five cubicles, three observation areas, 24-hour paediatric consultant-led services — but its opening hours are not published."
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://www.nhs.uk/services/hospital/royal-bolton-hospital/RMC01"
+        ],
+        "note": "NHS.uk lists the 24-hour band as '16 years or over' (last confirmed 9 July 2026).",
+        "asOf": "2026-07-09"
+      },
+      "trauma": {
+        "value": {
+          "tier": "local_emergency",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "dsc",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": [
+            "Bolton"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "District Stroke Centre per the GMNISDN local stroke units page dated 12 Jul 2022 — the sole source for the DSC list. Does not take hyperacute stroke.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-FGH",
+      "name": "Fairfield General Hospital",
+      "address": "Rochdale Old Road",
+      "town": "Bury",
+      "postcode": "BL9 7TD",
+      "coords": {
+        "lat": 53.60044,
+        "lng": -2.25562
+      },
+      "inPatch": true,
+      "trust": "Northern Care Alliance NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "trauma": {
+        "value": {
+          "tier": "local_emergency",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "asc",
+          "hours": "06:45-22:45",
+          "thrombectomy": "none",
+          "remoteCoverAfter": "23:30",
+          "catchment": [
+            "Bury",
+            "North Manchester",
+            "Oldham",
+            "Rochdale"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "Acute Stroke Centre taking hyperacute admissions 06:45–22:45; outside those hours all GM hyperacute stroke goes to Salford Royal. After 23:30 expert stroke input here is provided remotely from Salford (a coroner's Regulation 28 report found the scope of that remote support was not clearly understood).",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-ROH",
+      "name": "Royal Oldham Hospital",
+      "address": "Rochdale Road",
+      "town": "Oldham",
+      "postcode": "OL1 2JH",
+      "coords": {
+        "lat": 53.55326,
+        "lng": -2.12183
+      },
+      "inPatch": true,
+      "trust": "Northern Care Alliance NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Paediatric A&E per trust directory."
+      },
+      "trauma": {
+        "value": {
+          "tier": "trauma_unit",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "One of the three GM MTN Trauma Units.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "No hyperacute or district stroke role recorded for this site in the GMNISDN list (12 Jul 2022)."
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-SHH",
+      "name": "Stepping Hill Hospital",
+      "address": "Poplar Grove",
+      "town": "Stockport",
+      "postcode": "SK2 7JE",
+      "coords": {
+        "lat": 53.38379,
+        "lng": -2.13202
+      },
+      "inPatch": true,
+      "trust": "Stockport NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "trauma": {
+        "value": {
+          "tier": "trauma_unit",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "One of the three GM MTN Trauma Units.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "asc",
+          "hours": "06:45-22:45",
+          "thrombectomy": "none",
+          "remoteCoverAfter": "23:30",
+          "catchment": [
+            "Macclesfield",
+            "South Manchester",
+            "Stockport",
+            "Tameside"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "Acute Stroke Centre taking hyperacute admissions 06:45–22:45; outside those hours all GM hyperacute stroke goes to Salford Royal. After 23:30 expert stroke input here is provided remotely from Salford (a coroner's Regulation 28 report found the scope of that remote support was not clearly understood).",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-TGH",
+      "name": "Tameside General Hospital",
+      "address": "Fountain Street",
+      "town": "Ashton-under-Lyne",
+      "postcode": "OL6 9RW",
+      "coords": {
+        "lat": 53.49155,
+        "lng": -2.07143
+      },
+      "inPatch": true,
+      "trust": "Tameside and Glossop Integrated Care NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Paediatric provision not established."
+      },
+      "trauma": {
+        "value": {
+          "tier": "local_emergency",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "dsc",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": [
+            "Tameside"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "District Stroke Centre per the GMNISDN local stroke units page dated 12 Jul 2022 — the sole source for the DSC list. Does not take hyperacute stroke.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-RAE",
+      "name": "Royal Albert Edward Infirmary",
+      "address": "Wigan Lane",
+      "town": "Wigan",
+      "postcode": "WN1 2NN",
+      "coords": {
+        "lat": 53.55776,
+        "lng": -2.62909
+      },
+      "inPatch": true,
+      "trust": "Wrightington, Wigan and Leigh Teaching Hospitals NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Paediatric provision not established."
+      },
+      "trauma": {
+        "value": {
+          "tier": "trauma_unit",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "One of the three GM MTN Trauma Units.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "dsc",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": [
+            "Wigan"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "District Stroke Centre per the GMNISDN local stroke units page dated 12 Jul 2022 — the sole source for the DSC list. Does not take hyperacute stroke.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-RPH",
+      "name": "Royal Preston Hospital",
+      "address": "Sharoe Green Lane",
+      "town": "Preston",
+      "postcode": "PR2 9HT",
+      "coords": {
+        "lat": 53.79152,
+        "lng": -2.70684
+      },
+      "inPatch": false,
+      "trust": "Lancashire Teaching Hospitals NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": []
+      },
+      "trauma": {
+        "value": {
+          "tier": "mtc_adult",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Lancashire & South Cumbria Major Trauma Centre."
+      },
+      "ppci": {
+        "value": {
+          "receiving": true,
+          "hours": "24_7"
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "Lancashire Cardiac Centre is at Blackpool Victoria, not Preston — flag if used for a Lancashire STEMI."
+      },
+      "stroke": {
+        "value": {
+          "role": "csc",
+          "hours": "24/7",
+          "thrombectomy": "24_7",
+          "remoteCoverAfter": null,
+          "catchment": []
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "24/7 thrombectomy from February 2026."
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": true,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": []
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "yes",
+          "kind": "ground",
+          "nightUse": "yes",
+          "servesSites": [
+            "H-RPH"
+          ],
+          "openedOn": null,
+          "landingsPerYear": null,
+          "outOfService": {
+            "from": "2025-07",
+            "to": "2026-02",
+            "temporaryHls": "Fulwood Barracks"
+          },
+          "physicalLimits": null
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Described as the busiest helipad in the North West. Refurbished with a £720k HELP grant — new landing surface, helipad lighting, safety fencing, barriers, signage, drainage, weather station — closed ~10 weeks from July 2025 with a designated temporary landing site at Fulwood Barracks; reopened February 2026. Night use 'likely' because lighting is itemised in the funding.",
+        "asOf": "2026-02"
+      },
+      "offSiteHls": {
+        "value": {
+          "present": "yes",
+          "name": "Fulwood Barracks (designated temporary HLS, 2025)",
+          "approxDistanceM": 1500
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ]
+      }
+    },
+    {
+      "id": "H-AIN",
+      "name": "Aintree University Hospital",
+      "address": "Lower Lane",
+      "town": "Liverpool",
+      "postcode": "L9 7AL",
+      "coords": {
+        "lat": 53.46634,
+        "lng": -2.9311
+      },
+      "inPatch": false,
+      "trust": "Liverpool University Hospitals NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": 16,
+          "paediatric": "no_evidence"
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "Adult site; children in Liverpool go to Alder Hey."
+      },
+      "trauma": {
+        "value": {
+          "tier": "mtc_adult",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Cheshire & Merseyside adult Major Trauma Centre (with the Royal Liverpool)."
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "Out of patch; not modelled."
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": true,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [],
+        "note": "The Walton Centre is on the Aintree site."
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "yes",
+          "kind": "ground",
+          "nightUse": "unknown",
+          "servesSites": [
+            "H-AIN"
+          ],
+          "openedOn": null,
+          "landingsPerYear": null,
+          "outOfService": null,
+          "physicalLimits": null
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Fourth HELP-funded North West helipad."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-WHI",
+      "name": "Whiston Hospital",
+      "address": "Warrington Road",
+      "town": "Prescot",
+      "postcode": "L35 5DR",
+      "coords": {
+        "lat": 53.42048,
+        "lng": -2.78495
+      },
+      "inPatch": false,
+      "trust": "Mersey and West Lancashire Teaching Hospitals NHS Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": []
+      },
+      "trauma": {
+        "value": {
+          "tier": "trauma_unit",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "likely",
+        "sources": []
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "Out of patch; not modelled."
+      },
+      "burns": {
+        "value": {
+          "adult": "burn_centre",
+          "paediatric": "burn_centre"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ],
+        "note": "Mersey Regional Burns & Plastic Surgery Unit. Matters for Wigan and Bolton incidents near the Merseyside boundary.",
+        "asOf": "2017-10-20"
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-MDG",
+      "name": "Macclesfield District General Hospital",
+      "address": "Victoria Road",
+      "town": "Macclesfield",
+      "postcode": "SK10 3BL",
+      "coords": {
+        "lat": 53.26234,
+        "lng": -2.14107
+      },
+      "inPatch": false,
+      "trust": "East Cheshire NHS Trust",
+      "ed": {
+        "value": {
+          "open24h": true,
+          "adultAgeFloor": null,
+          "paediatric": "yes"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "trauma": {
+        "value": {
+          "tier": "local_emergency",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "A GM MTN Local Emergency Hospital despite being outside Greater Manchester.",
+        "asOf": "2024-08"
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "none",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": []
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "Stroke unit closed October 2016 — which is why Stepping Hill's stroke catchment reaches into East Cheshire. A near hospital that cannot take a stroke patient.",
+        "asOf": "2016-10"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-TRA",
+      "name": "Trafford General Hospital",
+      "address": "Moorside Road",
+      "town": "Davyhulme",
+      "postcode": "M41 5SL",
+      "coords": {
+        "lat": 53.45408,
+        "lng": -2.37068
+      },
+      "inPatch": true,
+      "trust": "Manchester University NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": false,
+          "adultAgeFloor": null,
+          "paediatric": "no_evidence"
+        },
+        "confidence": "likely",
+        "sources": [
+          "H1 — the original gm_hospitals.json research note of 2026-04-18: Trafford General downgraded (not a full ED); Rochdale Infirmary urgent care only, no ED since 2011"
+        ],
+        "note": "No emergency department. Urgent Treatment Centre 08:00–20:00 daily. Not a 999 conveyance destination for anything acute."
+      },
+      "trauma": {
+        "value": {
+          "tier": "none",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": {
+          "role": "dsc",
+          "hours": null,
+          "thrombectomy": "none",
+          "catchment": [
+            "Trafford"
+          ]
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "District Stroke Centre per the GMNISDN local stroke units page dated 12 Jul 2022 — the sole source for the DSC list. Does not take hyperacute stroke.",
+        "asOf": "2022-07-12"
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    },
+    {
+      "id": "H-ROC",
+      "name": "Rochdale Infirmary",
+      "address": "Whitehall Street",
+      "town": "Rochdale",
+      "postcode": "OL12 0NB",
+      "coords": {
+        "lat": 53.62341,
+        "lng": -2.15992
+      },
+      "inPatch": true,
+      "trust": "Northern Care Alliance NHS Foundation Trust",
+      "ed": {
+        "value": {
+          "open24h": false,
+          "adultAgeFloor": null,
+          "paediatric": "no_evidence"
+        },
+        "confidence": "likely",
+        "sources": [
+          "H1 — the original gm_hospitals.json research note of 2026-04-18: Trafford General downgraded (not a full ED); Rochdale Infirmary urgent care only, no ED since 2011"
+        ],
+        "note": "No emergency department since 2011. Urgent Treatment Centre open 24 hours, 7 days, walk-in. A 03:00 minor injury has a local option here; not a 999 destination for anything acute."
+      },
+      "trauma": {
+        "value": {
+          "tier": "none",
+          "pathfinderRole": null,
+          "ttlPreAlert": null
+        },
+        "confidence": "confirmed",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "ppci": {
+        "value": {
+          "receiving": false,
+          "hours": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ],
+        "note": "Not a primary PCI centre in the GM cardiac network."
+      },
+      "stroke": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [
+          "https://gmnisdn.org.uk/topic/local-stroke-units"
+        ],
+        "note": "No hyperacute or district stroke role recorded for this site in the GMNISDN list (12 Jul 2022)."
+      },
+      "burns": {
+        "value": {
+          "adult": "none",
+          "paediatric": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://www.britishburnassociation.org/burn-services/"
+        ]
+      },
+      "neuro": {
+        "value": {
+          "adultNeurosurgery": false,
+          "paediatricNeurosurgery": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "vascular": {
+        "value": {
+          "role": "none"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "cardiothoracic": {
+        "value": {
+          "surgery": false,
+          "transplant": false,
+          "ecmo": false
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://gmccmt.org.uk/wp-content/uploads/2024/09/GM-MTN-Clinical-Management-Guidelines-v4.pdf"
+        ]
+      },
+      "helipad": {
+        "value": {
+          "present": "no_evidence",
+          "kind": "none",
+          "nightUse": "unknown"
+        },
+        "confidence": "likely",
+        "sources": [
+          "https://helpappeal.org.uk/key-projects"
+        ],
+        "note": "Absent from the HELP Appeal key-projects list and from targeted search. The HELP list covers HELP-funded projects only, so this is absence of evidence, not evidence of absence. NWAS and each trust's estates team hold designated helicopter landing site registers; an FOI would settle it."
+      },
+      "offSiteHls": {
+        "value": null,
+        "confidence": "unknown",
+        "sources": [],
+        "note": "No designated off-site landing site found. NWAS holds the register."
+      }
+    }
+  ],
+  "coordsSource": "postcodes.io postcode centroids — original ten queried 2026-04-18, the six added sites 2026-09-05"
 }

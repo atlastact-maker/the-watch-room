@@ -121,6 +121,9 @@ export type Station = {
   ptsOnly?: boolean;            // Patient Transport Service only — no 999 resources
   /** Podded equipment kept at this station (carried by PM appliances). */
   availablePods?: PodTypeCode[];
+  /** Not a station at all — a scheme address. Its appliances carry their
+   *  own home anchors, never return here, and are one-shot for a shift. */
+  virtual?: boolean;
 };
 
 export type CrewMember = {
@@ -147,6 +150,13 @@ export type Appliance = {
   waterLitres: number;
   kit: string[];
   note?: string;
+
+  /** Where a volunteer responder mobilises from — home or work, not a
+   *  station. Only set on schemeVirtual appliances. */
+  homeAnchor?: { lat: number; lng: number; label: string };
+  /** Belongs to a scheme, not a station: no return leg, and once stood
+   *  down they go back to their own job for the rest of the shift. */
+  schemeVirtual?: boolean;
 
   // Vehicle detail — generated once at build time and persisted in state.
   make: string;        // e.g. "Volvo FL"

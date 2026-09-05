@@ -321,6 +321,7 @@ export const scenario12: Scenario = {
             temp: 36.9,
             bm: 6.4,
           },
+          ageYears: 23,
           presumedCondition:
             "Witnessed non-contact collapse — cardiac arrest, presumed primary cardiac (young male, ?arrhythmogenic). Bystander CPR from the moment of collapse",
           redFlags: ["cardiac_arrest"],

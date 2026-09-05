@@ -255,6 +255,7 @@ export const scenario10: Scenario = {
             rr: 26, spo2: 88, hr: 108, bpSys: 152, bpDia: 88,
             gcs: 14, temp: 36.5, bm: 7.2,
           },
+          ageYears: 84,
           presumedCondition: "Smoke exposure on background COPD — bronchospasm",
           redFlags: ["severe_asthma"],
           preferredDestination: "non_convey",

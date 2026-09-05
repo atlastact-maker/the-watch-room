@@ -336,10 +336,13 @@ export const scenario11: Scenario = {
             temp: 36.4,
             bm: 5.9,
           },
+          ageYears: 29,
           presumedCondition:
             "Penetrating trauma, left shoulder — significant external haemorrhage, shocked",
           redFlags: ["major_haemorrhage", "hypovolaemic_shock"],
           preferredDestination: "mtc",
+          // GM Pathfinder: penetrating trauma goes to MRI.
+          injuryPattern: ["penetrating"],
           criticalInterventions: ["oxygen", "iv_access", "tXA", "fluids"],
         },
       },

@@ -168,6 +168,7 @@ export const scenario35: Scenario = {
           // Bradycardic and hypertensive with a falling GCS — the picture
           // of rising intracranial pressure, not of shock.
           vitals: { rr: 12, spo2: 95, hr: 54, bpSys: 168, bpDia: 96, gcs: 9, temp: 36.5, bm: 5.9 },
+          ageYears: 24,
           presumedCondition: "Head injury with fluctuating consciousness — assault",
           redFlags: ["head_injury_severe", "airway_compromise"],
           preferredDestination: "mtc",

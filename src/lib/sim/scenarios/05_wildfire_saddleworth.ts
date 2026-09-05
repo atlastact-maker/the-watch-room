@@ -219,6 +219,7 @@ export const scenario05: Scenario = {
             rr: 24, spo2: 92, hr: 110, bpSys: 138, bpDia: 88,
             gcs: 15, temp: 37.4, bm: 5.5,
           },
+          ageYears: 60,
           presumedCondition: "Smoke exposure, exhaustion, mild heat stress",
           redFlags: [],
           preferredDestination: "nearest_a_e",

@@ -162,6 +162,7 @@ export const scenario30: Scenario = {
           // The picture that makes naloxone the answer: respiratory rate on
           // the floor with everything else still holding up.
           vitals: { rr: 6, spo2: 84, hr: 58, bpSys: 104, bpDia: 62, gcs: 6, temp: 35.8, bm: 5.4 },
+          ageYears: 26,
           presumedCondition: "Reduced consciousness with respiratory depression — opioid toxicity suspected",
           redFlags: ["overdose_opioid", "airway_compromise"],
           preferredDestination: "nearest_a_e",

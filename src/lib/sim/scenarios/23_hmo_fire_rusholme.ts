@@ -206,6 +206,7 @@ export const scenario23: Scenario = {
         presentProbability: 0.55,
         clinical: {
           vitals: { rr: 26, spo2: 91, hr: 118, bpSys: 118, bpDia: 72, gcs: 13, temp: 36.9, bm: 5.7 },
+          ageYears: 22,
           presumedCondition: "Smoke inhalation — soot around the mouth, hoarse voice, coughing",
           redFlags: ["airway_compromise"],
           preferredDestination: "nearest_a_e",
@@ -223,6 +224,7 @@ export const scenario23: Scenario = {
           // Found last, in the cellar room with one way out. Longest
           // exposure of anyone in the house.
           vitals: { rr: 8, spo2: 76, hr: 138, bpSys: 88, bpDia: 52, gcs: 5, temp: 36.4, bm: 5.2 },
+          ageYears: 30,
           presumedCondition: "Severe smoke inhalation, unresponsive — prolonged exposure in the cellar room",
           redFlags: ["airway_compromise", "head_injury_severe"],
           preferredDestination: "nearest_a_e",

@@ -1,5 +1,5 @@
 {
-  "$comment": "NWAS resources in the Greater Manchester area. Full 30-station list supplied by user 2026-04-18 with verified addresses and postcodes. Coords from postcodes.io. PTS (Patient Transport Service) stations are included for map completeness and flagged pts_only — they do not carry front-line 999 resources. HART base at BTTG Trafford Park and NWAA at Barton Aerodrome confirmed earlier. BASICS modelled as a force-wide capability.",
+  "$comment": "NWAS resources in the Greater Manchester area. Full 30-station list supplied by user 2026-04-18 with verified addresses and postcodes. Coords from postcodes.io. PTS (Patient Transport Service) stations are included for map completeness and flagged pts_only — they do not carry front-line 999 resources. HART base at BTTG Trafford Park and NWAA at Barton Aerodrome confirmed earlier. BASICS modelled as the NWPCCC scheme: a virtual station at the scheme's Warrington address whose three responders carry their own home anchors and respond by phone alert, not from a station.",
   "service": "NWAS",
   "inventorySnapshotDate": "2026-04-18",
   "sources": [
@@ -834,16 +834,49 @@
         },
         {
           "id": "A-BASICS",
-          "name": "BASICS — Immediate Care Schemes (force-wide)",
-          "town": null,
-          "address": null,
-          "postcode": null,
-          "coords": null,
+          "name": "NWPCCC — volunteer immediate care doctors (no fixed base)",
+          "town": "Appleton, Warrington",
+          "address": "Unit 8 Asher Court, Appleton",
+          "postcode": "WA4 4ST",
+          "coords": {
+            "lat": 53.351057,
+            "lng": -2.532315,
+            "approximate": true
+          },
+          "virtual": true,
           "resources": [
-            "BASICS volunteer doctors (dispatched on request)"
+            "3x BASICS"
           ],
+          "callsigns": {
+            "BASICS": [
+              "MX01",
+              "MX02",
+              "MX03"
+            ]
+          },
+          "responders": {
+            "MX01": {
+              "lat": 53.351057,
+              "lng": -2.532315,
+              "label": "Appleton, Warrington"
+            },
+            "MX02": {
+              "lat": 53.3875,
+              "lng": -2.3486,
+              "label": "Altrincham"
+            },
+            "MX03": {
+              "lat": 53.4083,
+              "lng": -2.1494,
+              "label": "Stockport"
+            }
+          },
           "station_verified": false,
-          "notes": "BASICS (British Association for Immediate Care) doctors are volunteer GPs / hospital doctors who self-deploy from home or work to serious incidents. No fixed base; NWAS calls them on request for trauma, paediatric arrest, or entrapment. Confirmed to be in-scope by user."
+          "sources": [
+            "B1",
+            "B2"
+          ],
+          "notes": "The one live BASICS-affiliated scheme whose area reaches Greater Manchester: the North West Pre-hospital Critical Care Charity (NWPCCC, charity 502386). BASICS' own affiliated-schemes directory lists its area as Warrington/Appleton; the Cheshire & Merseyside Major Trauma Network describes it as 'the local BASICS scheme covering Cheshire, Merseyside, Manchester and Lancashire'. Coverage of GM is therefore not independently confirmed, and its centre of gravity sits south and west of Manchester. Responders are doctors and enhanced-care paramedics who mobilise from home or work — in one of the scheme's two cars (TS1 BMW X5, TS2 Land Rover Discovery) or their own vehicle — after an automated text alert to every handset within 20 miles and a confirming phone call from the NWAS Complex Incident Hub. Not a pager, not a station. Airwave radio with a personal callsign; MX prefix rests on one clinician's description of his own callsign and is flagged. ROSTER IS A JUDGEMENT: NWPCCC does not publish responder numbers (its filed accounts would); three are modelled, none anchored north of the M62. The 20-mile alert radius still reaches Wigan and Bolton from Warrington and Altrincham, so a request there is not hopeless — but with nobody near, the answer rate is a fraction of south Manchester's, which is the authentic shape. Home anchors for MX02/MX03 are town centres, approximate. Volume signal: NWPCCC ~384 incidents in 2024 across four counties, against NWAA's 3,862 missions in 2025. 'BASICS North West' (charity 702500) is a dormant shell — £60 income, £288 expenditure FYE 31 Dec 2025 — and is not the regional branch of anything."
         }
       ]
     }

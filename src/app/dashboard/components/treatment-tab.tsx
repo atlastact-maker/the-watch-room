@@ -68,7 +68,7 @@ const SCOPE_LABEL: Record<ClinicianScope, string> = {
   dca: "Paramedic",
   ap: "Advanced Paramedic",
   ccc: "Critical Care Team",
-  basics: "BASICS Doctor",
+  basics: "BASICS volunteer doctor",
   hems: "HEMS",
 };
 
@@ -145,7 +145,7 @@ const CLINICIAN_DESCRIPTION: Record<ClinicianScope, string> = {
   dca: "",
   ap: "Extended formulary · Ketamine, Fentanyl, Amiodarone",
   ccc: "Blood products, finger thoracostomy, RSI (with doctor)",
-  basics: "Volunteer doctor · PHEA, blood, prolonged entrapment",
+  basics: "NWPCCC, Warrington-based · rare — an alert, not a dispatch; may not answer",
   hems: "Helicopter + doctor · PHEA, surgical airway, direct MTC",
 };
 
@@ -831,17 +831,30 @@ export function TreatmentTab({
               // HEMS has two response modes — the airframe (daylight,
               // needs an LZ picked on the ground view) or the NWAA
               // critical-care car overnight / in grounding weather.
+              const br = s === "basics" ? treatment.basicsRequest : undefined;
+              const brPending = br && (br.stage === "cih" || br.stage === "broadcast");
+              const brLeft = br ? Math.max(0, Math.ceil((br.nextAt - now) / 1000)) : 0;
               const description =
                 s === "hems"
                   ? hemsFlyable === false
                     ? "Aircraft grounded (night/weather) — NWAA car responds by road: doctor + critical care paramedic"
                     : "Helicopter + doctor team — select a landing zone on the ground view"
-                  : CLINICIAN_DESCRIPTION[s];
+                  : br
+                    ? br.stage === "cih"
+                      ? "With the NWAS Complex Incident Hub · " + brLeft + " s"
+                      : br.stage === "broadcast"
+                        ? "Alert out to " + br.alerted + " handset" + (br.alerted === 1 ? "" : "s") + " within 20 miles · " + brLeft + " s to answer"
+                        : br.stage === "answered"
+                          ? (br.winnerCallsign ?? "Responder") + " answered · mobilising from home or work"
+                          : br.stage === "declined"
+                            ? "Hub declined — NWAA critical care asset instead. Request HEMS or the car"
+                            : "No response · nearest scheme cover is Warrington-based · request again or use NWAA"
+                    : CLINICIAN_DESCRIPTION[s];
               return (
                 <button
                   key={s}
                   type="button"
-                  disabled={alreadyOn}
+                  disabled={alreadyOn || !!brPending}
                   onClick={() => onRequestClinician(s, casualtyId)}
                   className={
                     "flex flex-col items-start gap-0.5 rounded-sm border px-2 py-1.5 text-left transition-colors " +
@@ -856,7 +869,7 @@ export function TreatmentTab({
                       {s === "hems" && hemsFlyable === false ? " · Night car" : ""}
                     </span>
                     <span className="font-mono text-[9px] uppercase tracking-widest text-(--color-amber)">
-                      {alreadyOn ? "On scene" : "Request"}
+                      {alreadyOn ? "On scene" : brPending ? "Requested" : br?.stage === "answered" ? "Coming" : "Request"}
                     </span>
                   </div>
                   <div className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
@@ -1333,6 +1346,16 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
       return `Packaging: ${PACKAGING_LABEL[e.action]} (${e.by})`;
     case "clinician_requested":
       return `${SCOPE_LABEL[e.scope]} requested`;
+    case "basics_alert":
+      return e.stage === "cih"
+        ? "BASICS · with the Complex Incident Hub"
+        : e.stage === "broadcast"
+          ? "BASICS · alert to responder handsets"
+          : e.stage === "answered"
+            ? `BASICS · ${e.callsign ?? "responder"} answered`
+            : e.stage === "declined"
+              ? "BASICS · hub declined, NWAA asset instead"
+              : "BASICS · no response";
     case "clinician_on_scene":
       return `${SCOPE_LABEL[e.scope]} on scene`;
     case "destination_set":

@@ -133,6 +133,7 @@ export const scenario31: Scenario = {
           // In atrial fibrillation, which is both why she has had it and a
           // reason the anticoagulant matters to whoever thrombolyses her.
           vitals: { rr: 16, spo2: 96, hr: 96, bpSys: 176, bpDia: 94, gcs: 14, temp: 36.7, bm: 6.4 },
+          ageYears: 71,
           presumedCondition: "FAST positive — facial droop, left arm weakness, dysarthria",
           redFlags: ["stroke_fast_positive"],
           // Past the nearest department, to a unit that can thrombolyse.

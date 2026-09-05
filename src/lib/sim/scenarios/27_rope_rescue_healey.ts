@@ -182,6 +182,7 @@ export const scenario27: Scenario = {
           // and wet under tree cover. The hypothermia is the part that
           // gets worse while everybody waits for line rescue.
           vitals: { rr: 24, spo2: 94, hr: 112, bpSys: 102, bpDia: 64, gcs: 14, temp: 34.6, bm: 5.0 },
+          ageYears: 27,
           presumedCondition: "Fall from height — lower limb injury, prolonged exposure on the ledge",
           redFlags: ["spinal_injury_suspected", "hypovolaemic_shock"],
           // Twelve metres meets the trauma criteria on mechanism alone.

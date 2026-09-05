@@ -250,6 +250,7 @@ export const scenario08: Scenario = {
             rr: 22, spo2: 93, hr: 116, bpSys: 102, bpDia: 64,
             gcs: 13, temp: 36.8, bm: 5.1,
           },
+          ageYears: 14,
           presumedCondition: "Faint / smoke anxiety · mild smoke exposure",
           redFlags: [],
           preferredDestination: "paed_ed",

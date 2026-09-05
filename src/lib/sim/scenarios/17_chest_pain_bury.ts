@@ -136,6 +136,7 @@ export const scenario17: Scenario = {
         clinical: {
           // Sweaty, grey, tachycardic and hypertensive with the pain.
           vitals: { rr: 22, spo2: 95, hr: 104, bpSys: 158, bpDia: 92, gcs: 15, temp: 36.6, bm: 6.1 },
+          ageYears: 58,
           presumedCondition: "Central chest pain radiating to the left arm — ACS suspected",
           redFlags: ["stemi"],
           // The whole job. A catheter lab, not the hospital down the road.

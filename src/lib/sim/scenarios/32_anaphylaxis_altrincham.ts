@@ -155,6 +155,7 @@ export const scenario32: Scenario = {
           // One auto-injector has already been given and she is rebounding:
           // still tachycardic, still hypotensive, still wheezing.
           vitals: { rr: 30, spo2: 90, hr: 132, bpSys: 84, bpDia: 50, gcs: 14, temp: 36.9, bm: 5.9 },
+          ageYears: 28,
           presumedCondition: "Anaphylaxis — airway swelling, wheeze, urticaria, hypotension",
           redFlags: ["anaphylaxis", "airway_compromise"],
           preferredDestination: "nearest_a_e",

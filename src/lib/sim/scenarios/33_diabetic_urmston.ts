@@ -127,6 +127,7 @@ export const scenario33: Scenario = {
           // blood sugar on a hypoglycaemia job — the single most obviously
           // wrong number the missing clinical data produced.
           vitals: { rr: 20, spo2: 97, hr: 112, bpSys: 138, bpDia: 84, gcs: 12, temp: 36.2, bm: 2.1 },
+          ageYears: 46,
           presumedCondition: "Hypoglycaemia — sweating, confusion, combative, not taking oral glucose",
           redFlags: ["hypoglycaemia"],
           preferredDestination: "nearest_a_e",

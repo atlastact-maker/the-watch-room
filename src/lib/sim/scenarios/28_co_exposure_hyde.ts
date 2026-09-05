@@ -193,6 +193,7 @@ export const scenario28: Scenario = {
           // not an error — the oximeter is reading carboxyhaemoglobin as
           // if it were oxygen, and believing it is the trap.
           vitals: { rr: 24, spo2: 96, hr: 122, bpSys: 102, bpDia: 60, gcs: 8, temp: 36.6, bm: 6.3 },
+          ageYears: 41,
           presumedCondition: "Carbon monoxide exposure — collapsed, oximetry falsely reassuring",
           redFlags: ["airway_compromise"],
           preferredDestination: "nearest_a_e",
@@ -207,6 +208,7 @@ export const scenario28: Scenario = {
         discoverAfterMinBa: 1,
         clinical: {
           vitals: { rr: 20, spo2: 97, hr: 104, bpSys: 128, bpDia: 78, gcs: 13, temp: 36.8, bm: 5.8 },
+          ageYears: 38,
           presumedCondition: "Carbon monoxide exposure — headache, nausea, confused",
           redFlags: [],
           preferredDestination: "nearest_a_e",
@@ -224,6 +226,7 @@ export const scenario28: Scenario = {
           // adults for the same exposure, which is why the two youngest in
           // this house are worse than the mother.
           vitals: { rr: 28, spo2: 97, hr: 132, bpSys: 98, bpDia: 60, gcs: 14, temp: 37.0, bm: 5.4 },
+          ageYears: 12,
           presumedCondition: "Carbon monoxide exposure — headache and vomiting, child",
           redFlags: [],
           preferredDestination: "paed_ed",
@@ -240,6 +243,7 @@ export const scenario28: Scenario = {
           // Upstairs, so a longer exposure than her sibling, and found
           // last. Drowsy and hard to rouse on saturations of 98%.
           vitals: { rr: 26, spo2: 98, hr: 138, bpSys: 94, bpDia: 56, gcs: 11, temp: 36.9, bm: 5.1 },
+          ageYears: 9,
           presumedCondition: "Carbon monoxide exposure — drowsy, difficult to rouse, child",
           redFlags: ["airway_compromise"],
           preferredDestination: "paed_ed",
