@@ -142,6 +142,13 @@ export const scenario11: Scenario = {
     },
   ],
 
+  callGrade: {
+    scale: "police_thrive",
+    grade: 1,
+    standardMinutes: 15,
+    basis: "GMP Chief Constable's Regulation 28 response, 26 Aug 2025 (judiciary.uk 2025-0342): 'Immediate or grade 1 incidents - within 15 minutes; Priority or grade 2 - within 1 hour'. A firearm seen is Immediate by any reading of THRIVE — threat and harm both at the top of the scale.",
+  },
+
   evaluation: {
     targets: [
       { metric: "First response unit in attendance (holding, not approaching)", target: "< 8 minutes" },

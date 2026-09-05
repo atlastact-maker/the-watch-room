@@ -114,6 +114,25 @@ const CLEAR_MINUTES: Record<IncidentTypeCode, [number, number]> = {
   hazmat_chemical_leak: [26, 44],
   industrial_fire: [30, 50],
   wildfire_moorland: [38, 62],
+  // Police work is measured in statements and paperwork, not hose reels.
+  // A shoplifter is forty minutes; an expected death is a car gone for
+  // most of what is left of the shift.
+  police_domestic_in_progress: [35, 70],
+  police_burglary_in_progress: [30, 60],
+  police_fight_night_time_economy: [25, 50],
+  police_fail_to_stop_pursuit: [30, 60],
+  police_missing_child: [15, 45],
+  police_robbery_knife: [30, 55],
+  police_concern_for_welfare: [60, 150],
+  police_anpr_hit_stolen_vehicle: [25, 50],
+  police_shoplifter_detained: [20, 40],
+  police_rtc_damage_only: [25, 45],
+  police_sudden_death_expected: [90, 180],
+  police_drink_driver: [30, 50],
+  police_neighbour_dispute: [20, 40],
+  police_mental_health_rcrp: [15, 30],
+  police_abandoned_999: [8, 20],
+  police_asb_youths: [15, 35],
 };
 
 const SEVERITY_FACTOR: Record<Incident["scenario"]["severity"], number> = {

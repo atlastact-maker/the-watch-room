@@ -186,3 +186,60 @@ Both are MODELLED. Nothing in either is transcribed from a real system.
 - [ ] **What a real ANPR hit actually contains**, and how it reaches a
   control room, is not modelled from anything. The sim shows time, plate,
   direction, site, marker and vehicle description.
+
+## P7 — Call grading and Right Care Right Person (settled 2026-09-05)
+
+Researched with primary GMP and GMCA documents and adversarially checked;
+feeds `Scenario.callGrade`, `Scenario.disposal` and `npm run check:police`.
+
+### Settled
+
+- **GMP does not use the national Grade 1–4 THRIVE ladder.** GMP FOI
+  01/FOI/24/012708/K (28 Jun 2024): "Changes were made to the Incident
+  Response Policy in February 2022, as this saw the removal of Grade 3, 4
+  and 5 and the introduction of Central resolution." The ladder is:
+  **Grade 1 Immediate**, **Grade 2 Priority**, **Grade C Central
+  Resolution** (THRIVE low; Crime Recording & Resolution Unit — crime and
+  close, crime to investigate, crime and schedule response, no crime /
+  advise and close, local tasking), **Grade L Local Resolution** (only via
+  C — LS local scheduled, LT local tasking) and **Grade P Police
+  Generated** (PD dispatch, PA administration, e.g. an abandoned 999).
+  THRIVE at GMP is Threat, Harm, Risk, Investigation, Vulnerability,
+  Engagement (FOI 01/FOI/23/011310/T, Nov 2023; Incident Response Policy
+  & Procedure v1.5).
+- **Attendance standards are GMP-published, force-wide, no rural split.**
+  Grade 1 within 15 minutes, Grade 2 within one hour — Chief Constable's
+  Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug
+  2025 (judiciary.uk 2025-0342). GMCA GMP Performance Briefing, Jan 2026:
+  Grade 1 average 7m52s, 95% within 15 min in 2025; Grade 2 77% within
+  the hour, average 1h06m49s. The 15/20 urban/rural split is other
+  forces' practice and is not used here. A "20-minute allocation" element
+  for Grade 2 appears only in an unverified search snippet — not used.
+- **Right Care Right Person went live at GMP on 30 September 2024**
+  (Chief Constable's PFD response; GMCA Police, Fire & Crime Panel 22 Sep
+  2025; MSV Housing quoting GMP). Concern-for-welfare calls are triaged
+  in ControlWorks into Physical Health / Mental Health / Social Issues
+  pathways; "under RCRP, GMP will not ordinarily provide a policing
+  response to physical health concerns" (GMP–NWAS pathway agreement, Oct
+  2024). Threshold for attendance is the National Partnership Agreement
+  wording (signed 26 Jul 2023): a real and immediate risk to life or of
+  serious harm, or a police core responsibility. GMP's RCRP guidance set
+  (Sherlock) covers CFW, missing persons, AWOL patients, healthcare
+  walk-outs and child concerns.
+- **Pursuit authority** follows College of Policing APP 'Police pursuits'
+  (updated 4 Mar 2026): initial-phase officers must be pursuit-trained;
+  the control room and a tactical adviser/authorising officer manage the
+  tactical phase and can order it abandoned. GMP's own pursuit policy was
+  not obtained.
+- **High-risk missing persons** per APP 'Missing person investigations':
+  immediate deployment; an Inspector commands and the duty Superintendent
+  is informed. APP does not prescribe a CAD grade; treating a high-risk
+  missing child as Grade 1 is inference.
+
+### Still open
+
+- [ ] GMP's own pursuit and missing-person policies (only APP and other
+  forces' policies were obtained).
+- [ ] GMP's position under RCRP on conveyance and s136 place-of-safety
+  transport.
+- [ ] Whether GMP's Grade 2 carries a separate allocation target.

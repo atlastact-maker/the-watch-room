@@ -37,6 +37,22 @@ import { scenario35 } from "./35_assault_ashton";
 import { scenario36 } from "./36_hcp_admission_middleton";
 import { scenario37 } from "./37_choking_cheadle";
 import { scenario38 } from "./38_breathing_philips_park";
+import { scenario39 } from "./39_domestic_harpurhey";
+import { scenario40 } from "./40_burglary_bramhall";
+import { scenario41 } from "./41_fight_deansgate_locks";
+import { scenario42 } from "./42_pursuit_hyde_road";
+import { scenario43 } from "./43_missing_child_heaton_park";
+import { scenario44 } from "./44_robbery_piccadilly_gardens";
+import { scenario45 } from "./45_welfare_salford_precinct";
+import { scenario46 } from "./46_anpr_hit_a580";
+import { scenario47 } from "./47_shoplifter_trafford_centre";
+import { scenario48 } from "./48_rtc_barton_road_stretford";
+import { scenario49 } from "./49_sudden_death_sale";
+import { scenario50 } from "./50_drink_driver_bury";
+import { scenario51 } from "./51_neighbour_dispute_rochdale";
+import { scenario52 } from "./52_mental_health_rcrp_oldham";
+import { scenario53 } from "./53_abandoned_999_wigan";
+import { scenario54 } from "./54_asb_youths_denton";
 
 // Registry of available scenarios — the ten approved fire jobs converted
 // from data/research/fire/scenarios/*.md, plus the police-led firearms
@@ -80,6 +96,22 @@ export const SCENARIOS: Scenario[] = [
   scenario36,
   scenario37,
   scenario38,
+  scenario39,
+  scenario40,
+  scenario41,
+  scenario42,
+  scenario43,
+  scenario44,
+  scenario45,
+  scenario46,
+  scenario47,
+  scenario48,
+  scenario49,
+  scenario50,
+  scenario51,
+  scenario52,
+  scenario53,
+  scenario54,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {

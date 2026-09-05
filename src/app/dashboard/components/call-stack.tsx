@@ -63,10 +63,36 @@ function waitLabel(sec: number): string {
 }
 
 /** How hard the panel shouts about a call nobody has picked up. */
-function waitTone(sec: number): { cls: string; bar: string } {
+/** How hot a waiting call reads. With a graded standard it is elapsed
+ *  against THAT grade's own clock — a Grade 2 at twenty-five minutes is
+ *  calm, a Grade 1 at six is not. Without one, the old answer-time
+ *  thresholds stand. */
+function waitTone(sec: number, standardMinutes?: number | null): { cls: string; bar: string } {
+  if (standardMinutes) {
+    const f = sec / (standardMinutes * 60);
+    if (f >= 1) return { cls: "text-(--color-critical)", bar: "bg-(--color-critical)" };
+    if (f >= 0.5) return { cls: "text-(--color-amber)", bar: "bg-(--color-amber)" };
+    return { cls: "text-(--color-ok)", bar: "bg-(--color-ok)" };
+  }
   if (sec >= 120) return { cls: "text-(--color-critical)", bar: "bg-(--color-critical)" };
   if (sec >= 45) return { cls: "text-(--color-amber)", bar: "bg-(--color-amber)" };
   return { cls: "text-(--color-ok)", bar: "bg-(--color-ok)" };
+}
+
+/** The call's grade on its own service's scale, as a short pill. Police
+ *  THRIVE grades carry their attendance standard; a Grade 4 says what it
+ *  is — a call that is closed, not sent. */
+function gradeLabel(g: Scenario["callGrade"]): string | null {
+  if (!g) return null;
+  if (g.scale === "police_thrive") {
+    // GMP's ladder: Immediate, Priority, then the resolution grades.
+    if (g.grade === "C") return "Grade C · central resolution";
+    if (g.grade === "L") return "Grade L · local resolution";
+    if (g.grade === "P") return "Grade P · police generated";
+    return `G${g.grade}${g.standardMinutes ? ` · ${g.standardMinutes} min` : ""}`;
+  }
+  if (g.scale === "ambulance_arp") return `CAT ${g.grade}${g.standardMinutes ? ` · ${g.standardMinutes} min` : ""}`;
+  return g.grade.toUpperCase();
 }
 
 const SEV_CLS: Record<Severity, string> = {
@@ -401,7 +427,8 @@ export function CallStack({
               <ul>
                 {pending.map((c) => {
                   const waited = Math.max(0, (now - c.receivedAt) / 1000);
-                  const tone = waitTone(waited);
+                  const tone = waitTone(waited, c.scenario.callGrade?.standardMinutes);
+                  const grade = gradeLabel(c.scenario.callGrade);
                   return (
                     <li
                       key={c.id}
@@ -426,6 +453,14 @@ export function CallStack({
                             >
                               {c.scenario.severity}
                             </span>
+                            {grade && (
+                              <span
+                                className={`px-1 font-mono text-[8px] font-bold uppercase tracking-widest ${tone.cls} border border-current/40`}
+                                title="Call grade on the service's own scale, with its attendance standard"
+                              >
+                                {grade}
+                              </span>
+                            )}
                             <span className="truncate font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
                               {c.scenario.location.address}
                             </span>
@@ -581,11 +616,21 @@ export function CallStack({
                                 <StopIn at={delegated.clearAtMs} now={now} />
                               </span>
                             ) : (
-                              <span
-                                className={`px-1 font-bold ${SEV_CLS[inc.scenario.severity]}`}
-                              >
-                                {inc.scenario.severity}
-                              </span>
+                              <>
+                                <span
+                                  className={`px-1 font-bold ${SEV_CLS[inc.scenario.severity]}`}
+                                >
+                                  {inc.scenario.severity}
+                                </span>
+                                {gradeLabel(inc.scenario.callGrade) && (
+                                  <span
+                                    className="px-1 border border-(--color-border) text-(--color-text-dim)"
+                                    title="Call grade on the service's own scale"
+                                  >
+                                    {gradeLabel(inc.scenario.callGrade)}
+                                  </span>
+                                )}
+                              </>
                             )}
                             <span
                               className={

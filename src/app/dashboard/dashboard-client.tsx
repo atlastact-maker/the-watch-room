@@ -1549,6 +1549,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       s.byType[scenario.type] = (s.byType[scenario.type] ?? 0) + 1;
     });
     const t = Date.now();
+    const disposal = scenario.disposal;
+    if (disposal) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `disposal:${t}`,
+          timestamp: t,
+          kind: "setback",
+          message: `${scenario.title} — this call meets no-deployment criteria. ${disposal.basis}. Mobilising to it is the mistake THRIVE exists to stop.`,
+        },
+      ]);
+    }
     // Persons-reality roll — decided once, at call time. Casualties with
     // presentProbability < 1 may simply not be there tonight; a beat with
     // effect.revealCasualty can still put one back mid-call.
@@ -5654,9 +5666,25 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               setPendingCalls((prev) => prev.filter((c) => c.id !== call.id));
               triggerScenario(call.scenario);
             }}
-            onDecline={(call) =>
-              setPendingCalls((prev) => prev.filter((c) => c.id !== call.id))
-            }
+            onDecline={(call) => {
+              setPendingCalls((prev) => prev.filter((c) => c.id !== call.id));
+              // A graded call with nobody sent is either the right call
+              // — Right Care Right Person, a clean call-back — or a job
+              // that comes back later and worse. Say which.
+              const disp = call.scenario.disposal;
+              const at = Date.now();
+              setLog((prev) => [
+                ...prev,
+                {
+                  id: `decline:${at}`,
+                  timestamp: at,
+                  kind: disp ? "annotation" : "setback",
+                  message: disp
+                    ? `${call.scenario.title} — closed at the desk, no deployment. ${disp.basis}.`
+                    : `${call.scenario.title} — declined with nobody sent. A graded call does not go away because the desk did not answer it.`,
+                },
+              ]);
+            }}
             onSelectIncident={(id) => setSelectedIncidentId(id)}
             onOpenIncident={(id) => {
               setSelectedIncidentId(id);

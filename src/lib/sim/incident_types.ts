@@ -42,7 +42,27 @@ export type IncidentTypeCode =
   | "ambulance_major_trauma"
   | "ambulance_assault"
   | "ambulance_hcp_admission"
-  | "ambulance_choking";
+  | "ambulance_choking"
+  // Police volume work. The response shift GMP actually runs: domestics,
+  // burglaries, the night-time economy, missing people, sudden deaths —
+  // graded on THRIVE rather than on a fire PDA, and two of them jobs
+  // where the correct answer is not to send a car at all.
+  | "police_domestic_in_progress"
+  | "police_burglary_in_progress"
+  | "police_fight_night_time_economy"
+  | "police_fail_to_stop_pursuit"
+  | "police_missing_child"
+  | "police_robbery_knife"
+  | "police_concern_for_welfare"
+  | "police_anpr_hit_stolen_vehicle"
+  | "police_shoplifter_detained"
+  | "police_rtc_damage_only"
+  | "police_sudden_death_expected"
+  | "police_drink_driver"
+  | "police_neighbour_dispute"
+  | "police_mental_health_rcrp"
+  | "police_abandoned_999"
+  | "police_asb_youths";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
@@ -304,7 +324,39 @@ export type Scenario = {
    *  time X) and probabilistic — scenarios can escalate naturally when
    *  attendance is slow without always firing every beat. */
   informantScript?: InformantUpdate[];
+
+  /** How the call was graded at the point of answer, on the service's
+   *  own scale — never one shared scale across three services. */
+  callGrade?: CallGrade;
+
+  /** When the right answer is not to send anyone. Declining a call that
+   *  carries this is scored as correct; answering it and mobilising is
+   *  the mistake, and the log says so. */
+  disposal?: Disposal;
 };
+
+/** Police grade on GMP's own ladder — NOT the national 1–4. Since
+ *  February 2022 GMP grades Immediate (1, 15 min), Priority (2, 60 min),
+ *  Central Resolution (C — closed, advised, scheduled or tasked by the
+ *  Crime Recording & Resolution Unit without a car), Local Resolution
+ *  (L — district scheduled attendance or tasking, reached only via C)
+ *  and Police Generated (P — dispatch and admin; an abandoned 999 is the
+ *  FOI's own example). Ambulance on the ARP categories 1–5; fire on
+ *  emergency / urgent / routine. `standardMinutes` is the published
+ *  attendance target where one exists, and `basis` says where it came
+ *  from. Sources: GMP FOI 01/FOI/24/012708/K (Jun 2024); Chief
+ *  Constable's Regulation 28 response (26 Aug 2025); GMCA GMP
+ *  Performance Briefing (Jan 2026). */
+export type CallGrade =
+  | { scale: "police_thrive"; grade: 1 | 2 | "C" | "L" | "P"; standardMinutes: number | null; basis: string }
+  | { scale: "ambulance_arp"; grade: 1 | 2 | 3 | 4 | 5; standardMinutes: number | null; basis: string }
+  | { scale: "fire"; grade: "emergency" | "urgent" | "routine"; standardMinutes: number | null; basis: string };
+
+/** Right Care Right Person hands a pure mental-health call to health; an
+ *  abandoned 999 with a clean call-back is closed at the desk. In GMP's
+ *  ladder this is Grade C, Central Resolution — advise and close. GMP
+ *  went live with RCRP on 30 September 2024. */
+export type Disposal = { noDeployment: true; basis: string };
 
 // ---------------------------------------------------------------------------
 // Patient treatment — per-casualty clinical state, driven by the Treatment
