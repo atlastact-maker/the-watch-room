@@ -31,7 +31,8 @@ import { BottomActionMenu, type UnitControlPage } from "./bottom-action-menu";
 import { CAD_VARS } from "./cad-theme";
 import { incidentRef } from "../vector/model";
 import { CopyButton } from "../vector/copy-button";
-import { PopoutWindow } from "../vector/popout";
+import { PopoutFrame, PopoutWindow } from "../vector/popout";
+import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
 import { MdtTaskWorkspace } from "../vector/mdt-task-workspace";
 import { CrsPanel } from "./crs-panel";
 import { PreArrivalBody } from "./pre-arrival-panel";
@@ -192,7 +193,7 @@ function saveMdtFrame(f: MdtFrame): void {
 }
 
 // The six pages of the VECTOR tablet.
-type TabKey = "incident" | "actions" | "messages" | "crew" | "vehicle" | "water";
+type TabKey = "incident" | "actions" | "messages" | "crew" | "vehicle" | "water" | "patients";
 
 export function DraggableIncidentMdt({
   incident,
@@ -336,6 +337,7 @@ export function DraggableIncidentMdt({
   const onSceneList = resolvedDeps.filter((r) => r.phase === "at_incident");
 
   const unitActive = activeTaskList.filter((t) => !selectedUnit || t.applianceId === selectedUnit.appliance.id);
+  const assignedPatients = selectedUnit ? assignedCasualtyIds(selectedUnit.appliance.id, deployments, tasks ?? []).size : 0;
   const tabs: { key: TabKey; label: string }[] = [
     { key: "incident", label: "Incident" },
     { key: "actions", label: unitActive.length > 0 ? `Actions · ${unitActive.length}` : "Actions" },
@@ -343,6 +345,7 @@ export function DraggableIncidentMdt({
     { key: "crew", label: "Crew" },
     { key: "vehicle", label: "Vehicle" },
     { key: "water", label: "Water" },
+    { key: "patients", label: assignedPatients > 0 ? `Patient care · ${assignedPatients}` : "Patient care" },
   ];
 
   const alerts = [
@@ -352,6 +355,8 @@ export function DraggableIncidentMdt({
 
   const [minimised, setMinimised] = useState(false);
   const [popped, setPopped] = useState(false);
+  // Patient Care lifted into its own window from the tablet.
+  const [patientsPopped, setPatientsPopped] = useState(false);
   const ref = incidentRef(incident);
   const unitAppliance = selectedUnit?.appliance ?? onSceneList[0]?.appliance ?? resolvedDeps[0]?.appliance ?? null;
   const unitRow = selectedUnit ?? onSceneList[0] ?? resolvedDeps[0] ?? null;
@@ -485,6 +490,51 @@ export function DraggableIncidentMdt({
     );
   }
 
+  // Patient Care — the same workspace control opens from the desk, here
+  // filtered to this unit's own patients.
+  const patientCare = sim ? (
+    <PatientCareWorkspace
+      key={unitAppliance?.id ?? "none"}
+      sim={sim}
+      incidentRef={ref}
+      focusApplianceId={selectedUnit?.appliance.id ?? null}
+      deployments={deployments}
+      resolved={resolvedDeps}
+      tasks={tasks ?? []}
+      now={nowMs}
+      treatmentByCasualtyId={treatmentByCasualtyId}
+      onSetTreatingCasualty={onSetTreatingCasualty}
+      onStartPatientSurvey={onStartPatientSurvey}
+      onApplyAirway={onApplyAirway}
+      onApplyBreathing={onApplyBreathing}
+      onApplyCirculation={onApplyCirculation}
+      resusByCasualtyId={resusByCasualtyId}
+      onSetOxygen={onSetOxygen}
+      onSetResusAirway={onSetResusAirway}
+      onAttachMonitor={onAttachMonitor}
+      onToggleCapnography={onToggleCapnography}
+      onSetCompressor={onSetCompressor}
+      onFitLucas={onFitLucas}
+      onDeliverShock={onDeliverShock}
+      onMovePads={onMovePads}
+      onArrestAdrenaline={onArrestAdrenaline}
+      onAmiodarone={onAmiodarone}
+      onSuspectReversible={onSuspectReversible}
+      onTreatReversible={onTreatReversible}
+      onStopResus={onStopResus}
+      onAdministerDrug={onAdministerDrug}
+      onApplyPackaging={onApplyPackaging}
+      onApplyEgress={onApplyEgress}
+      egressBlocked={incident.scenario.scene?.egressBlocked}
+      egressExtraSeconds={incident.scenario.scene?.egressExtraSeconds}
+      onRequestClinician={onRequestClinician}
+      hemsFlyable={hemsFlyable}
+      onSetTreatmentDestination={onSetTreatmentDestination}
+      onSendAtmistPrealert={onSendAtmistPrealert}
+      onConveyCasualtyVia={onConveyCasualtyVia}
+    />
+  ) : null;
+
   const tablet = (
     <>
       {/* The rugged tablet: dark frame, pale bezel, blue-grey screen with
@@ -609,48 +659,11 @@ export function DraggableIncidentMdt({
                 </details>
               )}
               {sim && !resolved && (
-                <details className="mdt-workflow" open={locatedCount > 0}>
-                  <summary>Casualties · {locatedCount}</summary>
-                  <div className="vec-mdt-embed tall" style={CAD_VARS}>
-                    <CasualtiesBody
-                      sim={sim}
-                      deployments={deployments}
-                      resolved={resolvedDeps}
-                      tasks={tasks ?? []}
-                      now={nowMs}
-                      treatmentByCasualtyId={treatmentByCasualtyId}
-                      onSetTreatingCasualty={onSetTreatingCasualty}
-                      onStartPatientSurvey={onStartPatientSurvey}
-                      onApplyAirway={onApplyAirway}
-                      onApplyBreathing={onApplyBreathing}
-                      onApplyCirculation={onApplyCirculation}
-                      resusByCasualtyId={resusByCasualtyId}
-                      onSetOxygen={onSetOxygen}
-                      onSetResusAirway={onSetResusAirway}
-                      onAttachMonitor={onAttachMonitor}
-                      onToggleCapnography={onToggleCapnography}
-                      onSetCompressor={onSetCompressor}
-                      onFitLucas={onFitLucas}
-                      onDeliverShock={onDeliverShock}
-                      onMovePads={onMovePads}
-                      onArrestAdrenaline={onArrestAdrenaline}
-                      onAmiodarone={onAmiodarone}
-                      onSuspectReversible={onSuspectReversible}
-                      onTreatReversible={onTreatReversible}
-                      onStopResus={onStopResus}
-                      onAdministerDrug={onAdministerDrug}
-                      onApplyPackaging={onApplyPackaging}
-                      onApplyEgress={onApplyEgress}
-                      egressBlocked={incident.scenario.scene?.egressBlocked}
-                      egressExtraSeconds={incident.scenario.scene?.egressExtraSeconds}
-                      onRequestClinician={onRequestClinician}
-                      hemsFlyable={hemsFlyable}
-                      onSetTreatmentDestination={onSetTreatmentDestination}
-                      onSendAtmistPrealert={onSendAtmistPrealert}
-                      onConveyCasualtyVia={onConveyCasualtyVia}
-                    />
-                  </div>
-                </details>
+                <div className="mdt-task-controls">
+                  <button type="button" className={locatedCount > 0 ? "rc-primary" : ""} onClick={() => setTab("patients")}>
+                    Patient care · {locatedCount} located
+                  </button>
+                </div>
               )}
               {!resolved && incident.scenario.crs && (
                 <details className="mdt-workflow">
@@ -850,6 +863,29 @@ export function DraggableIncidentMdt({
             </>
           )}
 
+          {tab === "patients" && (
+            <>
+              <div className="rc-caption">PATIENT CARE · {unitCallsign}</div>
+              {!sim || resolved ? (
+                <p>{resolved ? "Incident closed — patient records are in the debrief." : "Patient records open once the incident is live."}</p>
+              ) : patientsPopped ? (
+                <>
+                  <p>Patient care is open in its own window.</p>
+                  <div className="mdt-task-controls">
+                    <button type="button" className="rc-primary" onClick={() => setPatientsPopped(false)}>Bring it back to the tablet</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="mdt-task-controls">
+                    <button type="button" onClick={() => setPatientsPopped(true)} title="Open Patient care on another screen">↗ Open in its own window</button>
+                  </div>
+                  <div className="vec-mdt-embed patients">{patientCare}</div>
+                </>
+              )}
+            </>
+          )}
+
           {tab === "water" && (
             <>
               {!selectedUnit ? (
@@ -933,6 +969,13 @@ export function DraggableIncidentMdt({
     {popped && (
       <PopoutWindow id="mdt" title={`MDT · ${unitCallsign}`} width={700} height={720} onClose={() => setPopped(false)}>
         {tablet}
+      </PopoutWindow>
+    )}
+    {patientsPopped && patientCare && (
+      <PopoutWindow id="patients-mdt" title={`Patient care · ${unitCallsign}`} width={560} height={760} onClose={() => setPatientsPopped(false)}>
+        <PopoutFrame title={`Patient care · ${unitCallsign}`} onDock={() => setPatientsPopped(false)}>
+          {patientCare}
+        </PopoutFrame>
       </PopoutWindow>
     )}
     {minimised && (

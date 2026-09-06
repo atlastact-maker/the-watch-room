@@ -50,6 +50,7 @@ const TILE_BUTTONS: { id: TileId; label: string; needsIncident?: boolean }[] = [
   { id: "calls", label: "Calls" },
   { id: "incident", label: "Incident details", needsIncident: true },
   { id: "units", label: "Scene units", needsIncident: true },
+  { id: "patients", label: "Casualties", needsIncident: true },
   { id: "log", label: "Incident log" },
   { id: "attendance", label: "Attendance", needsIncident: true },
   { id: "available", label: "Resources" },
@@ -102,6 +103,8 @@ export function VectorDesk(props: {
   popped: Record<string, boolean>;
   setPopped: (next: Record<string, boolean> | ((p: Record<string, boolean>) => Record<string, boolean>)) => void;
   logTile: (area: { w: number; h: number }, pop: PopProps) => ReactNode;
+  /** Patient Care for the selected incident — every casualty, for control. */
+  patientsTile?: (area: { w: number; h: number }, pop: PopProps) => ReactNode;
   map: ReactNode;
   mapTitle: string;
   mapExtras?: ReactNode;
@@ -262,6 +265,7 @@ export function VectorDesk(props: {
                 <SceneUnitsTile {...pop("units")} layout={layout} area={area} rows={model.sceneUnits} onPick={props.onPickAppliance} onPlace={props.onPlaceUnit} onClose={() => toggleTile("units")} groundAvailable={props.groundAvailable} />
               )}
               {tiles.log && props.logTile(area, pop("log"))}
+              {tiles.patients && hasIncident && props.patientsTile?.(area, pop("patients"))}
               {tiles.attendance && hasIncident && (
                 <AttendanceTile {...pop("attendance")} layout={layout} area={area} rows={model.pda} ref={model.selected ? model.refOf(model.selected) : ""} onClose={() => toggleTile("attendance")} onFill={() => props.onScreen("mob")} />
               )}

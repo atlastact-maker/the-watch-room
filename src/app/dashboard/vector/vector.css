@@ -2879,6 +2879,46 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   }
 }
 
+/* ---- Patient Care workspace (desk tile and MDT page) ------------------ */
+.vec-patients {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--vec-surface);
+  color: var(--vec-text);
+}
+.vec-patients-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  overflow-x: auto;
+}
+.vec-patients-filter .lbl {
+  font: 700 9px var(--vec-mono);
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+  flex-shrink: 0;
+}
+.vec-patients-filter .vec-segments button {
+  white-space: nowrap;
+}
+.vec-patients-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.vec-mdt-embed.patients {
+  height: 100%;
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+}
+
 .vec-mdt-embed {
   border: 1px solid #7c9aad;
   border-radius: 4px;

@@ -176,7 +176,8 @@ import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
 import { StationBayPanel } from "./components/station-bay-panel";
-import { IncidentView, type PendingClosure } from "./components/incident-view";
+import { IncidentView, resolveDeployments, type PendingClosure } from "./components/incident-view";
+import { PatientCareTile } from "./vector/patient-care";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
 import { GlossaryOverlay } from "./components/glossary-overlay";
@@ -5339,6 +5340,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         { label: "Mobilising", hint: "F4", act: () => pickScreen("mob"), disabled: !activeIncident },
         { label: "Fill remaining attendance", act: fillRemaining, disabled: !activeIncident || !!outcome },
         { label: "Hand over command…", act: () => showTile("live"), disabled: !activeIncident || !!outcome },
+        {
+          label: "Casualties · patient care",
+          hint: incidentSim ? `${incidentSim.foundCasualties.length} located` : undefined,
+          act: () => showTile("patients"),
+          disabled: !activeIncident,
+        },
         { sep: true },
         ...(["offensive", "defensive", "transitional"] as const).map((m) => ({
           label: `Tactical mode · ${m.charAt(0).toUpperCase() + m.slice(1)}`,
@@ -5427,6 +5434,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           { id: "live", label: "Live incidents", open: !!tiles.live },
           { id: "incident", label: "Incident details", open: !!tiles.incident && !!activeIncident },
           { id: "units", label: "Scene units", open: !!tiles.units && !!activeIncident },
+          { id: "patients", label: "Casualties", open: !!tiles.patients && !!activeIncident },
           { id: "log", label: "Incident log", open: !!tiles.log },
           { id: "attendance", label: "Attendance", open: !!tiles.attendance && !!activeIncident },
           { id: "available", label: "Resources", open: !!tiles.available },
@@ -5575,6 +5583,50 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           reference={selectedRef}
           onClose={() => setTiles((t) => ({ ...t, log: false }))}
           onEntry={(text) => logAnnotation(text)}
+        />
+      )}
+      patientsTile={(area, pop) => (
+        <PatientCareTile
+          {...pop}
+          layout={layout}
+          area={area}
+          onClose={() => setTiles((t) => ({ ...t, patients: false }))}
+          sim={incidentSim}
+          incidentRef={selectedRef}
+          deployments={incidentDeployments}
+          resolved={resolveDeployments(incidentDeployments, allDeployableStations, now)}
+          tasks={tasks}
+          now={now}
+          treatmentByCasualtyId={treatmentByCasualtyId}
+          onSetTreatingCasualty={setTreatingCasualty}
+          onStartPatientSurvey={startPatientSurvey}
+          onApplyAirway={applyAirway}
+          onApplyBreathing={applyBreathing}
+          onApplyCirculation={applyCirculation}
+          resusByCasualtyId={resusByCasualtyId}
+          onSetOxygen={setOxygen}
+          onSetResusAirway={setResusAirway}
+          onAttachMonitor={attachMonitor}
+          onToggleCapnography={toggleCapnography}
+          onSetCompressor={setCompressor}
+          onFitLucas={fitLucas}
+          onDeliverShock={deliverShock}
+          onMovePads={movePads}
+          onArrestAdrenaline={giveArrestAdrenaline}
+          onAmiodarone={giveAmiodarone}
+          onSuspectReversible={suspectReversible}
+          onTreatReversible={treatReversible}
+          onStopResus={stopResus}
+          onAdministerDrug={administerDrug}
+          onApplyPackaging={applyPackaging}
+          onApplyEgress={applyEgress}
+          egressBlocked={activeIncident?.scenario.scene?.egressBlocked}
+          egressExtraSeconds={activeIncident?.scenario.scene?.egressExtraSeconds}
+          onRequestClinician={requestClinician}
+          hemsFlyable={hemsAvailable(weather)}
+          onSetTreatmentDestination={setTreatmentDestination}
+          onSendAtmistPrealert={sendAtmistPrealert}
+          onConveyCasualtyVia={conveyCasualtyVia}
         />
       )}
       mapTitle={`MAP — ${mapPlace}`}
