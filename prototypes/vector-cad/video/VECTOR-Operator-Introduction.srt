@@ -1,0 +1,523 @@
+1
+00:00:00,600 --> 00:00:06,185
+Every response begins with information. A call. A location. A decision. This
+
+2
+00:00:06,185 --> 00:00:11,770
+is Vector: the dispatch and mobile data terminal interface for your emergency-service
+
+3
+00:00:11,770 --> 00:00:17,355
+simulator. Bring calls, incident assessment, searches and resource control into one workspace.
+
+4
+00:00:17,355 --> 00:00:22,940
+Follow a fictional incident from the first alert to mobilisation, then into
+
+5
+00:00:22,940 --> 00:00:28,525
+the crew terminal. This is the current demonstration build. Welcome to Vector.
+
+6
+00:00:29,725 --> 00:00:34,602
+Start on Dispatch. The map provides the central workspace, with calls, live
+
+7
+00:00:34,602 --> 00:00:39,478
+incidents and resources available in surrounding panels. The main navigation takes you
+
+8
+00:00:39,478 --> 00:00:44,355
+to the nine nine nine call page, the mobilisation screen and Ground.
+
+9
+00:00:44,355 --> 00:00:49,232
+Before starting, identify the selected incident reference. That reference provides context for
+
+10
+00:00:49,232 --> 00:00:54,108
+the information and resource controls you are about to use.
+
+11
+00:00:55,308 --> 00:00:59,018
+Your workspace is not limited to one screen. Use the pop out
+
+12
+00:00:59,018 --> 00:01:02,728
+control to open a floating panel or the map in its own
+
+13
+00:01:02,728 --> 00:01:06,438
+window. Move that window to another display using its operating system title
+
+14
+00:01:06,438 --> 00:01:10,147
+bar. Keep the call on your main screen and the map alongside.
+
+15
+00:01:10,147 --> 00:01:13,857
+This staged two-display animation illustrates the tested pop out behaviour. Dock back
+
+16
+00:01:13,857 --> 00:01:17,567
+restores the panel.
+
+17
+00:01:18,767 --> 00:01:22,560
+When a new call arrives, the pop up banner brings it to
+
+18
+00:01:22,560 --> 00:01:26,353
+your attention even when the call panel is closed. Read the service,
+
+19
+00:01:26,353 --> 00:01:30,146
+reported nature, location and waiting information before answering. The persistent alert strip
+
+20
+00:01:30,146 --> 00:01:33,939
+provides another route back to waiting calls. In this demonstration, Test call
+
+21
+00:01:33,939 --> 00:01:37,732
+produces an example arrival. It is not a connection to a telephone
+
+22
+00:01:37,732 --> 00:01:41,525
+network.
+
+23
+00:01:42,725 --> 00:01:47,243
+Answering opens the call handling page and removes that call from the
+
+24
+00:01:47,243 --> 00:01:51,762
+unanswered stack. Check the active call identity, the reported problem and any
+
+25
+00:01:51,762 --> 00:01:56,280
+caller details supplied. Do not assume missing information has been verified elsewhere.
+
+26
+00:01:56,280 --> 00:02:00,798
+The example concerns smoke issuing from a dwelling. Keep the distinction between
+
+27
+00:02:00,798 --> 00:02:05,317
+what the caller has reported and what has actually been confirmed.
+
+28
+00:02:06,517 --> 00:02:11,393
+Next, look at the location source. The interface can display handset location
+
+29
+00:02:11,393 --> 00:02:16,270
+information and other location references. Read the source and any accuracy information
+
+30
+00:02:16,270 --> 00:02:21,147
+alongside the caller's description. A marker identifies a possible location; it does
+
+31
+00:02:21,147 --> 00:02:26,023
+not prove which building or entrance is involved. If sources disagree, resolve
+
+32
+00:02:26,023 --> 00:02:30,900
+that disagreement before treating the address as a confirmed incident location.
+
+33
+00:02:32,100 --> 00:02:36,585
+The compact address control is designed for a quick, deliberate choice. Select
+
+34
+00:02:36,585 --> 00:02:41,070
+the matching address, check the building number, street and locality with the
+
+35
+00:02:41,070 --> 00:02:45,555
+caller, then use Confirm address. Add useful access details in the separate
+
+36
+00:02:45,555 --> 00:02:50,040
+field. The confirmed state should reflect a completed check, rather than simply
+
+37
+00:02:50,040 --> 00:02:54,525
+accepting whichever search result happens to appear first in the list.
+
+38
+00:02:55,725 --> 00:02:59,747
+If the suggested address is wrong or ambiguous, expand Search or change
+
+39
+00:02:59,747 --> 00:03:03,769
+address. Compare the available records and their supporting details, then return to
+
+40
+00:03:03,769 --> 00:03:07,792
+the compact confirmation step. Similar street names, nearby properties and a different
+
+41
+00:03:07,792 --> 00:03:11,814
+access point can all matter. For an unclear location, preserve the uncertainty
+
+42
+00:03:11,814 --> 00:03:15,836
+in the record instead of making the display appear more precise than
+
+43
+00:03:15,836 --> 00:03:19,858
+the information allows.
+
+44
+00:03:21,058 --> 00:03:25,074
+The triage area groups questions around the nature of the incident, risks,
+
+45
+00:03:25,074 --> 00:03:29,089
+casualties, access and caller updates. In this prototype, pressing Ask inserts a
+
+46
+00:03:29,089 --> 00:03:33,104
+scripted question and reply into the dialogue. In a connected system, the
+
+47
+00:03:33,104 --> 00:03:37,119
+operator would record the caller's actual response. Work through the relevant questions
+
+48
+00:03:37,119 --> 00:03:41,135
+and distinguish a direct observation from information the caller heard from somebody
+
+49
+00:03:41,135 --> 00:03:45,150
+else.
+
+50
+00:03:46,350 --> 00:03:50,902
+The dialogue provides a chronological account of the call. Use it to
+
+51
+00:03:50,902 --> 00:03:55,453
+follow what has been asked and what new information changes your understanding.
+
+52
+00:03:55,453 --> 00:04:00,005
+In our example, reports about a person inside require careful attribution. Unknown
+
+53
+00:04:00,005 --> 00:04:04,557
+is different from no. Keep checking for meaningful changes, while avoiding repeated
+
+54
+00:04:04,557 --> 00:04:09,108
+questions that add no useful information to the incident record.
+
+55
+00:04:10,308 --> 00:04:14,868
+The question counter is a progress guide, not a requirement to finish
+
+56
+00:04:14,868 --> 00:04:19,428
+every question before mobilising. This interface allows creation when the essential call,
+
+57
+00:04:19,428 --> 00:04:23,988
+location and incident type checks are satisfied, even with questions remaining. That
+
+58
+00:04:23,988 --> 00:04:28,548
+does not mean skipping those essential checks. It means you can progress
+
+59
+00:04:28,548 --> 00:04:33,108
+the response while continuing relevant information gathering as the call develops.
+
+60
+00:04:34,308 --> 00:04:37,990
+Use Escalate call when the assessment needs a higher priority or a
+
+61
+00:04:37,990 --> 00:04:41,672
+review. Record the reason so the change is understandable to the next
+
+62
+00:04:41,672 --> 00:04:45,354
+operator. If the call already has the highest available priority, the interface
+
+63
+00:04:45,354 --> 00:04:49,036
+can represent a request for supervisor review. In this prototype that request
+
+64
+00:04:49,036 --> 00:04:52,718
+is recorded locally; it does not notify a real supervisor or another
+
+65
+00:04:52,718 --> 00:04:56,400
+control room.
+
+66
+00:04:57,600 --> 00:05:02,202
+The Systems menu brings enquiries into a separate movable window. Choose the
+
+67
+00:05:02,202 --> 00:05:06,803
+system that answers your current question rather than opening every tool. Address
+
+68
+00:05:06,803 --> 00:05:11,405
+Check helps inspect an address record. Premises Risk and Incident History provide
+
+69
+00:05:11,405 --> 00:05:16,007
+additional context in this demonstration. Keep the active incident reference in view
+
+70
+00:05:16,007 --> 00:05:20,608
+when copying information between the call screen and an enquiry window.
+
+71
+00:05:21,808 --> 00:05:26,743
+Premises information can help identify recorded access issues or hazards, while incident
+
+72
+00:05:26,743 --> 00:05:31,678
+history shows earlier events associated with a location. Those records add context;
+
+73
+00:05:31,678 --> 00:05:36,613
+they do not establish what is happening now. Compare the address carefully
+
+74
+00:05:36,613 --> 00:05:41,548
+and distinguish historical information from the current caller's report. The records shown
+
+75
+00:05:41,548 --> 00:05:46,483
+here are demonstration content, with live data connections still to be added.
+
+76
+00:05:47,683 --> 00:05:51,963
+For a relevant policing enquiry, select P N C and choose the
+
+77
+00:05:51,963 --> 00:05:56,242
+appropriate record view. Copy controls are intended to reduce retyping of registrations,
+
+78
+00:05:56,242 --> 00:06:00,521
+names, numbers and identifiers. Check the value and search context before using
+
+79
+00:06:00,521 --> 00:06:04,800
+it. The P N C screen here contains clearly fictional sample records.
+
+80
+00:06:04,800 --> 00:06:09,079
+It demonstrates the layout and copying workflow, not access to the Police
+
+81
+00:06:09,079 --> 00:06:13,358
+National Computer.
+
+82
+00:06:14,558 --> 00:06:18,324
+The A N P R page presents a vehicle read history. Compare
+
+83
+00:06:18,324 --> 00:06:22,089
+the registration, time, camera location and direction, then select a row for
+
+84
+00:06:22,089 --> 00:06:25,854
+its details. A historic read is not proof of the vehicle's current
+
+85
+00:06:25,854 --> 00:06:29,619
+position. The example uses fictional training reads and has no camera image.
+
+86
+00:06:29,619 --> 00:06:33,385
+It shows how a result could be inspected without claiming a live
+
+87
+00:06:33,385 --> 00:06:37,150
+tracking connection.
+
+88
+00:06:38,350 --> 00:06:42,372
+Some calls need more than one service. In our fire example, the
+
+89
+00:06:42,372 --> 00:06:46,394
+reported risk to people may also require an ambulance response in the
+
+90
+00:06:46,394 --> 00:06:50,417
+scenario. Select the incident type, then use Add beside Ambulance to include
+
+91
+00:06:50,417 --> 00:06:54,439
+that service alongside Fire. Review the updated attendance preview. Add is different
+
+92
+00:06:54,439 --> 00:06:58,461
+from Pass over: it keeps the current call while including another service
+
+93
+00:06:58,461 --> 00:07:02,483
+in this simulated attendance.
+
+94
+00:07:03,683 --> 00:07:07,900
+After checking the location, incident type and multi-service attendance, select Create incident
+
+95
+00:07:07,900 --> 00:07:12,117
+and mobilise. Vector creates one incident reference and opens the allocation screen.
+
+96
+00:07:12,117 --> 00:07:16,333
+Returning to the same call shows Incident created, with a separate option
+
+97
+00:07:16,333 --> 00:07:20,550
+to view mobilisation. Continue updating that existing incident. Adding a second service
+
+98
+00:07:20,550 --> 00:07:24,767
+is not a reason to create another copy of the same incident
+
+99
+00:07:24,767 --> 00:07:28,983
+from this call.
+
+100
+00:07:30,183 --> 00:07:34,902
+On Mobilising, review each required attendance slot. Allocate a suitable available resource,
+
+101
+00:07:34,902 --> 00:07:39,620
+checking its type and existing commitments. In this example, a resource is
+
+102
+00:07:39,620 --> 00:07:44,338
+placed into a matching slot while other requirements remain unfilled. A selected
+
+103
+00:07:44,338 --> 00:07:49,057
+callsign means it has been allocated. It has not necessarily received instructions,
+
+104
+00:07:49,057 --> 00:07:53,775
+accepted the task or started moving towards the incident.
+
+105
+00:07:54,975 --> 00:08:00,252
+Send the mobilisation message, then monitor the acknowledgement sequence. Sent, received, accepted,
+
+106
+00:08:00,252 --> 00:08:05,528
+turning out and mobile are separate stages. This prototype provides controls to
+
+107
+00:08:05,528 --> 00:08:10,805
+simulate those crew replies. A lack of acceptance is visibly flagged after
+
+108
+00:08:10,805 --> 00:08:16,082
+the demonstration timeout. Do not interpret that example timeout as a universal
+
+109
+00:08:16,082 --> 00:08:21,358
+service standard; the connected system should apply its own configured operational rules.
+
+110
+00:08:22,558 --> 00:08:26,664
+An incomplete attendance remains visible after the allocated resources are sent. Continue
+
+111
+00:08:26,664 --> 00:08:30,769
+to track unfilled requirements and review the effect of commitments on available
+
+112
+00:08:30,769 --> 00:08:34,875
+cover. Available units, attendance and county cover panels support different parts of
+
+113
+00:08:34,875 --> 00:08:38,981
+that picture. Sending some resources should not make the remaining requirements disappear.
+
+114
+00:08:38,981 --> 00:08:43,086
+The incident needs to remain understandable to the next operator taking over
+
+115
+00:08:43,086 --> 00:08:47,192
+the desk.
+
+116
+00:08:48,392 --> 00:08:52,418
+Back on Dispatch, select an incident and then choose a resource from
+
+117
+00:08:52,418 --> 00:08:56,445
+its map marker or Scene Units row. The rugged M D T
+
+118
+00:08:56,445 --> 00:09:00,472
+window opens with the callsign and incident reference clearly displayed. Actions are
+
+119
+00:09:00,472 --> 00:09:04,498
+tailored to the resource. The window can be moved, resized or minimised,
+
+120
+00:09:04,498 --> 00:09:08,525
+keeping the map usable while you work with that unit's controls.
+
+121
+00:09:09,725 --> 00:09:13,490
+Choose an action and select the crew required for it. The preview
+
+122
+00:09:13,490 --> 00:09:17,256
+checks its local crew availability and shows active tasks with a way
+
+123
+00:09:17,256 --> 00:09:21,021
+to release those crew. The main simulation contains richer capability and equipment
+
+124
+00:09:21,021 --> 00:09:24,786
+rules which still need connecting to this interface. The Incident and Messages
+
+125
+00:09:24,786 --> 00:09:28,551
+tabs keep context close by; message sending here creates a local demonstration
+
+126
+00:09:28,551 --> 00:09:32,317
+record only.
+
+127
+00:09:33,517 --> 00:09:38,693
+To finish, review the incident reference, confirmed location, recorded risks, resource status
+
+128
+00:09:38,693 --> 00:09:43,870
+and anything still outstanding. End the call when appropriate in the workflow;
+
+129
+00:09:43,870 --> 00:09:49,047
+ending a call does not mean the incident is resolved. The sequence
+
+130
+00:09:49,047 --> 00:09:54,223
+is receive, confirm location, triage, make relevant enquiries, create once, allocate, send
+
+131
+00:09:54,223 --> 00:09:59,400
+and monitor. That is the core Vector journey demonstrated in this introduction.

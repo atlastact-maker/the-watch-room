@@ -1,0 +1,492 @@
+{
+ "w": 1280,
+ "h": 1024,
+ "stations": {
+  "G10": {
+   "x": 722,
+   "y": 721,
+   "area": "Southern",
+   "admin": {
+    "district": "Trafford",
+    "ward": "Gorse Hill & Cornbrook",
+    "parliamentary_constituency": "Stretford and Urmston",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Stretford"
+  },
+  "G11": {
+   "x": 706,
+   "y": 793,
+   "area": "Southern",
+   "admin": {
+    "district": "Trafford",
+    "ward": "Ashton upon Mersey",
+    "parliamentary_constituency": "Altrincham and Sale West",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Sale"
+  },
+  "G12": {
+   "x": 670,
+   "y": 869,
+   "area": "Southern",
+   "admin": {
+    "district": "Trafford",
+    "ward": "Altrincham",
+    "parliamentary_constituency": "Altrincham and Sale West",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Altrincham"
+  },
+  "G13": {
+   "x": 825,
+   "y": 709,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Hulme",
+    "parliamentary_constituency": "Manchester Rusholme",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Moss Side"
+  },
+  "G14": {
+   "x": 851,
+   "y": 777,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Withington",
+    "parliamentary_constituency": "Manchester Withington",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Withington"
+  },
+  "G15": {
+   "x": 809,
+   "y": 900,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Woodhouse Park",
+    "parliamentary_constituency": "Wythenshawe and Sale East",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Wythenshawe"
+  },
+  "G16": {
+   "x": 847,
+   "y": 642,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Piccadilly",
+    "parliamentary_constituency": "Manchester Central",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Manchester Central"
+  },
+  "G17": {
+   "x": 876,
+   "y": 542,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Charlestown",
+    "parliamentary_constituency": "Blackley and Middleton South",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Blackley"
+  },
+  "G18": {
+   "x": 894,
+   "y": 631,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Miles Platting & Newton Heath",
+    "parliamentary_constituency": "Manchester Central",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Philips Park"
+  },
+  "G19": {
+   "x": 903,
+   "y": 693,
+   "area": "Southern",
+   "admin": {
+    "district": "Manchester",
+    "ward": "Gorton & Abbey Hey",
+    "parliamentary_constituency": "Gorton and Denton",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Gorton"
+  },
+  "G20": {
+   "x": 942,
+   "y": 796,
+   "area": "Southern",
+   "admin": {
+    "district": "Stockport",
+    "ward": "Reddish South",
+    "parliamentary_constituency": "Stockport",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Whitehill"
+  },
+  "G21": {
+   "x": 942,
+   "y": 796,
+   "area": "Southern",
+   "name": "Stockport Central"
+  },
+  "G22": {
+   "x": 898,
+   "y": 914,
+   "area": "Southern",
+   "admin": {
+    "district": "Stockport",
+    "ward": "Cheadle Hulme South",
+    "parliamentary_constituency": "Cheadle",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Cheadle"
+  },
+  "G23": {
+   "x": 1000,
+   "y": 871,
+   "area": "Southern",
+   "admin": {
+    "district": "Stockport",
+    "ward": "Offerton",
+    "parliamentary_constituency": "Hazel Grove",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Offerton"
+  },
+  "G24": {
+   "x": 1091,
+   "y": 864,
+   "area": "Southern",
+   "admin": {
+    "district": "Stockport",
+    "ward": "Marple North",
+    "parliamentary_constituency": "Hazel Grove",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Marple"
+  },
+  "G30": {
+   "x": 975,
+   "y": 306,
+   "area": "Eastern",
+   "admin": {
+    "district": "Rochdale",
+    "ward": "Central Rochdale",
+    "parliamentary_constituency": "Rochdale",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Rochdale"
+  },
+  "G31": {
+   "x": 1033,
+   "y": 253,
+   "area": "Eastern",
+   "admin": {
+    "district": "Rochdale",
+    "ward": "Wardle, Shore & West Littleborough",
+    "parliamentary_constituency": "Rochdale",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Littleborough"
+  },
+  "G32": {
+   "x": 880,
+   "y": 413,
+   "area": "Eastern",
+   "admin": {
+    "district": "Rochdale",
+    "ward": "Hopwood Hall",
+    "parliamentary_constituency": "Heywood and Middleton North",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Heywood"
+  },
+  "G33": {
+   "x": 1044,
+   "y": 508,
+   "area": "Eastern",
+   "admin": {
+    "district": "Oldham",
+    "ward": "St Mary's",
+    "parliamentary_constituency": "Oldham East and Saddleworth",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Oldham"
+  },
+  "G34": {
+   "x": 1005,
+   "y": 555,
+   "area": "Eastern",
+   "admin": {
+    "district": "Oldham",
+    "ward": "Hollinwood",
+    "parliamentary_constituency": "Oldham West, Chadderton and Royton",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Hollins"
+  },
+  "G35": {
+   "x": 974,
+   "y": 492,
+   "area": "Eastern",
+   "admin": {
+    "district": "Oldham",
+    "ward": "Chadderton Central",
+    "parliamentary_constituency": "Oldham West, Chadderton and Royton",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Chadderton"
+  },
+  "G36": {
+   "x": 746,
+   "y": 370,
+   "area": "Eastern",
+   "admin": {
+    "district": "Bury",
+    "ward": "Moorside",
+    "parliamentary_constituency": "Bury North",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Bury"
+  },
+  "G37": {
+   "x": 753,
+   "y": 475,
+   "area": "Eastern",
+   "admin": {
+    "district": "Bury",
+    "ward": "Unsworth",
+    "parliamentary_constituency": "Bury South",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Whitefield"
+  },
+  "G38": {
+   "x": 723,
+   "y": 233,
+   "area": "Eastern",
+   "admin": {
+    "district": "Bury",
+    "ward": "Ramsbottom",
+    "parliamentary_constituency": "Bury North",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Ramsbottom"
+  },
+  "G39": {
+   "x": 1011,
+   "y": 665,
+   "area": "Eastern",
+   "admin": {
+    "district": "Tameside",
+    "ward": "St Peter's",
+    "parliamentary_constituency": "Ashton-under-Lyne",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Ashton-Under-Lyne"
+  },
+  "G40": {
+   "x": 1090,
+   "y": 649,
+   "area": "Eastern",
+   "admin": {
+    "district": "Tameside",
+    "ward": "Stalybridge North",
+    "parliamentary_constituency": "Stalybridge and Hyde",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Stalybridge"
+  },
+  "G41": {
+   "x": 1115,
+   "y": 567,
+   "area": "Eastern",
+   "admin": {
+    "district": "Tameside",
+    "ward": "Mossley",
+    "parliamentary_constituency": "Stalybridge and Hyde",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Mossley"
+  },
+  "G42": {
+   "x": 1062,
+   "y": 736,
+   "area": "Eastern",
+   "admin": {
+    "district": "Tameside",
+    "ward": "Hyde Werneth",
+    "parliamentary_constituency": "Stalybridge and Hyde",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Hyde"
+  },
+  "G50": {
+   "x": 550,
+   "y": 426,
+   "area": "Western",
+   "admin": {
+    "district": "Bolton",
+    "ward": "Queens Park & Central",
+    "parliamentary_constituency": "Bolton South and Walkden",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Bolton Central"
+  },
+  "G51": {
+   "x": 579,
+   "y": 372,
+   "area": "Western",
+   "admin": {
+    "district": "Bolton",
+    "ward": "Tonge with the Haulgh",
+    "parliamentary_constituency": "Bolton North East",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Bolton North"
+  },
+  "G52": {
+   "x": 389,
+   "y": 379,
+   "area": "Western",
+   "admin": {
+    "district": "Bolton",
+    "ward": "Horwich South & Blackrod",
+    "parliamentary_constituency": "Bolton West",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Horwich"
+  },
+  "G53": {
+   "x": 603,
+   "y": 498,
+   "area": "Western",
+   "admin": {
+    "district": "Bolton",
+    "ward": "Farnworth South",
+    "parliamentary_constituency": "Bolton South and Walkden",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Farnworth"
+  },
+  "G54": {
+   "x": 235,
+   "y": 510,
+   "area": "Western",
+   "admin": {
+    "district": "Wigan",
+    "ward": "Douglas",
+    "parliamentary_constituency": "Wigan",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Wigan"
+  },
+  "G55": {
+   "x": 356,
+   "y": 532,
+   "area": "Western",
+   "admin": {
+    "district": "Wigan",
+    "ward": "Hindley",
+    "parliamentary_constituency": "Makerfield",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Hindley"
+  },
+  "G56": {
+   "x": 461,
+   "y": 546,
+   "area": "Western",
+   "admin": {
+    "district": "Wigan",
+    "ward": "Atherton North",
+    "parliamentary_constituency": "Leigh and Atherton",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Atherton"
+  },
+  "G57": {
+   "x": 398,
+   "y": 660,
+   "area": "Western",
+   "admin": {
+    "district": "Wigan",
+    "ward": "Lowton East",
+    "parliamentary_constituency": "Leigh and Atherton",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Leigh"
+  },
+  "G58": {
+   "x": 789,
+   "y": 658,
+   "area": "Western",
+   "admin": {
+    "district": "Salford",
+    "ward": "Ordsall",
+    "parliamentary_constituency": "Salford",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Salford"
+  },
+  "G59": {
+   "x": 799,
+   "y": 584,
+   "area": "Western",
+   "admin": {
+    "district": "Salford",
+    "ward": "Kersal & Broughton Park",
+    "parliamentary_constituency": "Bury South",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Broughton"
+  },
+  "G60": {
+   "x": 731,
+   "y": 599,
+   "area": "Western",
+   "admin": {
+    "district": "Salford",
+    "ward": "Swinton Park",
+    "parliamentary_constituency": "Salford",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Agecroft"
+  },
+  "G61": {
+   "x": 664,
+   "y": 654,
+   "area": "Western",
+   "admin": {
+    "district": "Salford",
+    "ward": "Barton & Winton",
+    "parliamentary_constituency": "Worsley and Eccles",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Eccles"
+  },
+  "G62": {
+   "x": 571,
+   "y": 757,
+   "area": "Western",
+   "admin": {
+    "district": "Salford",
+    "ward": "Cadishead & Lower Irlam",
+    "parliamentary_constituency": "Worsley and Eccles",
+    "police_force_area": "Greater Manchester"
+   },
+   "name": "Irlam"
+  }
+ }
+}

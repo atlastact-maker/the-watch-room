@@ -1,0 +1,1027 @@
+{
+  "$comment": "Per-type defaults for GMFRS (fire) and NWAS (ambulance) appliances. Fire designators are real GMFRS radio call-sign codes from the user-supplied glossary (2026-04-18). Ambulance designators are sim-synthetic (NWAS fleet-numbering isn't public). Combine designator with a station-short prefix to form the full callsign — e.g. station G50 Bolton Central first WrL → '50P1', ambulance station A-BOL first DCA → 'BOL-D1'.",
+  "verifiedSource": false,
+  "types": {
+    "WrL": {
+      "fullName": "Water Ladder",
+      "callsignCategory": "P",
+      "designators": [
+        "P1",
+        "P2"
+      ],
+      "crew": {
+        "min": 5,
+        "max": 5
+      },
+      "waterLitres": 1800,
+      "kit": [
+        "BA sets",
+        "Hose",
+        "13.5m ladder",
+        "Hydraulic cutters",
+        "Hydraulic spreaders",
+        "Stabiliser chocks",
+        "Glass management",
+        "Spine board",
+        "Red key / standpipe",
+        "Hali tool",
+        "Lock snapper",
+        "Thermal imaging camera",
+        "AED"
+      ]
+    },
+    "WrT": {
+      "fullName": "Water Tower",
+      "callsignCategory": "P",
+      "designators": [
+        "P8"
+      ],
+      "crew": {
+        "min": 5,
+        "max": 5
+      },
+      "waterLitres": 1800,
+      "kit": [
+        "BA sets",
+        "Hose",
+        "Boom monitor",
+        "Hydraulic cutters",
+        "Stabiliser chocks",
+        "Red key / standpipe",
+        "Hali tool",
+        "Thermal imaging camera",
+        "AED"
+      ]
+    },
+    "L6P": {
+      "fullName": "Light 6x6 Pump",
+      "callsignCategory": "M",
+      "designators": [
+        "M2"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 800,
+      "kit": [
+        "BA sets",
+        "Off-road capability"
+      ]
+    },
+    "TL": {
+      "fullName": "Turntable Ladder",
+      "callsignCategory": "A",
+      "designators": [
+        "A3"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "32m turntable ladder",
+        "Cage rescue"
+      ]
+    },
+    "HLP": {
+      "fullName": "Hydraulic Platform",
+      "callsignCategory": "A",
+      "designators": [
+        "A1"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Hydraulic platform",
+        "Rescue cage"
+      ]
+    },
+    "WIU": {
+      "fullName": "Water Incident Unit",
+      "callsignCategory": "B",
+      "designators": [
+        "B2"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Boat",
+        "Throwlines",
+        "Dry suits",
+        "Powered craft"
+      ]
+    },
+    "ICU": {
+      "fullName": "Incident Command Unit",
+      "callsignCategory": "C",
+      "designators": [
+        "C1"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Major incident comms",
+        "Mapping",
+        "Briefing space"
+      ]
+    },
+    "CSU": {
+      "fullName": "Command Support Unit",
+      "callsignCategory": "C",
+      "designators": [
+        "C2"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Comms",
+        "Logging"
+      ]
+    },
+    "OSU": {
+      "fullName": "Operational Support Unit",
+      "callsignCategory": "C",
+      "designators": [
+        "C3"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Operational logistics"
+      ]
+    },
+    "FIU": {
+      "fullName": "Fire Investigation Unit",
+      "callsignCategory": "R",
+      "designators": [
+        "R7"
+      ],
+      "crew": {
+        "min": 1,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Investigation kit",
+        "Dog (search)"
+      ]
+    },
+    "BASU": {
+      "fullName": "Breathing Apparatus Support Unit",
+      "callsignCategory": "S",
+      "designators": [
+        "S1"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Spare BA cylinders",
+        "Compressor"
+      ]
+    },
+    "BFU": {
+      "fullName": "Bulk Foam Unit",
+      "callsignCategory": "S",
+      "designators": [
+        "S2"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Foam concentrate",
+        "Foam-making branches"
+      ]
+    },
+    "SACU": {
+      "fullName": "Salvation Army Catering Unit",
+      "callsignCategory": "S",
+      "designators": [
+        "S4"
+      ],
+      "crew": {
+        "min": 0,
+        "max": 0
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Catering (Salvation Army crew, not GMFRS)"
+      ]
+    },
+    "WU": {
+      "fullName": "Welfare Unit",
+      "callsignCategory": "S",
+      "designators": [
+        "S3",
+        "S7"
+      ],
+      "crew": {
+        "min": 1,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Welfare facilities for crews on long incidents"
+      ]
+    },
+    "WFU": {
+      "fullName": "Wildfire Unit",
+      "callsignCategory": "M",
+      "designators": [
+        "M2"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Wildfire beaters",
+        "Leaf blowers",
+        "Knapsack sprayers"
+      ]
+    },
+    "HLL": {
+      "fullName": "Hose Laying Lorry & Hose Retrieval",
+      "callsignCategory": "W",
+      "designators": [
+        "W2"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Bulk hose",
+        "Hose retrieval"
+      ]
+    },
+    "PM": {
+      "fullName": "Prime Mover",
+      "callsignCategory": "T",
+      "designators": [
+        "T6",
+        "T7"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Pod chassis (carries one pod)"
+      ]
+    },
+    "TRU_pump": {
+      "fullName": "Technical Response Pump",
+      "callsignCategory": "R",
+      "designators": [
+        "R2"
+      ],
+      "crew": {
+        "min": 4,
+        "max": 5
+      },
+      "waterLitres": 500,
+      "kit": [
+        "BA sets",
+        "Hose",
+        "Rope rescue",
+        "Water rescue",
+        "Heavy rescue"
+      ]
+    },
+    "TRU_van": {
+      "fullName": "Technical Response Van",
+      "callsignCategory": "R",
+      "designators": [
+        "R4"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Rope rescue",
+        "Water rescue",
+        "Specialist tooling"
+      ]
+    },
+    "USAR": {
+      "fullName": "Urban Search and Rescue Unit",
+      "callsignCategory": "R",
+      "designators": [
+        "R6"
+      ],
+      "crew": {
+        "min": 4,
+        "max": 6
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Shoring",
+        "Lifting",
+        "Search cameras",
+        "Concrete cutting"
+      ]
+    },
+    "SDU": {
+      "fullName": "Search and Rescue Dog Unit",
+      "callsignCategory": "R",
+      "designators": [
+        "R9"
+      ],
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Search dog (handler-led)"
+      ]
+    },
+    "DIM": {
+      "fullName": "Detection Identification & Monitoring",
+      "callsignCategory": "H",
+      "designators": [
+        "H8"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Gas detection",
+        "Chemical ID",
+        "Radiation monitoring"
+      ]
+    },
+    "DCA": {
+      "fullName": "Double-Crewed Ambulance",
+      "callsignCategory": "D",
+      "designators": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Paramedic kit",
+        "Defib / AED",
+        "Oxygen",
+        "Trolley bed",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "RRV": {
+      "fullName": "Rapid Response Vehicle",
+      "callsignCategory": "R",
+      "designators": [
+        "RRV1",
+        "RRV2"
+      ],
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Solo paramedic response",
+        "Defib / AED",
+        "Airway",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "HART_vehicle": {
+      "fullName": "HART Incident Response Unit",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "CBRN PPE",
+        "Rope / water / confined-space kit",
+        "Safe access safe egress kit",
+        "Paramedic kit",
+        "Defib / AED",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "NWAS_IRU": {
+      "fullName": "HART Incident Support Unit (ISU)",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Mass casualty equipment",
+        "Specialist PPE"
+      ]
+    },
+    "HART_PCV": {
+      "fullName": "HART Personnel Carrier",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 6
+      },
+      "waterLitres": 0,
+      "kit": [
+        "HART team",
+        "CBRN PPE",
+        "Specialist PPE"
+      ]
+    },
+    "HART_ORIRU": {
+      "fullName": "HART 4x4 (Off-Road Incident Response Unit)",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Safe access safe egress kit",
+        "Paramedic kit",
+        "Defib / AED",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "HART_ATV": {
+      "fullName": "HART All-Terrain Vehicle (Polaris 6x6)",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Polaris 6x6 UTV",
+        "Stretcher"
+      ]
+    },
+    "HART_carrier": {
+      "fullName": "HART ATV Carrier",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Polaris 6x6 UTV"
+      ]
+    },
+    "HART_RRV": {
+      "fullName": "HART Rapid Response Vehicle",
+      "callsignCategory": "Z",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Solo paramedic response",
+        "Defib / AED",
+        "Airway",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "HEMS": {
+      "fullName": "Air Ambulance (HEMS)",
+      "callsignCategory": "HEMS",
+      "designators": [
+        "HELIMED 72"
+      ],
+      "crew": {
+        "min": 3,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Doctor-paramedic team",
+        "Critical care / trauma kit",
+        "Blood",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "BASICS": {
+      "fullName": "BASICS Doctor",
+      "callsignCategory": "MX",
+      "designators": [
+        "DR1",
+        "DR2"
+      ],
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Volunteer pre-hospital emergency doctor"
+      ]
+    },
+    "QR": {
+      "fullName": "Advanced Paramedic",
+      "callsignCategory": "QR",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Solo paramedic response",
+        "Defib / AED",
+        "Airway",
+        "Extended clinical formulary",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "OD": {
+      "fullName": "Duty Officer (Operational Commander)",
+      "callsignCategory": "BX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Comms",
+        "Mechanical CPR device"
+      ]
+    },
+    "CCC": {
+      "fullName": "Critical Care Car",
+      "callsignCategory": "HX",
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Doctor-paramedic team",
+        "Critical care / trauma kit",
+        "Blood",
+        "Mechanical CPR device",
+        "Cardiac monitor / defibrillator"
+      ]
+    },
+    "Police_Response": {
+      "fullName": "Response Vehicle",
+      "callsignCategory": "MP",
+      "crew": {
+        "min": 1,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Stab vest",
+        "Tactical aids",
+        "Comms",
+        "First aid"
+      ]
+    },
+    "Police_ARV": {
+      "fullName": "Armed Response Vehicle",
+      "callsignCategory": "AR",
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Glock 17 + Heckler & Koch G36C (per AFO)",
+        "Ballistic vests",
+        "Taser X2",
+        "Battenberg livery"
+      ]
+    },
+    "Police_NPAS": {
+      "fullName": "Police Helicopter (NPAS)",
+      "callsignCategory": "NPAS",
+      "designators": [
+        "NPAS 21"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Thermal imager",
+        "Searchlight",
+        "Moving-map downlink"
+      ]
+    },
+    "Police_Dog": {
+      "fullName": "Dog Unit",
+      "callsignCategory": "PD",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Handler + police dog (search / public order / firearms)"
+      ]
+    },
+    "Police_TraffMot": {
+      "fullName": "Roads Policing Motorbike",
+      "callsignCategory": "RPU",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Speed detection",
+        "ANPR-linked"
+      ]
+    },
+    "Police_Search": {
+      "fullName": "POLSA Specialist Search Team",
+      "callsignCategory": "POLSA",
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Search kit",
+        "POLSA-led"
+      ]
+    },
+    "Police_SIO": {
+      "fullName": "Senior Investigating Officer",
+      "callsignCategory": "SIO",
+      "designators": [
+        "SIO 1"
+      ],
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Investigation kit",
+        "Scene preservation authority"
+      ]
+    },
+    "Police_RPU": {
+      "fullName": "Roads Policing Unit",
+      "callsignCategory": "RP",
+      "crew": {
+        "min": 1,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Cones + signage",
+        "Road closure kit",
+        "Stinger",
+        "ANPR-linked",
+        "Scene lighting",
+        "First aid"
+      ]
+    },
+    "ATV": {
+      "fullName": "All-Terrain Vehicle (beavertail + tracked carrier)",
+      "callsignCategory": "M",
+      "designators": [
+        "M1"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Wildfire beaters",
+        "Knapsack sprayers",
+        "Stretcher"
+      ]
+    },
+    "UCA": {
+      "fullName": "Urgent Care Ambulance",
+      "callsignCategory": "U",
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Paramedic kit",
+        "Defib / AED",
+        "Carry chair",
+        "Urgent care pathways"
+      ]
+    },
+    "CYC": {
+      "fullName": "Cycle Response Unit",
+      "callsignCategory": "C",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Solo responder",
+        "Defib / AED",
+        "Airway",
+        "Oxygen"
+      ]
+    },
+    "DUTY_OFF": {
+      "fullName": "Duty Officer",
+      "callsignCategory": "DX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Comms",
+        "Mechanical CPR device"
+      ]
+    },
+    "CHAP": {
+      "fullName": "Clinical Hub Advanced Practitioner",
+      "callsignCategory": "CX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Extended clinical practice",
+        "Defib / AED",
+        "Airway",
+        "Drugs"
+      ]
+    },
+    "MIV": {
+      "fullName": "Major Incident Vehicle",
+      "callsignCategory": "M",
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Mass casualty equipment",
+        "Command support",
+        "Triage kit"
+      ]
+    },
+    "MERIT": {
+      "fullName": "Medical Emergency Response Incident Team",
+      "callsignCategory": "MA",
+      "crew": {
+        "min": 2,
+        "max": 3
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Doctor-paramedic team",
+        "Critical care / trauma kit",
+        "Blood"
+      ]
+    },
+    "TAC_CMD": {
+      "fullName": "Tactical Commander",
+      "callsignCategory": "SX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Tactical command kit",
+        "Comms"
+      ]
+    },
+    "STRAT_CMD": {
+      "fullName": "Strategic Commander",
+      "callsignCategory": "GX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Strategic command kit",
+        "Comms"
+      ]
+    },
+    "TAC_ADV": {
+      "fullName": "Tactical Advisor",
+      "callsignCategory": "TX",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Tactical advice",
+        "Comms",
+        "Specialist capability advice"
+      ]
+    },
+    "CFR": {
+      "fullName": "Community First Responder",
+      "callsignCategory": "FR",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Defib / AED",
+        "Oxygen",
+        "Basic life support"
+      ]
+    },
+    "STAFF_RESP": {
+      "fullName": "Staff Responder",
+      "callsignCategory": "SR",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Defib / AED",
+        "Basic life support"
+      ]
+    },
+    "RCV": {
+      "fullName": "GMFRS / British Red Cross Vehicle",
+      "callsignCategory": "S",
+      "designators": [
+        "S6"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 2
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Casualty welfare",
+        "Rest and shelter",
+        "Refreshments",
+        "Emergency clothing"
+      ]
+    },
+    "MTA": {
+      "fullName": "MTA Response Unit",
+      "callsignCategory": "R",
+      "designators": [
+        "R5"
+      ],
+      "crew": {
+        "min": 2,
+        "max": 4
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Casualty extraction under threat",
+        "Ballistic PPE",
+        "Rapid triage and evacuation"
+      ]
+    },
+    "FIRE_SM": {
+      "fullName": "Station Manager",
+      "callsignCategory": "GS",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Command support tabard",
+        "Comms"
+      ],
+      "$note": "Duty Station Manager — the officer on a life-risk PDA (S5, S26)."
+    },
+    "FIRE_GM": {
+      "fullName": "Group Manager",
+      "callsignCategory": "GG",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Incident command kit",
+        "Comms",
+        "Tactical adviser access"
+      ],
+      "$note": "Duty Group Manager — mobilised on a make-up, not on an initial attendance."
+    },
+    "FIRE_AM": {
+      "fullName": "Area Manager",
+      "callsignCategory": "GA",
+      "crew": {
+        "min": 1,
+        "max": 1
+      },
+      "waterLitres": 0,
+      "kit": [
+        "Strategic command kit",
+        "Comms"
+      ],
+      "$note": "Duty Area Manager — county-wide, strategic command."
+    }
+  },
+  "pods": {
+    "$comment": "Pods are carried by Prime Movers, not standalone vehicles. Crew comes from the PM.",
+    "EPU": {
+      "fullName": "Environmental Protection Unit",
+      "kit": [
+        "Booms",
+        "Absorbents",
+        "Spill containment"
+      ]
+    },
+    "HVP": {
+      "fullName": "High Volume Pump",
+      "kit": [
+        "High volume pumping",
+        "National resilience asset"
+      ]
+    },
+    "HVHL": {
+      "fullName": "Double Hose Box",
+      "kit": [
+        "Bulk LDH hose, double box",
+        "Pairs with a High Volume Pump"
+      ]
+    },
+    "UTC": {
+      "fullName": "USAR Timber Carrier",
+      "kit": [
+        "Timber for shoring (USAR)"
+      ]
+    },
+    "MDU": {
+      "fullName": "Mass Decontamination Unit",
+      "kit": [
+        "Decontamination shelters",
+        "Disrobe/re-robe packs",
+        "Water heaters"
+      ]
+    }
+  },
+  "statusCodes": {
+    "1": "Mobile to incident",
+    "2": "In attendance",
+    "3": "Stop message sent",
+    "4": "Returning to station",
+    "5": "At hospital",
+    "6": "Mobile and available",
+    "7": "Available at station",
+    "8": "Off the run / unavailable",
+    "$comment": "UK fire service mobilising status codes. Used in radio traffic and the sim's resource board."
+  }
+}

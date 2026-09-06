@@ -1,0 +1,241 @@
+{
+  "sharstonDca": [
+    "A718",
+    "A717",
+    "A716"
+  ],
+  "crews": {
+    "G15-P1": [
+      {
+        "id": "G15-P1-c1",
+        "name": "S. Barker",
+        "role": "Watch Manager",
+        "quals": [
+          "BA Wearer",
+          "Level 2 Incident Command",
+          "First Aid at Work"
+        ],
+        "years": 25
+      },
+      {
+        "id": "G15-P1-c2",
+        "name": "G. Williams",
+        "role": "Firefighter · Driver / Pump Op.",
+        "quals": [
+          "BA Wearer",
+          "LGV / EFAD",
+          "Pump Operator",
+          "First Aid at Work"
+        ],
+        "years": 6
+      },
+      {
+        "id": "G15-P1-c3",
+        "name": "G. Green",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work",
+          "Sub-Officer I/C"
+        ],
+        "years": 11
+      },
+      {
+        "id": "G15-P1-c4",
+        "name": "K. Wood",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 18
+      },
+      {
+        "id": "G15-P1-c5",
+        "name": "S. Clarke",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 18
+      }
+    ],
+    "G15-P2": [
+      {
+        "id": "G15-P2-c1",
+        "name": "F. Holmes",
+        "role": "Crew Manager",
+        "quals": [
+          "BA Wearer",
+          "Level 1 Incident Command",
+          "First Aid at Work",
+          "Mentor"
+        ],
+        "years": 25
+      },
+      {
+        "id": "G15-P2-c2",
+        "name": "B. Knight",
+        "role": "Firefighter · Driver / Pump Op.",
+        "quals": [
+          "BA Wearer",
+          "LGV / EFAD",
+          "Pump Operator",
+          "First Aid at Work",
+          "Driving Instructor"
+        ],
+        "years": 26
+      },
+      {
+        "id": "G15-P2-c3",
+        "name": "M. Turner",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 2
+      },
+      {
+        "id": "G15-P2-c4",
+        "name": "D. Carter",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 26
+      },
+      {
+        "id": "G15-P2-c5",
+        "name": "H. Knight",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 15
+      }
+    ],
+    "G14-P1": [
+      {
+        "id": "G14-P1-c1",
+        "name": "A. Thomas",
+        "role": "Watch Manager",
+        "quals": [
+          "BA Wearer",
+          "Level 2 Incident Command",
+          "First Aid at Work",
+          "BA Instructor",
+          "Tactical Advisor"
+        ],
+        "years": 19
+      },
+      {
+        "id": "G14-P1-c2",
+        "name": "D. Wright",
+        "role": "Firefighter · Driver / Pump Op.",
+        "quals": [
+          "BA Wearer",
+          "LGV / EFAD",
+          "Pump Operator",
+          "First Aid at Work"
+        ],
+        "years": 22
+      },
+      {
+        "id": "G14-P1-c3",
+        "name": "S. Nguyen",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 4
+      },
+      {
+        "id": "G14-P1-c4",
+        "name": "P. Holmes",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work"
+        ],
+        "years": 10
+      },
+      {
+        "id": "G14-P1-c5",
+        "name": "F. Griffiths",
+        "role": "Firefighter",
+        "quals": [
+          "BA Wearer",
+          "First Aid at Work",
+          "BA Instructor"
+        ],
+        "years": 17
+      }
+    ],
+    "A-SHA-A718": [
+      {
+        "id": "A-SHA-A718-c1",
+        "name": "K. Mitchell",
+        "role": "Paramedic",
+        "quals": [
+          "HCPC Paramedic",
+          "ALS",
+          "Community Paramedic"
+        ],
+        "years": 6
+      },
+      {
+        "id": "A-SHA-A718-c2",
+        "name": "E. Wilson",
+        "role": "EMT",
+        "quals": [
+          "IHCD Technician",
+          "ILS",
+          "Emergency Driving Instructor"
+        ],
+        "years": 18
+      }
+    ],
+    "A-SHA-R372": [
+      {
+        "id": "A-SHA-R372-c1",
+        "name": "F. Hall",
+        "role": "Paramedic",
+        "quals": [
+          "HCPC Paramedic",
+          "ALS"
+        ],
+        "years": 20
+      }
+    ],
+    "MP-MCR-AP101": [
+      {
+        "id": "MP-MCR-AP101-c1",
+        "name": "F. Graham",
+        "role": "Response Officer",
+        "quals": [
+          "PIP1 Investigator",
+          "Personal Safety Trained",
+          "Emergency Driving",
+          "Taser Trained"
+        ],
+        "years": 2
+      },
+      {
+        "id": "MP-MCR-AP101-c2",
+        "name": "G. Richardson",
+        "role": "Response Officer",
+        "quals": [
+          "PIP1 Investigator",
+          "Personal Safety Trained",
+          "Emergency Driving"
+        ],
+        "years": 6
+      }
+    ]
+  }
+}
