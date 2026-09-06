@@ -38,6 +38,7 @@ import type { DeskModel } from "./desk-model";
 import type { TileId, TileLayout } from "./tile";
 import { SERVICE_SHORT, etaLabel } from "./model";
 import type { VectorTheme } from "./theme";
+import { BasemapSegments } from "./map-controls";
 
 export type TilesState = Partial<Record<TileId, boolean>>;
 
@@ -218,7 +219,10 @@ export function VectorDesk(props: {
           <div className="vec-workspace">
             <div className="vec-mapbar">
               <span className="title">{props.mapTitle}</span>
-              <div className="right">{props.mapExtras}</div>
+              <div className="right">
+                <BasemapSegments />
+                {props.mapExtras}
+              </div>
             </div>
             <div className="vec-map-area" ref={areaRef}>
               <div className="map-fill">{props.map}</div>

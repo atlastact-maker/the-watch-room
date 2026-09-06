@@ -31,6 +31,7 @@ import {
 import { BaControlBoard } from "./ba-control-board";
 import { BottomActionMenu } from "./bottom-action-menu";
 import { CAD_VARS } from "./cad-theme";
+import { incidentRef } from "../vector/model";
 import { CrsPanel } from "./crs-panel";
 import { PreArrivalBody } from "./pre-arrival-panel";
 import { DeploymentBoard, type Eta } from "./deployment-board";
@@ -288,19 +289,6 @@ export function DraggableIncidentMdt({
     setUnitId(null);
   }, [resolved, incident.id]);
 
-  // Clocks for the sync bar: UTC wall clock + incident elapsed.
-  const [clock, setClock] = useState("--:--:--");
-  const [elapsed, setElapsed] = useState("00:00");
-  useEffect(() => {
-    const tick = () => {
-      setClock(fmtTime(Date.now()));
-      setElapsed(fmtHms(Math.max(0, (Date.now() - incident.receivedAt) / 1000)));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [incident.receivedAt]);
-
   const sc = incident.scenario;
   const nowMs = now ?? Date.now();
 
@@ -355,11 +343,11 @@ export function DraggableIncidentMdt({
         { key: "log", label: "Log" },
       ]
     : [
-        { key: "overview", label: "Overview" },
+        { key: "overview", label: "Incident" },
         { key: "call", label: "Call" },
         {
           key: "resourcing",
-          label: resolvedDeps.length > 0 ? `Resourcing·${resolvedDeps.length}` : "Resourcing",
+          label: resolvedDeps.length > 0 ? `Actions · ${resolvedDeps.length}` : "Actions",
         },
         { key: "view", label: "Prop View" },
         ...((incident.scenario.crs?.length ?? 0) > 0
@@ -394,7 +382,35 @@ export function DraggableIncidentMdt({
     ...sc.property.vulnerabilities,
   ];
 
+  const [minimised, setMinimised] = useState(false);
+  const ref = incidentRef(incident);
+  const unitAppliance = selectedUnit?.appliance ?? onSceneList[0]?.appliance ?? resolvedDeps[0]?.appliance ?? null;
+  const unitRow = selectedUnit ?? onSceneList[0] ?? resolvedDeps[0] ?? null;
+  const unitCallsign = unitAppliance?.callsign ?? "NO UNIT";
+  const unitType = unitAppliance ? unitAppliance.typeName : "Pick a unit on the ground or in Scene units";
+  const unitService = unitAppliance?.service ?? sc.pda[0]?.service ?? "Fire";
+  const unitOnScene = unitRow?.phase === "at_incident";
+  const unitState = resolved
+    ? "Incident closed"
+    : !unitRow
+      ? "No unit selected"
+      : unitRow.phase === "at_incident"
+        ? "In attendance"
+        : unitRow.phase === "mobile"
+          ? "Mobile to incident"
+          : unitRow.phase === "at_hospital"
+            ? "At hospital"
+            : "Returning";
+  const instruction = resolved
+    ? "Incident closed — review the debrief and the log."
+    : !unitRow
+      ? "Select a committed unit to task its crew."
+      : unitRow.phase === "mobile"
+        ? "Mobile — rig BA and pre-pair crews on the pre-arrival sheet before landing."
+        : "Review hazards and select an available crew task.";
+
   return (
+    <>
     <Rnd
       default={{
         x: frame.current.x,
@@ -415,132 +431,45 @@ export function DraggableIncidentMdt({
         };
         saveMdtFrame(frame.current);
       }}
-      minWidth={640}
-      minHeight={460}
+      minWidth={520}
+      minHeight={480}
       bounds="window"
-      dragHandleClassName="drag-handle"
-      // Sits above the fullscreen ground view (z-1200).
+      dragHandleClassName="vec-mdt-handle"
+      // Sits above the ground view (z-1200).
       className="z-[1250]"
+      style={minimised ? { display: "none" } : undefined}
     >
-      {/* Rugged chassis */}
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[16px] border-[12px] border-[#26262b] bg-[#26262b] shadow-2xl shadow-black/70 ring-1 ring-[#3d3d45]">
-        {/* Corner screws */}
-        <Screw className="left-[-9px] top-[-9px]" />
-        <Screw className="right-[-9px] top-[-9px]" />
-        <Screw className="bottom-[-9px] left-[-9px]" />
-        <Screw className="bottom-[-9px] right-[-9px]" />
-        {/* Camera bar */}
-        <span
-          aria-hidden
-          className="absolute left-1/2 top-[-9px] z-10 flex h-[6px] w-16 -translate-x-1/2 items-center justify-center rounded-full bg-[#1b1b1f]"
-        >
-          <span className="size-[4px] rounded-full bg-[#0b0b0e] ring-1 ring-[#3d3d45]" />
-        </span>
-
-        {/* Screen — light CAD app */}
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-[6px] bg-[#e7e7ea] text-zinc-900">
-          {/* Sync bar (drag handle) */}
-          <div className="drag-handle flex cursor-move items-stretch justify-between bg-[#16a34a] font-mono text-[11px] font-bold text-white">
-            <span className="flex items-center px-3 py-1 tracking-[0.15em]">
-              SYNCHRONIZED.
-            </span>
-            <span className="flex items-stretch">
-              <span className="flex items-center bg-[#dc2626] px-3 tabular-nums tracking-[0.1em]">
-                T+{elapsed}
-              </span>
-              <span className="flex items-center bg-[#15803d] px-3 tabular-nums tracking-[0.1em]">
-                {clock} UTC
-              </span>
-            </span>
-          </div>
-
-          {/* Tab row + device buttons */}
-          <div className="flex items-stretch justify-between border-b-2 border-zinc-400 bg-[#d9d9de]">
-            <div className="flex flex-wrap items-stretch">
-              {tabs.map((t) => {
-                const active = tab === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setTab(t.key)}
-                    className={
-                      "border-r border-zinc-400 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] transition-colors " +
-                      (active
-                        ? "bg-[#fde047] text-black"
-                        : "bg-[#e7e7ea] text-zinc-600 hover:bg-[#f1f1f4] hover:text-zinc-900")
-                    }
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-stretch">
-              {!resolved && (
-                <button
-                  type="button"
-                  onClick={onResolve}
-                  className="border-l border-zinc-400 bg-[#e7e7ea] px-3 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-800 hover:bg-green-100"
-                >
-                  Resolve
-                </button>
-              )}
-              {resolved && (
-                <button
-                  type="button"
-                  onClick={onDismiss}
-                  className="border-l border-zinc-400 bg-[#e7e7ea] px-3 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-red-700 hover:bg-red-100"
-                >
-                  End Debrief
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="border-l border-zinc-400 bg-[#e7e7ea] px-3 font-mono text-[11px] font-bold text-zinc-600 hover:bg-red-100 hover:text-red-700"
-                title="Close panel"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {/* Dense incident strip — always visible, CAD style */}
-          <div className="border-b border-zinc-400 bg-white px-3 py-1.5 font-mono text-[11px] leading-snug">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <span className="font-bold">#{sc.id}</span>
-              <span>{fmtTime(incident.receivedAt)}</span>
-              <span
-                className={
-                  "px-1.5 font-bold uppercase " +
-                  (sc.severity === "major" || sc.severity === "high"
-                    ? "bg-red-600 text-white"
-                    : "bg-amber-400 text-black")
-                }
-              >
-                {sc.severity}
-              </span>
-              <span className="uppercase text-zinc-700">
-                {sc.type.replace(/_/g, " ")}
-              </span>
-            </div>
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-zinc-800">
-              <span className="font-bold uppercase">{sc.location.address}</span>
-              <span>{sc.location.postcode}</span>
-              <span className="text-zinc-500">
-                1st due: {sc.property.firstDueStationId}
-              </span>
-            </div>
-          </div>
-
-          {/* Tab content */}
-          <div
-            className={
-              "min-h-0 flex-1 " +
-              (tab === "view" || darkTab ? "" : "overflow-y-auto bg-[#f4f4f5] px-3 py-2.5")
-            }
-          >
+      {/* The rugged tablet: dark frame, pale bezel, blue-grey screen with
+          the navigation down the left — the VECTOR MDT. */}
+      <section className="vec-mdt" aria-label="Mobile data terminal" data-task-workspace={tab === "resourcing"}>
+        <header className="vec-mdt-handle" title="Drag to move the tablet">
+          <span>MOBILE DATA TERMINAL</span>
+          <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>
+          <button type="button" title="Close MDT" onClick={onClose}>×</button>
+        </header>
+        <div className="vec-mdt-identity">
+          <div className="link">MOBILE DATA TERMINAL · {unitService.toUpperCase()} · LOCAL SIM</div>
+          <strong>{unitCallsign}</strong>
+          <span>{unitType}</span>
+          <small>{unitState} · {ref}</small>
+        </div>
+        <div className="vec-mdt-brief">
+          <div className="eyebrow">{ref} · {sc.severity.toUpperCase()}</div>
+          <strong>{sc.title}</strong>
+          <div>{sc.location.address}, {sc.location.postcode}</div>
+          {alerts.length > 0 && !resolved && (
+            <div className="hazard"><b>HAZARDS</b> {alerts.join(" · ")}</div>
+          )}
+          <div className="instruction"><b>CURRENT INSTRUCTION</b><span>{instruction}</span></div>
+        </div>
+        <nav className="vec-mdt-tabs" aria-label="MDT pages">
+          {tabs.map((t) => (
+            <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <div className={"vec-mdt-body " + (tab === "view" || darkTab ? "edge" : "light")}>
             {tab === "debrief" && outcome && <OutcomeView outcome={outcome} />}
 
             {tab === "call" && !resolved && (
@@ -921,47 +850,39 @@ export function DraggableIncidentMdt({
             )}
 
             {tab === "log" && <LogList log={log} />}
-          </div>
-
-          {/* Persistent ALERTS strip */}
-          {alerts.length > 0 && !resolved && (
-            <div className="flex items-stretch border-t-2 border-zinc-400 bg-[#fef08a]">
-              <span className="flex items-center bg-[#dc2626] px-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-white">
-                Alerts
-              </span>
-              <div className="max-h-12 flex-1 overflow-y-auto px-2 py-1 font-mono text-[10px] font-bold uppercase leading-snug text-zinc-900">
-                {alerts.join(" · ")}
-              </div>
-            </div>
+        </div>
+        <div className="vec-mdt-status">
+          <button type="button" disabled className={unitOnScene ? "go" : ""}>{unitState.toUpperCase()}</button>
+          <button type="button" onClick={() => setTab("call")}>Contact control</button>
+          <button
+            type="button"
+            disabled={!selectedUnit || !onArmPlacement || resolved}
+            title={selectedUnit ? "Place or move this unit on the ground" : "Pick a unit first"}
+            onClick={() => selectedUnit && onArmPlacement?.(selectedUnit.appliance.id)}
+          >
+            Map position
+          </button>
+          {!resolved ? (
+            <button type="button" className="stop" onClick={onResolve}>Stop message</button>
+          ) : (
+            <button type="button" className="stop" onClick={onDismiss}>End debrief</button>
           )}
         </div>
-
-        {/* Bottom bezel branding */}
-        <div className="pointer-events-none absolute bottom-[-11px] left-1/2 -translate-x-1/2 font-mono text-[8px] font-bold uppercase tracking-[0.5em] text-[#4c4c55]">
-          Watchpad
-        </div>
-      </div>
+        <footer className="vec-mdt-footer">LOCAL SIMULATION · {unitCallsign} · {ref}</footer>
+      </section>
     </Rnd>
+    {minimised && (
+      <button type="button" className="vec-mdt-min" onClick={() => setMinimised(false)} title="Restore the MDT">
+        MDT · {unitCallsign} <span>{unitState}</span> ↗
+      </button>
+    )}
+    </>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Sub-components (light CAD theme)
 // ---------------------------------------------------------------------------
-
-function Screw({ className }: { className: string }) {
-  return (
-    <span
-      aria-hidden
-      className={
-        "absolute z-10 size-[7px] rounded-full bg-[#3d3d45] shadow-inner ring-1 ring-[#4c4c55] " +
-        className
-      }
-    >
-      <span className="absolute left-1/2 top-1/2 h-[1px] w-[5px] -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[#1b1b1f]" />
-    </span>
-  );
-}
 
 function CadCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -1131,15 +1052,6 @@ function fmtTime(ts: number): string {
     .join(":");
 }
 
-function fmtHms(totalSec: number): string {
-  const s = Math.floor(totalSec);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const r = s % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`
-    : `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
-}
 
 // Compact committed row — callsign, phase, ETA/elapsed. The detail lives
 // on the unit-control page and the pre-arrival panel, not in the list.

@@ -18,7 +18,7 @@ import type { Eta } from "../components/deployment-board";
 import type { PendingCall } from "../components/call-stack";
 import type { CallRow, CoverRow, HospitalRow, IncidentDetail, IncidentRow, PdaRow, ResourceCard, SceneUnitRow, StandbyRow } from "./dispatch-tiles";
 import type { BayRow, MobHead, TurnoutRow } from "./mob-screen";
-import { gradeShort, impliedGrade, incidentRef, scenarioService, shortAddress, waitState } from "./model";
+import { gradeShort, impliedGrade, incidentRef, scenarioService, shortAddress, typeChip, waitState } from "./model";
 
 export type RuntimeLike = {
   outcome: IncidentOutcome | null;
@@ -226,7 +226,7 @@ export function useDeskModel(input: DeskInput) {
         stationId: st.id,
         callsign: a.callsign,
         service: a.service,
-        typeCode: a.type,
+        typeCode: typeChip(a.type),
         typeName: a.typeName,
         station: st.name,
         crew: `${a.crew.current}/${a.crew.max}`,

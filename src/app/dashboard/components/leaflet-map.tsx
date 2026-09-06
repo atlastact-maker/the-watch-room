@@ -23,7 +23,7 @@ import {
   patternStart,
 } from "@/lib/sim/flight";
 import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
-import { PATCH_LABEL, type Patch } from "@/lib/sim/areas";
+import { type Patch } from "@/lib/sim/areas";
 import {
   chipServiceColour,
   incidentMarkerSvg,
@@ -39,7 +39,6 @@ import {
   useBasemapChoice,
 } from "./basemap-controls";
 import { VectorBasemap } from "./vector-basemap";
-import { CAD_VARS } from "./cad-theme";
 import { STREET } from "@/lib/map-basemaps";
 
 /** The zoom at which scene detail takes over from patch furniture. One
@@ -271,6 +270,8 @@ type Props = {
   /** A place the dashboard wants shown — a search result, a record's
    *  address. */
   focus?: MapFocus | null;
+  /** The in-map basemap switch. Off when the shell carries its own. */
+  showBasemapToggle?: boolean;
   /** Called when the operator zooms in past the ground-detail threshold —
    *  the dashboard opens the ground view AT this view, so the handover
    *  continues from wherever the operator was looking. */
@@ -295,6 +296,7 @@ export function LeafletMap({
   onOpenStationBays,
   onZoomIntoGround,
   focus,
+  showBasemapToggle = true,
 }: Props) {
   const center: [number, number] = activeIncident
     ? [
@@ -308,7 +310,6 @@ export function LeafletMap({
         ]
       : [53.48, -2.24];
 
-  const patchLabel = patch ? PATCH_LABEL : null;
   const {
     options: basemapOptions,
     basemap,
@@ -327,27 +328,13 @@ export function LeafletMap({
 
   return (
     <div className="relative h-full w-full">
-      {/* Operator patch — same CAD chassis as the panels: a bordered
-          light body under a full-bleed amber caption bar, rather than a
-          glowing tinted chip floating on the map. */}
-      {patchLabel && (
-        <div
-          style={CAD_VARS}
-          className="pointer-events-none absolute left-16 top-3 z-[1000] overflow-hidden rounded-sm border-2 border-zinc-500 bg-(--color-bg) shadow-lg"
-        >
-          <div className="bg-[#b45309] px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-white">
-            Operator patch
-          </div>
-          <div className="px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-widest text-(--color-text)">
-            {patchLabel}
-          </div>
-        </div>
-      )}
-    <BasemapToggle
-      options={basemapOptions}
-      current={basemapId}
-      onChoose={chooseBasemap}
-    />
+    {showBasemapToggle && (
+      <BasemapToggle
+        options={basemapOptions}
+        current={basemapId}
+        onChoose={chooseBasemap}
+      />
+    )}
     <MapAttribution basemap={basemap} />
     <MapContainer
       center={center}

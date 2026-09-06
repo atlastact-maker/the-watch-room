@@ -149,7 +149,6 @@ import {
   unlockAudio,
 } from "@/lib/audio/sim-audio";
 import type { StationWithAppliances } from "./page";
-import { PatchPicker } from "./components/patch-picker";
 import { EmbeddedMap } from "./components/map-panel";
 import {
   DEFAULT_MAP_FILTER,
@@ -159,11 +158,12 @@ import {
 import { LedsTerminal } from "./components/leds-terminal";
 import { AnprConsole } from "./components/anpr-console";
 import { hitsBetween } from "@/lib/sim/anpr";
-import { auditLine, unexplainedChecks, type LedsCheck } from "@/lib/sim/leds";
+import { auditLine, type LedsCheck } from "@/lib/sim/leds";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { DispatchLog } from "./components/dispatch-log";
+import { PatchPicker } from "./components/patch-picker";
 import type { MapFocus } from "./components/leaflet-map";
 import { CallLogPanel } from "./components/call-log-panel";
 import { SearchPanel } from "./components/search-panel";
@@ -5304,6 +5304,31 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         { label: "Mobilising", hint: "F4", act: () => pickScreen("mob"), disabled: !activeIncident },
         { label: "Fill remaining attendance", act: fillRemaining, disabled: !activeIncident || !!outcome },
         { label: "Hand over command…", act: () => showTile("live"), disabled: !activeIncident || !!outcome },
+        { sep: true },
+        ...(["offensive", "defensive", "transitional"] as const).map((m) => ({
+          label: `Tactical mode · ${m.charAt(0).toUpperCase() + m.slice(1)}`,
+          hint: tacticalMode === m ? "declared" : undefined,
+          act: () => declareTacticalMode(m),
+          disabled: !activeIncident || !!outcome || !sceneCommanderApplianceId || tacticalMode === m,
+          title: sceneCommanderApplianceId ? undefined : "Assign an incident commander on the ground first",
+        })),
+        {
+          label: pendingMuster ? "Muster area · drawing…" : muster ? "Redraw muster area" : "Muster area · draw on ground",
+          act: () => {
+            setPendingMuster(true);
+            pickScreen("ground");
+          },
+          disabled: !groundAvailable,
+        },
+        {
+          label: incidentPanelVisible ? "Hide MDT tablet" : "Show MDT tablet",
+          hint: "ground",
+          act: () => {
+            if (!groundViewOpen) pickScreen("ground");
+            setIncidentPanelVisible((v) => !v);
+          },
+          disabled: !groundAvailable,
+        },
         { label: "Stop message · resolve", act: () => void resolveIncident(), disabled: !activeIncident || !!outcome || !!handover, title: "Send the stop and score the job" },
         { label: "Close incident · debrief", act: () => dismissIncident(), disabled: !activeIncident || !outcome },
         { sep: true },
@@ -5497,6 +5522,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           selectedApplianceId={selectedApplianceId}
           onOpenStationBays={setBayStationId}
           focus={mapFocus}
+          showBasemapToggle={false}
           onZoomIntoGround={
             groundAvailable
               ? (view) => {

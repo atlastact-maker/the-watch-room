@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { CAD_VARS } from "./cad-theme";
 import {
   BASEMAP_STORAGE_KEY,
@@ -18,6 +18,30 @@ import {
  * same key, so switching on one and coming back to the other does not
  * hand you a different-looking world.
  */
+const CHANGE_EVENT = "twr:basemap-change";
+
+function readBasemapId(): BasemapId {
+  const options = groundBasemaps();
+  try {
+    const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
+    if (saved && options.some((o) => o.id === saved)) return saved as BasemapId;
+  } catch {
+    // best-effort — a blocked localStorage just means no memory
+  }
+  return options[0].id;
+}
+function subscribeBasemap(cb: () => void) {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === BASEMAP_STORAGE_KEY) cb();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(CHANGE_EVENT, cb);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(CHANGE_EVENT, cb);
+  };
+}
+
 export function useBasemapChoice(): {
   options: Basemap[];
   basemap: Basemap;
@@ -25,24 +49,17 @@ export function useBasemapChoice(): {
   choose: (id: BasemapId) => void;
 } {
   const options = groundBasemaps();
-  const [id, setId] = useState<BasemapId>(() => {
-    if (typeof window === "undefined") return options[0].id;
-    try {
-      const saved = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
-      if (saved && options.some((o) => o.id === saved)) return saved as BasemapId;
-    } catch {
-      // best-effort — a blocked localStorage just means no memory
-    }
-    return options[0].id;
-  });
+  // localStorage is the store of record, so the map and the shell's
+  // switch read the same choice and change together.
+  const id = useSyncExternalStore(subscribeBasemap, readBasemapId, () => options[0].id);
 
   function choose(next: BasemapId) {
-    setId(next);
     try {
       window.localStorage.setItem(BASEMAP_STORAGE_KEY, next);
     } catch {
       // best-effort
     }
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   }
 
   return { options, basemap: basemapById(id), id, choose };

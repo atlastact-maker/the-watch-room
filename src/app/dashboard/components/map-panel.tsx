@@ -29,6 +29,7 @@ export function EmbeddedMap({
   onOpenStationBays,
   onZoomIntoGround,
   focus,
+  showBasemapToggle,
 }: {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
@@ -52,6 +53,7 @@ export function EmbeddedMap({
   onOpenStationBays?: (stationId: string) => void;
   onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
   focus?: MapFocus | null;
+  showBasemapToggle?: boolean;
 }) {
   return (
     <div className="absolute inset-0 bg-(--color-bg)">
@@ -68,6 +70,7 @@ export function EmbeddedMap({
         onOpenStationBays={onOpenStationBays}
         onZoomIntoGround={onZoomIntoGround}
         focus={focus}
+        showBasemapToggle={showBasemapToggle}
       />
     </div>
   );

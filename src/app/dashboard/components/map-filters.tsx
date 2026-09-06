@@ -127,30 +127,20 @@ export function MapFilters({
     !filter.incident;
 
   return (
-    <div
-      style={CAD_VARS}
-      className="pointer-events-auto w-[190px] border border-(--color-border) bg-(--color-bg)/95 text-(--color-text) shadow-lg backdrop-blur-sm"
-    >
+    <div style={CAD_VARS} className="vec-layers pointer-events-auto">
       <button
         type="button"
+        className="vec-btn"
+        aria-expanded={open}
+        aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 border-b border-(--color-border-subtle) px-2 py-1 text-left"
       >
-        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
-          Map layers
-        </span>
-        <span
-          className={
-            "font-mono text-[9px] uppercase tracking-widest " +
-            (anyHidden ? "text-(--color-amber)" : "text-(--color-text-dim)")
-          }
-        >
-          {anyHidden ? "filtered" : open ? "hide" : "all"}
-        </span>
+        Layers
+        <span className={"cnt " + (anyHidden ? "warn" : "")}>{anyHidden ? "filtered" : "all"}</span>
       </button>
 
       {open && (
-        <div className="max-h-[52vh] overflow-y-auto py-0.5">
+        <div className="vec-layers-drop max-h-[52vh] overflow-y-auto py-0.5">
           <div className="px-2 pt-1 font-mono text-[9px] uppercase tracking-[0.2em] text-(--color-text-dim)">
             Service
           </div>

@@ -2013,3 +2013,343 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cad-application .leaflet-container {
   font-family: var(--vec-sans);
 }
+
+/* --------------------------------------------------------------------------
+   The rugged MDT — VECTOR's tablet. Dark frame, pale bezel, blue-grey
+   screen, navigation down the left, status row and footer.
+   -------------------------------------------------------------------------- */
+.vec-mdt {
+  --mdt-screen: #344e60;
+  --mdt-screen-deep: #273e4d;
+  --mdt-nav: #20323f;
+  --mdt-ink: #f0f5f8;
+  position: relative;
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  grid-template-rows: 44px auto auto minmax(100px, 1fr) auto 22px;
+  gap: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 18px 20px 22px;
+  border: 9px solid #303638;
+  border-radius: 24px;
+  background: #cdd1ce;
+  box-shadow: inset 0 0 0 2px #626968, inset 0 0 0 5px #212727, 0 12px 25px #0008;
+  overflow: hidden;
+  font-family: var(--vec-sans, "IBM Plex Sans", system-ui, sans-serif);
+  font-size: 13px;
+  color: var(--mdt-ink);
+  user-select: none;
+}
+.vec-mdt::before,
+.vec-mdt::after {
+  content: "⊕";
+  position: absolute;
+  top: 0;
+  color: #9a9f9d;
+  font: 16px monospace;
+  text-shadow: 0 1px #000;
+  pointer-events: none;
+}
+.vec-mdt::before { left: 3px; }
+.vec-mdt::after { right: 3px; }
+.vec-mdt-handle {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 3px 7px;
+  background: #111a1f;
+  border-radius: 3px 3px 0 0;
+  font: 12px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.09em;
+  color: #aebbbf;
+  cursor: grab;
+  touch-action: none;
+}
+.vec-mdt-handle span {
+  flex: 1;
+  text-align: center;
+}
+.vec-mdt-handle button {
+  min-width: 44px;
+  min-height: 38px;
+  margin-left: 4px;
+  font-size: 16px;
+  color: #fff;
+  background: #24313a;
+  border: 1px solid #4c5c66;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.vec-mdt-handle button:hover {
+  background: #33444f;
+}
+.vec-mdt-identity {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px 7px;
+  background: var(--mdt-screen);
+  border-bottom: 1px solid #668091;
+  color: #fff;
+}
+.vec-mdt-identity .link {
+  font: 8px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.1em;
+  color: #afc4d0;
+}
+.vec-mdt-identity strong {
+  font: bold 17px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.04em;
+}
+.vec-mdt-identity > span {
+  font-size: 12px;
+  color: #d6e2e9;
+}
+.vec-mdt-identity small {
+  font-size: 11px;
+  color: #c8d7df;
+}
+.vec-mdt-brief {
+  grid-column: 2;
+  grid-row: 3;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  max-height: 210px;
+  overflow: auto;
+  background: #e9f0f5;
+  color: #183448;
+  font-size: 14px;
+  line-height: 1.4;
+  border-bottom: 2px solid #728d9e;
+}
+.vec-mdt[data-task-workspace="true"] > .vec-mdt-brief {
+  max-height: 100px;
+  font-size: 13px;
+  gap: 4px;
+  padding: 8px 12px;
+}
+.vec-mdt-brief .eyebrow {
+  font: 600 12px var(--vec-mono, Consolas, monospace);
+}
+.vec-mdt-brief > strong {
+  font-size: 17px;
+}
+.vec-mdt[data-task-workspace="true"] .vec-mdt-brief > strong {
+  font-size: 14px;
+}
+.vec-mdt-brief .hazard {
+  border-left: 4px solid #c78419;
+  background: #fff2d8;
+  padding: 8px;
+  color: #663d13;
+  font-size: 13px;
+}
+.vec-mdt-brief .hazard b {
+  margin-right: 6px;
+}
+.vec-mdt-brief .instruction {
+  display: grid;
+  gap: 3px;
+}
+.vec-mdt-brief .instruction b {
+  font-size: 12px;
+  color: #3f5b70;
+}
+.vec-mdt-tabs {
+  grid-column: 1;
+  grid-row: 2 / 6;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 5px;
+  min-height: 0;
+  overflow: auto;
+  background: var(--mdt-nav);
+  border-right: 1px solid #142630;
+}
+.vec-mdt-tabs::before {
+  content: "VECTOR";
+  display: block;
+  color: #ecf4f8;
+  font: bold italic 13px Arial, sans-serif;
+  letter-spacing: -0.5px;
+  text-align: center;
+  padding: 9px 0 17px;
+}
+.vec-mdt-tabs button {
+  flex: none;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  font: 13px var(--vec-sans, Arial, sans-serif);
+  padding: 10px 7px;
+  border: 0;
+  border-bottom: 1px solid #506573;
+  border-radius: 1px;
+  background: transparent;
+  color: #d8e4ec;
+  cursor: pointer;
+}
+.vec-mdt-tabs button[aria-pressed="true"] {
+  background: #3f5c72;
+  color: #fff;
+}
+.vec-mdt-body {
+  grid-column: 2;
+  grid-row: 4;
+  min-height: 0;
+  overflow: auto;
+  background: var(--mdt-screen);
+  color: var(--mdt-ink);
+  scrollbar-color: #829aa9 var(--mdt-screen-deep);
+  display: flex;
+  flex-direction: column;
+}
+.vec-mdt-body.light {
+  /* Pages authored as light CAD cards keep a pale screen behind them. */
+  display: block;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  background: #dfe7ee;
+  color: #183448;
+}
+.vec-mdt-body.edge {
+  padding: 0;
+}
+.vec-mdt-body.edge > * {
+  flex: 1;
+  min-height: 0;
+}
+.vec-mdt-status {
+  grid-column: 2;
+  grid-row: 5;
+  display: flex;
+  gap: 7px;
+  padding: 9px;
+  background: #294353;
+}
+.vec-mdt-status button {
+  flex: 1;
+  min-height: 44px;
+  font: 700 12px var(--vec-sans, Arial, sans-serif);
+  color: #fff;
+  background: #126da4;
+  border: 1px solid #6d95ae;
+  border-radius: 1px;
+  cursor: pointer;
+}
+.vec-mdt-status button:hover:not(:disabled) {
+  background: #1a80bf;
+}
+.vec-mdt-status button:disabled {
+  background: #30654f;
+  color: #d5ebdf;
+  border-color: #709686;
+  cursor: default;
+}
+.vec-mdt-status button:disabled:not(.go) {
+  background: #3a4d5b;
+  color: #b9c9d3;
+  border-color: #5c7180;
+}
+.vec-mdt-status button.stop {
+  background: #8a3a2e;
+  border-color: #c26a5c;
+}
+.vec-mdt-footer {
+  grid-column: 1 / -1;
+  grid-row: 6;
+  padding: 5px 7px;
+  background: #101a20;
+  color: #97aab6;
+  font: 8px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.08em;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.vec-mdt-min {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1250;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #4c5c66;
+  border-radius: 6px;
+  background: #111a1f;
+  color: #ecf4f8;
+  font: 700 12px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.06em;
+  box-shadow: 0 8px 20px #0007;
+  cursor: pointer;
+}
+.vec-mdt-min span {
+  font-weight: 400;
+  color: #aebbbf;
+  margin-left: 6px;
+}
+/* The react-rnd resize handles sit on the frame; keep them above the screws. */
+.vec-mdt ~ div {
+  z-index: 3;
+}
+
+/* Map bar controls — basemap segments and the layers menu */
+.vec-segments {
+  display: flex;
+}
+.vec-segments button {
+  height: 20px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  background: var(--vec-surface);
+  color: var(--vec-text-dim);
+  border: 1px solid var(--vec-border);
+  border-left-width: 0;
+  font: 600 10px var(--vec-sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.vec-segments button:first-child {
+  border-left-width: 1px;
+}
+.vec-segments button[aria-pressed="true"] {
+  background: #1b4d8f;
+  color: #fff;
+  border-color: #1b4d8f;
+}
+.vec-layers {
+  position: relative;
+}
+.vec-layers > .vec-btn .cnt {
+  margin-left: 6px;
+  font: 10px var(--vec-mono);
+  letter-spacing: 0.08em;
+  color: var(--vec-text-muted);
+  text-transform: uppercase;
+}
+.vec-layers > .vec-btn .cnt.warn {
+  color: var(--vec-warn);
+  font-weight: 700;
+}
+.vec-layers-drop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  width: 220px;
+  z-index: 1410;
+  background: var(--vec-surface);
+  border: 1px solid var(--vec-border-strong);
+  border-radius: 2px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  color: var(--vec-text);
+}

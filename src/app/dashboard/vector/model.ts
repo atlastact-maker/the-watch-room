@@ -90,6 +90,13 @@ export function applianceService(a: Appliance): ServiceCode {
   return a.service;
 }
 
+/** The type chip a unit files under: codes read as words, and every
+ *  HART vehicle sits under one HART chip for ambulance. */
+export function typeChip(type: string): string {
+  if (type.startsWith("HART")) return "HART";
+  return type.replace(/_/g, " ");
+}
+
 export function statusLabel(s: StatusCode): string {
   return STATUS_LABELS[s];
 }
