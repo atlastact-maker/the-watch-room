@@ -165,8 +165,8 @@ function loadMdtFrame(): MdtFrame | null {
     }
     // Never restore a frame that's drifted off the visible screen.
     return {
-      width: Math.max(640, Math.min(f.width, window.innerWidth)),
-      height: Math.max(460, Math.min(f.height, window.innerHeight)),
+      width: Math.max(560, Math.min(f.width, window.innerWidth)),
+      height: Math.max(540, Math.min(f.height, window.innerHeight)),
       x: Math.max(0, Math.min(f.x, window.innerWidth - 200)),
       y: Math.max(0, Math.min(f.y, window.innerHeight - 120)),
     };
@@ -267,8 +267,14 @@ export function DraggableIncidentMdt({
   }, [unitIdProp]);
   // Tablet frame — restored from the last drag/resize so collapsing and
   // reopening the MDT keeps the operator's chosen size and position.
+  // The prototype's tablet: 700 × 680, parked at the right of the ground.
   const frame = useRef<MdtFrame>(
-    loadMdtFrame() ?? { x: 24, y: 90, width: 880, height: 620 },
+    loadMdtFrame() ?? {
+      x: typeof window !== "undefined" ? Math.max(16, window.innerWidth - 700 - 24) : 24,
+      y: 110,
+      width: 700,
+      height: 680,
+    },
   );
   useEffect(() => {
     setTab("incident");
@@ -433,15 +439,13 @@ export function DraggableIncidentMdt({
       <section className="vec-mdt" aria-label="Mobile data terminal" data-task-workspace={tab !== "incident"}>
         <header className="vec-mdt-handle" title="Drag to move the tablet">
           <span>MOBILE DATA TERMINAL</span>
+          {!popped && <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>}
+          <button type="button" title="Close MDT" onClick={onClose}>×</button>
           {popped ? (
             <button type="button" title="Dock the MDT back on the desk" onClick={() => setPopped(false)}>⤶</button>
           ) : (
-            <>
-              <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>
-              <button type="button" title="Pop out into its own window" onClick={() => setPopped(true)}>↗</button>
-            </>
+            <button type="button" title="Pop out into its own window" onClick={() => setPopped(true)}>↗</button>
           )}
-          <button type="button" title="Close MDT" onClick={onClose}>×</button>
         </header>
         <div className="vec-mdt-identity">
           <div className="link">MOBILE DATA TERMINAL · {unitService.toUpperCase()} · LOCAL SIM</div>
@@ -877,8 +881,8 @@ export function DraggableIncidentMdt({
         };
         saveMdtFrame(frame.current);
       }}
-      minWidth={520}
-      minHeight={480}
+      minWidth={560}
+      minHeight={540}
       bounds="window"
       dragHandleClassName="vec-mdt-handle"
       // Sits above the ground view (z-1200).

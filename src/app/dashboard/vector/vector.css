@@ -2674,3 +2674,75 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   border-radius: 0;
   height: 100vh;
 }
+
+/* MDT polish — the prototype's sizes, and the embedded simulator panels
+   dressed in the tablet's own scheme. */
+.vec-mdt-identity strong {
+  font-size: 21px;
+}
+.vec-mdt-identity > span,
+.vec-mdt-identity small {
+  font-size: 13px;
+}
+.vec-mdt-body.page {
+  font-size: 14px;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+.vec-mdt-body.page h3 {
+  font-size: 19px;
+}
+.vec-mdt-body.page .rc-caption {
+  font-size: 12px;
+  margin: 12px 0 7px;
+}
+.vec-mdt-body.page .rc-caption:first-child {
+  margin-top: 2px;
+}
+.vec-mdt-status button {
+  min-height: 48px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.vec-mdt-tabs button {
+  font-size: 13px;
+  padding: 10px 8px;
+}
+.vec-mdt-embed {
+  --vec-surface: #ffffff;
+  --vec-surface-raised: #e9f0f5;
+  --vec-surface-tint: #dce7f0;
+  --vec-border: #9cabb7;
+  --vec-border-subtle: #cbd7e0;
+  --vec-text: #16283a;
+  --vec-text-dim: #3f5b70;
+  --vec-text-muted: #6a8294;
+  --vec-work: #0875bb;
+  --vec-go: #197a4b;
+  --vec-warn: #a4640b;
+  --vec-stop: #b3261e;
+  border-color: #7c9aad;
+  font-size: 13px;
+}
+.vec-mdt-embed.tall {
+  height: 440px;
+}
+/* The simulator's dense mono captions read as the tablet's own type. */
+.vec-mdt-embed .font-mono.uppercase {
+  font-family: var(--vec-sans);
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 12px;
+}
+.vec-mdt-embed .font-mono.uppercase.font-bold,
+.vec-mdt-embed .font-mono.uppercase.font-semibold {
+  font-size: 12px;
+}
+.vec-mdt-embed button {
+  min-height: 36px;
+  border-radius: 3px;
+}
+.vec-mdt-embed input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
