@@ -5006,6 +5006,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         },
       ]);
     }
+    return task.id;
   }
 
   async function fetchAndAttachHosePath(args: {
@@ -5078,6 +5079,37 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         },
       ]);
     }
+  }
+
+  /** The crew reports an ongoing task complete from the MDT — a hose attack
+   *  or BA search has no timer of its own, so this is how they end. */
+  function completeTask(taskId: string) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t || t.state !== "active") return;
+    const at = Date.now();
+    setTasks((prev) =>
+      prev.map((x) => (x.id === taskId ? { ...x, state: "completed" as const, completesAt: at } : x)),
+    );
+    setLog((prev) => [
+      ...prev,
+      {
+        id: `taskc:${taskId}`,
+        timestamp: at,
+        kind: t.kind === "ba_sar" ? "ba_withdrawn" : "task_completed",
+        message: `${applianceLabel(t.applianceId)} — ${taskLabel(t.kind)} reported complete by the crew`,
+      },
+    ]);
+  }
+
+  /** A crew handover on the MDT swaps who is carrying the task. */
+  function setTaskCrew(taskId: string, crewIds: string[]) {
+    setTasks((prev) =>
+      prev.map((x) =>
+        x.id === taskId
+          ? { ...x, assignedCrewIds: crewIds, baCrewIds: x.kind === "ba_sar" ? crewIds : x.baCrewIds }
+          : x,
+      ),
+    );
   }
 
   function updateBaRemarks(taskId: string, text: string) {
@@ -5980,6 +6012,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                   logAnnotation(`${callsign} → CONTROL: ${text}`);
                   setStatusMsg(`${callsign} message logged`);
                 }}
+                onCompleteTask={completeTask}
+                onSetTaskCrew={setTaskCrew}
+                onNote={(text) => logAnnotation(text)}
               />
             )}
           </>

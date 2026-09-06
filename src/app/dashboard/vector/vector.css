@@ -2446,9 +2446,32 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.vec-mdt-body.page .mdt-task-controls {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
 .vec-mdt-body.page .mdt-task-controls button {
-  background: #8a3a2e;
-  border-color: #c26a5c;
+  flex: 1 1 120px;
+  margin: 0;
+  padding: 10px;
+  min-height: 42px;
+  border: 1px solid #8aa8bb;
+  border-radius: 4px;
+  background: #edf3f7;
+  color: #18374c;
+  font-weight: 400;
+}
+.vec-mdt-body.page .mdt-task-controls button.rc-primary {
+  background: #0875bb;
+  border-color: #69a7d0;
+  color: #fff;
+  font-weight: 700;
+}
+.vec-mdt-body.page .mdt-task-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .vec-mdt-body.page .rc-action-grid {
   display: grid;
@@ -2489,7 +2512,6 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   gap: 10px;
   justify-content: space-between;
   flex-wrap: wrap;
-  text-transform: capitalize;
 }
 .vec-mdt-body.page .mdt-task-card header span {
   font-size: 12px;
@@ -2574,6 +2596,289 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   font: 12px var(--vec-mono, Consolas, monospace);
   border-top: 1px solid #3a5568;
 }
+/* ---- Task order form — the prototype's `.mdt-task-detail` ------------- */
+.vec-mdt-body.page .mdt-task-card > small {
+  display: block;
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .equipment-manifest {
+  padding: 0 12px;
+  border-top: 1px solid #bccbd5;
+}
+.vec-mdt-body.page .equipment-manifest:empty {
+  display: none;
+}
+.vec-mdt-body.page .equipment-manifest p {
+  margin: 6px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.vec-mdt-body.page .mdt-task-card .mdt-workflow {
+  border-top-color: #7893a6;
+}
+.vec-mdt-body.page .mdt-task-card .mdt-workflow p {
+  margin: 6px 0 10px;
+}
+.vec-mdt-body.page .mdt-task-card time {
+  font-family: var(--vec-mono, Consolas, monospace);
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .mdt-update-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.vec-mdt-body.page .mdt-update-grid button {
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid #8aa8bb;
+  border-radius: 4px;
+  background: #edf3f7;
+  color: #18374c;
+  font: 13px var(--vec-sans, Arial, sans-serif);
+  cursor: pointer;
+}
+.vec-mdt-body.page .rc-selection.mdt-task-detail {
+  padding: 12px;
+  border: 1px solid #7c9aad;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  background: #243f51;
+  color: #edf3f6;
+}
+.vec-mdt-body.page .mdt-task-detail > p {
+  margin: 12px 0 0;
+}
+.vec-mdt-body.page .task-order-head {
+  display: grid;
+  gap: 5px;
+  border-bottom: 1px solid #7d9aaf;
+  padding-bottom: 12px;
+}
+.vec-mdt-body.page .task-order-head > span {
+  font: 600 11px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.12em;
+  color: #b7cbda;
+}
+.vec-mdt-body.page .task-order-head > strong {
+  font-size: 21px;
+}
+.vec-mdt-body.page .task-order-head > small {
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .task-choices {
+  border: 0;
+  border-top: 1px solid #547286;
+  margin: 20px 0 0;
+  padding: 12px 0 0;
+  min-width: 0;
+}
+.vec-mdt-body.page .task-choices legend {
+  font: 600 12px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.06em;
+  padding-right: 10px;
+  color: #d1e2ed;
+}
+.vec-mdt-body.page .task-choices > p {
+  margin: 8px 0 10px;
+}
+.vec-mdt-body.page .task-choices > small {
+  display: block;
+  margin-top: 8px;
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .task-choices > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 8px;
+}
+.vec-mdt-body.page .task-choices > div > small {
+  grid-column: 1 / -1;
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .task-choices button {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  text-align: left;
+  min-height: 48px;
+  padding: 11px;
+  border: 1px solid #7e99ad;
+  border-radius: 4px;
+  background: #eaf0f4;
+  color: #17364c;
+  font: 14px var(--vec-sans, Arial, sans-serif);
+  cursor: pointer;
+}
+.vec-mdt-body.page .task-choices button strong {
+  font-weight: 700;
+}
+.vec-mdt-body.page .task-choices button span {
+  font-size: 13px;
+  color: #334e60;
+}
+.vec-mdt-body.page .task-choices button small {
+  color: #4e687b;
+  font-size: 12px;
+}
+.vec-mdt-body.page .task-choices button[aria-pressed="true"] {
+  background: #cee7f8;
+  border: 2px solid #64baff;
+  padding: 10px;
+  box-shadow: inset 4px 0 #126bab;
+}
+.vec-mdt-body.page .task-choices button[aria-pressed="true"]::after {
+  content: "Selected";
+  color: #175a86;
+  font-size: 11px;
+  font-weight: 600;
+}
+.vec-mdt-body.page .task-choices button:disabled {
+  background: #304858;
+  color: #9ab0bf;
+  border-color: #536d7c;
+  cursor: not-allowed;
+}
+.vec-mdt-body.page .task-choices button:disabled small,
+.vec-mdt-body.page .task-choices button:disabled span {
+  color: #b8c6ce;
+}
+.vec-mdt-body.page .task-choices button:focus-visible {
+  outline: 3px solid #e6b34d;
+  outline-offset: 2px;
+}
+.vec-mdt-body.page .stock-choice {
+  min-width: 0;
+}
+.vec-mdt-body.page .stock-choice > button {
+  width: 100%;
+  height: auto;
+}
+.vec-mdt-body.page .stock-quantity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  background: #173247;
+}
+.vec-mdt-body.page .stock-quantity button {
+  min-height: 36px;
+  min-width: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  font-size: 18px;
+}
+.vec-mdt-body.page .stock-quantity output {
+  min-width: 24px;
+  text-align: center;
+  font-family: var(--vec-mono, Consolas, monospace);
+  font-size: 17px;
+}
+.vec-mdt-body.page .stock-quantity span {
+  font-size: 12px;
+}
+.vec-mdt-body.page .equipment-owner {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  margin: 8px 0;
+  background: #fff;
+  border: 1px solid #b6c6d0;
+  border-radius: 4px;
+  color: #183448;
+}
+.vec-mdt-body.page .equipment-owner small {
+  font-family: var(--vec-mono, Consolas, monospace);
+  color: #526472;
+}
+.vec-mdt-body.page .equipment-owner span {
+  font-size: 12px;
+  color: #526472;
+}
+.vec-mdt-body.page .equipment-owner select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px;
+  background: #f3f7fa;
+  color: #182c3a;
+  border: 1px solid #8b9eac;
+  border-radius: 3px;
+  font: 14px var(--vec-sans, Arial, sans-serif);
+}
+.vec-mdt-body.page .equipment-owner button {
+  min-height: 42px;
+  padding: 10px;
+  border: 1px solid #8aa8bb;
+  border-radius: 4px;
+  background: #edf3f7;
+  color: #18374c;
+  font: 13px var(--vec-sans, Arial, sans-serif);
+  cursor: pointer;
+}
+.vec-mdt-body.page .equipment-owner button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.vec-mdt-body.page .task-order-summary {
+  background: #183143;
+  border: 1px solid #789aae;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 18px;
+}
+.vec-mdt-body.page .task-order-summary > strong {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+.vec-mdt-body.page .task-order-summary p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 6px 0;
+}
+.vec-mdt-body.page .task-order-summary > span {
+  color: #d9e8f0;
+  font-size: 13px;
+}
+.vec-mdt-body.page .mdt-task-history {
+  margin-top: 14px;
+  padding: 10px;
+  border-top: 1px solid #7893a6;
+}
+.vec-mdt-body.page .mdt-task-history summary {
+  cursor: pointer;
+  padding: 8px 0;
+  min-height: 44px;
+  font-weight: 600;
+}
+.vec-mdt-body.page .mdt-task-history article {
+  border-bottom: 1px solid #688193;
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+.vec-mdt-body.page .mdt-task-history article > strong {
+  display: block;
+}
+.vec-mdt-body.page .mdt-task-history article p {
+  margin: 6px 0;
+}
+.vec-mdt-body.page .mdt-task-history time {
+  font-family: var(--vec-mono, Consolas, monospace);
+  color: #b9cfdc;
+}
+@media (max-width: 600px) {
+  .vec-mdt-body.page .task-choices > div,
+  .vec-mdt-body.page .mdt-update-grid {
+    grid-template-columns: 1fr;
+  }
+  .vec-mdt-body.page .mdt-task-card dl {
+    grid-template-columns: 1fr;
+  }
+}
+
 .vec-mdt-embed {
   border: 1px solid #7c9aad;
   border-radius: 4px;

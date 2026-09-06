@@ -32,6 +32,7 @@ import { CAD_VARS } from "./cad-theme";
 import { incidentRef } from "../vector/model";
 import { CopyButton } from "../vector/copy-button";
 import { PopoutWindow } from "../vector/popout";
+import { MdtTaskWorkspace } from "../vector/mdt-task-workspace";
 import { CrsPanel } from "./crs-panel";
 import { PreArrivalBody } from "./pre-arrival-panel";
 import type { Eta } from "./deployment-board";
@@ -142,6 +143,12 @@ type Props = {
   onSetUnitId?: (applianceId: string | null) => void;
   /** A local message from the unit to control — goes on the shift log. */
   onSendMessage?: (callsign: string, text: string) => void;
+  /** The crew reports an ongoing task complete from the tablet. */
+  onCompleteTask?: (taskId: string) => void;
+  /** A handover on the tablet swaps the crew carrying a task. */
+  onSetTaskCrew?: (taskId: string, crewIds: string[]) => void;
+  /** A worded line for the shift log (task orders, crew updates). */
+  onNote?: (text: string) => void;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -252,6 +259,9 @@ export function DraggableIncidentMdt({
   unitId: unitIdProp,
   onSetUnitId,
   onSendMessage,
+  onCompleteTask,
+  onSetTaskCrew,
+  onNote,
 }: Props) {
   const resolved = !!outcome;
   const [tab, setTab] = useState<TabKey>("incident");
@@ -428,6 +438,49 @@ export function DraggableIncidentMdt({
         onSetTreatmentDestination={onSetTreatmentDestination}
         onSendAtmistPrealert={onSendAtmistPrealert}
         onConveyCasualtyVia={onConveyCasualtyVia}
+      />
+    );
+  }
+
+  // The prototype's task workspace — Actions and Water pages share it.
+  function workspace(page: "actions" | "water") {
+    if (!selectedUnit) return null;
+    const crewList = selectedUnit.appliance.crewMembers;
+    const pumpOperator =
+      crewList.find((c) => c.id === selectedUnit.deployment.pumpOperatorCrewId) ??
+      crewList.find((c) => /Pump|Driver/i.test(c.role)) ??
+      crewList[0];
+    return (
+      <MdtTaskWorkspace
+        key={`${page}:${selectedUnit.appliance.id}`}
+        page={page}
+        incident={incident}
+        incidentRef={ref}
+        appliance={selectedUnit.appliance}
+        phase={selectedUnit.phase}
+        onScene={onSceneList.map((r) => r.appliance)}
+        tasks={tasks ?? []}
+        now={nowMs}
+        busyCrewIds={busyCrewIds}
+        hazards={(sim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
+        casualties={(sim?.foundCasualties ?? []).map((c) => ({ id: c.id, label: c.label }))}
+        resolved={resolved}
+        onStartTask={onStartTask}
+        onAbortTask={onAbortTask}
+        onCompleteTask={onCompleteTask}
+        onSetTaskCrew={onSetTaskCrew}
+        onBeginRoadClosure={onBeginRoadClosure ? (kind, crewIds) => onBeginRoadClosure(selectedUnit.appliance.id, kind, crewIds) : undefined}
+        onNote={onNote}
+        pumpReady={selectedUnit.deployment.pumpRunning === true && !!selectedUnit.deployment.pumpOperatorCrewId}
+        pumpOperatorName={pumpOperator?.name}
+        onStartPump={
+          onSetPumpOperator && onSetPumpRunning && pumpOperator
+            ? () => {
+                onSetPumpOperator(selectedUnit.appliance.id, pumpOperator.id);
+                onSetPumpRunning(selectedUnit.appliance.id, true);
+              }
+            : undefined
+        }
       />
     );
   }
@@ -629,9 +682,9 @@ export function DraggableIncidentMdt({
 
           {tab === "actions" && (
             <>
-              <div className="rc-caption">UNIT TASKING</div>
               {!selectedUnit ? (
                 <>
+                  <div className="rc-caption">UNIT TASKING</div>
                   <p>{resolvedDeps.length === 0 ? "No crews committed yet — mobilise the attendance from Dispatch." : "Select a committed unit to task its crew."}</p>
                   <div className="rc-action-grid">
                     {resolvedDeps.map((r) => (
@@ -645,44 +698,21 @@ export function DraggableIncidentMdt({
                 </>
               ) : (
                 <>
-                  <p>{unitActive.length === 0 ? "No active assignments for this unit." : `${unitActive.length} active assignment${unitActive.length === 1 ? "" : "s"} for ${selectedUnit.appliance.callsign}.`}</p>
-                  {unitActive.map((t) => (
-                    <article key={t.id} className="mdt-task-card">
-                      <header>
-                        <strong>{t.kind.replace(/_/g, " ")}</strong>
-                        <span>Active · {fmtElapsed(nowMs - t.startedAt)}</span>
-                      </header>
-                      <dl>
-                        <dt>Crew</dt>
-                        <dd>{t.assignedCrewIds.map((id) => selectedUnit.appliance.crewMembers.find((c) => c.id === id)?.name ?? id).join(", ") || "—"}</dd>
-                        {t.entryPoint && (<><dt>Entry point</dt><dd>{t.entryPoint}</dd></>)}
-                        {t.hoseType && (<><dt>Equipment</dt><dd>{t.hoseType} hose</dd></>)}
-                        {t.hydrantId && (<><dt>Supply</dt><dd>Hydrant {t.hydrantId}</dd></>)}
-                        {t.completesAt && (<><dt>Completes</dt><dd>{fmtTime(t.completesAt)}</dd></>)}
-                      </dl>
-                      <div className="mdt-task-controls">
-                        {onAbortTask && (
-                          <button type="button" onClick={() => onAbortTask(t.id)}>Unable to complete</button>
-                        )}
+                  {workspace("actions")}
+                  {selectedUnit.phase === "mobile" && (
+                    <details className="mdt-workflow" open>
+                      <summary>Pre-arrival sheet · rig BA and pair crews</summary>
+                      <div className="vec-mdt-embed tall" style={CAD_VARS}>
+                        <PreArrivalBody
+                          appliance={selectedUnit.appliance}
+                          deployment={selectedUnit.deployment}
+                          now={nowMs}
+                          casualties={sim?.foundCasualties ?? []}
+                          onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
+                          onSetTreatingCasualty={onSetTreatingCasualty ?? (() => {})}
+                        />
                       </div>
-                    </article>
-                  ))}
-                  <div className="rc-caption">AVAILABLE TASKS</div>
-                  {selectedUnit.phase === "mobile" ? (
-                    <div className="vec-mdt-embed tall" style={CAD_VARS}>
-                      <PreArrivalBody
-                        appliance={selectedUnit.appliance}
-                        deployment={selectedUnit.deployment}
-                        now={nowMs}
-                        casualties={sim?.foundCasualties ?? []}
-                        onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
-                        onSetTreatingCasualty={onSetTreatingCasualty ?? (() => {})}
-                      />
-                    </div>
-                  ) : canControl ? (
-                    <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("actions")}</div>
-                  ) : (
-                    <p>Unit control is not available on this desk.</p>
+                    </details>
                   )}
                   {baByAppliance.length > 0 && (
                     <>
@@ -822,17 +852,26 @@ export function DraggableIncidentMdt({
 
           {tab === "water" && (
             <>
-              <div className="rc-caption">WATER SUPPLY &amp; FIREFIGHTING</div>
               {!selectedUnit ? (
-                <p>Select a committed fire appliance to work its water.</p>
-              ) : selectedUnit.appliance.service !== "Fire" ? (
-                <p>{selectedUnit.appliance.callsign} carries no pump or water systems.</p>
-              ) : selectedUnit.phase !== "at_incident" ? (
-                <p>{selectedUnit.appliance.callsign} is not on the ground yet — water work starts on arrival.</p>
-              ) : canControl ? (
-                <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("water")}</div>
+                <>
+                  <div className="rc-caption">WATER SUPPLY &amp; FIREFIGHTING</div>
+                  <p>Select a committed fire appliance to work its water.</p>
+                </>
+              ) : selectedUnit.appliance.service !== "Fire" || selectedUnit.appliance.waterLitres === 0 ? (
+                <>
+                  <div className="rc-caption">WATER SUPPLY &amp; FIREFIGHTING</div>
+                  <p>{selectedUnit.appliance.callsign} carries no pump or water systems.</p>
+                </>
               ) : (
-                <p>Unit control is not available on this desk.</p>
+                <>
+                  {workspace("water")}
+                  {canControl && selectedUnit.phase === "at_incident" && (
+                    <details className="mdt-workflow">
+                      <summary>Pump, tank &amp; fast attack</summary>
+                      <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("water")}</div>
+                    </details>
+                  )}
+                </>
               )}
             </>
           )}
@@ -1070,11 +1109,6 @@ function ListRows({
   );
 }
 
-function fmtElapsed(ms: number): string {
-  const sec = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(sec / 60);
-  return `${m}m ${String(sec % 60).padStart(2, "0")}s`;
-}
 
 function fmtTime(ts: number): string {
   const d = new Date(ts);

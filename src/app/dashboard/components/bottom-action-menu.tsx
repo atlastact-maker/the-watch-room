@@ -103,7 +103,7 @@ export type StartTaskFn = (args: {
   crsDurationSec?: number;
   crsLabel?: string;
   crsDoneMessage?: string;
-}) => void;
+}) => string | void;
 
 export type UnitControlPage = "vehicle" | "crew" | "water" | "treatment" | "actions";
 type Tab = UnitControlPage;

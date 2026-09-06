@@ -66,7 +66,7 @@ export type Props = {
     mitigationMethod?: string;
     closurePos?: { lat: number; lng: number };
     closureBearingDeg?: number;
-  }) => void;
+  }) => string | void;
   onAbortTask: (taskId: string) => void;
   onUpdateBaRemarks?: (taskId: string, text: string) => void;
   onUpdateBaEntryPoint?: (taskId: string, label: string) => void;
