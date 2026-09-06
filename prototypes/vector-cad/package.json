@@ -1,0 +1,1 @@
+{"name":"vector-watch-room","private":true,"type":"module","scripts":{"dev":"vite","build":"node scripts/build.mjs","db:generate":"drizzle-kit generate","test":"node tests/check-workflows.cjs && node tests/check-layout.cjs && node tests/check-session.mjs"},"dependencies":{"drizzle-orm":"0.45.2"},"devDependencies":{"drizzle-kit":"0.31.10","vite":"8.0.13"}}

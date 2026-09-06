@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import {DatabaseSync} from 'node:sqlite';import {sessionApi} from '../worker/session.mjs';
+const db=new DatabaseSync(':memory:');db.exec(fs.readFileSync(new URL('../drizzle/0000_true_hitman.sql',import.meta.url),'utf8'));
+const env={DB:{prepare(sql){return{bind(...args){return{async first(){return db.prepare(sql).get(...args)||null;},async run(){const r=db.prepare(sql).run(...args);return{meta:{changes:Number(r.changes)}};}};}};}}};
+const call=(method='GET',data,headers={})=>sessionApi(new Request('https://site.test/api/session',{method,headers:{'Content-Type':'application/json',...headers},...(data?{body:JSON.stringify(data)}:{})}),env);
+assert.deepEqual(await(await call()).json(),{revision:0,data:null});
+const data={schema:1,incidents:[{ref:'test'}],state:{fleet:[],t:100,rcTasks:[{id:'task',equipmentAllocations:[{id:'item',owner:'Crew',returnStatus:'Missing'}]}],mdtMessages:[{text:'Access blocked'}]}};
+assert.equal((await call('PUT',{revision:0,data})).status,200);assert.equal((await call('PUT',{revision:0,data})).status,409);
+let saved=await(await call()).json();assert.deepEqual(saved.data,data);assert.equal(saved.revision,1);
+const results=await Promise.all([call('PUT',{revision:1,data}),call('PUT',{revision:1,data})]);assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+assert.equal((await call('PUT',{revision:2,data},{Origin:'https://elsewhere.test'})).status,403);assert.equal((await call('PUT',{revision:2,data:{}})).status,400);
+// Client restore, queued edits, recoverable failure and optimistic conflict.
+let offline=false;
+const ctx={window:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,Date,console,fetch:async(url,init={})=>{if(offline)throw Error('offline');return sessionApi(new Request('https://site.test'+url,init),env);}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync(new URL('../dist/session-store.js',import.meta.url),'utf8'),ctx);
+const app={state:{fleet:[],t:0},setState(p){Object.assign(this.state,p);}},incidents=[];
+const client=new ctx.window.VectorSession(app,incidents);await client.load();assert.equal(app.state.rcTasks[0].equipmentAllocations[0].returnStatus,'Missing');assert.equal(incidents[0].ref,'test');
+app.state.mdtMessages.push({text:'Task delayed'});await client.save();assert(!app.state.sessionBlocked);saved=await(await call()).json();assert.equal(saved.data.state.mdtMessages.length,2);
+offline=true;app.state.rcTasks[0].status='Completed';await client.save();assert(app.state.sessionBlocked&&app.state.sessionRetry);offline=false;await client.retry();assert(!app.state.sessionBlocked);assert.equal((await(await call()).json()).data.state.rcTasks[0].status,'Completed');
+saved=await(await call()).json();await call('PUT',{revision:saved.revision,data:saved.data});app.state.rcTasks[0].status='Cancelled';await client.save();assert(app.state.sessionConflict);await client.load();assert.equal(app.state.rcTasks[0].status,'Completed');client.dispose();
+console.log('PASS: durable restore, prepared SQLite writes, concurrent-save conflict, invalid requests, client save retry and conflict recovery.');

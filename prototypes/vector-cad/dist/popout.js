@@ -16,7 +16,7 @@
     const bar=w.document.createElement('div');bar.className='popout-toolbar';bar.append(w.document.createTextNode('VECTOR / '+label(k).toUpperCase()));
     const b=w.document.createElement('button');b.textContent='Dock back';b.onclick=()=>dock(k);bar.append(b);w.document.body.append(bar);
     const host=w.document.createElement('div');host.id='popout-root';w.document.body.append(host);
-    windows.set(k,w);w.addEventListener('pagehide',()=>{if(windows.get(k)===w){windows.delete(k);refresh();}});
+    window.vectorTheme?.attach(w.document);windows.set(k,w);w.addEventListener('pagehide',()=>{if(windows.get(k)===w){windows.delete(k);refresh();}});
     // Copy controls operate in the window that received the click.
     w.document.addEventListener('click',e=>{const b=e.target.closest('[data-copy]');if(b){const value=b.dataset.copy;window.vectorCopiedValue=value;w.navigator.clipboard?.writeText(value).catch(()=>{});}});
     refresh();

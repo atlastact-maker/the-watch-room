@@ -1,0 +1,9 @@
+import fs from 'node:fs';import path from 'node:path';
+// Preserve the authored static UI; package an ESM Worker with its public assets.
+const assets={};const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.jpg':'image/jpeg','.woff2':'font/woff2'};
+function scan(dir,prefix=''){for(const e of fs.readdirSync(dir,{withFileTypes:true})){if(e.name==='server'||e.name.startsWith('.')||e.name.endsWith('.md'))continue;const rel=prefix+'/'+e.name,full=path.join(dir,e.name);if(e.isDirectory())scan(full,rel);else assets[rel]={type:mime[path.extname(e.name)]||'application/octet-stream',body:fs.readFileSync(full).toString('base64')};}}
+scan('dist');fs.mkdirSync('dist/server',{recursive:true});fs.mkdirSync('dist/.openai',{recursive:true});
+fs.copyFileSync('.openai/hosting.json','dist/.openai/hosting.json');
+const api=fs.readFileSync('worker/session.mjs','utf8').replace('export async function','async function');
+fs.writeFileSync('dist/server/index.js',api+'\nconst assets='+JSON.stringify(assets)+`;\nexport default {async fetch(request,env){const url=new URL(request.url);if(url.pathname==='/api/session')return sessionApi(request,env);if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});let route;try{route=decodeURIComponent(url.pathname);}catch{return new Response('Bad path',{status:400});}const asset=assets[route==='/'?'/index.html':route];if(!asset)return new Response('Not found',{status:404});return new Response(request.method==='HEAD'?null:Uint8Array.from(atob(asset.body),c=>c.charCodeAt(0)),{headers:{'Content-Type':asset.type,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'}});}};\n`);
+console.log('Worker and public assets built');
