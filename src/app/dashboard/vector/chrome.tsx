@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth/actions";
 import { shiftForHour } from "@/lib/sim/police-callsigns";
 import type { Severity } from "@/lib/sim/incident_types";
+import { CopyButton } from "./copy-button";
 
 export type VectorScreen = "dispatch" | "call" | "mob" | "ground";
 
@@ -452,9 +453,12 @@ export function FocusStrip({
         <div className="refline">
           <span>{reference}</span>
           <span className={`sev ${severity}`}>{severity.toUpperCase()}</span>
+          <CopyButton text={reference} label="ref" />
         </div>
         <h2>{title}</h2>
-        <div className="addr">{address}</div>
+        <div className="addr">
+          {address} <CopyButton text={address} label="address" />
+        </div>
         <div className="vec-focus-units">
           {units.length === 0 ? (
             <span className="empty">No units allocated</span>

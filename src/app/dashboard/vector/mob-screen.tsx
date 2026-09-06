@@ -12,6 +12,7 @@ import type { Severity } from "@/lib/sim/incident_types";
 import type { ServiceCode, StatusCode } from "@/lib/sim/types";
 import type { PdaRow, ResourceCard, StandbyRow } from "./dispatch-tiles";
 import { SERVICE_SHORT, etaLabel, hhmmss, mmss } from "./model";
+import { CopyButton } from "./copy-button";
 
 export type MobHead = {
   ref: string;
@@ -123,7 +124,9 @@ export function MobScreen({
               <span className="sev">{head.severity.toUpperCase()}</span>
               <span>{head.title}</span>
             </div>
-            <div className="vec-small">{head.address} · {head.postcode}</div>
+            <div className="vec-small">
+              {head.address} · {head.postcode} <CopyButton text={`${head.address}, ${head.postcode}`} label="address" /> <CopyButton text={head.ref} label="ref" />
+            </div>
           </div>
           <div>
             <div className="vec-k">Running order</div>
@@ -305,7 +308,13 @@ export function MobScreen({
             </div>
             <div className="vec-tile-foot" style={{ borderColor: "#2b4358", color: "#8ea3b5" }}>
               <span>Messages go on allocation — each unit acknowledges on its own MDT.</span>
-              <button type="button" className="vec-btn mini" onClick={onTrack}>Track response</button>
+              <span style={{ display: "flex", gap: 6 }}>
+                <CopyButton
+                  text={`TO ${turnouts.length ? Array.from(new Set(turnouts.map((t) => t.station))).join(", ") : "—"} · INCIDENT ${head.ref} · ${head.title.toUpperCase()} · ${head.address}, ${head.postcode} · GRID ${head.latlng} · ATTEND ${turnouts.map((t) => t.callsign).join(", ") || "nobody yet"} · RISK ${head.risks.join("; ") || "none recorded"}`}
+                  label="message"
+                />
+                <button type="button" className="vec-btn mini" onClick={onTrack}>Track response</button>
+              </span>
             </div>
           </div>
           <div className="vec-box">

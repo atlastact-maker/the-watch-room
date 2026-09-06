@@ -13,8 +13,10 @@ import type { ServiceCode, StatusCode } from "@/lib/sim/types";
 import { DRAG_MIME } from "../components/call-stack";
 import { VectorTile, type TileLayout } from "./tile";
 import { SERVICE_SHORT, copyText, etaLabel } from "./model";
+import { CopyButton } from "./copy-button";
 
 type Area = { w: number; h: number };
+type Pop = { popped?: boolean; onPopOut?: () => void; onDock?: () => void };
 
 /* ----------------------------------------------------------------------
    Calls
@@ -41,7 +43,8 @@ export function CallsTile({
   onAnswer,
   onDecline,
   onClose,
-}: {
+  ...pop
+}: Pop & {
   layout: TileLayout;
   area: Area;
   calls: CallRow[];
@@ -59,6 +62,7 @@ export function CallsTile({
   const selected = shown.find((c) => c.id === picked) ?? shown[0] ?? null;
   return (
     <VectorTile
+      {...pop}
       id="calls"
       title="Calls"
       count={calls.length ? `${calls.length} waiting` : undefined}
@@ -190,7 +194,8 @@ export function LiveIncidentsTile({
   onHandCommandTo,
   onDropAppliance,
   onClose,
-}: {
+  ...pop
+}: Pop & {
   layout: TileLayout;
   area: Area;
   rows: IncidentRow[];
@@ -205,7 +210,7 @@ export function LiveIncidentsTile({
   const open = rows.filter((r) => !r.resolved).length;
   void now;
   return (
-    <VectorTile id="live" title="Live incidents" count={`${open} open`} layout={layout} area={area} onClose={onClose} minWidth={260} minHeight={180}>
+    <VectorTile {...pop} id="live" title="Live incidents" count={`${open} open`} layout={layout} area={area} onClose={onClose} minWidth={260} minHeight={180}>
       {rows.length === 0 ? (
         <div className="vec-tile-empty">Nothing running — answer a call to open a job</div>
       ) : (
@@ -329,9 +334,9 @@ export type IncidentDetail = {
   onCall: boolean;
 };
 
-export function IncidentDetailsTile({ layout, area, detail, onClose, onOpenLog }: { layout: TileLayout; area: Area; detail: IncidentDetail | null; onClose: () => void; onOpenLog: () => void }) {
+export function IncidentDetailsTile({ layout, area, detail, onClose, onOpenLog, ...pop }: Pop & { layout: TileLayout; area: Area; detail: IncidentDetail | null; onClose: () => void; onOpenLog: () => void }) {
   return (
-    <VectorTile id="incident" title="Incident details" layout={layout} area={area} onClose={onClose} minWidth={300} minHeight={200}>
+    <VectorTile {...pop} id="incident" title="Incident details" layout={layout} area={area} onClose={onClose} minWidth={300} minHeight={200}>
       {!detail ? (
         <div className="vec-tile-empty">Select an incident</div>
       ) : (
@@ -349,11 +354,13 @@ export function IncidentDetailsTile({ layout, area, detail, onClose, onOpenLog }
               <div className="vec-k">Address · OS AddressBase match</div>
               <div className="vec-v" style={{ fontFamily: "var(--vec-sans)", fontSize: 13 }}>
                 {detail.address1}{" "}
-                <button type="button" className="vec-btn mini" onClick={() => copyText(`${detail.address1}, ${detail.address2}`)} title="Copy address">⧉</button>
+                <CopyButton text={`${detail.address1}, ${detail.address2}, ${detail.postcode}`} label="address" />
               </div>
               <div className="vec-small">{detail.address2}</div>
-              <div className="vec-small" style={{ fontFamily: "var(--vec-mono)" }}>
-                {detail.postcode} · {detail.latlng}
+              <div className="vec-small" style={{ fontFamily: "var(--vec-mono)", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                <CopyButton text={detail.postcode} label={detail.postcode} />
+                <CopyButton text={detail.latlng} label={detail.latlng} />
+                <CopyButton text={detail.ref} label={detail.ref} />
               </div>
             </div>
             <div className="vec-field">
@@ -363,7 +370,7 @@ export function IncidentDetailsTile({ layout, area, detail, onClose, onOpenLog }
             </div>
             <div className="vec-field">
               <div className="vec-k">Caller {detail.onCall ? "· ON THE LINE" : ""}</div>
-              <div className="vec-small" style={{ color: "var(--vec-text)" }}>{detail.caller}</div>
+              <div className="vec-small" style={{ color: "var(--vec-text)" }}>{detail.caller} <CopyButton text={detail.caller} label="caller" /></div>
               {detail.callerFlag && <div className="vec-small" style={{ color: "var(--vec-stop)", fontWeight: 700 }}>{detail.callerFlag}</div>}
             </div>
             <div className="vec-field">
@@ -419,10 +426,10 @@ export type SceneUnitRow = {
   onScene: boolean;
 };
 
-export function SceneUnitsTile({ layout, area, rows, onPick, onPlace, onClose, groundAvailable }: { layout: TileLayout; area: Area; rows: SceneUnitRow[]; onPick: (id: string) => void; onPlace: (id: string) => void; onClose: () => void; groundAvailable: boolean }) {
+export function SceneUnitsTile({ layout, area, rows, onPick, onPlace, onClose, groundAvailable, ...pop }: Pop & { layout: TileLayout; area: Area; rows: SceneUnitRow[]; onPick: (id: string) => void; onPlace: (id: string) => void; onClose: () => void; groundAvailable: boolean }) {
   const waiting = rows.filter((r) => r.onScene && !r.placed).length;
   return (
-    <VectorTile id="units" title="Scene units" count={rows.length ? `${rows.length} committed` : undefined} layout={layout} area={area} onClose={onClose} minWidth={280} minHeight={160}>
+    <VectorTile {...pop} id="units" title="Scene units" count={rows.length ? `${rows.length} committed` : undefined} layout={layout} area={area} onClose={onClose} minWidth={280} minHeight={160}>
       <div className="vec-tile-sub">
         <span className={waiting ? "stop" : "go"}>{rows.length === 0 ? "No units committed" : waiting ? `${waiting} awaiting placement` : "All placed"}</span>
       </div>
@@ -475,11 +482,11 @@ export type PdaRow = {
   why: string;
 };
 
-export function AttendanceTile({ layout, area, rows, ref, onClose, onFill }: { layout: TileLayout; area: Area; rows: PdaRow[]; ref: string; onClose: () => void; onFill: () => void }) {
+export function AttendanceTile({ layout, area, rows, ref, onClose, onFill, ...pop }: Pop & { layout: TileLayout; area: Area; rows: PdaRow[]; ref: string; onClose: () => void; onFill: () => void }) {
   const filled = rows.filter((r) => r.callsign).length;
   const unfilled = rows.length - filled;
   return (
-    <VectorTile id="attendance" title="Attendance" count={ref || undefined} layout={layout} area={area} onClose={onClose} minWidth={420} minHeight={160}>
+    <VectorTile {...pop} id="attendance" title="Attendance" count={ref || undefined} layout={layout} area={area} onClose={onClose} minWidth={420} minHeight={160}>
       <div className="vec-tile-sub">
         <strong>Predetermined attendance</strong>
         <span className={unfilled ? "stop" : "go"}>
@@ -544,7 +551,7 @@ export type ResourceCard = {
   deployed: boolean;
 };
 
-export function AvailableTile({ layout, area, cards, hasIncident, onMobilise, onPick, onClose, id = "available", title = "Resources" }: { layout: TileLayout; area: Area; cards: ResourceCard[]; hasIncident: boolean; onMobilise: (applianceId: string, stationId: string) => void; onPick: (applianceId: string) => void; onClose: () => void; id?: "available" | "resources"; title?: string }) {
+export function AvailableTile({ layout, area, cards, hasIncident, onMobilise, onPick, onClose, id = "available", title = "Resources", ...pop }: Pop & { layout: TileLayout; area: Area; cards: ResourceCard[]; hasIncident: boolean; onMobilise: (applianceId: string, stationId: string) => void; onPick: (applianceId: string) => void; onClose: () => void; id?: "available" | "resources"; title?: string }) {
   const [svc, setSvc] = useState<"All" | ServiceCode>("All");
   const [type, setType] = useState("All");
   const scoped = cards.filter((c) => svc === "All" || c.service === svc);
@@ -559,7 +566,7 @@ export function AvailableTile({ layout, area, cards, hasIncident, onMobilise, on
   const free = cards.filter((c) => c.status === 7 || c.status === 6).length;
   const n = (s: ServiceCode) => cards.filter((c) => c.service === s).length;
   return (
-    <VectorTile id={id} title={title} count={`${free} free`} layout={layout} area={area} onClose={onClose} minWidth={320} minHeight={220}>
+    <VectorTile {...pop} id={id} title={title} count={`${free} free`} layout={layout} area={area} onClose={onClose} minWidth={320} minHeight={220}>
       <div className="vec-svctabs">
         {(["All", "Fire", "Ambulance", "Police"] as const).map((k) => (
           <button key={k} type="button" aria-pressed={svc === k} className={k === "Fire" ? "fire" : k === "Ambulance" ? "amb" : k === "Police" ? "pol" : ""} onClick={() => { setSvc(k); setType("All"); }}>
@@ -626,11 +633,11 @@ function statusShort(s: StatusCode): string {
    ---------------------------------------------------------------------- */
 export type CoverRow = { area: string; detail: string; free: number; of: number };
 
-export function CountyCoverTile({ layout, area, rows, onClose }: { layout: TileLayout; area: Area; rows: CoverRow[]; onClose: () => void }) {
+export function CountyCoverTile({ layout, area, rows, onClose, ...pop }: Pop & { layout: TileLayout; area: Area; rows: CoverRow[]; onClose: () => void }) {
   const none = rows.filter((r) => r.free === 0).length;
   const thin = rows.filter((r) => r.free === 1).length;
   return (
-    <VectorTile id="cover" title="County cover" layout={layout} area={area} onClose={onClose} minWidth={260} minHeight={160}>
+    <VectorTile {...pop} id="cover" title="County cover" layout={layout} area={area} onClose={onClose} minWidth={260} minHeight={160}>
       <div className="vec-tile-sub">
         <strong>Front-line pumps free</strong>
         <span className={none ? "stop" : thin ? "warn" : "go"}>{none ? `${none} area without cover` : thin ? `${thin} thin` : "All areas covered"}</span>
@@ -658,10 +665,10 @@ export function CountyCoverTile({ layout, area, rows, onClose }: { layout: TileL
 
 export type StandbyRow = { id: string; callsign: string; from: string; to: string; travel: string; reason: string; sent: boolean };
 
-export function StandbyTile({ layout, area, rows, onSend, onClose }: { layout: TileLayout; area: Area; rows: StandbyRow[]; onSend: (id: string) => void; onClose: () => void }) {
+export function StandbyTile({ layout, area, rows, onSend, onClose, ...pop }: Pop & { layout: TileLayout; area: Area; rows: StandbyRow[]; onSend: (id: string) => void; onClose: () => void }) {
   const sent = rows.filter((r) => r.sent).length;
   return (
-    <VectorTile id="standby" title="Standby" layout={layout} area={area} onClose={onClose} minWidth={280} minHeight={160}>
+    <VectorTile {...pop} id="standby" title="Standby" layout={layout} area={area} onClose={onClose} minWidth={280} minHeight={160}>
       <div className="vec-tile-sub">
         <strong>Standby moves</strong>
         <span>{rows.length ? `${sent} of ${rows.length} sent` : "Nothing needed"}</span>
@@ -695,9 +702,9 @@ export function StandbyTile({ layout, area, rows, onSend, onClose }: { layout: T
 
 export type HospitalRow = { id: string; name: string; town: string; postcode: string; distKm: number; ed: string; trauma: string; helipad: boolean };
 
-export function HospitalsTile({ layout, area, rows, from, onClose }: { layout: TileLayout; area: Area; rows: HospitalRow[]; from: string; onClose: () => void }) {
+export function HospitalsTile({ layout, area, rows, from, onClose, ...pop }: Pop & { layout: TileLayout; area: Area; rows: HospitalRow[]; from: string; onClose: () => void }) {
   return (
-    <VectorTile id="hospitals" title="Hospitals" layout={layout} area={area} onClose={onClose} minWidth={320} minHeight={160}>
+    <VectorTile {...pop} id="hospitals" title="Hospitals" layout={layout} area={area} onClose={onClose} minWidth={320} minHeight={160}>
       <div className="vec-tile-sub">
         <strong>ED capacity &amp; distance</strong>
         <span>{from ? `From ${from}` : "From the county centre"}</span>

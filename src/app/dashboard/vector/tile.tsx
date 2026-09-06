@@ -8,6 +8,7 @@
 
 import { Rnd, type RndResizeCallback, type RndDragCallback } from "react-rnd";
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from "react";
+import { PopoutFrame, PopoutWindow } from "./popout";
 
 export type TileRect = { x: number; y: number; w: number; h: number };
 export type TileId =
@@ -207,6 +208,9 @@ export function VectorTile({
   minHeight = 120,
   children,
   zIndex,
+  popped,
+  onPopOut,
+  onDock,
 }: {
   id: TileId;
   title: string;
@@ -221,8 +225,21 @@ export function VectorTile({
   minHeight?: number;
   children: ReactNode;
   zIndex?: number;
+  /** Lifted into its own window — see popout.tsx. */
+  popped?: boolean;
+  onPopOut?: () => void;
+  onDock?: () => void;
 }) {
   const [z, setZ] = useState(zIndex ?? ++zTop);
+  if (popped && onDock) {
+    return (
+      <PopoutWindow id={id} title={title} onClose={onDock}>
+        <PopoutFrame title={title} onDock={onDock}>
+          {children}
+        </PopoutFrame>
+      </PopoutWindow>
+    );
+  }
   const min = { w: minWidth, h: minHeight };
   const initial =
     layout.rectFor(id) ??
@@ -271,6 +288,11 @@ export function VectorTile({
           {flag && <span className="flag">{flag}</span>}
         </span>
         {headerExtra}
+        {onPopOut && (
+          <button type="button" onClick={onPopOut} title="Pop out into its own window" aria-label={`Pop out ${title}`}>
+            ↗
+          </button>
+        )}
         {onClose && (
           <button type="button" onClick={onClose} title="Close panel" aria-label={`Close ${title}`}>
             ×

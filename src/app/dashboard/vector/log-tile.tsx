@@ -32,7 +32,7 @@ function classify(kind: LogEntry["kind"]): { code: string; tone: string } {
   }
 }
 
-export function LogTile({ layout, area, log, reference, onClose, onEntry }: { layout: TileLayout; area: { w: number; h: number }; log: LogEntry[]; reference: string; onClose: () => void; onEntry: (text: string) => void }) {
+export function LogTile({ layout, area, log, reference, onClose, onEntry, popped, onPopOut, onDock }: { layout: TileLayout; area: { w: number; h: number }; log: LogEntry[]; reference: string; onClose: () => void; onEntry: (text: string) => void; popped?: boolean; onPopOut?: () => void; onDock?: () => void }) {
   const [filter, setFilter] = useState("");
   const [draft, setDraft] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
@@ -45,7 +45,7 @@ export function LogTile({ layout, area, log, reference, onClose, onEntry }: { la
     if (el) el.scrollTop = el.scrollHeight;
   }, [rows.length]);
   return (
-    <VectorTile id="log" title="Incident log" count={String(log.length)} layout={layout} area={area} onClose={onClose} minWidth={280} minHeight={180}>
+    <VectorTile popped={popped} onPopOut={onPopOut} onDock={onDock} id="log" title="Incident log" count={String(log.length)} layout={layout} area={area} onClose={onClose} minWidth={280} minHeight={180}>
       <div className="vec-tile-sub">
         <strong>Shift log</strong>
         <span>{reference || "All incidents"}</span>

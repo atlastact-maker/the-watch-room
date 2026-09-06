@@ -198,6 +198,7 @@ import { useDeskModel, proposeFill } from "./vector/desk-model";
 import { useTileLayout } from "./vector/tile";
 import { useVectorTheme } from "./vector/theme";
 import { LogTile } from "./vector/log-tile";
+import { Poppable } from "./vector/popout";
 import type { Menu, VectorScreen } from "./vector/chrome";
 import { shortAddress } from "./vector/model";
 import "./vector/vector.css";
@@ -5101,6 +5102,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const { theme, toggle: toggleTheme } = useVectorTheme();
   const [activeCall, setActiveCall] = useState<(PendingCall & { answeredAt: number }) | null>(null);
   const [standbySent, setStandbySent] = useState<Record<string, boolean>>({});
+  // Panels lifted into their own browser windows, by id.
+  const [popped, setPopped] = useState<Record<string, boolean>>({});
   const [statusMsg, setStatusMsg] = useState("Ready");
   const desk = useDeskModel({
     incidents,
@@ -5385,6 +5388,45 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ],
     },
     {
+      label: "Windows",
+      items: (() => {
+        const entries: { id: string; label: string; open: boolean }[] = [
+          { id: "calls", label: "Calls", open: !!tiles.calls },
+          { id: "live", label: "Live incidents", open: !!tiles.live },
+          { id: "incident", label: "Incident details", open: !!tiles.incident && !!activeIncident },
+          { id: "units", label: "Scene units", open: !!tiles.units && !!activeIncident },
+          { id: "log", label: "Incident log", open: !!tiles.log },
+          { id: "attendance", label: "Attendance", open: !!tiles.attendance && !!activeIncident },
+          { id: "available", label: "Resources", open: !!tiles.available },
+          { id: "cover", label: "County cover", open: !!tiles.cover },
+          { id: "standby", label: "Standby", open: !!tiles.standby },
+          { id: "hospitals", label: "Hospitals", open: !!tiles.hospitals },
+          { id: "leds", label: "LEDS", open: showLeds },
+          { id: "anpr", label: "ANPR", open: showAnpr },
+          { id: "search", label: "Search", open: showSearch },
+          { id: "calllog", label: "999 call log", open: showCallLog && !!activeIncident },
+          { id: "resources", label: "Classic resources", open: resourcesVisible },
+          { id: "stack", label: "Classic call stack", open: showCallStack },
+          { id: "classiclog", label: "Classic dispatch log", open: showDispatchLog },
+          { id: "card", label: "Classic incident card", open: incidentPanelVisible && !!activeIncident },
+        ];
+        const items: Menu["items"] = entries.map((e) => ({
+          label: popped[e.id] ? `Dock ${e.label}` : `Pop out ${e.label}`,
+          hint: popped[e.id] ? "window" : e.open ? "↗" : "closed",
+          disabled: !e.open && !popped[e.id],
+          act: () => setPopped((p) => ({ ...p, [e.id]: !p[e.id] })),
+        }));
+        items.push({ sep: true });
+        items.push({
+          label: "Dock everything",
+          hint: String(Object.values(popped).filter(Boolean).length),
+          act: () => setPopped({}),
+          disabled: !Object.values(popped).some(Boolean),
+        });
+        return items;
+      })(),
+    },
+    {
       label: "Help",
       items: [
         { label: "Glossary · shortcuts", hint: "?", act: () => setGlossaryOpen(true) },
@@ -5490,8 +5532,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       tiles={tiles}
       setTiles={setTiles}
       layout={layout}
-      logTile={(area) => (
+      popped={popped}
+      setPopped={setPopped}
+      logTile={(area, pop) => (
         <LogTile
+          {...pop}
           layout={layout}
           area={area}
           log={log}
@@ -5555,6 +5600,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               />
             );
           })()}
+          <Poppable id="resources" title="Resources" popped={!!popped["resources"]} onDock={() => setPopped((p) => ({ ...p, "resources": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {resourcesVisible && (
             <DraggableResourcesPanel
               stations={allDeployableStations}
@@ -5566,6 +5612,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onMobilise={({ applianceId, stationId }) => mobiliseTo(applianceId, stationId)}
             />
           )}
+          </Poppable>
           {selectedAppliance && (() => {
             // En-route units get the pre-arrival instructions panel instead
             // of the static vehicle sheet — the operator can rig BA crews or
@@ -5602,6 +5649,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             );
           })()}
           {/* The classic dark call-information box, still there under Comms. */}
+          <Poppable id="card" title="Incident card" popped={!!popped["card"]} onDock={() => setPopped((p) => ({ ...p, "card": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {activeIncident && incidentPanelVisible && (
             <DraggableIncidentPanel
               incident={activeIncident}
@@ -5619,7 +5667,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onHandCommandTo={handCommandTo}
             />
           )}
+          </Poppable>
           {/* Search — people, vehicles, addresses; the map shows the answer. */}
+          <Poppable id="search" title="Search" popped={!!popped["search"]} onDock={() => setPopped((p) => ({ ...p, "search": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {showSearch && (
             <SearchPanel
               index={recordIndex}
@@ -5630,8 +5680,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onClose={() => setShowSearch(false)}
             />
           )}
+          </Poppable>
           {/* The 999 call log — the caller's words, the on-the-line state
               and the job's risk lines, as a movable panel. */}
+          <Poppable id="calllog" title="999 call log" popped={!!popped["calllog"]} onDock={() => setPopped((p) => ({ ...p, "calllog": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {showCallLog && activeIncident && (
             <CallLogPanel
               incident={activeIncident}
@@ -5640,6 +5692,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onClose={() => setShowCallLog(false)}
             />
           )}
+          </Poppable>
+          <Poppable id="anpr" title="ANPR" popped={!!popped["anpr"]} onDock={() => setPopped((p) => ({ ...p, "anpr": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {showAnpr && (
             <AnprConsole
               shiftStartedAt={shiftStartedAt}
@@ -5654,6 +5708,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onClose={() => setShowAnpr(false)}
             />
           )}
+          </Poppable>
+          <Poppable id="leds" title="LEDS" popped={!!popped["leds"]} onDock={() => setPopped((p) => ({ ...p, "leds": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {showLeds && (
             <LedsTerminal
               index={recordIndex}
@@ -5665,8 +5721,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onClose={() => setShowLeds(false)}
             />
           )}
+          </Poppable>
           {/* The classic call stack — still available from Comms for
               anyone who wants the old spine back. */}
+          <Poppable id="stack" title="Call stack" popped={!!popped["stack"]} onDock={() => setPopped((p) => ({ ...p, "stack": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {showCallStack && (
             <CallStack
               pending={pendingCalls}
@@ -5738,7 +5796,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onToggleReady={() => setCallsReady((v) => !v)}
             />
           )}
+          </Poppable>
+          <Poppable id="classiclog" title="Dispatch log" popped={!!popped["classiclog"]} onDock={() => setPopped((p) => ({ ...p, "classiclog": false }))} onBlocked={() => setStatusMsg("The browser blocked the pop-out window — allow popups for this site")}>
           {showDispatchLog && <DispatchLog log={log} onClose={() => setShowDispatchLog(false)} />}
+          </Poppable>
         </>
       }
       ground={
@@ -5915,6 +5976,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 onArmPlacement={setPlacePendingApplianceId}
                 unitId={mdtUnitId}
                 onSetUnitId={setMdtUnitId}
+                onSendMessage={(callsign, text) => {
+                  logAnnotation(`${callsign} → CONTROL: ${text}`);
+                  setStatusMsg(`${callsign} message logged`);
+                }}
               />
             )}
           </>

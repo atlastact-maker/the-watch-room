@@ -14,7 +14,8 @@ import type { ServiceCode } from "@/lib/sim/types";
 import { labelForType } from "@/lib/sim/pda";
 import { scenarioServices } from "@/lib/sim/coverage";
 import type { PendingCall } from "../components/call-stack";
-import { SERVICE_SHORT, copyText, gradeMeaning, gradeShort, hhmmss, impliedGrade, mmss, scenarioService, shortAddress } from "./model";
+import { SERVICE_SHORT, gradeMeaning, gradeShort, hhmmss, impliedGrade, mmss, scenarioService, shortAddress } from "./model";
+import { CopyButton } from "./copy-button";
 
 const CallLocationMap = dynamic(() => import("./call-location-map").then((m) => m.CallLocationMap), {
   ssr: false,
@@ -174,7 +175,7 @@ export function CallScreen({
             <div className="vec-k">Caller · BT 999 handover</div>
             <div className="vec-v">
               {s.methane.emergencyServices ? "Member of the public" : "Caller details not yet recorded"}{" "}
-              <button type="button" className="vec-btn mini" onClick={() => copyText("Caller — member of the public")}>⧉</button>
+              <CopyButton text={s.trigger} label="caller's words" />
             </div>
             <div className="vec-small">Number withheld in this simulation · Landline · BT · EISEC record returned</div>
           </div>
@@ -292,8 +293,9 @@ export function CallScreen({
             <div style={{ padding: "6px 10px 8px" }}>
               <div className="vec-k">Location source · EISEC · Exact address from the calling number</div>
               <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                <div className="vec-btn" style={{ flex: 1, textAlign: "left", fontSize: 12 }}>
-                  {s.location.address} · {s.location.postcode}
+                <div className="vec-btn" style={{ flex: 1, textAlign: "left", fontSize: 12, display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span>{s.location.address} · {s.location.postcode}</span>
+                  <CopyButton text={`${s.location.address}, ${s.location.postcode}`} label="address" />
                 </div>
                 <button
                   type="button"

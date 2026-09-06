@@ -8,7 +8,6 @@
 // runs a light "CAD app" theme so it reads as a separate device sitting
 // on top of the dark ops-room UI.
 
-import { DRAG_MIME } from "./call-stack";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Rnd } from "react-rnd";
@@ -23,18 +22,19 @@ import {
   CallInformationBody,
   HazardsBody,
   CasualtiesBody,
-  ActiveTaskRow,
   resolveDeployments,
   type Props as IncidentViewProps,
   type ResolvedDeployment,
 } from "./incident-view";
 import { BaControlBoard } from "./ba-control-board";
-import { BottomActionMenu } from "./bottom-action-menu";
+import { BottomActionMenu, type UnitControlPage } from "./bottom-action-menu";
 import { CAD_VARS } from "./cad-theme";
 import { incidentRef } from "../vector/model";
+import { CopyButton } from "../vector/copy-button";
+import { PopoutWindow } from "../vector/popout";
 import { CrsPanel } from "./crs-panel";
 import { PreArrivalBody } from "./pre-arrival-panel";
-import { DeploymentBoard, type Eta } from "./deployment-board";
+import type { Eta } from "./deployment-board";
 import type { Patch } from "@/lib/sim/areas";
 
 // Aerial property view — Leaflet must not run on the server.
@@ -140,6 +140,8 @@ type Props = {
    *  vehicle clicks land here). Omit for internal state (demo page). */
   unitId?: string | null;
   onSetUnitId?: (applianceId: string | null) => void;
+  /** A local message from the unit to control — goes on the shift log. */
+  onSendMessage?: (callsign: string, text: string) => void;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -182,18 +184,8 @@ function saveMdtFrame(f: MdtFrame): void {
   }
 }
 
-type TabKey =
-  | "overview"
-  | "call"
-  | "resourcing"
-  | "view"
-  | "crs"
-  | "targets"
-  | "hazards"
-  | "casualties"
-  | "ba"
-  | "log"
-  | "debrief";
+// The six pages of the VECTOR tablet.
+type TabKey = "incident" | "actions" | "messages" | "crew" | "vehicle" | "water";
 
 export function DraggableIncidentMdt({
   incident,
@@ -240,11 +232,6 @@ export function DraggableIncidentMdt({
   onUpdateBaRemarks,
   onUpdateBaEntryPoint,
   onAbortTask,
-  onDeploy,
-  onStandDownForWelfare,
-  etas,
-  patch,
-  onStandDown,
   onSetPreCommitBaCrew,
   sceneCommanderApplianceId,
   crewAir,
@@ -264,11 +251,10 @@ export function DraggableIncidentMdt({
   onArmPlacement,
   unitId: unitIdProp,
   onSetUnitId,
+  onSendMessage,
 }: Props) {
   const resolved = !!outcome;
-  const [tab, setTab] = useState<TabKey>("overview");
-  // A unit is being dragged over the Committed column.
-  const [dropHot, setDropHot] = useState(false);
+  const [tab, setTab] = useState<TabKey>("incident");
   // Committed unit whose control page fills the Resourcing right pane.
   // Controlled by the dashboard when the props are supplied (ground-map
   // clicks open the tablet's unit page); internal state otherwise.
@@ -277,7 +263,7 @@ export function DraggableIncidentMdt({
   const setUnitId = onSetUnitId ?? setInternalUnitId;
   // An externally focused unit jumps the tablet to its control page.
   useEffect(() => {
-    if (unitIdProp) setTab("resourcing");
+    if (unitIdProp) setTab("actions");
   }, [unitIdProp]);
   // Tablet frame — restored from the last drag/resize so collapsing and
   // reopening the MDT keeps the operator's chosen size and position.
@@ -285,7 +271,7 @@ export function DraggableIncidentMdt({
     loadMdtFrame() ?? { x: 24, y: 90, width: 880, height: 620 },
   );
   useEffect(() => {
-    setTab(resolved ? "debrief" : "overview");
+    setTab("incident");
     setUnitId(null);
   }, [resolved, incident.id]);
 
@@ -316,10 +302,6 @@ export function DraggableIncidentMdt({
     else baByAppliance.push({ applianceId: t.applianceId, appliance: r.appliance, tasks: [t] });
   }
   const totalBaTeams = baByAppliance.reduce((n, b) => n + b.tasks.length, 0);
-  // If BA ops wind down while the BA tab is open, fall back to Overview.
-  if (tab === "ba" && totalBaTeams === 0) {
-    setTab("overview");
-  }
 
   // Unit-control page state for the Resourcing tab.
   const selectedUnit = unitId
@@ -337,45 +319,15 @@ export function DraggableIncidentMdt({
   );
   const onSceneList = resolvedDeps.filter((r) => r.phase === "at_incident");
 
-  const tabs: { key: TabKey; label: string }[] = resolved
-    ? [
-        { key: "debrief", label: "Debrief" },
-        { key: "log", label: "Log" },
-      ]
-    : [
-        { key: "overview", label: "Incident" },
-        { key: "call", label: "Call" },
-        {
-          key: "resourcing",
-          label: resolvedDeps.length > 0 ? `Actions · ${resolvedDeps.length}` : "Actions",
-        },
-        { key: "view", label: "Prop View" },
-        ...((incident.scenario.crs?.length ?? 0) > 0
-          ? ([{ key: "crs", label: "CRS" }] as { key: TabKey; label: string }[])
-          : []),
-        { key: "targets", label: "Targets" },
-        ...(sim
-          ? ([
-              { key: "hazards", label: hazardCount > 0 ? `Hazards·${hazardCount}` : "Hazards" },
-              {
-                key: "casualties",
-                label: locatedCount > 0 ? `Casualties·${locatedCount}` : "Casualties",
-              },
-            ] as { key: TabKey; label: string }[])
-          : []),
-        ...(totalBaTeams > 0
-          ? ([{ key: "ba", label: `BA·${totalBaTeams}` }] as { key: TabKey; label: string }[])
-          : []),
-        { key: "log", label: "Log" },
-      ];
-
-  // Tabs that render the dark ops-theme scene bodies edge-to-edge.
-  const darkTab =
-    tab === "call" ||
-    tab === "resourcing" ||
-    tab === "hazards" ||
-    tab === "casualties" ||
-    tab === "ba";
+  const unitActive = activeTaskList.filter((t) => !selectedUnit || t.applianceId === selectedUnit.appliance.id);
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: "incident", label: "Incident" },
+    { key: "actions", label: unitActive.length > 0 ? `Actions · ${unitActive.length}` : "Actions" },
+    { key: "messages", label: "Messages" },
+    { key: "crew", label: "Crew" },
+    { key: "vehicle", label: "Vehicle" },
+    { key: "water", label: "Water" },
+  ];
 
   const alerts = [
     ...sc.property.knownHazards,
@@ -383,6 +335,7 @@ export function DraggableIncidentMdt({
   ];
 
   const [minimised, setMinimised] = useState(false);
+  const [popped, setPopped] = useState(false);
   const ref = incidentRef(incident);
   const unitAppliance = selectedUnit?.appliance ?? onSceneList[0]?.appliance ?? resolvedDeps[0]?.appliance ?? null;
   const unitRow = selectedUnit ?? onSceneList[0] ?? resolvedDeps[0] ?? null;
@@ -408,6 +361,499 @@ export function DraggableIncidentMdt({
       : unitRow.phase === "mobile"
         ? "Mobile — rig BA and pre-pair crews on the pre-arrival sheet before landing."
         : "Review hazards and select an available crew task.";
+
+  const latest = log.slice(-8).reverse();
+  const [draft, setDraft] = useState("");
+  const messages = [
+    ...(informantLog ?? []).map((m) => ({ id: `inf:${m.id}`, at: m.firedAt, from: "CALLER", text: m.text })),
+    ...log
+      .filter((e) => e.kind === "annotation" || e.kind === "commander_assigned" || e.kind === "tactical_mode" || e.kind === "make_pumps")
+      .filter((e) => !unitAppliance || e.message.includes(unitAppliance.callsign) || e.kind !== "annotation")
+      .map((e) => ({ id: e.id, at: e.timestamp, from: unitAppliance && e.message.startsWith(unitAppliance.callsign) ? unitAppliance.callsign : "CONTROL", text: e.message })),
+  ]
+    .sort((x, y) => y.at - x.at)
+    .slice(0, 20);
+
+  function unitControl(page: UnitControlPage) {
+    if (!selectedUnit || !canControl) return null;
+    return (
+      <BottomActionMenu
+        page={page}
+        appliance={selectedUnit.appliance}
+        deployment={selectedUnit.deployment}
+        allOnSceneAppliances={onSceneList.map((r) => r.appliance)}
+        tasks={tasks ?? []}
+        incident={incident}
+        visibleHazards={(sim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
+        isCommander={sceneCommanderApplianceId === selectedUnit.appliance.id}
+        crewAir={crewAir ?? {}}
+        busyCrewIds={busyCrewIds!}
+        vehicleGauges={vehicleGauges!}
+        now={nowMs}
+        onStartTask={onStartTask!}
+        onAbortTask={onAbortTask ?? (() => {})}
+        onBeginRoadClosure={onBeginRoadClosure ? (kind, crewIds) => onBeginRoadClosure(selectedUnit.appliance.id, kind, crewIds) : undefined}
+        onClose={() => setUnitId(null)}
+        onSceneSeconds={selectedUnit.phase === "at_incident" ? Math.max(0, (nowMs - selectedUnit.deployment.arrivesAt) / 1000) : null}
+        onSetLightState={onSetLightState!}
+        onSetPumpRunning={onSetPumpRunning!}
+        onSetPumpOperator={onSetPumpOperator!}
+        onSetFastAttackDeployed={onSetFastAttackDeployed!}
+        onToggleCrewEquipment={onToggleCrewEquipment!}
+        onSetCrewLoadout={onSetCrewLoadout}
+        onUpdateBaRemarks={onUpdateBaRemarks}
+        onUpdateBaEntryPoint={onUpdateBaEntryPoint}
+        onSetTreatingCasualty={onSetTreatingCasualty}
+        onRequestRotate={onRequestRotate}
+        scenarioCasualties={sim?.foundCasualties}
+        casualtyProgression={sim?.casualtyProgression}
+        sim={sim ?? undefined}
+        tacticalMode={tacticalMode ?? null}
+        fatigueByApplianceId={fatigueByApplianceId}
+        treatmentByCasualtyId={treatmentByCasualtyId}
+        onScenePatientDeployments={onSceneList.map((r) => r.deployment)}
+        onStartPatientSurvey={onStartPatientSurvey}
+        onApplyAirway={onApplyAirway}
+        onApplyBreathing={onApplyBreathing}
+        onApplyCirculation={onApplyCirculation}
+        onAdministerDrug={onAdministerDrug}
+        onApplyPackaging={onApplyPackaging}
+        onRequestClinician={onRequestClinician}
+        onSetTreatmentDestination={onSetTreatmentDestination}
+        onSendAtmistPrealert={onSendAtmistPrealert}
+        onConveyCasualtyVia={onConveyCasualtyVia}
+      />
+    );
+  }
+
+  const tablet = (
+    <>
+      {/* The rugged tablet: dark frame, pale bezel, blue-grey screen with
+          the navigation down the left — the VECTOR MDT. */}
+      <section className="vec-mdt" aria-label="Mobile data terminal" data-task-workspace={tab !== "incident"}>
+        <header className="vec-mdt-handle" title="Drag to move the tablet">
+          <span>MOBILE DATA TERMINAL</span>
+          {popped ? (
+            <button type="button" title="Dock the MDT back on the desk" onClick={() => setPopped(false)}>⤶</button>
+          ) : (
+            <>
+              <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>
+              <button type="button" title="Pop out into its own window" onClick={() => setPopped(true)}>↗</button>
+            </>
+          )}
+          <button type="button" title="Close MDT" onClick={onClose}>×</button>
+        </header>
+        <div className="vec-mdt-identity">
+          <div className="link">MOBILE DATA TERMINAL · {unitService.toUpperCase()} · LOCAL SIM</div>
+          <strong>{unitCallsign}</strong>
+          <span>{unitType}</span>
+          <small>{unitState} · {ref}</small>
+        </div>
+        <div className="vec-mdt-brief">
+          <div className="eyebrow">{ref} · {sc.severity.toUpperCase()}</div>
+          <strong>{sc.title}</strong>
+          <div>{sc.location.address}, {sc.location.postcode}</div>
+          {alerts.length > 0 && !resolved && (
+            <div className="hazard"><b>HAZARDS</b> {alerts.join(" · ")}</div>
+          )}
+          <div className="instruction"><b>CURRENT INSTRUCTION</b><span>{instruction}</span></div>
+        </div>
+        <nav className="vec-mdt-tabs" aria-label="MDT pages">
+          {tabs.map((t) => (
+            <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <div className="vec-mdt-body page">
+          {tab === "incident" && (
+            <>
+              {resolved && outcome && (
+                <>
+                  <div className="rc-caption">DEBRIEF · {ref}</div>
+                  <div className="vec-mdt-embed light"><OutcomeView outcome={outcome} /></div>
+                </>
+              )}
+              <div className="rc-caption">ASSIGNED INCIDENT · {ref}</div>
+              <h3>{sc.title}</h3>
+              <div className="mdt-address">
+                <CopyButton text={`${sc.location.address}, ${sc.location.postcode}`} label={`${sc.location.address}, ${sc.location.postcode}`} />
+              </div>
+              <p className="mdt-sev">
+                {sc.severity.toUpperCase()}
+                <CopyButton text={ref} label={ref} />
+                <CopyButton text={sc.location.postcode} label={sc.location.postcode} />
+                <CopyButton text={`${sc.location.coords.lat.toFixed(5)}, ${sc.location.coords.lng.toFixed(5)}`} label="Lat / long" />
+              </p>
+              <div className="rc-caption">LATEST INCIDENT UPDATES</div>
+              {latest.length === 0 ? (
+                <p>No updates yet.</p>
+              ) : (
+                latest.map((e) => (
+                  <article key={e.id} className="mdt-message">
+                    <small>{fmtTime(e.timestamp)} · {e.kind.replace(/_/g, " ").toUpperCase()}</small>
+                    <p>{e.message}</p>
+                  </article>
+                ))
+              )}
+              <details className="mdt-workflow" open>
+                <summary>Property record &amp; premises risk</summary>
+                <div className="vec-mdt-embed light">
+                  <p className="mt-1 font-mono text-[11px] text-zinc-600">Caller: &ldquo;{sc.trigger}&rdquo;</p>
+                  {sc.severity === "major" && (
+                    <CadCard title="METHANE · Major incident">
+                      <MethaneTable methane={sc.methane} />
+                    </CadCard>
+                  )}
+                  <CadCard title="Property record">
+                    <KeyVal k="Class" v={sc.property.class} />
+                    {sc.property.size && <KeyVal k="Size" v={sc.property.size} />}
+                    {sc.property.materials && <KeyVal k="Materials" v={sc.property.materials} />}
+                    <KeyVal k="Occupants" v={sc.property.occupants} />
+                    <KeyVal k="Access" v={sc.property.access} />
+                    {sc.property.vulnerabilities.length > 0 && (
+                      <ListRows k="Vulnerabilities" items={sc.property.vulnerabilities} tone="amber" />
+                    )}
+                    {sc.property.knownHazards.length > 0 && (
+                      <ListRows k="Hazards" items={sc.property.knownHazards} tone="critical" />
+                    )}
+                  </CadCard>
+                  <CadCard title="Premises risk information">
+                    <p className="font-mono text-[11px] text-zinc-600">
+                      {sc.pri.hasFormalPri ? "FORMAL PRI ON FILE." : "NO FORMAL PRI (RESIDENTIAL / OPEN)."}
+                    </p>
+                    {sc.pri.items.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {sc.pri.items.map((it) => (
+                          <li key={it} className="border-l-4 border-amber-400 bg-amber-50 px-2 py-1 text-[12px] leading-snug">{it}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </CadCard>
+                  <CadCard title="Dispatch targets">
+                    <ul className="space-y-1 text-[12px]">
+                      {sc.evaluation.targets.map((t) => (
+                        <li key={t.metric} className="border-b border-zinc-200 pb-1">
+                          <span className="font-bold">{t.metric}</span>
+                          <span className="text-zinc-600"> — {t.target}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] italic text-zinc-500">{sc.evaluation.lesson}</p>
+                  </CadCard>
+                </div>
+              </details>
+              {sim && !resolved && (
+                <details className="mdt-workflow" open={hazardCount > 0}>
+                  <summary>Hazards · {hazardCount}</summary>
+                  <div className="vec-mdt-embed tall" style={CAD_VARS}>
+                    <HazardsBody sim={sim} incident={incident} deployments={deployments} resolved={resolvedDeps} />
+                  </div>
+                </details>
+              )}
+              {sim && !resolved && (
+                <details className="mdt-workflow" open={locatedCount > 0}>
+                  <summary>Casualties · {locatedCount}</summary>
+                  <div className="vec-mdt-embed tall" style={CAD_VARS}>
+                    <CasualtiesBody
+                      sim={sim}
+                      deployments={deployments}
+                      resolved={resolvedDeps}
+                      tasks={tasks ?? []}
+                      now={nowMs}
+                      treatmentByCasualtyId={treatmentByCasualtyId}
+                      onSetTreatingCasualty={onSetTreatingCasualty}
+                      onStartPatientSurvey={onStartPatientSurvey}
+                      onApplyAirway={onApplyAirway}
+                      onApplyBreathing={onApplyBreathing}
+                      onApplyCirculation={onApplyCirculation}
+                      resusByCasualtyId={resusByCasualtyId}
+                      onSetOxygen={onSetOxygen}
+                      onSetResusAirway={onSetResusAirway}
+                      onAttachMonitor={onAttachMonitor}
+                      onToggleCapnography={onToggleCapnography}
+                      onSetCompressor={onSetCompressor}
+                      onFitLucas={onFitLucas}
+                      onDeliverShock={onDeliverShock}
+                      onMovePads={onMovePads}
+                      onArrestAdrenaline={onArrestAdrenaline}
+                      onAmiodarone={onAmiodarone}
+                      onSuspectReversible={onSuspectReversible}
+                      onTreatReversible={onTreatReversible}
+                      onStopResus={onStopResus}
+                      onAdministerDrug={onAdministerDrug}
+                      onApplyPackaging={onApplyPackaging}
+                      onApplyEgress={onApplyEgress}
+                      egressBlocked={incident.scenario.scene?.egressBlocked}
+                      egressExtraSeconds={incident.scenario.scene?.egressExtraSeconds}
+                      onRequestClinician={onRequestClinician}
+                      hemsFlyable={hemsFlyable}
+                      onSetTreatmentDestination={onSetTreatmentDestination}
+                      onSendAtmistPrealert={onSendAtmistPrealert}
+                      onConveyCasualtyVia={onConveyCasualtyVia}
+                    />
+                  </div>
+                </details>
+              )}
+              {!resolved && incident.scenario.crs && (
+                <details className="mdt-workflow">
+                  <summary>Crash recovery system</summary>
+                  <div className="vec-mdt-embed tall" style={CAD_VARS}>
+                    <CrsPanel
+                      vehicles={incident.scenario.crs}
+                      onScene={onSceneList.filter((r) => r.appliance.service === "Fire")}
+                      tasks={tasks}
+                      busyCrewIds={busyCrewIds}
+                      now={now}
+                      onStartTask={onStartTask}
+                    />
+                  </div>
+                </details>
+              )}
+              <details className="mdt-workflow">
+                <summary>Property view · aerial</summary>
+                <div className="vec-mdt-embed aerial">
+                  <PropertyAerial lat={sc.location.coords.lat} lng={sc.location.coords.lng} />
+                </div>
+              </details>
+              <details className="mdt-workflow">
+                <summary>Full incident log · {log.length}</summary>
+                <div className="vec-mdt-embed light"><LogList log={log} /></div>
+              </details>
+            </>
+          )}
+
+          {tab === "actions" && (
+            <>
+              <div className="rc-caption">UNIT TASKING</div>
+              {!selectedUnit ? (
+                <>
+                  <p>{resolvedDeps.length === 0 ? "No crews committed yet — mobilise the attendance from Dispatch." : "Select a committed unit to task its crew."}</p>
+                  <div className="rc-action-grid">
+                    {resolvedDeps.map((r) => (
+                      <button key={r.appliance.id} type="button" onClick={() => setUnitId(r.appliance.id)}>
+                        <strong>{r.appliance.callsign}</strong>
+                        <span>{r.appliance.typeName}</span>
+                        <small>{r.phase === "at_incident" ? "In attendance" : r.phase === "mobile" ? "Mobile to incident" : r.phase.replace(/_/g, " ")}</small>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p>{unitActive.length === 0 ? "No active assignments for this unit." : `${unitActive.length} active assignment${unitActive.length === 1 ? "" : "s"} for ${selectedUnit.appliance.callsign}.`}</p>
+                  {unitActive.map((t) => (
+                    <article key={t.id} className="mdt-task-card">
+                      <header>
+                        <strong>{t.kind.replace(/_/g, " ")}</strong>
+                        <span>Active · {fmtElapsed(nowMs - t.startedAt)}</span>
+                      </header>
+                      <dl>
+                        <dt>Crew</dt>
+                        <dd>{t.assignedCrewIds.map((id) => selectedUnit.appliance.crewMembers.find((c) => c.id === id)?.name ?? id).join(", ") || "—"}</dd>
+                        {t.entryPoint && (<><dt>Entry point</dt><dd>{t.entryPoint}</dd></>)}
+                        {t.hoseType && (<><dt>Equipment</dt><dd>{t.hoseType} hose</dd></>)}
+                        {t.hydrantId && (<><dt>Supply</dt><dd>Hydrant {t.hydrantId}</dd></>)}
+                        {t.completesAt && (<><dt>Completes</dt><dd>{fmtTime(t.completesAt)}</dd></>)}
+                      </dl>
+                      <div className="mdt-task-controls">
+                        {onAbortTask && (
+                          <button type="button" onClick={() => onAbortTask(t.id)}>Unable to complete</button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                  <div className="rc-caption">AVAILABLE TASKS</div>
+                  {selectedUnit.phase === "mobile" ? (
+                    <div className="vec-mdt-embed tall" style={CAD_VARS}>
+                      <PreArrivalBody
+                        appliance={selectedUnit.appliance}
+                        deployment={selectedUnit.deployment}
+                        now={nowMs}
+                        casualties={sim?.foundCasualties ?? []}
+                        onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
+                        onSetTreatingCasualty={onSetTreatingCasualty ?? (() => {})}
+                      />
+                    </div>
+                  ) : canControl ? (
+                    <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("actions")}</div>
+                  ) : (
+                    <p>Unit control is not available on this desk.</p>
+                  )}
+                  {baByAppliance.length > 0 && (
+                    <>
+                      <div className="rc-caption">BA ENTRY CONTROL · {totalBaTeams}</div>
+                      <div className="vec-mdt-embed light" style={CAD_VARS}>
+                        {baByAppliance.map(({ appliance, tasks: bt }) => (
+                          <BaControlBoard
+                            key={appliance.id}
+                            appliance={appliance}
+                            baTasks={bt}
+                            now={nowMs}
+                            onUpdateRemarks={onUpdateBaRemarks}
+                            onUpdateEntryPoint={onUpdateBaEntryPoint}
+                            onWithdrawTeam={onAbortTask}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {tab === "messages" && (
+            <>
+              <div className="rc-caption">UNIT MESSAGES · {unitCallsign}</div>
+              {messages.length === 0 ? (
+                <p>No messages for this unit yet.</p>
+              ) : (
+                messages.map((m) => (
+                  <article key={m.id} className="mdt-message">
+                    <small>{fmtTime(m.at)} · {m.from}</small>
+                    <p>{m.text}</p>
+                  </article>
+                ))
+              )}
+              <label className="mdt-compose">
+                MESSAGE TO CONTROL
+                <textarea aria-label="Message to control" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Enter a situation update…" />
+              </label>
+              <button
+                type="button"
+                className="rc-primary"
+                disabled={!draft.trim() || !onSendMessage}
+                onClick={() => {
+                  if (!draft.trim()) return;
+                  onSendMessage?.(unitCallsign, draft.trim());
+                  setDraft("");
+                }}
+              >
+                Send local message
+              </button>
+              <details className="mdt-workflow" open={!!informantOnCall}>
+                <summary>999 call information {informantOnCall ? "· caller on the line" : ""}</summary>
+                <div className="vec-mdt-embed tall" style={CAD_VARS}>
+                  <CallInformationBody incident={incident} informantLog={informantLog} informantOnCall={informantOnCall} />
+                </div>
+              </details>
+            </>
+          )}
+
+          {tab === "crew" && (
+            <>
+              <div className="rc-caption">CREW · QUALIFICATIONS</div>
+              {!unitAppliance ? (
+                <p>Select a committed unit to see its crew.</p>
+              ) : (
+                <>
+                  {unitAppliance.crewMembers.map((c) => {
+                    const onTask = (tasks ?? []).find((t) => t.state === "active" && t.assignedCrewIds.includes(c.id));
+                    const air = crewAir?.[c.id];
+                    return (
+                      <div key={c.id} className="rc-crew">
+                        <strong>{c.name}</strong>
+                        <span>{c.role} · {c.yearsService} yrs</span>
+                        <small>{c.quals.length ? c.quals.join(" · ") : "No recorded competencies"}</small>
+                        <small className={onTask ? "on" : ""}>
+                          {onTask ? `On task · ${onTask.kind.replace(/_/g, " ")}` : busyCrewIds?.has(c.id) ? "Committed" : "Available"}
+                          {typeof air === "number" ? ` · BA ${Math.round(air)} bar` : ""}
+                        </small>
+                      </div>
+                    );
+                  })}
+                  <p>
+                    Crew {unitAppliance.crew.current}/{unitAppliance.crew.max}
+                    {fatigueByApplianceId?.[unitAppliance.id] ? ` · fatigue ${Math.round(fatigueByApplianceId[unitAppliance.id])}%` : ""}
+                    . Competencies are scenario records, not real qualifications.
+                  </p>
+                  {selectedUnit && canControl && selectedUnit.phase === "at_incident" && (
+                    <>
+                      <div className="rc-caption">EQUIPMENT &amp; LOADOUT</div>
+                      <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("crew")}</div>
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {tab === "vehicle" && (
+            <>
+              <div className="rc-caption">VEHICLE DETAILS</div>
+              {!unitAppliance ? (
+                <p>Select a committed unit to see its vehicle.</p>
+              ) : (
+                <>
+                  <dl className="rc-details">
+                    <dt>Callsign</dt><dd><CopyButton text={unitAppliance.callsign} label={unitAppliance.callsign} /></dd>
+                    <dt>Type</dt><dd>{unitAppliance.typeName}{unitAppliance.capabilities?.length ? ` · ${unitAppliance.capabilities.join(", ")}` : ""}</dd>
+                    <dt>Station</dt><dd>{stations.find((st) => st.id === unitAppliance.stationId)?.name ?? unitAppliance.stationId}</dd>
+                    <dt>Make</dt><dd>{unitAppliance.make} {unitAppliance.model}</dd>
+                    <dt>Registration</dt><dd><CopyButton text={unitAppliance.vrm} label={unitAppliance.vrm} /></dd>
+                    <dt>Status</dt><dd>{unitState}</dd>
+                    <dt>Fuel · water</dt><dd>{Math.round(unitAppliance.fuelPct)}% · {Math.round(unitAppliance.waterPct)}% ({unitAppliance.waterLitres.toLocaleString()} L)</dd>
+                  </dl>
+                  <button type="button" className="rc-primary" disabled={!selectedUnit || !onArmPlacement || resolved} onClick={() => selectedUnit && onArmPlacement?.(selectedUnit.appliance.id)}>
+                    Place / move on map
+                  </button>
+                  {selectedUnit && canControl && (
+                    <>
+                      <div className="rc-caption">LIGHTS · GAUGES · CONDITION</div>
+                      <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("vehicle")}</div>
+                    </>
+                  )}
+                  <div className="rc-caption">ITEM REGISTER · KIT CARRIED</div>
+                  <details className="stock-register" open>
+                    <summary>Kit · {unitAppliance.kit.length} lines</summary>
+                    {unitAppliance.kit.map((k) => (
+                      <div key={k}>{k}</div>
+                    ))}
+                  </details>
+                </>
+              )}
+            </>
+          )}
+
+          {tab === "water" && (
+            <>
+              <div className="rc-caption">WATER SUPPLY &amp; FIREFIGHTING</div>
+              {!selectedUnit ? (
+                <p>Select a committed fire appliance to work its water.</p>
+              ) : selectedUnit.appliance.service !== "Fire" ? (
+                <p>{selectedUnit.appliance.callsign} carries no pump or water systems.</p>
+              ) : selectedUnit.phase !== "at_incident" ? (
+                <p>{selectedUnit.appliance.callsign} is not on the ground yet — water work starts on arrival.</p>
+              ) : canControl ? (
+                <div className="vec-mdt-embed tall" style={CAD_VARS}>{unitControl("water")}</div>
+              ) : (
+                <p>Unit control is not available on this desk.</p>
+              )}
+            </>
+          )}
+        </div>
+        <div className="vec-mdt-status">
+          <button type="button" disabled className={unitOnScene ? "go" : ""}>{unitState.toUpperCase()}</button>
+          <button type="button" onClick={() => setTab("messages")}>Contact control</button>
+          <button
+            type="button"
+            disabled={!selectedUnit || !onArmPlacement || resolved}
+            title={selectedUnit ? "Place or move this unit on the ground" : "Pick a unit first"}
+            onClick={() => selectedUnit && onArmPlacement?.(selectedUnit.appliance.id)}
+          >
+            Map position
+          </button>
+          {!resolved ? (
+            <button type="button" className="stop" onClick={onResolve}>Stop message</button>
+          ) : (
+            <button type="button" className="stop" onClick={onDismiss}>End debrief</button>
+          )}
+        </div>
+        <footer className="vec-mdt-footer">LOCAL SIMULATION · {unitCallsign} · {ref}</footer>
+      </section>
+    </>
+  );
 
   return (
     <>
@@ -437,440 +883,15 @@ export function DraggableIncidentMdt({
       dragHandleClassName="vec-mdt-handle"
       // Sits above the ground view (z-1200).
       className="z-[1250]"
-      style={minimised ? { display: "none" } : undefined}
+      style={minimised || popped ? { display: "none" } : undefined}
     >
-      {/* The rugged tablet: dark frame, pale bezel, blue-grey screen with
-          the navigation down the left — the VECTOR MDT. */}
-      <section className="vec-mdt" aria-label="Mobile data terminal" data-task-workspace={tab === "resourcing"}>
-        <header className="vec-mdt-handle" title="Drag to move the tablet">
-          <span>MOBILE DATA TERMINAL</span>
-          <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>
-          <button type="button" title="Close MDT" onClick={onClose}>×</button>
-        </header>
-        <div className="vec-mdt-identity">
-          <div className="link">MOBILE DATA TERMINAL · {unitService.toUpperCase()} · LOCAL SIM</div>
-          <strong>{unitCallsign}</strong>
-          <span>{unitType}</span>
-          <small>{unitState} · {ref}</small>
-        </div>
-        <div className="vec-mdt-brief">
-          <div className="eyebrow">{ref} · {sc.severity.toUpperCase()}</div>
-          <strong>{sc.title}</strong>
-          <div>{sc.location.address}, {sc.location.postcode}</div>
-          {alerts.length > 0 && !resolved && (
-            <div className="hazard"><b>HAZARDS</b> {alerts.join(" · ")}</div>
-          )}
-          <div className="instruction"><b>CURRENT INSTRUCTION</b><span>{instruction}</span></div>
-        </div>
-        <nav className="vec-mdt-tabs" aria-label="MDT pages">
-          {tabs.map((t) => (
-            <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>
-              {t.label}
-            </button>
-          ))}
-        </nav>
-        <div className={"vec-mdt-body " + (tab === "view" || darkTab ? "edge" : "light")}>
-            {tab === "debrief" && outcome && <OutcomeView outcome={outcome} />}
-
-            {tab === "call" && !resolved && (
-              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
-                <CallInformationBody
-                  incident={incident}
-                  informantLog={informantLog}
-                  informantOnCall={informantOnCall}
-                />
-              </div>
-            )}
-
-            {tab === "resourcing" && !resolved && (
-              <div className="flex h-full min-h-0 bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
-                {/* Committed side — who's assigned, their tasks, pre-allocation */}
-                <div className="flex min-h-0 w-60 shrink-0 flex-col border-r border-(--color-border-subtle)">
-                  <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                    Committed · {resolvedDeps.length}
-                  </div>
-                  {activeTaskList.length > 0 && (
-                    <div className="border-b border-(--color-border-subtle) px-3 py-2 text-xs">
-                      <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                        Active tasks · {activeTaskList.length}
-                      </div>
-                      <ul className="mt-1 space-y-1.5">
-                        {activeTaskList.map((t) => (
-                          <ActiveTaskRow key={t.id} task={t} now={nowMs} crewAir={crewAir ?? {}} />
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div
-                    className={
-                      "flex-1 overflow-y-auto px-3 py-2 text-xs transition-colors " +
-                      (dropHot ? "bg-(--color-amber)/10 outline outline-1 -outline-offset-2 outline-(--color-amber)" : "")
-                    }
-                    // Drop a unit from the resources panel here to commit
-                    // it to this job — the same payload the call stack
-                    // takes. The station ETA the board already priced is
-                    // what the mobilisation is timed on.
-                    onDragOver={(e) => {
-                      if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "copy";
-                      if (!dropHot) setDropHot(true);
-                    }}
-                    onDragLeave={() => setDropHot(false)}
-                    onDrop={(e) => {
-                      setDropHot(false);
-                      const raw = e.dataTransfer.getData(DRAG_MIME);
-                      if (!raw) return;
-                      e.preventDefault();
-                      try {
-                        const { applianceId, stationId } = JSON.parse(raw) as {
-                          applianceId?: string;
-                          stationId?: string;
-                        };
-                        if (!applianceId || !stationId) return;
-                        if (deployments.some((d) => d.applianceId === applianceId)) return;
-                        const eta = etas?.[stationId];
-                        if (!eta) return;
-                        onDeploy({
-                          applianceId,
-                          slotId: "drop",
-                          etaSeconds: eta.seconds,
-                          routeMeters: eta.meters,
-                          routeCoords: eta.coords ?? undefined,
-                        });
-                      } catch {
-                        /* malformed payload — ignore */
-                      }
-                    }}
-                  >
-                    {resolvedDeps.length === 0 ? (
-                      <p className="text-(--color-text-dim)">
-                        No crews committed yet — drag a unit here from the resources panel, or send the attendance below.
-                      </p>
-                    ) : (
-                      <ul className="space-y-1">
-                        {resolvedDeps.map((r) => (
-                          <CommittedRow
-                            key={r.deployment.applianceId}
-                            r={r}
-                            now={nowMs}
-                            selected={unitId === r.appliance.id}
-                            isCommander={sceneCommanderApplianceId === r.deployment.applianceId}
-                            // Both en-route and on-scene units open in
-                            // the pane to the right — nothing pops out.
-                            onClick={() => setUnitId(r.appliance.id)}
-                            onArmPlacement={onArmPlacement}
-                          />
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-                {/* Right pane — unit control page when a committed callsign
-                    is selected, otherwise the available fleet. */}
-                {selectedUnit && selectedUnit.phase === "mobile" ? (
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex items-center justify-between border-b border-(--color-border-subtle) px-3 py-1.5">
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                        Pre-arrival · {selectedUnit.appliance.callsign}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setUnitId(null)}
-                        className="rounded-sm border border-(--color-border) px-1.5 py-0.5 font-mono text-[11px] leading-none text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
-                        aria-label="Close"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto">
-                      <PreArrivalBody
-                        appliance={selectedUnit.appliance}
-                        deployment={selectedUnit.deployment}
-                        now={nowMs}
-                        casualties={sim?.foundCasualties ?? []}
-                        onSetPreCommitBaCrew={onSetPreCommitBaCrew ?? (() => {})}
-                        onSetTreatingCasualty={onSetTreatingCasualty ?? (() => {})}
-                      />
-                    </div>
-                  </div>
-                ) : selectedUnit && canControl ? (
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="border-b border-(--color-border-subtle) px-3 py-1.5">
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                        Unit control
-                      </span>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-hidden">
-                      <BottomActionMenu
-                        appliance={selectedUnit.appliance}
-                        deployment={selectedUnit.deployment}
-                        allOnSceneAppliances={onSceneList.map((r) => r.appliance)}
-                        tasks={tasks ?? []}
-                        incident={incident}
-                        visibleHazards={(sim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
-                        isCommander={sceneCommanderApplianceId === selectedUnit.appliance.id}
-                        crewAir={crewAir ?? {}}
-                        busyCrewIds={busyCrewIds!}
-                        vehicleGauges={vehicleGauges!}
-                        now={nowMs}
-                        onStartTask={onStartTask!}
-                        onAbortTask={onAbortTask ?? (() => {})}
-                        onBeginRoadClosure={
-                          onBeginRoadClosure
-                            ? (kind, crewIds) => onBeginRoadClosure(selectedUnit.appliance.id, kind, crewIds)
-                            : undefined
-                        }
-                        onClose={() => setUnitId(null)}
-                        onSceneSeconds={
-                          selectedUnit.phase === "at_incident"
-                            ? Math.max(0, (nowMs - selectedUnit.deployment.arrivesAt) / 1000)
-                            : null
-                        }
-                        onSetLightState={onSetLightState!}
-                        onSetPumpRunning={onSetPumpRunning!}
-                        onSetPumpOperator={onSetPumpOperator!}
-                        onSetFastAttackDeployed={onSetFastAttackDeployed!}
-                        onToggleCrewEquipment={onToggleCrewEquipment!}
-                        onSetCrewLoadout={onSetCrewLoadout}
-                        onUpdateBaRemarks={onUpdateBaRemarks}
-                        onUpdateBaEntryPoint={onUpdateBaEntryPoint}
-                        onSetTreatingCasualty={onSetTreatingCasualty}
-                        onRequestRotate={onRequestRotate}
-                        scenarioCasualties={sim?.foundCasualties}
-                        casualtyProgression={sim?.casualtyProgression}
-                        sim={sim ?? undefined}
-                        tacticalMode={tacticalMode ?? null}
-                        fatigueByApplianceId={fatigueByApplianceId}
-                        treatmentByCasualtyId={treatmentByCasualtyId}
-                        onScenePatientDeployments={onSceneList.map((r) => r.deployment)}
-                        onStartPatientSurvey={onStartPatientSurvey}
-                        onApplyAirway={onApplyAirway}
-                        onApplyBreathing={onApplyBreathing}
-                        onApplyCirculation={onApplyCirculation}
-                        onAdministerDrug={onAdministerDrug}
-                        onApplyPackaging={onApplyPackaging}
-                        onRequestClinician={onRequestClinician}
-                        onSetTreatmentDestination={onSetTreatmentDestination}
-                        onSendAtmistPrealert={onSendAtmistPrealert}
-                        onConveyCasualtyVia={onConveyCasualtyVia}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="border-b border-(--color-border-subtle) px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                      Available
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-                      {etas ? (
-                        <DeploymentBoard
-                          incident={incident}
-                          stations={stations}
-                          etas={etas}
-                          deployments={deployments}
-                          patch={patch}
-                          onDeploy={onDeploy}
-                          onStandDownForWelfare={onStandDownForWelfare}
-                          onStandDown={onStandDown ?? (() => {})}
-                        />
-                      ) : (
-                        <p className="px-2 text-xs text-(--color-text-dim)">
-                          Station ETAs still calculating…
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {tab === "hazards" && !resolved && sim && (
-              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
-                <HazardsBody
-                  sim={sim}
-                  incident={incident}
-                  deployments={deployments}
-                  resolved={resolvedDeps}
-                />
-              </div>
-            )}
-
-            {tab === "casualties" && !resolved && sim && (
-              <div className="flex h-full min-h-0 flex-col bg-(--color-bg) text-(--color-text)" style={CAD_VARS}>
-                <CasualtiesBody
-                  sim={sim}
-                  deployments={deployments}
-                  resolved={resolvedDeps}
-                  tasks={tasks ?? []}
-                  now={nowMs}
-                  treatmentByCasualtyId={treatmentByCasualtyId}
-                  onSetTreatingCasualty={onSetTreatingCasualty}
-                  onStartPatientSurvey={onStartPatientSurvey}
-                  onApplyAirway={onApplyAirway}
-                  onApplyBreathing={onApplyBreathing}
-                  onApplyCirculation={onApplyCirculation}
-                  resusByCasualtyId={resusByCasualtyId}
-                  onSetOxygen={onSetOxygen}
-                  onSetResusAirway={onSetResusAirway}
-                  onAttachMonitor={onAttachMonitor}
-                  onToggleCapnography={onToggleCapnography}
-                  onSetCompressor={onSetCompressor}
-                  onFitLucas={onFitLucas}
-                  onDeliverShock={onDeliverShock}
-                  onMovePads={onMovePads}
-                  onArrestAdrenaline={onArrestAdrenaline}
-                  onAmiodarone={onAmiodarone}
-                  onSuspectReversible={onSuspectReversible}
-                  onTreatReversible={onTreatReversible}
-                  onStopResus={onStopResus}
-                  onAdministerDrug={onAdministerDrug}
-                  onApplyPackaging={onApplyPackaging}
-                  onApplyEgress={onApplyEgress}
-                  egressBlocked={incident.scenario.scene?.egressBlocked}
-                  egressExtraSeconds={incident.scenario.scene?.egressExtraSeconds}
-                  onRequestClinician={onRequestClinician}
-                  hemsFlyable={hemsFlyable}
-                  onSetTreatmentDestination={onSetTreatmentDestination}
-                  onSendAtmistPrealert={onSendAtmistPrealert}
-                  onConveyCasualtyVia={onConveyCasualtyVia}
-                />
-              </div>
-            )}
-
-            {tab === "ba" && !resolved && (
-              <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto bg-(--color-bg) px-3 py-3 text-(--color-text)" style={CAD_VARS}>
-                {baByAppliance.map(({ appliance, tasks: bt }) => (
-                  <BaControlBoard
-                    key={appliance.id}
-                    appliance={appliance}
-                    baTasks={bt}
-                    now={nowMs}
-                    onUpdateRemarks={onUpdateBaRemarks}
-                    onUpdateEntryPoint={onUpdateBaEntryPoint}
-                    onWithdrawTeam={onAbortTask}
-                  />
-                ))}
-              </div>
-            )}
-
-            {tab === "overview" && !resolved && (
-              <>
-                <h1 className="text-lg font-bold leading-snug">{sc.title}</h1>
-                <p className="mt-1 font-mono text-[11px] text-zinc-600">
-                  Caller: &ldquo;{sc.trigger}&rdquo;
-                </p>
-                {sc.severity === "major" && (
-                  <CadCard title="METHANE · Major incident">
-                    <MethaneTable methane={sc.methane} />
-                  </CadCard>
-                )}
-                <CadCard title="Property record">
-                <KeyVal k="Class" v={sc.property.class} />
-                {sc.property.size && <KeyVal k="Size" v={sc.property.size} />}
-                {sc.property.materials && (
-                  <KeyVal k="Materials" v={sc.property.materials} />
-                )}
-                <KeyVal k="Occupants" v={sc.property.occupants} />
-                <KeyVal k="Access" v={sc.property.access} />
-                {sc.property.vulnerabilities.length > 0 && (
-                  <ListRows
-                    k="Vulnerabilities"
-                    items={sc.property.vulnerabilities}
-                    tone="amber"
-                  />
-                )}
-                {sc.property.knownHazards.length > 0 && (
-                  <ListRows
-                    k="Hazards"
-                    items={sc.property.knownHazards}
-                    tone="critical"
-                  />
-                )}
-                </CadCard>
-                <CadCard title="Premises risk information">
-                  <p className="font-mono text-[11px] text-zinc-600">
-                    {sc.pri.hasFormalPri
-                      ? "FORMAL PRI ON FILE."
-                      : "NO FORMAL PRI (RESIDENTIAL / OPEN)."}
-                  </p>
-                  {sc.pri.items.length > 0 && (
-                    <ul className="mt-2 space-y-1">
-                      {sc.pri.items.map((it) => (
-                        <li
-                          key={it}
-                          className="border-l-4 border-amber-400 bg-amber-50 px-2 py-1 text-[12px] leading-snug"
-                        >
-                          {it}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CadCard>
-              </>
-            )}
-
-            {tab === "view" && !resolved && (
-              <div className="relative h-full w-full bg-zinc-800">
-                <PropertyAerial
-                  lat={sc.location.coords.lat}
-                  lng={sc.location.coords.lng}
-                />
-                <div className="pointer-events-none absolute bottom-2 left-1/2 z-[500] -translate-x-1/2 border border-zinc-500 bg-white/95 px-3 py-1 font-mono text-[11px] font-bold text-zinc-900 shadow">
-                  {sc.location.address}
-                </div>
-              </div>
-            )}
-
-            {tab === "crs" && !resolved && incident.scenario.crs && (
-              <CrsPanel
-                vehicles={incident.scenario.crs}
-                onScene={onSceneList.filter((r) => r.appliance.service === "Fire")}
-                tasks={tasks}
-                busyCrewIds={busyCrewIds}
-                now={now}
-                onStartTask={onStartTask}
-              />
-            )}
-
-            {tab === "targets" && !resolved && (
-              <CadCard title="Dispatch targets">
-                <ul className="space-y-1 text-[12px]">
-                  {sc.evaluation.targets.map((t) => (
-                    <li key={t.metric} className="border-b border-zinc-200 pb-1">
-                      <span className="font-bold">{t.metric}</span>
-                      <span className="text-zinc-600"> — {t.target}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-[11px] italic text-zinc-500">
-                  {sc.evaluation.lesson}
-                </p>
-              </CadCard>
-            )}
-
-            {tab === "log" && <LogList log={log} />}
-        </div>
-        <div className="vec-mdt-status">
-          <button type="button" disabled className={unitOnScene ? "go" : ""}>{unitState.toUpperCase()}</button>
-          <button type="button" onClick={() => setTab("call")}>Contact control</button>
-          <button
-            type="button"
-            disabled={!selectedUnit || !onArmPlacement || resolved}
-            title={selectedUnit ? "Place or move this unit on the ground" : "Pick a unit first"}
-            onClick={() => selectedUnit && onArmPlacement?.(selectedUnit.appliance.id)}
-          >
-            Map position
-          </button>
-          {!resolved ? (
-            <button type="button" className="stop" onClick={onResolve}>Stop message</button>
-          ) : (
-            <button type="button" className="stop" onClick={onDismiss}>End debrief</button>
-          )}
-        </div>
-        <footer className="vec-mdt-footer">LOCAL SIMULATION · {unitCallsign} · {ref}</footer>
-      </section>
+      {tablet}
     </Rnd>
+    {popped && (
+      <PopoutWindow id="mdt" title={`MDT · ${unitCallsign}`} width={700} height={720} onClose={() => setPopped(false)}>
+        {tablet}
+      </PopoutWindow>
+    )}
     {minimised && (
       <button type="button" className="vec-mdt-min" onClick={() => setMinimised(false)} title="Restore the MDT">
         MDT · {unitCallsign} <span>{unitState}</span> ↗
@@ -1045,6 +1066,12 @@ function ListRows({
   );
 }
 
+function fmtElapsed(ms: number): string {
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(sec / 60);
+  return `${m}m ${String(sec % 60).padStart(2, "0")}s`;
+}
+
 function fmtTime(ts: number): string {
   const d = new Date(ts);
   return [d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()]
@@ -1053,112 +1080,3 @@ function fmtTime(ts: number): string {
 }
 
 
-// Compact committed row — callsign, phase, ETA/elapsed. The detail lives
-// on the unit-control page and the pre-arrival panel, not in the list.
-function CommittedRow({
-  r,
-  now,
-  selected,
-  isCommander,
-  onClick,
-  onArmPlacement,
-}: {
-  r: ResolvedDeployment;
-  now: number;
-  selected: boolean;
-  isCommander: boolean;
-  onClick: () => void;
-  /** Arm the two-click map placement for a unit not yet positioned. */
-  onArmPlacement?: (applianceId: string) => void;
-}) {
-  const colour =
-    r.appliance.service === "Fire"
-      ? "text-(--color-critical)"
-      : r.appliance.service === "Ambulance"
-        ? "text-(--color-ok)"
-        : "text-(--color-info)";
-  const fmt = (ms: number) => {
-    const t = Math.max(0, Math.ceil(ms / 1000));
-    return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
-  };
-  const hems = r.deployment.hemsFlight;
-  let status = "At station";
-  let right = "";
-  if (r.phase === "mobile") {
-    if (hems && !r.deployment.parkingPos) {
-      const airborneAt = r.deployment.airborneAt;
-      if (airborneAt !== undefined && now < airborneAt) {
-        status = "Lifting";
-        right = fmt(airborneAt - now);
-      } else if (now >= hems.overheadAt) {
-        status = "Orbiting";
-        right = "LZ req";
-      } else {
-        status = "Airborne";
-        right = fmt(hems.overheadAt - now);
-      }
-    } else {
-      status = "Mobile";
-      right = fmt(r.deployment.arrivesAt - now);
-    }
-  } else if (r.phase === "at_incident") {
-    status = "On scene";
-    right = fmt(now - r.deployment.arrivesAt);
-  } else if (r.phase === "at_hospital") {
-    status = "At hospital";
-  } else if (r.phase === "returning") {
-    status = "Returning";
-  }
-  // Anything committed but not yet positioned on the ground still needs
-  // placing — a helicopter's placement is its landing zone. A unit on the
-  // hospital leg is still tagged "mobile" by phaseOf but has physically
-  // left, so it is not awaiting anything.
-  const needsPlacing =
-    !r.deployment.parkingPos &&
-    !r.deployment.hospitalLegStartedAt &&
-    (r.phase === "mobile" || r.phase === "at_incident");
-  const isHeli = !!r.deployment.hemsFlight;
-  return (
-    <li className="flex items-stretch gap-1">
-      <button
-        type="button"
-        onClick={onClick}
-        className={
-          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm border px-2 py-1.5 text-left transition-colors " +
-          (selected
-            ? "border-(--color-amber) bg-(--color-amber)/10"
-            : "border-(--color-border-subtle) bg-(--color-surface) hover:border-(--color-amber-dim)")
-        }
-      >
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className={"truncate font-mono text-[11px] font-bold tracking-widest " + colour}>
-            {r.appliance.callsign}
-          </span>
-          {isCommander && (
-            <span className="shrink-0 rounded-[2px] border border-(--color-amber) px-0.5 font-mono text-[8px] font-bold text-(--color-amber)">
-              IC
-            </span>
-          )}
-        </span>
-        <span className="flex shrink-0 items-baseline gap-1.5 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-          <span>{status}</span>
-          {right && <span className="tabular-nums text-(--color-text)">{right}</span>}
-        </span>
-      </button>
-      {needsPlacing && onArmPlacement && (
-        <button
-          type="button"
-          onClick={() => onArmPlacement(r.appliance.id)}
-          title={
-            isHeli
-              ? "Set the landing zone — click the map"
-              : "Place on the ground — click for position, then facing"
-          }
-          className="shrink-0 rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-1.5 font-mono text-[9px] font-bold uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/25"
-        >
-          {isHeli ? "LZ" : "Place"}
-        </button>
-      )}
-    </li>
-  );
-}

@@ -41,6 +41,7 @@ import type { VectorTheme } from "./theme";
 import { BasemapSegments } from "./map-controls";
 
 export type TilesState = Partial<Record<TileId, boolean>>;
+export type PopProps = { popped: boolean; onPopOut: () => void; onDock: () => void };
 
 export const DEFAULT_TILES: TilesState = { calls: true, live: true, units: true };
 
@@ -97,7 +98,10 @@ export function VectorDesk(props: {
   tiles: TilesState;
   setTiles: (next: TilesState | ((t: TilesState) => TilesState)) => void;
   layout: TileLayout;
-  logTile: (area: { w: number; h: number }) => ReactNode;
+  /** Tiles lifted into their own windows, by id. */
+  popped: Record<string, boolean>;
+  setPopped: (next: Record<string, boolean> | ((p: Record<string, boolean>) => Record<string, boolean>)) => void;
+  logTile: (area: { w: number; h: number }, pop: PopProps) => ReactNode;
   map: ReactNode;
   mapTitle: string;
   mapExtras?: ReactNode;
@@ -125,6 +129,11 @@ export function VectorDesk(props: {
   }, [screen]);
 
   const toggleTile = (id: string) => setTiles((t) => ({ ...t, [id]: !t[id as TileId] }));
+  const pop = (id: string): PopProps => ({
+    popped: !!props.popped[id],
+    onPopOut: () => props.setPopped((p) => ({ ...p, [id]: true })),
+    onDock: () => props.setPopped((p) => ({ ...p, [id]: false })),
+  });
   const show = (id: TileId) => setTiles((t) => ({ ...t, [id]: true }));
   const hasIncident = !!model.selected;
   const waiting = props.pendingCalls.length;
@@ -227,10 +236,11 @@ export function VectorDesk(props: {
             <div className="vec-map-area" ref={areaRef}>
               <div className="map-fill">{props.map}</div>
               {tiles.calls && (
-                <CallsTile layout={layout} area={area} calls={model.calls} ready={props.callsReady} onToggleReady={props.onToggleReady} onAnswer={props.onAnswerCall} onDecline={props.onDeclineCall} onClose={() => toggleTile("calls")} />
+                <CallsTile {...pop("calls")} layout={layout} area={area} calls={model.calls} ready={props.callsReady} onToggleReady={props.onToggleReady} onAnswer={props.onAnswerCall} onDecline={props.onDeclineCall} onClose={() => toggleTile("calls")} />
               )}
               {tiles.live && (
                 <LiveIncidentsTile
+                  {...pop("live")}
                   layout={layout}
                   area={area}
                   rows={model.incidentRows}
@@ -246,22 +256,22 @@ export function VectorDesk(props: {
                 />
               )}
               {tiles.incident && hasIncident && (
-                <IncidentDetailsTile layout={layout} area={area} detail={model.detail} onClose={() => toggleTile("incident")} onOpenLog={() => show("log")} />
+                <IncidentDetailsTile {...pop("incident")} layout={layout} area={area} detail={model.detail} onClose={() => toggleTile("incident")} onOpenLog={() => show("log")} />
               )}
               {tiles.units && hasIncident && (
-                <SceneUnitsTile layout={layout} area={area} rows={model.sceneUnits} onPick={props.onPickAppliance} onPlace={props.onPlaceUnit} onClose={() => toggleTile("units")} groundAvailable={props.groundAvailable} />
+                <SceneUnitsTile {...pop("units")} layout={layout} area={area} rows={model.sceneUnits} onPick={props.onPickAppliance} onPlace={props.onPlaceUnit} onClose={() => toggleTile("units")} groundAvailable={props.groundAvailable} />
               )}
-              {tiles.log && props.logTile(area)}
+              {tiles.log && props.logTile(area, pop("log"))}
               {tiles.attendance && hasIncident && (
-                <AttendanceTile layout={layout} area={area} rows={model.pda} ref={model.selected ? model.refOf(model.selected) : ""} onClose={() => toggleTile("attendance")} onFill={() => props.onScreen("mob")} />
+                <AttendanceTile {...pop("attendance")} layout={layout} area={area} rows={model.pda} ref={model.selected ? model.refOf(model.selected) : ""} onClose={() => toggleTile("attendance")} onFill={() => props.onScreen("mob")} />
               )}
               {tiles.available && (
-                <AvailableTile layout={layout} area={area} cards={model.cards} hasIncident={hasIncident} onMobilise={props.onMobilise} onPick={props.onPickAppliance} onClose={() => toggleTile("available")} />
+                <AvailableTile {...pop("available")} layout={layout} area={area} cards={model.cards} hasIncident={hasIncident} onMobilise={props.onMobilise} onPick={props.onPickAppliance} onClose={() => toggleTile("available")} />
               )}
-              {tiles.cover && <CountyCoverTile layout={layout} area={area} rows={model.cover} onClose={() => toggleTile("cover")} />}
-              {tiles.standby && <StandbyTile layout={layout} area={area} rows={model.standby} onSend={props.onSendStandby} onClose={() => toggleTile("standby")} />}
+              {tiles.cover && <CountyCoverTile {...pop("cover")} layout={layout} area={area} rows={model.cover} onClose={() => toggleTile("cover")} />}
+              {tiles.standby && <StandbyTile {...pop("standby")} layout={layout} area={area} rows={model.standby} onSend={props.onSendStandby} onClose={() => toggleTile("standby")} />}
               {tiles.hospitals && (
-                <HospitalsTile layout={layout} area={area} rows={model.hospitals} from={model.selected ? model.selected.scenario.location.address.split(",")[0] : ""} onClose={() => toggleTile("hospitals")} />
+                <HospitalsTile {...pop("hospitals")} layout={layout} area={area} rows={model.hospitals} from={model.selected ? model.selected.scenario.location.address.split(",")[0] : ""} onClose={() => toggleTile("hospitals")} />
               )}
               {props.legacyPanels}
             </div>

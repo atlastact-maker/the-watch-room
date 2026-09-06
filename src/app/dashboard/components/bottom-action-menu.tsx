@@ -105,7 +105,8 @@ export type StartTaskFn = (args: {
   crsDoneMessage?: string;
 }) => void;
 
-type Tab = "vehicle" | "crew" | "water" | "treatment" | "actions";
+export type UnitControlPage = "vehicle" | "crew" | "water" | "treatment" | "actions";
+type Tab = UnitControlPage;
 
 const FIRE_TABS: { key: Tab; label: string; letter: string }[] = [
   { key: "vehicle", label: "Vehicle", letter: "V" },
@@ -173,9 +174,12 @@ export function BottomActionMenu({
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
+  page,
 }: {
   appliance: Appliance | null;
   deployment: Deployment | null;
+  /** Embedded on an MDT page: show this one page with no header or rail. */
+  page?: UnitControlPage;
   allOnSceneAppliances: Appliance[];
   tasks: Task[];
   incident: Incident;
@@ -233,7 +237,8 @@ export function BottomActionMenu({
   scenarioCasualties?: import("@/lib/sim/scene").SceneCasualty[];
   casualtyProgression?: import("@/lib/sim/incident_sim").IncidentSimState["casualtyProgression"];
 }) {
-  const [tab, setTab] = useState<Tab>("vehicle");
+  const [ownTab, setTab] = useState<Tab>("vehicle");
+  const tab = page ?? ownTab;
 
   // Reset to Vehicle whenever the operator picks a different appliance.
   useEffect(() => {
@@ -286,6 +291,8 @@ export function BottomActionMenu({
 
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-(--color-surface)">
+      {!page && (
+      <>
       {/* Service accent strip */}
       <div className="h-[3px] w-full shrink-0" style={{ background: serviceHex }} />
       {/* Identity header — callsign plate, type + VRM, light state, meta. */}
@@ -376,6 +383,8 @@ export function BottomActionMenu({
           );
         })}
       </nav>
+      </>
+      )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">

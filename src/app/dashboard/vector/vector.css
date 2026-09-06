@@ -2353,3 +2353,324 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
   color: var(--vec-text);
 }
+
+/* MDT pages — the prototype's rc-* vocabulary on the blue-grey screen */
+.vec-mdt-body.page {
+  display: block;
+  padding: 9px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--mdt-screen);
+  color: var(--mdt-ink);
+}
+.vec-mdt-body.page h3 {
+  margin: 4px 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.vec-mdt-body.page p {
+  margin: 6px 0 10px;
+}
+.vec-mdt-body.page .rc-caption {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: #c5d7e1;
+  margin: 9px 0 6px;
+}
+.vec-mdt-body.page .mdt-address .vec-copy {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+  font-size: 14px;
+  padding: 10px;
+  background: #e9f3f6;
+  color: #163548;
+  border: 1px solid #a9b8c4;
+  border-radius: 2px;
+}
+.vec-mdt-body.page .mdt-sev {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.vec-mdt-body.page .mdt-message {
+  border-left: 3px solid #7d98ab;
+  padding: 7px 9px;
+  background: #243f51;
+  color: #edf3f6;
+  margin: 7px 0;
+}
+.vec-mdt-body.page .mdt-message small {
+  font: 11px var(--vec-mono, Consolas, monospace);
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .mdt-message p {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+.vec-mdt-body.page .mdt-compose {
+  display: grid;
+  gap: 6px;
+  font: 700 11px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.06em;
+  color: #c5d7e1;
+  margin: 12px 0;
+}
+.vec-mdt-body.page .mdt-compose textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  font: 13px var(--vec-sans, Arial, sans-serif);
+  padding: 8px;
+  border: 1px solid #8399a8;
+  color: #16171a;
+  background: #fff;
+  user-select: text;
+}
+.vec-mdt-body.page .rc-primary,
+.vec-mdt-body.page .mdt-task-controls button {
+  min-height: 44px;
+  padding: 8px 14px;
+  margin-right: 5px;
+  font: 700 13px var(--vec-sans, Arial, sans-serif);
+  color: #fff;
+  background: #0875bb;
+  border: 1px solid #69a7d0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.vec-mdt-body.page .rc-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.vec-mdt-body.page .mdt-task-controls button {
+  background: #8a3a2e;
+  border-color: #c26a5c;
+}
+.vec-mdt-body.page .rc-action-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+.vec-mdt-body.page .rc-action-grid button {
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  min-height: 56px;
+  padding: 12px;
+  border: 1px solid #182f3f;
+  border-radius: 1px;
+  background: #edf2f5;
+  color: #142b39;
+  font: 14px var(--vec-sans, Arial, sans-serif);
+  cursor: pointer;
+}
+.vec-mdt-body.page .rc-action-grid button > span {
+  font-size: 13px;
+  color: #334e60;
+}
+.vec-mdt-body.page .rc-action-grid small {
+  font-size: 12px;
+  color: #526a79;
+}
+.vec-mdt-body.page .mdt-task-card {
+  padding: 12px;
+  border: 1px solid #7c9aad;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  background: #243f51;
+  color: #edf3f6;
+}
+.vec-mdt-body.page .mdt-task-card header {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  text-transform: capitalize;
+}
+.vec-mdt-body.page .mdt-task-card header span {
+  font-size: 12px;
+  color: #d5e5ed;
+}
+.vec-mdt-body.page .mdt-task-card dl {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 6px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.vec-mdt-body.page .mdt-task-card dt {
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .mdt-task-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.vec-mdt-body.page .rc-crew {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px solid #7c9aad;
+  border-radius: 3px;
+  background: #edf2f5;
+  color: #172e3c;
+}
+.vec-mdt-body.page .rc-crew span {
+  text-align: right;
+  color: #486273;
+}
+.vec-mdt-body.page .rc-crew small {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: #486273;
+}
+.vec-mdt-body.page .rc-crew small.on {
+  color: #0875bb;
+  font-weight: 700;
+}
+.vec-mdt-body.page .rc-details {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.vec-mdt-body.page .rc-details dt {
+  color: #b9cfdc;
+}
+.vec-mdt-body.page .rc-details dd {
+  margin: 0;
+}
+.vec-mdt-body.page .mdt-workflow {
+  margin: 10px 0;
+  padding: 0 0 4px;
+  border-top: 1px solid #5f7a8d;
+}
+.vec-mdt-body.page .mdt-workflow > summary {
+  display: list-item;
+  padding: 10px 0;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+}
+.vec-mdt-body.page .stock-register {
+  padding: 10px;
+  border: 1px solid #7c9aad;
+  border-radius: 3px;
+  background: #243f51;
+  font-size: 13px;
+}
+.vec-mdt-body.page .stock-register summary {
+  cursor: pointer;
+  line-height: 1.6;
+  font-weight: 600;
+}
+.vec-mdt-body.page .stock-register > div {
+  padding: 4px 0;
+  font: 12px var(--vec-mono, Consolas, monospace);
+  border-top: 1px solid #3a5568;
+}
+.vec-mdt-embed {
+  border: 1px solid #7c9aad;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  color: #16171a;
+  margin: 4px 0 10px;
+}
+.vec-mdt-embed.light {
+  padding: 8px;
+  background: #f4f4f5;
+}
+.vec-mdt-embed.tall {
+  height: 460px;
+  display: flex;
+  flex-direction: column;
+}
+.vec-mdt-embed.tall > * {
+  flex: 1;
+  min-height: 0;
+}
+.vec-mdt-embed.aerial {
+  height: 320px;
+  position: relative;
+  background: #27272a;
+}
+.vec-mdt-embed.aerial > * {
+  height: 100%;
+}
+
+/* Copy buttons */
+.vec-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  background: var(--vec-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.vec-copy:hover {
+  border-color: #1b4d8f;
+}
+.vec-copy .lbl {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vec-copy .glyph {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vec-text-muted);
+}
+.vec-mdt .vec-copy {
+  background: #e9f3f6;
+  color: #163548;
+  border-color: #a9b8c4;
+}
+
+/* Pop-out windows */
+.vec-popout {
+  flex: 1;
+  height: 100vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.vec-popout-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--vec-surface);
+  color: var(--vec-text);
+}
+.vec-popout-frame > .vec-tile-handle.static {
+  cursor: default;
+}
+.vec-popout-frame > .vec-tile-body {
+  position: relative;
+}
+/* A legacy panel in a window fills it: its own drag frame is redundant. */
+.vec-popout-frame.legacy > .vec-tile-body > * {
+  position: static !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  inset: auto !important;
+}
+.vec-popout .vec-mdt {
+  border-radius: 0;
+  height: 100vh;
+}
