@@ -38,8 +38,8 @@
   --vec-bar-text: #ffffff;
   --vec-panelbar: #dbe5ed;
   --vec-panelbar-border: #7894ab;
-  --vec-mono: var(--font-vector-mono, "IBM Plex Mono"), Consolas, "Liberation Mono", monospace;
-  --vec-sans: var(--font-vector-sans, "IBM Plex Sans"), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --vec-mono: "IBM Plex Mono", Consolas, "Liberation Mono", monospace;
+  --vec-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   position: relative;
   z-index: 10;
