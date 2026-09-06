@@ -149,7 +149,6 @@ import {
   unlockAudio,
 } from "@/lib/audio/sim-audio";
 import type { StationWithAppliances } from "./page";
-import { DashboardHeader } from "./components/header";
 import { PatchPicker } from "./components/patch-picker";
 import { EmbeddedMap } from "./components/map-panel";
 import {
@@ -165,7 +164,6 @@ import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
 import { DraggableIncidentMdt } from "./components/incident-mdt";
 import { DispatchLog } from "./components/dispatch-log";
-import { ToolMenu } from "./components/tool-menu";
 import type { MapFocus } from "./components/leaflet-map";
 import { CallLogPanel } from "./components/call-log-panel";
 import { SearchPanel } from "./components/search-panel";
@@ -192,6 +190,17 @@ import {
 } from "@/lib/sim/save";
 import { bumpStats, saveLastShift } from "@/lib/sim/stats";
 import { syncCareerStats } from "@/lib/sim/stats-sync";
+import { logout } from "@/lib/auth/actions";
+import { osMappingEnabled } from "@/lib/map-basemaps";
+import { BLUE_LIGHT_FACTOR } from "@/lib/sim/eta";
+import { VectorDesk, DEFAULT_TILES, type TilesState } from "./vector/desk";
+import { useDeskModel, proposeFill } from "./vector/desk-model";
+import { useTileLayout } from "./vector/tile";
+import { useVectorTheme } from "./vector/theme";
+import { LogTile } from "./vector/log-tile";
+import type { Menu, VectorScreen } from "./vector/chrome";
+import { shortAddress } from "./vector/model";
+import "./vector/vector.css";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
 const INTENSITY_STORAGE_KEY = "watch-room.intensity";
@@ -275,7 +284,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       window.localStorage.setItem("watch-room.muted", next ? "1" : "0");
     }
   }
-  const [resourcesVisible, setResourcesVisible] = useState(true);
+  // Classic panels are off by default — the VECTOR desk draws their
+  // content as tiles. Comms and Resources menus bring them back.
+  const [resourcesVisible, setResourcesVisible] = useState(false);
   // Hidden until the operator double-clicks the job on the call stack.
   // A control room does not have the incident card thrown in its face
   // the moment a call is picked up; it opens the job when it is ready to
@@ -444,7 +455,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // The unanswered queue. Calls land here — from the menu or from the
   // shift's own timer — and wait, visibly, until somebody picks them up.
   const [pendingCalls, setPendingCalls] = useState<PendingCall[]>([]);
-  const [showCallStack, setShowCallStack] = useState(true);
+  const [showCallStack, setShowCallStack] = useState(false);
   const [showLeds, setShowLeds] = useState(false);
   const [showAnpr, setShowAnpr] = useState(false);
   /** Hits the operator has dealt with. Shift state, like the audit. */
@@ -499,7 +510,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const outcome = runtime.outcome;
   // The dispatch log sits on the map by default; the operator can hide it.
-  const [showDispatchLog, setShowDispatchLog] = useState(true);
+  const [showDispatchLog, setShowDispatchLog] = useState(false);
   // The 999 caller's words as a movable panel on the area map. Off by
   // default: the operator asked for the desk to stay clear until they
   // bring something up.
@@ -5080,6 +5091,305 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     );
   }
 
+  // ---------------------------------------------------------------------
+  // The VECTOR desk. Screen, tiles, theme and the call in hand live here;
+  // everything they show is derived from the simulator state above.
+  // ---------------------------------------------------------------------
+  const [vecScreen, setVecScreen] = useState<VectorScreen>("dispatch");
+  const [tiles, setTiles] = useState<TilesState>({ ...DEFAULT_TILES });
+  const layout = useTileLayout();
+  const { theme, toggle: toggleTheme } = useVectorTheme();
+  const [activeCall, setActiveCall] = useState<(PendingCall & { answeredAt: number }) | null>(null);
+  const [standbySent, setStandbySent] = useState<Record<string, boolean>>({});
+  const [statusMsg, setStatusMsg] = useState("Ready");
+  const desk = useDeskModel({
+    incidents,
+    selectedIncidentId,
+    runtimes,
+    deployments,
+    applianceById,
+    stations: allDeployableStations,
+    etas,
+    now,
+    pendingCalls,
+    log,
+    coveredServices,
+    standbySent,
+    commandOptionsFor,
+  });
+  const groundAvailable = !!activeIncident && !outcome && !handover && !!incidentSim;
+
+  function logAnnotation(message: string, kind: LogEntry["kind"] = "annotation") {
+    const at = Date.now();
+    setLog((prev) => [...prev, { id: `vec:${at}:${prev.length}`, timestamp: at, kind, message }]);
+  }
+
+  function pickScreen(s: VectorScreen) {
+    if (s === "ground") {
+      if (!groundAvailable) return;
+      setGroundEntryView(null);
+      setGroundViewOpen(true);
+      areaPanelBeforeGroundRef.current = incidentPanelVisible;
+      setIncidentPanelVisible(true);
+      setVecScreen("ground");
+      return;
+    }
+    if (groundViewOpen) {
+      setGroundViewOpen(false);
+      setIncidentPanelVisible(areaPanelBeforeGroundRef.current);
+    }
+    setVecScreen(s);
+  }
+
+  /** Pick a call up off the stack: it leaves the queue and becomes the
+   *  call in hand on the 999 screen. Nothing is opened until the
+   *  operator creates the incident. */
+  function answerCallById(id: string) {
+    const call = pendingCalls.find((c) => c.id === id);
+    if (!call) return;
+    if (activeCall) {
+      setStatusMsg("Finish the active call before answering another");
+      pickScreen("call");
+      return;
+    }
+    setPendingCalls((prev) => prev.filter((c) => c.id !== id));
+    setActiveCall({ ...call, answeredAt: Date.now() });
+    setStatusMsg(`Answered · ${call.scenario.title}`);
+    pickScreen("call");
+  }
+
+  function declineCallById(id: string) {
+    const call = pendingCalls.find((c) => c.id === id);
+    if (!call) return;
+    setPendingCalls((prev) => prev.filter((c) => c.id !== id));
+    // A graded call with nobody sent is either the right call — Right
+    // Care Right Person, a clean call-back — or a job that comes back
+    // later and worse. Say which.
+    const disp = call.scenario.disposal;
+    logAnnotation(
+      disp
+        ? `${call.scenario.title} — closed at the desk, no deployment. ${disp.basis}.`
+        : `${call.scenario.title} — declined with nobody sent. A graded call does not go away because the desk did not answer it.`,
+      disp ? "annotation" : "setback",
+    );
+    setStatusMsg(disp ? "Call closed at the desk" : "Call declined — nobody sent");
+  }
+
+  function createFromCall(call: PendingCall, note: string) {
+    setActiveCall(null);
+    triggerScenario(call.scenario);
+    if (note) logAnnotation(`${call.scenario.title} — typed ${note}`);
+    setStatusMsg(`${call.scenario.title} created — allocate the attendance`);
+    pickScreen("mob");
+  }
+
+  function endCall(call: PendingCall, closedAtDesk: boolean) {
+    setActiveCall(null);
+    const disp = call.scenario.disposal;
+    logAnnotation(
+      closedAtDesk && disp
+        ? `${call.scenario.title} — closed at the desk, advice given. ${disp.basis}.`
+        : `${call.scenario.title} — call ended with nobody sent. A graded call does not go away because the desk put the phone down.`,
+      closedAtDesk && disp ? "annotation" : "setback",
+    );
+    setStatusMsg("Call ended");
+    pickScreen("dispatch");
+  }
+
+  function estimateEta(stationId: string, to: { lat: number; lng: number }) {
+    const st = allDeployableStations.find((x) => x.id === stationId);
+    if (!st) return null;
+    const meters = haversineMeters(st.coords, to) * 1.3;
+    return { stationId, meters, seconds: (meters / 13.4) * BLUE_LIGHT_FACTOR, source: "fallback" as const, coords: null };
+  }
+
+  /** Mobilise to the selected job, into the first attendance slot the
+   *  unit's type can fill — or as extra attendance when none is open. */
+  function mobiliseTo(applianceId: string, stationId: string, incidentId?: string) {
+    const ap = applianceById.get(applianceId);
+    const target = incidentId ? incidents.find((i) => i.id === incidentId) ?? null : activeIncident;
+    if (!target) return;
+    // Routed ETAs arrive a moment after the job opens; until then a
+    // crow-fly estimate stands in, the same way the ETA service itself
+    // falls back when the router is down.
+    const eta = etas[stationId] ?? estimateEta(stationId, target.scenario.location.coords);
+    if (!eta) {
+      setStatusMsg("No route for that station");
+      return;
+    }
+    const rows = desk.pdaRowsFor(target);
+    const slots = STANDARD_PDA[target.scenario.type]?.slots ?? target.scenario.pda;
+    const open = slots.find((s, i) => !rows[i]?.callsign && ap && s.requiredApplianceTypes.includes(ap.type));
+    deployAppliance({
+      applianceId,
+      slotId: open?.id ?? "extra",
+      incidentId,
+      etaSeconds: eta.seconds,
+      routeMeters: eta.meters,
+      routeCoords: eta.coords ?? undefined,
+    });
+    if (ap) setStatusMsg(`${ap.callsign} mobilised${open ? ` — ${open.label}` : " — extra attendance"}`);
+  }
+
+  function fillRemaining() {
+    const picks = proposeFill(desk, activeIncident?.scenario);
+    if (picks.length === 0) {
+      setStatusMsg("Nothing suitable is free for the outstanding slots");
+      return;
+    }
+    for (const p of picks) mobiliseTo(p.applianceId, p.stationId);
+  }
+
+  function sendStandby(id: string) {
+    const row = desk.standby.find((s) => s.id === id);
+    if (!row || row.sent) return;
+    setStandbySent((prev) => ({ ...prev, [id]: true }));
+    logAnnotation(`${row.callsign} standby move — ${row.from} to ${row.to}. ${row.reason}.`);
+    setStatusMsg(`${row.callsign} moving to ${row.to}`);
+  }
+
+  function placeUnit(applianceId: string) {
+    if (!groundAvailable) return;
+    setPlacePendingApplianceId(applianceId);
+    pickScreen("ground");
+  }
+
+  function queueTestCall() {
+    const pool = SCENARIOS.filter(
+      (s) => scenarioCovered(s, coveredServices) && !incidents.some((i) => i.scenarioId === s.id && !runtimes[i.id]?.outcome) && !pendingCalls.some((c) => c.scenario.id === s.id),
+    );
+    if (pool.length === 0) {
+      setStatusMsg("Every covered scenario is already on the board");
+      return;
+    }
+    queueCall(pool[Math.floor(Math.random() * pool.length)]);
+    setStatusMsg("Test call placed on the stack");
+  }
+
+  const showTile = (id: keyof TilesState) => {
+    pickScreen("dispatch");
+    setTiles((t) => ({ ...t, [id]: true }));
+  };
+  const scenarioMenu: Menu = {
+    label: "Scenarios",
+    items: SCENARIOS.filter((s) => scenarioCovered(s, coveredServices)).map((s) => ({
+      label: s.title,
+      hint: `#${s.id} · ${s.severity.toUpperCase()}`,
+      act: () => {
+        queueCall(s);
+        setStatusMsg(`${s.title} placed on the stack`);
+      },
+    })),
+  };
+  const menus: Menu[] = [
+    {
+      label: "File",
+      items: [
+        { label: "Open shift log", hint: String(log.length), act: () => showTile("log") },
+        { label: "Print incident record", act: () => window.print() },
+        { label: "Export for handover", act: () => {}, disabled: true, title: "Not built yet" },
+        { sep: true },
+        { label: "New shift · change briefing", act: () => changePatch() },
+        { label: audioMuted ? "Unmute audio" : "Mute audio", hint: audioMuted ? "off" : "on", act: () => toggleAudioMuted() },
+        { sep: true },
+        { label: "Sign out of position", act: () => void logout() },
+      ],
+    },
+    {
+      label: "Incident",
+      items: [
+        { label: "New test call", hint: "random", act: queueTestCall },
+        { label: "Answer next call", hint: pendingCalls.length ? `${pendingCalls.length} waiting` : "none", act: () => pendingCalls[0] && answerCallById(pendingCalls[0].id), disabled: pendingCalls.length === 0 },
+        { sep: true },
+        { label: "Mobilising", hint: "F4", act: () => pickScreen("mob"), disabled: !activeIncident },
+        { label: "Fill remaining attendance", act: fillRemaining, disabled: !activeIncident || !!outcome },
+        { label: "Hand over command…", act: () => showTile("live"), disabled: !activeIncident || !!outcome },
+        { label: "Stop message · resolve", act: () => void resolveIncident(), disabled: !activeIncident || !!outcome || !!handover, title: "Send the stop and score the job" },
+        { label: "Close incident · debrief", act: () => dismissIncident(), disabled: !activeIncident || !outcome },
+        { sep: true },
+        { label: "Clear selection", act: () => setSelectedIncidentId(null), disabled: !activeIncident },
+      ],
+    },
+    scenarioMenu,
+    {
+      label: "Resources",
+      items: [
+        { label: "Resources", hint: `${desk.freeCount} free`, act: () => showTile("available") },
+        { label: "County cover", act: () => showTile("cover") },
+        { label: "Standby moves", hint: desk.standby.length ? String(desk.standby.length) : undefined, act: () => showTile("standby") },
+        { label: "Hospitals", act: () => showTile("hospitals") },
+        { sep: true },
+        { label: "Mobilise the nearest", act: fillRemaining, disabled: !activeIncident || !!outcome },
+        { label: "Classic resources list", hint: resourcesVisible ? "open" : undefined, act: () => { pickScreen("dispatch"); setResourcesVisible((v) => !v); } },
+      ],
+    },
+    {
+      label: "Systems",
+      items: [
+        { label: "PNC · LEDS enquiry", hint: ledsChecks.length ? `${ledsChecks.length} checks` : "vehicle · person", act: () => { pickScreen("dispatch"); setShowLeds(true); } },
+        { label: "ANPR", hint: anprOpenCount ? `${anprOpenCount} open` : "camera hits", act: () => { pickScreen("dispatch"); setShowAnpr(true); } },
+        { label: "Address check · search", hint: "person · vehicle · address", act: () => { pickScreen("dispatch"); setShowSearch(true); } },
+        { label: "Premises risk", act: () => showTile("incident"), disabled: !activeIncident },
+        { label: "Incident history", act: () => showTile("log") },
+        { label: "Location tools", act: () => {}, disabled: true, title: "Not connected" },
+      ],
+    },
+    {
+      label: "Comms",
+      items: [
+        { label: "999 call log", hint: informantOnCall ? "on the line" : undefined, act: () => { pickScreen("dispatch"); setShowCallLog(true); }, disabled: !activeIncident },
+        { label: "Classic call stack", act: () => { pickScreen("dispatch"); setShowCallStack((v) => !v); } },
+        { label: "Classic dispatch log", act: () => { pickScreen("dispatch"); setShowDispatchLog((v) => !v); } },
+        { label: "Classic incident card", act: () => { pickScreen("dispatch"); setIncidentPanelVisible((v) => !v); }, disabled: !activeIncident },
+        { sep: true },
+        { label: "Airwave talkgroups", act: () => {}, disabled: true, title: "Not built yet" },
+        { label: "Send an MDT message", act: () => {}, disabled: true, title: "Not built yet" },
+      ],
+    },
+    {
+      label: "View",
+      items: [
+        { label: "Dispatch", hint: "F2", act: () => pickScreen("dispatch") },
+        { label: "999 call", hint: "F3", act: () => pickScreen("call") },
+        { label: "Mobilising", hint: "F4", act: () => pickScreen("mob"), disabled: !activeIncident },
+        { label: "Ground view", hint: "F5", act: () => pickScreen("ground"), disabled: !groundAvailable },
+        { sep: true },
+        { label: "Map only", act: () => setTiles({}) },
+        { label: "Reset panels", act: () => { layout.reset(); setTiles({ ...DEFAULT_TILES }); } },
+        { label: theme === "dark" ? "Light mode" : "Dark mode", act: toggleTheme },
+      ],
+    },
+    {
+      label: "Help",
+      items: [
+        { label: "Glossary · shortcuts", hint: "?", act: () => setGlossaryOpen(true) },
+        { label: "About VECTOR", act: () => setStatusMsg("VECTOR — The Watch Room's command and control desk. Simulation only.") },
+      ],
+    },
+  ];
+  const lights: { label: string; tone: "go" | "warn" | "off" | "stop" | "none"; title?: string }[] = [
+    { label: "AIRWAVE", tone: "go", title: "Radio — simulated, always up" },
+    { label: "MDT", tone: groundAvailable ? "go" : "warn", title: groundAvailable ? "MDT reachable for the selected job" : "No live job selected" },
+    { label: "OS GAZ", tone: osMappingEnabled() ? "go" : "warn", title: osMappingEnabled() ? "OS mapping connected" : "OS mapping not configured — street map in use" },
+    { label: audioMuted ? "AUDIO OFF" : "AUDIT ON", tone: "none" },
+  ];
+  const vecKeys = useRef<(e: KeyboardEvent) => void>(() => {});
+  vecKeys.current = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement | null)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    const m = /^F(\d{1,2})$/.exec(e.key);
+    if (!m) return;
+    const n = parseInt(m[1], 10);
+    const map: Record<number, VectorScreen> = { 2: "dispatch", 3: "call", 4: "mob", 5: "ground" };
+    if (!map[n]) return;
+    e.preventDefault();
+    pickScreen(map[n]);
+  };
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => vecKeys.current(e);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
   if (pendingSave) {
     return (
       <ResumePrompt
@@ -5101,30 +5411,80 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     );
   }
 
-  return (
-    <div className="relative z-10 flex flex-1 flex-col">
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-      <DashboardHeader
-        userEmail={userEmail}
-        patch={patch}
-        weather={weather}
-        audioMuted={audioMuted}
-        onToggleAudio={toggleAudioMuted}
-        onOpenGlossary={() => setGlossaryOpen(true)}
-        onChangePatch={changePatch}
-        onTriggerScenario={(sc) => queueCall(sc)}
-        coveredServices={coveredServices}
-        shiftStartedAt={shiftStartedAt}
-        shiftStartHour={shiftStartHour}
-        hasLiveIncident={incidents.some((i) => !runtimes[i.id]?.outcome)}
-        // The same condition the autosave effect uses, so the dialog can
-        // only ever promise a save that is really happening.
-        shiftSaved={!!patch && !!activeIncident && !outcome}
-      />
+  const selectedRef = activeIncident ? desk.refOf(activeIncident) : "";
+  const noCover = desk.cover.filter((c) => c.free === 0).length;
+  const pdaShort = desk.pda.filter((r) => !r.callsign).length;
+  const mapPlace = activeIncident
+    ? (shortAddress(activeIncident.scenario.location.address).line2.split(",").pop() ?? "").trim().toUpperCase() || "GREATER MANCHESTER"
+    : "GREATER MANCHESTER";
 
-      <main id="main-content" className="relative flex-1 overflow-hidden" aria-label="Dispatch map and panels">
+  return (
+    <VectorDesk
+      userEmail={userEmail}
+      shiftStartedAt={shiftStartedAt}
+      shiftStartHour={shiftStartHour}
+      hasLiveIncident={incidents.some((i) => !runtimes[i.id]?.outcome)}
+      // The same condition the autosave effect uses, so the dialog can
+      // only ever promise a save that is really happening.
+      shiftSaved={!!patch && !!activeIncident && !outcome}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+      screen={groundViewOpen ? "ground" : vecScreen === "ground" ? "dispatch" : vecScreen}
+      onScreen={pickScreen}
+      groundAvailable={groundAvailable}
+      menus={menus}
+      lights={lights}
+      model={desk}
+      now={now}
+      pendingCalls={pendingCalls}
+      activeCall={activeCall}
+      callsReady={callsReady}
+      onToggleReady={() => setCallsReady((v) => !v)}
+      onAnswerCall={answerCallById}
+      onDeclineCall={declineCallById}
+      onCreateFromCall={createFromCall}
+      onEndCall={endCall}
+      onNote={setStatusMsg}
+      onCallNote={(text) => logAnnotation(text)}
+      onTestCall={queueTestCall}
+      coveredServices={coveredServices}
+      onSelectIncident={(id) => setSelectedIncidentId(id)}
+      onHandCommandTo={handCommandToFor}
+      onDropAppliance={(incidentId, applianceId, stationId) => {
+        mobiliseTo(applianceId, stationId, incidentId);
+        // Follow the drop, so the operator sees where it went.
+        if (incidentId !== selectedIncidentId) setSelectedIncidentId(incidentId);
+      }}
+      onMobilise={(applianceId, stationId) => mobiliseTo(applianceId, stationId)}
+      onStandDown={(applianceId) => void standDownAppliance(applianceId)}
+      onPickAppliance={setSelectedApplianceId}
+      onPlaceUnit={placeUnit}
+      onFillRemaining={fillRemaining}
+      onSendStandby={sendStandby}
+      onOpenBays={setBayStationId}
+      tiles={tiles}
+      setTiles={setTiles}
+      layout={layout}
+      logTile={(area) => (
+        <LogTile
+          layout={layout}
+          area={area}
+          log={log}
+          reference={selectedRef}
+          onClose={() => setTiles((t) => ({ ...t, log: false }))}
+          onEntry={(text) => logAnnotation(text)}
+        />
+      )}
+      mapTitle={`MAP — ${mapPlace}`}
+      mapExtras={
+        <MapFilters
+          filter={mapFilter}
+          onChange={setMapFilter}
+          typesPresent={mapContents.types}
+          countsByService={mapContents.countsByService}
+        />
+      }
+      map={
         <EmbeddedMap
           stations={myStations}
           activeIncident={activeIncident}
@@ -5138,590 +5498,447 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onOpenStationBays={setBayStationId}
           focus={mapFocus}
           onZoomIntoGround={
-            activeIncident && !outcome && !handover
+            groundAvailable
               ? (view) => {
                   setGroundEntryView(view);
                   setGroundViewOpen(true);
                   areaPanelBeforeGroundRef.current = incidentPanelVisible;
                   setIncidentPanelVisible(true);
+                  setVecScreen("ground");
                 }
               : undefined
           }
         />
-        {/* Station bay view — top-down look inside a fire station. */}
-        {bayStationId && (() => {
-          const st = allDeployableStations.find((s) => s.id === bayStationId);
-          if (!st) return null;
-          return (
-            <StationBayPanel
-              station={st}
-              onClose={() => setBayStationId(null)}
-              onSelectAppliance={setSelectedApplianceId}
-              deployments={deployments}
-              activeIncident={activeIncident}
-              now={now}
-              incidentActive={!!activeIncident && !outcome}
-              onMobilise={(applianceId) => {
-                const eta = etas[st.id];
-                if (!eta) return;
-                deployAppliance({
-                  applianceId,
-                  slotId: "extra",
-                  etaSeconds: eta.seconds,
-                  routeMeters: eta.meters,
-                  routeCoords: eta.coords ?? undefined,
-                });
-              }}
-            />
-          );
-        })()}
-        {resourcesVisible && (
-          <DraggableResourcesPanel
-            stations={allDeployableStations}
-            onSelectAppliance={setSelectedApplianceId}
-            onClose={() => setResourcesVisible(false)}
-            incidentActive={!!activeIncident && !outcome}
-            deployedIds={new Set(deployments.map((d) => d.applianceId))}
-            etas={etas}
-            onMobilise={({ applianceId, stationId }) => {
-              const eta = etas[stationId];
-              if (!eta) return;
-              deployAppliance({
-                applianceId,
-                slotId: "extra",
-                etaSeconds: eta.seconds,
-                routeMeters: eta.meters,
-                routeCoords: eta.coords ?? undefined,
-              });
-            }}
-          />
-        )}
-        {selectedAppliance && (() => {
-          // En-route units get the pre-arrival instructions panel instead
-          // of the static vehicle sheet — the operator can rig BA crews or
-          // pre-pair a medical unit to a casualty before it lands.
-          const enRoute = deployments.find(
-            (d) =>
-              d.applianceId === selectedAppliance.id &&
-              !d.returnStartedAt &&
-              !d.hospitalLegStartedAt &&
-              now < d.arrivesAt,
-          );
-          if (enRoute) {
+      }
+      legacyPanels={
+        <>
+          {/* Station bay view — top-down look inside a fire station. */}
+          {bayStationId && (() => {
+            const st = allDeployableStations.find((s) => s.id === bayStationId);
+            if (!st) return null;
             return (
-              <PreArrivalPanel
-                appliance={selectedAppliance}
-                deployment={enRoute}
+              <StationBayPanel
+                station={st}
+                onClose={() => setBayStationId(null)}
+                onSelectAppliance={setSelectedApplianceId}
+                deployments={deployments}
+                activeIncident={activeIncident}
                 now={now}
-                casualties={incidentSim?.foundCasualties ?? []}
-                onSetPreCommitBaCrew={setPreCommitBaCrew}
-                onSetTreatingCasualty={setTreatingCasualty}
-                onClose={() => setSelectedApplianceId(null)}
+                incidentActive={!!activeIncident && !outcome}
+                onMobilise={(applianceId) => mobiliseTo(applianceId, st.id)}
               />
             );
-          }
-          return (
-            <DraggableVehiclePanel
-              appliance={selectedAppliance}
-              onClose={() => setSelectedApplianceId(null)}
-              onRefuel={refuel}
-              onRefillWater={refillWater}
-              onSendToMaintenance={sendToMaintenance}
-              onStandDownForWelfare={standDownForWelfare}
+          })()}
+          {resourcesVisible && (
+            <DraggableResourcesPanel
+              stations={allDeployableStations}
+              onSelectAppliance={setSelectedApplianceId}
+              onClose={() => setResourcesVisible(false)}
+              incidentActive={!!activeIncident && !outcome}
+              deployedIds={new Set(deployments.map((d) => d.applianceId))}
+              etas={etas}
+              onMobilise={({ applianceId, stationId }) => mobiliseTo(applianceId, stationId)}
             />
-          );
-        })()}
-        {/* Area view keeps the classic dark call-information box; the
-            rugged MDT tablet takes over inside ground view (rendered
-            further down so it stacks above the fullscreen overlay). */}
-        {activeIncident && incidentPanelVisible && !groundViewOpen && (
-          <DraggableIncidentPanel
-            incident={activeIncident}
-            stations={allDeployableStations}
-            deployments={incidentDeployments}
-            log={log}
-            outcome={outcome}
-            onDeploy={deployAppliance}
-            onStandDownForWelfare={standDownForWelfare}
-            onResolve={resolveIncident}
-            onDismiss={dismissIncident}
-            onClose={() => setIncidentPanelVisible(false)}
-            commandOptions={commandOptions()}
-            handover={handover}
-            onHandCommandTo={handCommandTo}
-          />
-        )}
-        {activeIncident && groundViewOpen && incidentSim && (
-          <IncidentView
-            incident={activeIncident}
-            stations={allDeployableStations}
-            patch={patch}
-            deployments={incidentDeployments}
-            etas={etas}
-            log={log}
-            now={now}
-            sim={incidentSim}
-            tasks={tasks}
-            sceneCommanderApplianceId={sceneCommanderApplianceId}
-            crewAir={crewAir}
-            busyCrewIds={busyCrewIds}
-            vehicleGauges={vehicleGauges}
-            onSetParkingPos={setParkingPos}
-            onSetPreCommitBaCrew={setPreCommitBaCrew}
-            onSetLightState={setLightState}
-            onSetPumpRunning={setPumpRunning}
-            onSetPumpOperator={setPumpOperator}
-            onSetFastAttackDeployed={setFastAttackDeployed}
-            onToggleCrewEquipment={toggleCrewEquipment}
-            onSetCrewLoadout={setCrewLoadout}
-            onDeploy={deployAppliance}
-            onStandDownForWelfare={standDownForWelfare}
-            onStandDown={standDownAppliance}
-            onStartTask={startTask}
-            onAbortTask={abortTask}
-            onUpdateBaRemarks={updateBaRemarks}
-            onUpdateBaEntryPoint={updateBaEntryPoint}
-            onSetTreatingCasualty={setTreatingCasualty}
-            informantLog={informantLog}
-            informantOnCall={informantOnCall}
-            tacticalMode={tacticalMode}
-            onDeclareTacticalMode={declareTacticalMode}
-            fatigueByApplianceId={fatigueByApplianceId}
-            treatmentByCasualtyId={treatmentByCasualtyId}
-            onStartPatientSurvey={startPatientSurvey}
-            onApplyAirway={applyAirway}
-            onApplyBreathing={applyBreathing}
-            onApplyCirculation={applyCirculation}
-            resusByCasualtyId={resusByCasualtyId}
-            onSetOxygen={setOxygen}
-            onSetResusAirway={setResusAirway}
-            onAttachMonitor={attachMonitor}
-            onToggleCapnography={toggleCapnography}
-            onSetCompressor={setCompressor}
-            onFitLucas={fitLucas}
-            onDeliverShock={deliverShock}
-            onMovePads={movePads}
-            onArrestAdrenaline={giveArrestAdrenaline}
-            onAmiodarone={giveAmiodarone}
-            onSuspectReversible={suspectReversible}
-            onTreatReversible={treatReversible}
-            onStopResus={stopResus}
-            onAdministerDrug={administerDrug}
-            onApplyPackaging={applyPackaging}
-            onApplyEgress={applyEgress}
-            onRequestClinician={requestClinician}
-            hemsFlyable={hemsAvailable(weather)}
-            onSetTreatmentDestination={setTreatmentDestination}
-            onSendAtmistPrealert={sendAtmistPrealert}
-            onConveyCasualtyVia={conveyCasualtyVia}
-            mdtVisible={incidentPanelVisible}
-            onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
-            placePendingApplianceId={placePendingApplianceId}
-            onClearPlacePending={() => setPlacePendingApplianceId(null)}
-            selectedVehicleId={mdtUnitId}
-            onVehicleSelect={(id) => {
-              setMdtUnitId(id);
-              setIncidentPanelVisible(true);
-            }}
-            pendingClosure={pendingClosure}
-            onSetPendingClosure={setPendingClosure}
-            muster={muster}
-            groundEntryView={groundEntryView}
-            pendingMuster={pendingMuster}
-            onSetPendingMuster={setPendingMuster}
-            onPlaceMuster={(lat, lng, radiusM) => {
-              setMuster({ lat, lng, radiusM });
-              setPendingMuster(false);
-              setLog((prev) => [
-                ...prev,
-                {
-                  id: `ccp:${Date.now()}`,
-                  timestamp: Date.now(),
-                  kind: "annotation",
-                  message: `Casualty muster area designated, ${Math.round(radiusM)} m radius — walking wounded and casualties to RV`,
-                },
-              ]);
-            }}
-            rotatePendingApplianceId={rotatePendingApplianceId}
-            onSetRotatePending={setRotatePendingApplianceId}
-            onClose={() => {
-              setGroundViewOpen(false);
-              setIncidentPanelVisible(areaPanelBeforeGroundRef.current);
-            }}
-          />
-        )}
-        {/* Rugged MDT tablet — ground view's incident terminal. */}
-        {activeIncident && groundViewOpen && incidentPanelVisible && (
-          <DraggableIncidentMdt
-            incident={activeIncident}
-            stations={allDeployableStations}
-            deployments={incidentDeployments}
-            log={log}
-            outcome={outcome}
-            onDeploy={deployAppliance}
-            onStandDownForWelfare={standDownForWelfare}
-            onResolve={resolveIncident}
-            onDismiss={dismissIncident}
-            onClose={() => setIncidentPanelVisible(false)}
-            sim={incidentSim}
-            tasks={tasks}
-            now={now}
-            informantLog={informantLog}
-            informantOnCall={informantOnCall}
-            treatmentByCasualtyId={treatmentByCasualtyId}
-            onSetTreatingCasualty={setTreatingCasualty}
-            onStartPatientSurvey={startPatientSurvey}
-            onApplyAirway={applyAirway}
-            onApplyBreathing={applyBreathing}
-            onApplyCirculation={applyCirculation}
-            resusByCasualtyId={resusByCasualtyId}
-            onSetOxygen={setOxygen}
-            onSetResusAirway={setResusAirway}
-            onAttachMonitor={attachMonitor}
-            onToggleCapnography={toggleCapnography}
-            onSetCompressor={setCompressor}
-            onFitLucas={fitLucas}
-            onDeliverShock={deliverShock}
-            onMovePads={movePads}
-            onArrestAdrenaline={giveArrestAdrenaline}
-            onAmiodarone={giveAmiodarone}
-            onSuspectReversible={suspectReversible}
-            onTreatReversible={treatReversible}
-            onStopResus={stopResus}
-            onAdministerDrug={administerDrug}
-            onApplyPackaging={applyPackaging}
-            onApplyEgress={applyEgress}
-            onRequestClinician={requestClinician}
-            hemsFlyable={hemsAvailable(weather)}
-            onSetTreatmentDestination={setTreatmentDestination}
-            onSendAtmistPrealert={sendAtmistPrealert}
-            onConveyCasualtyVia={conveyCasualtyVia}
-            onUpdateBaRemarks={updateBaRemarks}
-            onUpdateBaEntryPoint={updateBaEntryPoint}
-            onAbortTask={abortTask}
-            etas={etas}
-            patch={patch}
-            onStandDown={standDownAppliance}
-            onSetPreCommitBaCrew={setPreCommitBaCrew}
-            sceneCommanderApplianceId={sceneCommanderApplianceId}
-            crewAir={crewAir}
-            busyCrewIds={busyCrewIds}
-            vehicleGauges={vehicleGauges}
-            onStartTask={startTask}
-            onSetLightState={setLightState}
-            onSetPumpRunning={setPumpRunning}
-            onSetPumpOperator={setPumpOperator}
-            onSetFastAttackDeployed={setFastAttackDeployed}
-            onToggleCrewEquipment={toggleCrewEquipment}
-            onSetCrewLoadout={setCrewLoadout}
-            tacticalMode={tacticalMode}
-            fatigueByApplianceId={fatigueByApplianceId}
-            onBeginRoadClosure={(applianceId, kind, crewIds) =>
-              setPendingClosure({ applianceId, kind, crewIds })
-            }
-            onRequestRotate={setRotatePendingApplianceId}
-            onArmPlacement={setPlacePendingApplianceId}
-            unitId={mdtUnitId}
-            onSetUnitId={setMdtUnitId}
-          />
-        )}
-        {pendingCall && (
-          <IncomingCallModal
-            scenario={pendingCall}
-            onAnswer={() => {
-              const s = pendingCall;
-              setPendingCall(null);
-              triggerScenario(s);
-            }}
-            onDecline={() => setPendingCall(null)}
-          />
-        )}
-        <GlossaryOverlay
-          open={glossaryOpen}
-          onClose={() => setGlossaryOpen(false)}
-          stations={PATCH_AREAS.flatMap((a) => stationsByArea[a])}
-        />
-        {activeIncident && outcome && (
-          <DebriefScreen
-            incident={activeIncident}
-            outcome={outcome}
-            deployments={incidentDeployments}
-            sim={incidentSim}
-            treatmentByCasualtyId={treatmentByCasualtyId}
-            log={log}
-            tasks={tasks}
-            onDismiss={dismissIncident}
-          />
-        )}
-        {/* Map layers — what is on the board, and what the operator has
-            chosen not to look at. Sits under the tool menu on the same
-            rail, and is hidden in the ground view which draws its own
-            world. */}
-        {!groundViewOpen && (
-          <div className="pointer-events-none absolute right-3 top-24 z-[1190]">
-            <MapFilters
-              filter={mapFilter}
-              onChange={setMapFilter}
-              typesPresent={mapContents.types}
-              countsByService={mapContents.countsByService}
-            />
-          </div>
-        )}
-
-        {/* Tools — one place to bring a panel up or put it away. Every
-            entry is a toggle, so it also shows what is open. Hidden in
-            the ground view, which has its own rails. */}
-        {!groundViewOpen && (
-          <ToolMenu
-            tools={[
-              {
-                id: "search",
-                label: "Search",
-                hint: "person · vehicle · address",
-                on: showSearch,
-                onToggle: () => setShowSearch((v) => !v),
-              },
-              {
-                id: "stack",
-                label: "Call stack",
-                hint: pendingCalls.length > 0 ? `${pendingCalls.length} waiting` : undefined,
-                on: showCallStack,
-                onToggle: () => setShowCallStack((v) => !v),
-              },
-              {
-                id: "log",
-                label: "Dispatch log",
-                hint: String(log.length),
-                on: showDispatchLog,
-                onToggle: () => setShowDispatchLog((v) => !v),
-              },
-              {
-                id: "resources",
-                label: "Resources",
-                on: resourcesVisible,
-                onToggle: () => setResourcesVisible((v) => !v),
-              },
-              {
-                id: "incident",
-                label: "Incident card",
-                hint: activeIncident ? undefined : "no job",
-                on: !!activeIncident && incidentPanelVisible,
-                onToggle: () => setIncidentPanelVisible((v) => !v),
-                disabled: !activeIncident,
-                disabledNote: "Opens once a job is on the stack — double-click it there",
-              },
-              {
-                id: "calllog",
-                label: "999 call log",
-                hint: activeIncident
-                  ? informantOnCall
-                    ? "on the line"
-                    : undefined
-                  : "no job",
-                on: !!activeIncident && showCallLog,
-                onToggle: () => setShowCallLog((v) => !v),
-                disabled: !activeIncident,
-                disabledNote: "There is no call to show until a job is answered",
-              },
-              {
-                id: "leds",
-                label: "LEDS",
-                // An unexplained check is the one thing here worth
-                // interrupting the operator about, so it takes the hint
-                // line off the plain count when there is one.
-                hint:
-                  unexplainedChecks(ledsChecks).length > 0
-                    ? `${unexplainedChecks(ledsChecks).length} unexplained`
-                    : ledsChecks.length > 0
-                      ? `${ledsChecks.length} check${ledsChecks.length === 1 ? "" : "s"}`
-                      : "vehicle · person",
-                on: showLeds,
-                onToggle: () => setShowLeds((v) => !v),
-              },
-              {
-                id: "anpr",
-                label: "ANPR console",
-                hint: anprOpenCount > 0 ? `${anprOpenCount} open` : "camera hits",
-                on: showAnpr,
-                onToggle: () => setShowAnpr((v) => !v),
-                disabled: true,
-                disabledNote: "Not built yet",
-              },
-              {
-                id: "glossary",
-                label: "Glossary",
-                on: glossaryOpen,
-                onToggle: () => setGlossaryOpen((v) => !v),
-              },
-            ]}
-          />
-        )}
-        {/* Search — people, vehicles, addresses; the map shows the answer. */}
-        {!groundViewOpen && showSearch && (
-          <SearchPanel
-            index={recordIndex}
-            onFocusPlace={focusMap}
-            onSelectAppliance={setSelectedApplianceId}
-            onOpenStationBays={setBayStationId}
-            onSelectIncident={(id) => setSelectedIncidentId(id)}
-            onClose={() => setShowSearch(false)}
-          />
-        )}
-        {/* The 999 call log — the caller's words, the on-the-line state
-            and the job's risk lines, as a movable panel. */}
-        {!groundViewOpen && showCallLog && activeIncident && (
-          <CallLogPanel
-            incident={activeIncident}
-            informantLog={informantLog}
-            informantOnCall={informantOnCall}
-            onClose={() => setShowCallLog(false)}
-          />
-        )}
-        {/* The call stack — unanswered calls above the line, running jobs
-            below, and the drop target for dragging a unit onto a job.
-            Hidden in the ground view, which is a single-incident space. */}
-        {!groundViewOpen && showAnpr && (
-          <AnprConsole
-            shiftStartedAt={shiftStartedAt}
-            now={now}
-            actioned={anprActioned}
-            onAction={(id) => setAnprActioned((prev) => ({ ...prev, [id]: true }))}
-            onEnquire={(vrm) => {
-              setLedsPrefill(vrm);
-              setShowLeds(true);
-            }}
-            onLocate={(c) => setMapFocus({ lat: c.lat, lng: c.lng, zoom: 14, key: Date.now() })}
-            onClose={() => setShowAnpr(false)}
-          />
-        )}
-        {!groundViewOpen && showLeds && (
-          <LedsTerminal
-            index={recordIndex}
-            activeIncidentId={activeIncident?.id ?? null}
-            checks={ledsChecks}
-            onCheck={recordLedsCheck}
-            prefill={ledsPrefill}
-            onPrefillUsed={() => setLedsPrefill(null)}
-            onClose={() => setShowLeds(false)}
-          />
-        )}
-        {!groundViewOpen && showCallStack && (
-          <CallStack
-            pending={pendingCalls}
-            incidents={incidents}
-            selectedIncidentId={selectedIncidentId}
-            now={now}
-            unitsByIncident={deployments.reduce<
-              Record<
-                string,
-                { id: string; callsign: string; typeName: string; label: string; tone: "mobile" | "onscene" | "other" }[]
-              >
-            >((acc, d) => {
-              const ap = applianceById.get(d.applianceId);
-              if (!ap) return acc;
-              const onScene = now >= d.arrivesAt;
-              const returning = d.returnStartedAt !== undefined && now >= d.returnStartedAt;
-              const conveying =
-                !returning &&
-                d.hospitalLegStartedAt !== undefined &&
-                now >= d.hospitalLegStartedAt;
-              const etaSec = Math.max(0, Math.round((d.arrivesAt - now) / 1000));
-              (acc[d.incidentId] ??= []).push({
-                id: d.applianceId,
-                callsign: ap.callsign,
-                typeName: ap.typeName,
-                label: returning
-                  ? "Returning"
-                  : conveying
-                    ? "To hospital"
-                    : onScene
-                    ? "On scene"
-                    : etaSec > 3600
-                      ? "Awaiting LZ"
-                      : `ETA ${Math.max(1, Math.round(etaSec / 60))}m`,
-                tone: returning || conveying ? "other" : onScene ? "onscene" : "mobile",
-              });
-              return acc;
-            }, {})}
-            isResolved={(id) => !!runtimes[id]?.outcome}
-            commandOptionsOf={commandOptionsFor}
-            pdaOf={pdaFor}
-            onHandCommandTo={handCommandToFor}
-            handoverOf={(id) => {
-              const h = runtimes[id]?.handover;
-              if (!h) return null;
-              const pending = h.requests.find(
-                (r) => r.announced && r.metAtMs === undefined && !r.missed,
+          )}
+          {selectedAppliance && (() => {
+            // En-route units get the pre-arrival instructions panel instead
+            // of the static vehicle sheet — the operator can rig BA crews or
+            // pre-pair a medical unit to a casualty before it lands.
+            const enRoute = deployments.find(
+              (d) =>
+                d.applianceId === selectedAppliance.id &&
+                !d.returnStartedAt &&
+                !d.hospitalLegStartedAt &&
+                now < d.arrivesAt,
+            );
+            if (enRoute) {
+              return (
+                <PreArrivalPanel
+                  appliance={selectedAppliance}
+                  deployment={enRoute}
+                  now={now}
+                  casualties={incidentSim?.foundCasualties ?? []}
+                  onSetPreCommitBaCrew={setPreCommitBaCrew}
+                  onSetTreatingCasualty={setTreatingCasualty}
+                  onClose={() => setSelectedApplianceId(null)}
+                />
               );
-              return {
-                callsign: h.callsign,
-                clearAtMs: h.clearAtMs,
-                effectiveAtMs: h.effectiveAtMs ?? h.atMs,
-                pending: pending ? { label: pending.label, dueAtMs: pending.dueAtMs } : null,
-              };
-            }}
-            onAnswer={(call) => {
-              // Answered in place on the stack — a control room does not
-              // stop for a call, it picks it up. No full-screen takeover.
-              setPendingCalls((prev) => prev.filter((c) => c.id !== call.id));
-              triggerScenario(call.scenario);
-            }}
-            onDecline={(call) => {
-              setPendingCalls((prev) => prev.filter((c) => c.id !== call.id));
-              // A graded call with nobody sent is either the right call
-              // — Right Care Right Person, a clean call-back — or a job
-              // that comes back later and worse. Say which.
-              const disp = call.scenario.disposal;
-              const at = Date.now();
-              setLog((prev) => [
-                ...prev,
-                {
-                  id: `decline:${at}`,
-                  timestamp: at,
-                  kind: disp ? "annotation" : "setback",
-                  message: disp
-                    ? `${call.scenario.title} — closed at the desk, no deployment. ${disp.basis}.`
-                    : `${call.scenario.title} — declined with nobody sent. A graded call does not go away because the desk did not answer it.`,
-                },
-              ]);
-            }}
-            onSelectIncident={(id) => setSelectedIncidentId(id)}
-            onOpenIncident={(id) => {
-              setSelectedIncidentId(id);
-              setIncidentPanelVisible(true);
-            }}
-            onDropAppliance={(incidentId, applianceId, stationId) => {
-              // Dropping onto a job that is not the one on screen would
-              // otherwise mobilise to the WRONG incident, because
-              // deployAppliance reads the current selection. Select first,
-              // then mobilise on the next tick.
-              const eta = etas[stationId];
-              if (!eta) return;
-              deployAppliance({
-                applianceId,
-                slotId: "extra",
-                incidentId,
-                etaSeconds: eta.seconds,
-                routeMeters: eta.meters,
-                routeCoords: eta.coords ?? undefined,
-              });
-              // Follow the drop, so the operator sees where it went.
-              if (incidentId !== selectedIncidentId) setSelectedIncidentId(incidentId);
-            }}
-            onClose={() => setShowCallStack(false)}
-            ready={callsReady}
-            onToggleReady={() => setCallsReady((v) => !v)}
+            }
+            return (
+              <DraggableVehiclePanel
+                appliance={selectedAppliance}
+                onClose={() => setSelectedApplianceId(null)}
+                onRefuel={refuel}
+                onRefillWater={refillWater}
+                onSendToMaintenance={sendToMaintenance}
+                onStandDownForWelfare={standDownForWelfare}
+              />
+            );
+          })()}
+          {/* The classic dark call-information box, still there under Comms. */}
+          {activeIncident && incidentPanelVisible && (
+            <DraggableIncidentPanel
+              incident={activeIncident}
+              stations={allDeployableStations}
+              deployments={incidentDeployments}
+              log={log}
+              outcome={outcome}
+              onDeploy={deployAppliance}
+              onStandDownForWelfare={standDownForWelfare}
+              onResolve={resolveIncident}
+              onDismiss={dismissIncident}
+              onClose={() => setIncidentPanelVisible(false)}
+              commandOptions={commandOptions()}
+              handover={handover}
+              onHandCommandTo={handCommandTo}
+            />
+          )}
+          {/* Search — people, vehicles, addresses; the map shows the answer. */}
+          {showSearch && (
+            <SearchPanel
+              index={recordIndex}
+              onFocusPlace={focusMap}
+              onSelectAppliance={setSelectedApplianceId}
+              onOpenStationBays={setBayStationId}
+              onSelectIncident={(id) => setSelectedIncidentId(id)}
+              onClose={() => setShowSearch(false)}
+            />
+          )}
+          {/* The 999 call log — the caller's words, the on-the-line state
+              and the job's risk lines, as a movable panel. */}
+          {showCallLog && activeIncident && (
+            <CallLogPanel
+              incident={activeIncident}
+              informantLog={informantLog}
+              informantOnCall={informantOnCall}
+              onClose={() => setShowCallLog(false)}
+            />
+          )}
+          {showAnpr && (
+            <AnprConsole
+              shiftStartedAt={shiftStartedAt}
+              now={now}
+              actioned={anprActioned}
+              onAction={(id) => setAnprActioned((prev) => ({ ...prev, [id]: true }))}
+              onEnquire={(vrm) => {
+                setLedsPrefill(vrm);
+                setShowLeds(true);
+              }}
+              onLocate={(c) => setMapFocus({ lat: c.lat, lng: c.lng, zoom: 14, key: Date.now() })}
+              onClose={() => setShowAnpr(false)}
+            />
+          )}
+          {showLeds && (
+            <LedsTerminal
+              index={recordIndex}
+              activeIncidentId={activeIncident?.id ?? null}
+              checks={ledsChecks}
+              onCheck={recordLedsCheck}
+              prefill={ledsPrefill}
+              onPrefillUsed={() => setLedsPrefill(null)}
+              onClose={() => setShowLeds(false)}
+            />
+          )}
+          {/* The classic call stack — still available from Comms for
+              anyone who wants the old spine back. */}
+          {showCallStack && (
+            <CallStack
+              pending={pendingCalls}
+              incidents={incidents}
+              selectedIncidentId={selectedIncidentId}
+              now={now}
+              unitsByIncident={deployments.reduce<
+                Record<
+                  string,
+                  { id: string; callsign: string; typeName: string; label: string; tone: "mobile" | "onscene" | "other" }[]
+                >
+              >((acc, d) => {
+                const ap = applianceById.get(d.applianceId);
+                if (!ap) return acc;
+                const onScene = now >= d.arrivesAt;
+                const returning = d.returnStartedAt !== undefined && now >= d.returnStartedAt;
+                const conveying =
+                  !returning &&
+                  d.hospitalLegStartedAt !== undefined &&
+                  now >= d.hospitalLegStartedAt;
+                const etaSec = Math.max(0, Math.round((d.arrivesAt - now) / 1000));
+                (acc[d.incidentId] ??= []).push({
+                  id: d.applianceId,
+                  callsign: ap.callsign,
+                  typeName: ap.typeName,
+                  label: returning
+                    ? "Returning"
+                    : conveying
+                      ? "To hospital"
+                      : onScene
+                      ? "On scene"
+                      : etaSec > 3600
+                        ? "Awaiting LZ"
+                        : `ETA ${Math.max(1, Math.round(etaSec / 60))}m`,
+                  tone: returning || conveying ? "other" : onScene ? "onscene" : "mobile",
+                });
+                return acc;
+              }, {})}
+              isResolved={(id) => !!runtimes[id]?.outcome}
+              commandOptionsOf={commandOptionsFor}
+              pdaOf={pdaFor}
+              onHandCommandTo={handCommandToFor}
+              handoverOf={(id) => {
+                const h = runtimes[id]?.handover;
+                if (!h) return null;
+                const pending = h.requests.find(
+                  (r) => r.announced && r.metAtMs === undefined && !r.missed,
+                );
+                return {
+                  callsign: h.callsign,
+                  clearAtMs: h.clearAtMs,
+                  effectiveAtMs: h.effectiveAtMs ?? h.atMs,
+                  pending: pending ? { label: pending.label, dueAtMs: pending.dueAtMs } : null,
+                };
+              }}
+              onAnswer={(call) => answerCallById(call.id)}
+              onDecline={(call) => declineCallById(call.id)}
+              onSelectIncident={(id) => setSelectedIncidentId(id)}
+              onOpenIncident={(id) => {
+                setSelectedIncidentId(id);
+                setTiles((t) => ({ ...t, incident: true }));
+              }}
+              onDropAppliance={(incidentId, applianceId, stationId) => {
+                mobiliseTo(applianceId, stationId, incidentId);
+                if (incidentId !== selectedIncidentId) setSelectedIncidentId(incidentId);
+              }}
+              onClose={() => setShowCallStack(false)}
+              ready={callsReady}
+              onToggleReady={() => setCallsReady((v) => !v)}
+            />
+          )}
+          {showDispatchLog && <DispatchLog log={log} onClose={() => setShowDispatchLog(false)} />}
+        </>
+      }
+      ground={
+        activeIncident && groundViewOpen && incidentSim ? (
+          <>
+            <IncidentView
+              incident={activeIncident}
+              stations={allDeployableStations}
+              patch={patch}
+              deployments={incidentDeployments}
+              etas={etas}
+              log={log}
+              now={now}
+              sim={incidentSim}
+              tasks={tasks}
+              sceneCommanderApplianceId={sceneCommanderApplianceId}
+              crewAir={crewAir}
+              busyCrewIds={busyCrewIds}
+              vehicleGauges={vehicleGauges}
+              onSetParkingPos={setParkingPos}
+              onSetPreCommitBaCrew={setPreCommitBaCrew}
+              onSetLightState={setLightState}
+              onSetPumpRunning={setPumpRunning}
+              onSetPumpOperator={setPumpOperator}
+              onSetFastAttackDeployed={setFastAttackDeployed}
+              onToggleCrewEquipment={toggleCrewEquipment}
+              onSetCrewLoadout={setCrewLoadout}
+              onDeploy={deployAppliance}
+              onStandDownForWelfare={standDownForWelfare}
+              onStandDown={standDownAppliance}
+              onStartTask={startTask}
+              onAbortTask={abortTask}
+              onUpdateBaRemarks={updateBaRemarks}
+              onUpdateBaEntryPoint={updateBaEntryPoint}
+              onSetTreatingCasualty={setTreatingCasualty}
+              informantLog={informantLog}
+              informantOnCall={informantOnCall}
+              tacticalMode={tacticalMode}
+              onDeclareTacticalMode={declareTacticalMode}
+              fatigueByApplianceId={fatigueByApplianceId}
+              treatmentByCasualtyId={treatmentByCasualtyId}
+              onStartPatientSurvey={startPatientSurvey}
+              onApplyAirway={applyAirway}
+              onApplyBreathing={applyBreathing}
+              onApplyCirculation={applyCirculation}
+              resusByCasualtyId={resusByCasualtyId}
+              onSetOxygen={setOxygen}
+              onSetResusAirway={setResusAirway}
+              onAttachMonitor={attachMonitor}
+              onToggleCapnography={toggleCapnography}
+              onSetCompressor={setCompressor}
+              onFitLucas={fitLucas}
+              onDeliverShock={deliverShock}
+              onMovePads={movePads}
+              onArrestAdrenaline={giveArrestAdrenaline}
+              onAmiodarone={giveAmiodarone}
+              onSuspectReversible={suspectReversible}
+              onTreatReversible={treatReversible}
+              onStopResus={stopResus}
+              onAdministerDrug={administerDrug}
+              onApplyPackaging={applyPackaging}
+              onApplyEgress={applyEgress}
+              onRequestClinician={requestClinician}
+              hemsFlyable={hemsAvailable(weather)}
+              onSetTreatmentDestination={setTreatmentDestination}
+              onSendAtmistPrealert={sendAtmistPrealert}
+              onConveyCasualtyVia={conveyCasualtyVia}
+              mdtVisible={incidentPanelVisible}
+              onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
+              placePendingApplianceId={placePendingApplianceId}
+              onClearPlacePending={() => setPlacePendingApplianceId(null)}
+              selectedVehicleId={mdtUnitId}
+              onVehicleSelect={(id) => {
+                setMdtUnitId(id);
+                setIncidentPanelVisible(true);
+              }}
+              pendingClosure={pendingClosure}
+              onSetPendingClosure={setPendingClosure}
+              muster={muster}
+              groundEntryView={groundEntryView}
+              pendingMuster={pendingMuster}
+              onSetPendingMuster={setPendingMuster}
+              onPlaceMuster={(lat, lng, radiusM) => {
+                setMuster({ lat, lng, radiusM });
+                setPendingMuster(false);
+                setLog((prev) => [
+                  ...prev,
+                  {
+                    id: `ccp:${Date.now()}`,
+                    timestamp: Date.now(),
+                    kind: "annotation",
+                    message: `Casualty muster area designated, ${Math.round(radiusM)} m radius — walking wounded and casualties to RV`,
+                  },
+                ]);
+              }}
+              rotatePendingApplianceId={rotatePendingApplianceId}
+              onSetRotatePending={setRotatePendingApplianceId}
+              onClose={() => {
+                setGroundViewOpen(false);
+                setIncidentPanelVisible(areaPanelBeforeGroundRef.current);
+                setVecScreen("dispatch");
+              }}
+            />
+            {/* Rugged MDT tablet — ground view's incident terminal. */}
+            {incidentPanelVisible && (
+              <DraggableIncidentMdt
+                incident={activeIncident}
+                stations={allDeployableStations}
+                deployments={incidentDeployments}
+                log={log}
+                outcome={outcome}
+                onDeploy={deployAppliance}
+                onStandDownForWelfare={standDownForWelfare}
+                onResolve={resolveIncident}
+                onDismiss={dismissIncident}
+                onClose={() => setIncidentPanelVisible(false)}
+                sim={incidentSim}
+                tasks={tasks}
+                now={now}
+                informantLog={informantLog}
+                informantOnCall={informantOnCall}
+                treatmentByCasualtyId={treatmentByCasualtyId}
+                onSetTreatingCasualty={setTreatingCasualty}
+                onStartPatientSurvey={startPatientSurvey}
+                onApplyAirway={applyAirway}
+                onApplyBreathing={applyBreathing}
+                onApplyCirculation={applyCirculation}
+                resusByCasualtyId={resusByCasualtyId}
+                onSetOxygen={setOxygen}
+                onSetResusAirway={setResusAirway}
+                onAttachMonitor={attachMonitor}
+                onToggleCapnography={toggleCapnography}
+                onSetCompressor={setCompressor}
+                onFitLucas={fitLucas}
+                onDeliverShock={deliverShock}
+                onMovePads={movePads}
+                onArrestAdrenaline={giveArrestAdrenaline}
+                onAmiodarone={giveAmiodarone}
+                onSuspectReversible={suspectReversible}
+                onTreatReversible={treatReversible}
+                onStopResus={stopResus}
+                onAdministerDrug={administerDrug}
+                onApplyPackaging={applyPackaging}
+                onApplyEgress={applyEgress}
+                onRequestClinician={requestClinician}
+                hemsFlyable={hemsAvailable(weather)}
+                onSetTreatmentDestination={setTreatmentDestination}
+                onSendAtmistPrealert={sendAtmistPrealert}
+                onConveyCasualtyVia={conveyCasualtyVia}
+                onUpdateBaRemarks={updateBaRemarks}
+                onUpdateBaEntryPoint={updateBaEntryPoint}
+                onAbortTask={abortTask}
+                etas={etas}
+                patch={patch}
+                onStandDown={standDownAppliance}
+                onSetPreCommitBaCrew={setPreCommitBaCrew}
+                sceneCommanderApplianceId={sceneCommanderApplianceId}
+                crewAir={crewAir}
+                busyCrewIds={busyCrewIds}
+                vehicleGauges={vehicleGauges}
+                onStartTask={startTask}
+                onSetLightState={setLightState}
+                onSetPumpRunning={setPumpRunning}
+                onSetPumpOperator={setPumpOperator}
+                onSetFastAttackDeployed={setFastAttackDeployed}
+                onToggleCrewEquipment={toggleCrewEquipment}
+                onSetCrewLoadout={setCrewLoadout}
+                tacticalMode={tacticalMode}
+                fatigueByApplianceId={fatigueByApplianceId}
+                onBeginRoadClosure={(applianceId, kind, crewIds) =>
+                  setPendingClosure({ applianceId, kind, crewIds })
+                }
+                onRequestRotate={setRotatePendingApplianceId}
+                onArmPlacement={setPlacePendingApplianceId}
+                unitId={mdtUnitId}
+                onSetUnitId={setMdtUnitId}
+              />
+            )}
+          </>
+        ) : null
+      }
+      overlays={
+        <>
+          {pendingCall && (
+            <IncomingCallModal
+              scenario={pendingCall}
+              onAnswer={() => {
+                const s = pendingCall;
+                setPendingCall(null);
+                triggerScenario(s);
+              }}
+              onDecline={() => setPendingCall(null)}
+            />
+          )}
+          <GlossaryOverlay
+            open={glossaryOpen}
+            onClose={() => setGlossaryOpen(false)}
+            stations={PATCH_AREAS.flatMap((a) => stationsByArea[a])}
           />
-        )}
-        {/* Dispatch log — the running record of the shift: timestamped,
-            typed, and never reordered. Movable and resizable, docked to
-            the left of the map. Hidden while the ground view is open,
-            which carries its own rails. */}
-        {!groundViewOpen && showDispatchLog && (
-          <DispatchLog log={log} onClose={() => setShowDispatchLog(false)} />
-        )}
-      </main>
-    </div>
+          {activeIncident && outcome && (
+            <DebriefScreen
+              incident={activeIncident}
+              outcome={outcome}
+              deployments={incidentDeployments}
+              sim={incidentSim}
+              treatmentByCasualtyId={treatmentByCasualtyId}
+              log={log}
+              tasks={tasks}
+              onDismiss={dismissIncident}
+            />
+          )}
+        </>
+      }
+      statusMsg={statusMsg}
+      statusItems={[
+        { text: activeIncident ? `${selectedRef} selected` : "No incident selected" },
+        activeIncident
+          ? pdaShort > 0
+            ? { text: `Attendance ${pdaShort} short on ${selectedRef}`, tone: "stop" as const }
+            : { text: "Attendance complete", tone: "go" as const }
+          : { text: "Select an incident to view attendance" },
+        noCover > 0 ? { text: `${noCover} AREA WITHOUT COVER`, tone: "stop" as const } : { text: "County cover OK", tone: "go" as const },
+        ...(audioMuted ? [{ text: "AUDIO MUTED", tone: "warn" as const }] : []),
+        ...(weather ? [{ text: `${weather.precip.toUpperCase()} · ${String(weather.hourOfDay).padStart(2, "0")}:00` }] : []),
+      ]}
+    />
   );
 }
 

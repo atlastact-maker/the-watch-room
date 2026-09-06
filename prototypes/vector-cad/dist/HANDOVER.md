@@ -89,3 +89,13 @@ Build: npm run build emits a self-contained ESM Worker in dist/server/index.js a
 - More compact selected incident strip and stronger workspace/panel styling.
 - Light/dark mode switch in the main navigation, remembered per browser and applied to detached panels.
 - Workflow, layout and session tests passed. Browser checked clear selection, light/dark switching, theme persistence and the 999 screen.
+
+## Production integration (September 2026)
+
+The Dispatch, 999 Call, Mobilising and Ground screens, the tile workspace
+and the light/dark theme have been rebuilt in the Next.js app under
+`src/app/dashboard/vector/` and are now the on-shift UI at `/dashboard`.
+They are wired to the existing simulator (incidents, deployments, PDA,
+ETAs, LEDS, ANPR, ground view, MDT) rather than to this prototype's mock
+data, as this handover asked. This folder stays as the design reference
+and the standalone preview; changes to the live desk belong in the app.

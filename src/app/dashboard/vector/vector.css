@@ -1,0 +1,2015 @@
+/* ==========================================================================
+   VECTOR — the on-shift CAD chrome.
+
+   Ported from prototypes/vector-cad (VECTOR Dispatch). Light control-room
+   palette with a dark mode, IBM Plex type, dense 11px UI, dark-blue tile
+   handles. Everything is scoped under .cad-application so the rest of the
+   site keeps its own look. The design tokens the legacy panels read
+   (--color-bg, --color-surface, …) are re-pointed at the VECTOR palette by
+   cad-theme.ts, so the simulator's existing panels re-skin themselves.
+   ========================================================================== */
+
+.cad-application {
+  /* ---- palette (light) ---- */
+  --vec-bg: #edf0f2;
+  --vec-bg-deep: #c4ccd2;
+  --vec-surface: #ffffff;
+  --vec-surface-raised: #e7ebee;
+  --vec-surface-tint: #eaf1fa;
+  --vec-border: #c4ccd2;
+  --vec-border-strong: #7993a7;
+  --vec-border-subtle: #dfe4e8;
+  --vec-text: #16171a;
+  --vec-text-dim: #54565c;
+  --vec-text-muted: #8b8d94;
+  --vec-handle: #29465d;
+  --vec-handle-border: #7199b8;
+  --vec-handle-text: #ffffff;
+  --vec-work: #1b4d8f;
+  --vec-go: #197a4b;
+  --vec-warn: #a4640b;
+  --vec-stop: #b3261e;
+  --vec-stop-deep: #8a1c16;
+  --vec-off: #8b8d94;
+  --vec-stop-tint: #fdf0ee;
+  --vec-warn-tint: #fff4d8;
+  --vec-go-tint: #f0f7f2;
+  --vec-bar: #16171a;
+  --vec-bar-text: #ffffff;
+  --vec-panelbar: #dbe5ed;
+  --vec-panelbar-border: #7894ab;
+  --vec-mono: var(--font-vector-mono, "IBM Plex Mono"), Consolas, "Liberation Mono", monospace;
+  --vec-sans: var(--font-vector-sans, "IBM Plex Sans"), system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--vec-bg);
+  color: var(--vec-text);
+  font-family: var(--vec-sans);
+  font-size: 12px;
+  line-height: 1.35;
+  user-select: none;
+  color-scheme: light;
+}
+.cad-application *,
+.cad-application *::before,
+.cad-application *::after {
+  box-sizing: border-box;
+}
+.cad-application input,
+.cad-application textarea,
+.cad-application select,
+.cad-application button {
+  font-family: inherit;
+}
+.cad-application input,
+.cad-application textarea {
+  user-select: text;
+}
+
+/* Dark mode — the same board under a night light. */
+html[data-cad-theme="dark"] .cad-application {
+  --vec-bg: #111c27;
+  --vec-bg-deep: #0c141c;
+  --vec-surface: #1b2632;
+  --vec-surface-raised: #182b3b;
+  --vec-surface-tint: #243747;
+  --vec-border: #49647b;
+  --vec-border-strong: #526e86;
+  --vec-border-subtle: #2b3d4d;
+  --vec-text: #e3edf5;
+  --vec-text-dim: #b9c9d6;
+  --vec-text-muted: #93a7b9;
+  --vec-handle: #29465d;
+  --vec-handle-border: #7199b8;
+  --vec-work: #81b7e8;
+  --vec-go: #5fbf8f;
+  --vec-warn: #e0a23c;
+  --vec-stop: #ed827a;
+  --vec-stop-deep: #ed827a;
+  --vec-stop-tint: #3a2321;
+  --vec-warn-tint: #3a2f16;
+  --vec-go-tint: #1c3328;
+  --vec-bar: #0b1218;
+  --vec-panelbar: #182b3b;
+  --vec-panelbar-border: #49647b;
+  color-scheme: dark;
+}
+html[data-cad-theme="dark"] .cad-application {
+  /* Legacy dark scanline texture stays off — it fights the tile chrome. */
+  background: var(--vec-bg);
+}
+
+/* --------------------------------------------------------------------------
+   Top strip · menu bar · screen tabs
+   -------------------------------------------------------------------------- */
+.vec-brand {
+  height: 30px;
+  flex: 0 0 30px;
+  background: var(--vec-bar);
+  color: var(--vec-bar-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 11px;
+  gap: 10px;
+}
+.vec-brand-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.vec-brand-left .vec-wordmark {
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+.vec-brand-left .dim {
+  opacity: 0.5;
+}
+.vec-brand-left .sep {
+  opacity: 0.3;
+}
+.vec-brand-left .place {
+  opacity: 0.75;
+}
+.vec-sim-label {
+  font-size: 8px;
+  border: 1px solid #91a4b4;
+  padding: 2px 5px;
+  letter-spacing: 0.08em;
+  color: #e0e8ed;
+}
+.vec-brand-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--vec-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.vec-brand-right .pos {
+  opacity: 0.75;
+}
+.vec-clock {
+  background: #fff;
+  color: #16171a;
+  padding: 1px 6px;
+  font-weight: 600;
+}
+.vec-brand button.vec-brand-link {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.75;
+}
+.vec-brand button.vec-brand-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.vec-menubar {
+  height: 26px;
+  flex: 0 0 26px;
+  background: var(--vec-surface-raised);
+  border-bottom: 1px solid var(--vec-border);
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  /* Above the tiles and the legacy panels, which sit in the 1100s. */
+  z-index: 1400;
+  font-size: 11px;
+}
+.vec-menubar > button {
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  background: transparent;
+  color: var(--vec-text);
+  border: 0;
+  font-size: 11px;
+  cursor: pointer;
+}
+.vec-menubar > button:hover,
+.vec-menubar > button[aria-expanded="true"] {
+  background: var(--vec-surface-tint);
+}
+.vec-menubar > button[aria-expanded="true"] {
+  background: var(--vec-bar);
+  color: var(--vec-bar-text);
+}
+.vec-menubar .spacer {
+  flex: 1;
+}
+.vec-syslights {
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vec-text-dim);
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.vec-syslights i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--vec-go);
+}
+.vec-syslights i.warn {
+  background: var(--vec-warn);
+}
+.vec-syslights i.off {
+  background: var(--vec-off);
+}
+.vec-syslights i.stop {
+  background: var(--vec-stop);
+}
+.vec-menu-drop {
+  position: absolute;
+  top: 26px;
+  min-width: 250px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  background: var(--vec-surface);
+  border: 1px solid var(--vec-bar);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  z-index: 1410;
+}
+.vec-menu-drop button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  height: 26px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  text-align: left;
+  cursor: pointer;
+  color: var(--vec-text);
+}
+.vec-menu-drop button:hover:not(:disabled) {
+  background: var(--vec-surface-tint);
+}
+.vec-menu-drop button:disabled {
+  color: var(--vec-text-muted);
+  cursor: not-allowed;
+}
+.vec-menu-drop button .lbl {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vec-menu-drop button .hint {
+  flex: 0 0 auto;
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  color: var(--vec-text-muted);
+}
+.vec-menu-drop .rule {
+  height: 6px;
+  background: var(--vec-surface-raised);
+  border-bottom: 1px solid var(--vec-border-subtle);
+}
+
+.vec-tabsbar {
+  height: 36px;
+  flex: 0 0 36px;
+  background: var(--vec-bg);
+  border-bottom: 1px solid var(--vec-border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+.vec-tab {
+  height: 26px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  background: var(--vec-surface);
+  color: var(--vec-text);
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.vec-tab[aria-selected="true"] {
+  background: #1b4d8f;
+  color: #fff;
+  border-color: #1b4d8f;
+}
+.vec-tab:disabled {
+  color: var(--vec-text-muted);
+  cursor: not-allowed;
+}
+.vec-tab .badge {
+  margin-left: 7px;
+  background: var(--vec-stop);
+  color: #fff;
+  border-radius: 2px;
+  padding: 0 5px;
+  font-family: var(--vec-mono);
+  font-size: 9px;
+}
+.vec-tabsbar .vrule {
+  width: 1px;
+  height: 20px;
+  background: var(--vec-border);
+  margin: 0 4px;
+}
+.vec-desk-summary {
+  font-family: var(--vec-mono);
+  font-size: 11px;
+  color: var(--vec-text-dim);
+  white-space: nowrap;
+}
+.vec-theme-toggle {
+  order: 10;
+  margin-left: auto;
+  min-height: 28px;
+  padding: 4px 12px;
+  border: 1px solid #8fa6b9;
+  border-radius: 3px;
+  background: var(--vec-surface);
+  color: var(--vec-text);
+  font: 600 11px var(--vec-sans);
+  cursor: pointer;
+}
+.vec-theme-toggle:focus-visible {
+  outline: 3px solid #d59b30;
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Workspace / panels bar
+   -------------------------------------------------------------------------- */
+.vec-panelbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 10px;
+  background: var(--vec-panelbar);
+  border-top: 1px solid #a4b6c6;
+  border-bottom: 2px solid var(--vec-panelbar-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.vec-panelbar .lbl {
+  background: #29465d;
+  color: #fff;
+  padding: 7px 9px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+}
+.vec-panelbar button {
+  height: 29px;
+  padding: 0 11px;
+  border: 1px solid #98adbe;
+  border-radius: 4px;
+  font: 500 11px var(--vec-sans);
+  background: var(--vec-surface);
+  color: var(--vec-text-dim);
+  cursor: pointer;
+  box-shadow: 0 1px 2px #142c4314;
+  white-space: nowrap;
+}
+.vec-panelbar button[aria-pressed="true"] {
+  background: #245c88;
+  color: #fff;
+  border-color: #18466b;
+  box-shadow: inset 0 -3px #8bc4ee;
+}
+.vec-panelbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.vec-panelbar .spacer {
+  flex: 1;
+}
+.vec-panelbar button .cnt {
+  margin-left: 6px;
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* --------------------------------------------------------------------------
+   Alerts strip and the 999 banner
+   -------------------------------------------------------------------------- */
+.vec-alerts {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding: 4px 8px;
+  background: var(--vec-surface);
+  border-bottom: 1px solid #bbc6ce;
+  font-size: 10px;
+}
+.vec-alerts .lbl {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--vec-text-dim);
+  padding-right: 6px;
+}
+.vec-alerts button {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid #ccd4da;
+  padding: 4px 9px;
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--vec-text);
+  font-family: inherit;
+}
+.vec-alerts button:hover {
+  background: var(--vec-surface-tint);
+}
+.vec-alerts .stat {
+  font-family: var(--vec-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.vec-alerts .link {
+  color: var(--vec-work);
+}
+.vec-alerts .go {
+  color: var(--vec-go);
+}
+.vec-alerts .warn {
+  color: var(--vec-warn);
+}
+.vec-alerts .stop {
+  color: var(--vec-stop);
+}
+
+.vec-call-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--vec-stop-tint);
+  border-bottom: 2px solid var(--vec-stop);
+  animation: vec-banner 1.2s ease-in-out infinite;
+}
+@keyframes vec-banner {
+  0%, 100% { box-shadow: inset 4px 0 0 var(--vec-stop); }
+  50% { box-shadow: inset 4px 0 0 var(--vec-stop-deep); }
+}
+.vec-call-banner .who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.vec-call-banner .ring {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--vec-stop);
+  animation: d-blink 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes d-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.vec-call-banner .title {
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vec-call-banner .meta {
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  color: var(--vec-text-dim);
+  white-space: nowrap;
+}
+.vec-call-banner .grade {
+  font-family: var(--vec-mono);
+  font-weight: 700;
+  font-size: 10px;
+  color: var(--vec-stop);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.vec-call-banner .wait {
+  font-family: var(--vec-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Selected incident strip
+   -------------------------------------------------------------------------- */
+.vec-focus {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 8px 12px 8px;
+  background: var(--vec-surface);
+  border-bottom: 1px solid var(--vec-border);
+}
+.vec-focus .main {
+  flex: 1;
+  min-width: 0;
+}
+.vec-focus .refline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--vec-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+.vec-focus .refline .sev {
+  padding: 1px 6px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--vec-stop);
+  border-radius: 2px;
+}
+.vec-focus .refline .sev.moderate {
+  background: var(--vec-warn);
+}
+.vec-focus .refline .sev.low {
+  background: var(--vec-go);
+}
+.vec-focus .refline .sev.major {
+  background: var(--vec-stop-deep);
+}
+.vec-focus h2 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.vec-focus .addr {
+  margin-top: 2px;
+  color: var(--vec-text-dim);
+  font-size: 12px;
+}
+.vec-focus-units {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+.vec-focus-units button {
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid #aec2d3;
+  border-radius: 2px;
+  background: var(--vec-surface);
+  color: #193b57;
+  padding: 4px 7px;
+  font: 11px var(--vec-sans);
+  cursor: pointer;
+}
+html[data-cad-theme="dark"] .vec-focus-units button {
+  background: #243747;
+  color: #dceaf5;
+  border-color: #49647b;
+}
+.vec-focus-units .empty {
+  font-size: 11px;
+  color: var(--vec-text-muted);
+  padding: 4px 0;
+}
+.vec-focus .side {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.vec-focus .clear {
+  background: transparent;
+  border: 1px solid #bdc9d2;
+  color: #3e5668;
+  padding: 6px 10px;
+  min-height: 32px;
+  border-radius: 3px;
+  font: 12px var(--vec-sans);
+  cursor: pointer;
+}
+html[data-cad-theme="dark"] .vec-focus .clear {
+  color: #c9ddec;
+  background: #243747;
+  border-color: #49647b;
+}
+.vec-focus .clear:hover {
+  filter: brightness(0.96);
+}
+.vec-focus .next {
+  border-left: 1px solid var(--vec-border);
+  padding-left: 14px;
+  text-align: right;
+}
+.vec-focus .next .summary {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9b3f14;
+  white-space: nowrap;
+}
+.vec-focus .next .summary.ok {
+  color: #17603e;
+}
+html[data-cad-theme="dark"] .vec-focus .next .summary {
+  color: var(--vec-warn);
+}
+html[data-cad-theme="dark"] .vec-focus .next .summary.ok {
+  color: var(--vec-go);
+}
+.vec-focus .next .note {
+  font-size: 10px;
+  color: var(--vec-text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.vec-btn-primary {
+  margin-top: 6px;
+  background: #1b4d8f;
+  color: #fff;
+  border: 1px solid #1b4d8f;
+  border-radius: 3px;
+  padding: 8px 18px;
+  font: 700 12px var(--vec-sans);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vec-btn-primary:hover {
+  background: #163f75;
+}
+.vec-btn-primary:disabled {
+  background: var(--vec-off);
+  border-color: var(--vec-off);
+  cursor: not-allowed;
+}
+.vec-btn {
+  background: var(--vec-surface);
+  color: var(--vec-text);
+  border: 1px solid #98adbe;
+  border-radius: 3px;
+  padding: 5px 10px;
+  font: 500 11px var(--vec-sans);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vec-btn:hover:not(:disabled) {
+  background: var(--vec-surface-tint);
+}
+.vec-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.vec-btn.stop {
+  color: var(--vec-stop);
+  border-color: var(--vec-stop);
+}
+.vec-btn.solid {
+  background: #1b4d8f;
+  border-color: #1b4d8f;
+  color: #fff;
+}
+.vec-btn.solid:hover:not(:disabled) {
+  background: #163f75;
+}
+.vec-btn.go {
+  background: #197a4b;
+  border-color: #197a4b;
+  color: #fff;
+}
+.vec-btn.go:hover:not(:disabled) {
+  background: #14633c;
+}
+.vec-btn.mini {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* --------------------------------------------------------------------------
+   Map workspace, map bar, tiles
+   -------------------------------------------------------------------------- */
+.vec-workspace {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.vec-mapbar {
+  height: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background: var(--vec-bg);
+  border-bottom: 1px solid var(--vec-border);
+  gap: 10px;
+}
+.vec-mapbar .title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.vec-mapbar .right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vec-map-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.vec-map-area > .map-fill {
+  position: absolute;
+  inset: 0;
+}
+.vec-map-attrib {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  z-index: 1150;
+  background: rgba(22, 23, 26, 0.9);
+  color: #fff;
+  font: 10px var(--vec-mono);
+  padding: 2px 7px;
+  pointer-events: none;
+}
+.vec-map-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--vec-text-muted);
+  font-family: var(--vec-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+
+.vec-tile {
+  position: absolute;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vec-border-strong);
+  border-radius: 2px;
+  background: var(--vec-surface);
+  box-shadow: 0 5px 18px #142c4338;
+  overflow: hidden;
+  color: var(--vec-text);
+}
+html[data-cad-theme="dark"] .vec-tile {
+  box-shadow: 0 6px 22px #0008;
+}
+.vec-tile-handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 27px;
+  flex: 0 0 27px;
+  padding: 0 6px 0 9px;
+  background: var(--vec-handle);
+  border-bottom: 2px solid var(--vec-handle-border);
+  color: var(--vec-handle-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: grab;
+  touch-action: none;
+}
+.vec-tile-handle .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vec-tile-handle .t .cnt {
+  font-family: var(--vec-mono);
+  font-size: 9px;
+  opacity: 0.8;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+.vec-tile-handle .t .flag {
+  background: var(--vec-stop);
+  color: #fff;
+  padding: 0 5px;
+  font-size: 9px;
+  border-radius: 2px;
+}
+.vec-tile-handle button {
+  width: 23px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.vec-tile-handle button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.vec-tile-handle button.txt {
+  width: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  margin-right: 4px;
+}
+.vec-tile-handle button.txt.go {
+  background: #197a4b;
+}
+.vec-tile-handle button.txt.warn {
+  background: #a4640b;
+}
+.vec-tile-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.vec-tile-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 9px;
+  background: var(--vec-surface-raised);
+  border-bottom: 1px solid var(--vec-border);
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--vec-text-muted);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.vec-tile-sub strong {
+  color: var(--vec-text);
+  font-weight: 700;
+}
+.vec-tile-sub .stop {
+  color: var(--vec-stop);
+}
+.vec-tile-sub .go {
+  color: var(--vec-go);
+}
+.vec-tile-sub .warn {
+  color: var(--vec-warn);
+}
+.vec-tile-foot {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border-top: 1px solid var(--vec-border);
+  font-size: 10px;
+  color: var(--vec-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vec-tile-empty {
+  padding: 16px 10px;
+  text-align: center;
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+  text-transform: uppercase;
+}
+
+/* Rows in tiles */
+.vec-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.vec-row.static {
+  cursor: default;
+}
+.vec-row .bar {
+  width: 4px;
+  flex-shrink: 0;
+  background: var(--vec-border);
+}
+.vec-row.on {
+  background: var(--vec-surface-tint);
+}
+.vec-row.on .bar {
+  background: var(--vec-stop);
+}
+.vec-row.hot {
+  background: var(--vec-warn-tint);
+  outline: 1px solid var(--vec-warn);
+  outline-offset: -1px;
+}
+.vec-row .body {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+}
+.vec-row .line1 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+.vec-row .line1 .grade {
+  color: var(--vec-work);
+  letter-spacing: 0.06em;
+}
+.vec-row .line1 .grade.stop {
+  color: var(--vec-stop);
+}
+.vec-row .line1 .grade.go {
+  color: var(--vec-go);
+}
+.vec-row .line1 .time {
+  font-weight: 400;
+  color: var(--vec-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.vec-row .line1 .time.stop {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+.vec-row .line1 .time.warn {
+  color: var(--vec-warn);
+  font-weight: 700;
+}
+.vec-row .body > * {
+  display: block;
+}
+.vec-row .body > .line1,
+.vec-row .body > .tag {
+  display: flex;
+}
+.vec-row .ttl {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vec-row .sub {
+  font-size: 11px;
+  color: var(--vec-text-dim);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vec-row .tag {
+  font-family: var(--vec-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+  margin-top: 2px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.vec-row .tag .short {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+.vec-row .tag .ok {
+  color: var(--vec-go);
+  font-weight: 700;
+}
+.vec-row .tag .sev {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+.vec-row .actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 9px;
+  background: var(--vec-surface-raised);
+  border-top: 1px solid var(--vec-border-subtle);
+  font-size: 11px;
+}
+.vec-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 6px 9px 2px;
+}
+.vec-stats div {
+  font-family: var(--vec-mono);
+}
+.vec-stats .k {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+}
+.vec-stats .v {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.vec-stats .v.stop {
+  color: var(--vec-stop);
+}
+.vec-drawer {
+  background: var(--vec-surface);
+  border-bottom: 1px solid var(--vec-border);
+  padding: 4px 9px 8px 13px;
+  font-size: 11px;
+}
+.vec-drawer .cmd {
+  font-family: var(--vec-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--vec-text-muted);
+  margin: 4px 0;
+}
+.vec-drawer .cmd.go {
+  color: var(--vec-go);
+}
+.vec-drawer .hand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vec-drawer .hand .k {
+  font-family: var(--vec-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--vec-text-muted);
+}
+.vec-drawer .copies {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.vec-drawer .copies button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--vec-text-dim);
+  font: 11px var(--vec-sans);
+  cursor: pointer;
+}
+.vec-drawer .copies button:hover {
+  color: var(--vec-work);
+  text-decoration: underline;
+}
+
+/* Service filter tabs used in Calls and Resources tiles */
+.vec-svctabs {
+  display: flex;
+  border-bottom: 1px solid var(--vec-border);
+  flex-shrink: 0;
+}
+.vec-svctabs button {
+  flex: 1;
+  padding: 6px 4px;
+  border: 0;
+  border-right: 1px solid var(--vec-border-subtle);
+  background: transparent;
+  color: var(--vec-text-dim);
+  font: 700 10px var(--vec-mono);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.vec-svctabs button:last-child {
+  border-right: 0;
+}
+.vec-svctabs button[aria-pressed="true"] {
+  background: #16171a;
+  color: #fff;
+}
+.vec-svctabs button[aria-pressed="true"].fire {
+  background: #b3261e;
+}
+.vec-svctabs button[aria-pressed="true"].amb {
+  background: #197a4b;
+}
+.vec-svctabs button[aria-pressed="true"].pol {
+  background: #1b4d8f;
+}
+.vec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  align-items: center;
+}
+.vec-chips .k {
+  font-family: var(--vec-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+  margin-right: 2px;
+}
+.vec-chip {
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  background: var(--vec-surface);
+  color: var(--vec-text-dim);
+  padding: 2px 7px;
+  font: 700 10px var(--vec-mono);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vec-chip[aria-pressed="true"] {
+  background: #16171a;
+  color: #fff;
+  border-color: #16171a;
+}
+.vec-chip .n {
+  font-weight: 400;
+  opacity: 0.8;
+  margin-left: 3px;
+}
+
+/* Resource cards */
+.vec-cards {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+.vec-card {
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  background: var(--vec-surface);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  box-shadow: 0 1px 3px #142c4314;
+}
+.vec-card.blocked {
+  background: var(--vec-bg);
+  opacity: 0.85;
+}
+.vec-card.deployed {
+  border-color: var(--vec-go);
+}
+.vec-card .cs {
+  font-family: var(--vec-mono);
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vec-card .cs .st {
+  font: 700 10px var(--vec-sans);
+  background: var(--vec-surface-raised);
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  padding: 1px 7px;
+  color: var(--vec-text-dim);
+}
+.vec-card .cs .st.go {
+  color: var(--vec-go);
+  border-color: var(--vec-go);
+}
+.vec-card .cs .st.warn {
+  color: var(--vec-warn);
+  border-color: var(--vec-warn);
+}
+.vec-card .eta {
+  font-family: var(--vec-mono);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.vec-card .type {
+  font-size: 12px;
+  font-weight: 700;
+}
+.vec-card .crew {
+  font-size: 11px;
+  color: var(--vec-text-dim);
+  text-align: right;
+  white-space: nowrap;
+}
+.vec-card .stn {
+  font-size: 11px;
+  color: var(--vec-text-dim);
+}
+.vec-card .why {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vec-stop);
+}
+.vec-card .why.ok {
+  color: var(--vec-go);
+}
+.vec-card .foot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.vec-card .cost {
+  font-size: 11px;
+  color: var(--vec-text-muted);
+}
+.vec-card .cost.warn {
+  color: var(--vec-warn);
+}
+.vec-card .cost.stop {
+  color: var(--vec-stop);
+}
+.vec-card .go-btn {
+  background: #1b4d8f;
+  color: #fff;
+  border: 1px solid #1b4d8f;
+  border-radius: 3px;
+  padding: 9px 18px;
+  font: 700 12px var(--vec-sans);
+  cursor: pointer;
+}
+.vec-card .go-btn:hover:not(:disabled) {
+  background: #163f75;
+}
+.vec-card .go-btn:disabled {
+  background: var(--vec-bg-deep);
+  border-color: var(--vec-bg-deep);
+  color: var(--vec-text-muted);
+  cursor: not-allowed;
+}
+html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
+  background: #263b4c;
+  border-color: #263b4c;
+}
+
+/* Tables */
+.vec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.vec-table th {
+  text-align: left;
+  font: 400 9px var(--vec-mono);
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--vec-border);
+  background: var(--vec-surface-raised);
+  white-space: nowrap;
+}
+.vec-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  vertical-align: middle;
+}
+.vec-table tr.short td {
+  background: var(--vec-stop-tint);
+}
+.vec-table .mono {
+  font-family: var(--vec-mono);
+  font-weight: 700;
+}
+.vec-table .stop {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+.vec-table .go {
+  color: var(--vec-go);
+}
+.vec-table .warn {
+  color: var(--vec-warn);
+}
+.vec-table .dim {
+  color: var(--vec-text-muted);
+}
+.vec-stc {
+  display: inline-block;
+  min-width: 20px;
+  text-align: center;
+  padding: 1px 5px;
+  border-radius: 2px;
+  color: #fff;
+  font: 700 10px var(--vec-mono);
+  background: var(--vec-work);
+}
+.vec-stc.s1 { background: #a4640b; }
+.vec-stc.s2 { background: #1b4d8f; }
+.vec-stc.s3, .vec-stc.s4, .vec-stc.s5 { background: #54565c; }
+.vec-stc.s6, .vec-stc.s7 { background: #197a4b; }
+.vec-stc.s8 { background: #8b8d94; }
+.vec-stc.none { background: #b3261e; }
+.vec-svc {
+  display: inline-block;
+  width: 4px;
+  align-self: stretch;
+  border-radius: 1px;
+}
+.vec-svc.Fire { background: #b3261e; }
+.vec-svc.Ambulance { background: #197a4b; }
+.vec-svc.Police { background: #1b4d8f; }
+.vec-svc-pill {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 2px;
+  color: #fff;
+  font: 700 9px var(--vec-mono);
+  letter-spacing: 0.08em;
+}
+.vec-svc-pill.Fire { background: #b3261e; }
+.vec-svc-pill.Ambulance { background: #197a4b; }
+.vec-svc-pill.Police { background: #1b4d8f; }
+
+/* Status bar */
+.vec-statusbar {
+  flex: 0 0 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  background: var(--vec-surface-raised);
+  border-top: 1px solid var(--vec-border);
+  font-size: 10px;
+  color: var(--vec-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.vec-statusbar .stop {
+  color: var(--vec-stop);
+}
+.vec-statusbar .go {
+  color: var(--vec-go);
+}
+.vec-statusbar .warn {
+  color: var(--vec-warn);
+}
+.vec-statusbar .spacer {
+  flex: 1;
+}
+.vec-statusbar .mono {
+  font-family: var(--vec-mono);
+}
+
+/* --------------------------------------------------------------------------
+   Full screens: 999 Call and Mobilising
+   -------------------------------------------------------------------------- */
+.vec-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--vec-bg);
+}
+.vec-screen-head {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: var(--vec-surface);
+  border-bottom: 1px solid var(--vec-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.vec-screen-head h1 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vec-screen-head h1 .dot {
+  width: 9px;
+  height: 9px;
+  background: var(--vec-go);
+  border-radius: 2px;
+}
+.vec-screen-head .mono {
+  font-family: var(--vec-mono);
+  font-size: 10px;
+  color: var(--vec-text-muted);
+  letter-spacing: 0.08em;
+}
+.vec-screen-head .spacer {
+  flex: 1;
+}
+.vec-screen-head p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--vec-text-dim);
+}
+.vec-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  overflow: hidden;
+}
+.vec-grid.call {
+  grid-template-columns: 430px minmax(0, 1fr) 400px;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.vec-grid.mob {
+  grid-template-columns: 430px minmax(0, 1fr) 440px;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+@media (max-width: 1400px) {
+  .vec-grid.call { grid-template-columns: 340px minmax(0, 1fr) 320px; }
+  .vec-grid.mob { grid-template-columns: 340px minmax(0, 1fr) 340px; }
+}
+.vec-box {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--vec-border-strong);
+  border-radius: 2px;
+  background: var(--vec-surface);
+  overflow: hidden;
+}
+.vec-box > header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vec-border);
+  background: var(--vec-surface);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.vec-box > header .mono {
+  font: 400 10px var(--vec-mono);
+  letter-spacing: 0.1em;
+  color: var(--vec-text-muted);
+  text-transform: uppercase;
+}
+.vec-box > header .mono.stop {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+.vec-box > header .mono.go {
+  color: var(--vec-go);
+  font-weight: 700;
+}
+.vec-box > .body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.vec-box.dark-strip {
+  background: #0f1a24;
+  color: #dbe6ef;
+  border-color: #2b4358;
+}
+.vec-call-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1fr auto;
+  gap: 0;
+  border: 1px solid var(--vec-border-strong);
+  background: var(--vec-surface);
+}
+.vec-call-summary > div {
+  padding: 8px 12px;
+  border-right: 1px solid var(--vec-border);
+  min-width: 0;
+}
+.vec-call-summary > div:last-child {
+  border-right: 0;
+  background: var(--vec-stop-tint);
+  border-left: 3px solid var(--vec-stop);
+  min-width: 250px;
+}
+.vec-k {
+  font: 400 9px var(--vec-mono);
+  letter-spacing: 0.12em;
+  color: var(--vec-text-muted);
+  text-transform: uppercase;
+}
+.vec-v {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.vec-v.big {
+  font-family: var(--vec-mono);
+  font-size: 26px;
+  line-height: 1;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.vec-v.grade {
+  font-family: var(--vec-mono);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--vec-stop);
+}
+.vec-small {
+  font-size: 11px;
+  color: var(--vec-text-dim);
+  margin-top: 2px;
+}
+.vec-lines {
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vec-field {
+  border-bottom: 1px solid var(--vec-border-subtle);
+  padding: 7px 10px;
+}
+.vec-field .vec-k {
+  display: flex;
+  justify-content: space-between;
+}
+.vec-field .vec-v {
+  font-family: var(--vec-mono);
+  font-size: 12px;
+}
+.vec-field.in-use {
+  background: var(--vec-surface-tint);
+}
+.vec-sect {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--vec-surface-raised);
+  border-top: 1px solid var(--vec-border);
+  border-bottom: 1px solid var(--vec-border);
+  font: 700 10px var(--vec-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--vec-text-dim);
+}
+.vec-qrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  font-size: 12px;
+}
+.vec-qrow.asked {
+  background: var(--vec-go-tint);
+}
+.vec-qrow .ans {
+  font-size: 11px;
+  color: var(--vec-text-dim);
+  margin-top: 2px;
+}
+.vec-qrow button {
+  background: #1b4d8f;
+  color: #fff;
+  border: 0;
+  border-radius: 2px;
+  padding: 5px 16px;
+  font: 700 10px var(--vec-mono);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.vec-qrow button:disabled {
+  background: var(--vec-off);
+  cursor: default;
+}
+.vec-dialogue {
+  font-family: var(--vec-mono);
+  font-size: 10px;
+}
+.vec-dialogue > div {
+  display: grid;
+  grid-template-columns: 58px 40px 1fr;
+  gap: 6px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--vec-border-subtle);
+}
+.vec-dialogue .who {
+  font-weight: 700;
+  color: var(--vec-work);
+}
+.vec-dialogue .who.calr {
+  color: var(--vec-stop);
+}
+.vec-dialogue .txt {
+  font-family: var(--vec-sans);
+  font-size: 11px;
+}
+.vec-dialogue .txt.urgent {
+  color: var(--vec-warn);
+  font-weight: 700;
+}
+.vec-dialogue .txt.critical {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+.vec-checks {
+  padding: 6px 10px;
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+}
+.vec-checks div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vec-checks i {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--vec-go);
+  flex-shrink: 0;
+}
+.vec-checks i.stop {
+  background: var(--vec-stop);
+}
+.vec-create {
+  margin: 6px 10px;
+  width: calc(100% - 20px);
+  background: #1b4d8f;
+  color: #fff;
+  border: 0;
+  border-radius: 3px;
+  padding: 12px;
+  font: 700 12px var(--vec-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.vec-create:hover:not(:disabled) {
+  background: #163f75;
+}
+.vec-create:disabled {
+  background: var(--vec-off);
+  cursor: not-allowed;
+}
+.vec-typechips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+}
+.vec-typechips button {
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  background: var(--vec-surface);
+  padding: 4px 8px;
+  font: 700 11px var(--vec-sans);
+  cursor: pointer;
+  color: var(--vec-text);
+}
+.vec-typechips button[aria-pressed="true"] {
+  background: #16171a;
+  color: #fff;
+  border-color: #16171a;
+}
+.vec-other {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vec-border-subtle);
+  font-size: 11px;
+}
+.vec-other .state {
+  flex: 1;
+  color: var(--vec-text-dim);
+}
+.vec-other .state.on {
+  color: var(--vec-go);
+  font-weight: 700;
+}
+
+/* Mobilising screen pieces */
+.vec-mob-head {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto auto;
+  border: 1px solid var(--vec-border-strong);
+  background: var(--vec-surface);
+}
+.vec-mob-head > div {
+  padding: 8px 12px;
+  border-right: 1px solid var(--vec-border);
+  text-align: right;
+}
+.vec-mob-head > div:first-child {
+  text-align: left;
+}
+.vec-mob-head > div:last-child {
+  border-right: 0;
+  background: var(--vec-surface-raised);
+}
+.vec-mob-head .ttl {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vec-mob-head .ttl .ref {
+  font-family: var(--vec-mono);
+  font-size: 12px;
+}
+.vec-mob-head .ttl .sev {
+  font: 700 9px var(--vec-mono);
+  padding: 1px 6px;
+  color: #fff;
+  background: var(--vec-stop);
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+}
+.vec-mob-head .val {
+  font-family: var(--vec-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+.vec-mob-head .val.stop {
+  color: var(--vec-stop);
+}
+.vec-mob-head .val.go {
+  color: var(--vec-go);
+}
+.vec-slot {
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  border-bottom: 1px solid var(--vec-border-subtle);
+}
+.vec-slot.unfilled {
+  background: var(--vec-stop-tint);
+}
+.vec-slot .bar {
+  background: var(--vec-work);
+}
+.vec-slot.unfilled .bar {
+  background: var(--vec-stop);
+}
+.vec-slot .body {
+  padding: 8px 10px;
+  min-width: 0;
+}
+.vec-slot .n {
+  display: inline-block;
+  background: var(--vec-work);
+  color: #fff;
+  font: 700 9px var(--vec-mono);
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.vec-slot.unfilled .n {
+  background: var(--vec-stop);
+}
+.vec-slot .lbl {
+  font-size: 12px;
+  font-weight: 700;
+}
+.vec-slot .cs {
+  font-family: var(--vec-mono);
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.vec-slot.unfilled .cs {
+  color: var(--vec-stop);
+}
+.vec-slot .why {
+  font-size: 10px;
+  color: var(--vec-stop);
+  margin-top: 2px;
+}
+.vec-slot .side {
+  padding: 8px 10px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--vec-text-dim);
+}
+.vec-slot .side .state {
+  font: 700 9px var(--vec-mono);
+  letter-spacing: 0.08em;
+  color: var(--vec-go);
+}
+.vec-slot .side .state.warn {
+  color: var(--vec-warn);
+}
+.vec-slot .side .state.stop {
+  color: var(--vec-stop);
+}
+.vec-msg {
+  font-family: var(--vec-mono);
+  font-size: 11px;
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 4px 10px;
+  padding: 10px 12px;
+}
+.vec-msg .k {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #8ea3b5;
+  padding-top: 2px;
+}
+.vec-msg .stop {
+  color: #ff8a80;
+}
+.vec-msg .warn {
+  color: #ffd27a;
+}
+.vec-bays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+.vec-bay {
+  border: 1px solid var(--vec-border);
+  border-radius: 3px;
+  padding: 6px 8px;
+  min-width: 170px;
+  background: var(--vec-surface);
+}
+.vec-bay.empty {
+  background: var(--vec-stop-tint);
+  border-color: var(--vec-stop);
+}
+.vec-bay .hd {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.vec-bay .hd b {
+  font-family: var(--vec-mono);
+}
+.vec-bay .hd span {
+  color: var(--vec-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vec-bay .units {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.vec-bay .unit {
+  font: 700 10px var(--vec-mono);
+  border: 1px solid var(--vec-go);
+  color: var(--vec-go);
+  background: var(--vec-go-tint);
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.vec-bay .unit.out {
+  border-color: var(--vec-stop);
+  color: var(--vec-stop);
+  background: var(--vec-stop-tint);
+}
+.vec-bay .unit.off {
+  border-color: var(--vec-border);
+  color: var(--vec-text-muted);
+  background: var(--vec-surface-raised);
+}
+.vec-bay .note {
+  font: 9px var(--vec-mono);
+  letter-spacing: 0.08em;
+  color: var(--vec-text-muted);
+  margin-top: 4px;
+}
+.vec-bay.empty .note {
+  color: var(--vec-stop);
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Legacy simulator panels (call stack, dispatch log, LEDS, ANPR, search,
+   resources, incident card, vehicle, pre-arrival, station bays) — bring
+   their chrome in line with VECTOR tiles without rewriting their guts.
+   -------------------------------------------------------------------------- */
+.cad-application .border-zinc-500.border-2 {
+  border: 1px solid var(--vec-border-strong) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 5px 18px #142c4338 !important;
+}
+.cad-application :is(.drag-handle, .stack-drag, .log-drag, .leds-drag, .anpr-drag, .calllog-drag, .search-drag) {
+  background: var(--vec-handle) !important;
+  color: var(--vec-handle-text) !important;
+  border-bottom: 2px solid var(--vec-handle-border) !important;
+  font-family: var(--vec-sans) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.03em !important;
+  min-height: 27px;
+  cursor: grab;
+}
+.cad-application :is(.drag-handle, .stack-drag, .log-drag, .leds-drag, .anpr-drag, .calllog-drag, .search-drag) button {
+  background: transparent !important;
+}
+.cad-application :is(.drag-handle, .stack-drag, .log-drag, .leds-drag, .anpr-drag, .calllog-drag, .search-drag) button:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+.cad-application :is(.drag-handle, .stack-drag, .log-drag, .leds-drag, .anpr-drag, .calllog-drag, .search-drag) button[role="switch"][aria-checked="true"] {
+  background: #197a4b !important;
+}
+.cad-application :is(.drag-handle, .stack-drag, .log-drag, .leds-drag, .anpr-drag, .calllog-drag, .search-drag) button[role="switch"][aria-checked="false"] {
+  background: #a4640b !important;
+}
+.cad-application .font-mono {
+  font-family: var(--vec-mono);
+}
+/* Leaflet chrome inside the workspace */
+.cad-application .leaflet-container {
+  font-family: var(--vec-sans);
+}

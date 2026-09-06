@@ -306,7 +306,7 @@ export function IncidentView({
   );
 
   return (
-    <div className="fixed inset-0 z-[1200] flex flex-col bg-(--color-bg)">
+    <div className="absolute inset-0 z-[1200] flex flex-col bg-(--color-bg)">
       <MissionBar
         incident={incident}
         elapsedSec={elapsedSec}
