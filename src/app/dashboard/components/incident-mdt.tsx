@@ -21,7 +21,6 @@ import type { StationWithAppliances } from "../page";
 import {
   CallInformationBody,
   HazardsBody,
-  CasualtiesBody,
   resolveDeployments,
   type Props as IncidentViewProps,
   type ResolvedDeployment,
@@ -496,6 +495,7 @@ export function DraggableIncidentMdt({
     <PatientCareWorkspace
       key={unitAppliance?.id ?? "none"}
       sim={sim}
+      incident={incident}
       incidentRef={ref}
       focusApplianceId={selectedUnit?.appliance.id ?? null}
       deployments={deployments}

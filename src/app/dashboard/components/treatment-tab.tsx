@@ -63,7 +63,7 @@ import type {
   SceneCasualty,
 } from "@/lib/sim/scene";
 
-const SCOPE_LABEL: Record<ClinicianScope, string> = {
+export const SCOPE_LABEL: Record<ClinicianScope, string> = {
   none: "None on scene",
   dca: "Paramedic",
   ap: "Advanced Paramedic",
@@ -72,7 +72,7 @@ const SCOPE_LABEL: Record<ClinicianScope, string> = {
   hems: "HEMS",
 };
 
-const RED_FLAG_LABEL: Record<PatientRedFlag, string> = {
+export const RED_FLAG_LABEL: Record<PatientRedFlag, string> = {
   tension_pneumothorax: "Tension pneumothorax",
   hypovolaemic_shock: "Hypovolaemic shock",
   airway_compromise: "Airway compromise",
@@ -89,7 +89,7 @@ const RED_FLAG_LABEL: Record<PatientRedFlag, string> = {
   overdose_opioid: "Opioid overdose",
 };
 
-const DESTINATION_LABEL: Record<HospitalDestinationType, string> = {
+export const DESTINATION_LABEL: Record<HospitalDestinationType, string> = {
   nearest_a_e: "Nearest A&E",
   mtc: "Major Trauma Centre",
   pci: "PCI centre (STEMI)",
@@ -99,7 +99,7 @@ const DESTINATION_LABEL: Record<HospitalDestinationType, string> = {
   non_convey: "See and treat · non-convey",
 };
 
-const AIRWAY_LABEL: Record<AirwayAction, string> = {
+export const AIRWAY_LABEL: Record<AirwayAction, string> = {
   position: "Airway positioning",
   opa: "Insert OPA",
   npa: "Insert NPA",
@@ -111,14 +111,14 @@ const AIRWAY_LABEL: Record<AirwayAction, string> = {
   rsi: "RSI · intubate",
 };
 
-const BREATHING_LABEL: Record<BreathingAction, string> = {
+export const BREATHING_LABEL: Record<BreathingAction, string> = {
   oxygen_15l: "Oxygen 15 L NRB",
   bvm: "BVM ventilation",
   needle_decomp: "Needle decompression",
   finger_thoracostomy: "Finger thoracostomy",
 };
 
-const CIRC_LABEL: Record<CirculationAction, string> = {
+export const CIRC_LABEL: Record<CirculationAction, string> = {
   iv_access: "IV access",
   io_access: "IO access",
   fluids_250: "Crystalloid 250 mL",
@@ -127,7 +127,7 @@ const CIRC_LABEL: Record<CirculationAction, string> = {
   defib: "Defibrillate",
 };
 
-const PACKAGING_LABEL: Record<PackagingAction, string> = {
+export const PACKAGING_LABEL: Record<PackagingAction, string> = {
   warming: "Active warming",
   assisted_delivery: "Assisted delivery",
   spine_board: "Spine board",
@@ -140,7 +140,7 @@ const PACKAGING_LABEL: Record<PackagingAction, string> = {
   wound_pack: "Wound pack",
 };
 
-const CLINICIAN_DESCRIPTION: Record<ClinicianScope, string> = {
+export const CLINICIAN_DESCRIPTION: Record<ClinicianScope, string> = {
   none: "",
   dca: "",
   ap: "Extended formulary · Ketamine, Fentanyl, Amiodarone",
@@ -152,7 +152,7 @@ const CLINICIAN_DESCRIPTION: Record<ClinicianScope, string> = {
 // -- Hover hints — shown on title attribute for each action chip so the
 // operator gets a short clinical rationale on mouse-over. Kept terse
 // (≤ ~90 chars) so the browser tooltip doesn't wrap too hard.
-const AIRWAY_HINT: Record<AirwayAction, string> = {
+export const AIRWAY_HINT: Record<AirwayAction, string> = {
   position: "Head-tilt / chin-lift. First move for any unconscious airway — no kit needed.",
   opa: "Oropharyngeal airway. For unconscious patients with no gag reflex.",
   npa: "Nasopharyngeal airway. Tolerated by semi-conscious patients; avoid on basal skull #.",
@@ -167,7 +167,7 @@ const AIRWAY_HINT: Record<AirwayAction, string> = {
   rsi: "Rapid-Sequence Induction. Doctor-led drug-assisted intubation. CCC / HEMS only.",
 };
 
-const BREATHING_HINT: Record<BreathingAction, string> = {
+export const BREATHING_HINT: Record<BreathingAction, string> = {
   oxygen_15l: "High-flow O₂ via non-rebreathe mask — standard for any hypoxia / major trauma.",
   bvm: "Bag-valve-mask ventilation for inadequate breathing or apnoea.",
   needle_decomp:
@@ -176,7 +176,7 @@ const BREATHING_HINT: Record<BreathingAction, string> = {
     "Definitive pneumothorax drainage — finger through pleura at 5th IC space. CCC / HEMS.",
 };
 
-const CIRC_HINT: Record<CirculationAction, string> = {
+export const CIRC_HINT: Record<CirculationAction, string> = {
   iv_access: "Large-bore cannula, typically ACF. Precursor to fluids / drugs / blood.",
   io_access: "Intraosseous access when IV fails — fast reliable route via humerus or tibia.",
   fluids_250: "Small bolus. Permissive hypotension in trauma — titrate to radial pulse.",
@@ -185,7 +185,7 @@ const CIRC_HINT: Record<CirculationAction, string> = {
   defib: "Shock VF / pulseless VT. 200 J biphasic. Resume CPR immediately after.",
 };
 
-const DRUG_HINT: Partial<Record<DrugName, string>> = {
+export const DRUG_HINT: Partial<Record<DrugName, string>> = {
   paracetamol: "Mild–moderate pain, fever. PO or IV.",
   entonox: "Self-administered 50/50 N₂O/O₂ for acute pain. Avoid if pneumothorax.",
   morphine: "Opiate analgesia for moderate–severe pain. Watch respiratory depression.",
@@ -217,7 +217,7 @@ const DRUG_HINT: Partial<Record<DrugName, string>> = {
   naloxone: "Opioid reversal — titrate to respiratory rate, not GCS.",
 };
 
-const PACKAGING_HINT: Record<PackagingAction, string> = {
+export const PACKAGING_HINT: Record<PackagingAction, string> = {
   warming:
     "Blankets, heat pack, warm the saloon. Passive rewarming is all that happens out of hospital — and it is the difference between a cold patient holding and getting colder.",
   assisted_delivery:
@@ -232,7 +232,7 @@ const PACKAGING_HINT: Record<PackagingAction, string> = {
   wound_pack: "Deep cavity haemorrhage — pack with haemostatic gauze, apply pressure.",
 };
 
-const EGRESS_LABEL: Record<EgressAction, string> = {
+export const EGRESS_LABEL: Record<EgressAction, string> = {
   walked: "Walked to the vehicle",
   carry_chair: "Carry chair",
   carry_sheet: "Carry sheet",
@@ -242,7 +242,7 @@ const EGRESS_LABEL: Record<EgressAction, string> = {
   wheelchair: "Wheelchair",
 };
 
-const EGRESS_HINT: Record<EgressAction, string> = {
+export const EGRESS_HINT: Record<EgressAction, string> = {
   walked:
     "With an arm, if they are steady and nothing is unstable. Quickest by a long way and correct more often than not.",
   carry_chair:
@@ -259,7 +259,7 @@ const EGRESS_HINT: Record<EgressAction, string> = {
     "Hospital to hospital, or a patient who simply cannot walk far. Not for anything acute.",
 };
 
-const DESTINATION_HINT: Record<HospitalDestinationType, string> = {
+export const DESTINATION_HINT: Record<HospitalDestinationType, string> = {
   nearest_a_e: "Local Emergency Department — default when no specialist need.",
   mtc: "Major Trauma Centre (Salford Royal NW) — multi-system trauma, ISS > 15.",
   pci: "Primary PCI — STEMI confirmed on 12-lead. Target < 120 min call-to-balloon.",
@@ -1281,7 +1281,7 @@ function TreatmentSummary({ treatment }: { treatment: PatientTreatmentState }) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function drugRelevantFor(drug: DrugName, redFlags: PatientRedFlag[]): boolean {
+export function drugRelevantFor(drug: DrugName, redFlags: PatientRedFlag[]): boolean {
   // Always show analgesia + IV access drugs. Condition-specific drugs are
   // only offered when the relevant red flag is present so the menu stays
   // focused on this patient.

@@ -5592,6 +5592,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           area={area}
           onClose={() => setTiles((t) => ({ ...t, patients: false }))}
           sim={incidentSim}
+          incident={activeIncident}
           incidentRef={selectedRef}
           deployments={incidentDeployments}
           resolved={resolveDeployments(incidentDeployments, allDeployableStations, now)}

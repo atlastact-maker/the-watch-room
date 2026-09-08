@@ -17,6 +17,7 @@ simulator function that was already there.
 | `log-tile.tsx` | The shift log as a tile, with the `LOG>` entry line. |
 | `mdt-task-workspace.tsx`, `mdt-orders.ts` | The MDT's Actions and Water pages: the prototype's task workspace (unit tasking, catalogue, numbered task order, task history) driving the simulator, with orders kept per incident. |
 | `patient-care.tsx` | Patient Care — one workspace for every casualty on an incident. Opens from the Dispatch panel bar as **Casualties** (the whole incident, for control) and from the MDT as **Patient care** (filtered to that resource's own patients). Either view pops out into its own window. |
+| `casualty-care.tsx` | CASUALTY CARE — the per-patient screen opened from Patient Care: patient assessment with the body figure and primary survey, the vital signs monitor with sweeping ECG / pleth / resp traces, oxygen and medication, the treatment log, and the Assess · Airway · Breathing · Circulation · Immobilise · Handover bar. Every control calls the simulator's treatment handlers. |
 | `call-screen.tsx` | The 999 Call screen: caller strip, location fixes, confirm address, scripted assessment and dialogue, incident type, other services, ready-to-open checklist, CREATE INCIDENT & MOBILISE. |
 | `mob-screen.tsx` | The Mobilising screen: attendance slots, resource cards, mobilising message, turnout times, station bays, standby cover. |
 | `desk-model.ts` | `useDeskModel` — the one place the tiles' and screens' rows are derived from simulator state. |

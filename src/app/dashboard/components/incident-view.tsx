@@ -898,7 +898,7 @@ export function CasualtiesBody({
  * where casualties are outside (RTC, open ground) have
  * discoverAfterMinBa = 0 and never require extraction.
  */
-function isExtractionRequired(
+export function isExtractionRequired(
   casualty: { id: string; discoverAfterMinBa?: number },
   tasks: Task[],
 ): boolean {
