@@ -119,6 +119,14 @@ export function VectorDesk(props: {
 }) {
   const { model, screen, tiles, setTiles, layout } = props;
   const { time, hour } = useShiftClock(props.shiftStartedAt, props.shiftStartHour);
+  // Warm the ground map's code while the desk is quiet, so opening the
+  // ground never waits on a chunk.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      void import("../components/leaflet-ground-map");
+    }, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // Measure the map workspace so tiles can be placed by preset.
   const areaRef = useRef<HTMLDivElement>(null);
@@ -168,8 +176,9 @@ export function VectorDesk(props: {
       <MenuBar menus={props.menus} lights={props.lights} />
       <ScreenTabs screen={screen} onPick={props.onScreen} tabs={tabs} deskSummary={deskSummary} theme={props.theme} onToggleTheme={props.onToggleTheme} />
 
-      {screen === "dispatch" && (
+      {(screen === "dispatch" || screen === "ground") && (
         <>
+          {screen === "dispatch" && (<>
           <WorkspaceBar
             tiles={TILE_BUTTONS.map((b) => ({
               id: b.id,
@@ -231,14 +240,17 @@ export function VectorDesk(props: {
             nextLabel={unfilled ? "Choose resources" : "Track response"}
             onNext={() => props.onScreen("mob")}
           />
+          </>)}
           <div className="vec-workspace">
-            <div className="vec-mapbar">
-              <span className="title">{props.mapTitle}</span>
-              <div className="right">
-                <BasemapSegments />
-                {props.mapExtras}
+            {screen === "dispatch" && (
+              <div className="vec-mapbar">
+                <span className="title">{props.mapTitle}</span>
+                <div className="right">
+                  <BasemapSegments />
+                  {props.mapExtras}
+                </div>
               </div>
-            </div>
+            )}
             <div className="vec-map-area" ref={areaRef}>
               <div className="map-fill">{props.map}</div>
               {tiles.calls && (
@@ -282,6 +294,16 @@ export function VectorDesk(props: {
                 <HospitalsTile {...pop("hospitals")} layout={layout} area={area} rows={model.hospitals} from={model.selected ? model.selected.scenario.location.address.split(",")[0] : ""} onClose={() => toggleTile("hospitals")} />
               )}
               {props.legacyPanels}
+              {/* The ground lies over the desk map and fades in, so the
+                  switch is a crossfade rather than a black frame while a
+                  second map loads. The desk map stays warm underneath. */}
+              {screen === "ground" && (
+                <div className="vec-ground-layer">
+                  {props.ground ?? (
+                    <div className="vec-tile-empty" style={{ padding: 40 }}>The ground opens once a live job is selected on the desk</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -342,14 +364,6 @@ export function VectorDesk(props: {
           onOpenBays={props.onOpenBays}
           onTrack={() => props.onScreen("dispatch")}
         />
-      )}
-
-      {screen === "ground" && (
-        <div className="vec-workspace">
-          {props.ground ?? (
-            <div className="vec-tile-empty" style={{ padding: 40 }}>The ground opens once a live job is selected on the desk</div>
-          )}
-        </div>
       )}
 
       {props.overlays}

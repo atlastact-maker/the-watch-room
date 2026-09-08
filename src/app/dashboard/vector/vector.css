@@ -766,6 +766,24 @@ html[data-cad-theme="dark"] .vec-focus .next .summary.ok {
   position: absolute;
   inset: 0;
 }
+/* The ground view over the desk map: same surface tokens as the shell,
+   faded in over the map that is already there. */
+.vec-ground-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  --color-bg: var(--vec-surface);
+  --color-surface: var(--vec-surface);
+  background: var(--vec-surface);
+  animation: vec-ground-in 320ms ease-out both;
+}
+@keyframes vec-ground-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vec-ground-layer { animation: none; }
+}
 .vec-map-attrib {
   position: absolute;
   left: 8px;

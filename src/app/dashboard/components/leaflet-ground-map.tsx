@@ -1263,7 +1263,7 @@ export function LeafletGroundMap({
       keyboard
       zoomControl={false}
       attributionControl={false}
-      className={"h-full w-full bg-[#050507]" + (basemap.imagery ? " imagery-base" : "")}
+      className={"h-full w-full " + (basemap.imagery ? "bg-[#050507] imagery-base" : "bg-(--vec-surface-raised,#e3e8ec)")}
     >
       {basemap.styleUrl && !vectorFailed ? (
         <VectorBasemap
