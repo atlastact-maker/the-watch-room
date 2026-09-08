@@ -23,6 +23,7 @@ export type TileId =
   | "standby"
   | "hospitals"
   | "patients"
+  | "tasking"
   | "calllog"
   | "search"
   | "leds"
@@ -75,6 +76,7 @@ export function presetRect(
   if (id === "attendance") return { x: col + 2 * g, y: Math.max(g, h - 300 - g), w: Math.max(400, w - 2 * col - 4 * g), h: 300 };
   if (id === "available") return { x: Math.max(g, w - right - g), y: g, w: right, h: h - 2 * g };
   if (id === "patients") return { x: Math.max(g, w - right - g), y: g, w: right, h: h - 2 * g };
+  if (id === "tasking") return { x: Math.max(g, w - right - g), y: g, w: right, h: h - 2 * g };
   if (id === "cover") return { x: Math.max(g, w - col - g), y: g, w: col, h: Math.min(h - 2 * g, 380) };
   if (id === "standby") return { x: Math.max(g, w - col - g), y: (h + g) / 2, w: col, h: (h - 3 * g) / 2 };
   if (id === "hospitals") return { x: Math.max(g, w - col - 60 - g), y: g, w: col + 60, h: Math.min(h - 2 * g, 360) };

@@ -32,6 +32,9 @@ export type PatientCareProps = CareCallbacks & {
   resusByCasualtyId?: Record<string, ResusState>;
   /** Open filtered to this resource's patients — the tablet's view. */
   focusApplianceId?: string | null;
+  /** Show the casualty screen in place (the tablet) rather than over the
+   *  desk. It can still be lifted into its own window. */
+  inline?: boolean;
 };
 
 /** Casualties a resource is responsible for: the patient its crew is
@@ -60,7 +63,7 @@ function stageLabel(stage: string): string {
 }
 
 export function PatientCareWorkspace(props: PatientCareProps) {
-  const { sim, incident, incidentRef, focusApplianceId, deployments, resolved, tasks, now, treatmentByCasualtyId, resusByCasualtyId, ...callbacks } = props;
+  const { sim, incident, incidentRef, focusApplianceId, inline, deployments, resolved, tasks, now, treatmentByCasualtyId, resusByCasualtyId, ...callbacks } = props;
   const [filter, setFilter] = useState<string>(focusApplianceId ?? "all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [poppedOut, setPoppedOut] = useState(false);
@@ -113,6 +116,10 @@ export function PatientCareWorkspace(props: PatientCareProps) {
     />
   ) : null;
 
+  if (inline && screen && !poppedOut) {
+    return <div className="vec-patients cc-inline">{screen}</div>;
+  }
+
   return (
     <div className="vec-patients">
       <div className="vec-tile-sub">
@@ -134,6 +141,12 @@ export function PatientCareWorkspace(props: PatientCareProps) {
           ))}
         </div>
       </div>
+      {poppedOut && open && (
+        <div className="vec-patients-note">
+          {(open.label ?? open.id).toUpperCase()} is open in its own window ·{" "}
+          <button type="button" className="vec-btn" onClick={() => setPoppedOut(false)}>Bring it back</button>
+        </div>
+      )}
       {shown.length === 0 ? (
         <div className="vec-tile-empty">
           {filter !== "all" ? `No patients assigned to ${focus?.r.appliance.callsign ?? "this unit"} · pair a crew from All casualties` : "No casualties located yet"}
@@ -184,7 +197,7 @@ export function PatientCareWorkspace(props: PatientCareProps) {
           })}
         </div>
       )}
-      {screen && !poppedOut && typeof document !== "undefined" && createPortal(<div className="cc-overlay">{screen}</div>, document.body)}
+      {screen && !poppedOut && !inline && typeof document !== "undefined" && createPortal(<div className="cc-overlay">{screen}</div>, document.body)}
       {screen && poppedOut && open && (
         <PopoutWindow id={`care-${open.id}`} title={`Casualty care · ${open.label ?? open.id}`} width={1400} height={860} onClose={() => setPoppedOut(false)}>
           <PopoutFrame title={`Casualty care · ${open.label ?? open.id}`} onDock={() => setPoppedOut(false)} className="cc-frame">

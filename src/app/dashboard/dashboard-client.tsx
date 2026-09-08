@@ -179,6 +179,7 @@ import { StationBayPanel } from "./components/station-bay-panel";
 import { IncidentView, resolveDeployments, type PendingClosure } from "./components/incident-view";
 import { canGiveDrug, generateProfile, initialPhysio, calibrate, withInfusion } from "@/lib/sim/physiology";
 import { PatientCareTile } from "./vector/patient-care";
+import { TaskingTile } from "./vector/tasking-tile";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
 import { GlossaryOverlay } from "./components/glossary-overlay";
@@ -5398,6 +5399,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           act: () => showTile("patients"),
           disabled: !activeIncident,
         },
+        { label: "Unit tasking", hint: "actions · water", act: () => showTile("tasking"), disabled: !activeIncident },
         { sep: true },
         ...(["offensive", "defensive", "transitional"] as const).map((m) => ({
           label: `Tactical mode · ${m.charAt(0).toUpperCase() + m.slice(1)}`,
@@ -5487,6 +5489,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           { id: "incident", label: "Incident details", open: !!tiles.incident && !!activeIncident },
           { id: "units", label: "Scene units", open: !!tiles.units && !!activeIncident },
           { id: "patients", label: "Casualties", open: !!tiles.patients && !!activeIncident },
+          { id: "tasking", label: "Unit tasking", open: !!tiles.tasking && !!activeIncident },
           { id: "log", label: "Incident log", open: !!tiles.log },
           { id: "attendance", label: "Attendance", open: !!tiles.attendance && !!activeIncident },
           { id: "available", label: "Resources", open: !!tiles.available },
@@ -5681,6 +5684,42 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onSendAtmistPrealert={sendAtmistPrealert}
           onConveyCasualtyVia={conveyCasualtyVia}
           onConfirmAllergies={confirmAllergies}
+        />
+      )}
+      taskingTile={(area, pop) => (
+        <TaskingTile
+          {...pop}
+          layout={layout}
+          area={area}
+          onClose={() => setTiles((t) => ({ ...t, tasking: false }))}
+          incident={activeIncident}
+          incidentRef={selectedRef}
+          resolved={resolveDeployments(incidentDeployments, allDeployableStations, now)}
+          tasks={tasks}
+          now={now}
+          busyCrewIds={busyCrewIds}
+          hazards={(incidentSim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
+          casualties={(incidentSim?.foundCasualties ?? []).map((c) => ({ id: c.id, label: c.label }))}
+          resolvedIncident={!!outcome}
+          unitId={mdtUnitId}
+          onSetUnitId={setMdtUnitId}
+          onStartTask={startTask}
+          onAbortTask={abortTask}
+          onCompleteTask={completeTask}
+          onSetTaskCrew={setTaskCrew}
+          onNote={(text) => logAnnotation(text)}
+          onBeginRoadClosure={(applianceId, kind, crewIds) => {
+            setPendingClosure({ applianceId, kind, crewIds });
+            pickScreen("ground");
+          }}
+          onStartPump={(applianceId) => {
+            const d = incidentDeployments.find((x) => x.applianceId === applianceId);
+            const a = applianceById.get(applianceId);
+            const op = a?.crewMembers.find((c) => c.id === d?.pumpOperatorCrewId) ?? a?.crewMembers.find((c) => /Pump|Driver/i.test(c.role)) ?? a?.crewMembers[0];
+            if (!op) return;
+            setPumpOperator(applianceId, op.id);
+            setPumpRunning(applianceId, true);
+          }}
         />
       )}
       mapTitle={`MAP — ${mapPlace}`}
@@ -6009,10 +6048,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               onToggleMdt={() => setIncidentPanelVisible((v) => !v)}
               placePendingApplianceId={placePendingApplianceId}
               onClearPlacePending={() => setPlacePendingApplianceId(null)}
+              onArmPlacement={setPlacePendingApplianceId}
               selectedVehicleId={mdtUnitId}
               onVehicleSelect={(id) => {
                 setMdtUnitId(id);
-                setIncidentPanelVisible(true);
+                if (id) setIncidentPanelVisible(true);
               }}
               pendingClosure={pendingClosure}
               onSetPendingClosure={setPendingClosure}

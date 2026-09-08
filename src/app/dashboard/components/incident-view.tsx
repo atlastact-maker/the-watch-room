@@ -139,7 +139,10 @@ export type Props = {
   /** Ground-map vehicle clicks open the MDT unit-control page — the
    *  dashboard owns which unit is focused (halo on the map). */
   selectedVehicleId?: string | null;
-  onVehicleSelect?: (applianceId: string) => void;
+  onVehicleSelect?: (applianceId: string | null) => void;
+  /** Arm the two-click placement for a unit — the next ground click
+   *  parks it. Drives the Place / Move buttons on the unit strip. */
+  onArmPlacement?: (applianceId: string) => void;
   /** Road-closure placement in progress (crew already picked, next map
    *  click drops the cones). Owned by the dashboard so the MDT can start
    *  closures too. */
@@ -218,6 +221,7 @@ export function IncidentView({
   onClearPlacePending,
   selectedVehicleId,
   onVehicleSelect,
+  onArmPlacement,
   pendingClosure,
   onSetPendingClosure,
   rotatePendingApplianceId,
@@ -244,9 +248,60 @@ export function IncidentView({
 
   const onSceneDeployments = resolved.filter((r) => r.phase === "at_incident");
   const enRouteDeployments = resolved.filter((r) => r.phase === "mobile");
+  const [unitsOpen, setUnitsOpen] = useState(true);
+  const committed = resolved.filter((r) => r.phase === "at_incident" || r.phase === "mobile");
 
   return (
     <div className="absolute inset-0 z-[1200] flex flex-col bg-(--color-bg)">
+      {/* Assigned units — toggle which one is in hand, place or move it
+          on the ground, turn it to face the road. */}
+      <div className={`vec-ground-units${unitsOpen ? "" : " closed"}`}>
+        <div className="head">
+          <button type="button" className="toggle" onClick={() => setUnitsOpen((o) => !o)} aria-expanded={unitsOpen}>
+            {unitsOpen ? "▾" : "▸"} UNITS · {committed.length}
+          </button>
+          {placePendingApplianceId && <span className="arm">Click the ground to place {resolved.find((r) => r.appliance.id === placePendingApplianceId)?.appliance.callsign ?? "the unit"}</span>}
+          {rotatePendingApplianceId && <span className="arm">Click where {resolved.find((r) => r.appliance.id === rotatePendingApplianceId)?.appliance.callsign ?? "the unit"} should face</span>}
+        </div>
+        {unitsOpen && (
+          <div className="rows">
+            {committed.length === 0 && <div className="empty">No units committed yet</div>}
+            {committed.map((r) => {
+              const id = r.appliance.id;
+              const selected = selectedVehicleId === id;
+              const placed = !!r.deployment.parkingPos;
+              const onScene = r.phase === "at_incident";
+              return (
+                <div key={id} className={`row${selected ? " on" : ""}${onScene ? "" : " mobile"}`}>
+                  <button type="button" className="unit" aria-pressed={selected} onClick={() => onVehicleSelect?.(selected ? null : id)} title={selected ? "Deselect" : "Select this unit"}>
+                    <strong>{r.appliance.callsign}</strong>
+                    <span>{r.appliance.typeName}</span>
+                    <small>{onScene ? (placed ? "On the ground" : "Arrived · not placed") : "Mobile"}</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={placePendingApplianceId === id ? "act armed" : "act"}
+                    disabled={!onScene || !onArmPlacement}
+                    title={onScene ? (placed ? "Move this unit on the ground" : "Place this unit on the ground") : "Places on arrival"}
+                    onClick={() => (placePendingApplianceId === id ? onClearPlacePending?.() : onArmPlacement?.(id))}
+                  >
+                    {placePendingApplianceId === id ? "Cancel" : placed ? "Move" : "Place"}
+                  </button>
+                  <button
+                    type="button"
+                    className={rotatePendingApplianceId === id ? "act armed" : "act"}
+                    disabled={!placed}
+                    title="Turn the unit to face a point"
+                    onClick={() => onSetRotatePending(rotatePendingApplianceId === id ? null : id)}
+                  >
+                    {rotatePendingApplianceId === id ? "Cancel" : "Turn"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       {/* The whole ground is the map. The VECTOR shell carries the tabs
           and clocks above it; hazards, casualties, BA and resourcing all
           live on the MDT tablet; the log is a Dispatch tile. */}

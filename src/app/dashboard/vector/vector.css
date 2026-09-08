@@ -3372,6 +3372,122 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   .cc-foot button span { display: none; }
 }
 
+/* ---- The MDT as a patient-care tablet: no navigation column ------------ */
+.vec-mdt.vec-mdt--care {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 44px auto minmax(100px, 1fr) 22px;
+}
+.vec-mdt--care > .vec-mdt-identity { grid-column: 1; grid-row: 2; }
+.vec-mdt--care > .vec-mdt-body { grid-column: 1; grid-row: 3; padding: 0; display: flex; flex-direction: column; background: #0b1620; }
+.vec-mdt--care > .vec-mdt-footer { grid-row: 4; }
+.vec-mdt-unit { display: flex; align-items: center; gap: 12px; }
+.vec-mdt-unit select {
+  font: 13px var(--vec-sans, Arial, sans-serif);
+  padding: 4px 8px;
+  border: 1px solid #7c9aad;
+  border-radius: 3px;
+  background: #0a1621;
+  color: #e6eef5;
+  min-height: 32px;
+}
+.vec-mdt-body.care .vec-patients { flex: 1; min-height: 0; }
+.vec-mdt-body.care .vec-tile-empty { padding: 30px 12px; }
+.vec-patients-note { padding: 8px 10px; font-size: 12px; color: var(--vec-text-dim); border-bottom: 1px solid var(--vec-border-subtle); display: flex; align-items: center; gap: 8px; }
+.vec-patients.cc-inline { display: flex; flex-direction: column; min-height: 0; }
+.vec-patients.cc-inline .cc-screen { flex: 1; min-height: 0; grid-template-rows: 56px minmax(0, 1fr) 64px; }
+.vec-patients.cc-inline .cc-main { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+.vec-patients.cc-inline .cc-col.cc-right { overflow: visible; }
+.vec-patients.cc-inline .cc-col { flex: none; }
+.vec-patients.cc-inline .cc-card.fill { min-height: 0; }
+.vec-patients.cc-inline .cc-centre .cc-card.fill:first-child, .vec-patients.cc-inline .cc-centre .cc-card.fill:last-child { flex: none; }
+.vec-patients.cc-inline .cc-log { max-height: 240px; }
+.vec-patients.cc-inline .cc-body { min-height: 260px; }
+.vec-patients.cc-inline .cc-brand h1 { font-size: 20px; }
+.vec-patients.cc-inline .cc-brand h1 span { font-size: 12px; }
+.vec-patients.cc-inline .cc-brand svg { width: 28px; height: 28px; }
+.vec-patients.cc-inline .cc-who { font-size: 14px; padding-right: 10px; }
+.vec-patients.cc-inline .cc-time strong { font-size: 18px; }
+.vec-patients.cc-inline .cc-close { min-height: 36px; padding: 0 10px; font-size: 13px; }
+.vec-patients.cc-inline .cc-foot button { min-height: 44px; font-size: 14px; gap: 8px; }
+.vec-patients.cc-inline .cc-numbers strong { font-size: 40px; }
+.vec-patients.cc-inline .cc-stage { display: none; }
+@media (min-width: 1500px) {
+  .vec-patients.cc-inline .cc-main { grid-template-columns: 300px minmax(0, 1fr) 320px; overflow: hidden; }
+  .vec-patients.cc-inline .cc-col { flex: 1; }
+  .vec-patients.cc-inline .cc-col.cc-right { overflow: auto; }
+  .vec-patients.cc-inline .cc-card.fill { flex: 1; }
+  .vec-patients.cc-inline .cc-log { max-height: none; }
+}
+
+/* ---- Unit tasking tile: the task workspace in a desk tile ---------------- */
+.vec-mdt-body.page.vec-tasking {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: block;
+  background: #344e60;
+  color: #f0f5f8;
+}
+.vec-patients-filter select.vec-btn { flex: 1; min-height: 24px; }
+
+/* ---- Ground view: assigned units strip ---------------------------------- */
+.vec-ground-units {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 1210;
+  width: 300px;
+  max-height: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vec-border-strong);
+  border-radius: 3px;
+  background: var(--vec-surface);
+  color: var(--vec-text);
+  box-shadow: 0 5px 18px #142c4338;
+  font-family: var(--vec-sans);
+}
+.vec-ground-units.closed { width: auto; }
+.vec-ground-units .head { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: var(--vec-bar); color: var(--vec-bar-text, #eaf0f5); border-bottom: 1px solid var(--vec-border); }
+.vec-ground-units .toggle { background: none; border: 0; color: inherit; font: 700 11px var(--vec-mono); letter-spacing: 0.08em; cursor: pointer; padding: 4px 2px; }
+.vec-ground-units .arm { font: 10px var(--vec-mono); color: var(--vec-warn); letter-spacing: 0.04em; }
+.vec-ground-units .rows { overflow: auto; padding: 6px; display: grid; gap: 4px; }
+.vec-ground-units .empty { padding: 10px; font: 10px var(--vec-mono); letter-spacing: 0.08em; color: var(--vec-text-muted); text-transform: uppercase; }
+.vec-ground-units .row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px; align-items: stretch; }
+.vec-ground-units .row.mobile { opacity: 0.75; }
+.vec-ground-units .unit {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: baseline;
+  text-align: left;
+  padding: 5px 8px;
+  border: 1px solid var(--vec-border);
+  border-left: 4px solid var(--vec-border);
+  border-radius: 2px;
+  background: var(--vec-surface-raised);
+  color: var(--vec-text);
+  cursor: pointer;
+  min-width: 0;
+}
+.vec-ground-units .unit strong { font: 700 13px var(--vec-mono); letter-spacing: 0.05em; }
+.vec-ground-units .unit span { font-size: 11px; color: var(--vec-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vec-ground-units .unit small { grid-column: 1 / -1; font: 9px var(--vec-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--vec-text-muted); }
+.vec-ground-units .row.on .unit { border-left-color: var(--vec-work); background: var(--vec-surface); box-shadow: inset 0 0 0 1px var(--vec-work); }
+.vec-ground-units .act {
+  min-width: 52px;
+  padding: 0 8px;
+  border: 1px solid var(--vec-border);
+  border-radius: 2px;
+  background: var(--vec-surface);
+  color: var(--vec-text);
+  font: 700 11px var(--vec-sans);
+  cursor: pointer;
+}
+.vec-ground-units .act:hover:not(:disabled) { border-color: var(--vec-work); color: var(--vec-work); }
+.vec-ground-units .act:disabled { opacity: 0.4; cursor: not-allowed; }
+.vec-ground-units .act.armed { background: var(--vec-warn); border-color: var(--vec-warn); color: #1a1a1a; }
+
 .vec-mdt-embed {
   border: 1px solid #7c9aad;
   border-radius: 4px;
