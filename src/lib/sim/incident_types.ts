@@ -722,7 +722,11 @@ export type TreatmentEvent =
   | { kind: "basics_alert"; stage: "cih" | "broadcast" | "answered" | "none" | "declined"; callsign?: string; at: number }
   | { kind: "clinician_on_scene"; scope: ClinicianScope; at: number }
   | { kind: "destination_set"; destination: import("./scene").HospitalDestinationType; name: string; at: number }
-  | { kind: "atmist_sent"; at: number };
+  | { kind: "atmist_sent"; at: number }
+  // What the patient's body did — a reaction, a deterioration, a recovery.
+  | { kind: "physio"; at: number; text: string; tone: "info" | "warn" | "critical" | "good"; adverse?: boolean }
+  | { kind: "allergies_confirmed"; at: number; by: string; text: string }
+  | { kind: "drug_refused"; at: number; drug: DrugName; reason: string };
 
 /** Full treatment state for one casualty. Persisted in dashboard-client
  *  state keyed by casualty id; survives ambulance hand-off (if HEMS takes
@@ -800,6 +804,20 @@ export type PatientTreatmentState = {
   atmistSentAt?: number;
   /** Full chronological event log for the UI timeline. */
   events: TreatmentEvent[];
+  /** Who the patient is — age, sex, weight, history, medications,
+   *  allergies. Generated once per casualty; revealed by the survey and
+   *  by asking. */
+  profile?: import("./physiology").PatientProfile;
+  /** When the crew asked about allergies. Until then the record does not
+   *  know, and neither does the medication card. */
+  allergiesConfirmedAt?: number;
+  /** Every dose given, in order — repeat dosing is real. `drugs` above
+   *  keeps the last time each was given for the scoring that reads it. */
+  doses?: import("./physiology").DrugDose[];
+  /** The hidden physiology the vitals are derived from. */
+  physio?: import("./physiology").PhysioState;
+  /** How the physiology says this patient arrested, for the rhythm roll. */
+  arrestRhythmHint?: "shockable" | "non_shockable";
 };
 
 /** A single scripted update the informant gives while waiting for crews

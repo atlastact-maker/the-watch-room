@@ -246,6 +246,28 @@ export function scoreIncident(
     }
   }
 
+  // 7b. Medication safety — reactions and harm the crew caused: an
+  //     allergy nobody asked about, an opioid titrated into toxicity,
+  //     high-flow oxygen on a retainer, fluids that popped the clot.
+  if (treatmentByCasualtyId) {
+    let adverse = 0;
+    let refused = 0;
+    for (const tx of Object.values(treatmentByCasualtyId)) {
+      for (const e of tx.events) {
+        if (e.kind === "physio" && e.adverse) adverse += 1;
+        if (e.kind === "drug_refused") refused += 1;
+      }
+    }
+    if (adverse > 0 || refused > 0) {
+      metrics.push({
+        label: "Adverse drug and treatment events",
+        target: "0",
+        actual: `${adverse} harm · ${refused} blocked`,
+        passed: adverse === 0 ? (refused === 0 ? true : "partial") : false,
+      });
+    }
+  }
+
   // 8. Destination correctness — delivering patients to the right place.
   if (treatmentByCasualtyId) {
     let correct = 0;

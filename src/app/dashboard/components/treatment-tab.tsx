@@ -1362,6 +1362,12 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
       return `Destination: ${e.name}`;
     case "atmist_sent":
       return "ATMIST pre-alert sent";
+    case "physio":
+      return e.text;
+    case "allergies_confirmed":
+      return `Allergies confirmed · ${e.text} (${e.by})`;
+    case "drug_refused":
+      return `${DRUG_LABEL[e.drug]} not given · ${e.reason}`;
   }
 }
 

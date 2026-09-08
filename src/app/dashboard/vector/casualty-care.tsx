@@ -32,6 +32,7 @@ import {
 import { BODY_REGIONS, RED_FLAG_REGIONS, type BodyRegion } from "@/lib/sim/body_regions";
 import { ecgSample, displayedRate, type TraceRhythm } from "@/lib/sim/ecg";
 import { OXYGEN_DEVICE_LABEL, OXYGEN_FLOWS, OXYGEN_HINT, oxygenLabel, oxygenVerdict, type OxygenDevice } from "@/lib/sim/oxygen";
+import { PHARMACOLOGY, canGiveDrug, dosesOf } from "@/lib/sim/physiology";
 import { postRoscIssues, type ResusState, type ReversibleCause, type MonitorMode, type AirwayState } from "@/lib/sim/resus";
 import {
   AIRWAY_HINT,
@@ -89,6 +90,8 @@ export type CareCallbacks = {
   onSetTreatmentDestination?: (casualtyId: string, type: HospitalDestinationType, name: string) => void;
   onSendAtmistPrealert?: (casualtyId: string) => void;
   onConveyCasualtyVia?: (applianceId: string, casualtyId: string) => void;
+  /** Ask the patient (or whoever is with them) about allergies. */
+  onConfirmAllergies?: (casualtyId: string, by: string) => void;
 };
 
 export type CasualtyCareProps = CareCallbacks & {
@@ -197,6 +200,9 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
     case "clinician_on_scene": return `${SCOPE_LABEL[e.scope]} on scene`;
     case "destination_set": return `Destination · ${e.name}`;
     case "atmist_sent": return "ATMIST pre-alert sent";
+    case "physio": return e.text;
+    case "allergies_confirmed": return `Allergies confirmed · ${e.text} (${e.by})`;
+    case "drug_refused": return `${DRUG_LABEL[e.drug]} not given · ${e.reason}`;
   }
 }
 
@@ -465,9 +471,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const scenarioTime = clock(now - incident.receivedAt);
 
   // ---- Log ----------------------------------------------------------------
-  const log = [
-    ...(treatment?.events ?? []).map((e) => ({ at: "at" in e ? e.at : 0, text: describeEvent(e) })),
-    ...(resus?.events ?? []).map((e) => ({ at: e.at, text: e.text })),
+  const log: { at: number; text: string; tone?: string }[] = [
+    ...(treatment?.events ?? []).map((e) => ({ at: "at" in e ? e.at : 0, text: describeEvent(e), tone: e.kind === "physio" ? e.tone : e.kind === "drug_refused" ? "warn" : undefined })),
+    ...(resus?.events ?? []).map((e) => ({ at: e.at, text: e.text, tone: e.tone === "critical" ? "critical" : e.tone === "good" ? "good" : undefined })),
     ...(paired.length ? [{ at: Math.min(...paired.map((p) => p.deployment.arrivesAt)), text: "Monitor connected" }] : []),
   ]
     .filter((e) => e.at > clearedAt)
@@ -481,12 +487,18 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const currentO2 = treatment?.oxygen;
   const flows = device ? OXYGEN_FLOWS[device] : [];
   const flow = flows[Math.min(flowIx, Math.max(0, flows.length - 1))] ?? 0;
-  const o2Verdict = oxygenVerdict(vitals?.spo2);
+  const o2Verdict = oxygenVerdict(vitals?.spo2, treatment?.profile?.copdRisk);
 
   // ---- Drugs ----------------------------------------------------------------
   const drugs = (Object.keys(DRUG_LABEL) as DrugName[]).filter((d) => drugRelevantFor(d, revealedFlags));
   const drugAllowed = (d: DrugName) => scopeLvl >= SCOPE_LEVEL[DRUG_MIN_SCOPE[d]];
   const dose = drug ? DRUG_DOSE[drug] : null;
+  const check = drug && treatment ? canGiveDrug(treatment, drug, now) : null;
+  const givenCount = drug && treatment ? dosesOf(treatment.doses, drug).length : 0;
+  const spec = drug ? PHARMACOLOGY[drug] : null;
+  const profile = treatment?.profile;
+  const allergyToDrug = drug && treatment?.allergiesConfirmedAt ? profile?.allergies.find((a) => a.drugs.includes(drug)) : undefined;
+  const pain = treatment?.physio?.pain;
 
   // ---- Egress timer -------------------------------------------------------
   const moves = (Object.entries(treatment?.egress ?? {}) as [EgressAction, number][]).sort((a, b) => b[1] - a[1]);
@@ -609,18 +621,38 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         <span>Route</span>
         <input readOnly value={dose?.route ?? "Select route"} aria-label="Route" className="wide" />
       </div>
+      {spec && (
+        <small className="cc-hint">
+          {spec.indication} · onset ~{spec.onsetSec >= 60 ? `${Math.round(spec.onsetSec / 60)} min` : `${spec.onsetSec} s`} · lasts ~{Math.round(spec.durationSec / 60)} min
+          {givenCount > 0 ? ` · dose ${givenCount} of ${spec.maxDoses} given` : spec.maxDoses > 1 ? ` · up to ${spec.maxDoses} doses, ${Math.round(spec.repeatSec / 60)} min apart` : ""}
+        </small>
+      )}
       {drug && DRUG_HINT[drug] && <small className="cc-hint">{DRUG_HINT[drug]}</small>}
-      <div className="cc-warn">
-        <b>!</b>
-        <div><strong>Allergies: not confirmed</strong><span>Check allergy status before administering any medication.</span></div>
-      </div>
+      {check && !check.ok && <small className="cc-verdict bad">{check.reason}</small>}
+      {check?.ok && check.warning && <small className="cc-verdict warn">{check.warning}</small>}
+      {allergyToDrug ? (
+        <div className="cc-warn stop">
+          <b>!</b>
+          <div><strong>ALLERGY: {allergyToDrug.agent}</strong><span>Patient reports {allergyToDrug.reaction === "rash" ? "a rash" : "anaphylaxis"} to this. Do not give.</span></div>
+        </div>
+      ) : treatment?.allergiesConfirmedAt ? (
+        <div className="cc-warn ok">
+          <b>✓</b>
+          <div><strong>Allergies: {profile && profile.allergies.length ? profile.allergies.map((a) => a.agent).join(", ") : "NKDA"}</strong><span>Confirmed at {wall(treatment.allergiesConfirmedAt)}.</span></div>
+        </div>
+      ) : (
+        <div className="cc-warn">
+          <b>!</b>
+          <div><strong>Allergies: not confirmed</strong><span>Check allergy status before administering any medication.</span></div>
+        </div>
+      )}
       <button
         type="button"
         className="cc-primary"
-        disabled={!canAct || !drug || !surveyDone || !props.onAdministerDrug || (!!drug && treatment?.drugs[drug] !== undefined)}
+        disabled={!canAct || !drug || !surveyDone || !props.onAdministerDrug || (check !== null && !check.ok)}
         onClick={() => { if (drug) { props.onAdministerDrug?.(casualtyId, drug, by); setDrug(""); } }}
       >
-        <Icon d="M4 20l4-4m2-6 8-8m-6 6 6 6m-8-4-3 3 4 4 3-3" /> Administer
+        <Icon d="M4 20l4-4m2-6 8-8m-6 6 6 6m-8-4-3 3 4 4 3-3" /> {givenCount > 0 ? `Administer · repeat dose ${givenCount + 1}` : "Administer"}
       </button>
     </Card>
   );
@@ -823,15 +855,41 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
           <Card title="Patient assessment" icon="≡" fill>
             <div className="cc-patient">
               <strong>{(casualty.label ?? casualty.id).toUpperCase()}</strong>
-              <span>{casualty.clinical?.ageYears !== undefined && casualty.clinical.ageYears <= 15 ? "Child" : "Adult"}<br />{casualty.clinical?.ageYears !== undefined ? `Approx. ${casualty.clinical.ageYears} years` : "Age not recorded"}<br />{severity === "critical" ? "P1 · Critical" : severity === "serious" ? "P2 · Serious" : severity === "expectant" ? "P4 · Expectant" : "P3 · Walking"}</span>
+              <span>
+                {profile ? (profile.ageYears <= 15 ? "Child" : "Adult") : casualty.clinical?.ageYears !== undefined && casualty.clinical.ageYears <= 15 ? "Child" : "Adult"}
+                {profile ? ` · ${profile.sex === "male" ? "Male" : "Female"}` : ""}
+                <br />
+                {profile ? `Approx. ${profile.ageYears} years · ${profile.weightKg} kg` : casualty.clinical?.ageYears !== undefined ? `Approx. ${casualty.clinical.ageYears} years` : "Age not recorded"}
+                <br />
+                {severity === "critical" ? "P1 · Critical" : severity === "serious" ? "P2 · Serious" : severity === "expectant" ? "P4 · Expectant" : "P3 · Walking"}
+              </span>
             </div>
             <BodyFigure flags={flags} selected={region} onSelect={setRegion} />
-            <div className={`cc-conscious ${state.tone}`}><i />{state.text}</div>
+            <div className={`cc-conscious ${state.tone}`}><i />{state.text}{pain !== undefined && surveyDone && !inArrest ? ` • Pain ${Math.round(pain)}/10` : ""}</div>
             {flags.length > 0 && <div className="cc-flags">{flags.map((f) => <span key={f}>{RED_FLAG_LABEL[f]}</span>)}</div>}
             <div className="cc-allergies">
               <span><Icon d="M12 17h.01M12 7v6m9-1a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /> Allergies</span>
-              <button type="button">Unknown <b>›</b></button>
+              {treatment?.allergiesConfirmedAt ? (
+                <button type="button" className={profile && profile.allergies.length ? "stop" : "ok"} disabled>
+                  {profile && profile.allergies.length ? profile.allergies.map((a) => a.agent).join(", ") : "NKDA"} <b>✓</b>
+                </button>
+              ) : (
+                <button type="button" disabled={!canAct || !props.onConfirmAllergies} onClick={() => props.onConfirmAllergies?.(casualtyId, by)} title="Ask the patient or whoever is with them">
+                  Unknown · ask <b>›</b>
+                </button>
+              )}
             </div>
+            {surveyDone && profile && (
+              <details className="cc-history">
+                <summary>History &amp; medications</summary>
+                <p><b>PMH</b> {profile.history.length ? profile.history.join(" · ") : "Nil of note"}</p>
+                <p><b>Meds</b> {profile.medications.length ? profile.medications.join(" · ") : "None"}</p>
+                <p><b>Events</b> {profile.eventsLeadingUp}</p>
+                {profile.copdRisk && <p className="warn">CO₂ retainer — target 88–92 %</p>}
+                {profile.anticoagulated && <p className="warn">Anticoagulated — bleeds harder</p>}
+                {profile.betaBlocked && <p className="warn">Beta-blocked — tachycardia blunted</p>}
+              </details>
+            )}
           </Card>
           <Card title="Primary survey" icon="✓">
             {!surveyDone && (
@@ -882,7 +940,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                 <div className="cc-log-empty">No treatment recorded yet</div>
               ) : (
                 log.map((e, i) => (
-                  <div key={`${e.at}-${i}`} className="cc-log-row"><span>{clock(e.at - incident.receivedAt)}</span><i /><span>{e.text}</span></div>
+                  <div key={`${e.at}-${i}`} className={`cc-log-row${e.tone ? ` ${e.tone}` : ""}`}><span>{clock(e.at - incident.receivedAt)}</span><i /><span>{e.text}</span></div>
                 ))
               )}
             </div>

@@ -177,6 +177,7 @@ import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
 import { StationBayPanel } from "./components/station-bay-panel";
 import { IncidentView, resolveDeployments, type PendingClosure } from "./components/incident-view";
+import { canGiveDrug, generateProfile, initialPhysio, calibrate, withInfusion } from "@/lib/sim/physiology";
 import { PatientCareTile } from "./vector/patient-care";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
@@ -1861,8 +1862,38 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     mutator: (prev: PatientTreatmentState) => PatientTreatmentState,
   ) {
     setTreatmentByCasualtyId((prev) => {
-      const current = prev[casualtyId] ?? emptyTreatmentState(casualtyId);
+      let current = prev[casualtyId] ?? emptyTreatmentState(casualtyId);
+      if (!current.profile && activeIncident) {
+        const casualty = activeIncident.scenario.scene?.casualties?.find((c) => c.id === casualtyId);
+        if (casualty) {
+          current = {
+            ...current,
+            profile: generateProfile(`${activeIncident.id}:${casualtyId}`, casualty, casualty.clinical),
+          };
+        }
+      }
       return { ...prev, [casualtyId]: mutator(current) };
+    });
+  }
+
+  /** The crew asks about allergies. An alert patient answers; an
+   *  unresponsive one may have a relative, a bracelet or nothing. */
+  function confirmAllergies(casualtyId: string, by: string) {
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) => {
+      if (p.allergiesConfirmedAt) return p;
+      const v = p.liveVitals ?? p.revealedVitals;
+      const canAnswer = (v?.gcs ?? 15) >= 13 || (hashPct(`${casualtyId}:allergy`) < 50);
+      const text = !canAnswer
+        ? "Unable to confirm — patient cannot answer and nobody with them knows"
+        : p.profile && p.profile.allergies.length > 0
+          ? p.profile.allergies.map((a) => `${a.agent} (${a.reaction === "rash" ? "rash" : a.reaction === "angio_oedema" ? "swelling" : "anaphylaxis"})`).join(", ")
+          : "No known drug allergies";
+      return {
+        ...p,
+        allergiesConfirmedAt: canAnswer ? at : p.allergiesConfirmedAt,
+        events: [...p.events, { kind: "allergies_confirmed", at, by, text }],
+      };
     });
   }
 
@@ -1895,6 +1926,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         activeRedFlags: [...clinical.redFlags],
         events: [...p.events, { kind: "survey_completed", at: completedAt }],
       }));
+      // Seed the hidden physiology and calibrate it to the authored
+      // presentation, so the crew sees the patient the scenario wrote.
+      updateTreatment(casualtyId, (p) => {
+        const seeded = initialPhysio(clinical, p.profile, `${activeIncident.id}:${casualtyId}`);
+        return { ...p, physio: calibrate(p, seeded, clinical.vitals, completedAt) };
+      });
     }, 60_000);
   }
 
@@ -1919,6 +1956,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     updateTreatment(casualtyId, (p) => ({
       ...p,
       circulation: { ...p.circulation, [action]: at },
+      physio:
+        action === "fluids_250" || action === "fluids_500"
+          ? withInfusion(p.physio, action === "fluids_250" ? 250 : 500, at)
+          : p.physio,
       events: [...p.events, { kind: "circulation", action, at, by }],
     }));
   }
@@ -1936,7 +1977,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       // Roughly 40% of out-of-hospital arrests present shockable when a
       // crew first gets a monitor on. Director mode forces the dramatic
       // side for filming.
-      const shockableRoll = rollBeat(0.4);
+      const hint = treatmentRef.current[casualtyId]?.arrestRhythmHint;
+      const shockableRoll = hint === "shockable" ? rollBeat(0.85) : hint === "non_shockable" ? rollBeat(0.08) : rollBeat(0.4);
       const rhythm: ArrestRhythm = shockableRoll
         ? Math.random() < 0.85
           ? "vf"
@@ -2127,11 +2169,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }
   function administerDrug(casualtyId: string, drug: DrugName, by: string) {
     const at = Date.now();
-    updateTreatment(casualtyId, (p) => ({
-      ...p,
-      drugs: { ...p.drugs, [drug]: at },
-      events: [...p.events, { kind: "drug", drug, at, by }],
-    }));
+    updateTreatment(casualtyId, (p) => {
+      // Hard stops — no access for an IV drug, a repeat too soon, a
+      // maximum reached, a confirmed allergy, a pressure that forbids it.
+      const check = canGiveDrug(p, drug, at);
+      if (!check.ok) {
+        return { ...p, events: [...p.events, { kind: "drug_refused", drug, at, reason: check.reason ?? "Not given" }] };
+      }
+      const doses = [...(p.doses ?? []), { drug, at, by }];
+      return {
+        ...p,
+        drugs: { ...p.drugs, [drug]: at },
+        doses,
+        events: [...p.events, { kind: "drug", drug, at, by }],
+      };
+    });
   }
   function applyPackaging(casualtyId: string, action: PackagingAction, by: string) {
     const at = Date.now();
@@ -5628,6 +5680,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onSetTreatmentDestination={setTreatmentDestination}
           onSendAtmistPrealert={sendAtmistPrealert}
           onConveyCasualtyVia={conveyCasualtyVia}
+          onConfirmAllergies={confirmAllergies}
         />
       )}
       mapTitle={`MAP — ${mapPlace}`}
@@ -6065,6 +6118,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                   logAnnotation(`${callsign} → CONTROL: ${text}`);
                   setStatusMsg(`${callsign} message logged`);
                 }}
+                onConfirmAllergies={confirmAllergies}
                 onCompleteTask={completeTask}
                 onSetTaskCrew={setTaskCrew}
                 onNote={(text) => logAnnotation(text)}

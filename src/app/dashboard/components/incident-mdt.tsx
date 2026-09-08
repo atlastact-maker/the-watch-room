@@ -104,6 +104,7 @@ type Props = {
   onSetTreatmentDestination?: IncidentViewProps["onSetTreatmentDestination"];
   onSendAtmistPrealert?: IncidentViewProps["onSendAtmistPrealert"];
   onConveyCasualtyVia?: IncidentViewProps["onConveyCasualtyVia"];
+  onConfirmAllergies?: (casualtyId: string, by: string) => void;
   onUpdateBaRemarks?: IncidentViewProps["onUpdateBaRemarks"];
   onUpdateBaEntryPoint?: IncidentViewProps["onUpdateBaEntryPoint"];
   onAbortTask?: IncidentViewProps["onAbortTask"];
@@ -236,6 +237,7 @@ export function DraggableIncidentMdt({
   onSetTreatmentDestination,
   onSendAtmistPrealert,
   onConveyCasualtyVia,
+  onConfirmAllergies,
   onUpdateBaRemarks,
   onUpdateBaEntryPoint,
   onAbortTask,
@@ -532,6 +534,7 @@ export function DraggableIncidentMdt({
       onSetTreatmentDestination={onSetTreatmentDestination}
       onSendAtmistPrealert={onSendAtmistPrealert}
       onConveyCasualtyVia={onConveyCasualtyVia}
+      onConfirmAllergies={onConfirmAllergies}
     />
   ) : null;
 

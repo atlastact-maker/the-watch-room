@@ -244,7 +244,21 @@ function shiftTreatment(
     circulation: shiftActionMap(tx.circulation, offset),
     drugs: shiftActionMap(tx.drugs, offset),
     packaging: shiftActionMap(tx.packaging, offset),
+    egress: shiftActionMap(tx.egress ?? {}, offset),
     events: tx.events.map((e) => shiftTreatmentEvent(e, offset)),
+    allergiesConfirmedAt: shift(tx.allergiesConfirmedAt, offset),
+    prevLiveVitalsAt: shift(tx.prevLiveVitalsAt, offset),
+    doses: tx.doses?.map((d) => ({ ...d, at: d.at + offset })),
+    physio: tx.physio
+      ? {
+          ...tx.physio,
+          infusions: tx.physio.infusions.map((i) => ({ ...i, at: i.at + offset })),
+          postIctalUntil: shift(tx.physio.postIctalUntil, offset),
+          aspirationUntil: shift(tx.physio.aspirationUntil, offset),
+          suctionUntil: shift(tx.physio.suctionUntil, offset),
+          reactionAt: shift(tx.physio.reactionAt, offset),
+        }
+      : undefined,
   };
 }
 
