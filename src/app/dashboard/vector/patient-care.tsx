@@ -113,6 +113,7 @@ export function PatientCareWorkspace(props: PatientCareProps) {
       popped={poppedOut}
       onPopOut={() => setPoppedOut(true)}
       onDock={() => setPoppedOut(false)}
+      layout={inline && !poppedOut ? "tablet" : "full"}
     />
   ) : null;
 

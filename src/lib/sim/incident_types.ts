@@ -726,6 +726,7 @@ export type TreatmentEvent =
   // What the patient's body did — a reaction, a deterioration, a recovery.
   | { kind: "physio"; at: number; text: string; tone: "info" | "warn" | "critical" | "good"; adverse?: boolean }
   | { kind: "allergies_confirmed"; at: number; by: string; text: string }
+  | { kind: "observation"; at: number; by: string; text: string }
   | { kind: "drug_refused"; at: number; drug: DrugName; reason: string };
 
 /** Full treatment state for one casualty. Persisted in dashboard-client

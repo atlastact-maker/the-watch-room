@@ -92,6 +92,9 @@ export type CareCallbacks = {
   onConveyCasualtyVia?: (applianceId: string, casualtyId: string) => void;
   /** Ask the patient (or whoever is with them) about allergies. */
   onConfirmAllergies?: (casualtyId: string, by: string) => void;
+  /** An observation taken at the patient's side — an NIBP cycle, a
+   *  12-lead, an alarm — for the record. */
+  onRecordObservation?: (casualtyId: string, text: string, by: string) => void;
 };
 
 export type CasualtyCareProps = CareCallbacks & {
@@ -111,7 +114,14 @@ export type CasualtyCareProps = CareCallbacks & {
   popped?: boolean;
   onPopOut?: () => void;
   onDock?: () => void;
+  /** Three columns on a desk; tabbed pages on the tablet. */
+  layout?: "full" | "tablet";
 };
+
+type CareView = "patient" | "monitor" | "care" | "log";
+
+type AlarmConfig = { on: boolean; hrLow: number; hrHigh: number; spo2Low: number; rrHigh: number; sysLow: number };
+const DEFAULT_ALARMS: AlarmConfig = { on: true, hrLow: 50, hrHigh: 120, spo2Low: 90, rrHigh: 30, sysLow: 90 };
 
 type CareTab = "assess" | "airway" | "breathing" | "circulation" | "immobilise" | "handover";
 
@@ -202,6 +212,7 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
     case "atmist_sent": return "ATMIST pre-alert sent";
     case "physio": return e.text;
     case "allergies_confirmed": return `Allergies confirmed · ${e.text} (${e.by})`;
+    case "observation": return e.text;
     case "drug_refused": return `${DRUG_LABEL[e.drug]} not given · ${e.reason}`;
   }
 }
@@ -412,18 +423,62 @@ function BodyFigure({ flags, selected, onSelect }: { flags: PatientRedFlag[]; se
 // The screen
 // ---------------------------------------------------------------------------
 
+/** What a 12-lead would show for this patient, read off the physiology
+ *  and the history rather than a canned string. */
+function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState | undefined, hr: number | null, flags: PatientRedFlag[], temp: number | undefined): { rhythm: string; findings: string[]; impression: string } {
+  const findings: string[] = [];
+  const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
+  if (inArrest) {
+    const r = resus!.rhythm;
+    const rhythm = r === "vf" ? "Ventricular fibrillation" : r === "pvt" ? "Pulseless ventricular tachycardia" : r === "pea" ? "Organised rhythm — no pulse (PEA)" : "Asystole";
+    return { rhythm, findings: [r === "vf" || r === "pvt" ? "Shockable rhythm — charge and shock" : "Non-shockable — CPR and adrenaline, find the cause"], impression: rhythm };
+  }
+  const rate = hr ?? 0;
+  const af = tx?.profile?.history.some((h) => /atrial fibrillation/i.test(h));
+  let rhythm = af ? `Atrial fibrillation, ventricular rate ${rate}` : rate > 100 ? `Sinus tachycardia, ${rate}` : rate < 60 ? `Sinus bradycardia, ${rate}` : `Sinus rhythm, ${rate}`;
+  if (af) findings.push("Irregularly irregular, no P waves");
+  if (flags.includes("stemi")) {
+    const territory = ["anterior (V1–V4)", "inferior (II, III, aVF)", "lateral (I, aVL, V5–V6)"][hashSeedLocal(tx?.casualtyId ?? "") % 3];
+    findings.push(`ST elevation ${territory} with reciprocal depression`);
+    if (tx?.physio && tx.physio.ischaemia > 0.7) findings.push("Evolving Q waves — established infarct");
+  }
+  if (temp !== undefined && temp < 32) findings.push("Osborn J waves — hypothermia");
+  if (tx?.physio && tx.physio.icp > 0.6) findings.push("Deep T-wave inversion — raised intracranial pressure");
+  if (flags.includes("overdose_opioid") || (tx?.physio?.sedation ?? 0) > 0.6) findings.push("Sinus rhythm, slow — no ischaemic change");
+  if (rate > 150 && !af) { rhythm = `Narrow-complex tachycardia, ${rate}`; findings.push("Regular narrow complexes — SVT vs sinus tachycardia; look for the cause"); }
+  if (findings.length === 0) findings.push("Normal axis, PR 160 ms, QRS 90 ms, QTc 410 ms", "No acute ST change");
+  const impression = flags.includes("stemi") ? "STEMI — PPCI centre, pre-alert" : af ? "AF — rate control is a hospital decision" : rate > 100 ? "Sinus tachycardia — treat the cause" : "No acute abnormality";
+  return { rhythm, findings, impression };
+}
+
+function hashSeedLocal(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 export function CasualtyCareScreen(props: CasualtyCareProps) {
   const { casualty, stage, severity, incident, treatment, resus, deployments, resolved, tasks, now, onClose } = props;
   const casualtyId = casualty.id;
+  const tablet = props.layout === "tablet";
   const [tab, setTab] = useState<CareTab>("assess");
+  const [view, setView] = useState<CareView>("patient");
   const [region, setRegion] = useState<BodyRegion | null>(null);
   const [device, setDevice] = useState<OxygenDevice | "">("");
   const [flowIx, setFlowIx] = useState(0);
   const [drug, setDrug] = useState<DrugName | "">("");
   const [clearedAt, setClearedAt] = useState(0);
-  const [bpAt, setBpAt] = useState<number | null>(null);
-  const [alarms, setAlarms] = useState(true);
+  // The monitor's own instruments: NIBP is a cuff cycle, not a live number.
+  const [nibp, setNibp] = useState<{ sys: number; dia: number; at: number } | null>(null);
+  const [measuringSince, setMeasuringSince] = useState<number | null>(null);
+  const [nibpAuto, setNibpAuto] = useState<0 | 2 | 3 | 5>(0);
+  const [ecg12, setEcg12] = useState<{ at: number; rhythm: string; findings: string[]; impression: string } | null>(null);
+  const [alarmCfg, setAlarmCfg] = useState<AlarmConfig>(DEFAULT_ALARMS);
+  const [alarmPanel, setAlarmPanel] = useState(false);
+  const [silencedUntil, setSilencedUntil] = useState(0);
   const logRef = useRef<HTMLDivElement | null>(null);
+  const vitalsRef = useRef<PatientTreatmentState["liveVitals"]>(undefined);
+  const lastAlarmRef = useRef<string>("");
 
   // ---- Who is with the patient --------------------------------------
   const pairedAll = deployments
@@ -470,9 +525,66 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const updatedAt = treatment?.liveVitalsLastTickAt ?? treatment?.surveyCompletedAt;
   const scenarioTime = clock(now - incident.receivedAt);
 
+  // ---- Instruments -----------------------------------------------------------
+  useEffect(() => {
+    vitalsRef.current = treatment?.liveVitals;
+  });
+  const record = (text: string) => props.onRecordObservation?.(casualtyId, text, by);
+  const nibpShown = nibp ?? (surveyDone && treatment?.revealedVitals ? { sys: treatment.revealedVitals.bpSys, dia: treatment.revealedVitals.bpDia, at: treatment.surveyCompletedAt ?? now } : null);
+  const nibpMap = nibpShown ? Math.round((nibpShown.sys + 2 * nibpShown.dia) / 3) : null;
+  const measuring = measuringSince !== null;
+  // A cuff cycle takes about eight seconds, then the reading is the
+  // pressure the patient had when the cuff came down.
+  useEffect(() => {
+    if (measuringSince === null) return;
+    const id = window.setTimeout(() => {
+      const v = vitalsRef.current;
+      const at = Date.now();
+      if (v) {
+        const sys = Math.round(v.bpSys);
+        const dia = Math.round(v.bpDia);
+        setNibp({ sys, dia, at });
+        props.onRecordObservation?.(casualtyId, sys === 0 ? "NIBP — no reading, no pulse" : `NIBP ${sys}/${dia} · MAP ${Math.round((sys + 2 * dia) / 3)}`, by);
+      }
+      setMeasuringSince(null);
+    }, 8000);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measuringSince]);
+  useEffect(() => {
+    if (!nibpAuto || !surveyDone) return;
+    const id = window.setInterval(() => setMeasuringSince(Date.now()), nibpAuto * 60000);
+    return () => window.clearInterval(id);
+  }, [nibpAuto, surveyDone]);
+  // Alarms: limits against the live numbers, a log line on each breach.
+  const silenced = now < silencedUntil;
+  const breaches: string[] = [];
+  if (alarmCfg.on && surveyDone && vitals && !inArrest) {
+    if (hrShown !== null && hrShown < alarmCfg.hrLow) breaches.push(`HR ${hrShown} low`);
+    if (hrShown !== null && hrShown > alarmCfg.hrHigh) breaches.push(`HR ${hrShown} high`);
+    if (spo2Shown !== null && spo2Shown < alarmCfg.spo2Low) breaches.push(`SpO₂ ${spo2Shown} low`);
+    if (rrShown !== null && rrShown > alarmCfg.rrHigh) breaches.push(`RR ${rrShown} high`);
+    if (nibpShown && nibpShown.sys < alarmCfg.sysLow && nibpShown.sys > 0) breaches.push(`Systolic ${nibpShown.sys} low`);
+  }
+  if (inArrest && alarmCfg.on) breaches.push("No output");
+  const alarmKey = breaches.map((b) => b.replace(/\d+/g, "")).join("|");
+  useEffect(() => {
+    if (alarmKey === lastAlarmRef.current) return;
+    lastAlarmRef.current = alarmKey;
+    if (alarmKey) props.onRecordObservation?.(casualtyId, `ALARM · ${breaches.join(", ")}`, "Monitor");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alarmKey]);
+  const alarming = breaches.length > 0 && !silenced;
+  const takeEcg = () => {
+    const r = interpretEcg(treatment, resus, hrShown, flags, vitals?.temp);
+    setEcg12({ at: now, ...r });
+    record(`12-lead ECG · ${r.rhythm} · ${r.impression}`);
+    if (resus) props.onAttachMonitor?.(casualtyId, "lead_12");
+  };
+
   // ---- Log ----------------------------------------------------------------
   const log: { at: number; text: string; tone?: string }[] = [
-    ...(treatment?.events ?? []).map((e) => ({ at: "at" in e ? e.at : 0, text: describeEvent(e), tone: e.kind === "physio" ? e.tone : e.kind === "drug_refused" ? "warn" : undefined })),
+    ...(treatment?.events ?? []).map((e) => ({ at: "at" in e ? e.at : 0, text: describeEvent(e), tone: e.kind === "physio" ? e.tone : e.kind === "drug_refused" ? "warn" : e.kind === "observation" && e.text.startsWith("ALARM") ? "warn" : undefined })),
     ...(resus?.events ?? []).map((e) => ({ at: e.at, text: e.text, tone: e.tone === "critical" ? "critical" : e.tone === "good" ? "good" : undefined })),
     ...(paired.length ? [{ at: Math.min(...paired.map((p) => p.deployment.arrivesAt)), text: "Monitor connected" }] : []),
   ]
@@ -827,136 +939,248 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     }
   }
 
+  const headerButtons = (
+    <>
+      {props.popped ? (
+        <button type="button" className="cc-close" onClick={props.onDock}>⤶ Dock</button>
+      ) : props.onPopOut ? (
+        <button type="button" className="cc-close" onClick={props.onPopOut} title="Open on another screen">↗ Window</button>
+      ) : null}
+      <button type="button" className="cc-close" onClick={onClose}>✕ Close</button>
+    </>
+  );
+
+  const patientCard = (
+    <Card title="Patient assessment" icon="≡" fill>
+      <div className="cc-patient-grid">
+        <BodyFigure flags={flags} selected={region} onSelect={setRegion} />
+        <div className="cc-patient-details">
+          <div className="cc-patient">
+            <strong>{(casualty.label ?? casualty.id).toUpperCase()}</strong>
+          </div>
+          <dl className="cc-facts">
+            <dt>Patient</dt>
+            <dd>{profile ? `${profile.ageYears <= 15 ? "Child" : "Adult"} · ${profile.sex === "male" ? "Male" : "Female"} · ${profile.ageYears} y · ${profile.weightKg} kg` : casualty.clinical?.ageYears !== undefined ? `Approx. ${casualty.clinical.ageYears} years` : "Age not recorded"}</dd>
+            <dt>Triage</dt>
+            <dd className={severity === "critical" || severity === "expectant" ? "stop" : severity === "serious" ? "warn" : "go"}>{severity === "critical" ? "P1 · Critical" : severity === "serious" ? "P2 · Serious" : severity === "expectant" ? "P4 · Expectant" : "P3 · Walking"}</dd>
+            <dt>Response</dt>
+            <dd><span className={`cc-conscious ${state.tone}`}><i />{state.text}</span></dd>
+            {pain !== undefined && surveyDone && !inArrest && (<><dt>Pain</dt><dd>{Math.round(pain)} / 10</dd></>)}
+            <dt>Crew</dt>
+            <dd>{paired.length ? paired.map((p) => `${p.appliance.callsign} · ${SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)]}`).join(", ") : inbound.length ? `${inbound.map((p) => p.appliance.callsign).join(", ")} running` : "No clinician assigned"}</dd>
+            <dt>Allergies</dt>
+            <dd>
+              {treatment?.allergiesConfirmedAt ? (
+                <span className={profile && profile.allergies.length ? "stop" : "go"}>{profile && profile.allergies.length ? profile.allergies.map((a) => a.agent).join(", ") : "NKDA"} ✓</span>
+              ) : (
+                <button type="button" className="cc-mini" disabled={!canAct || !props.onConfirmAllergies} onClick={() => props.onConfirmAllergies?.(casualtyId, by)} title="Ask the patient or whoever is with them">Unknown · ask ›</button>
+              )}
+            </dd>
+          </dl>
+          {flags.length > 0 && <div className="cc-flags">{flags.map((f) => <span key={f}>{RED_FLAG_LABEL[f]}</span>)}</div>}
+          {region && <p className="cc-note">{BODY_REGIONS.find((r) => r.code === region)?.label} selected — actions for other regions are dimmed.</p>}
+        </div>
+      </div>
+      {surveyDone && profile && (
+        <details className="cc-history" open={tablet}>
+          <summary>History &amp; medications</summary>
+          <p><b>PMH</b> {profile.history.length ? profile.history.join(" · ") : "Nil of note"}</p>
+          <p><b>Meds</b> {profile.medications.length ? profile.medications.join(" · ") : "None"}</p>
+          <p><b>Events</b> {profile.eventsLeadingUp}</p>
+          {profile.copdRisk && <p className="warn">CO₂ retainer — target 88–92 %</p>}
+          {profile.anticoagulated && <p className="warn">Anticoagulated — bleeds harder</p>}
+          {profile.betaBlocked && <p className="warn">Beta-blocked — tachycardia blunted</p>}
+        </details>
+      )}
+    </Card>
+  );
+
+  const surveyCard = (
+    <Card title="Primary survey" icon="✓">
+      {!surveyDone && (
+        <button type="button" className="cc-primary" disabled={!canAct || surveyRunning || !props.onStartPatientSurvey} onClick={() => props.onStartPatientSurvey?.(casualtyId)}>
+          {surveyRunning ? `Assessing · ${Math.round(surveySec)}s / 60s` : "Start primary survey · ~60s"}
+        </button>
+      )}
+      {surveyRunning && <div className="cc-bar"><i style={{ width: `${(surveySec / 60) * 100}%` }} /></div>}
+      <div className="cc-survey">
+        {surveyRows.map((r) => (
+          <button key={r.k} type="button" onClick={() => { setTab(r.tab); setView("care"); }}>
+            <b>{r.k}</b><span>{r.label}</span><small className={r.tone}>{r.status}</small><em>›</em>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+
+  const monitorCard = (
+    <Card
+      title="Vital signs monitor"
+      icon="⌁"
+      fill
+      tone={alarming ? "stop" : undefined}
+      headerExtra={
+        <span className="cc-mon-meta">
+          Lead II · 25 mm/s · 10 mm/mV
+          {silenced && <em>silenced {clock(silencedUntil - now).slice(3)}</em>}
+          <button type="button" title="Alarm settings" aria-pressed={alarmPanel} onClick={() => setAlarmPanel((a) => !a)}>{alarmCfg.on ? "🔔" : "🔕"}</button>
+        </span>
+      }
+    >
+      <div className={`cc-monitor${alarming ? " alarm" : ""}`}>
+        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={surveyDone && paired.length > 0} />
+        <div className="cc-numbers">
+          <div className={`hr${breaches.some((b) => b.startsWith("HR")) && !silenced ? " alarm" : ""}`}><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
+          <div className={`spo2${breaches.some((b) => b.startsWith("SpO")) && !silenced ? " alarm" : ""}`}><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
+          <div className={`rr${breaches.some((b) => b.startsWith("RR")) && !silenced ? " alarm" : ""}`}><span>RR</span><strong>{rrShown ?? "--"}</strong><small>/min</small></div>
+        </div>
+        {!surveyDone && (
+          <div className="cc-mon-overlay">{paired.length === 0 ? "NO CLINICIAN WITH PATIENT" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY TO CONNECT THE MONITOR"}</div>
+        )}
+        {alarmPanel && (
+          <div className="cc-alarm-panel">
+            <strong>ALARM LIMITS</strong>
+            <label><span>Alarms</span><button type="button" className="cc-mini" aria-pressed={alarmCfg.on} onClick={() => setAlarmCfg((c) => ({ ...c, on: !c.on }))}>{alarmCfg.on ? "On" : "Off"}</button></label>
+            {([["hrLow", "HR low"], ["hrHigh", "HR high"], ["spo2Low", "SpO₂ low"], ["rrHigh", "RR high"], ["sysLow", "Systolic low"]] as const).map(([k, label]) => (
+              <label key={k}>
+                <span>{label}</span>
+                <span className="cc-stepper small">
+                  <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] - (k === "spo2Low" ? 1 : 5) }))}>−</button>
+                  <output>{alarmCfg[k]}</output>
+                  <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] + (k === "spo2Low" ? 1 : 5) }))}>+</button>
+                </span>
+              </label>
+            ))}
+            <label><span>NIBP auto-cycle</span>
+              <span className="cc-segs">
+                {([0, 2, 3, 5] as const).map((m) => (
+                  <button key={m} type="button" aria-pressed={nibpAuto === m} onClick={() => setNibpAuto(m)}>{m === 0 ? "Off" : `${m} min`}</button>
+                ))}
+              </span>
+            </label>
+            <div className="cc-alarm-actions">
+              <button type="button" className="cc-mini" onClick={() => setSilencedUntil(now + 120000)}>Silence 2 min</button>
+              <button type="button" className="cc-mini" onClick={() => setAlarmCfg(DEFAULT_ALARMS)}>Defaults</button>
+              <button type="button" className="cc-mini" onClick={() => setAlarmPanel(false)}>Done</button>
+            </div>
+          </div>
+        )}
+        {ecg12 && (
+          <div className="cc-ecg12">
+            <strong>12-LEAD ECG · {wall(ecg12.at)}</strong>
+            <p className="rhythm">{ecg12.rhythm}</p>
+            <ul>{ecg12.findings.map((f) => <li key={f}>{f}</li>)}</ul>
+            <p className="impression">{ecg12.impression}</p>
+            <button type="button" className="cc-mini" onClick={() => setEcg12(null)}>Close</button>
+          </div>
+        )}
+      </div>
+      <div className="cc-nibp">
+        <div className={breaches.some((b) => b.startsWith("Systolic")) && !silenced ? "alarm" : ""}><span>NIBP</span><strong>{measuring ? "· · ·" : nibpShown ? `${nibpShown.sys} / ${nibpShown.dia}` : "-- / --"}</strong><small>mmHg{nibpAuto ? ` · auto ${nibpAuto} min` : ""}</small></div>
+        <div className="map"><span>MAP</span><strong>{measuring ? "··" : nibpMap ?? "--"}</strong></div>
+        <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
+        <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
+      </div>
+      <div className="cc-mon-buttons">
+        <button type="button" disabled={!surveyDone || paired.length === 0} onClick={takeEcg}>12-lead ECG</button>
+        <button type="button" disabled={!surveyDone || measuring || paired.length === 0} onClick={() => setMeasuringSince(now)}>{measuring ? "Measuring…" : "Measure BP"}</button>
+        <button type="button" aria-pressed={alarmPanel} onClick={() => setAlarmPanel((a) => !a)}>{alarming ? `Alarm · ${breaches[0]}` : silenced ? "Alarms silenced" : "Alarm settings"}</button>
+      </div>
+    </Card>
+  );
+
+  const logCard = (
+    <Card title="Treatment log" icon="▤" fill headerExtra={<button type="button" className="cc-link" onClick={() => setClearedAt(now)}>Clear log</button>}>
+      <div className="cc-log" ref={logRef}>
+        <div className="cc-log-h"><span>Time</span><span>Event</span></div>
+        {log.length === 0 ? (
+          <div className="cc-log-empty">No treatment recorded yet</div>
+        ) : (
+          log.map((e, i) => (
+            <div key={`${e.at}-${i}`} className={`cc-log-row${e.tone ? ` ${e.tone}` : ""}`}><span>{clock(e.at - incident.receivedAt)}</span><i /><span>{e.text}</span></div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+
+  const footer = (
+    <footer className="cc-foot">
+      {TABS.map((t) => (
+        <button key={t.key} type="button" aria-pressed={tab === t.key && (!tablet || view === "care")} onClick={() => { setTab(t.key); setView("care"); }}>
+          {t.icon}<span>{t.label}</span>
+        </button>
+      ))}
+    </footer>
+  );
+
+  if (tablet) {
+    const views: { key: CareView; label: string; badge?: string }[] = [
+      { key: "patient", label: "Patient" },
+      { key: "monitor", label: "Monitor", badge: alarming ? "!" : undefined },
+      { key: "care", label: "Care", badge: TABS.find((t) => t.key === tab)?.label },
+      { key: "log", label: "Log", badge: log.length ? String(log.length) : undefined },
+    ];
+    return (
+      <div className={`cc-screen cc-tablet${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
+        <header className="cc-head">
+          <div className="cc-brand">
+            <h1>CASUALTY CARE</h1>
+            <span className="cc-who">{(casualty.label ?? casualty.id).toUpperCase()}</span>
+          </div>
+          <div className="cc-head-right">
+            <div className="cc-time"><small>SCENARIO</small><strong>{scenarioTime}</strong></div>
+            {headerButtons}
+          </div>
+        </header>
+        <nav className="cc-views" aria-label="Pages">
+          {views.map((v) => (
+            <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => setView(v.key)}>
+              {v.label}{v.badge && <em>{v.badge}</em>}
+            </button>
+          ))}
+        </nav>
+        <main className="cc-main tablet">
+          {view === "patient" && (<>{patientCard}{surveyCard}</>)}
+          {view === "monitor" && monitorCard}
+          {view === "care" && <div className="cc-col cc-right">{rightColumn()}</div>}
+          {view === "log" && logCard}
+        </main>
+        {footer}
+      </div>
+    );
+  }
+
   return (
-    <div className="cc-screen" role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
+    <div className={`cc-screen${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
       <header className="cc-head">
         <div className="cc-brand">
-          <svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
-            <path d="M20 2l4 6h-8zM20 38l-4-6h8zM4 11l7 1-4 7zM36 11l-3 8-4-7zM4 29l3-8 4 7zM36 29l-7-1 4-7z" fill="#4ea6e8" />
-            <circle cx="20" cy="20" r="9" fill="#4ea6e8" />
-            <path d="M18 14h4v4h4v4h-4v4h-4v-4h-4v-4h4z" fill="#0b1620" />
+          <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
+            <path d="M20 2l4 6h-8zM20 38l-4-6h8zM4 11l7 1-4 7zM36 11l-3 8-4-7zM4 29l3-8 4 7zM36 29l-7-1 4-7z" fill="currentColor" />
+            <circle cx="20" cy="20" r="9" fill="currentColor" />
+            <path d="M18 14h4v4h4v4h-4v4h-4v-4h-4v-4h4z" fill="var(--vec-bar, #1e303c)" />
           </svg>
           <h1>CASUALTY CARE <span>SIMULATION</span></h1>
         </div>
         <div className="cc-head-right">
           <div className="cc-who"><Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" /> <span>{(casualty.label ?? casualty.id).toUpperCase()}</span></div>
           <div className="cc-time"><Icon d="M12 8v5l3 2m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /><div><small>SCENARIO TIME</small><strong>{scenarioTime}</strong></div></div>
-          {props.popped ? (
-            <button type="button" className="cc-close" onClick={props.onDock}>⤶ Dock</button>
-          ) : props.onPopOut ? (
-            <button type="button" className="cc-close" onClick={props.onPopOut} title="Open on another screen">↗ Window</button>
-          ) : null}
-          <button type="button" className="cc-close" onClick={onClose}>✕ Close</button>
+          {headerButtons}
         </div>
       </header>
 
       <main className="cc-main">
         <div className="cc-col">
-          <Card title="Patient assessment" icon="≡" fill>
-            <div className="cc-patient">
-              <strong>{(casualty.label ?? casualty.id).toUpperCase()}</strong>
-              <span>
-                {profile ? (profile.ageYears <= 15 ? "Child" : "Adult") : casualty.clinical?.ageYears !== undefined && casualty.clinical.ageYears <= 15 ? "Child" : "Adult"}
-                {profile ? ` · ${profile.sex === "male" ? "Male" : "Female"}` : ""}
-                <br />
-                {profile ? `Approx. ${profile.ageYears} years · ${profile.weightKg} kg` : casualty.clinical?.ageYears !== undefined ? `Approx. ${casualty.clinical.ageYears} years` : "Age not recorded"}
-                <br />
-                {severity === "critical" ? "P1 · Critical" : severity === "serious" ? "P2 · Serious" : severity === "expectant" ? "P4 · Expectant" : "P3 · Walking"}
-              </span>
-            </div>
-            <BodyFigure flags={flags} selected={region} onSelect={setRegion} />
-            <div className={`cc-conscious ${state.tone}`}><i />{state.text}{pain !== undefined && surveyDone && !inArrest ? ` • Pain ${Math.round(pain)}/10` : ""}</div>
-            {flags.length > 0 && <div className="cc-flags">{flags.map((f) => <span key={f}>{RED_FLAG_LABEL[f]}</span>)}</div>}
-            <div className="cc-allergies">
-              <span><Icon d="M12 17h.01M12 7v6m9-1a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /> Allergies</span>
-              {treatment?.allergiesConfirmedAt ? (
-                <button type="button" className={profile && profile.allergies.length ? "stop" : "ok"} disabled>
-                  {profile && profile.allergies.length ? profile.allergies.map((a) => a.agent).join(", ") : "NKDA"} <b>✓</b>
-                </button>
-              ) : (
-                <button type="button" disabled={!canAct || !props.onConfirmAllergies} onClick={() => props.onConfirmAllergies?.(casualtyId, by)} title="Ask the patient or whoever is with them">
-                  Unknown · ask <b>›</b>
-                </button>
-              )}
-            </div>
-            {surveyDone && profile && (
-              <details className="cc-history">
-                <summary>History &amp; medications</summary>
-                <p><b>PMH</b> {profile.history.length ? profile.history.join(" · ") : "Nil of note"}</p>
-                <p><b>Meds</b> {profile.medications.length ? profile.medications.join(" · ") : "None"}</p>
-                <p><b>Events</b> {profile.eventsLeadingUp}</p>
-                {profile.copdRisk && <p className="warn">CO₂ retainer — target 88–92 %</p>}
-                {profile.anticoagulated && <p className="warn">Anticoagulated — bleeds harder</p>}
-                {profile.betaBlocked && <p className="warn">Beta-blocked — tachycardia blunted</p>}
-              </details>
-            )}
-          </Card>
-          <Card title="Primary survey" icon="✓">
-            {!surveyDone && (
-              <button type="button" className="cc-primary" disabled={!canAct || surveyRunning || !props.onStartPatientSurvey} onClick={() => props.onStartPatientSurvey?.(casualtyId)}>
-                {surveyRunning ? `Assessing · ${Math.round(surveySec)}s / 60s` : "Start primary survey · ~60s"}
-              </button>
-            )}
-            {surveyRunning && <div className="cc-bar"><i style={{ width: `${(surveySec / 60) * 100}%` }} /></div>}
-            <div className="cc-survey">
-              {surveyRows.map((r) => (
-                <button key={r.k} type="button" onClick={() => setTab(r.tab)}>
-                  <b>{r.k}</b><span>{r.label}</span><small className={r.tone}>{r.status}</small><em>›</em>
-                </button>
-              ))}
-            </div>
-          </Card>
+          {patientCard}
+          {surveyCard}
         </div>
-
         <div className="cc-col cc-centre">
-          <Card title="Vital signs monitor" icon="⌁" fill headerExtra={<span className="cc-mon-meta">Lead II &nbsp; 25 mm/s &nbsp; 10 mm/mV <button type="button" title={alarms ? "Alarms on" : "Alarms silenced"} onClick={() => setAlarms((a) => !a)}>{alarms ? "⚙" : "🔕"}</button></span>}>
-            <div className="cc-monitor">
-              <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={surveyDone && paired.length > 0} />
-              <div className="cc-numbers">
-                <div className="hr"><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
-                <div className="spo2"><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
-                <div className="rr"><span>RR</span><strong>{rrShown ?? "--"}</strong><small>/min</small></div>
-              </div>
-              {!surveyDone && (
-                <div className="cc-mon-overlay">{paired.length === 0 ? "NO CLINICIAN WITH PATIENT" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY TO CONNECT THE MONITOR"}</div>
-              )}
-            </div>
-            <div className="cc-nibp">
-              <div><span>NIBP</span><strong>{vitals && surveyDone ? `${vitals.bpSys} / ${vitals.bpDia}` : "-- / --"}</strong><small>mmHg</small></div>
-              <div className="map"><span>MAP</span><strong>{map !== null && surveyDone ? map : "--"}</strong></div>
-              <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
-              <div className="upd"><span>Last updated</span><strong>{bpAt ? wall(bpAt) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
-            </div>
-            <div className="cc-mon-buttons">
-              <button type="button" disabled={!surveyDone} onClick={() => props.onAttachMonitor?.(casualtyId, "lead_12")}>12-lead ECG</button>
-              <button type="button" disabled={!surveyDone} onClick={() => setBpAt(now)}>Measure BP</button>
-              <button type="button" onClick={() => setAlarms((a) => !a)}>{alarms ? "Alarm settings" : "Alarms silenced"}</button>
-            </div>
-          </Card>
-          <Card title="Treatment log" icon="▤" fill headerExtra={<button type="button" className="cc-link" onClick={() => setClearedAt(now)}>🗑 Clear log</button>}>
-            <div className="cc-log" ref={logRef}>
-              <div className="cc-log-h"><span>Time</span><span>Event</span></div>
-              {log.length === 0 ? (
-                <div className="cc-log-empty">No treatment recorded yet</div>
-              ) : (
-                log.map((e, i) => (
-                  <div key={`${e.at}-${i}`} className={`cc-log-row${e.tone ? ` ${e.tone}` : ""}`}><span>{clock(e.at - incident.receivedAt)}</span><i /><span>{e.text}</span></div>
-                ))
-              )}
-            </div>
-          </Card>
+          {monitorCard}
+          {logCard}
         </div>
-
         <div className="cc-col cc-right">{rightColumn()}</div>
       </main>
-
-      <footer className="cc-foot">
-        {TABS.map((t) => (
-          <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>
-            {t.icon}<span>{t.label}</span>
-          </button>
-        ))}
-      </footer>
+      {footer}
       <div className="cc-stage">{stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · {SCOPE_LABEL[scope] ?? "No clinician"}{lead ? ` · ${lead.appliance.callsign}` : ""}</div>
     </div>
   );

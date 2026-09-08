@@ -1877,6 +1877,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     });
   }
 
+  /** Something read off the monitor at the patient's side — an NIBP
+   *  cycle, a 12-lead, an alarm. */
+  function recordObservation(casualtyId: string, text: string, by: string) {
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) => ({ ...p, events: [...p.events, { kind: "observation", at, text, by }] }));
+  }
+
   /** The crew asks about allergies. An alert patient answers; an
    *  unresponsive one may have a relative, a bracelet or nothing. */
   function confirmAllergies(casualtyId: string, by: string) {
@@ -5684,6 +5691,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onSendAtmistPrealert={sendAtmistPrealert}
           onConveyCasualtyVia={conveyCasualtyVia}
           onConfirmAllergies={confirmAllergies}
+          onRecordObservation={recordObservation}
         />
       )}
       taskingTile={(area, pop) => (
@@ -6159,6 +6167,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                   setStatusMsg(`${callsign} message logged`);
                 }}
                 onConfirmAllergies={confirmAllergies}
+                onRecordObservation={recordObservation}
                 onCompleteTask={completeTask}
                 onSetTaskCrew={setTaskCrew}
                 onNote={(text) => logAnnotation(text)}

@@ -1366,6 +1366,8 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
       return e.text;
     case "allergies_confirmed":
       return `Allergies confirmed · ${e.text} (${e.by})`;
+    case "observation":
+      return `${e.text} (${e.by})`;
     case "drug_refused":
       return `${DRUG_LABEL[e.drug]} not given · ${e.reason}`;
   }

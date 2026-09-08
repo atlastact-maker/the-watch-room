@@ -24,6 +24,7 @@ import {
 import { incidentRef } from "../vector/model";
 import { PopoutWindow } from "../vector/popout";
 import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
+import { MdtTaskWorkspace } from "../vector/mdt-task-workspace";
 import type { Eta } from "./deployment-board";
 import type { Patch } from "@/lib/sim/areas";
 
@@ -81,6 +82,7 @@ type Props = {
   onSendAtmistPrealert?: IncidentViewProps["onSendAtmistPrealert"];
   onConveyCasualtyVia?: IncidentViewProps["onConveyCasualtyVia"];
   onConfirmAllergies?: (casualtyId: string, by: string) => void;
+  onRecordObservation?: (casualtyId: string, text: string, by: string) => void;
   onUpdateBaRemarks?: IncidentViewProps["onUpdateBaRemarks"];
   onUpdateBaEntryPoint?: IncidentViewProps["onUpdateBaEntryPoint"];
   onAbortTask?: IncidentViewProps["onAbortTask"];
@@ -227,11 +229,79 @@ export function DraggableIncidentMdt(props: Props) {
 
   const [minimised, setMinimised] = useState(false);
   const [popped, setPopped] = useState(false);
+  // The tablet's modules. Casualty care is the medical module; Fire and
+  // Police carry the service's tasking for a unit of that service.
+  const [module, setModule] = useState<"care" | "fire" | "police">("care");
+  const [taskPage, setTaskPage] = useState<"actions" | "water">("actions");
+  const onSceneAppliances = resolvedDeps.filter((r) => r.phase === "at_incident").map((r) => r.appliance);
+  const pumpOperator = unitAppliance
+    ? unitAppliance.crewMembers.find((c) => c.id === unitRow?.deployment.pumpOperatorCrewId) ??
+      unitAppliance.crewMembers.find((c) => /Pump|Driver/i.test(c.role)) ??
+      unitAppliance.crewMembers[0]
+    : undefined;
+
+  function serviceModule(service: "Fire" | "Police") {
+    if (resolved) return <div className="vec-tile-empty">Incident closed</div>;
+    if (!unitAppliance || !unitRow) return <div className="vec-tile-empty">Commit a {service.toLowerCase()} unit to open this module</div>;
+    if (unitAppliance.service !== service) {
+      return (
+        <div className="vec-tile-empty">
+          {unitCallsign} is {unitAppliance.service === "Ambulance" ? "an ambulance" : `a ${unitAppliance.service.toLowerCase()} unit`} — pick a {service.toLowerCase()} unit above for this module
+        </div>
+      );
+    }
+    return (
+      <>
+        {service === "Fire" && unitAppliance.waterLitres > 0 && (
+          <div className="vec-patients-filter">
+            <span className="lbl">PAGE</span>
+            <div className="vec-segments" role="group" aria-label="Page">
+              <button type="button" aria-pressed={taskPage === "actions"} onClick={() => setTaskPage("actions")}>Actions</button>
+              <button type="button" aria-pressed={taskPage === "water"} onClick={() => setTaskPage("water")}>Water</button>
+            </div>
+          </div>
+        )}
+        <div className="vec-mdt-body page vec-tasking">
+          <MdtTaskWorkspace
+            key={`${taskPage}:${unitAppliance.id}`}
+            page={service === "Fire" && unitAppliance.waterLitres > 0 ? taskPage : "actions"}
+            incident={incident}
+            incidentRef={ref}
+            appliance={unitAppliance}
+            phase={unitRow.phase}
+            onScene={onSceneAppliances}
+            tasks={tasks ?? []}
+            now={nowMs}
+            busyCrewIds={props.busyCrewIds}
+            hazards={(sim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
+            casualties={(sim?.foundCasualties ?? []).map((c) => ({ id: c.id, label: c.label }))}
+            resolved={resolved}
+            onStartTask={props.onStartTask}
+            onAbortTask={props.onAbortTask}
+            onCompleteTask={props.onCompleteTask}
+            onSetTaskCrew={props.onSetTaskCrew}
+            onBeginRoadClosure={props.onBeginRoadClosure ? (kind, crewIds) => props.onBeginRoadClosure?.(unitAppliance.id, kind, crewIds) : undefined}
+            onNote={props.onNote}
+            pumpReady={unitRow.deployment.pumpRunning === true && !!unitRow.deployment.pumpOperatorCrewId}
+            pumpOperatorName={pumpOperator?.name}
+            onStartPump={
+              props.onSetPumpOperator && props.onSetPumpRunning && pumpOperator
+                ? () => {
+                    props.onSetPumpOperator?.(unitAppliance.id, pumpOperator.id);
+                    props.onSetPumpRunning?.(unitAppliance.id, true);
+                  }
+                : undefined
+            }
+          />
+        </div>
+      </>
+    );
+  }
 
   const tablet = (
     <section className="vec-mdt vec-mdt--care" aria-label="Mobile data terminal · patient care">
       <header className="vec-mdt-handle" title="Drag to move the tablet">
-        <span>MOBILE DATA TERMINAL · PATIENT CARE</span>
+        <span>MOBILE DATA TERMINAL</span>
         {!popped && <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>}
         <button type="button" title="Close MDT" onClick={onClose}>×</button>
         {popped ? (
@@ -261,8 +331,17 @@ export function DraggableIncidentMdt(props: Props) {
         </div>
         <small>{unitState} · {assigned ? `${assigned} patient${assigned === 1 ? "" : "s"} assigned` : "No patients assigned"}</small>
       </div>
+      <nav className="vec-mdt-modules" aria-label="Modules">
+        <button type="button" aria-pressed={module === "care"} onClick={() => setModule("care")}>Casualty care{assigned ? ` · ${assigned}` : ""}</button>
+        <button type="button" aria-pressed={module === "fire"} onClick={() => setModule("fire")}>Fire</button>
+        <button type="button" aria-pressed={module === "police"} onClick={() => setModule("police")}>Police</button>
+      </nav>
       <div className="vec-mdt-body care">
-        {resolved ? (
+        {module === "fire" ? (
+          serviceModule("Fire")
+        ) : module === "police" ? (
+          serviceModule("Police")
+        ) : resolved ? (
           <div className="vec-tile-empty">Incident closed — patient records are in the debrief</div>
         ) : !sim ? (
           <div className="vec-tile-empty">Patient records open once the incident is live</div>
@@ -309,6 +388,7 @@ export function DraggableIncidentMdt(props: Props) {
             onSendAtmistPrealert={props.onSendAtmistPrealert}
             onConveyCasualtyVia={props.onConveyCasualtyVia}
             onConfirmAllergies={props.onConfirmAllergies}
+            onRecordObservation={props.onRecordObservation}
           />
         )}
       </div>
