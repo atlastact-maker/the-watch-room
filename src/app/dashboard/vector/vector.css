@@ -3036,7 +3036,10 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   font: 13px/1.4 var(--vec-sans, "IBM Plex Sans", Arial, sans-serif);
   user-select: none;
 }
-.cc-screen.cc-tablet { grid-template-rows: 40px 34px minmax(0, 1fr) 52px; }
+.cc-screen.cc-tablet { grid-template-rows: 40px auto 34px minmax(0, 1fr) 52px; }
+.cc-pinned { padding: 8px 8px 0; min-height: 0; }
+.cc-pinned .cc-card { flex: none; }
+.cc-pinned .cc-card-body { overflow: visible; }
 .cc-screen *, .cc-screen *::before, .cc-screen *::after { box-sizing: border-box; }
 .cc-screen button { font: inherit; color: inherit; cursor: pointer; }
 .cc-screen button:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -3226,8 +3229,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-bar i { display: block; height: 100%; background: var(--cc-warn); transition: width 0.5s linear; }
 
 /* Monitor — a dark scope in a light shell */
-.cc-centre .cc-card.fill:first-child { flex: 3; }
-.cc-centre .cc-card.fill:last-child { flex: 2; }
+.cc-centre .cc-card.fill { flex: 1; }
 .cc-monitor { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 118px; gap: 2px; background: #05090e; border: 1px solid #1e3242; border-radius: 2px; overflow: hidden; color: #e6eef5; }
 .cc-monitor.alarm { box-shadow: 0 0 0 2px var(--cc-stop); }
 .cc-traces { display: grid; grid-template-columns: 48px minmax(0, 1fr); min-width: 0; }
@@ -3297,21 +3299,6 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-mon-buttons button:hover:not(:disabled) { border-color: var(--cc-blue); color: var(--cc-blue); }
 .cc-mon-buttons button[aria-pressed="true"] { background: var(--cc-blue); border-color: var(--cc-blue); color: #fff; }
 .cc-screen.alarming .cc-mon-buttons button:last-child { background: var(--vec-stop-tint, #f6dcdc); border-color: var(--cc-stop); color: var(--cc-stop); }
-
-/* Treatment log */
-.cc-log { flex: 1; min-height: 0; overflow: auto; font-size: 12px; }
-.cc-tablet .cc-log { max-height: none; }
-.cc-log-h, .cc-log-row { display: grid; grid-template-columns: 78px 14px minmax(0, 1fr); align-items: center; gap: 6px; padding: 5px 4px; border-bottom: 1px solid var(--cc-line-soft); }
-.cc-log-h { color: var(--cc-muted); font: 700 9px var(--vec-mono, monospace); letter-spacing: 0.1em; text-transform: uppercase; grid-template-columns: 78px minmax(0, 1fr); }
-.cc-log-row span:first-child { font-family: var(--vec-mono, monospace); color: var(--cc-dim); font-size: 11px; }
-.cc-log-row i { width: 8px; height: 8px; border-radius: 50%; background: var(--cc-line); justify-self: center; }
-.cc-log-empty { padding: 16px; text-align: center; color: var(--cc-muted); font: 10px var(--vec-mono, monospace); letter-spacing: 0.1em; text-transform: uppercase; }
-.cc-log-row.critical span:last-child { color: var(--cc-stop); font-weight: 600; }
-.cc-log-row.critical i { background: var(--cc-stop); }
-.cc-log-row.good span:last-child { color: var(--cc-go); }
-.cc-log-row.good i { background: var(--cc-go); }
-.cc-log-row.warn span:last-child { color: var(--cc-warn); }
-.cc-log-row.warn i { background: var(--cc-warn); }
 
 /* Fields, oxygen, medication */
 .cc-field { display: flex; flex-direction: column; gap: 4px; }

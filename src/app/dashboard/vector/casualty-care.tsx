@@ -118,7 +118,7 @@ export type CasualtyCareProps = CareCallbacks & {
   layout?: "full" | "tablet";
 };
 
-type CareView = "patient" | "monitor" | "care" | "log";
+type CareView = "patient" | "care";
 
 type AlarmConfig = { on: boolean; hrLow: number; hrHigh: number; spo2Low: number; rrHigh: number; sysLow: number };
 const DEFAULT_ALARMS: AlarmConfig = { on: true, hrLow: 50, hrHigh: 120, spo2Low: 90, rrHigh: 30, sysLow: 90 };
@@ -188,33 +188,6 @@ function clock(ms: number): string {
 
 function wall(ts: number): string {
   return new Date(ts).toLocaleTimeString("en-GB", { hour12: false });
-}
-
-function describeEvent(e: PatientTreatmentState["events"][number]): string {
-  switch (e.kind) {
-    case "survey_started": return "Assessment started";
-    case "survey_completed": return "Observations recorded · primary survey complete";
-    case "egress": return `Moved · ${EGRESS_LABEL[e.action]}`;
-    case "airway": return `Airway · ${AIRWAY_LABEL[e.action]} (${e.by})`;
-    case "breathing": return `Breathing · ${BREATHING_LABEL[e.action]} (${e.by})`;
-    case "circulation": return `Circulation · ${CIRC_LABEL[e.action]} (${e.by})`;
-    case "drug": return `Administered · ${DRUG_LABEL[e.drug]} (${e.by})`;
-    case "packaging": return `Packaging · ${PACKAGING_LABEL[e.action]} (${e.by})`;
-    case "clinician_requested": return `${SCOPE_LABEL[e.scope]} requested`;
-    case "basics_alert":
-      return e.stage === "cih" ? "BASICS · with the Complex Incident Hub"
-        : e.stage === "broadcast" ? "BASICS · alert to responder handsets"
-        : e.stage === "answered" ? `BASICS · ${e.callsign ?? "responder"} answered`
-        : e.stage === "declined" ? "BASICS · hub declined, NWAA asset instead"
-        : "BASICS · no response";
-    case "clinician_on_scene": return `${SCOPE_LABEL[e.scope]} on scene`;
-    case "destination_set": return `Destination · ${e.name}`;
-    case "atmist_sent": return "ATMIST pre-alert sent";
-    case "physio": return e.text;
-    case "allergies_confirmed": return `Allergies confirmed · ${e.text} (${e.by})`;
-    case "observation": return e.text;
-    case "drug_refused": return `${DRUG_LABEL[e.drug]} not given · ${e.reason}`;
-  }
 }
 
 function consciousness(vitals: PatientTreatmentState["liveVitals"], flags: PatientRedFlag[], resus?: ResusState): { text: string; tone: "go" | "warn" | "stop" | "off" } {
@@ -467,7 +440,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const [device, setDevice] = useState<OxygenDevice | "">("");
   const [flowIx, setFlowIx] = useState(0);
   const [drug, setDrug] = useState<DrugName | "">("");
-  const [clearedAt, setClearedAt] = useState(0);
   // The monitor's own instruments: NIBP is a cuff cycle, not a live number.
   const [nibp, setNibp] = useState<{ sys: number; dia: number; at: number } | null>(null);
   const [measuringSince, setMeasuringSince] = useState<number | null>(null);
@@ -476,7 +448,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const [alarmCfg, setAlarmCfg] = useState<AlarmConfig>(DEFAULT_ALARMS);
   const [alarmPanel, setAlarmPanel] = useState(false);
   const [silencedUntil, setSilencedUntil] = useState(0);
-  const logRef = useRef<HTMLDivElement | null>(null);
   const vitalsRef = useRef<PatientTreatmentState["liveVitals"]>(undefined);
   const lastAlarmRef = useRef<string>("");
 
@@ -520,7 +491,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const hrShown = surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
   const spo2Shown = surveyDone && vitals && !inArrest ? Math.round(vitals.spo2) : null;
   const rrShown = surveyDone && vitals && !inArrest ? Math.round(vitals.rr) : null;
-  const map = vitals ? Math.round((vitals.bpSys + 2 * vitals.bpDia) / 3) : null;
   const state = consciousness(surveyDone ? vitals : undefined, flags, resus);
   const updatedAt = treatment?.liveVitalsLastTickAt ?? treatment?.surveyCompletedAt;
   const scenarioTime = clock(now - incident.receivedAt);
@@ -581,19 +551,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     record(`12-lead ECG · ${r.rhythm} · ${r.impression}`);
     if (resus) props.onAttachMonitor?.(casualtyId, "lead_12");
   };
-
-  // ---- Log ----------------------------------------------------------------
-  const log: { at: number; text: string; tone?: string }[] = [
-    ...(treatment?.events ?? []).map((e) => ({ at: "at" in e ? e.at : 0, text: describeEvent(e), tone: e.kind === "physio" ? e.tone : e.kind === "drug_refused" ? "warn" : e.kind === "observation" && e.text.startsWith("ALARM") ? "warn" : undefined })),
-    ...(resus?.events ?? []).map((e) => ({ at: e.at, text: e.text, tone: e.tone === "critical" ? "critical" : e.tone === "good" ? "good" : undefined })),
-    ...(paired.length ? [{ at: Math.min(...paired.map((p) => p.deployment.arrivesAt)), text: "Monitor connected" }] : []),
-  ]
-    .filter((e) => e.at > clearedAt)
-    .sort((a, b) => a.at - b.at);
-  useEffect(() => {
-    const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [log.length]);
 
   // ---- Oxygen ----------------------------------------------------------------
   const currentO2 = treatment?.oxygen;
@@ -1089,21 +1046,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </Card>
   );
 
-  const logCard = (
-    <Card title="Treatment log" icon="▤" fill headerExtra={<button type="button" className="cc-link" onClick={() => setClearedAt(now)}>Clear log</button>}>
-      <div className="cc-log" ref={logRef}>
-        <div className="cc-log-h"><span>Time</span><span>Event</span></div>
-        {log.length === 0 ? (
-          <div className="cc-log-empty">No treatment recorded yet</div>
-        ) : (
-          log.map((e, i) => (
-            <div key={`${e.at}-${i}`} className={`cc-log-row${e.tone ? ` ${e.tone}` : ""}`}><span>{clock(e.at - incident.receivedAt)}</span><i /><span>{e.text}</span></div>
-          ))
-        )}
-      </div>
-    </Card>
-  );
-
   const footer = (
     <footer className="cc-foot">
       {TABS.map((t) => (
@@ -1117,9 +1059,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   if (tablet) {
     const views: { key: CareView; label: string; badge?: string }[] = [
       { key: "patient", label: "Patient" },
-      { key: "monitor", label: "Monitor", badge: alarming ? "!" : undefined },
       { key: "care", label: "Care", badge: TABS.find((t) => t.key === tab)?.label },
-      { key: "log", label: "Log", badge: log.length ? String(log.length) : undefined },
     ];
     return (
       <div className={`cc-screen cc-tablet${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
@@ -1133,6 +1073,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
             {headerButtons}
           </div>
         </header>
+        <div className="cc-pinned">{monitorCard}</div>
         <nav className="cc-views" aria-label="Pages">
           {views.map((v) => (
             <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => setView(v.key)}>
@@ -1142,9 +1083,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </nav>
         <main className="cc-main tablet">
           {view === "patient" && (<>{patientCard}{surveyCard}</>)}
-          {view === "monitor" && monitorCard}
           {view === "care" && <div className="cc-col cc-right">{rightColumn()}</div>}
-          {view === "log" && logCard}
         </main>
         {footer}
       </div>
@@ -1176,7 +1115,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </div>
         <div className="cc-col cc-centre">
           {monitorCard}
-          {logCard}
         </div>
         <div className="cc-col cc-right">{rightColumn()}</div>
       </main>
