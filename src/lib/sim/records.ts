@@ -279,6 +279,30 @@ export function buildRecordIndex(args: {
 // Search
 // ---------------------------------------------------------------------------
 
+/** A date of birth for a record that was authored with an age only —
+ *  fixed from the name so the same person always gives the same date,
+ *  which is what a PNC enquiry and the officer's notebook both need.
+ *  The scenario year is 2026; an authored dob always wins. */
+export function dobOf(p: Pick<PersonRecord, "name" | "age" | "dob">, year = 2026): string | undefined {
+  if (p.dob) return p.dob;
+  if (!p.age) return undefined;
+  let h = 2166136261;
+  for (let i = 0; i < p.name.length; i++) h = Math.imul(h ^ p.name.charCodeAt(i), 16777619) >>> 0;
+  const month = (h % 12) + 1;
+  const day = ((h >>> 8) % 28) + 1;
+  // Birthday later in the year than the scenario's September means the
+  // stated age was reached last year's date, not this year's.
+  const y = month > 9 ? year - p.age - 1 : year - p.age;
+  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** "1995-03-04" → "04/03/1995", as the terminal prints it. */
+export function dobDisplay(dob: string | undefined): string | undefined {
+  if (!dob) return undefined;
+  const m = dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : dob;
+}
+
 export type SearchKind = "person" | "vehicle" | "place";
 
 export type SearchHit =

@@ -25,7 +25,7 @@ import type { Appliance } from "@/lib/sim/types";
 import type { Incident, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
 import { TASK_MIN_CREW } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
-import type { PersonRecord, RecordIndex, VehicleRecord } from "@/lib/sim/records";
+import { dobDisplay, dobOf, type PersonRecord, type RecordIndex, type VehicleRecord } from "@/lib/sim/records";
 import type { LedsCheck } from "@/lib/sim/leds";
 import type { ResolvedDeployment } from "../components/incident-view";
 import { competencyFor, type TaskWorkspaceProps } from "./mdt-task-workspace";
@@ -387,6 +387,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const accountTask = (p: Person) => done.find((t) => t.kind === "take_account" && t.personId === p.id);
   const pncChecked = (p: Person) => !!p.record && (props.ledsChecks ?? []).some((c) => c.kind === "person" && nameMatches(c.query, p.record!.name));
   const displayName = (p: Person) => (detailsTask(p) && p.record ? p.record.name : p.ref);
+  const displayNameDob = (p: Person) => { const d = detailsTask(p) && p.record ? dobDisplay(dobOf(p.record)) : undefined; return d ? `${displayName(p)} (${d})` : displayName(p); };
   const established = (p: Person) => !!detailsTask(p) || !!accountTask(p);
   const identity = (p: Person): { text: string; tone: "go" | "warn" | "stop" } => {
     if (!detailsTask(p)) return { text: "Not confirmed", tone: "warn" };
@@ -527,7 +528,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       return;
     }
     if (!action.kind) return;
-    const label = needsPerson && person ? displayName(person) : undefined;
+    const label = needsPerson && person ? displayNameDob(person) : undefined;
     const findings = isSearch && vehicle ? findingsFor(vehicle, persons) : undefined;
     const id = props.onStartTask?.({
       applianceId: appliance.id,
@@ -675,6 +676,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
             <dl className="pc-facts tight">
               <dt>Name / Ref</dt><dd className="hi">{displayName(person)}{detailsTask(person) && person.record ? <small> · {person.ref}</small> : null}</dd>
               <dt>Role</dt><dd>{established(person) ? roleLabel(person.role) : "Not established"}</dd>
+              {detailsTask(person) && person.record && dobOf(person.record) && (<><dt>DOB</dt><dd>{dobDisplay(dobOf(person.record))}{person.record.age ? <small> · age {person.record.age}</small> : null}</dd></>)}
               <dt>Identity</dt><dd><i className={`badge ${identity(person).tone}`}>{identity(person).tone === "go" ? "✓" : "!"}</i><span className={identity(person).tone}>{identity(person).text}</span></dd>
               <dt>Welfare</dt><dd><i className={`badge ${welfareOf(person).tone}`}>{welfareOf(person).tone === "off" ? "?" : welfareOf(person).tone === "go" ? "✓" : "!"}</i>{welfareOf(person).text}</dd>
               {isArrested(person) && (<><dt>Custody</dt><dd className="stop">ARRESTED · {record.persons[person.id]?.offence ?? "offence recorded"}</dd></>)}
@@ -922,7 +924,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
         <>
           <dl className="pc-facts">
             <dt>Name</dt><dd>{detailsTask(person) && person.record ? person.record.name : "Not provided"}</dd>
-            <dt>Date of birth</dt><dd>{detailsTask(person) && person.record ? person.record.dob ?? (person.record.age ? `Age ${person.record.age}` : "Not given") : "Not provided"}</dd>
+            <dt>Date of birth</dt><dd>{detailsTask(person) && person.record ? (dobDisplay(dobOf(person.record)) ? `${dobDisplay(dobOf(person.record))}${person.record.age ? ` · age ${person.record.age}` : ""}` : "Not given") : "Not provided"}</dd>
             <dt>Address</dt><dd>{detailsTask(person) && person.record ? person.record.address ?? "No fixed address" : "Not provided"}</dd>
             <dt>Identity status</dt><dd><i className={`badge ${identity(person).tone}`}>{identity(person).tone === "go" ? "✓" : "!"}</i><span className={identity(person).tone}>{identity(person).text}</span></dd>
             {isArrested(person) && (<><dt>Custody</dt><dd className="stop">ARRESTED · {record.persons[person.id]?.offence ?? "offence recorded"}</dd></>)}

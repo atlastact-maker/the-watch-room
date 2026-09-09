@@ -7,7 +7,7 @@
 // the car shows on the control room's list with the unit that made it.
 
 import { useState, type ReactNode } from "react";
-import type { RecordIndex, PersonRecord } from "@/lib/sim/records";
+import { dobDisplay, type RecordIndex, type PersonRecord } from "@/lib/sim/records";
 import { POLICING_PURPOSES, personCheck, vehicleCheck, type LedsCheck, type LedsReturn, type PolicingPurpose, type VehicleReturn } from "@/lib/sim/leds";
 
 type Kind = "vehicle" | "person" | "property";
@@ -59,6 +59,7 @@ export function PncPage(props: PncPageProps) {
   const { index, checks, now, unitCallsign } = props;
   const [kind, setKind] = useState<Kind>(props.seed?.kind ?? "vehicle");
   const [query, setQuery] = useState(props.seed?.query ?? "");
+  const [dob, setDob] = useState("");
   const [purpose, setPurpose] = useState<PolicingPurpose>("incident");
   const [results, setResults] = useState<Result[]>([]);
   const [ix, setIx] = useState(0);
@@ -86,9 +87,9 @@ export function PncPage(props: PncPageProps) {
     if (kind === "vehicle") {
       list.push({ r: vehicleCheck(index, query), ref, at });
     } else {
-      const r = personCheck(index, query);
+      const r = personCheck(index, query, dob);
       if (r.ambiguous?.length) {
-        r.ambiguous.forEach((p: PersonRecord, i: number) => list.push({ r: personCheck(index, p.name), ref: `${ref}/${i + 1}`, at }));
+        r.ambiguous.forEach((p: PersonRecord, i: number) => list.push({ r: personCheck(index, p.name, dob), ref: `${ref}/${i + 1}`, at }));
       } else {
         list.push({ r, ref, at });
       }
@@ -100,7 +101,7 @@ export function PncPage(props: PncPageProps) {
       id: `leds-${at}-${ref}`,
       atMs: at,
       kind: kind === "vehicle" ? "vehicle" : "person",
-      query: query.trim(),
+      query: dob.trim() && kind === "person" ? `${query.trim()} · DOB ${dob.trim()}` : query.trim(),
       purpose,
       incidentId: props.incidentId,
       reason: `${unitCallsign} · MDT`,
@@ -110,6 +111,7 @@ export function PncPage(props: PncPageProps) {
 
   function clear() {
     setQuery("");
+    setDob("");
     setResults([]);
     setIx(0);
     setError(null);
@@ -172,7 +174,7 @@ export function PncPage(props: PncPageProps) {
           {section("PERSON DETAILS", <>
             {line("Name", up(r.name))}
             {line("Sex", r.sex ?? "NOT HELD")}
-            {line("Date of birth", r.dob ? up(r.dob) : r.age ? `AGE ${r.age}` : "NOT HELD")}
+            {line("Date of birth", r.dob ? `${dobDisplay(r.dob)}${r.age ? ` (AGE ${r.age})` : ""}` : r.age ? `AGE ${r.age}` : "NOT HELD")}
             {line("Address", up(r.address) || "NO FIXED ADDRESS")}
           </>)}
           {section("WARNING SIGNALS", r.warnings.length === 0 && !r.wanted && !r.missing ? line("Signals", "NONE") : <>
@@ -229,6 +231,7 @@ export function PncPage(props: PncPageProps) {
               {(["vehicle", "person", "property"] as Kind[]).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setError(null); }}>{KIND_LABEL[k]}</button>)}
             </div>
             <label className="pc-field inline"><span>{KIND_FIELD[kind]}</span><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder={kind === "vehicle" ? "AB12 CDE" : kind === "person" ? "SURNAME, Forename" : "IMEI, serial or description"} /></label>
+            {kind === "person" && <label className="pc-field inline"><span>Date of birth</span><input value={dob} onChange={(e) => setDob(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="DD/MM/YYYY" /></label>}
             <label className="pc-field inline"><span>Reason</span>
               <select value={purpose} onChange={(e) => setPurpose(e.target.value as PolicingPurpose)}>{(Object.keys(POLICING_PURPOSES) as PolicingPurpose[]).map((k) => <option key={k} value={k}>{POLICING_PURPOSES[k]}</option>)}</select>
             </label>

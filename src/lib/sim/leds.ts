@@ -24,7 +24,7 @@
 // claim about how LEDS actually presents anything.
 
 import type { PersonRecord, RecordIndex, VehicleRecord } from "./records";
-import { norm, squash } from "./records";
+import { dobOf, norm, squash } from "./records";
 import { generateAddress, generatePerson, generateVehicle } from "./leds-db";
 
 /** Why the check is being made. A check without one is refused.
@@ -167,7 +167,7 @@ function personFrom(p: PersonRecord, typed: string): PersonReturn {
     trace: true,
     sex: p.sex,
     age: p.age,
-    dob: p.dob,
+    dob: dobOf(p),
     address: p.address,
     postcode: p.postcode,
     warnings,
@@ -199,12 +199,20 @@ export function vehicleCheck(index: RecordIndex, vrm: string): VehicleReturn {
 export function personCheck(
   index: RecordIndex,
   name: string,
+  /** A date of birth, "1995-03-04" or "04/03/1995", narrows the enquiry
+   *  the way a real terminal insists on. */
+  dob?: string,
 ): PersonReturn & { ambiguous?: PersonRecord[] } {
   const q = norm(name);
   if (q.length < 2) {
     return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [], vehicleIds: [] };
   }
-  const hits = index.people.filter((p) => norm(p.name).includes(q));
+  const wantDob = normaliseDob(dob);
+  let hits = index.people.filter((p) => norm(p.name).includes(q));
+  if (wantDob && hits.length > 1) {
+    const byDob = hits.filter((p) => dobOf(p) === wantDob);
+    if (byDob.length) hits = byDob;
+  }
   if (hits.length === 1) return personFrom(hits[0], name);
   if (hits.length > 1) {
     const exact = hits.filter((p) => norm(p.name) === q);
@@ -220,6 +228,18 @@ export function personCheck(
   // A name typed with no surname is still ambiguous in reality, but the
   // sim answers it rather than stonewalling the operator.
   return personFrom(generatePerson(name), name);
+}
+
+/** "04/03/1995", "4.3.95" or "1995-03-04" → "1995-03-04". */
+export function normaliseDob(dob: string | undefined): string | undefined {
+  if (!dob) return undefined;
+  const t = dob.trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  m = t.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/);
+  if (!m) return undefined;
+  const y = m[3].length === 2 ? (Number(m[3]) > 26 ? `19${m[3]}` : `20${m[3]}`) : m[3];
+  return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
 
 /** An address enquiry: who is there, and what is kept there. */

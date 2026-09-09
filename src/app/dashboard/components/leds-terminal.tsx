@@ -17,6 +17,7 @@ import { Rnd } from "react-rnd";
 import { useEffect, useMemo, useState } from "react";
 import { CAD_VARS } from "./cad-theme";
 import type { RecordIndex } from "@/lib/sim/records";
+import { dobDisplay } from "@/lib/sim/records";
 import {
   POLICING_PURPOSES,
   addressCheck,
@@ -208,7 +209,7 @@ function Return({
               <Line label="Name" value={r.name} />
               <Line label="Sex" value={r.sex} />
               <Line label="Age" value={r.age} />
-              <Line label="DOB" value={r.dob} />
+              <Line label="DOB" value={dobDisplay(r.dob)} />
               <Rule />
               <Line label="Address" value={r.address} />
               <Line label="Postcode" value={r.postcode} />
