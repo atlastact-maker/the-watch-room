@@ -229,6 +229,10 @@ export function DraggableIncidentMdt(props: Props) {
     );
   });
   const frame = useRef<MdtFrame>(initialFrame);
+  // The tablet's position is controlled: it goes wherever it is dragged,
+  // off the edges included, and a drop that would lose the grab strip is
+  // pulled back just far enough to reach it.
+  const [pos, setPos] = useState({ x: initialFrame.x, y: initialFrame.y });
   useEffect(() => {
     setUnitId(null);
   }, [resolved, incident.id]);
@@ -511,18 +515,19 @@ export function DraggableIncidentMdt(props: Props) {
   return (
     <>
       <Rnd
-        default={{
-          x: initialFrame.x,
-          y: initialFrame.y,
-          width: initialFrame.width,
-          height: initialFrame.height,
-        }}
+        size={{ width: initialFrame.width, height: initialFrame.height }}
+        position={pos}
+        onDrag={(_e, d) => setPos({ x: d.x, y: d.y })}
         onDragStop={(_e, d) => {
-          frame.current = { ...frame.current, x: d.x, y: d.y };
+          const maxX = typeof window !== "undefined" ? window.innerWidth - 120 : d.x;
+          const maxY = typeof window !== "undefined" ? window.innerHeight - 40 : d.y;
+          const x = Math.max(-(frame.current.width - 120), Math.min(maxX, d.x));
+          const y = Math.max(0, Math.min(maxY, d.y));
+          frame.current = { ...frame.current, x, y };
           saveMdtFrame(frame.current);
+          setPos({ x, y });
         }}
         enableResizing={false}
-        bounds="window"
         dragHandleClassName="vec-mdt-handle"
         className="z-[1250]"
         style={minimised || popped ? { display: "none" } : undefined}
