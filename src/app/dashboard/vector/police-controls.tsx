@@ -20,7 +20,6 @@
 // pre-filled; support requests go to control on the log.
 
 import { useState, type ReactNode } from "react";
-import { SceneCanvas } from "../components/scene-canvas";
 import type { Appliance } from "@/lib/sim/types";
 import type { Incident, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
 import { TASK_MIN_CREW } from "@/lib/sim/incident_types";
@@ -378,7 +377,6 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const freeCrew = appliance.crewMembers.filter((c) => !props.busyCrewIds?.has(c.id));
   const tpacTrained = appliance.crewMembers.some((m) => competencyFor(appliance, m).tpac === "Current");
   const policeUnits = resolved.filter((r) => r.appliance.service === "Police");
-  const policeOnScene = policeUnits.filter((r) => r.phase === "at_incident");
   const arrested = done.filter((t) => t.kind === "arrest");
   const vanOnScene = resolved.find((r) => r.appliance.type === "Police_Van" && r.phase === "at_incident") ?? (appliance.type === "Police_Van" && onScene ? unit : undefined);
   const carrier = vanOnScene ?? (onScene ? unit : undefined);
@@ -395,7 +393,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
             ? "Unit en route"
             : unit.phase.replace(/_/g, " ");
   const incidentLog = log.filter((e) => e.timestamp >= incident.receivedAt);
-  const recentLog = incidentLog.slice(-6).reverse();
+  const recentLog = incidentLog.slice(-5).reverse();
   const callsignOf = (applianceId: string) => resolved.find((r) => r.appliance.id === applianceId)?.appliance.callsign ?? applianceId;
   const lastSupport = (kind: SupportKind) => [...record.support].reverse().find((r) => r.kind === kind);
 
@@ -670,26 +668,21 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const resourceCard = (
     <Card title="Selected resource" icon="▣">
       <dl className="pc-facts">
-        <dt>Resource</dt><dd className="hi">{appliance.callsign}</dd>
-        <dt>Status</dt><dd><i className={`dot ${onScene ? "go" : unit.phase === "mobile" ? "warn" : "off"}`} />{onScene ? (mine.length ? "On scene · working" : "On scene") : unit.phase === "mobile" ? "En route" : unit.phase.replace(/_/g, " ")}</dd>
-        <dt>Officers</dt><dd>{appliance.crewMembers.length}{freeCrew.length < appliance.crewMembers.length ? ` · ${appliance.crewMembers.length - freeCrew.length} committed` : ""}</dd>
-        <dt>Resource type</dt><dd>{appliance.typeName}{tpacTrained ? " · TPAC" : ""}</dd>
-        <dt>Callsign</dt><dd>{appliance.callsign}</dd>
+        <dt>Resource</dt><dd className="hi">{appliance.callsign}<small> · {appliance.typeName}{tpacTrained ? " · TPAC" : ""}</small></dd>
+        <dt>Status</dt><dd><i className={`dot ${onScene ? "go" : unit.phase === "mobile" ? "warn" : "off"}`} />{onScene ? (mine.length ? "On scene · working" : "On scene") : unit.phase === "mobile" ? "En route" : unit.phase.replace(/_/g, " ")}<small> · {appliance.crewMembers.length} officer{appliance.crewMembers.length === 1 ? "" : "s"}{freeCrew.length < appliance.crewMembers.length ? `, ${appliance.crewMembers.length - freeCrew.length} committed` : ""}</small></dd>
       </dl>
-      {policeUnits.length > 1 && <p className="pc-note">{policeUnits.length} police units on the job · {policeOnScene.length} on scene. Switch unit in the tablet&rsquo;s top strip.</p>}
-      {props.onArmPlacement && onScene && <button type="button" className="pc-mini" onClick={() => props.onArmPlacement?.(appliance.id)}>{unit.deployment.parkingPos ? "Move on the map" : "Place on the map"}</button>}
     </Card>
   );
 
   const resourcePersonCard = (
-    <Card title="Resource & person" icon="●">
+    <Card title="Resource & person" icon="●" fill>
       {resourceLine}
       {personSelect}
       <label className="pc-field inline"><span>Identity</span><output>{person ? <><i className={`badge ${identity(person).tone}`}>{identity(person).tone === "go" ? "✓" : "!"}</i><span className={identity(person).tone}>{identity(person).text}</span></> : "—"}</output></label>
     </Card>
   );
   const resourceVehicleCard = (
-    <Card title="Resource & vehicle" icon="●">
+    <Card title="Resource & vehicle" icon="●" fill>
       {resourceLine}
       {vehicleSelect}
       {personSelect}
@@ -719,20 +712,6 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       ) : (
         <p className="pc-note">No one identified on this job yet.</p>
       )}
-    </Card>
-  );
-
-  const mapCard = (
-    <Card title="Incident map" icon="▦" fill>
-      <div className="pc-map">
-        {sc.scene ? (
-          <SceneCanvas scene={sc.scene} deployments={resolved.filter((r) => r.phase === "at_incident").map((r) => ({ deployment: r.deployment, callsign: r.appliance.callsign, service: r.appliance.service }))} />
-        ) : (
-          <div className="pc-map-empty">No scene plan for this incident</div>
-        )}
-        <div className="pc-map-legend"><span><i className="dot work" />Resources</span><span><i className="dot warn" />Incident</span></div>
-      </div>
-      {props.onArmPlacement && onScene && <button type="button" className="pc-mini" onClick={() => props.onArmPlacement?.(appliance.id)}>{unit.deployment.parkingPos ? "Move on the ground map" : "Place on the ground map"}</button>}
     </Card>
   );
 
@@ -832,7 +811,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   );
 
   const actionsCard = (
-    <Card title="Resource actions" icon="⚙" fill>
+    <Card title="Resource actions" icon="⚙" fill={tab !== "general"}>
       {tabsRow}
       {tab === "general" && GENERAL_GROUPS.map((g) => <div key={g.title}>{group(g.title, g.icon, g.actions, g.actions.length >= 3 ? 3 : 2)}</div>)}
       {tab === "people" && (
@@ -1097,7 +1076,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           <>
             <div className="pc-col">
               {summaryCard}
-              {tab === "general" ? <>{resourceCard}{personCard}</> : tab === "vehicles" ? <>{resourceVehicleCard}{mapCard}</> : <>{resourcePersonCard}{mapCard}</>}
+              {tab === "general" ? <>{resourceCard}{personCard}</> : tab === "vehicles" ? resourceVehicleCard : resourcePersonCard}
             </div>
             <div className="pc-col">{actionsCard}{tab === "general" && <>{activityCard}{logCard}</>}</div>
             <div className="pc-col">
