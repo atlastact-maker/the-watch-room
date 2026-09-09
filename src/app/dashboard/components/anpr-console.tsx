@@ -61,8 +61,12 @@ export function AnprConsole({
   onAction,
   onEnquire,
   onLocate,
+  onCreateCall,
   onClose,
 }: {
+  /** Raise the hit as a call on the stack — the ANPR desk relaying, no
+   *  member of the public on the line. */
+  onCreateCall?: (hit: AnprHit) => void;
   /** The feed runs from the start of the shift, so the console is not
    *  empty the moment it is opened. */
   shiftStartedAt: number;
@@ -172,6 +176,7 @@ export function AnprConsole({
                   onAction={() => onAction(h.id)}
                   onEnquire={onEnquire ? () => onEnquire(h.vrm) : undefined}
                   onLocate={onLocate}
+                  onCreateCall={onCreateCall ? () => onCreateCall(h) : undefined}
                 />
               ))}
             </ul>
@@ -189,6 +194,7 @@ function Hit({
   onAction,
   onEnquire,
   onLocate,
+  onCreateCall,
 }: {
   h: AnprHit;
   done: boolean;
@@ -196,6 +202,7 @@ function Hit({
   onAction: () => void;
   onEnquire?: () => void;
   onLocate?: (coords: { lat: number; lng: number }) => void;
+  onCreateCall?: () => void;
 }) {
   const site = siteById(h.siteId);
   const tone = hitTone(h);
@@ -256,12 +263,26 @@ function Hit({
               Site
             </button>
           )}
+          {onCreateCall && (
+            <button
+              type="button"
+              onClick={onCreateCall}
+              className={
+                MONO +
+                " ml-auto rounded-none border border-(--color-info) bg-(--color-info) px-1.5 py-[1px] uppercase text-white hover:opacity-90"
+              }
+              title="Raise this hit as a call: the ANPR desk relaying, ready to allocate units"
+            >
+              Create call
+            </button>
+          )}
           <button
             type="button"
             onClick={onAction}
             className={
               MONO +
-              " ml-auto rounded-none border border-(--color-text) bg-(--color-text) px-1.5 py-[1px] uppercase text-(--color-bg) hover:bg-(--color-text-dim)"
+              (onCreateCall ? " " : " ml-auto ") +
+              "rounded-none border border-(--color-text) bg-(--color-text) px-1.5 py-[1px] uppercase text-(--color-bg) hover:bg-(--color-text-dim)"
             }
           >
             Dealt with

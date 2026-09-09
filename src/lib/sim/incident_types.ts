@@ -1097,6 +1097,12 @@ export type TaskKind =
   | "close_carriageway"   // timed setup, then held — one carriageway coned off
   | "close_road"          // timed setup, then held — full road closure + diversion
   | "scene_preservation"  // ongoing — evidence preservation (SIO)
+  // Vehicles — ANPR hits, fail-to-stops, pursuits
+  | "vehicle_stop"        // timed — a compliant stop and checks
+  | "follow_contain"      // ongoing — keep obs, no lights, wait for the second car
+  | "tpac_box"            // timed — TPAC enforced stop, needs two cars and the training
+  | "stinger"             // timed — stinger ahead of the vehicle
+  | "tactical_contact"    // timed — TPAC contact to end a pursuit
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
   // BA follow-on
@@ -1495,6 +1501,11 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   close_carriageway: 1,
   close_road: 2,
   scene_preservation: 1,
+  vehicle_stop: 1,
+  follow_contain: 1,
+  tpac_box: 1,
+  stinger: 1,
+  tactical_contact: 1,
   triage_sieve: 1,
   extract_casualty: 2,
   crs_action: 1, // per-action minimums come from the CrsAction itself
@@ -1528,6 +1539,11 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   close_carriageway: ["Police"],
   close_road: ["Police"],
   scene_preservation: ["Police"],
+  vehicle_stop: ["Police"],
+  follow_contain: ["Police"],
+  tpac_box: ["Police"],
+  stinger: ["Police"],
+  tactical_contact: ["Police"],
   triage_sieve: ["Ambulance"],
   extract_casualty: ["Fire"],
   crs_action: ["Fire"],

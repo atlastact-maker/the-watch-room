@@ -76,6 +76,11 @@ export const TASK_LABEL: Record<TaskKind, string> = {
   close_carriageway: "Close a carriageway",
   close_road: "Close the road",
   scene_preservation: "Preserve the scene",
+  vehicle_stop: "Stop the vehicle",
+  follow_contain: "Follow and contain",
+  tpac_box: "TPAC enforced stop",
+  stinger: "Stinger",
+  tactical_contact: "Tactical contact",
   triage_sieve: "Triage sieve",
   extract_casualty: "Extract casualty",
   crs_action: "Crash recovery action",
@@ -109,6 +114,11 @@ const TASK_CONFIG: Record<TaskKind, TaskConfig> = {
   close_carriageway: [["Establish closure", "Maintain closure", "Handover closure"], ["Cones + signage", "Road closure kit", "Scene lighting"], false],
   close_road: [["Establish closure", "Maintain closure", "Handover closure"], ["Cones + signage", "Road closure kit", "Scene lighting"], false],
   scene_preservation: [["Establish scene boundary", "Control scene access", "Scene handover"], ["Tactical aids", "Comms", "Investigation kit"], false],
+  vehicle_stop: [["Routine stop", "Stop and search", "Stop on a marker"], ["Comms", "Tactical aids"], false],
+  follow_contain: [["Follow at distance", "Keep observations", "Contain to the area"], ["Comms", "ANPR-linked"], false],
+  tpac_box: [["Rolling box", "Static box at a hold point"], ["Comms"], false],
+  stinger: [["Deploy ahead", "Deploy at a junction"], ["Stinger"], true],
+  tactical_contact: [["Contact to stop", "Pin and detain"], ["Comms"], false],
   triage_sieve: [["Casualty assessment", "Reassessment", "Report casualty overview"], ["Paramedic kit", "Triage kit", "Solo paramedic response"], true],
   extract_casualty: [["Casualty movement", "Assist receiving crew"], ["Spine board", "Trolley bed", "Stretcher", "Carry chair", "Rescue cage"], true],
   crs_action: [["Make safe"], [], false],
@@ -140,6 +150,11 @@ const TASK_DETAIL: Record<TaskKind, [string, string, string]> = {
   close_carriageway: ["Cone off one carriageway and keep traffic moving on the other.", "Road closure equipment", "Record closure limits|Record closure status|Report restrictions and handover"],
   close_road: ["Track a road closure assignment, limits and reported status.", "Road closure equipment", "Record closure limits and assignment|Record closure status|Report restrictions and handover"],
   scene_preservation: ["Track scene boundaries, access and handover to the nominated team.", "Scene recording and barrier equipment", "Record assigned scene boundary|Record access observations|Record scene handover"],
+  vehicle_stop: ["Stop the vehicle, speak to the occupants and run the checks.", "Comms and tactical aids", "Signal the stop|Speak to the driver|Run PNC and driver checks"],
+  follow_contain: ["Follow without lights, keep observations and wait for the tactical option — no pursuit without one.", "Comms, ANPR", "Get behind the vehicle|Call direction and speed|Hold until the second car is in"],
+  tpac_box: ["A TPAC enforced stop — two cars box the vehicle to a halt. Needs the training and a second roads car.", "Comms", "Position the second car|Box and slow|Detain the occupants"],
+  stinger: ["Deploy the stinger ahead of the vehicle's line. Needs the training and the kit.", "Stinger", "Choose the deployment point|Deploy on approach|Recover the stinger"],
+  tactical_contact: ["End a pursuit by contact — TPAC trained crews only, authorised by control.", "Comms", "Confirm authorisation|Make contact|Detain the occupants"],
   triage_sieve: ["Record a casualty assessment assignment and its summary for control.", "Assessment equipment listed on the vehicle", "Record casualty group and location|Record assessment progress|Report assessment summary and resource requests"],
   extract_casualty: ["Coordinate a casualty movement task and the receiving crew.", "Casualty movement equipment", "Record casualty location and destination|Record movement progress|Confirm handover to receiving crew"],
   crs_action: ["Make the vehicle safe before cutting, following the crash recovery sheet.", "Crash recovery equipment", "Identify the component|Record the action|Confirm made safe"],
@@ -153,6 +168,7 @@ const COMPETENCY_LABELS: Record<Competency, string> = {
   traffic: "Traffic management",
   assessment: "Casualty assessment",
   movement: "Casualty movement",
+  tpac: "TPAC trained",
 };
 
 const TASK_COMPETENCIES: Partial<Record<TaskKind, { all?: Competency[]; any?: Competency[] }>> = {
@@ -169,6 +185,9 @@ const TASK_COMPETENCIES: Partial<Record<TaskKind, { all?: Competency[]; any?: Co
   close_carriageway: { all: ["traffic"] },
   triage_sieve: { all: ["assessment"] },
   extract_casualty: { all: ["movement"] },
+  tpac_box: { all: ["tpac"] },
+  stinger: { all: ["tpac"] },
+  tactical_contact: { all: ["tpac"] },
 };
 
 /** Scenario stock per loadout line. Everything else carries one. */
@@ -224,8 +243,14 @@ export function catalogueKinds(a: Appliance, incident: Incident): TaskKind[] {
     if (carries(a, "Knapsack sprayers")) kinds.push("wildfire_knapsack");
     if (carries(a, "Hydraulic cutters") && (incident.scenario.crs?.length ?? 0) > 0) kinds.push("rtc_extrication");
   } else if (a.service === "Police") {
+    const vehicleJob = /anpr|pursuit|fail_to_stop|drink_driver|vehicle|rtc/i.test(incident.scenario.type);
     kinds = ["cordon", "traffic_mgmt", "scene_preservation", "survey", "commander"];
     if (a.type === "Police_RPU" || carries(a, "Road closure kit")) kinds.splice(2, 0, "close_carriageway", "close_road");
+    // Vehicle work: any car can stop a compliant driver or follow; the
+    // pre-emptive tactics belong to the TPAC-trained roads crews.
+    const tpac = a.crewMembers.some((m) => /TPAC|Tactical Pursuit/i.test(m.quals.join(" ")));
+    if (vehicleJob || a.type === "Police_RPU" || a.type === "Police_TraffMot") kinds.unshift("vehicle_stop", "follow_contain");
+    if (tpac) kinds.splice(2, 0, "tpac_box", "stinger", "tactical_contact");
   } else {
     kinds = ["triage_sieve", "kit_grab", "survey", "commander"];
   }
@@ -246,6 +271,7 @@ export function competencyFor(a: Appliance, m: CrewMember): Partial<Record<Compe
   }
   if (a.service === "Police") {
     c.traffic = /Advanced Driver|Emergency Driving|Roads Policing|Speed Detection|Motorcycle|Traffic/i.test(q) ? "Current" : "Not recorded";
+    c.tpac = /TPAC|Tactical Pursuit/i.test(q) ? "Current" : "Not recorded";
     if (commandLike) c.command = "Current";
   }
   if (a.service === "Ambulance") {

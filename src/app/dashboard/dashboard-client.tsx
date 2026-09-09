@@ -83,6 +83,7 @@ import type {
   EgressAction,
   PatientTreatmentState,
   Scenario,
+  type Severity,
   Task,
   TaskKind,
   TreatmentEvent,
@@ -157,7 +158,8 @@ import {
 } from "./components/map-filters";
 import { LedsTerminal } from "./components/leds-terminal";
 import { AnprConsole } from "./components/anpr-console";
-import { hitsBetween } from "@/lib/sim/anpr";
+import { hitsBetween, siteById, type AnprHit } from "@/lib/sim/anpr";
+import { generateVehicle } from "@/lib/sim/leds-db";
 import { auditLine, type LedsCheck } from "@/lib/sim/leds";
 import { DraggableResourcesPanel } from "./components/resources-panel";
 import { DraggableIncidentPanel } from "./components/incident-panel";
@@ -4032,6 +4034,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             kind: "task_completed",
             message: t.crsDoneMessage ?? `${applianceLabel(t.applianceId)} — ${t.crsLabel ?? "CRS action"} complete`,
           });
+        } else if (t.kind === "vehicle_stop" || t.kind === "tpac_box" || t.kind === "stinger" || t.kind === "tactical_contact") {
+          const outcome =
+            t.kind === "vehicle_stop"
+              ? "vehicle stopped, occupants spoken to — PNC and driver checks in hand"
+              : t.kind === "tpac_box"
+                ? "TPAC enforced stop — vehicle boxed and immobilised, occupants detained"
+                : t.kind === "stinger"
+                  ? "stinger deployed — tyres deflated, vehicle coming to a stop"
+                  : "tactical contact — vehicle immobilised, occupants detained";
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: `${applianceLabel(t.applianceId)} — ${outcome}`,
+          });
         } else {
           toAppend.push({
             id,
@@ -5898,6 +5915,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 setShowLeds(true);
               }}
               onLocate={(c) => setMapFocus({ lat: c.lat, lng: c.lng, zoom: 14, key: Date.now() })}
+              onCreateCall={(hit) => {
+                const scenario = anprScenarioFor(hit);
+                if (!scenario) return;
+                queueCall(scenario);
+                setAnprActioned((prev) => ({ ...prev, [hit.id]: true }));
+                logAnnotation(`ANPR desk · ${hit.vrm} · ${hit.markers.join(" / ")} at ${siteById(hit.siteId)?.name ?? hit.siteId} ${hit.direction} — call raised`);
+                setStatusMsg(`ANPR hit ${hit.vrm} on the call stack`);
+                pickScreen("call");
+              }}
               onClose={() => setShowAnpr(false)}
             />
           )}
@@ -6344,6 +6370,77 @@ function defaultLoadoutFor(role: string): string[] {
   return ["radio"];
 }
 
+/** An ANPR hit as a call. Nobody rings 999 for these: the informant is
+ *  the ANPR desk, the location is the camera, the clock is the vehicle's.
+ *  Built from the hit and the vehicle record so every hit is its own job. */
+function anprScenarioFor(hit: AnprHit): Scenario | null {
+  const site = siteById(hit.siteId);
+  if (!site) return null;
+  const v = generateVehicle(hit.vrm);
+  const desc = [hit.colour ?? v.colour, hit.make ?? v.make, hit.model ?? v.model].filter(Boolean).join(" ");
+  const markers = hit.markers.join(" / ");
+  const stolen = hit.markers.includes("STOLEN");
+  const pnc = hit.markers.includes("PNC MARKER") || hit.markers.includes("ANPR INTEREST");
+  const dir = { NB: "northbound", SB: "southbound", EB: "eastbound", WB: "westbound" }[hit.direction];
+  const patch: AreaCode = site.coords.lng < -2.3 ? "Western" : site.coords.lat > 53.52 || site.coords.lng > -2.15 ? "Eastern" : "Southern";
+  const severity: Severity = stolen || pnc ? "high" : "moderate";
+  return {
+    id: `anpr-${hit.id}`,
+    slug: `anpr_${hit.vrm.replace(/\s+/g, "").toLowerCase()}`,
+    title: `ANPR hit · ${markers} — ${site.road} ${site.name}`,
+    type: "police_anpr_hit_stolen_vehicle",
+    patch,
+    severity,
+    trigger: `ANPR desk relaying: fixed site ${site.name} on the ${site.road} has hit on ${desc} ${hit.vrm}, ${dir}. Marker${hit.markers.length > 1 ? "s" : ""}: ${markers}${v.keeperName ? `. Registered keeper ${v.keeperName}` : ""}. No member of the public on the line — the clock is the vehicle's.`,
+    location: {
+      address: `${site.road} ${site.name}, ${dir}`,
+      postcode: "",
+      coords: site.coords,
+    },
+    property: {
+      class: `Public highway — ${site.road} at ${site.name}`,
+      occupants: stolen ? "Driver and possibly passengers — a stolen vehicle is often two up" : "Driver, possibly passengers",
+      vulnerabilities: [
+        "A hit is intelligence, not evidence — the plate may be cloned and the driver an innocent keeper",
+        "Live carriageway — officers on foot at a stop are in traffic",
+        "Likely fail-to-stop on a stolen or PNC-marked vehicle — no pursuit without a tactical option",
+      ],
+      access: `Roads units to get behind the vehicle ${dir} from the camera; a second car before any stop. Divisional cars to contain the junctions ahead`,
+      knownHazards: stolen ? ["Fail-to-stop risk", "Decamp on foot into housing", "Keyless theft — the keys stay in the car"] : ["Fail-to-stop risk"],
+      firstDueStationId: "MP-RPU",
+    },
+    pri: {
+      hasFormalPri: false,
+      items: [
+        "ANPR hit, not a 999 call — verify against the camera image and PNC before anyone is told to stop it hard.",
+        "Pursuit authority sits with the control room. College of Policing APP: no pursuit without a tactical option; a single initial-phase driver must call for TPAC cover.",
+      ],
+    },
+    methane: {
+      M: "No",
+      E: `${site.road} at ${site.name}, ${dir}`,
+      T: `ANPR hit — ${desc} ${hit.vrm}, ${markers}`,
+      H: "Live carriageway; fail-to-stop risk; possibility the driver is the innocent keeper",
+      A: `Roads units ${dir} behind the vehicle; second car before any stop`,
+      N: "None injured",
+      emergencyServices: "Police only — roads policing intercept with a second car, one divisional car for containment. NPAS through the FIM if it runs",
+    },
+    pda: [
+      { id: "rpu1", label: "Roads — intercept", service: "Police", requiredApplianceTypes: ["Police_RPU"], requiredCapabilities: ["Police_Roads"], preferredStationId: "MP-RPU", notes: "Get behind the vehicle and stay there. A single car forcing a stop is how a hit becomes a pursuit" },
+      { id: "rpu2", label: "Roads — second vehicle (TPAC)", service: "Police", requiredApplianceTypes: ["Police_RPU"], requiredCapabilities: ["Police_Roads"], preferredStationId: "MP-RPU", notes: "The tactical option. Two TPAC-trained cars make a stop; one makes a hope" },
+      { id: "response1", label: "Response — containment", service: "Police", requiredApplianceTypes: ["Police_Response"], requiredCapabilities: ["Police_Response"], notes: "The junctions ahead, the abandoned car if they decamp, the keeper if it is the clone" },
+    ],
+    evaluation: {
+      targets: [
+        { metric: "Verification before commitment", target: "plate checked against the image and PNC before any car is told to stop it hard" },
+        { metric: "Tactical option before any stop", target: "a second TPAC-trained roads car committed before the first shows blue lights" },
+        { metric: "Outcome", target: "vehicle stopped by a TPAC tactic or a compliant stop; no pursuit through housing" },
+      ],
+      lesson: "A hit is intelligence. Verify it, get two cars behind it, and choose where it stops.",
+    },
+  };
+}
+
 function taskDurationSecFor(args: {
   kind: TaskKind;
   hazardId?: string;
@@ -6407,7 +6504,16 @@ function taskDurationSecFor(args: {
     case "wildfire_knapsack":
     case "traffic_mgmt":
     case "scene_preservation":
+    case "follow_contain":
       return undefined; // ongoing (no auto-completion)
+    case "vehicle_stop":
+      return 90;
+    case "tpac_box":
+      return 120;
+    case "stinger":
+      return 60;
+    case "tactical_contact":
+      return 45;
     case "crs_action":
       return args.crsDurationSec ?? 120; // authored per-action on the datasheet
   }
@@ -6439,6 +6545,11 @@ function taskLabel(kind: TaskKind): string {
     case "close_road": return "Road closure";
     case "traffic_mgmt": return "Traffic management";
     case "scene_preservation": return "Scene preservation";
+    case "vehicle_stop": return "Vehicle stop";
+    case "follow_contain": return "Follow and contain";
+    case "tpac_box": return "TPAC enforced stop";
+    case "stinger": return "Stinger deployment";
+    case "tactical_contact": return "Tactical contact";
     case "triage_sieve": return "Triage sieve";
     case "extract_casualty": return "Extract casualty";
     case "crs_action": return "CRS action";

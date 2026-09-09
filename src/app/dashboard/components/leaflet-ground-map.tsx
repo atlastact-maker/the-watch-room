@@ -416,6 +416,7 @@ function MapClickHandler({
   onMusterCommit,
   onPickedPos,
   onPickedBearing,
+  incidentCoords,
 }: {
   parking: ParkingState;
   /** Road polylines to snap parking clicks onto. Empty until Overpass
@@ -432,8 +433,11 @@ function MapClickHandler({
   onMusterCentre: (lat: number, lng: number) => void;
   onMusterRadius: (radiusM: number) => void;
   onMusterCommit: (lat: number, lng: number, radiusM: number) => void;
-  onPickedPos: (pos: { lat: number; lng: number }) => void;
+  /** One click parks the unit: the position, and the road's own bearing
+   *  as its facing (or toward the incident off-road). */
+  onPickedPos: (pos: { lat: number; lng: number }, bearingDeg: number) => void;
   onPickedBearing: (bearingDeg: number) => void;
+  incidentCoords: { lat: number; lng: number };
 }) {
   useMapEvents({
     click(e) {
@@ -473,22 +477,20 @@ function MapClickHandler({
         return;
       }
       if (parking.phase === "pos") {
-        // Snap the click to the nearest drivable road if one is within
-        // ~25 m, otherwise honour the operator's literal click (they may
-        // have meant a verge / forecourt / off-road staging).
+        // One click. Snap to the nearest drivable road within ~25 m and
+        // take the road's bearing as the facing; off-road, honour the
+        // literal click and face the incident. Turn adjusts it afterwards.
         const snapped =
           roads.length > 0
-            ? snapToNearestRoad(
+            ? snapToNearestRoadWithBearing(
                 { lat: e.latlng.lat, lng: e.latlng.lng },
                 roads,
                 25,
               )
             : null;
-        onPickedPos(
-          snapped
-            ? { lat: snapped.lat, lng: snapped.lng }
-            : { lat: e.latlng.lat, lng: e.latlng.lng },
-        );
+        const pos = snapped ? { lat: snapped.lat, lng: snapped.lng } : { lat: e.latlng.lat, lng: e.latlng.lng };
+        const toIncident = (Math.atan2(incidentCoords.lng - pos.lng, incidentCoords.lat - pos.lat) * 180) / Math.PI;
+        onPickedPos(pos, snapped?.bearingDeg ?? (toIncident + 360) % 360);
       } else if (parking.phase === "bearing" || parking.phase === "rotate") {
         const dLat = e.latlng.lat - parking.pos.lat;
         const dLng = e.latlng.lng - parking.pos.lng;
@@ -1298,15 +1300,13 @@ export function LeafletGroundMap({
           setMusterDraft(null);
           onPlaceMuster?.(lat, lng, radiusM);
         }}
-        onPickedPos={(pos) => {
+        onPickedPos={(pos, bearingDeg) => {
           if (parking.phase !== "pos") return;
-          setParking({
-            phase: "bearing",
-            applianceId: parking.applianceId,
-            callsign: parking.callsign,
-            pos,
-          });
+          onSetParkingPos(parking.applianceId, pos.lat, pos.lng, bearingDeg);
+          setParking({ phase: "idle" });
+          onClearPlacePending?.();
         }}
+        incidentCoords={incident.scenario.location.coords}
         onPickedBearing={(bearingDeg) => {
           if (parking.phase === "bearing") {
             onSetParkingPos(parking.applianceId, parking.pos.lat, parking.pos.lng, bearingDeg);

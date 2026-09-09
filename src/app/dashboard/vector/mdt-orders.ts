@@ -18,7 +18,8 @@ export type Competency =
   | "command"
   | "traffic"
   | "assessment"
-  | "movement";
+  | "movement"
+  | "tpac";
 
 export type OrderStatus =
   | "Sent"

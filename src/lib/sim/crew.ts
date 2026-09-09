@@ -180,7 +180,7 @@ const ROLES: Record<string, RoleTemplate> = {
   // ---- GMP ----
   pc_response: {
     role: "Response Officer",
-    baseQuals: ["PIP1 Investigator", "Personal Safety Trained", "Emergency Driving"],
+    baseQuals: ["PIP1 Investigator", "Personal Safety Trained", "Emergency Driving", "Pursuit Phase 1"],
     flavourQuals: ["Taser Trained", "Family Liaison"],
     yearsRange: [1, 20],
   },
@@ -216,8 +216,11 @@ const ROLES: Record<string, RoleTemplate> = {
   },
   traffic_officer: {
     role: "Roads Policing Officer",
-    baseQuals: ["Advanced Driver", "Motorcycle Class 1", "Speed Detection"],
-    flavourQuals: ["Collision Investigator", "ANPR Specialist"],
+    // Roads policing crews are pursuit-trained: TPAC (Tactical Pursuit
+    // and Containment) is what lets them box, sting and make contact
+    // rather than follow and hope.
+    baseQuals: ["Advanced Driver", "TPAC — Tactical Pursuit and Containment", "Pursuit Phase 2", "Stinger Deployment", "Speed Detection"],
+    flavourQuals: ["Collision Investigator", "ANPR Specialist", "Motorcycle Class 1"],
     yearsRange: [3, 25],
   },
   polsa: {

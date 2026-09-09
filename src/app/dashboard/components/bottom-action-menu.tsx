@@ -3168,6 +3168,16 @@ function taskShortLabel(k: TaskKind): string {
       return "Traffic Mgmt";
     case "scene_preservation":
       return "Scene Preserve";
+    case "vehicle_stop":
+      return "Vehicle Stop";
+    case "follow_contain":
+      return "Follow";
+    case "tpac_box":
+      return "TPAC Box";
+    case "stinger":
+      return "Stinger";
+    case "tactical_contact":
+      return "Tac Contact";
     case "triage_sieve":
       return "Triage";
     case "extract_casualty":
