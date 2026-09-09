@@ -25,6 +25,7 @@ import { incidentRef } from "../vector/model";
 import { PopoutWindow } from "../vector/popout";
 import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
 import { MdtTaskWorkspace } from "../vector/mdt-task-workspace";
+import { FireCommandScreen } from "../vector/fire-command";
 import type { Eta } from "./deployment-board";
 import type { Patch } from "@/lib/sim/areas";
 
@@ -232,7 +233,6 @@ export function DraggableIncidentMdt(props: Props) {
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
   const [module, setModule] = useState<"care" | "fire" | "police">("care");
-  const [taskPage, setTaskPage] = useState<"actions" | "water">("actions");
   const onSceneAppliances = resolvedDeps.filter((r) => r.phase === "at_incident").map((r) => r.appliance);
   const pumpOperator = unitAppliance
     ? unitAppliance.crewMembers.find((c) => c.id === unitRow?.deployment.pumpOperatorCrewId) ??
@@ -250,21 +250,43 @@ export function DraggableIncidentMdt(props: Props) {
         </div>
       );
     }
+    if (service === "Fire") {
+      return (
+        <FireCommandScreen
+          key={unitAppliance.id}
+          incident={incident}
+          incidentRef={ref}
+          appliance={unitAppliance}
+          unit={unitRow}
+          resolved={resolvedDeps}
+          tasks={tasks ?? []}
+          log={props.log}
+          now={nowMs}
+          sim={sim ?? null}
+          vehicleGauges={props.vehicleGauges}
+          sceneCommanderApplianceId={props.sceneCommanderApplianceId}
+          busyCrewIds={props.busyCrewIds}
+          resolvedIncident={resolved}
+          onStartTask={props.onStartTask}
+          onAbortTask={props.onAbortTask}
+          onCompleteTask={props.onCompleteTask}
+          onSetTaskCrew={props.onSetTaskCrew}
+          onNote={props.onNote}
+          onBeginRoadClosure={props.onBeginRoadClosure}
+          onSetPumpRunning={props.onSetPumpRunning}
+          onSetPumpOperator={props.onSetPumpOperator}
+          onUpdateBaRemarks={props.onUpdateBaRemarks}
+          onUpdateBaEntryPoint={props.onUpdateBaEntryPoint}
+          onArmPlacement={props.onArmPlacement}
+        />
+      );
+    }
     return (
       <>
-        {service === "Fire" && unitAppliance.waterLitres > 0 && (
-          <div className="vec-patients-filter">
-            <span className="lbl">PAGE</span>
-            <div className="vec-segments" role="group" aria-label="Page">
-              <button type="button" aria-pressed={taskPage === "actions"} onClick={() => setTaskPage("actions")}>Actions</button>
-              <button type="button" aria-pressed={taskPage === "water"} onClick={() => setTaskPage("water")}>Water</button>
-            </div>
-          </div>
-        )}
         <div className="vec-mdt-body page vec-tasking">
           <MdtTaskWorkspace
-            key={`${taskPage}:${unitAppliance.id}`}
-            page={service === "Fire" && unitAppliance.waterLitres > 0 ? taskPage : "actions"}
+            key={`police:${unitAppliance.id}`}
+            page="actions"
             incident={incident}
             incidentRef={ref}
             appliance={unitAppliance}
