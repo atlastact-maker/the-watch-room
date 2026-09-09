@@ -208,14 +208,23 @@ export function personCheck(
     return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [], vehicleIds: [] };
   }
   const wantDob = normaliseDob(dob);
-  let hits = index.people.filter((p) => norm(p.name).includes(q));
+  // "DEAKIN, Callum", "Callum Deakin" and "deakin callum" are the same
+  // enquiry: every word typed has to be in the record's name, in any
+  // order. A surname alone matches everyone of that surname, and the
+  // date of birth picks between them.
+  const words = q.replace(/,/g, " ").split(/\s+/).filter(Boolean);
+  const nameWords = (n: string) => norm(n).replace(/,/g, " ").split(/\s+/).filter(Boolean);
+  let hits = index.people.filter((p) => {
+    const nw = nameWords(p.name);
+    return words.every((w) => nw.includes(w)) || norm(p.name).includes(q);
+  });
   if (wantDob && hits.length > 1) {
     const byDob = hits.filter((p) => dobOf(p) === wantDob);
     if (byDob.length) hits = byDob;
   }
   if (hits.length === 1) return personFrom(hits[0], name);
   if (hits.length > 1) {
-    const exact = hits.filter((p) => norm(p.name) === q);
+    const exact = hits.filter((p) => nameWords(p.name).length === words.length);
     if (exact.length === 1) return personFrom(exact[0], name);
     return {
       ...personFrom(hits[0], name),
