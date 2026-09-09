@@ -27,6 +27,7 @@ import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-car
 import { FireCommandScreen } from "../vector/fire-command";
 import { PoliceControlsScreen, type SupportKind } from "../vector/police-controls";
 import { VitalMonitorPanel } from "../vector/vital-monitor";
+import { MdtNotepad } from "../vector/mdt-notepad";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
 import type { RecordIndex } from "@/lib/sim/records";
 import type { LedsCheck } from "@/lib/sim/leds";
@@ -256,6 +257,7 @@ export function DraggableIncidentMdt(props: Props) {
 
   const [minimised, setMinimised] = useState(false);
   const [popped, setPopped] = useState(false);
+  const [notepad, setNotepad] = useState(false);
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
   const [module, setModule] = useState<"care" | "fire" | "police">(props.policePage ? "police" : "care");
@@ -352,6 +354,7 @@ export function DraggableIncidentMdt(props: Props) {
       <header className="vec-mdt-handle" title="Drag to move the tablet">
         <span>MOBILE DATA TERMINAL</span>
         <div className="vec-mdt-handle-btns">
+          <button type="button" className="txt" title="Notebook" aria-pressed={notepad} onClick={() => setNotepad((v) => !v)}>✎ Notebook</button>
           {!popped && <button type="button" title="Minimise MDT" aria-label="Minimise" onClick={() => setMinimised(true)}>−</button>}
           {popped ? (
             <button type="button" title="Dock the MDT back on the desk" aria-label="Dock" onClick={() => setPopped(false)}>⤶</button>
@@ -470,6 +473,7 @@ export function DraggableIncidentMdt(props: Props) {
         )}
       </div>
       <footer className="vec-mdt-footer">LOCAL SIMULATION · {unitCallsign} · {ref}</footer>
+      <MdtNotepad key={incident.id} incidentId={incident.id} incidentRef={ref} unitCallsign={unitCallsign} open={notepad} onClose={() => setNotepad(false)} onNote={props.onNote} />
     </section>
   );
 

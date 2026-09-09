@@ -4394,3 +4394,71 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .fc-main.overview .fc-col > .fc-card:not(.fill) { flex: 0 0 auto; }
 .fc-main.overview .fc-col > .fc-card:not(.fill) .fc-card-body { overflow: visible; }
 .fc-main:not(.overview) { overflow: auto; }
+
+/* ---- The notebook on the tablet -------------------------------------- */
+.vec-mdt-handle-btns button.txt { min-width: 0; padding: 0 8px; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.08em; margin-right: 6px; }
+.vec-mdt-handle-btns button.txt[aria-pressed="true"] { background: var(--vec-work, #0875bb); border-color: var(--vec-work, #0875bb); color: #fff; }
+.vec-notepad {
+  z-index: 40;
+  display: flex !important;
+  flex-direction: column;
+  border: 1px solid var(--vec-handle-border, #657b89);
+  border-radius: 3px;
+  background: var(--vec-surface, #f4f6f7);
+  color: var(--vec-text, #16171a);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.vec-notepad-handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  background: #111a1f;
+  color: #aebbbf;
+  font: 700 10px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.09em;
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+}
+.vec-notepad-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.vec-notepad-tools { display: flex; align-items: center; gap: 4px; padding: 5px 6px; border-bottom: 1px solid var(--vec-border-subtle, #d5dfe5); background: var(--vec-surface-raised, #e5eaed); }
+.vec-notepad-tools .pc-mini { min-height: 24px; padding: 0 8px; font: 700 10px var(--vec-sans, Arial, sans-serif); border: 1px solid var(--vec-border, #a9b8c4); border-radius: 2px; background: var(--vec-surface, #f4f6f7); color: var(--vec-text, #16171a); cursor: pointer; }
+.vec-notepad-tools .pc-mini:disabled { opacity: 0.45; cursor: not-allowed; }
+.vec-notepad-status { margin-left: auto; font: 10px var(--vec-mono, Consolas, monospace); color: var(--vec-text-muted, #647481); white-space: nowrap; }
+.vec-notepad-text {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 8px 10px;
+  font: 12.5px/1.6 var(--vec-mono, "IBM Plex Mono", Consolas, monospace);
+  color: var(--vec-text, #16171a);
+  background:
+    repeating-linear-gradient(transparent 0, transparent 19px, var(--vec-border-subtle, #d5dfe5) 19px, var(--vec-border-subtle, #d5dfe5) 20px) 0 8px / 100% 20px,
+    var(--vec-surface, #f4f6f7);
+}
+.vec-notepad-tab {
+  position: absolute;
+  right: 10px;
+  bottom: 28px;
+  z-index: 40;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--vec-handle-border, #657b89);
+  border-radius: 3px;
+  background: #111a1f;
+  color: #ecf4f8;
+  font: 700 10px var(--vec-mono, Consolas, monospace);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.vec-notepad-tab:hover { background: #24313a; }
+.vec-notepad-frame { display: flex; flex-direction: column; height: 100%; }
+.vec-notepad-frame > .vec-tile-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.vec-notepad-frame .vec-notepad-text { min-height: 300px; }
