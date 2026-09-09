@@ -90,7 +90,7 @@ export function VectorDesk(props: {
   onSelectIncident: (id: string | null) => void;
   onHandCommandTo: (incidentId: string, applianceId: string) => void;
   onDropAppliance: (incidentId: string, applianceId: string, stationId: string) => void;
-  onMobilise: (applianceId: string, stationId: string) => void;
+  onMobilise: (applianceId: string, stationId: string, incidentId?: string) => void;
   onStandDown: (applianceId: string) => void;
   onPickAppliance: (applianceId: string) => void;
   onPlaceUnit: (applianceId: string) => void;
@@ -286,7 +286,7 @@ export function VectorDesk(props: {
                 <AttendanceTile {...pop("attendance")} layout={layout} area={area} rows={model.pda} ref={model.selected ? model.refOf(model.selected) : ""} onClose={() => toggleTile("attendance")} onFill={() => props.onScreen("mob")} />
               )}
               {tiles.available && (
-                <AvailableTile {...pop("available")} layout={layout} area={area} cards={model.cards} hasIncident={hasIncident} onMobilise={props.onMobilise} onPick={props.onPickAppliance} onClose={() => toggleTile("available")} />
+                <AvailableTile {...pop("available")} layout={layout} area={area} cards={model.cards} hasIncident={hasIncident} incidents={model.incidentRows} onMobilise={props.onMobilise} onPick={props.onPickAppliance} onClose={() => toggleTile("available")} />
               )}
               {tiles.cover && <CountyCoverTile {...pop("cover")} layout={layout} area={area} rows={model.cover} onClose={() => toggleTile("cover")} />}
               {tiles.standby && <StandbyTile {...pop("standby")} layout={layout} area={area} rows={model.standby} onSend={props.onSendStandby} onClose={() => toggleTile("standby")} />}

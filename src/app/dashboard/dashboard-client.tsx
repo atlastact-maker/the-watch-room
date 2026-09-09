@@ -5632,7 +5632,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         // Follow the drop, so the operator sees where it went.
         if (incidentId !== selectedIncidentId) setSelectedIncidentId(incidentId);
       }}
-      onMobilise={(applianceId, stationId) => mobiliseTo(applianceId, stationId)}
+      onMobilise={(applianceId, stationId, incidentId) => mobiliseTo(applianceId, stationId, incidentId)}
       onStandDown={(applianceId) => void standDownAppliance(applianceId)}
       onPickAppliance={setSelectedApplianceId}
       onPlaceUnit={placeUnit}

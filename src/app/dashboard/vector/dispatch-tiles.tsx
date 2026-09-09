@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+
 // The Dispatch workspace tiles. Each is the VECTOR rendering of something
 // the simulator already tracks: the stack of waiting calls, the live
 // incidents, the selected job's details, the units on its ground, its
@@ -7,7 +9,7 @@
 // standby moves and the hospitals within reach. The dashboard client
 // computes the rows; the tiles draw them and hand clicks back.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Severity } from "@/lib/sim/incident_types";
 import type { ServiceCode, StatusCode } from "@/lib/sim/types";
 import { DRAG_MIME } from "../components/call-stack";
@@ -551,9 +553,14 @@ export type ResourceCard = {
   deployed: boolean;
 };
 
-export function AvailableTile({ layout, area, cards, hasIncident, onMobilise, onPick, onClose, id = "available", title = "Resources", ...pop }: Pop & { layout: TileLayout; area: Area; cards: ResourceCard[]; hasIncident: boolean; onMobilise: (applianceId: string, stationId: string) => void; onPick: (applianceId: string) => void; onClose: () => void; id?: "available" | "resources"; title?: string }) {
+export function AvailableTile({ layout, area, cards, hasIncident, incidents = [], onMobilise, onPick, onClose, id = "available", title = "Resources", ...pop }: Pop & { layout: TileLayout; area: Area; cards: ResourceCard[]; hasIncident: boolean; /** Live jobs the picker offers when Mobilise is pressed. */ incidents?: IncidentRow[]; onMobilise: (applianceId: string, stationId: string, incidentId?: string) => void; onPick: (applianceId: string) => void; onClose: () => void; id?: "available" | "resources"; title?: string }) {
   const [svc, setSvc] = useState<"All" | ServiceCode>("All");
   const [type, setType] = useState("All");
+  // Mobilise opens a picker of the live jobs beside the button, so a unit
+  // can be sent to any incident on the board, not only the selected one.
+  const [picker, setPicker] = useState<{ applianceId: string; stationId: string; x: number; y: number } | null>(null);
+  const live = incidents.filter((i) => !i.resolved);
+  const pickerCard = picker ? cards.find((c) => c.applianceId === picker.applianceId) : null;
   const scoped = cards.filter((c) => svc === "All" || c.service === svc);
   const types: { code: string; n: number }[] = [];
   for (const c of scoped) {
@@ -613,14 +620,81 @@ export function AvailableTile({ layout, area, cards, hasIncident, onMobilise, on
             <div className={`why ${c.blocked ? "" : "ok"}`}>{c.blocked || c.fit}</div>
             <div className="foot">
               <span className={`cost ${c.cost.tone === "off" ? "" : c.cost.tone}`}>{c.cost.text}</span>
-              <button type="button" className="go-btn" disabled={!!c.blocked} onClick={() => onMobilise(c.applianceId, c.stationId)}>
-                Mobilise
+              <button
+                type="button"
+                className="go-btn"
+                disabled={!!c.blocked && live.length <= 1}
+                aria-expanded={picker?.applianceId === c.applianceId}
+                onClick={(e) => {
+                  if (live.length === 0) {
+                    onMobilise(c.applianceId, c.stationId);
+                    return;
+                  }
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setPicker((p) => (p?.applianceId === c.applianceId ? null : { applianceId: c.applianceId, stationId: c.stationId, x: Math.min(r.left, window.innerWidth - 330), y: r.bottom + 4 }));
+                }}
+              >
+                Mobilise{live.length > 1 ? " ▾" : ""}
               </button>
             </div>
           </div>
         ))}
       </div>
+      {picker && pickerCard && (
+        <MobilisePicker
+          x={picker.x}
+          y={picker.y}
+          callsign={pickerCard.callsign}
+          incidents={live}
+          onPick={(incidentId) => {
+            onMobilise(picker.applianceId, picker.stationId, incidentId);
+            setPicker(null);
+          }}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </VectorTile>
+  );
+}
+
+/** The live jobs beside a Mobilise button — hover to read, click to send. */
+function MobilisePicker({ x, y, callsign, incidents, onPick, onClose }: { x: number; y: number; callsign: string; incidents: IncidentRow[]; onPick: (incidentId: string) => void; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".vec-mob-picker")) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onDown);
+    };
+  }, [onClose]);
+  const body = typeof document !== "undefined" ? document.body : null;
+  if (!body) return null;
+  return createPortal(
+    <div className="vec-mob-picker" role="menu" aria-label={`Mobilise ${callsign} to`} style={{ left: x, top: y }}>
+      <div className="head">MOBILISE {callsign} TO</div>
+      {incidents.map((i) => {
+        const short = i.required - i.allocated;
+        return (
+          <button key={i.id} type="button" role="menuitem" className={i.selected ? "sel" : ""} onClick={() => onPick(i.id)}>
+            <span className={`vec-sev ${i.severity}`} />
+            <span className="body">
+              <span className="l1"><b>{i.ref}</b><em>{i.grade}</em>{i.selected && <i>selected</i>}</span>
+              <span className="l2">{i.title}</span>
+              <span className="l3">{i.address}</span>
+            </span>
+            <span className={`need ${short > 0 ? "warn" : "go"}`}>{short > 0 ? `${short} short` : "Filled"}</span>
+          </button>
+        );
+      })}
+      <div className="foot">Hover to read the job · click to send. Esc closes.</div>
+    </div>,
+    body,
   );
 }
 
