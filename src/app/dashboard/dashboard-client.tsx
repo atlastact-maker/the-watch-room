@@ -83,7 +83,7 @@ import type {
   EgressAction,
   PatientTreatmentState,
   Scenario,
-  type Severity,
+  Severity,
   Task,
   TaskKind,
   TreatmentEvent,
