@@ -311,6 +311,7 @@ export function LedsTerminal({
   checks,
   onCheck,
   prefill,
+  prefillKind,
   onPrefillUsed,
   onClose,
 }: {
@@ -323,6 +324,8 @@ export function LedsTerminal({
    *  operator's to choose, and choosing it for them would defeat the
    *  point of asking. */
   prefill?: string | null;
+  /** Which enquiry the prefill is for — a VRM unless told otherwise. */
+  prefillKind?: "vehicle" | "person" | "address";
   onPrefillUsed?: () => void;
   onClose?: () => void;
 }) {
@@ -342,11 +345,17 @@ export function LedsTerminal({
     { r: LedsReturn & { ambiguous?: never[] }; ref: string } | null
   >(null);
 
-  useEffect(() => {
-    if (!prefill) return;
-    setKind("vehicle");
+  // A handed-over query lands in the box as it arrives — state adjusted
+  // during render, then the parent is told it has been used.
+  const [seenPrefill, setSeenPrefill] = useState<string | null>(null);
+  if (prefill !== null && prefill !== undefined && prefill !== seenPrefill) {
+    setSeenPrefill(prefill);
+    setKind(prefillKind ?? "vehicle");
     setQuery(prefill);
     setResult(null);
+  }
+  useEffect(() => {
+    if (prefill === null || prefill === undefined) return;
     onPrefillUsed?.();
   }, [prefill, onPrefillUsed]);
 

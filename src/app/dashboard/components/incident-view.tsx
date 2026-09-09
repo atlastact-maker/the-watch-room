@@ -1940,6 +1940,12 @@ function taskLabelShort(kind: TaskKind): string {
     case "tpac_box": return "TPAC Box";
     case "stinger": return "Stinger";
     case "tactical_contact": return "Tac Contact";
+    case "request_details": return "Details";
+    case "take_account": return "Account";
+    case "stop_search": return "Stop Search";
+    case "arrest": return "Arrest";
+    case "welfare_check": return "Welfare";
+    case "vehicle_search": return "Veh Search";
     case "triage_sieve": return "Triage";
     case "extract_casualty": return "Extract";
     case "crs_action": return "CRS Action";

@@ -95,6 +95,10 @@ export type StartTaskFn = (args: {
   hretTurret?: boolean;
   baMode?: "search" | "firefighting";
   casualtyId?: string;
+  personId?: string;
+  personLabel?: string;
+  vehicleVrm?: string;
+  searchFindings?: string;
   entryTool?: EntryTool;
   closurePos?: { lat: number; lng: number };
   closureBearingDeg?: number;
@@ -3178,6 +3182,18 @@ function taskShortLabel(k: TaskKind): string {
       return "Stinger";
     case "tactical_contact":
       return "Tac Contact";
+    case "request_details":
+      return "Details";
+    case "take_account":
+      return "Account";
+    case "stop_search":
+      return "Stop Search";
+    case "arrest":
+      return "Arrest";
+    case "welfare_check":
+      return "Welfare";
+    case "vehicle_search":
+      return "Veh Search";
     case "triage_sieve":
       return "Triage";
     case "extract_casualty":

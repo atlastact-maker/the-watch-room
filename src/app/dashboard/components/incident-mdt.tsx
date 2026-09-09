@@ -24,8 +24,12 @@ import {
 import { incidentRef } from "../vector/model";
 import { PopoutWindow } from "../vector/popout";
 import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
-import { MdtTaskWorkspace } from "../vector/mdt-task-workspace";
 import { FireCommandScreen } from "../vector/fire-command";
+import { PoliceControlsScreen, type SupportKind } from "../vector/police-controls";
+import { VitalMonitorPanel } from "../vector/vital-monitor";
+import { scopeOfApplianceType } from "@/lib/sim/incident_types";
+import type { RecordIndex } from "@/lib/sim/records";
+import type { LedsCheck } from "@/lib/sim/leds";
 import type { Eta } from "./deployment-board";
 import type { Patch } from "@/lib/sim/areas";
 
@@ -129,6 +133,16 @@ type Props = {
   onSetTaskCrew?: (taskId: string, crewIds: string[]) => void;
   /** A worded line for the shift log (task orders, crew updates). */
   onNote?: (text: string) => void;
+
+  // Police module — the people and vehicles on the job, the desk's PNC
+  // audit, and the doors into the LEDS terminal and the ANPR console.
+  recordIndex?: RecordIndex;
+  ledsChecks?: LedsCheck[];
+  onOpenLeds?: (query?: string, kind?: "vehicle" | "person" | "address") => void;
+  onLedsCheck?: (c: LedsCheck) => void;
+  onOpenAnpr?: () => void;
+  /** A support request from the crew to control — logged and flagged. */
+  onRequestSupport?: (kind: SupportKind, applianceId: string) => void;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -240,13 +254,15 @@ export function DraggableIncidentMdt(props: Props) {
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
   const [module, setModule] = useState<"care" | "fire" | "police">("care");
-  const onSceneAppliances = resolvedDeps.filter((r) => r.phase === "at_incident").map((r) => r.appliance);
-  const pumpOperator = unitAppliance
-    ? unitAppliance.crewMembers.find((c) => c.id === unitRow?.deployment.pumpOperatorCrewId) ??
-      unitAppliance.crewMembers.find((c) => /Pump|Driver/i.test(c.role)) ??
-      unitAppliance.crewMembers[0]
-    : undefined;
-
+  // The patient pinned in the top strip: the one open on the care screen,
+  // else the first this unit is responsible for.
+  const [openCasualtyId, setOpenCasualtyId] = useState<string | null>(null);
+  const unitCasualtyIds = unitAppliance ? assignedCasualtyIds(unitAppliance.id, deployments, tasks ?? []) : new Set<string>();
+  const stripCasualtyId = openCasualtyId && sim?.foundCasualties.some((c) => c.id === openCasualtyId) ? openCasualtyId : [...unitCasualtyIds][0] ?? null;
+  const stripCasualty = stripCasualtyId ? sim?.foundCasualties.find((c) => c.id === stripCasualtyId) ?? null : null;
+  const stripPaired = stripCasualtyId
+    ? deployments.filter((d) => d.treatingCasualtyId === stripCasualtyId && nowMs >= d.arrivesAt && scopeOfApplianceType(resolvedDeps.find((r) => r.appliance.id === d.applianceId)?.appliance.type ?? "Police_Response") !== "none").length
+    : 0;
   function serviceModule(service: "Fire" | "Police") {
     if (resolved) return <div className="vec-tile-empty">Incident closed</div>;
     if (!unitAppliance || !unitRow) return <div className="vec-tile-empty">Commit a {service.toLowerCase()} unit to open this module</div>;
@@ -289,41 +305,32 @@ export function DraggableIncidentMdt(props: Props) {
       );
     }
     return (
-      <>
-        <div className="vec-mdt-body page vec-tasking">
-          <MdtTaskWorkspace
-            key={`police:${unitAppliance.id}`}
-            page="actions"
-            incident={incident}
-            incidentRef={ref}
-            appliance={unitAppliance}
-            phase={unitRow.phase}
-            onScene={onSceneAppliances}
-            tasks={tasks ?? []}
-            now={nowMs}
-            busyCrewIds={props.busyCrewIds}
-            hazards={(sim?.visibleHazards ?? []).map((h) => ({ id: h.id, label: h.label, kind: h.kind }))}
-            casualties={(sim?.foundCasualties ?? []).map((c) => ({ id: c.id, label: c.label }))}
-            resolved={resolved}
-            onStartTask={props.onStartTask}
-            onAbortTask={props.onAbortTask}
-            onCompleteTask={props.onCompleteTask}
-            onSetTaskCrew={props.onSetTaskCrew}
-            onBeginRoadClosure={props.onBeginRoadClosure ? (kind, crewIds) => props.onBeginRoadClosure?.(unitAppliance.id, kind, crewIds) : undefined}
-            onNote={props.onNote}
-            pumpReady={unitRow.deployment.pumpRunning === true && !!unitRow.deployment.pumpOperatorCrewId}
-            pumpOperatorName={pumpOperator?.name}
-            onStartPump={
-              props.onSetPumpOperator && props.onSetPumpRunning && pumpOperator
-                ? () => {
-                    props.onSetPumpOperator?.(unitAppliance.id, pumpOperator.id);
-                    props.onSetPumpRunning?.(unitAppliance.id, true);
-                  }
-                : undefined
-            }
-          />
-        </div>
-      </>
+      <PoliceControlsScreen
+        key={`police:${unitAppliance.id}`}
+        incident={incident}
+        incidentRef={ref}
+        appliance={unitAppliance}
+        unit={unitRow}
+        resolved={resolvedDeps}
+        tasks={tasks ?? []}
+        log={props.log}
+        now={nowMs}
+        sim={sim ?? null}
+        busyCrewIds={props.busyCrewIds}
+        resolvedIncident={resolved}
+        recordIndex={props.recordIndex}
+        ledsChecks={props.ledsChecks}
+        onStartTask={props.onStartTask}
+        onAbortTask={props.onAbortTask}
+        onCompleteTask={props.onCompleteTask}
+        onNote={props.onNote}
+        onBeginRoadClosure={props.onBeginRoadClosure}
+        onOpenLeds={props.onOpenLeds}
+        onLedsCheck={props.onLedsCheck}
+        onOpenAnpr={props.onOpenAnpr}
+        onRequestSupport={props.onRequestSupport}
+        onArmPlacement={props.onArmPlacement}
+      />
     );
   }
 
@@ -331,34 +338,61 @@ export function DraggableIncidentMdt(props: Props) {
     <section className="vec-mdt vec-mdt--care" aria-label="Mobile data terminal · patient care">
       <header className="vec-mdt-handle" title="Drag to move the tablet">
         <span>MOBILE DATA TERMINAL</span>
-        {!popped && <button type="button" title="Minimise MDT" onClick={() => setMinimised(true)}>−</button>}
-        <button type="button" title="Close MDT" onClick={onClose}>×</button>
-        {popped ? (
-          <button type="button" title="Dock the MDT back on the desk" onClick={() => setPopped(false)}>⤶</button>
-        ) : (
-          <button type="button" title="Pop out into its own window" onClick={() => setPopped(true)}>↗</button>
-        )}
+        <div className="vec-mdt-handle-btns">
+          {!popped && <button type="button" title="Minimise MDT" aria-label="Minimise" onClick={() => setMinimised(true)}>−</button>}
+          {popped ? (
+            <button type="button" title="Dock the MDT back on the desk" aria-label="Dock" onClick={() => setPopped(false)}>⤶</button>
+          ) : (
+            <button type="button" title="Pop out into its own window" aria-label="Pop out" onClick={() => setPopped(true)}>↗</button>
+          )}
+          <button type="button" title="Close MDT" aria-label="Close" onClick={onClose}>×</button>
+        </div>
       </header>
       <div className="vec-mdt-identity">
-        <div className="link">{unitService.toUpperCase()} · {ref} · {sc.title}</div>
-        <div className="vec-mdt-unit">
-          <strong>{unitCallsign}</strong>
-          {resolvedDeps.length > 1 && (
-            <select
-              aria-label="Unit"
-              value={unitAppliance?.id ?? ""}
-              onChange={(e) => setUnitId(e.target.value || null)}
-              title="Which unit's patients this tablet shows"
-            >
-              {resolvedDeps.map((r) => (
-                <option key={r.appliance.id} value={r.appliance.id}>
-                  {r.appliance.callsign} · {r.appliance.typeName}
-                </option>
-              ))}
-            </select>
+        <div className="vec-mdt-me">
+          <div className="link">{unitService.toUpperCase()} · {ref} · {sc.title}</div>
+          <div className="vec-mdt-unit">
+            <strong>{unitCallsign}</strong>
+            {resolvedDeps.length > 1 && (
+              <select
+                aria-label="Unit"
+                value={unitAppliance?.id ?? ""}
+                onChange={(e) => setUnitId(e.target.value || null)}
+                title="Which unit this tablet is controlling"
+              >
+                {resolvedDeps.map((r) => (
+                  <option key={r.appliance.id} value={r.appliance.id}>
+                    {r.appliance.callsign} · {r.appliance.typeName}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <small>{unitState} · {assigned ? `${assigned} patient${assigned === 1 ? "" : "s"} assigned` : "No patients assigned"}</small>
+        </div>
+        <div className="vec-mdt-vitals">
+          {stripCasualty && !resolved ? (
+            <>
+              <div className="vec-mdt-vitals-who">
+                <b>{(stripCasualty.label ?? stripCasualty.id).toUpperCase()}</b>
+                <span>{props.treatmentByCasualtyId?.[stripCasualty.id]?.revealedCondition ?? "Vital signs"}</span>
+              </div>
+              <VitalMonitorPanel
+                casualtyId={stripCasualty.id}
+                treatment={props.treatmentByCasualtyId?.[stripCasualty.id] ?? null}
+                resus={props.resusByCasualtyId?.[stripCasualty.id]}
+                paired={stripPaired}
+                now={nowMs}
+                by={unitCallsign}
+                compact
+                onRecordObservation={props.onRecordObservation}
+                onAttachMonitor={props.onAttachMonitor}
+              />
+            </>
+          ) : (
+            <div className="vec-mdt-vitals-empty">NO PATIENT ON THE MONITOR{unitAppliance && !resolved ? " · OPEN A CASUALTY" : ""}</div>
           )}
         </div>
-        <small>{unitState} · {assigned ? `${assigned} patient${assigned === 1 ? "" : "s"} assigned` : "No patients assigned"}</small>
       </div>
       <nav className="vec-mdt-modules" aria-label="Modules">
         <button type="button" aria-pressed={module === "care"} onClick={() => setModule("care")}>Casualty care{assigned ? ` · ${assigned}` : ""}</button>
@@ -378,6 +412,7 @@ export function DraggableIncidentMdt(props: Props) {
           <PatientCareWorkspace
             key={unitAppliance?.id ?? "none"}
             inline
+            onOpenChange={setOpenCasualtyId}
             sim={sim}
             incident={incident}
             incidentRef={ref}

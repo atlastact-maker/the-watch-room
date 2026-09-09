@@ -1103,6 +1103,13 @@ export type TaskKind =
   | "tpac_box"            // timed — TPAC enforced stop, needs two cars and the training
   | "stinger"             // timed — stinger ahead of the vehicle
   | "tactical_contact"    // timed — TPAC contact to end a pursuit
+  // People — the response officer's street work, one person at a time
+  | "request_details"     // timed — name, date of birth and address from the person
+  | "take_account"        // timed — first account of what happened
+  | "stop_search"         // timed — a PACE s1 / s23 search with grounds
+  | "arrest"              // timed — arrest, caution and detention
+  | "welfare_check"       // timed — welfare and safeguarding check
+  | "vehicle_search"      // timed — a search of a vehicle with grounds and a power
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
   // BA follow-on
@@ -1437,6 +1444,15 @@ export type Task = {
   baMode?: "search" | "firefighting";
   /** For extract_casualty: which casualty this crew is moving out. */
   casualtyId?: string;
+  /** For the police person tasks: the record the officer is dealing
+   *  with, and how the tablet labelled them at the time (Person 01,
+   *  or the name once details were given). */
+  personId?: string;
+  personLabel?: string;
+  /** For vehicle_search: the plate, and what the search will turn up —
+   *  fixed from the record when the search starts so the log can say. */
+  vehicleVrm?: string;
+  searchFindings?: string;
   /** For gain_entry: which forcible-entry tool the crew is using —
    *  duration and success odds come from ENTRY_TABLE vs the door type. */
   entryTool?: EntryTool;
@@ -1502,6 +1518,12 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   close_road: 2,
   scene_preservation: 1,
   vehicle_stop: 1,
+  request_details: 1,
+  take_account: 1,
+  stop_search: 1,
+  arrest: 1,
+  welfare_check: 1,
+  vehicle_search: 1,
   follow_contain: 1,
   tpac_box: 1,
   stinger: 1,
@@ -1540,6 +1562,12 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   close_road: ["Police"],
   scene_preservation: ["Police"],
   vehicle_stop: ["Police"],
+  request_details: ["Police"],
+  take_account: ["Police"],
+  stop_search: ["Police"],
+  arrest: ["Police"],
+  welfare_check: ["Police"],
+  vehicle_search: ["Police"],
   follow_contain: ["Police"],
   tpac_box: ["Police"],
   stinger: ["Police"],

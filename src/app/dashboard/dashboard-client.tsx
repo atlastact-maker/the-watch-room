@@ -469,6 +469,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   /** A plate sent from an ANPR hit to the terminal, so "Enquire" on a hit
    *  lands in the enquiry box rather than making the operator retype it. */
   const [ledsPrefill, setLedsPrefill] = useState<string | null>(null);
+  const [ledsPrefillKind, setLedsPrefillKind] = useState<"vehicle" | "person" | "address">("vehicle");
   /** Every LEDS enquiry made this shift. Survives the panel being closed
    *  — an audit you can dismiss is not an audit. */
   const [ledsChecks, setLedsChecks] = useState<LedsCheck[]>([]);
@@ -4034,6 +4035,31 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             kind: "task_completed",
             message: t.crsDoneMessage ?? `${applianceLabel(t.applianceId)} — ${t.crsLabel ?? "CRS action"} complete`,
           });
+        } else if (t.kind === "vehicle_search") {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: `${applianceLabel(t.applianceId)} — ${t.vehicleVrm ?? "vehicle"} searched — ${t.searchFindings ?? "nothing found"}`,
+          });
+        } else if (t.kind === "request_details" || t.kind === "take_account" || t.kind === "stop_search" || t.kind === "arrest" || t.kind === "welfare_check") {
+          const who = t.personLabel ?? "the person";
+          const outcome =
+            t.kind === "request_details"
+              ? `details taken from ${who} — name, date of birth and address given`
+              : t.kind === "take_account"
+                ? `first account taken from ${who}`
+                : t.kind === "stop_search"
+                  ? `${who} searched — grounds recorded, search record issued`
+                  : t.kind === "arrest"
+                    ? `${who} ARRESTED — cautioned, detained, custody transport required`
+                    : `welfare check on ${who} complete`;
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: `${applianceLabel(t.applianceId)} — ${outcome}`,
+          });
         } else if (t.kind === "vehicle_stop" || t.kind === "tpac_box" || t.kind === "stinger" || t.kind === "tactical_contact") {
           const outcome =
             t.kind === "vehicle_stop"
@@ -4825,6 +4851,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     hretTurret?: boolean;
     baMode?: "search" | "firefighting";
     casualtyId?: string;
+    personId?: string;
+    personLabel?: string;
+    vehicleVrm?: string;
+    searchFindings?: string;
     entryTool?: import("@/lib/sim/incident_types").EntryTool;
     closurePos?: { lat: number; lng: number };
     closureBearingDeg?: number;
@@ -4887,6 +4917,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       hretTurret: args.hretTurret,
       baMode: args.baMode,
       casualtyId: args.casualtyId,
+      personId: args.personId,
+      personLabel: args.personLabel,
+      vehicleVrm: args.vehicleVrm,
+      searchFindings: args.searchFindings,
       entryTool: args.entryTool,
       closurePos: args.closurePos,
       closureBearingDeg: args.closureBearingDeg,
@@ -5231,6 +5265,27 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     commandOptionsFor,
   });
   const groundAvailable = !!activeIncident && !outcome && !handover && !!incidentSim;
+
+  /** A crew asks control for something from the tablet: it goes on the
+   *  shift log as an assistance message and on the status line, and the
+   *  operator answers it by mobilising from the desk. */
+  function requestPoliceSupport(kind: string, applianceId: string) {
+    const cs = applianceLabel(applianceId);
+    const wording: Record<string, string> = {
+      unit: "requests an additional unit",
+      supervisor: "requests a supervisor to attend",
+      ambulance: "requests an ambulance to scene",
+      custody: "requests custody transport — one detained",
+      arv: "requests armed response",
+      dog: "requests a dog unit",
+      npas: "requests NPAS overhead",
+      recovery: "requests vehicle recovery",
+      roads: "requests a roads policing unit",
+      highways: "requests Highways to attend",
+    };
+    logAnnotation(`${cs} → CONTROL: ${wording[kind] ?? `requests ${kind}`}`);
+    setStatusMsg(`${cs} ${wording[kind] ?? `requests ${kind}`}`);
+  }
 
   function logAnnotation(message: string, kind: LogEntry["kind"] = "annotation") {
     const at = Date.now();
@@ -5936,6 +5991,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               checks={ledsChecks}
               onCheck={recordLedsCheck}
               prefill={ledsPrefill}
+              prefillKind={ledsPrefillKind}
               onPrefillUsed={() => setLedsPrefill(null)}
               onClose={() => setShowLeds(false)}
             />
@@ -6205,6 +6261,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 onCompleteTask={completeTask}
                 onSetTaskCrew={setTaskCrew}
                 onNote={(text) => logAnnotation(text)}
+                recordIndex={recordIndex}
+                ledsChecks={ledsChecks}
+                onLedsCheck={recordLedsCheck}
+                onOpenLeds={(query, kind) => {
+                  if (query !== undefined) {
+                    setLedsPrefillKind(kind ?? "vehicle");
+                    setLedsPrefill(query);
+                  }
+                  setShowLeds(true);
+                }}
+                onOpenAnpr={() => setShowAnpr(true)}
+                onRequestSupport={requestPoliceSupport}
               />
             )}
           </>
@@ -6514,6 +6582,18 @@ function taskDurationSecFor(args: {
       return 60;
     case "tactical_contact":
       return 45;
+    case "request_details":
+      return 40; // name, date of birth, address — and a look at the ID
+    case "take_account":
+      return 90; // a first account, in their own words
+    case "stop_search":
+      return 150; // GOWISELY, the search and the record
+    case "arrest":
+      return 120; // arrest, caution, cuffs and the necessity test
+    case "welfare_check":
+      return 75; // a proper conversation, not a wave through the door
+    case "vehicle_search":
+      return 150; // boot, cabin, under the seats and the record
     case "crs_action":
       return args.crsDurationSec ?? 120; // authored per-action on the datasheet
   }
@@ -6550,6 +6630,12 @@ function taskLabel(kind: TaskKind): string {
     case "tpac_box": return "TPAC enforced stop";
     case "stinger": return "Stinger deployment";
     case "tactical_contact": return "Tactical contact";
+    case "request_details": return "Request details";
+    case "take_account": return "Take account";
+    case "stop_search": return "Stop and search";
+    case "arrest": return "Arrest";
+    case "welfare_check": return "Welfare check";
+    case "vehicle_search": return "Vehicle search";
     case "triage_sieve": return "Triage sieve";
     case "extract_casualty": return "Extract casualty";
     case "crs_action": return "CRS action";

@@ -35,6 +35,9 @@ export type PatientCareProps = CareCallbacks & {
   /** Show the casualty screen in place (the tablet) rather than over the
    *  desk. It can still be lifted into its own window. */
   inline?: boolean;
+  /** Which casualty's screen is open — the tablet pins that patient's
+   *  monitor in its top strip. */
+  onOpenChange?: (casualtyId: string | null) => void;
 };
 
 /** Casualties a resource is responsible for: the patient its crew is
@@ -63,9 +66,13 @@ function stageLabel(stage: string): string {
 }
 
 export function PatientCareWorkspace(props: PatientCareProps) {
-  const { sim, incident, incidentRef, focusApplianceId, inline, deployments, resolved, tasks, now, treatmentByCasualtyId, resusByCasualtyId, ...callbacks } = props;
+  const { sim, incident, incidentRef, focusApplianceId, inline, deployments, resolved, tasks, now, treatmentByCasualtyId, resusByCasualtyId, onOpenChange, ...callbacks } = props;
   const [filter, setFilter] = useState<string>(focusApplianceId ?? "all");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenIdState] = useState<string | null>(null);
+  const setOpenId = (id: string | null) => {
+    setOpenIdState(id);
+    onOpenChange?.(id);
+  };
   const [poppedOut, setPoppedOut] = useState(false);
 
   if (!sim || !incident) {

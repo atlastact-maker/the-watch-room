@@ -15,7 +15,7 @@
 // and the same gates apply: nothing happens to a patient still inside the
 // hazard zone or with no clinician standing over them.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
 import type { SceneCasualty, PatientRedFlag, EgressBlock, HospitalDestinationType } from "@/lib/sim/scene";
 import type { Deployment, Incident, Task, PatientTreatmentState, ClinicianScope, AirwayAction, BreathingAction, CirculationAction, DrugName, PackagingAction, EgressAction } from "@/lib/sim/incident_types";
@@ -30,7 +30,7 @@ import {
   scopeOfApplianceType,
 } from "@/lib/sim/incident_types";
 import { BODY_REGIONS, RED_FLAG_REGIONS, type BodyRegion } from "@/lib/sim/body_regions";
-import { ecgSample, displayedRate, type TraceRhythm } from "@/lib/sim/ecg";
+import { MonitorMeta, VitalMonitorPanel, monitorPicture, useMonitorState } from "./vital-monitor";
 import { OXYGEN_DEVICE_LABEL, OXYGEN_FLOWS, OXYGEN_HINT, oxygenLabel, oxygenVerdict, type OxygenDevice } from "@/lib/sim/oxygen";
 import { PHARMACOLOGY, canGiveDrug, dosesOf } from "@/lib/sim/physiology";
 import { postRoscIssues, type ResusState, type ReversibleCause, type MonitorMode, type AirwayState } from "@/lib/sim/resus";
@@ -120,8 +120,6 @@ export type CasualtyCareProps = CareCallbacks & {
 
 type CareView = "patient" | "care";
 
-type AlarmConfig = { on: boolean; hrLow: number; hrHigh: number; spo2Low: number; rrHigh: number; sysLow: number };
-const DEFAULT_ALARMS: AlarmConfig = { on: true, hrLow: 50, hrHigh: 120, spo2Low: 90, rrHigh: 30, sysLow: 90 };
 
 type CareTab = "assess" | "airway" | "breathing" | "circulation" | "immobilise" | "handover";
 
@@ -201,161 +199,6 @@ function consciousness(vitals: PatientTreatmentState["liveVitals"], flags: Patie
 }
 
 // ---------------------------------------------------------------------------
-// The monitor — three sweeping traces and the numbers beside them
-// ---------------------------------------------------------------------------
-
-const PX_PER_SEC = 60;
-type Lane = { key: string; label: string; colour: string; h: number; ticks: readonly string[] };
-const LANES: readonly Lane[] = [
-  { key: "ecg", label: "II", colour: "#22c55e", h: 96, ticks: ["1 mV", "0", "-1"] },
-  { key: "pleth", label: "Pleth", colour: "#22d3ee", h: 78, ticks: ["100", "50", "0"] },
-  { key: "resp", label: "Resp", colour: "#facc15", h: 72, ticks: ["50", "0"] },
-];
-/** The tablet's monitor: the same three traces at half height so the
- *  strip stays pinned above the pages without eating the screen. */
-const LANES_COMPACT: readonly Lane[] = [
-  { key: "ecg", label: "II", colour: "#22c55e", h: 52, ticks: ["1 mV", "-1"] },
-  { key: "pleth", label: "Pleth", colour: "#22d3ee", h: 40, ticks: ["100", "0"] },
-  { key: "resp", label: "Resp", colour: "#facc15", h: 36, ticks: ["50", "0"] },
-];
-
-function plethSample(t: number, hr: number, strength: number): number {
-  if (hr <= 0) return 0;
-  const period = 60 / hr;
-  const p = (t % period) / period;
-  // Fast upstroke, slower decay with a dicrotic notch on the way down.
-  const rise = p < 0.15 ? Math.sin((p / 0.15) * Math.PI * 0.5) : Math.exp(-(p - 0.15) * 5.5) * (1 + 0.18 * Math.exp(-Math.pow((p - 0.42) / 0.05, 2)));
-  return rise * strength;
-}
-
-function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active, compact }: { rhythm: TraceRhythm; hr: number; spo2: number; rr: number; compressions: boolean; active: boolean; compact?: boolean }) {
-  const lanes = compact ? LANES_COMPACT : LANES;
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const live = useRef({ rhythm, hr, spo2, rr, compressions, active });
-  useEffect(() => {
-    live.current = { rhythm, hr, spo2, rr, compressions, active };
-  });
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const total = lanes.reduce((n, l) => n + l.h, 0);
-    let width = 0;
-    let raf = 0;
-    let x = 0;
-    let started = performance.now();
-    const last: (number | null)[] = lanes.map(() => null);
-
-    function background(ctx: CanvasRenderingContext2D) {
-      ctx.fillStyle = "#05090e";
-      ctx.fillRect(0, 0, width, total);
-      ctx.strokeStyle = "rgba(120,150,170,0.12)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let gx = 0; gx <= width; gx += 12) { ctx.moveTo(gx + 0.5, 0); ctx.lineTo(gx + 0.5, total); }
-      for (let gy = 0; gy <= total; gy += 12) { ctx.moveTo(0, gy + 0.5); ctx.lineTo(width, gy + 0.5); }
-      ctx.stroke();
-      let y = 0;
-      ctx.strokeStyle = "rgba(120,150,170,0.35)";
-      for (const l of lanes) {
-        y += l.h;
-        ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(width, y + 0.5); ctx.stroke();
-      }
-    }
-    function resize() {
-      if (!canvas || !wrap) return;
-      width = Math.max(200, wrap.clientWidth);
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(total * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${total}px`;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      background(ctx);
-      x = 0;
-      last.fill(null);
-      started = performance.now();
-    }
-    function sample(i: number, t: number): number {
-      const v = live.current;
-      if (!v.active) return 0;
-      if (i === 0) return ecgSample(v.rhythm, t, { rate: v.hr, compressions: v.compressions });
-      const output = v.rhythm === "sinus" && v.hr > 0;
-      if (i === 1) return output ? plethSample(t, v.hr, Math.max(0.2, Math.min(1, (v.spo2 - 60) / 38))) : 0;
-      return v.rr > 0 ? Math.sin((t * v.rr / 60) * Math.PI * 2) : 0;
-    }
-    function frame(nowMs: number) {
-      const ctx = canvas?.getContext("2d");
-      if (!ctx || !canvas) return;
-      const t = (nowMs - started) / 1000;
-      const targetX = (t * PX_PER_SEC) % width;
-      // Draw every column between the last cursor and this one.
-      let step = 0;
-      while (Math.abs(targetX - x) > 0.5 && step++ < 400) {
-        const nx = x + 1 >= width ? 0 : x + 1;
-        if (nx === 0) last.fill(null);
-        // Erase bar ahead of the cursor.
-        ctx.fillStyle = "#05090e";
-        ctx.fillRect(nx, 0, 14, total);
-        ctx.strokeStyle = "rgba(120,150,170,0.12)";
-        ctx.beginPath();
-        for (let gy = 0; gy <= total; gy += 12) { ctx.moveTo(nx, gy + 0.5); ctx.lineTo(nx + 14, gy + 0.5); }
-        if (Math.floor((nx + 12) / 12) !== Math.floor((nx + 11) / 12)) { const gx = Math.floor((nx + 12) / 12) * 12; ctx.moveTo(gx + 0.5, 0); ctx.lineTo(gx + 0.5, total); }
-        ctx.stroke();
-        const ts = nx / PX_PER_SEC + Math.floor(t * PX_PER_SEC / width) * (width / PX_PER_SEC);
-        let top = 0;
-        lanes.forEach((l, i) => {
-          const s = sample(i, ts);
-          const mid = top + l.h * (i === 0 ? 0.62 : i === 1 ? 0.8 : 0.5);
-          const amp = i === 0 ? l.h * 0.36 : i === 1 ? l.h * 0.6 : l.h * 0.3;
-          const y = mid - s * amp;
-          const prev = last[i];
-          if (prev !== null) {
-            ctx.strokeStyle = l.colour;
-            ctx.lineWidth = 1.8;
-            ctx.beginPath();
-            ctx.moveTo(x, prev);
-            ctx.lineTo(nx, y);
-            ctx.stroke();
-          }
-          last[i] = y;
-          top += l.h;
-        });
-        x = nx;
-        if (nx === 0) break;
-      }
-      raf = requestAnimationFrame(frame);
-    }
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(wrap);
-    raf = requestAnimationFrame(frame);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [lanes]);
-
-  return (
-    <div className={`cc-traces${compact ? " compact" : ""}`}>
-      <div className="cc-trace-labels">
-        {lanes.map((l) => (
-          <div key={l.key} style={{ height: l.h, color: l.colour }}>
-            <b>{l.label}</b>
-            {l.ticks.map((t) => <small key={t}>{t}</small>)}
-          </div>
-        ))}
-      </div>
-      <div ref={wrapRef} className="cc-trace-canvas"><canvas ref={canvasRef} /></div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Body figure
 // ---------------------------------------------------------------------------
 
@@ -405,39 +248,6 @@ function BodyFigure({ flags, selected, onSelect }: { flags: PatientRedFlag[]; se
 // The screen
 // ---------------------------------------------------------------------------
 
-/** What a 12-lead would show for this patient, read off the physiology
- *  and the history rather than a canned string. */
-function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState | undefined, hr: number | null, flags: PatientRedFlag[], temp: number | undefined): { rhythm: string; findings: string[]; impression: string } {
-  const findings: string[] = [];
-  const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
-  if (inArrest) {
-    const r = resus!.rhythm;
-    const rhythm = r === "vf" ? "Ventricular fibrillation" : r === "pvt" ? "Pulseless ventricular tachycardia" : r === "pea" ? "Organised rhythm — no pulse (PEA)" : "Asystole";
-    return { rhythm, findings: [r === "vf" || r === "pvt" ? "Shockable rhythm — charge and shock" : "Non-shockable — CPR and adrenaline, find the cause"], impression: rhythm };
-  }
-  const rate = hr ?? 0;
-  const af = tx?.profile?.history.some((h) => /atrial fibrillation/i.test(h));
-  let rhythm = af ? `Atrial fibrillation, ventricular rate ${rate}` : rate > 100 ? `Sinus tachycardia, ${rate}` : rate < 60 ? `Sinus bradycardia, ${rate}` : `Sinus rhythm, ${rate}`;
-  if (af) findings.push("Irregularly irregular, no P waves");
-  if (flags.includes("stemi")) {
-    const territory = ["anterior (V1–V4)", "inferior (II, III, aVF)", "lateral (I, aVL, V5–V6)"][hashSeedLocal(tx?.casualtyId ?? "") % 3];
-    findings.push(`ST elevation ${territory} with reciprocal depression`);
-    if (tx?.physio && tx.physio.ischaemia > 0.7) findings.push("Evolving Q waves — established infarct");
-  }
-  if (temp !== undefined && temp < 32) findings.push("Osborn J waves — hypothermia");
-  if (tx?.physio && tx.physio.icp > 0.6) findings.push("Deep T-wave inversion — raised intracranial pressure");
-  if (flags.includes("overdose_opioid") || (tx?.physio?.sedation ?? 0) > 0.6) findings.push("Sinus rhythm, slow — no ischaemic change");
-  if (rate > 150 && !af) { rhythm = `Narrow-complex tachycardia, ${rate}`; findings.push("Regular narrow complexes — SVT vs sinus tachycardia; look for the cause"); }
-  if (findings.length === 0) findings.push("Normal axis, PR 160 ms, QRS 90 ms, QTc 410 ms", "No acute ST change");
-  const impression = flags.includes("stemi") ? "STEMI — PPCI centre, pre-alert" : af ? "AF — rate control is a hospital decision" : rate > 100 ? "Sinus tachycardia — treat the cause" : "No acute abnormality";
-  return { rhythm, findings, impression };
-}
-
-function hashSeedLocal(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-}
 
 export function CasualtyCareScreen(props: CasualtyCareProps) {
   const { casualty, stage, severity, incident, treatment, resus, deployments, resolved, tasks, now, onClose } = props;
@@ -449,16 +259,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const [device, setDevice] = useState<OxygenDevice | "">("");
   const [flowIx, setFlowIx] = useState(0);
   const [drug, setDrug] = useState<DrugName | "">("");
-  // The monitor's own instruments: NIBP is a cuff cycle, not a live number.
-  const [nibp, setNibp] = useState<{ sys: number; dia: number; at: number } | null>(null);
-  const [measuringSince, setMeasuringSince] = useState<number | null>(null);
-  const [nibpAuto, setNibpAuto] = useState<0 | 2 | 3 | 5>(0);
-  const [ecg12, setEcg12] = useState<{ at: number; rhythm: string; findings: string[]; impression: string } | null>(null);
-  const [alarmCfg, setAlarmCfg] = useState<AlarmConfig>(DEFAULT_ALARMS);
-  const [alarmPanel, setAlarmPanel] = useState(false);
-  const [silencedUntil, setSilencedUntil] = useState(0);
-  const vitalsRef = useRef<PatientTreatmentState["liveVitals"]>(undefined);
-  const lastAlarmRef = useRef<string>("");
 
   // ---- Who is with the patient --------------------------------------
   const pairedAll = deployments
@@ -495,71 +295,12 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const flags = treatment?.activeRedFlags ?? treatment?.revealedRedFlags ?? [];
   const revealedFlags = treatment?.revealedRedFlags ?? [];
   const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
-  const rhythm: TraceRhythm = inArrest ? resus!.rhythm : "sinus";
-  const compressions = inArrest && (!!resus!.compressorCrewId || !!resus!.lucasFittedAt);
-  const hrShown = surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
-  const spo2Shown = surveyDone && vitals && !inArrest ? Math.round(vitals.spo2) : null;
-  const rrShown = surveyDone && vitals && !inArrest ? Math.round(vitals.rr) : null;
   const state = consciousness(surveyDone ? vitals : undefined, flags, resus);
-  const updatedAt = treatment?.liveVitalsLastTickAt ?? treatment?.surveyCompletedAt;
   const scenarioTime = clock(now - incident.receivedAt);
 
-  // ---- Instruments -----------------------------------------------------------
-  useEffect(() => {
-    vitalsRef.current = treatment?.liveVitals;
-  });
-  const record = (text: string) => props.onRecordObservation?.(casualtyId, text, by);
-  const nibpShown = nibp ?? (surveyDone && treatment?.revealedVitals ? { sys: treatment.revealedVitals.bpSys, dia: treatment.revealedVitals.bpDia, at: treatment.surveyCompletedAt ?? now } : null);
-  const nibpMap = nibpShown ? Math.round((nibpShown.sys + 2 * nibpShown.dia) / 3) : null;
-  const measuring = measuringSince !== null;
-  // A cuff cycle takes about eight seconds, then the reading is the
-  // pressure the patient had when the cuff came down.
-  useEffect(() => {
-    if (measuringSince === null) return;
-    const id = window.setTimeout(() => {
-      const v = vitalsRef.current;
-      const at = Date.now();
-      if (v) {
-        const sys = Math.round(v.bpSys);
-        const dia = Math.round(v.bpDia);
-        setNibp({ sys, dia, at });
-        props.onRecordObservation?.(casualtyId, sys === 0 ? "NIBP — no reading, no pulse" : `NIBP ${sys}/${dia} · MAP ${Math.round((sys + 2 * dia) / 3)}`, by);
-      }
-      setMeasuringSince(null);
-    }, 8000);
-    return () => window.clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measuringSince]);
-  useEffect(() => {
-    if (!nibpAuto || !surveyDone) return;
-    const id = window.setInterval(() => setMeasuringSince(Date.now()), nibpAuto * 60000);
-    return () => window.clearInterval(id);
-  }, [nibpAuto, surveyDone]);
-  // Alarms: limits against the live numbers, a log line on each breach.
-  const silenced = now < silencedUntil;
-  const breaches: string[] = [];
-  if (alarmCfg.on && surveyDone && vitals && !inArrest) {
-    if (hrShown !== null && hrShown < alarmCfg.hrLow) breaches.push(`HR ${hrShown} low`);
-    if (hrShown !== null && hrShown > alarmCfg.hrHigh) breaches.push(`HR ${hrShown} high`);
-    if (spo2Shown !== null && spo2Shown < alarmCfg.spo2Low) breaches.push(`SpO₂ ${spo2Shown} low`);
-    if (rrShown !== null && rrShown > alarmCfg.rrHigh) breaches.push(`RR ${rrShown} high`);
-    if (nibpShown && nibpShown.sys < alarmCfg.sysLow && nibpShown.sys > 0) breaches.push(`Systolic ${nibpShown.sys} low`);
-  }
-  if (inArrest && alarmCfg.on) breaches.push("No output");
-  const alarmKey = breaches.map((b) => b.replace(/\d+/g, "")).join("|");
-  useEffect(() => {
-    if (alarmKey === lastAlarmRef.current) return;
-    lastAlarmRef.current = alarmKey;
-    if (alarmKey) props.onRecordObservation?.(casualtyId, `ALARM · ${breaches.join(", ")}`, "Monitor");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alarmKey]);
-  const alarming = breaches.length > 0 && !silenced;
-  const takeEcg = () => {
-    const r = interpretEcg(treatment, resus, hrShown, flags, vitals?.temp);
-    setEcg12({ at: now, ...r });
-    record(`12-lead ECG · ${r.rhythm} · ${r.impression}`);
-    if (resus) props.onAttachMonitor?.(casualtyId, "lead_12");
-  };
+  // ---- Instruments (the monitor keeps its own record) --------------------
+  const monitorState = useMonitorState(casualtyId);
+  const { alarming } = monitorPicture(treatment, resus, now, monitorState);
 
   // ---- Oxygen ----------------------------------------------------------------
   const currentO2 = treatment?.oxygen;
@@ -985,75 +726,18 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       icon="⌁"
       fill
       tone={alarming ? "stop" : undefined}
-      headerExtra={
-        <span className="cc-mon-meta">
-          Lead II · 25 mm/s · 10 mm/mV
-          {silenced && <em>silenced {clock(silencedUntil - now).slice(3)}</em>}
-          <button type="button" title="Alarm settings" aria-pressed={alarmPanel} onClick={() => setAlarmPanel((a) => !a)}>{alarmCfg.on ? "🔔" : "🔕"}</button>
-        </span>
-      }
+      headerExtra={<MonitorMeta casualtyId={casualtyId} now={now} />}
     >
-      <div className={`cc-monitor${alarming ? " alarm" : ""}${tablet ? " compact" : ""}`}>
-        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={surveyDone && paired.length > 0} compact={tablet} />
-        <div className="cc-numbers">
-          <div className={`hr${breaches.some((b) => b.startsWith("HR")) && !silenced ? " alarm" : ""}`}><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
-          <div className={`spo2${breaches.some((b) => b.startsWith("SpO")) && !silenced ? " alarm" : ""}`}><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
-          <div className={`rr${breaches.some((b) => b.startsWith("RR")) && !silenced ? " alarm" : ""}`}><span>RR</span><strong>{rrShown ?? "--"}</strong><small>/min</small></div>
-        </div>
-        {!surveyDone && (
-          <div className="cc-mon-overlay">{paired.length === 0 ? "NO CLINICIAN WITH PATIENT" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY TO CONNECT THE MONITOR"}</div>
-        )}
-        {alarmPanel && (
-          <div className="cc-alarm-panel">
-            <strong>ALARM LIMITS</strong>
-            <label><span>Alarms</span><button type="button" className="cc-mini" aria-pressed={alarmCfg.on} onClick={() => setAlarmCfg((c) => ({ ...c, on: !c.on }))}>{alarmCfg.on ? "On" : "Off"}</button></label>
-            {([["hrLow", "HR low"], ["hrHigh", "HR high"], ["spo2Low", "SpO₂ low"], ["rrHigh", "RR high"], ["sysLow", "Systolic low"]] as const).map(([k, label]) => (
-              <label key={k}>
-                <span>{label}</span>
-                <span className="cc-stepper small">
-                  <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] - (k === "spo2Low" ? 1 : 5) }))}>−</button>
-                  <output>{alarmCfg[k]}</output>
-                  <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] + (k === "spo2Low" ? 1 : 5) }))}>+</button>
-                </span>
-              </label>
-            ))}
-            <label><span>NIBP auto-cycle</span>
-              <span className="cc-segs">
-                {([0, 2, 3, 5] as const).map((m) => (
-                  <button key={m} type="button" aria-pressed={nibpAuto === m} onClick={() => setNibpAuto(m)}>{m === 0 ? "Off" : `${m} min`}</button>
-                ))}
-              </span>
-            </label>
-            <div className="cc-alarm-actions">
-              <button type="button" className="cc-mini" onClick={() => setSilencedUntil(now + 120000)}>Silence 2 min</button>
-              <button type="button" className="cc-mini" onClick={() => setAlarmCfg(DEFAULT_ALARMS)}>Defaults</button>
-              <button type="button" className="cc-mini" onClick={() => setAlarmPanel(false)}>Done</button>
-            </div>
-          </div>
-        )}
-        {ecg12 && (
-          <div className="cc-ecg12">
-            <strong>12-LEAD ECG · {wall(ecg12.at)}</strong>
-            <p className="rhythm">{ecg12.rhythm}</p>
-            <ul>{ecg12.findings.map((f) => <li key={f}>{f}</li>)}</ul>
-            <p className="impression">{ecg12.impression}</p>
-            <button type="button" className="cc-mini" onClick={() => setEcg12(null)}>Close</button>
-          </div>
-        )}
-      </div>
-      <div className={`cc-mon-strip${tablet ? " compact" : ""}`}>
-        <div className="cc-nibp">
-          <div className={breaches.some((b) => b.startsWith("Systolic")) && !silenced ? "alarm" : ""}><span>NIBP</span><strong>{measuring ? "· · ·" : nibpShown ? `${nibpShown.sys} / ${nibpShown.dia}` : "-- / --"}</strong><small>mmHg{nibpAuto ? ` · auto ${nibpAuto} min` : ""}</small></div>
-          <div className="map"><span>MAP</span><strong>{measuring ? "··" : nibpMap ?? "--"}</strong></div>
-          <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
-          <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
-        </div>
-        <div className="cc-mon-buttons">
-          <button type="button" disabled={!surveyDone || paired.length === 0} onClick={takeEcg}>12-lead ECG</button>
-          <button type="button" disabled={!surveyDone || measuring || paired.length === 0} onClick={() => setMeasuringSince(now)}>{measuring ? "Measuring…" : "Measure BP"}</button>
-          <button type="button" aria-pressed={alarmPanel} onClick={() => setAlarmPanel((a) => !a)}>{alarming ? `Alarm · ${breaches[0]}` : silenced ? "Alarms silenced" : "Alarm settings"}</button>
-        </div>
-      </div>
+      <VitalMonitorPanel
+        casualtyId={casualtyId}
+        treatment={treatment}
+        resus={resus}
+        paired={paired.length}
+        now={now}
+        by={by}
+        onRecordObservation={props.onRecordObservation}
+        onAttachMonitor={props.onAttachMonitor}
+      />
     </Card>
   );
 
@@ -1084,7 +768,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
             {headerButtons}
           </div>
         </header>
-        <div className="cc-pinned">{monitorCard}</div>
         <nav className="cc-views" aria-label="Pages">
           {views.map((v) => (
             <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => setView(v.key)}>
