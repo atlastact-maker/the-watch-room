@@ -103,6 +103,18 @@ export const scenario55: Scenario = {
       "A no-insurance stop is the most ordinary job on the roads and it is where the wanted turn up, because they drive and they do not insure. Do the stop properly. Details, then the PNC with the date of birth he gives you; the warrant changes everything after that. The car is seized because the law says so, not because you think he is bad, and the search is with grounds and a power and it is recorded even when — especially when — it finds nothing. He goes to custody in the van, with two officers, and the car crew stay with the car until recovery has it.",
   },
 
+  // The stopped car, in the lay-by on the northbound side, nose north.
+  sceneVehicles: [
+    {
+      id: "v55-astra",
+      vrm: "MV15 UKZ",
+      label: "Grey Vauxhall Astra — stopped, driver in the seat",
+      coords: { lat: 53.42635, lng: -2.33095 },
+      bearingDeg: 350,
+      colour: "#8e949a",
+    },
+  ],
+
   scene: {
     viewBox: { x: -60, y: -40, width: 120, height: 80 },
     compassNorth: "up",

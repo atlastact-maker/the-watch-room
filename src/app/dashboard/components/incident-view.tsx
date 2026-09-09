@@ -362,9 +362,6 @@ export function IncidentView({
               onSetPendingClosure(null);
             }}
           />
-          <SceneOverlay
-            enRouteAwaitingParking={enRouteDeployments.filter((r) => !r.deployment.parkingPos).length}
-          />
           {/* Road-closure placement banner */}
           {pendingClosure && (
             <div className="pointer-events-auto absolute left-1/2 top-3 z-[650] -translate-x-1/2 rounded-sm border border-(--color-critical)/60 bg-(--color-bg)/95 px-4 py-2 shadow-lg">
@@ -1761,25 +1758,6 @@ function BottomDeploymentBar({
         />
       </div>
     </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Scene overlay
-// ---------------------------------------------------------------------------
-
-function SceneOverlay({
-  enRouteAwaitingParking,
-}: {
-  enRouteAwaitingParking: number;
-}) {
-  if (enRouteAwaitingParking === 0) return null;
-  return (
-    <div className="pointer-events-none absolute inset-0 z-[400]">
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-sm border border-(--color-amber) bg-(--color-amber)/15 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-        Click on the map to park {enRouteAwaitingParking} en-route appliance{enRouteAwaitingParking > 1 ? "s" : ""}
-      </div>
-    </div>
   );
 }
 

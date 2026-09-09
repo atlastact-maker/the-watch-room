@@ -25,7 +25,7 @@ import { incidentRef } from "../vector/model";
 import { PopoutWindow } from "../vector/popout";
 import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
 import { FireCommandScreen } from "../vector/fire-command";
-import { PoliceControlsScreen, type SupportKind } from "../vector/police-controls";
+import { PoliceControlsScreen, type SupportKind, type PoliceSelection } from "../vector/police-controls";
 import { VitalMonitorPanel } from "../vector/vital-monitor";
 import { MdtNotepad } from "../vector/mdt-notepad";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
@@ -258,6 +258,7 @@ export function DraggableIncidentMdt(props: Props) {
   const [minimised, setMinimised] = useState(false);
   const [popped, setPopped] = useState(false);
   const [notepad, setNotepad] = useState(false);
+  const [policeSel, setPoliceSel] = useState<PoliceSelection | null>(null);
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
   const [module, setModule] = useState<"care" | "fire" | "police">(props.policePage ? "police" : "care");
@@ -345,6 +346,7 @@ export function DraggableIncidentMdt(props: Props) {
         onRequestSupport={props.onRequestSupport}
         onArmPlacement={props.onArmPlacement}
         requestedPage={props.policePage}
+        onSelectionChange={setPoliceSel}
       />
     );
   }
@@ -387,7 +389,36 @@ export function DraggableIncidentMdt(props: Props) {
           <small>{unitState} · {assigned ? `${assigned} patient${assigned === 1 ? "" : "s"} assigned` : "No patients assigned"}</small>
         </div>
         <div className="vec-mdt-vitals">
-          {stripCasualty && !resolved ? (
+          {module === "police" ? (
+            policeSel && (policeSel.vehicle || policeSel.driver) ? (
+              <div className="vec-mdt-inhand">
+                {policeSel.vehicle ? (
+                  <div className="vec-mdt-inhand-veh">
+                    <span className="anpr-plate">{policeSel.vehicle.vrm}</span>
+                    <div>
+                      <b>{policeSel.vehicle.description}</b>
+                      <span>{policeSel.vehicle.colour || "Colour —"} · {policeSel.vehicle.make || "Make —"} {policeSel.vehicle.model}</span>
+                      <span className={policeSel.vehicle.markers.length ? "stop" : policeSel.vehicle.checked ? "go" : ""}>{policeSel.vehicle.checked ? (policeSel.vehicle.markers.length ? policeSel.vehicle.markers.join(" · ") : "PNC clear") : "PNC not checked"} · {policeSel.vehicle.status}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="vec-mdt-inhand-veh dim"><span className="anpr-plate">— — —</span><div><b>No vehicle</b></div></div>
+                )}
+                {policeSel.driver ? (
+                  <div className="vec-mdt-inhand-drv">
+                    <small>DRIVER / PERSON</small>
+                    <b>{policeSel.driver.label}{policeSel.driver.dob ? <em> · {policeSel.driver.dob}</em> : null}</b>
+                    <span className={policeSel.driver.identityTone}>{policeSel.driver.identity}</span>
+                    <span className={policeSel.driver.markers.length ? "stop" : ""}>{policeSel.driver.markers.length ? policeSel.driver.markers.join(" · ") : policeSel.driver.status}</span>
+                  </div>
+                ) : (
+                  <div className="vec-mdt-inhand-drv dim"><small>DRIVER / PERSON</small><b>No one in hand</b></div>
+                )}
+              </div>
+            ) : (
+              <div className="vec-mdt-vitals-empty">NO VEHICLE OR PERSON IN HAND</div>
+            )
+          ) : stripCasualty && !resolved ? (
             <>
               <div className="vec-mdt-vitals-who">
                 <b>{(stripCasualty.label ?? stripCasualty.id).toUpperCase()}</b>

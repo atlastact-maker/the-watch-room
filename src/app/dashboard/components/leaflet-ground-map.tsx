@@ -601,6 +601,30 @@ function musterIcon(radiusM: number): L.DivIcon {
   });
 }
 
+/** A civilian vehicle on the ground — a top-down car in its own colour
+ *  under an amber marker that breathes, with the plate on a chip. */
+function sceneVehicleIcon(v: { vrm: string; label: string; bearingDeg?: number; colour?: string }): L.DivIcon {
+  const body = v.colour ?? "#9aa3ab";
+  const rot = v.bearingDeg ?? 0;
+  return L.divIcon({
+    className: "",
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    html: `
+      <div style="position:relative;width:44px;height:44px;pointer-events:none;font-family:var(--vec-mono,var(--font-geist-mono),monospace);">
+        <div style="position:absolute;left:22px;top:22px;width:34px;height:34px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #f59e0b;box-shadow:0 0 0 0 rgba(245,158,11,0.6);animation:vec-amber-pulse 1.6s ease-out infinite;"></div>
+        <svg viewBox="0 0 24 44" width="16" height="30" style="position:absolute;left:22px;top:22px;transform:translate(-50%,-50%) rotate(${rot}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6));">
+          <rect x="3" y="2" width="18" height="40" rx="5" fill="${body}" stroke="#111" stroke-width="1.2"/>
+          <rect x="5" y="10" width="14" height="8" rx="1.5" fill="#1f2937" opacity="0.8"/>
+          <rect x="5" y="28" width="14" height="6" rx="1.5" fill="#1f2937" opacity="0.6"/>
+          <rect x="4" y="3" width="4" height="2" fill="#fde68a"/><rect x="16" y="3" width="4" height="2" fill="#fde68a"/>
+          <rect x="4" y="39" width="4" height="2" fill="#ef4444"/><rect x="16" y="39" width="4" height="2" fill="#ef4444"/>
+        </svg>
+        <div style="position:absolute;left:22px;top:42px;transform:translateX(-50%);background:#f5c400;color:#111;border:1.5px solid #111;border-radius:2px;padding:0 5px;font-size:9px;font-weight:700;letter-spacing:0.08em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5);" title="${v.label.replace(/"/g, "&quot;")}">${v.vrm}</div>
+      </div>`,
+  });
+}
+
 /** Centre mark and live radius readout while the circle is being drawn. */
 function musterDraftIcon(radiusM: number): L.DivIcon {
   return L.divIcon({
@@ -1666,6 +1690,11 @@ export function LeafletGroundMap({
         }}
         zIndexOffset={900}
       />
+
+      {/* Civilian vehicles on the ground — the stopped car, the crashed van. */}
+      {(incident.scenario.sceneVehicles ?? []).map((v) => (
+        <Marker key={v.id} position={[v.coords.lat, v.coords.lng]} icon={sceneVehicleIcon(v)} interactive={false} zIndexOffset={700} />
+      ))}
 
       {renderedHydrants.map((h) => (
         <Marker

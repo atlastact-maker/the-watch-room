@@ -4462,3 +4462,24 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-notepad-frame { display: flex; flex-direction: column; height: 100%; }
 .vec-notepad-frame > .vec-tile-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .vec-notepad-frame .vec-notepad-text { min-height: 300px; }
+
+/* Amber marker breathing on the ground map. */
+@keyframes vec-amber-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  100% { box-shadow: 0 0 0 14px rgba(245, 158, 11, 0); }
+}
+
+/* The tablet's top strip on the police module: the car and the driver. */
+.vec-mdt-inhand { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; align-items: center; min-height: 60px; padding: 4px 6px; }
+.vec-mdt-inhand-veh { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; min-width: 0; }
+.vec-mdt-inhand-veh .anpr-plate { font-size: 20px; padding: 1px 10px; }
+.vec-mdt-inhand-veh > div, .vec-mdt-inhand-drv { display: flex; flex-direction: column; min-width: 0; font: 11px/1.35 var(--vec-sans, Arial, sans-serif); color: #9fb3c3; }
+.vec-mdt-inhand b { font-size: 13px; color: #e6eef5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vec-mdt-inhand b em { font-style: normal; font-weight: 400; color: #9fb3c3; }
+.vec-mdt-inhand span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vec-mdt-inhand small { font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; color: #7f97a8; }
+.vec-mdt-inhand .go { color: #4ade80; }
+.vec-mdt-inhand .warn { color: #facc15; }
+.vec-mdt-inhand .stop { color: #ff7b72; font-weight: 700; }
+.vec-mdt-inhand-drv { border-left: 1px solid #1e3242; padding-left: 10px; }
+.vec-mdt-inhand .dim { opacity: 0.55; }

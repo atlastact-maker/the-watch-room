@@ -307,6 +307,11 @@ export type Scenario = {
     lesson: string;
   };
 
+  /** Civilian vehicles on the ground at real coordinates — a stopped car
+   *  in a lay-by, a crashed van — drawn on the ground map with an amber
+   *  marker so the crew can see where it sits on the road. */
+  sceneVehicles?: SceneVehicle[];
+
   /** Optional hand-authored top-down incident scene. Present for scenarios
    *  that have a ground-view authored; absent scenarios render a generic
    *  placeholder when the ground view is opened. */
@@ -335,6 +340,18 @@ export type Scenario = {
    *  carries this is scored as correct; answering it and mobilising is
    *  the mistake, and the log says so. */
   disposal?: Disposal;
+};
+
+export type SceneVehicle = {
+  id: string;
+  vrm: string;
+  /** "Grey Vauxhall Astra — stopped, driver in the seat". */
+  label: string;
+  coords: { lat: number; lng: number };
+  /** Heading in compass degrees, so the car sits along the road. */
+  bearingDeg?: number;
+  /** CSS colour for the sprite's body. */
+  colour?: string;
 };
 
 /** Police grade on GMP's own ladder — NOT the national 1–4. Since

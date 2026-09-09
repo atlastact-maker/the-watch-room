@@ -319,6 +319,13 @@ export type PoliceControlsProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAb
   /** A page the desk asked for — the Systems menu's PNC and ANPR open
    *  here. Bumped seq re-opens it. */
   requestedPage?: { page: "pnc" | "anpr"; seq: number } | null;
+  /** What the officer has in hand, for the tablet's top strip. */
+  onSelectionChange?: (sel: PoliceSelection | null) => void;
+};
+
+export type PoliceSelection = {
+  vehicle?: { vrm: string; description: string; make: string; model: string; colour: string; markers: string[]; checked: boolean; status: string };
+  driver?: { label: string; dob?: string; identity: string; identityTone: "go" | "warn" | "stop"; status: string; markers: string[] };
 };
 
 const TAB_DEFAULT: Record<ActionTab, string> = { general: "take_account", traffic: "close_road", people: "request_details", vehicles: "search_vehicle" };
@@ -1002,6 +1009,22 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       )}
     </Card>
   );
+
+  // The strip above the modules shows what is in hand. Reported as a
+  // string-keyed snapshot so the tablet re-renders only when it changes.
+  const vehicleChecked = (v: VehicleRecord) => (props.ledsChecks ?? []).some((c) => c.kind === "vehicle" && c.query.replace(/\s/g, "").toUpperCase() === v.vrm.replace(/\s/g, "").toUpperCase());
+  const selection: PoliceSelection | null = vehicle || person
+    ? {
+        vehicle: vehicle ? { vrm: vehicle.vrm, description: describe(vehicle), make: vehicle.make, model: vehicle.model, colour: vehicle.colour ?? "", markers: vehicleChecked(vehicle) ? (vehicle.markers ?? []) : [], checked: vehicleChecked(vehicle), status: vehicleStatus(vehicle) } : undefined,
+        driver: person ? { label: displayName(person), dob: detailsTask(person) && person.record ? dobDisplay(dobOf(person.record)) : undefined, identity: identity(person).text, identityTone: identity(person).tone, status: personStatus(person), markers: pncChecked(person) ? (person.record?.markers ?? []) : [] } : undefined,
+      }
+    : null;
+  const selectionKey = JSON.stringify(selection);
+  const [seenSelection, setSeenSelection] = useState("");
+  if (selectionKey !== seenSelection) {
+    setSeenSelection(selectionKey);
+    props.onSelectionChange?.(selection);
+  }
 
   const arvs = resolved.filter((r) => r.appliance.type === "Police_ARV");
   const firearmsPage = (
