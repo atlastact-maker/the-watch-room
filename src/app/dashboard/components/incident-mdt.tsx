@@ -134,26 +134,32 @@ type Props = {
 // Remembered tablet frame — survives the MDT being collapsed/reopened
 // (component unmount) and full reloads. Best-effort localStorage.
 type MdtFrame = { x: number; y: number; width: number; height: number };
-const MDT_FRAME_KEY = "twr:mdt-frame:v1";
+const MDT_FRAME_KEY = "twr:mdt-frame:v2";
+/** The tablet is one fixed size — a device, not a window. It moves, it
+ *  pops out, it hides; it does not resize. Clamped to the screen it is
+ *  on so a laptop still gets the whole thing. */
+const MDT_WIDTH = 1120;
+const MDT_HEIGHT = 780;
+
+function presetMdtSize(): { width: number; height: number } {
+  if (typeof window === "undefined") return { width: MDT_WIDTH, height: MDT_HEIGHT };
+  return {
+    width: Math.min(MDT_WIDTH, Math.max(640, window.innerWidth - 32)),
+    height: Math.min(MDT_HEIGHT, Math.max(560, window.innerHeight - 120)),
+  };
+}
 
 function loadMdtFrame(): MdtFrame | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(MDT_FRAME_KEY);
     if (!raw) return null;
-    const f = JSON.parse(raw) as MdtFrame;
-    if (
-      typeof f.x !== "number" ||
-      typeof f.y !== "number" ||
-      typeof f.width !== "number" ||
-      typeof f.height !== "number"
-    ) {
-      return null;
-    }
-    // Never restore a frame that's drifted off the visible screen.
+    const f = JSON.parse(raw) as { x: number; y: number };
+    if (typeof f.x !== "number" || typeof f.y !== "number") return null;
+    const size = presetMdtSize();
+    // Never restore a position that has drifted off the visible screen.
     return {
-      width: Math.max(560, Math.min(f.width, window.innerWidth)),
-      height: Math.max(540, Math.min(f.height, window.innerHeight)),
+      ...size,
       x: Math.max(0, Math.min(f.x, window.innerWidth - 200)),
       y: Math.max(0, Math.min(f.y, window.innerHeight - 120)),
     };
@@ -165,7 +171,7 @@ function loadMdtFrame(): MdtFrame | null {
 function saveMdtFrame(f: MdtFrame): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(MDT_FRAME_KEY, JSON.stringify(f));
+    window.localStorage.setItem(MDT_FRAME_KEY, JSON.stringify({ x: f.x, y: f.y }));
   } catch {
     // best-effort
   }
@@ -192,15 +198,16 @@ export function DraggableIncidentMdt(props: Props) {
   const [internalUnitId, setInternalUnitId] = useState<string | null>(null);
   const unitId = unitIdProp !== undefined ? unitIdProp : internalUnitId;
   const setUnitId = onSetUnitId ?? setInternalUnitId;
-  const [initialFrame] = useState<MdtFrame>(
-    () =>
+  const [initialFrame] = useState<MdtFrame>(() => {
+    const size = presetMdtSize();
+    return (
       loadMdtFrame() ?? {
-        x: typeof window !== "undefined" ? Math.max(16, window.innerWidth - 760 - 24) : 24,
-        y: 110,
-        width: 760,
-        height: 720,
-      },
-  );
+        ...size,
+        x: typeof window !== "undefined" ? Math.max(16, window.innerWidth - size.width - 24) : 24,
+        y: 90,
+      }
+    );
+  });
   const frame = useRef<MdtFrame>(initialFrame);
   useEffect(() => {
     setUnitId(null);
@@ -431,12 +438,7 @@ export function DraggableIncidentMdt(props: Props) {
           frame.current = { ...frame.current, x: d.x, y: d.y };
           saveMdtFrame(frame.current);
         }}
-        onResizeStop={(_e, _dir, el, _delta, pos) => {
-          frame.current = { x: pos.x, y: pos.y, width: el.offsetWidth, height: el.offsetHeight };
-          saveMdtFrame(frame.current);
-        }}
-        minWidth={560}
-        minHeight={540}
+        enableResizing={false}
         bounds="window"
         dragHandleClassName="vec-mdt-handle"
         className="z-[1250]"
@@ -445,7 +447,7 @@ export function DraggableIncidentMdt(props: Props) {
         {tablet}
       </Rnd>
       {popped && (
-        <PopoutWindow id="mdt" title={`MDT · ${unitCallsign}`} width={1100} height={800} onClose={() => setPopped(false)}>
+        <PopoutWindow id="mdt" title={`MDT · ${unitCallsign}`} width={MDT_WIDTH} height={MDT_HEIGHT + 40} onClose={() => setPopped(false)}>
           {tablet}
         </PopoutWindow>
       )}

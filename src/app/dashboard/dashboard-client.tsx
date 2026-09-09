@@ -5425,7 +5425,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         },
         {
           label: incidentPanelVisible ? "Hide MDT tablet" : "Show MDT tablet",
-          hint: "ground",
+          hint: "F9",
           act: () => {
             if (!groundViewOpen) pickScreen("ground");
             setIncidentPanelVisible((v) => !v);
@@ -5549,6 +5549,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const m = /^F(\d{1,2})$/.exec(e.key);
     if (!m) return;
     const n = parseInt(m[1], 10);
+    // F9 — quick-toggle the MDT tablet on the ground.
+    if (n === 9) {
+      if (!groundAvailable) return;
+      e.preventDefault();
+      if (!groundViewOpen) pickScreen("ground");
+      else setIncidentPanelVisible((v) => !v);
+      return;
+    }
     const map: Record<number, VectorScreen> = { 2: "dispatch", 3: "call", 4: "mob", 5: "ground" };
     if (!map[n]) return;
     e.preventDefault();

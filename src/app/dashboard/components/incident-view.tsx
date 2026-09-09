@@ -222,6 +222,8 @@ export function IncidentView({
   selectedVehicleId,
   onVehicleSelect,
   onArmPlacement,
+  mdtVisible,
+  onToggleMdt,
   pendingClosure,
   onSetPendingClosure,
   rotatePendingApplianceId,
@@ -260,6 +262,11 @@ export function IncidentView({
           <button type="button" className="toggle" onClick={() => setUnitsOpen((o) => !o)} aria-expanded={unitsOpen}>
             {unitsOpen ? "▾" : "▸"} UNITS · {committed.length}
           </button>
+          {onToggleMdt && (
+            <button type="button" className="mdt" aria-pressed={!!mdtVisible} onClick={onToggleMdt} title="Show or hide the MDT tablet (F9)">
+              MDT
+            </button>
+          )}
           {placePendingApplianceId && <span className="arm">Click the ground to place {resolved.find((r) => r.appliance.id === placePendingApplianceId)?.appliance.callsign ?? "the unit"}</span>}
           {rotatePendingApplianceId && <span className="arm">Click where {resolved.find((r) => r.appliance.id === rotatePendingApplianceId)?.appliance.callsign ?? "the unit"} should face</span>}
         </div>

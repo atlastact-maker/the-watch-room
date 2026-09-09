@@ -3698,6 +3698,8 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-ground-units .head { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: var(--vec-bar); color: var(--vec-bar-text, #eaf0f5); border-bottom: 1px solid var(--vec-border); }
 .vec-ground-units .toggle { background: none; border: 0; color: inherit; font: 700 11px var(--vec-mono); letter-spacing: 0.08em; cursor: pointer; padding: 4px 2px; }
 .vec-ground-units .arm { font: 10px var(--vec-mono); color: var(--vec-warn); letter-spacing: 0.04em; }
+.vec-ground-units .mdt { margin-left: auto; min-height: 22px; padding: 0 8px; border: 1px solid var(--vec-handle-border, #657b89); border-radius: 2px; background: var(--vec-handle, #334d5d); color: var(--vec-handle-text, #fff); font: 700 10px var(--vec-mono); letter-spacing: 0.1em; cursor: pointer; }
+.vec-ground-units .mdt[aria-pressed="true"] { background: var(--vec-work); border-color: var(--vec-work); }
 .vec-ground-units .rows { overflow: auto; padding: 6px; display: grid; gap: 4px; }
 .vec-ground-units .empty { padding: 10px; font: 10px var(--vec-mono); letter-spacing: 0.08em; color: var(--vec-text-muted); text-transform: uppercase; }
 .vec-ground-units .row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px; align-items: stretch; }
