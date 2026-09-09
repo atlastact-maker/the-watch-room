@@ -3080,10 +3080,11 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   font: 13px/1.4 var(--vec-sans, "IBM Plex Sans", Arial, sans-serif);
   user-select: none;
 }
-.cc-screen.cc-tablet { grid-template-rows: 40px auto 34px minmax(0, 1fr) 52px; }
-.cc-pinned { padding: 8px 8px 0; min-height: 0; }
+.cc-screen.cc-tablet { grid-template-rows: 40px auto 32px minmax(0, 1fr) 46px; overflow: hidden; }
+.cc-pinned { padding: 6px 6px 0; min-height: 0; }
 .cc-pinned .cc-card { flex: none; }
-.cc-pinned .cc-card-body { overflow: visible; }
+.cc-pinned .cc-card-body { overflow: visible; padding: 6px; gap: 6px; }
+.cc-pinned .cc-card > header { min-height: 24px; }
 .cc-screen *, .cc-screen *::before, .cc-screen *::after { box-sizing: border-box; }
 .cc-screen button { font: inherit; color: inherit; cursor: pointer; }
 .cc-screen button:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -3161,9 +3162,12 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   padding: 10px;
   min-height: 0;
 }
-.cc-main.tablet { grid-template-columns: minmax(0, 1fr); overflow: auto; align-content: start; gap: 10px; }
+.cc-main.tablet { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; align-content: start; gap: 8px; padding: 8px 6px; scrollbar-color: var(--vec-handle-border, #657b89) transparent; }
 .cc-main.tablet > .cc-card, .cc-main.tablet > .cc-col { min-height: 0; }
+.cc-main.tablet .cc-col.cc-right { overflow: visible; }
+.cc-main.tablet .cc-card { flex: none; }
 .cc-main.tablet .cc-card.fill { flex: none; min-height: 0; }
+.cc-main.tablet .cc-card-body { overflow: visible; }
 .cc-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
 .cc-col.cc-right { overflow: auto; }
 .cc-card {
@@ -3216,7 +3220,10 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 
 /* Patient assessment */
 .cc-patient-grid { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: start; }
-.cc-tablet .cc-patient-grid { grid-template-columns: 200px minmax(0, 1fr); }
+.cc-tablet .cc-patient-grid { grid-template-columns: 180px minmax(0, 1fr); }
+.cc-tablet .cc-views button { font-size: 11px; }
+.cc-tablet .cc-foot { padding: 5px 6px; }
+.cc-tablet .cc-foot button { min-height: 34px; }
 .cc-patient-details { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .cc-patient strong { font: 700 15px var(--vec-mono, Consolas, monospace); letter-spacing: 0.05em; }
 .cc-facts { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 4px 8px; margin: 0; font-size: 12px; }
@@ -3275,6 +3282,8 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 /* Monitor — a dark scope in a light shell */
 .cc-centre .cc-card.fill { flex: 1; }
 .cc-monitor { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 118px; gap: 2px; background: #05090e; border: 1px solid #1e3242; border-radius: 2px; overflow: hidden; color: #e6eef5; }
+.cc-monitor.compact { overflow: visible; }
+.cc-monitor.compact .cc-trace-canvas { overflow: hidden; }
 .cc-monitor.alarm { box-shadow: 0 0 0 2px var(--cc-stop); }
 .cc-traces { display: grid; grid-template-columns: 48px minmax(0, 1fr); min-width: 0; }
 .cc-trace-labels > div { display: flex; flex-direction: column; justify-content: space-between; padding: 6px 4px 6px 8px; border-bottom: 1px solid rgba(120, 150, 170, 0.35); }
@@ -3337,7 +3346,29 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-nibp .map, .cc-nibp .upd { border-left: 1px solid var(--cc-line); padding-left: 12px; }
 .cc-nibp .upd { flex-direction: column; align-items: flex-end; gap: 0; }
 .cc-nibp .upd strong { font: 500 12px var(--vec-mono, monospace); }
+.cc-mon-strip { display: flex; flex-direction: column; gap: 8px; }
 .cc-mon-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* The tablet's monitor: half-height traces, smaller numbers, and NIBP / MAP /
+   TEMP sharing one row with the 12-lead, BP and alarm buttons. */
+.cc-monitor.compact { grid-template-columns: minmax(0, 1fr) 96px; }
+.cc-traces.compact { grid-template-columns: 40px minmax(0, 1fr); }
+.cc-traces.compact .cc-trace-labels > div { padding: 3px 3px 3px 6px; }
+.cc-traces.compact .cc-trace-labels b { font-size: 11px; }
+.cc-traces.compact .cc-trace-labels small { font-size: 8px; }
+.cc-monitor.compact .cc-numbers > div { padding: 3px 8px; }
+.cc-monitor.compact .cc-numbers span { font-size: 10px; }
+.cc-monitor.compact .cc-numbers strong { font-size: 24px; }
+.cc-monitor.compact .cc-numbers small { font-size: 9px; padding-bottom: 2px; }
+.cc-monitor.compact .cc-alarm-panel, .cc-monitor.compact .cc-ecg12 { top: 4px; left: 44px; right: 100px; max-height: none; padding: 8px; gap: 4px; font-size: 11px; z-index: 2; }
+.cc-monitor.compact .cc-mon-overlay { font-size: 10px; }
+.cc-mon-strip.compact { flex-direction: row; align-items: stretch; }
+.cc-mon-strip.compact .cc-nibp { flex: 1; min-width: 0; gap: 10px; padding: 4px 8px; grid-template-columns: auto auto minmax(0, 1fr) auto; }
+.cc-mon-strip.compact .cc-nibp strong { font-size: 18px; }
+.cc-mon-strip.compact .cc-nibp .map strong { font-size: 14px; }
+.cc-mon-strip.compact .cc-nibp .upd strong { font-size: 11px; }
+.cc-mon-strip.compact .cc-nibp small { font-size: 9px; }
+.cc-mon-strip.compact .cc-mon-buttons { flex: none; gap: 6px; }
+.cc-mon-strip.compact .cc-mon-buttons button { min-height: 30px; padding: 0 10px; font-size: 11px; white-space: nowrap; }
 .cc-mon-buttons button, .cc-action, .cc-row { transition: background 0.12s, border-color 0.12s; }
 .cc-mon-buttons button { min-height: 34px; border: 1px solid var(--cc-line); border-radius: 2px; background: var(--cc-card-h); font: 700 12px var(--vec-sans, Arial, sans-serif); color: var(--cc-text); }
 .cc-mon-buttons button:hover:not(:disabled) { border-color: var(--cc-blue); color: var(--cc-blue); }
@@ -3703,6 +3734,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   color: var(--vec-handle-text, #fff);
   min-height: 28px;
 }
+.vec-mdt--care > .vec-mdt-body.care { overflow: hidden; }
 .vec-mdt-body.care .vec-patients { flex: 1; min-height: 0; }
 .vec-mdt-body.care .vec-tile-empty { padding: 30px 12px; }
 .vec-mdt-body.care .vec-mdt-body.page.vec-tasking { flex: 1; }

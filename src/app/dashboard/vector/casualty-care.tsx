@@ -205,11 +205,19 @@ function consciousness(vitals: PatientTreatmentState["liveVitals"], flags: Patie
 // ---------------------------------------------------------------------------
 
 const PX_PER_SEC = 60;
-const LANES = [
+type Lane = { key: string; label: string; colour: string; h: number; ticks: readonly string[] };
+const LANES: readonly Lane[] = [
   { key: "ecg", label: "II", colour: "#22c55e", h: 96, ticks: ["1 mV", "0", "-1"] },
   { key: "pleth", label: "Pleth", colour: "#22d3ee", h: 78, ticks: ["100", "50", "0"] },
   { key: "resp", label: "Resp", colour: "#facc15", h: 72, ticks: ["50", "0"] },
-] as const;
+];
+/** The tablet's monitor: the same three traces at half height so the
+ *  strip stays pinned above the pages without eating the screen. */
+const LANES_COMPACT: readonly Lane[] = [
+  { key: "ecg", label: "II", colour: "#22c55e", h: 52, ticks: ["1 mV", "-1"] },
+  { key: "pleth", label: "Pleth", colour: "#22d3ee", h: 40, ticks: ["100", "0"] },
+  { key: "resp", label: "Resp", colour: "#facc15", h: 36, ticks: ["50", "0"] },
+];
 
 function plethSample(t: number, hr: number, strength: number): number {
   if (hr <= 0) return 0;
@@ -220,7 +228,8 @@ function plethSample(t: number, hr: number, strength: number): number {
   return rise * strength;
 }
 
-function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active }: { rhythm: TraceRhythm; hr: number; spo2: number; rr: number; compressions: boolean; active: boolean }) {
+function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active, compact }: { rhythm: TraceRhythm; hr: number; spo2: number; rr: number; compressions: boolean; active: boolean; compact?: boolean }) {
+  const lanes = compact ? LANES_COMPACT : LANES;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const live = useRef({ rhythm, hr, spo2, rr, compressions, active });
@@ -233,12 +242,12 @@ function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active }: { rhythm:
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const total = LANES.reduce((n, l) => n + l.h, 0);
+    const total = lanes.reduce((n, l) => n + l.h, 0);
     let width = 0;
     let raf = 0;
     let x = 0;
     let started = performance.now();
-    const last: (number | null)[] = LANES.map(() => null);
+    const last: (number | null)[] = lanes.map(() => null);
 
     function background(ctx: CanvasRenderingContext2D) {
       ctx.fillStyle = "#05090e";
@@ -251,7 +260,7 @@ function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active }: { rhythm:
       ctx.stroke();
       let y = 0;
       ctx.strokeStyle = "rgba(120,150,170,0.35)";
-      for (const l of LANES) {
+      for (const l of lanes) {
         y += l.h;
         ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(width, y + 0.5); ctx.stroke();
       }
@@ -299,7 +308,7 @@ function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active }: { rhythm:
         ctx.stroke();
         const ts = nx / PX_PER_SEC + Math.floor(t * PX_PER_SEC / width) * (width / PX_PER_SEC);
         let top = 0;
-        LANES.forEach((l, i) => {
+        lanes.forEach((l, i) => {
           const s = sample(i, ts);
           const mid = top + l.h * (i === 0 ? 0.62 : i === 1 ? 0.8 : 0.5);
           const amp = i === 0 ? l.h * 0.36 : i === 1 ? l.h * 0.6 : l.h * 0.3;
@@ -329,12 +338,12 @@ function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active }: { rhythm:
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, []);
+  }, [lanes]);
 
   return (
-    <div className="cc-traces">
+    <div className={`cc-traces${compact ? " compact" : ""}`}>
       <div className="cc-trace-labels">
-        {LANES.map((l) => (
+        {lanes.map((l) => (
           <div key={l.key} style={{ height: l.h, color: l.colour }}>
             <b>{l.label}</b>
             {l.ticks.map((t) => <small key={t}>{t}</small>)}
@@ -984,8 +993,8 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </span>
       }
     >
-      <div className={`cc-monitor${alarming ? " alarm" : ""}`}>
-        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={surveyDone && paired.length > 0} />
+      <div className={`cc-monitor${alarming ? " alarm" : ""}${tablet ? " compact" : ""}`}>
+        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={surveyDone && paired.length > 0} compact={tablet} />
         <div className="cc-numbers">
           <div className={`hr${breaches.some((b) => b.startsWith("HR")) && !silenced ? " alarm" : ""}`}><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
           <div className={`spo2${breaches.some((b) => b.startsWith("SpO")) && !silenced ? " alarm" : ""}`}><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
@@ -1032,16 +1041,18 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
           </div>
         )}
       </div>
-      <div className="cc-nibp">
-        <div className={breaches.some((b) => b.startsWith("Systolic")) && !silenced ? "alarm" : ""}><span>NIBP</span><strong>{measuring ? "· · ·" : nibpShown ? `${nibpShown.sys} / ${nibpShown.dia}` : "-- / --"}</strong><small>mmHg{nibpAuto ? ` · auto ${nibpAuto} min` : ""}</small></div>
-        <div className="map"><span>MAP</span><strong>{measuring ? "··" : nibpMap ?? "--"}</strong></div>
-        <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
-        <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
-      </div>
-      <div className="cc-mon-buttons">
-        <button type="button" disabled={!surveyDone || paired.length === 0} onClick={takeEcg}>12-lead ECG</button>
-        <button type="button" disabled={!surveyDone || measuring || paired.length === 0} onClick={() => setMeasuringSince(now)}>{measuring ? "Measuring…" : "Measure BP"}</button>
-        <button type="button" aria-pressed={alarmPanel} onClick={() => setAlarmPanel((a) => !a)}>{alarming ? `Alarm · ${breaches[0]}` : silenced ? "Alarms silenced" : "Alarm settings"}</button>
+      <div className={`cc-mon-strip${tablet ? " compact" : ""}`}>
+        <div className="cc-nibp">
+          <div className={breaches.some((b) => b.startsWith("Systolic")) && !silenced ? "alarm" : ""}><span>NIBP</span><strong>{measuring ? "· · ·" : nibpShown ? `${nibpShown.sys} / ${nibpShown.dia}` : "-- / --"}</strong><small>mmHg{nibpAuto ? ` · auto ${nibpAuto} min` : ""}</small></div>
+          <div className="map"><span>MAP</span><strong>{measuring ? "··" : nibpMap ?? "--"}</strong></div>
+          <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
+          <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
+        </div>
+        <div className="cc-mon-buttons">
+          <button type="button" disabled={!surveyDone || paired.length === 0} onClick={takeEcg}>12-lead ECG</button>
+          <button type="button" disabled={!surveyDone || measuring || paired.length === 0} onClick={() => setMeasuringSince(now)}>{measuring ? "Measuring…" : "Measure BP"}</button>
+          <button type="button" aria-pressed={alarmPanel} onClick={() => setAlarmPanel((a) => !a)}>{alarming ? `Alarm · ${breaches[0]}` : silenced ? "Alarms silenced" : "Alarm settings"}</button>
+        </div>
       </div>
     </Card>
   );
