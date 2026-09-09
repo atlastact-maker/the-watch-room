@@ -133,6 +133,7 @@ const CLEAR_MINUTES: Record<IncidentTypeCode, [number, number]> = {
   police_mental_health_rcrp: [15, 30],
   police_abandoned_999: [8, 20],
   police_asb_youths: [15, 35],
+  police_vehicle_stop_no_insurance: [25, 50],
 };
 
 const SEVERITY_FACTOR: Record<Incident["scenario"]["severity"], number> = {

@@ -62,7 +62,8 @@ export type IncidentTypeCode =
   | "police_neighbour_dispute"
   | "police_mental_health_rcrp"
   | "police_abandoned_999"
-  | "police_asb_youths";
+  | "police_asb_youths"
+  | "police_vehicle_stop_no_insurance";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
@@ -232,6 +233,7 @@ export const CAPABILITIES_BY_TYPE: Record<ApplianceTypeCode, CapabilityTag[]> = 
 
   // Police (GMP)
   Police_Response: ["Police_Response"],
+  Police_Van: ["Police_Response"],
   Police_ARV: ["Police_Response", "Police_Armed"],
   Police_NPAS: ["Police_Response", "Police_Air"],
   Police_Dog: ["Police_Response", "Police_Dog"],
@@ -1110,6 +1112,7 @@ export type TaskKind =
   | "arrest"              // timed — arrest, caution and detention
   | "welfare_check"       // timed — welfare and safeguarding check
   | "vehicle_search"      // timed — a search of a vehicle with grounds and a power
+  | "convey_custody"      // timed — a detained person to custody in the van
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
   // BA follow-on
@@ -1524,6 +1527,7 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   arrest: 1,
   welfare_check: 1,
   vehicle_search: 1,
+  convey_custody: 1,
   follow_contain: 1,
   tpac_box: 1,
   stinger: 1,
@@ -1568,6 +1572,7 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   arrest: ["Police"],
   welfare_check: ["Police"],
   vehicle_search: ["Police"],
+  convey_custody: ["Police"],
   follow_contain: ["Police"],
   tpac_box: ["Police"],
   stinger: ["Police"],

@@ -475,9 +475,10 @@ export function buildAppliances(
           }
           designator = `${nwasPrefix}${unit}`;
           callsign = designator;
-        } else if (parsed.type === "Police_Response" && gmpDivision) {
-          // A divisional patrol: KP114.
-          designator = divisionalCallsign(gmpDivision, "patrol", shift, ordinal);
+        } else if ((parsed.type === "Police_Response" || parsed.type === "Police_Van") && gmpDivision) {
+          // A divisional patrol: KP114. The van is a patrol unit too, in
+          // the 50s so it never shares a number with a car.
+          designator = divisionalCallsign(gmpDivision, "patrol", shift, parsed.type === "Police_Van" ? 50 + ordinal : ordinal);
           callsign = designator;
         } else if (
           (parsed.type === "Police_RPU" || parsed.type === "Police_TraffMot") &&

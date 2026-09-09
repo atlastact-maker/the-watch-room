@@ -91,6 +91,7 @@ const TYPE_TO_CATEGORY: Record<ApplianceTypeCode, VehicleCategory> = {
   STAFF_RESP: "amb_response",
   // GMP.
   Police_Response: "pol_response",
+  Police_Van: "pol_response",
   Police_TraffMot: "pol_response",
   Police_RPU: "pol_response",
   Police_ARV: "pol_armed",

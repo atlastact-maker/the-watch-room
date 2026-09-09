@@ -470,6 +470,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
    *  lands in the enquiry box rather than making the operator retype it. */
   const [ledsPrefill, setLedsPrefill] = useState<string | null>(null);
   const [ledsPrefillKind, setLedsPrefillKind] = useState<"vehicle" | "person" | "address">("vehicle");
+  /** PNC / ANPR opened from the Systems menu land on the tablet's police
+   *  module when there is a live job to put them on; otherwise the desk
+   *  panels open as before. */
+  const [mdtPolicePage, setMdtPolicePage] = useState<{ page: "pnc" | "anpr"; seq: number } | null>(null);
   /** Every LEDS enquiry made this shift. Survives the panel being closed
    *  — an audit you can dismiss is not an audit. */
   const [ledsChecks, setLedsChecks] = useState<LedsCheck[]>([]);
@@ -4035,6 +4039,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             kind: "task_completed",
             message: t.crsDoneMessage ?? `${applianceLabel(t.applianceId)} — ${t.crsLabel ?? "CRS action"} complete`,
           });
+        } else if (t.kind === "convey_custody") {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: `${applianceLabel(t.applianceId)} — ${t.personLabel ?? "detained person"} conveyed to custody and booked in`,
+          });
         } else if (t.kind === "vehicle_search") {
           toAppend.push({
             id,
@@ -5266,6 +5277,20 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   });
   const groundAvailable = !!activeIncident && !outcome && !handover && !!incidentSim;
 
+  /** PNC or ANPR from the Systems menu: on the tablet when a job is live,
+   *  on the desk panel when it is not. */
+  function openOnMdt(page: "pnc" | "anpr") {
+    if (activeIncident && groundAvailable) {
+      if (!groundViewOpen) pickScreen("ground");
+      setIncidentPanelVisible(true);
+      setMdtPolicePage((prev) => ({ page, seq: (prev?.seq ?? 0) + 1 }));
+      return;
+    }
+    pickScreen("dispatch");
+    if (page === "pnc") setShowLeds(true);
+    else setShowAnpr(true);
+  }
+
   /** A crew asks control for something from the tablet: it goes on the
    *  shift log as an assistance message and on the status line, and the
    *  operator answers it by mobilising from the desk. */
@@ -5526,8 +5551,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     {
       label: "Systems",
       items: [
-        { label: "PNC · LEDS enquiry", hint: ledsChecks.length ? `${ledsChecks.length} checks` : "vehicle · person", act: () => { pickScreen("dispatch"); setShowLeds(true); } },
-        { label: "ANPR", hint: anprOpenCount ? `${anprOpenCount} open` : "camera hits", act: () => { pickScreen("dispatch"); setShowAnpr(true); } },
+        { label: "PNC · LEDS enquiry", hint: ledsChecks.length ? `${ledsChecks.length} checks` : "on the MDT", act: () => openOnMdt("pnc") },
+        { label: "ANPR", hint: anprOpenCount ? `${anprOpenCount} open` : "on the MDT", act: () => openOnMdt("anpr") },
         { label: "Address check · search", hint: "person · vehicle · address", act: () => { pickScreen("dispatch"); setShowSearch(true); } },
         { label: "Premises risk", act: () => showTile("incident"), disabled: !activeIncident },
         { label: "Incident history", act: () => showTile("log") },
@@ -6273,6 +6298,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 }}
                 onOpenAnpr={() => setShowAnpr(true)}
                 onRequestSupport={requestPoliceSupport}
+                policePage={mdtPolicePage}
               />
             )}
           </>
@@ -6594,6 +6620,8 @@ function taskDurationSecFor(args: {
       return 75; // a proper conversation, not a wave through the door
     case "vehicle_search":
       return 150; // boot, cabin, under the seats and the record
+    case "convey_custody":
+      return 480; // to the custody suite and booked in
     case "crs_action":
       return args.crsDurationSec ?? 120; // authored per-action on the datasheet
   }
@@ -6636,6 +6664,7 @@ function taskLabel(kind: TaskKind): string {
     case "arrest": return "Arrest";
     case "welfare_check": return "Welfare check";
     case "vehicle_search": return "Vehicle search";
+    case "convey_custody": return "Convey to custody";
     case "triage_sieve": return "Triage sieve";
     case "extract_casualty": return "Extract casualty";
     case "crs_action": return "CRS action";

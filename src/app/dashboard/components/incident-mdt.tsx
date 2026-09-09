@@ -143,6 +143,8 @@ type Props = {
   onOpenAnpr?: () => void;
   /** A support request from the crew to control — logged and flagged. */
   onRequestSupport?: (kind: SupportKind, applianceId: string) => void;
+  /** The desk's Systems menu opening PNC or ANPR on the tablet. */
+  policePage?: { page: "pnc" | "anpr"; seq: number } | null;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -253,7 +255,12 @@ export function DraggableIncidentMdt(props: Props) {
   const [popped, setPopped] = useState(false);
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
-  const [module, setModule] = useState<"care" | "fire" | "police">("care");
+  const [module, setModule] = useState<"care" | "fire" | "police">(props.policePage ? "police" : "care");
+  const [seenPolicePage, setSeenPolicePage] = useState(props.policePage?.seq ?? 0);
+  if (props.policePage && props.policePage.seq !== seenPolicePage) {
+    setSeenPolicePage(props.policePage.seq);
+    setModule("police");
+  }
   // The patient pinned in the top strip: the one open on the care screen,
   // else the first this unit is responsible for.
   const [openCasualtyId, setOpenCasualtyId] = useState<string | null>(null);
@@ -266,7 +273,9 @@ export function DraggableIncidentMdt(props: Props) {
   function serviceModule(service: "Fire" | "Police") {
     if (resolved) return <div className="vec-tile-empty">Incident closed</div>;
     if (!unitAppliance || !unitRow) return <div className="vec-tile-empty">Commit a {service.toLowerCase()} unit to open this module</div>;
-    if (unitAppliance.service !== service) {
+    // PNC and ANPR are any unit's to use from the tablet; the rest of
+    // the police module wants a police unit.
+    if (unitAppliance.service !== service && !(service === "Police" && props.policePage)) {
       return (
         <div className="vec-tile-empty">
           {unitCallsign} is {unitAppliance.service === "Ambulance" ? "an ambulance" : `a ${unitAppliance.service.toLowerCase()} unit`} — pick a {service.toLowerCase()} unit above for this module
@@ -330,6 +339,7 @@ export function DraggableIncidentMdt(props: Props) {
         onOpenAnpr={props.onOpenAnpr}
         onRequestSupport={props.onRequestSupport}
         onArmPlacement={props.onArmPlacement}
+        requestedPage={props.policePage}
       />
     );
   }

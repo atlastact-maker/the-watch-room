@@ -131,7 +131,7 @@ const A: Record<string, ActionDef> = {
   place_cones: { key: "place_cones", label: "Place cones", icon: I.cone, target: "none", kind: "cordon", control: "Cones placed" },
   place_barrier: { key: "place_barrier", label: "Place barrier", icon: I.barrier, target: "none", control: "Barrier placed" },
   place_sign: { key: "place_sign", label: "Place sign", icon: I.sign, target: "none", control: "Sign placed" },
-  custody_transport: { key: "custody_transport", label: "Request custody transport", icon: I.van, target: "person", support: "custody", requiresArrest: true },
+  custody_transport: { key: "custody_transport", label: "Custody transport", sub: "Van to custody", icon: I.van, target: "person", kind: "convey_custody", support: "custody", requiresArrest: true },
   request_ambulance: { key: "request_ambulance", label: "Request ambulance", icon: I.plus, target: "none", support: "ambulance" },
 };
 
@@ -221,6 +221,7 @@ function typeLabel(code: string): string {
     police_mental_health_rcrp: "Mental health · RCRP",
     police_abandoned_999: "Abandoned 999",
     police_asb_youths: "ASB · youths",
+    police_vehicle_stop_no_insurance: "Vehicle stop · no insurance",
     rtc_entrapment: "Road traffic collision · entrapment",
   };
   return special[code] ?? code.replace(/^police_/, "").replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
@@ -237,7 +238,7 @@ type Person = { id: string; ref: string; record?: PersonRecord; casualtyId?: str
 
 function personsOnJob(incident: Incident, sim: IncidentSimState | null, index?: RecordIndex): Person[] {
   const scenarioId = incident.scenarioId;
-  const recs = (index?.people ?? []).filter((p) => p.scenarioId === scenarioId && !p.roles.includes("crew"));
+  const recs = (index?.people ?? []).filter((p) => (p.scenarioId === scenarioId || p.alsoScenarioIds?.includes(scenarioId)) && !p.roles.includes("crew"));
   const persons: Person[] = recs
     .map((r) => {
       const role = ROLE_ORDER.find((x) => r.roles.includes(x as PersonRecord["roles"][number])) ?? r.roles[0] ?? "person";
@@ -280,18 +281,16 @@ function accountFor(p: Person): string {
   return notes.slice(0, 3).map((n) => `States: ${n}`).join("\n\n");
 }
 
-/** What a search of this vehicle turns up — the record's own lines. */
+/** What a search of this vehicle turns up — only what is physically in
+ *  it, from the record's own lines. Markers are the PNC's business, not
+ *  the search's: a no-insurance car with an empty boot is an empty boot. */
 function findingsFor(v: VehicleRecord, persons: Person[]): string[] {
   const out: string[] = [];
-  const markers = v.markers ?? [];
-  if (markers.includes("STOLEN")) out.push("Vehicle confirmed STOLEN on PNC — seized for forensic recovery");
-  if (markers.includes("NO INSURANCE")) out.push("No insurance on the MID — seized under s165A RTA");
-  if (markers.includes("HAZMAT")) out.push("Hazardous load — packaging and placards checked");
   for (const n of v.notes ?? []) {
-    if (/knife|blade|machete|weapon|firearm|drugs|cannabis|cocaine|wraps|cash|stolen property|tools|found|boot|glovebox|under the seat/i.test(n)) out.push(n);
+    if (/knife|blade|machete|weapon|firearm|drugs|cannabis|cocaine|wraps|cash|stolen property|tools|found in|in the boot|glovebox|under the seat/i.test(n)) out.push(n);
   }
   const keeper = persons.find((p) => p.record && (p.record.id === v.keeperId || p.record.vehicleIds?.includes(v.id)));
-  if (out.length === 0) out.push(`Nothing of note found. Vehicle in order${keeper ? ` — keeper ${keeper.record!.name}` : ""}.`);
+  if (out.length === 0) out.push(`Nothing found. Cabin, boot and glovebox clear; vehicle in order${keeper ? ` — keeper ${keeper.record!.name}` : ""}. Search recorded.`);
   return out;
 }
 
@@ -317,6 +316,9 @@ export type PoliceControlsProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAb
   onRequestSupport?: (kind: SupportKind, applianceId: string) => void;
   onArmPlacement?: (applianceId: string) => void;
   onClose?: () => void;
+  /** A page the desk asked for — the Systems menu's PNC and ANPR open
+   *  here. Bumped seq re-opens it. */
+  requestedPage?: { page: "pnc" | "anpr"; seq: number } | null;
 };
 
 const TAB_DEFAULT: Record<ActionTab, string> = { general: "take_account", traffic: "close_road", people: "request_details", vehicles: "search_vehicle" };
@@ -325,7 +327,12 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const { incident, incidentRef, appliance, unit, resolved, tasks, log, now, sim, resolvedIncident } = props;
   const record = usePoliceRecord(incident.id);
   const set = (fn: (r: PoliceRecord) => PoliceRecord) => updatePoliceRecord(incident.id, fn);
-  const [page, setPage] = useState<Page>("actions");
+  const [page, setPage] = useState<Page>(props.requestedPage?.page ?? "actions");
+  const [seenRequest, setSeenRequest] = useState(props.requestedPage?.seq ?? 0);
+  if (props.requestedPage && props.requestedPage.seq !== seenRequest) {
+    setSeenRequest(props.requestedPage.seq);
+    setPage(props.requestedPage.page);
+  }
   const [tab, setTabState] = useState<ActionTab>("general");
   const [actionKey, setActionKey] = useState<string>("take_account");
   const [personId, setPersonId] = useState<string>("");
@@ -366,6 +373,9 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const policeUnits = resolved.filter((r) => r.appliance.service === "Police");
   const policeOnScene = policeUnits.filter((r) => r.phase === "at_incident");
   const arrested = done.filter((t) => t.kind === "arrest");
+  const vanOnScene = resolved.find((r) => r.appliance.type === "Police_Van" && r.phase === "at_incident") ?? (appliance.type === "Police_Van" && onScene ? unit : undefined);
+  const carrier = vanOnScene ?? (onScene ? unit : undefined);
+  const carrierFree = carrier ? carrier.appliance.crewMembers.filter((c) => !props.busyCrewIds?.has(c.id)) : [];
   const status = resolvedIncident
     ? "Closed"
     : arrested.length
@@ -407,6 +417,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   };
   const isArrested = (p: Person) => done.some((t) => t.kind === "arrest" && t.personId === p.id);
   const personStatus = (p: Person): string => {
+    if (done.some((t) => t.kind === "convey_custody" && t.personId === p.id)) return "In custody";
+    if (active.some((t) => t.kind === "convey_custody" && t.personId === p.id)) return "To custody";
     if (isArrested(p)) return "Arrested";
     const busy = mine.find((t) => t.personId === p.id);
     if (busy) return `${A[busy.kind]?.label ?? busy.kind} in progress`;
@@ -454,11 +466,14 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const tpacBlocked = !!action.tpac && !tpacTrained;
   const arrestBlocked = !!action.requiresArrest && !persons.some(isArrested);
   const isSearch = action.kind === "vehicle_search";
+  const conveyRunning = action.kind === "convey_custody" ? active.find((t) => t.kind === "convey_custody" && t.personId === person?.id) : undefined;
   const primaryLabel = action.leds
     ? `Open PNC · ${action.leds === "person" ? (person ? displayName(person) : "person") : vehicle?.vrm ?? "vehicle"}`
     : action.closure
       ? closureRunning ? "Closure in place" : "Apply closure"
-      : action.support
+      : action.kind === "convey_custody"
+      ? conveyRunning ? `To custody · ${mmss((conveyRunning.completesAt ?? now) - now)}` : done.some((t) => t.kind === "convey_custody" && t.personId === person?.id) ? "Booked in at custody" : carrier ? `Convey in ${carrier.appliance.callsign}${carrier.appliance.type === "Police_Van" ? " (van)" : ""}` : "Request custody transport"
+    : action.support
         ? lastSupport(action.support) ? `Requested ${wall(lastSupport(action.support)!.at)} · ask again` : action.label
         : action.run === "occupants"
           ? "Occupants shown below"
@@ -473,6 +488,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
                   : `${action.label}${needsPerson && person ? ` · ${displayName(person)}` : needsVehicle && vehicle ? ` · ${vehicle.vrm}` : ""}`;
   const primaryDisabled = action.leds
     ? targetMissing || (action.leds === "person" && !!person && !detailsTask(person))
+    : action.kind === "convey_custody"
+      ? resolvedIncident || arrestBlocked || targetMissing || !!conveyRunning || done.some((t) => t.kind === "convey_custody" && t.personId === person?.id)
     : action.support
       ? resolvedIncident || arrestBlocked || targetMissing
       : action.run === "occupants"
@@ -500,6 +517,13 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   function runAction() {
     if (action.leds === "person" && person) return openPnc(person.record?.name ?? "", "person");
     if (action.leds === "vehicle" && vehicle) return openPnc(vehicle.vrm, "vehicle");
+    if (action.kind === "convey_custody" && person) {
+      if (!carrier || carrierFree.length === 0) return requestSupport("custody");
+      const label = displayNameDob(person);
+      props.onStartTask?.({ applianceId: carrier.appliance.id, kind: "convey_custody", assignedCrewIds: carrierFree.slice(0, Math.min(2, carrierFree.length)).map((c) => c.id), personId: person.id, personLabel: label });
+      note(`${label} conveyed to custody by ${carrier.appliance.callsign}${carrier.appliance.type === "Police_Van" ? " — in the van" : " — in the car, two up"}`);
+      return;
+    }
     if (action.support) return requestSupport(action.support);
     if (action.run === "reopen") {
       for (const t of closureTasks) props.onAbortTask?.(t.id);
@@ -809,7 +833,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           {peopleTable}
           {group("Person actions", I.person, [A.request_details, A.take_account, A.person_check, A.arrest, A.stop_search, A.welfare_check])}
           {group("Transport", I.van, [A.custody_transport, A.request_ambulance], 2, undefined)}
-          {infoLine(lastSupport("custody") ? `Custody transport requested ${wall(lastSupport("custody")!.at)}.` : lastSupport("ambulance") ? `Ambulance requested ${wall(lastSupport("ambulance")!.at)}.` : "No transport assigned.")}
+          {infoLine(active.some((t) => t.kind === "convey_custody") ? `${callsignOf(active.find((t) => t.kind === "convey_custody")!.applianceId)} conveying ${active.find((t) => t.kind === "convey_custody")!.personLabel ?? "the detained person"} to custody.` : done.some((t) => t.kind === "convey_custody") ? "Detained person booked in at custody." : lastSupport("custody") ? `Custody transport requested ${wall(lastSupport("custody")!.at)}.` : lastSupport("ambulance") ? `Ambulance requested ${wall(lastSupport("ambulance")!.at)}.` : vanOnScene ? `${vanOnScene.appliance.callsign} (van) on scene for transport.` : "No transport assigned.")}
         </>
       )}
       {tab === "vehicles" && (

@@ -44,6 +44,7 @@ export type ApplianceTypeCode =
   | "STAFF_RESP"       // SR — Staff Responder
   // Police (GMP)
   | "Police_Response"   // single-crew response car
+  | "Police_Van"        // double-crewed patrol van — cage in the back, prisoner transport
   | "Police_ARV"        // Armed Response Vehicle (typically 3-crew)
   | "Police_NPAS"       // National Police Air Service helicopter
   | "Police_Dog"        // Dog unit — PD handler + specialist dog
@@ -67,6 +68,7 @@ const FRONTLINE_TYPES = new Set<ApplianceTypeCode>([
   "DCA",
   "RRV",
   "Police_Response",
+  "Police_Van",
 ]);
 
 /** Whether an appliance type counts as a specialist resource for dispatch

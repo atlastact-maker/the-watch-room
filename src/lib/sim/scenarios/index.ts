@@ -53,6 +53,7 @@ import { scenario51 } from "./51_neighbour_dispute_rochdale";
 import { scenario52 } from "./52_mental_health_rcrp_oldham";
 import { scenario53 } from "./53_abandoned_999_wigan";
 import { scenario54 } from "./54_asb_youths_denton";
+import { scenario55 } from "./55_vehicle_stop_sale";
 
 // Registry of available scenarios — the ten approved fire jobs converted
 // from data/research/fire/scenarios/*.md, plus the police-led firearms
@@ -112,6 +113,7 @@ export const SCENARIOS: Scenario[] = [
   scenario52,
   scenario53,
   scenario54,
+  scenario55,
 ];
 
 export function getScenarioById(id: string): Scenario | undefined {

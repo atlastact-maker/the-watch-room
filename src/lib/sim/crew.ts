@@ -304,6 +304,7 @@ const COMPOSITION: Partial<Record<ApplianceTypeCode, (keyof typeof ROLES)[]>> = 
 
   // GMP
   Police_Response: ["pc_response", "pc_response"],
+  Police_Van: ["pc_response", "pc_response"],
   Police_ARV: ["sergeant", "afo", "afo"],
   Police_NPAS: ["npas_pilot", "npas_tfo"],
   Police_Dog: ["dog_handler"],

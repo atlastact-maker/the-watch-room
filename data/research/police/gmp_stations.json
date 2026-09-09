@@ -10,7 +10,8 @@
      "name": "Manchester Central",
      "staffing": "24/7 divisional HQ",
      "resources": [
-      "4x Police_Response"
+      "4x Police_Response",
+      "1x Police_Van"
      ],
      "address": "Bootle Street",
      "town": "Manchester",
@@ -26,6 +27,7 @@
      "staffing": "24/7 divisional HQ",
      "resources": [
       "3x Police_Response",
+      "1x Police_Van",
       "1x Police_Dog"
      ],
      "address": "Talbot Road",

@@ -62,6 +62,7 @@ export const MAKE_MODEL: Record<ApplianceTypeCode, { make: string; model: string
 
   // GMP
   Police_Response:  { make: "BMW",           model: "3-Series Touring Response" },
+  Police_Van:       { make: "Ford",          model: "Transit Custom Patrol Van" },
   Police_ARV:       { make: "BMW",           model: "X5 Armed Response" },
   Police_NPAS:      { make: "Airbus",        model: "H145 / H135 NPAS" },
   Police_Dog:       { make: "Škoda",         model: "Kodiaq Dog Van" },

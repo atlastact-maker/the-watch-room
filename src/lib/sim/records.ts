@@ -73,6 +73,10 @@ export type PersonRecord = {
   /** Which scenario put this person on the desk. Absent for derived
    *  records (crew). */
   scenarioId?: string;
+  /** Other jobs the same person turns up on — set by buildRecordIndex
+   *  from a set's linkedPeopleIds, so one record serves them all and
+   *  the PNC holds one Callum Deakin, not two. */
+  alsoScenarioIds?: string[];
   /** Links into the sim, when the person IS something the sim tracks. */
   casualtyId?: string;
   applianceId?: string;
@@ -136,6 +140,8 @@ export type RecordSet = {
   people: PersonRecord[];
   vehicles: VehicleRecord[];
   places: PlaceRecord[];
+  /** People authored on another job who are on this one too. */
+  linkedPeopleIds?: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -190,6 +196,14 @@ export function buildRecordIndex(args: {
     people.push(...set.people);
     vehicles.push(...set.vehicles);
     places.push(...set.places);
+  }
+
+  // A person who turns up on a second job keeps one record.
+  for (const set of args.sets) {
+    for (const id of set.linkedPeopleIds ?? []) {
+      const p = people.find((x) => x.id === id);
+      if (p && p.scenarioId !== set.scenarioId) p.alsoScenarioIds = [...(p.alsoScenarioIds ?? []), set.scenarioId];
+    }
   }
 
   // Keepers: anyone a vehicle names as its keeper is a keeper, whatever

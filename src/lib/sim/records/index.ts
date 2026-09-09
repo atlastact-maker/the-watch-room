@@ -33,6 +33,7 @@ import { records51 } from "./51_neighbour_dispute_rochdale";
 import { records52 } from "./52_mental_health_rcrp_oldham";
 import { records53 } from "./53_abandoned_999_wigan";
 import { records54 } from "./54_asb_youths_denton";
+import { records55 } from "./55_vehicle_stop_sale";
 
 export const SCENARIO_RECORDS: RecordSet[] = [
   records01,
@@ -67,4 +68,5 @@ export const SCENARIO_RECORDS: RecordSet[] = [
   records52,
   records53,
   records54,
+  records55,
 ];
