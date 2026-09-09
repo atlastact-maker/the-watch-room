@@ -150,18 +150,21 @@ type Props = {
 // Remembered tablet frame — survives the MDT being collapsed/reopened
 // (component unmount) and full reloads. Best-effort localStorage.
 type MdtFrame = { x: number; y: number; width: number; height: number };
-const MDT_FRAME_KEY = "twr:mdt-frame:v2";
+const MDT_FRAME_KEY = "twr:mdt-frame:v3";
 /** The tablet is one fixed size — a device, not a window. It moves, it
  *  pops out, it hides; it does not resize. Clamped to the screen it is
  *  on so a laptop still gets the whole thing. */
-const MDT_WIDTH = 1120;
-const MDT_HEIGHT = 780;
+const MDT_WIDTH = 1400;
+const MDT_HEIGHT = 920;
 
+/** As big as the screen allows up to the preset — the police and fire
+ *  modules are laid out to fit the tablet without the page scrolling,
+ *  so the tablet takes the room it can get. */
 function presetMdtSize(): { width: number; height: number } {
   if (typeof window === "undefined") return { width: MDT_WIDTH, height: MDT_HEIGHT };
   return {
-    width: Math.min(MDT_WIDTH, Math.max(640, window.innerWidth - 32)),
-    height: Math.min(MDT_HEIGHT, Math.max(560, window.innerHeight - 120)),
+    width: Math.min(MDT_WIDTH, Math.max(640, window.innerWidth - 24)),
+    height: Math.min(MDT_HEIGHT, Math.max(560, window.innerHeight - 70)),
   };
 }
 
@@ -219,8 +222,8 @@ export function DraggableIncidentMdt(props: Props) {
     return (
       loadMdtFrame() ?? {
         ...size,
-        x: typeof window !== "undefined" ? Math.max(16, window.innerWidth - size.width - 24) : 24,
-        y: 90,
+        x: typeof window !== "undefined" ? Math.max(8, window.innerWidth - size.width - 12) : 24,
+        y: typeof window !== "undefined" ? Math.max(8, Math.min(90, window.innerHeight - size.height - 8)) : 90,
       }
     );
   });

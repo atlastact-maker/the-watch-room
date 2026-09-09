@@ -690,7 +690,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   );
 
   const personCard = (
-    <Card title="Selected person" icon="●" headerExtra={persons.length > 1 ? <span className="pc-meta">{persons.length} on the job</span> : undefined}>
+    <Card title="Selected person" icon="●" fill headerExtra={persons.length > 1 ? <span className="pc-meta">{persons.length} on the job</span> : undefined}>
       {person ? (
         <>
           <div className="pc-person">
