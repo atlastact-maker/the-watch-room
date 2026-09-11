@@ -159,6 +159,9 @@ import {
 import { LedsTerminal } from "./components/leds-terminal";
 import { AnprConsole } from "./components/anpr-console";
 import { hitsBetween, siteById, type AnprHit } from "@/lib/sim/anpr";
+import { createSubject, cumulative, destinationFor, subjectPosition, tickSubject, withRoute, type Sensor, type SubjectSpec, type SubjectVehicle } from "@/lib/sim/subject";
+import type { SubjectView, HoldingUnit } from "./components/subject-layer";
+import { SubjectTile } from "./vector/subject-tile";
 import { generateVehicle } from "@/lib/sim/leds-db";
 import { auditLine, type LedsCheck } from "@/lib/sim/leds";
 import { DraggableResourcesPanel } from "./components/resources-panel";
@@ -197,7 +200,7 @@ import { bumpStats, saveLastShift } from "@/lib/sim/stats";
 import { syncCareerStats } from "@/lib/sim/stats-sync";
 import { logout } from "@/lib/auth/actions";
 import { osMappingEnabled } from "@/lib/map-basemaps";
-import { BLUE_LIGHT_FACTOR } from "@/lib/sim/eta";
+import { BLUE_LIGHT_FACTOR, interpolateAlongRoute } from "@/lib/sim/eta";
 import { VectorDesk, DEFAULT_TILES, type TilesState } from "./vector/desk";
 import { useDeskModel, proposeFill } from "./vector/desk-model";
 import { useTileLayout } from "./vector/tile";
@@ -519,6 +522,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   const [preShiftStates, setPreShiftStates] = useState<Record<string, PreShiftState>>({});
   const [log, setLog] = useState<LogEntry[]>([]);
+  /** Subject vehicles by incident — the car a job is chasing, ticked
+   *  once a second against the units' positions. */
+  const [subjects, setSubjects] = useState<Record<string, SubjectVehicle>>({});
+  const subjectsRef = useRef<Record<string, SubjectVehicle>>({});
+  useEffect(() => {
+    subjectsRef.current = subjects;
+  }, [subjects]);
+  /** Camera reads of subject vehicles, for the ANPR console's list. */
+  const [subjectHits, setSubjectHits] = useState<AnprHit[]>([]);
   const outcome = runtime.outcome;
   // The dispatch log sits on the map by default; the operator can hide it.
   const [showDispatchLog, setShowDispatchLog] = useState(false);
@@ -900,6 +912,57 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  // Subject vehicles drive, get read by cameras, get sighted and get
+  // stopped — once a second, against where every unit on the job is.
+  useEffect(() => {
+    const ids = Object.keys(subjectsRef.current);
+    if (ids.length === 0) return;
+    const next = { ...subjectsRef.current };
+    const newLog: LogEntry[] = [];
+    const newHits: AnprHit[] = [];
+    let changed = false;
+    for (const id of ids) {
+      const s = next[id];
+      const inc = incidents.find((i) => i.id === id);
+      if (!inc || inc.resolvedAt || s.state === "gone" || s.state === "contained" || s.state === "stopped") continue;
+      const jobTasks = tasks.filter((t) => deployments.some((d) => d.applianceId === t.applianceId && d.incidentId === id));
+      const sensors: Sensor[] = [];
+      for (const d of deployments) {
+        if (d.incidentId !== id) continue;
+        const a = applianceById.get(d.applianceId);
+        const pos = unitPosAt(d, now);
+        if (!a || !pos) continue;
+        const mine = jobTasks.filter((t) => t.applianceId === a.id && t.state === "active");
+        sensors.push({
+          applianceId: a.id,
+          callsign: a.callsign,
+          pos,
+          police: a.service === "Police",
+          npas: a.type === "Police_NPAS" && now >= d.arrivesAt,
+          searching: mine.some((t) => t.kind === "area_search"),
+          attached: mine.some((t) => t.kind === "follow_contain" || t.kind === "tpac_box"),
+          tpac: a.crewMembers.some((c) => c.quals.some((q) => /TPAC|Tactical Pursuit/.test(q))),
+        });
+      }
+      const r = tickSubject(s, now, sensors, jobTasks);
+      next[id] = r.subject;
+      changed = true;
+      for (const e of r.events) {
+        newLog.push({
+          id: `subj:${id}:${e.at}:${e.kind}:${newLog.length}`,
+          timestamp: e.at,
+          kind: e.kind === "stopped" || e.kind === "contained" ? "task_completed" : e.kind === "failed_to_stop" || e.kind === "lost" || e.kind === "gone" ? "setback" : "annotation",
+          message: e.text,
+        });
+      }
+      newHits.push(...r.hits);
+    }
+    if (changed) setSubjects(next);
+    if (newLog.length) setLog((prev) => [...prev, ...newLog]);
+    if (newHits.length) setSubjectHits((prev) => [...newHits, ...prev].slice(0, 80));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
 
   // Live-vitals tick. Runs at 2 Hz so the numbers move continuously
   // rather than sitting still and then leaping every few seconds — the
@@ -1640,6 +1703,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       },
     }));
     setSelectedIncidentId(newId);
+    if (liveScenario.subject) openSubject(newId, liveScenario.subject, t);
     // The log belongs to the SHIFT, not the job — a control room keeps one.
     setLog((prev) => [
       ...prev,
@@ -3762,6 +3826,39 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return m;
   }, [allDeployableStations]);
 
+  // What the desk map draws for the subject vehicles and the units sent
+  // ahead of them.
+  const subjectViews = useMemo<SubjectView[]>(() => {
+    return Object.values(subjects)
+      .filter((s) => incidents.some((i) => i.id === s.incidentId && !i.resolvedAt))
+      .map((s) => {
+        const p = subjectPosition(s);
+        const cum = cumulative(s.route);
+        const ahead: [number, number][] = [];
+        for (let i = 0; i < s.route.length; i++) if (cum[i] >= s.progressM) ahead.push(s.route[i]);
+        return {
+          id: s.id,
+          vrm: s.vrm,
+          description: [s.vehicle.colour, s.vehicle.make, s.vehicle.model].filter(Boolean).join(" "),
+          markers: (s.vehicle.markers ?? []).map(String),
+          state: s.state,
+          trackLive: s.trackLive,
+          pos: s.trackLive || s.stoppedPos ? p.pos : null,
+          heading: p.heading,
+          lastSeenPos: s.lastSeenPos ?? null,
+          lastSeenAt: s.lastSeenAt ?? null,
+          pings: s.pings.map((x) => ({ at: x.at, pos: x.pos, label: x.label })),
+          heldBy: s.trackHeldBy,
+          routeAhead: s.trackLive ? ahead.slice(0, 400) : [],
+        };
+      });
+  }, [subjects, incidents]);
+  const holdingUnits = useMemo<HoldingUnit[]>(() => {
+    return deployments
+      .filter((d) => d.searchTarget && incidents.some((i) => i.id === d.incidentId && !i.resolvedAt))
+      .map((d) => ({ applianceId: d.applianceId, callsign: applianceById.get(d.applianceId)?.callsign ?? d.applianceId, coords: { lat: d.searchTarget!.lat, lng: d.searchTarget!.lng }, label: d.searchTarget!.label, arrived: now >= d.arrivesAt }));
+  }, [deployments, incidents, applianceById, now]);
+
   const selectedAppliance = useMemo<Appliance | null>(() => {
     if (!selectedApplianceId) return null;
     for (const s of allDeployableStations) {
@@ -4071,7 +4168,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             kind: "task_completed",
             message: `${applianceLabel(t.applianceId)} — ${outcome}`,
           });
-        } else if (t.kind === "vehicle_stop" || t.kind === "tpac_box" || t.kind === "stinger" || t.kind === "tactical_contact") {
+        } else if ((t.kind === "vehicle_stop" || t.kind === "tpac_box" || t.kind === "stinger" || t.kind === "tactical_contact") && !subjectsRef.current[deployments.find((d) => d.applianceId === t.applianceId)?.incidentId ?? ""]) {
           const outcome =
             t.kind === "vehicle_stop"
               ? "vehicle stopped, occupants spoken to — PNC and driver checks in hand"
@@ -5398,6 +5495,60 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   /** Mobilise to the selected job, into the first attendance slot the
    *  unit's type can fill — or as extra attendance when none is open. */
+  /** The subject vehicle moves off from where the camera read it; the
+   *  router gives it a road a moment later. */
+  function openSubject(incidentId: string, spec: SubjectSpec, at: number) {
+    const want = spec.vrm.replace(/\s/g, "").toUpperCase();
+    const rec = recordIndex.vehicles.find((v) => v.vrm.replace(/\s/g, "").toUpperCase() === want) ?? generateVehicle(spec.vrm);
+    setSubjects((prev) => ({ ...prev, [incidentId]: createSubject(incidentId, spec, rec, at) }));
+    void routeEta(spec.start, spec.destination).then((r) => {
+      setSubjects((prev) => {
+        const cur = prev[incidentId];
+        if (!cur) return prev;
+        return { ...prev, [incidentId]: r.coords && r.coords.length > 1 ? withRoute(cur, r.coords) : { ...cur, routeReady: true } };
+      });
+    });
+  }
+
+  /** Where a committed unit is at a moment: along its route while it is
+   *  driving, else at the point it was sent to, its parking spot, or the
+   *  incident address. */
+  function unitPosAt(d: Deployment, at: number): { lat: number; lng: number } | null {
+    const inc = incidents.find((i) => i.id === d.incidentId);
+    const to = d.searchTarget ? { lat: d.searchTarget.lat, lng: d.searchTarget.lng } : inc?.scenario.location.coords ?? null;
+    if (at >= d.arrivesAt) return d.searchTarget ? { lat: d.searchTarget.lat, lng: d.searchTarget.lng } : d.parkingPos ?? to;
+    const t = Math.min(1, Math.max(0, (at - d.mobilisedAt) / Math.max(1, d.etaSeconds * 1000)));
+    if (d.routeCoords && d.routeCoords.length >= 2) {
+      const [lat, lng] = interpolateAlongRoute(d.routeCoords, t);
+      return { lat, lng };
+    }
+    const st = allDeployableStations.find((x) => x.appliances.some((a) => a.id === d.applianceId));
+    if (!st || !to) return to;
+    return { lat: st.coords.lat + (to.lat - st.coords.lat) * t, lng: st.coords.lng + (to.lng - st.coords.lng) * t };
+  }
+
+  /** Send a committed unit to hold a point on the patch — a camera site
+   *  ahead of the subject, a junction — from wherever it is now. */
+  async function redirectUnit(applianceId: string, target: { lat: number; lng: number; label: string }) {
+    const d = deployments.find((x) => x.applianceId === applianceId);
+    if (!d) return;
+    const from = unitPosAt(d, Date.now());
+    if (!from) return;
+    for (const t of tasks) if (t.applianceId === applianceId && t.state === "active" && t.kind === "area_search") abortTask(t.id);
+    const r = blueLight(await routeEta(from, target));
+    const at = Date.now();
+    const secs = Math.max(20, Math.round(r.seconds));
+    setDeployments((prev) =>
+      prev.map((x) =>
+        x.applianceId === applianceId
+          ? { ...x, mobilisedAt: at, etaSeconds: secs, arrivesAt: at + secs * 1000, routeCoords: r.coords ?? undefined, routeMeters: r.meters, searchTarget: target, parkingPos: undefined, parkingBearingDeg: undefined }
+          : x,
+      ),
+    );
+    logAnnotation(`${applianceLabel(applianceId)} sent to ${target.label} — ${Math.max(1, Math.round(secs / 60))} min`);
+    setStatusMsg(`${applianceLabel(applianceId)} to ${target.label}`);
+  }
+
   function mobiliseTo(applianceId: string, stationId: string, incidentId?: string) {
     const ap = applianceById.get(applianceId);
     const target = incidentId ? incidents.find((i) => i.id === incidentId) ?? null : activeIncident;
@@ -5594,6 +5745,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           { id: "units", label: "Scene units", open: !!tiles.units && !!activeIncident },
           { id: "patients", label: "Casualties", open: !!tiles.patients && !!activeIncident },
           { id: "tasking", label: "Unit tasking", open: !!tiles.tasking && !!activeIncident },
+          { id: "subject", label: "Subject vehicle", open: !!tiles.subject && !!activeIncident },
           { id: "log", label: "Incident log", open: !!tiles.log },
           { id: "attendance", label: "Attendance", open: !!tiles.attendance && !!activeIncident },
           { id: "available", label: "Resources", open: !!tiles.available },
@@ -5752,6 +5904,39 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onEntry={(text) => logAnnotation(text)}
         />
       )}
+      subjectTile={(area, pop) => (
+        <SubjectTile
+          {...pop}
+          layout={layout}
+          area={area}
+          onClose={() => setTiles((t) => ({ ...t, subject: false }))}
+          subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
+          incidentRef={selectedRef}
+          now={now}
+          tasks={tasks}
+          units={incidentDeployments
+            .filter((d) => applianceById.get(d.applianceId)?.service === "Police")
+            .map((d) => {
+              const a = applianceById.get(d.applianceId)!;
+              return {
+                applianceId: a.id,
+                callsign: a.callsign,
+                typeName: a.typeName,
+                phase: (now >= d.arrivesAt ? "at_incident" : "mobile") as "at_incident" | "mobile",
+                tpac: a.crewMembers.some((c) => c.quals.some((q) => /TPAC|Tactical Pursuit/.test(q))),
+                npas: a.type === "Police_NPAS",
+                pos: unitPosAt(d, now),
+                searchTarget: d.searchTarget,
+                arrivesAt: d.arrivesAt,
+                freeCrewIds: a.crewMembers.filter((c) => !busyCrewIds.has(c.id)).map((c) => c.id),
+              };
+            })}
+          onRedirect={(id, target) => void redirectUnit(id, target)}
+          onStartTask={(args) => void startTask(args)}
+          onAbortTask={abortTask}
+          onFocus={(c) => setMapFocus({ lat: c.lat, lng: c.lng, zoom: 14, key: Date.now() })}
+        />
+      )}
       patientsTile={(area, pop) => (
         <PatientCareTile
           {...pop}
@@ -5858,6 +6043,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           onOpenStationBays={setBayStationId}
           focus={mapFocus}
           showBasemapToggle={false}
+          subjects={subjectViews}
+          holdingUnits={holdingUnits}
+          now={now}
           onZoomIntoGround={
             groundAvailable
               ? (view) => {
@@ -5988,6 +6176,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             <AnprConsole
               shiftStartedAt={shiftStartedAt}
               now={now}
+              extraHits={subjectHits}
               actioned={anprActioned}
               onAction={(id) => setAnprActioned((prev) => ({ ...prev, [id]: true }))}
               onEnquire={(vrm) => {
@@ -6299,6 +6488,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 onOpenAnpr={() => setShowAnpr(true)}
                 onRequestSupport={requestPoliceSupport}
                 policePage={mdtPolicePage}
+                subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
               />
             )}
           </>
@@ -6519,6 +6709,14 @@ function anprScenarioFor(hit: AnprHit): Scenario | null {
       N: "None injured",
       emergencyServices: "Police only — roads policing intercept with a second car, one divisional car for containment. NPAS through the FIM if it runs",
     },
+    subject: {
+      vrm: hit.vrm,
+      start: site.coords,
+      destination: destinationFor(site.coords, hit.direction),
+      speedKph: site.road.startsWith("M") ? 96 : 50,
+      compliance: stolen ? 0.2 : pnc ? 0.45 : 0.7,
+      headStartSec: 15,
+    },
     pda: [
       { id: "rpu1", label: "Roads — intercept", service: "Police", requiredApplianceTypes: ["Police_RPU"], requiredCapabilities: ["Police_Roads"], preferredStationId: "MP-RPU", notes: "Get behind the vehicle and stay there. A single car forcing a stop is how a hit becomes a pursuit" },
       { id: "rpu2", label: "Roads — second vehicle (TPAC)", service: "Police", requiredApplianceTypes: ["Police_RPU"], requiredCapabilities: ["Police_Roads"], preferredStationId: "MP-RPU", notes: "The tactical option. Two TPAC-trained cars make a stop; one makes a hope" },
@@ -6599,6 +6797,7 @@ function taskDurationSecFor(args: {
     case "traffic_mgmt":
     case "scene_preservation":
     case "follow_contain":
+    case "area_search":
       return undefined; // ongoing (no auto-completion)
     case "vehicle_stop":
       return 90;
@@ -6665,6 +6864,7 @@ function taskLabel(kind: TaskKind): string {
     case "welfare_check": return "Welfare check";
     case "vehicle_search": return "Vehicle search";
     case "convey_custody": return "Convey to custody";
+    case "area_search": return "Area search";
     case "triage_sieve": return "Triage sieve";
     case "extract_casualty": return "Extract casualty";
     case "crs_action": return "CRS action";

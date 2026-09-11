@@ -26,6 +26,8 @@ import { TASK_MIN_CREW } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { dobDisplay, dobOf, type PersonRecord, type RecordIndex, type VehicleRecord } from "@/lib/sim/records";
 import type { LedsCheck } from "@/lib/sim/leds";
+import { generateVehicle } from "@/lib/sim/leds-db";
+import type { SubjectVehicle } from "@/lib/sim/subject";
 import type { ResolvedDeployment } from "../components/incident-view";
 import { competencyFor, type TaskWorkspaceProps } from "./mdt-task-workspace";
 import { PncPage } from "./pnc-page";
@@ -259,7 +261,7 @@ function vehiclesOnJob(incident: Incident, index?: RecordIndex): VehicleRecord[]
   if (own.length) return own;
   // An ANPR-raised job carries its VRM in the trigger text, not a record.
   const m = `${incident.scenario.title} ${incident.scenario.trigger}`.match(/\b[A-Z]{2}\d{2}\s?[A-Z]{3}\b/);
-  return m ? [{ id: `vrm:${m[0]}`, vrm: m[0], make: "", model: "", scenarioId: incident.scenarioId }] : [];
+  return m ? [{ ...generateVehicle(m[0]), id: `vrm:${m[0]}`, scenarioId: incident.scenarioId }] : [];
 }
 
 function nameMatches(query: string, name: string): boolean {
@@ -320,6 +322,8 @@ export type PoliceControlsProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAb
   requestedPage?: { page: "pnc" | "anpr"; seq: number } | null;
   /** What the officer has in hand, for the tablet's top strip. */
   onSelectionChange?: (sel: PoliceSelection | null) => void;
+  /** The car the job is chasing — the tactics act on its live track. */
+  subject?: SubjectVehicle | null;
 };
 
 export type PoliceSelection = {
@@ -435,7 +439,16 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
 
   // ---- Vehicles ------------------------------------------------------------------
   const searchTask = (v: VehicleRecord) => tasks.find((t) => t.kind === "vehicle_search" && t.vehicleVrm === v.vrm && t.state !== "aborted");
+  const subject = props.subject && vehicles.some((v) => v.vrm.replace(/\s/g, "") === props.subject!.vrm.replace(/\s/g, "")) ? props.subject : null;
+  const isSubject = (v: VehicleRecord) => !!subject && v.vrm.replace(/\s/g, "") === subject.vrm.replace(/\s/g, "");
+  const subjectLoose = !!subject && (subject.state === "moving" || subject.state === "pursuit");
   const vehicleStatus = (v: VehicleRecord): string => {
+    if (isSubject(v) && subject) {
+      if (subject.state === "pursuit") return `PURSUIT · ${subject.trackLive ? `held by ${subject.trackHeldBy.join(", ")}` : "track lost"}`;
+      if (subject.state === "moving") return subject.trackLive ? `Track live · ${subject.trackHeldBy.join(", ")}` : subject.lastSeenAt ? `Not in sight · last read ${wall(subject.lastSeenAt)}` : "Not sighted";
+      if (subject.state === "gone") return "Gone — abandoned or parked up";
+      if (subject.state === "contained") return "Contained";
+    }
     const t = searchTask(v);
     if (t?.state === "active") return "Search in progress";
     if (t?.state === "completed") return "Searched";
@@ -469,6 +482,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const needsVehicle = action.target === "vehicle";
   const targetMissing = (needsPerson && !person) || (needsVehicle && !vehicle);
   const tpacBlocked = !!action.tpac && !tpacTrained;
+  const trackNeeded = !!vehicle && isSubject(vehicle) && subjectLoose && !subject!.trackLive && ["vehicle_stop", "follow_contain", "tpac_box", "stinger", "tactical_contact"].includes(action.kind ?? "");
+  const subjectRunning = !!vehicle && isSubject(vehicle) && subjectLoose && ["vehicle_search", "vehicle_check"].includes(action.kind ?? "") && action.kind === "vehicle_search";
   const arrestBlocked = !!action.requiresArrest && !persons.some(isArrested);
   const isSearch = action.kind === "vehicle_search";
   const conveyRunning = action.kind === "convey_custody" ? active.find((t) => t.kind === "convey_custody" && t.personId === person?.id) : undefined;
@@ -505,7 +520,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
             ? !trafficTasks.some((t) => t.kind === "traffic_mgmt") || !props.onCompleteTask
             : action.control && !action.kind
               ? !canAct
-              : !canAct || targetMissing || tpacBlocked || !!runningOfKind || !!closureRunning || crewFor.length < minCrew || !props.onStartTask || (isSearch && !searchReady);
+              : !canAct || targetMissing || tpacBlocked || trackNeeded || subjectRunning || !!runningOfKind || !!closureRunning || crewFor.length < minCrew || !props.onStartTask || (isSearch && !searchReady);
 
   function requestSupport(kind: SupportKind) {
     const def = SUPPORT.find((s) => s.kind === kind)!;
@@ -906,6 +921,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       )}
       {action.leds === "person" && person && !detailsTask(person) && infoLine("Take the person's details first — the PNC needs a name and date of birth.", "warn")}
       {tpacBlocked && infoLine("This crew is not TPAC trained — request a roads policing unit.", "warn")}
+      {trackNeeded && infoLine("The vehicle is not in sight — search the ground or wait for a camera read; the tactics need a live track.", "warn")}
+      {subjectRunning && infoLine("The vehicle is still moving — stop it first.", "warn")}
       {arrestBlocked && infoLine("Custody transport needs someone under arrest.", "warn")}
       {!canAct && !action.leds && !action.support && infoLine(resolvedIncident ? "The incident is closed." : "Actions start once the unit is on scene.")}
       {canAct && !action.leds && !action.support && !action.run && crewFor.length < minCrew && infoLine("All officers are committed — abort or complete a task first.", "warn")}

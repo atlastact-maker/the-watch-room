@@ -100,6 +100,17 @@ export const scenario46: Scenario = {
       "Police only — roads policing intercept with a second roads car, one divisional car and a dog. NPAS through the FIM if it runs. No ambulance, no fire",
   },
 
+  // The grey A3 is on the East Lancs eastbound now, read at Ellenbrook,
+  // and will be somewhere else in ten minutes. Sighting it is the job.
+  subject: {
+    vrm: "MA68 KHV",
+    start: { lat: 53.5113, lng: -2.3933 },
+    destination: { lat: 53.4806, lng: -2.2709 },
+    speedKph: 58,
+    compliance: 0.25,
+    headStartSec: 20,
+  },
+
   pda: [
     {
       id: "rpu1",

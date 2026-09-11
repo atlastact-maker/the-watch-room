@@ -312,6 +312,10 @@ export type Scenario = {
    *  marker so the crew can see where it sits on the road. */
   sceneVehicles?: SceneVehicle[];
 
+  /** The car the job is about, moving on real roads — read by the ANPR
+   *  network, sighted by crews, stopped by the tactics. See subject.ts. */
+  subject?: import("./subject").SubjectSpec;
+
   /** Optional hand-authored top-down incident scene. Present for scenarios
    *  that have a ground-view authored; absent scenarios render a generic
    *  placeholder when the ground view is opened. */
@@ -933,6 +937,12 @@ export type Deployment = {
   /** Outbound route polyline, [lat, lng] pairs. */
   routeCoords?: [number, number][];
 
+  /** A unit sent to hold or search a point on the patch rather than the
+   *  incident address — an ANPR site ahead of a subject vehicle, a
+   *  junction to contain. It routes there and holds; the incident's
+   *  address is not where it is. */
+  searchTarget?: { lat: number; lng: number; label: string };
+
   /** Operator-chosen parking position on the ground scene. Until set, the
    *  appliance is not yet rendered on the scene — the operator must place it. */
   parkingPos?: { lat: number; lng: number };
@@ -1130,6 +1140,7 @@ export type TaskKind =
   | "welfare_check"       // timed — welfare and safeguarding check
   | "vehicle_search"      // timed — a search of a vehicle with grounds and a power
   | "convey_custody"      // timed — a detained person to custody in the van
+  | "area_search"         // ongoing — driving the ground looking for a subject vehicle
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
   // BA follow-on
@@ -1545,6 +1556,7 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   welfare_check: 1,
   vehicle_search: 1,
   convey_custody: 1,
+  area_search: 1,
   follow_contain: 1,
   tpac_box: 1,
   stinger: 1,
@@ -1590,6 +1602,7 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   welfare_check: ["Police"],
   vehicle_search: ["Police"],
   convey_custody: ["Police"],
+  area_search: ["Police"],
   follow_contain: ["Police"],
   tpac_box: ["Police"],
   stinger: ["Police"],

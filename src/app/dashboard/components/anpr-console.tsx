@@ -62,11 +62,14 @@ export function AnprConsole({
   onEnquire,
   onLocate,
   onCreateCall,
+  extraHits,
   onClose,
 }: {
   /** Raise the hit as a call on the stack — the ANPR desk relaying, no
    *  member of the public on the line. */
   onCreateCall?: (hit: AnprHit) => void;
+  /** Reads of a live subject vehicle, on top of the site's own traffic. */
+  extraHits?: AnprHit[];
   /** The feed runs from the start of the shift, so the console is not
    *  empty the moment it is opened. */
   shiftStartedAt: number;
@@ -93,8 +96,8 @@ export function AnprConsole({
   // 1 Hz would be wasted work.
   const minute = Math.floor(now / 60_000);
   const hits = useMemo(
-    () => hitsBetween(shiftStartedAt, minute * 60_000 + 60_000),
-    [shiftStartedAt, minute],
+    () => [...(extraHits ?? []), ...hitsBetween(shiftStartedAt, minute * 60_000 + 60_000)].sort((a, b) => b.atMs - a.atMs),
+    [shiftStartedAt, minute, extraHits],
   );
   const reads = readCount(shiftStartedAt, now);
 

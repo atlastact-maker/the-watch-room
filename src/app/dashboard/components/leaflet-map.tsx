@@ -14,6 +14,7 @@ import {
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
+import { SubjectLayer, type SubjectView, type HoldingUnit } from "./subject-layer";
 import {
   bearingDeg,
   orbitPosition,
@@ -281,6 +282,10 @@ type Props = {
    *  Stations, movers and trails are NOT gated — a responding unit must
    *  stay visible the whole way in, not vanish at a zoom boundary. */
   showIncidentMarker?: boolean;
+  /** Subject vehicles on the patch and the units holding points for them. */
+  subjects?: SubjectView[];
+  holdingUnits?: HoldingUnit[];
+  now?: number;
 };
 
 export function LeafletMap({
@@ -297,6 +302,9 @@ export function LeafletMap({
   onZoomIntoGround,
   focus,
   showBasemapToggle = true,
+  subjects,
+  holdingUnits,
+  now,
 }: Props) {
   const center: [number, number] = activeIncident
     ? [
@@ -375,6 +383,7 @@ export function LeafletMap({
         selectedApplianceId={selectedApplianceId}
         onOpenStationBays={onOpenStationBays}
       />
+      {(subjects?.length || holdingUnits?.length) ? <SubjectLayer subjects={subjects ?? []} holding={holdingUnits ?? []} now={now ?? Date.now()} /> : null}
     </MapContainer>
     </div>
   );

@@ -3196,6 +3196,8 @@ function taskShortLabel(k: TaskKind): string {
       return "Veh Search";
     case "convey_custody":
       return "To Custody";
+    case "area_search":
+      return "Area Search";
     case "triage_sieve":
       return "Triage";
     case "extract_casualty":

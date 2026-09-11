@@ -31,6 +31,7 @@ import { MdtNotepad } from "../vector/mdt-notepad";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
 import type { RecordIndex } from "@/lib/sim/records";
 import type { LedsCheck } from "@/lib/sim/leds";
+import type { SubjectVehicle } from "@/lib/sim/subject";
 import type { Eta } from "./deployment-board";
 import type { Patch } from "@/lib/sim/areas";
 
@@ -146,6 +147,8 @@ type Props = {
   onRequestSupport?: (kind: SupportKind, applianceId: string) => void;
   /** The desk's Systems menu opening PNC or ANPR on the tablet. */
   policePage?: { page: "pnc" | "anpr"; seq: number } | null;
+  /** The car the job is chasing, when there is one. */
+  subject?: SubjectVehicle | null;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -350,6 +353,7 @@ export function DraggableIncidentMdt(props: Props) {
         onRequestSupport={props.onRequestSupport}
         onArmPlacement={props.onArmPlacement}
         requestedPage={props.policePage}
+        subject={props.subject}
         onSelectionChange={setPoliceSel}
       />
     );

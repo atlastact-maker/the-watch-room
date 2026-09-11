@@ -30,6 +30,9 @@ export function EmbeddedMap({
   onZoomIntoGround,
   focus,
   showBasemapToggle,
+  subjects,
+  holdingUnits,
+  now,
 }: {
   stations: StationWithAppliances[];
   activeIncident: Incident | null;
@@ -54,6 +57,9 @@ export function EmbeddedMap({
   onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
   focus?: MapFocus | null;
   showBasemapToggle?: boolean;
+  subjects?: import("./subject-layer").SubjectView[];
+  holdingUnits?: import("./subject-layer").HoldingUnit[];
+  now?: number;
 }) {
   return (
     <div className="absolute inset-0 bg-(--color-bg)">
@@ -71,6 +77,9 @@ export function EmbeddedMap({
         onZoomIntoGround={onZoomIntoGround}
         focus={focus}
         showBasemapToggle={showBasemapToggle}
+        subjects={subjects}
+        holdingUnits={holdingUnits}
+        now={now}
       />
     </div>
   );
