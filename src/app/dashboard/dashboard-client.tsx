@@ -187,6 +187,9 @@ import { PatientCareTile } from "./vector/patient-care";
 import { TaskingTile } from "./vector/tasking-tile";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
+import { ShiftDebriefScreen, type ShiftJobSummary } from "./components/shift-debrief";
+import type { IncidentSimState } from "@/lib/sim/incident_sim";
+import { useRouter } from "next/navigation";
 import { GlossaryOverlay } from "./components/glossary-overlay";
 import { ResumePrompt } from "./components/resume-prompt";
 import {
@@ -208,7 +211,7 @@ import { useVectorTheme } from "./vector/theme";
 import { LogTile } from "./vector/log-tile";
 import { Poppable } from "./vector/popout";
 import type { Menu, VectorScreen } from "./vector/chrome";
-import { shortAddress } from "./vector/model";
+import { shortAddress, incidentRef } from "./vector/model";
 import "./vector/vector.css";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
@@ -522,6 +525,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   const [preShiftStates, setPreShiftStates] = useState<Record<string, PreShiftState>>({});
   const [log, setLog] = useState<LogEntry[]>([]);
+  /** Jobs closed off the board this shift, kept for their debrief and
+   *  the end-of-shift screen. A scored job is not shown its debrief
+   *  unasked: it waits in a card until the operator wants it. */
+  type ClosedJob = {
+    incident: Incident;
+    outcome: IncidentOutcome;
+    deployments: Deployment[];
+    sim: IncidentSimState | null;
+    treatmentByCasualtyId: Record<string, PatientTreatmentState>;
+    tasks: Task[];
+    closedAt: number;
+  };
+  const [closedJobs, setClosedJobs] = useState<ClosedJob[]>([]);
+  const [reviewJobId, setReviewJobId] = useState<string | null>(null);
+  const [shiftDebriefOpen, setShiftDebriefOpen] = useState(false);
+  const router = useRouter();
   /** Subject vehicles by incident — the car a job is chasing, ticked
    *  once a second against the units' positions. */
   const [subjects, setSubjects] = useState<Record<string, SubjectVehicle>>({});
@@ -3634,6 +3653,30 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   function dismissIncident() {
     const id = selectedIncidentId;
     if (!id) return;
+    dismissIncidentById(id);
+  }
+
+  /** Close a scored job off the board: its record goes to the shift's
+   *  closed jobs for the debrief, and its units are released. */
+  function dismissIncidentById(id: string) {
+    const inc = incidents.find((i) => i.id === id);
+    const rt = runtimes[id];
+    if (inc && rt?.outcome) {
+      const ids = new Set((inc.scenario.scene?.casualties ?? []).map((c) => c.id));
+      const tx: Record<string, PatientTreatmentState> = {};
+      for (const [cid, t] of Object.entries(treatmentByCasualtyId)) if (ids.has(cid)) tx[cid] = t;
+      const snapshot: ClosedJob = {
+        incident: inc,
+        outcome: rt.outcome,
+        deployments: deployments.filter((d) => d.incidentId === id),
+        sim: activeIncident?.id === id ? incidentSim : null,
+        treatmentByCasualtyId: tx,
+        tasks: rt.tasks,
+        closedAt: Date.now(),
+      };
+      setClosedJobs((prev) => [...prev.filter((j) => j.incident.id !== id), snapshot]);
+    }
+    if (reviewJobId === id) setReviewJobId(null);
     setIncidents((prev) => {
       const rest = prev.filter((i) => i.id !== id);
       setSelectedIncidentId(rest.length > 0 ? rest[rest.length - 1].id : null);
@@ -5633,6 +5676,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         { label: "Print incident record", act: () => window.print() },
         { label: "Export for handover", act: () => {}, disabled: true, title: "Not built yet" },
         { sep: true },
+        { label: "End shift · debrief", hint: closedJobs.length ? `${closedJobs.length} closed` : undefined, act: () => setShiftDebriefOpen(true), title: "Every job this shift, with its grade" },
         { label: "New shift · change briefing", act: () => changePatch() },
         { label: audioMuted ? "Unmute audio" : "Mute audio", hint: audioMuted ? "off" : "on", act: () => toggleAudioMuted() },
         { sep: true },
@@ -5681,7 +5725,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           disabled: !groundAvailable,
         },
         { label: "Stop message · resolve", act: () => void resolveIncident(), disabled: !activeIncident || !!outcome || !!handover, title: "Send the stop and score the job" },
-        { label: "Close incident · debrief", act: () => dismissIncident(), disabled: !activeIncident || !outcome },
+        { label: "Review debrief", act: () => activeIncident && setReviewJobId(activeIncident.id), disabled: !activeIncident || !outcome, title: "The scored job's hot debrief" },
+        { label: "Close incident", act: () => dismissIncident(), disabled: !activeIncident || !outcome, title: "Off the board — its debrief stays in End shift" },
         { sep: true },
         { label: "Clear selection", act: () => setSelectedIncidentId(null), disabled: !activeIncident },
       ],
@@ -6512,16 +6557,82 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             onClose={() => setGlossaryOpen(false)}
             stations={PATCH_AREAS.flatMap((a) => stationsByArea[a])}
           />
-          {activeIncident && outcome && (
-            <DebriefScreen
-              incident={activeIncident}
-              outcome={outcome}
-              deployments={incidentDeployments}
-              sim={incidentSim}
-              treatmentByCasualtyId={treatmentByCasualtyId}
-              log={log}
-              tasks={tasks}
-              onDismiss={dismissIncident}
+          {/* Scored jobs wait in a card until the operator wants the debrief. */}
+          {!shiftDebriefOpen && !reviewJobId && (() => {
+            const scored = incidents.filter((i) => runtimes[i.id]?.outcome);
+            if (scored.length === 0) return null;
+            return (
+              <div className="vec-review-toasts">
+                {scored.map((i) => {
+                  const o = runtimes[i.id]!.outcome!;
+                  return (
+                    <div key={i.id} className={`vec-review-toast ${o.grade === "A" || o.grade === "B" ? "go" : o.grade === "C" ? "warn" : "stop"}`}>
+                      <div className="grade">{o.grade}</div>
+                      <div className="body">
+                        <b>{incidentRef(i)} · {i.scenario.title}</b>
+                        <span>Stop message sent · {o.passedCount} of {o.totalCount} targets met</span>
+                      </div>
+                      <div className="btns">
+                        <button type="button" className="vec-btn solid" onClick={() => setReviewJobId(i.id)}>Review</button>
+                        <button type="button" className="vec-btn" title="Close the job and release its units — the debrief stays in End shift" onClick={() => dismissIncidentById(i.id)}>Close job</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {reviewJobId && (() => {
+            const live = incidents.find((i) => i.id === reviewJobId);
+            const rt = live ? runtimes[live.id] : undefined;
+            const closed = closedJobs.find((j) => j.incident.id === reviewJobId);
+            if (live && rt?.outcome) {
+              return (
+                <DebriefScreen
+                  incident={live}
+                  outcome={rt.outcome}
+                  deployments={deployments.filter((d) => d.incidentId === live.id)}
+                  sim={activeIncident?.id === live.id ? incidentSim : null}
+                  treatmentByCasualtyId={treatmentByCasualtyId}
+                  log={log}
+                  tasks={rt.tasks}
+                  onDismiss={() => setReviewJobId(null)}
+                  dismissLabel={shiftDebriefOpen ? "Back to the shift debrief" : "Back to the desk"}
+                />
+              );
+            }
+            if (closed) {
+              return (
+                <DebriefScreen
+                  incident={closed.incident}
+                  outcome={closed.outcome}
+                  deployments={closed.deployments}
+                  sim={closed.sim}
+                  treatmentByCasualtyId={closed.treatmentByCasualtyId}
+                  log={log}
+                  tasks={closed.tasks}
+                  onDismiss={() => setReviewJobId(null)}
+                  dismissLabel={shiftDebriefOpen ? "Back to the shift debrief" : "Back to the desk"}
+                />
+              );
+            }
+            return null;
+          })()}
+          {shiftDebriefOpen && !reviewJobId && (
+            <ShiftDebriefScreen
+              shiftStartedAt={shiftStartedAt}
+              now={now}
+              operator={`Operator ${userEmail.split("@")[0]}`}
+              jobs={[
+                ...closedJobs.map((j): ShiftJobSummary => {
+                  const stages = Object.values(j.sim?.casualtyProgression ?? {}).map((p: { stage: string }) => p.stage);
+                  return { id: j.incident.id, ref: incidentRef(j.incident), title: j.incident.scenario.title, typeCode: j.incident.scenario.type, address: j.incident.scenario.location.address, receivedAt: j.incident.receivedAt, resolvedAt: j.incident.resolvedAt ?? j.closedAt, outcome: j.outcome, resources: j.deployments.length, casualtiesSaved: stages.filter((st) => st === "at_hospital").length, casualtiesLost: stages.filter((st) => st === "expectant").length, open: false };
+                }),
+                ...incidents.map((i): ShiftJobSummary => ({ id: i.id, ref: incidentRef(i), title: i.scenario.title, typeCode: i.scenario.type, address: i.scenario.location.address, receivedAt: i.receivedAt, resolvedAt: i.resolvedAt ?? null, outcome: runtimes[i.id]?.outcome ?? null, resources: deployments.filter((d) => d.incidentId === i.id).length, casualtiesSaved: 0, casualtiesLost: 0, open: !runtimes[i.id]?.outcome })),
+              ].sort((a, b) => a.receivedAt - b.receivedAt)}
+              onReview={(id) => setReviewJobId(id)}
+              onBack={() => setShiftDebriefOpen(false)}
+              onLeave={() => router.push("/menu")}
             />
           )}
         </>

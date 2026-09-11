@@ -25,6 +25,7 @@ export function DebriefScreen({
   log,
   tasks,
   onDismiss,
+  dismissLabel = "Back to the desk",
 }: {
   incident: Incident;
   outcome: IncidentOutcome;
@@ -34,6 +35,7 @@ export function DebriefScreen({
   log: LogEntry[];
   tasks: Task[];
   onDismiss: () => void;
+  dismissLabel?: string;
 }) {
   const casualties = incident.scenario.scene?.casualties ?? [];
   const firstMobile = deployments.reduce<number | null>((acc, d) => {
@@ -256,7 +258,7 @@ export function DebriefScreen({
             onClick={onDismiss}
             className="rounded-sm border border-(--color-amber) bg-(--color-amber)/10 px-5 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/20"
           >
-            End shift debrief
+            {dismissLabel}
           </button>
         </div>
       </div>

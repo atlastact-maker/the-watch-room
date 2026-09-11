@@ -4519,3 +4519,51 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-subject-log .row.sighted span:last-child, .vec-subject-log .row.stopped span:last-child, .vec-subject-log .row.contained span:last-child { color: var(--vec-go); font-weight: 700; }
 .vec-subject-log .row.failed_to_stop span:last-child, .vec-subject-log .row.lost span:last-child, .vec-subject-log .row.gone span:last-child { color: var(--vec-stop); font-weight: 700; }
 .vec-subject-log .row.ping span:last-child { color: var(--vec-warn); }
+
+/* ---- Scored jobs waiting for their debrief ------------------------------- */
+.vec-review-toasts { position: absolute; right: 16px; bottom: 60px; z-index: 1260; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+.vec-review-toast { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--vec-border); border-left-width: 4px; border-radius: 3px; background: var(--vec-surface); color: var(--vec-text); box-shadow: 0 8px 20px #0006; font-size: 12px; }
+.vec-review-toast.go { border-left-color: var(--vec-go); }
+.vec-review-toast.warn { border-left-color: var(--vec-warn); }
+.vec-review-toast.stop { border-left-color: var(--vec-stop); }
+.vec-review-toast .grade { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 3px; background: var(--vec-bar); color: var(--vec-bar-text, #fff); font: 800 22px var(--vec-mono, Consolas, monospace); }
+.vec-review-toast.go .grade { background: var(--vec-go); }
+.vec-review-toast.warn .grade { background: var(--vec-warn); color: #1a1a1a; }
+.vec-review-toast.stop .grade { background: var(--vec-stop); }
+.vec-review-toast .body { display: flex; flex-direction: column; min-width: 0; }
+.vec-review-toast .body b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vec-review-toast .body span { font-size: 11px; color: var(--vec-text-dim); }
+.vec-review-toast .btns { display: flex; gap: 4px; }
+
+/* ---- End of shift ---------------------------------------------------------- */
+.vec-shift-debrief { position: fixed; inset: 0; z-index: 2000; overflow-y: auto; background: var(--vec-bg); color: var(--vec-text); font: 13px/1.4 var(--vec-sans, Arial, sans-serif); }
+.vec-shift-debrief-inner { max-width: 1100px; margin: 0 auto; padding: 28px 24px 40px; display: flex; flex-direction: column; gap: 14px; }
+.vec-shift-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); }
+.vec-shift-head .eyebrow { font: 700 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.14em; color: var(--vec-warn); }
+.vec-shift-head h1 { margin: 4px 0 0; font: 700 22px var(--vec-sans, Arial, sans-serif); }
+.vec-shift-head p { margin: 4px 0 0; font: 11px var(--vec-mono, Consolas, monospace); letter-spacing: 0.06em; color: var(--vec-text-dim); text-transform: uppercase; }
+.vec-shift-grade { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 120px; padding: 8px 14px; border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface-raised); }
+.vec-shift-grade span { font: 800 44px/1 var(--vec-mono, Consolas, monospace); }
+.vec-shift-grade small { font-size: 10px; color: var(--vec-text-dim); margin-top: 4px; text-align: center; }
+.vec-shift-grade.go span { color: var(--vec-go); }
+.vec-shift-grade.warn span { color: var(--vec-warn); }
+.vec-shift-grade.stop span { color: var(--vec-stop); }
+.vec-shift-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.vec-shift-stats > div { display: flex; flex-direction: column; align-items: center; padding: 10px 8px; border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); }
+.vec-shift-stats b { font: 800 22px/1 var(--vec-mono, Consolas, monospace); }
+.vec-shift-stats span { margin-top: 4px; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--vec-text-muted); text-align: center; }
+.vec-shift-stats > div.stop b { color: var(--vec-stop); }
+.vec-shift-warn { margin: 0; padding: 8px 12px; border: 1px solid var(--vec-warn); border-radius: 3px; background: var(--vec-warn-tint, #f7ecd2); color: var(--vec-text); font-size: 12px; }
+.vec-shift-jobs { border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); overflow: hidden; }
+.vec-shift-jobs .row { display: grid; grid-template-columns: 60px minmax(0, 1fr) 90px 80px 110px 80px; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--vec-border-subtle); font-size: 12px; }
+.vec-shift-jobs .row:last-child { border-bottom: 0; }
+.vec-shift-jobs .row.head { background: var(--vec-surface-raised); font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--vec-text-muted); }
+.vec-shift-jobs .row span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
+.vec-shift-jobs .row span:nth-child(2) small { color: var(--vec-text-muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vec-shift-jobs .row.open { background: var(--vec-warn-tint, #f7ecd2); }
+.vec-shift-jobs .grade { font: 800 13px var(--vec-mono, Consolas, monospace); }
+.vec-shift-jobs .grade.go { color: var(--vec-go); }
+.vec-shift-jobs .grade.warn { color: var(--vec-warn); }
+.vec-shift-jobs .grade.stop { color: var(--vec-stop); }
+.vec-shift-foot { display: flex; justify-content: flex-end; gap: 8px; }
+.vec-shift-foot .vec-btn { min-height: 36px; padding: 0 16px; font-size: 12px; }
