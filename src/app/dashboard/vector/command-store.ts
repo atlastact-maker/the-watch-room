@@ -35,6 +35,9 @@ export type CommandPlan = {
   sectors: Record<string, SectorAssignment>;
   /** Assistance messages sent to control from the tablet. */
   assistance: { id: string; label: string; at: number }[];
+  /** The BA emergency team held at entry control — two wearers rigged
+   *  and waiting, committed only to bring a team out. */
+  emergencyTeam?: { crewIds: string[]; names: string[]; callsign: string; at: number };
 };
 
 export type SectorAssignment = {

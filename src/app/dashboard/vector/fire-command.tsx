@@ -154,6 +154,9 @@ export type FireCommandProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbort
   onDeclareTacticalMode?: (mode: "offensive" | "defensive" | "transitional") => void;
   /** An assistance message to control: make pumps N, ambulance, police… */
   onRequestSupport?: (kind: string, applianceId: string, detail?: string) => void;
+  structural?: { integrity: number; collapsedAt: number | null; evacuatedAt: number | null; injured: number };
+  onEvacuate?: () => void;
+  waterClock?: Record<string, number | null>;
 };
 
 export function FireCommandScreen(props: FireCommandProps) {
@@ -288,7 +291,7 @@ export function FireCommandScreen(props: FireCommandProps) {
     const hit = allCrew.find((x) => x.c.id === crewId);
     if (!hit) return;
     set((p) => ({ ...p, sectors: { ...p.sectors, [sectorId]: { ...(p.sectors[sectorId] ?? { applianceIds: [] }), commander: { crewId: hit.c.id, name: hit.c.name, callsign: hit.callsign } } } }));
-    note(`${sectors.find((x) => String(x.id) === sectorId)?.label ?? `Sector ${sectorId}`} · commander ${hit.c.name} (${hit.callsign})`);
+    props.onNote?.(`[sector-cmd] ${appliance.callsign} · ${sectors.find((x) => String(x.id) === sectorId)?.label ?? `Sector ${sectorId}`} · commander ${hit.c.name} (${hit.callsign})`);
   }
   function toggleSectorAppliance(sectorId: string, applianceId: string) {
     const cs = committed.find((r) => r.appliance.id === applianceId)?.appliance.callsign ?? applianceId;
@@ -315,6 +318,20 @@ export function FireCommandScreen(props: FireCommandProps) {
     if (!props.onRequestSupport) note(`ASSISTANCE MESSAGE — ${label}`);
   }
   const pumpsOnScene = committed.filter((r) => r.appliance.service === "Fire" && r.appliance.waterLitres > 0).length;
+  const [emergPick, setEmergPick] = useState<string[]>([]);
+  const baCapable = onScene.filter((r) => r.appliance.service === "Fire").flatMap((r) => r.appliance.crewMembers.filter((c) => /\bBA\b|Breathing Apparatus/i.test(c.quals.join(" "))).map((c) => ({ c, callsign: r.appliance.callsign })));
+  function nominateEmergencyTeam() {
+    const picked = baCapable.filter((x) => emergPick.includes(x.c.id));
+    if (picked.length < 2) return;
+    set((p) => ({ ...p, emergencyTeam: { crewIds: picked.map((x) => x.c.id), names: picked.map((x) => x.c.name), callsign: picked[0].callsign, at: now } }));
+    props.onNote?.(`[ba-emerg-team] ${appliance.callsign} · BA emergency team nominated at entry control — ${picked.map((x) => x.c.name).join(" and ")} (${picked[0].callsign})`);
+    setEmergPick([]);
+  }
+  const integrity = props.structural?.integrity ?? 100;
+  const collapsed = !!props.structural?.collapsedAt;
+  const structureTone = collapsed ? "stop" : integrity < 25 ? "stop" : integrity < 55 ? "warn" : "go";
+  const structureText = collapsed ? "COLLAPSED" : integrity < 25 ? "Collapse imminent — withdraw" : integrity < 55 ? "Compromised — restrict entry" : integrity < 85 ? "Fire-damaged — monitor" : "Sound";
+  const waterLeft = props.waterClock?.[appliance.id];
 
   // ---- Pieces ---------------------------------------------------------------
   const tasking = (page: "actions" | "water") => (
@@ -368,6 +385,7 @@ export function FireCommandScreen(props: FireCommandProps) {
           <SceneCanvas
             scene={sc.scene}
             deployments={onScene.map((r) => ({ deployment: r.deployment, callsign: r.appliance.callsign, service: r.appliance.service }))}
+            live={sim ? { fireRadiusM: sim.fireRadiusM, smokeRadiusM: sim.smokeRadiusM } : null}
           />
         ) : (
           <div className="vec-tile-empty">No scene plan for this incident</div>
@@ -384,6 +402,14 @@ export function FireCommandScreen(props: FireCommandProps) {
           <b>{STAGE_LABEL[fireStage]}</b>
           <span>{sim && sim.fireRadiusM > 0 ? `${sim.fireRadiusM.toFixed(0)} m · ${sim.fireRateMpm > 0.05 ? `growing ${sim.fireRateMpm.toFixed(1)} m/min` : sim.fireRateMpm < -0.05 ? `knocking down ${Math.abs(sim.fireRateMpm).toFixed(1)} m/min` : "holding"}` : "No fire on the ground"}</span>
         </div>
+        {sim && sim.fireRadiusM > 0 && (
+          <div className="fc-involve">
+            {([["Room", sim.involvement.room], ["Floor", sim.involvement.floor], ["Roof", sim.involvement.roof]] as const).map(([k, v]) => (
+              <div key={k} className={v >= 0.99 ? "stop" : v > 0 ? "warn" : ""}><span>{k}</span><i style={{ width: `${Math.round(v * 100)}%` }} /><b>{v >= 0.99 ? "involved" : v > 0 ? `${Math.round(v * 100)}%` : "clear"}</b></div>
+            ))}
+            <div className="smoke"><span>Smoke</span><b>{sim.smokeRadiusM.toFixed(0)} m from the seat</b></div>
+          </div>
+        )}
         {sim?.flashoverCountdownSec != null && <div className="fc-fire-alert">FLASHOVER IN {sim.flashoverCountdownSec}s — GET THEM OUT OR GET WATER ON IT</div>}
         {sim?.exposureBreached && <div className="fc-fire-alert warn">FIRE INTO THE EXPOSURE — the neighbour is involved</div>}
         <dl className="fc-facts">
@@ -392,7 +418,20 @@ export function FireCommandScreen(props: FireCommandProps) {
           <dt>Persons</dt><dd className={located.length || personsReported ? "warn" : ""}>{personsText}</dd>
           <dt>Utilities</dt><dd className={/LIVE/.test(utilities) ? "stop" : ""}>{utilities}</dd>
           <dt>Mode</dt><dd className={props.tacticalMode ? "hi" : "stop"}>{props.tacticalMode ? TACTICAL.find((t) => t.mode === props.tacticalMode)?.label : "Not declared"}</dd>
+          <dt>Structure</dt><dd className={structureTone}>{structureText}{props.structural?.injured ? ` · ${props.structural.injured} firefighter${props.structural.injured === 1 ? "" : "s"} injured` : ""}</dd>
         </dl>
+        {props.structural && sim?.fireMaterial && sim.fireMaterial !== "vegetation" && (
+          <div className={`fc-structure ${structureTone}`} title="Structural integrity — damage accrues while the fire is developed">
+            <i style={{ width: `${Math.max(0, Math.min(100, integrity))}%` }} />
+            <span>{collapsed ? "STRUCTURE FAILED" : `Structure ${Math.round(integrity)}%`}</span>
+          </div>
+        )}
+        {collapsed && <div className="fc-fire-alert">STRUCTURAL COLLAPSE — nobody goes back in</div>}
+        {props.onEvacuate && (
+          <button type="button" className="fc-primary stop" disabled={resolvedIncident || collapsed} onClick={() => { if (window.confirm("Sound the evacuation whistles — every crew out of the building?")) props.onEvacuate?.(); }}>
+            <Icon d="M12 3l9 16H3zM12 10v4m0 3h.01" /> {props.structural?.evacuatedAt ? `Evacuated ${mmss(now - props.structural.evacuatedAt)} ago · sound again` : "EVACUATE — everyone out"}
+          </button>
+        )}
       </div>
     </Card>
   );
@@ -596,6 +635,7 @@ export function FireCommandScreen(props: FireCommandProps) {
         <dt>Tank</dt><dd className={tankPct < 30 ? "stop" : tankPct < 60 ? "warn" : ""}>{tankPct}% · {Math.round(appliance.waterLitres * tankPct / 100).toLocaleString()} L</dd>
         <dt>Pump</dt><dd className={pumpOn ? "go" : ""}>{pumpOn ? `Running · ${appliance.crewMembers.find((c) => c.id === unit.deployment.pumpOperatorCrewId)?.name ?? "operator"}` : "Not running"}</dd>
         <dt>Supply chain</dt><dd className={supplied ? "go" : waterActive.length ? "warn" : ""}>{supplied ? "Established — hydrant or relay feeding the pump" : waterActive.length ? "Being established" : "Tank only"}</dd>
+        <dt>Water clock</dt><dd className={supplied ? "go" : waterLeft != null ? (waterLeft < 120 ? "stop" : waterLeft < 300 ? "warn" : "") : ""}>{supplied ? "Unlimited on the hydrant" : waterLeft != null ? (waterLeft <= 0 ? "TANK DRY" : `Tank empty in ${mmss(waterLeft * 1000)} at this draw`) : "No draw on the tank"}</dd>
       </dl>
       <label className="fc-field inline"><span>Source</span>
         <select value={waterSource ?? plan.water.source} onChange={(e) => setWaterSource(e.target.value)}>
@@ -632,6 +672,21 @@ export function FireCommandScreen(props: FireCommandProps) {
           })}
         </tbody>
       </table>
+      <div className="fc-sub row"><span>Emergency team</span>{plan.emergencyTeam ? <span className="go">✓ {plan.emergencyTeam.names.join(" · ")}</span> : <span className="stop">Not nominated</span>}</div>
+      {!plan.emergencyTeam && (
+        <div className="fc-emerg">
+          {baCapable.length < 2 ? <p className="fc-note">Two BA-capable wearers on scene are needed for an emergency team.</p> : (
+            <>
+              <div className="fc-sector-units">
+                {baCapable.map((x) => (
+                  <button key={x.c.id} type="button" className={`fc-chip${emergPick.includes(x.c.id) ? " on" : ""}`} disabled={props.busyCrewIds?.has(x.c.id) || (!emergPick.includes(x.c.id) && emergPick.length >= 2)} title={`${x.c.name} · ${x.callsign}`} onClick={() => setEmergPick((p) => (p.includes(x.c.id) ? p.filter((id) => id !== x.c.id) : [...p, x.c.id]))}>{x.c.name.split(" ").pop()} · {x.callsign}</button>
+                ))}
+              </div>
+              <button type="button" className="fc-mini primary" disabled={emergPick.length !== 2 || !canAct} onClick={nominateEmergencyTeam}>Nominate emergency team</button>
+            </>
+          )}
+        </div>
+      )}
       <button type="button" className="fc-primary" onClick={() => setTab("ba")}><Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" /> Open entry control</button>
     </Card>
   );

@@ -148,6 +148,11 @@ type Props = {
    *  same door as strings (make_pumps with the number as detail). */
   onRequestSupport?: (kind: SupportKind | string, applianceId: string, detail?: string) => void;
   onDeclareTacticalMode?: (mode: "offensive" | "defensive" | "transitional") => void;
+  /** The building: how much is left of it, and whether it has gone. */
+  structural?: { integrity: number; collapsedAt: number | null; evacuatedAt: number | null; injured: number };
+  onEvacuate?: () => void;
+  /** Seconds of tank water left per pump at its current draw. */
+  waterClock?: Record<string, number | null>;
   /** The desk's Systems menu opening PNC or ANPR on the tablet. */
   policePage?: { page: "pnc" | "anpr"; seq: number } | null;
   /** The car the job is chasing, when there is one. */
@@ -329,6 +334,9 @@ export function DraggableIncidentMdt(props: Props) {
           tacticalMode={props.tacticalMode}
           onDeclareTacticalMode={props.onDeclareTacticalMode}
           onRequestSupport={props.onRequestSupport}
+          structural={props.structural}
+          onEvacuate={props.onEvacuate}
+          waterClock={props.waterClock}
         />
       );
     }

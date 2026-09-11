@@ -13,9 +13,12 @@ const APPLIANCE_SLOTS: { x: number; y: number }[] = [
 type Props = {
   scene: Scene;
   deployments: { deployment: Deployment; callsign: string; service: string }[];
+  /** The fire as the simulator has it now — radius and smoke — over the
+   *  authored seat. Absent draws the seat as authored. */
+  live?: { fireRadiusM: number; smokeRadiusM: number } | null;
 };
 
-export function SceneCanvas({ scene, deployments }: Props) {
+export function SceneCanvas({ scene, deployments, live }: Props) {
   return (
     <svg
       viewBox={`${scene.viewBox.x} ${scene.viewBox.y} ${scene.viewBox.width} ${scene.viewBox.height}`}
@@ -81,7 +84,10 @@ export function SceneCanvas({ scene, deployments }: Props) {
         ))}
 
       {/* Fire seat + smoke with live pulse animation */}
-      {scene.fireSeat && <FireGlyph fire={scene.fireSeat} />}
+      {scene.fireSeat && live && live.smokeRadiusM > 0 && (
+        <circle cx={scene.fireSeat.pos.x} cy={scene.fireSeat.pos.y} r={live.smokeRadiusM} fill="rgba(60,60,70,0.28)" stroke="rgba(60,60,70,0.45)" strokeWidth="0.2" strokeDasharray="0.8 0.6" />
+      )}
+      {scene.fireSeat && <FireGlyph fire={live ? { ...scene.fireSeat, radiusM: live.fireRadiusM } : scene.fireSeat} />}
 
       <style>{`
         @keyframes sim-fire-pulse {

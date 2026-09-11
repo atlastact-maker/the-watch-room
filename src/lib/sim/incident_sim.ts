@@ -87,6 +87,13 @@ export type IncidentSimState = {
   firstArrivalElapsedSec: number;
   baMinutesOnScene: number;
   baSarMinutes: number;
+  /** The smoke ahead of the fire, as a radius from the seat. Casualties
+   *  inside it deteriorate faster; BA search inside it is slower. */
+  smokeRadiusM: number;
+  /** How much of the building is involved, 0–1 each: the room of
+   *  origin, the rest of the floor, the roof and the neighbour. Read off
+   *  the radius against the scene's maximum. */
+  involvement: { room: number; floor: number; roof: number };
 };
 
 // --- Progression cadence constants --------------------------------------
@@ -318,6 +325,22 @@ export function simulateIncident(
     }
   }
 
+  // --- Smoke and involvement ----------------------------------------------
+  // Smoke runs ahead of the flame front: a compartment fire fills the
+  // floor with smoke long before the flames reach it, and an extinguished
+  // fire leaves a building that clears over a few minutes.
+  let smokeRadiusM = 0;
+  const involvement = { room: 0, floor: 0, roof: 0 };
+  if (scene?.fireSeat && fireRadiusM > 0) {
+    const maxR = scene.fireSeat.maxRadiusM ?? 15;
+    const pct = maxR > 0 ? fireRadiusM / maxR : 0;
+    const smokey = material === "vegetation" ? 1.3 : material === "vehicle" ? 1.4 : 1.9;
+    smokeRadiusM = fireRadiusM * smokey + (material === "vegetation" ? 0 : 3);
+    involvement.room = Math.min(1, pct / 0.35);
+    involvement.floor = Math.max(0, Math.min(1, (pct - 0.3) / 0.4));
+    involvement.roof = Math.max(0, Math.min(1, (pct - 0.65) / 0.35));
+  }
+
   // --- Hazard reveal + mitigation ------------------------------------------
   const mitigatedHazardIds = tasks
     .filter((t) => t.kind === "mitigate_hazard" && t.state === "completed" && t.hazardId)
@@ -405,7 +428,12 @@ export function simulateIncident(
 
     for (const c of scene.casualties) {
       if (absent.has(c.id)) continue; // not in the building this run
-      const located = baSarMinutes >= c.discoverAfterMinBa;
+      // A casualty inside the smoke is harder to find and going downhill
+      // faster: the search threshold stretches with the floor involved,
+      // and the deterioration clock runs at 60% of its window.
+      const fromSeat = scene.fireSeat ? Math.hypot(c.pos.x - scene.fireSeat.pos.x, c.pos.y - scene.fireSeat.pos.y) : Infinity;
+      const inSmoke = fromSeat <= smokeRadiusM;
+      const located = baSarMinutes >= c.discoverAfterMinBa * (1 + 0.5 * involvement.floor);
       const paired = pairingByCasualtyId[c.id];
       // Treatment is paused while paired with an on-scene ambulance OR
       // while conveying. Once delivered to hospital, the casualty stays
@@ -436,7 +464,10 @@ export function simulateIncident(
       let effectiveIdx = SEVERITY_ORDER.indexOf(initialSeverity);
       if (!treated) {
         const tx = treatmentByCasualtyId?.[c.id];
-        const { windowSec, savedGrades } = treatmentModifiers(tx, incidentSec);
+        const { windowSec: baseWindow, savedGrades } = treatmentModifiers(tx, incidentSec);
+        // Smoke bites once the fire is out of its room: the window
+        // shortens by a fifth for anyone still inside and unfound.
+        const windowSec = inSmoke && !located && involvement.floor > 0 ? baseWindow * 0.8 : baseWindow;
         const worseningRaw = Math.floor(incidentSec / windowSec);
         const worsening = Math.max(0, worseningRaw - savedGrades);
         effectiveIdx = Math.min(SEVERITY_ORDER.length - 1, effectiveIdx + worsening);
@@ -497,6 +528,8 @@ export function simulateIncident(
       firstArrival === null ? 0 : Math.max(0, (now - firstArrival) / 1000),
     baMinutesOnScene,
     baSarMinutes,
+    smokeRadiusM,
+    involvement,
   };
 }
 

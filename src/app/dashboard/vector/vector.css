@@ -4605,3 +4605,20 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 @container (max-width: 1100px) {
   .fc-assist { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Fire command: structure, involvement, emergency team */
+.fc-structure { position: relative; height: 18px; border: 1px solid var(--fc-line); border-radius: 2px; background: var(--fc-card-h); overflow: hidden; }
+.fc-structure i { display: block; height: 100%; background: var(--fc-go); transition: width 0.5s; }
+.fc-structure.warn i { background: var(--fc-warn); }
+.fc-structure.stop i { background: var(--fc-stop); }
+.fc-structure span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; color: var(--fc-text); }
+.fc-primary.stop { background: var(--fc-stop); border-color: var(--fc-stop); color: #fff; }
+.fc-involve { display: grid; gap: 4px; }
+.fc-involve > div { display: grid; grid-template-columns: 44px minmax(0, 1fr) 64px; align-items: center; gap: 8px; font-size: 11px; }
+.fc-involve > div span { font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; color: var(--fc-muted); }
+.fc-involve > div i { display: block; height: 8px; border-radius: 1px; background: var(--fc-warn); }
+.fc-involve > div.stop i { background: var(--fc-stop); }
+.fc-involve > div b { text-align: right; font-weight: 600; }
+.fc-involve > div.smoke { grid-template-columns: 44px minmax(0, 1fr); }
+.fc-involve > div.smoke b { text-align: left; }
+.fc-emerg { display: flex; flex-direction: column; gap: 6px; }

@@ -157,6 +157,92 @@ export function scoreIncident(
     });
   }
 
+  // 5a. The fireground — what the commander did with the crews. Read off
+  //     the log's tagged entries and the task record. Only where fire
+  //     appliances were committed to a fire.
+  const fireTasks = (tasks ?? []).filter((t) => t.state !== "aborted" || t.kind === "ba_sar" || t.kind === "hose_attack");
+  const fireDeps = deployments.filter((d) => d.arrivesAt);
+  if (sim && incident.scenario.scene?.fireSeat && fireDeps.length > 0 && log) {
+    const firstArrival = fireDeps.reduce<number | null>((acc, d) => (acc === null || d.arrivesAt < acc ? d.arrivesAt : acc), null);
+    const firstJet = fireTasks.filter((t) => t.kind === "hose_attack").reduce<number | null>((acc, t) => (acc === null || t.startedAt < acc ? t.startedAt : acc), null);
+    const has = (prefix: string) => log.some((e) => e.id.startsWith(prefix));
+    const firstOf = (prefix: string) => log.filter((e) => e.id.startsWith(prefix)).reduce<number | null>((acc, e) => (acc === null || e.timestamp < acc ? e.timestamp : acc), null);
+    const interior = fireTasks.filter((t) => t.kind === "ba_sar" || (t.kind === "hose_attack" && (t.attackMode ?? "interior_attack") === "interior_attack"));
+    const firstInside = interior.reduce<number | null>((acc, t) => (acc === null || t.startedAt < acc ? t.startedAt : acc), null);
+    const baCommitted = fireTasks.some((t) => t.kind === "ba_sar");
+    const burned = sim.fireRadiusM > 0 || log.some((e) => e.kind === "fire_stage");
+
+    if (burned && firstArrival !== null) {
+      const sec = firstJet !== null ? (firstJet - firstArrival) / 1000 : null;
+      metrics.push({
+        label: "Time to first jet",
+        target: "Water on the fire within 5 min of arrival",
+        actual: sec === null ? "No jet got to work" : `${fmtSecs(Math.max(0, sec))} after arrival`,
+        passed: sec === null ? false : sec <= 300 ? true : sec <= 600 ? "partial" : false,
+      });
+    }
+    if (firstInside !== null) {
+      const declared = firstOf("tac:");
+      const noMode = has("no-mode:");
+      metrics.push({
+        label: "Tactical mode before commitment",
+        target: "Offensive declared before crews go inside",
+        actual: noMode || declared === null ? "Crews committed inside with no mode declared" : declared <= firstInside ? "Declared before the first commitment" : "Declared after crews were already inside",
+        passed: noMode || declared === null ? false : declared <= firstInside ? true : "partial",
+      });
+    }
+    if (baCommitted) {
+      const team = firstOf("ba-emerg-team:");
+      const firstBa = fireTasks.filter((t) => t.kind === "ba_sar").reduce<number | null>((acc, t) => (acc === null || t.startedAt < acc ? t.startedAt : acc), null);
+      metrics.push({
+        label: "BA emergency team",
+        target: "Nominated at entry control before the first team goes in",
+        actual: team === null ? "No emergency team nominated" : firstBa !== null && team <= firstBa ? "In place before the first commitment" : "Nominated after a team was already under air",
+        passed: team === null ? false : firstBa !== null && team <= firstBa ? true : "partial",
+      });
+      metrics.push({
+        label: "BA discipline",
+        target: "Every team out before its time of whistle",
+        actual: has("ba-lost:") ? "A team went past its whistle with no emergency team — wearers injured" : has("ba-emergency:") ? "A team went past its whistle — recovered by the emergency team" : "All teams out in time",
+        passed: has("ba-lost:") ? false : has("ba-emergency:") ? "partial" : true,
+      });
+    }
+    const pumps = fireDeps.length;
+    if ((incident.scenario.scene.sectors?.length ?? 0) > 0 && pumps >= 3 && burned) {
+      const n = log.filter((e) => e.id.startsWith("sector-cmd:")).length;
+      metrics.push({
+        label: "Sectorisation",
+        target: "Sector commanders in place on a multi-pump job",
+        actual: n === 0 ? "No sectors commanded" : `${n} sector${n === 1 ? "" : "s"} commanded`,
+        passed: n >= 2 ? true : n === 1 ? "partial" : false,
+      });
+    }
+    if (firstJet !== null) {
+      metrics.push({
+        label: "Water supply",
+        target: "Supply established before a tank runs dry",
+        actual: has("dry:") ? "A jet stopped on a dry tank" : has("hydrant-cap:") ? "A hydrant was asked to feed more jets than it can" : "No jet lost its water",
+        passed: has("dry:") ? false : has("hydrant-cap:") ? "partial" : true,
+      });
+    }
+    if (has("collapse:") || has("evacuation:")) {
+      metrics.push({
+        label: "Structure",
+        target: "Crews withdrawn before the building failed",
+        actual: has("collapse-crews:") ? "Crews were inside at the collapse" : has("collapse:") ? "Building collapsed with nobody inside" : "Evacuated, building held",
+        passed: has("collapse-crews:") ? false : has("collapse:") ? "partial" : true,
+      });
+    }
+    if (has("mode-refused:")) {
+      metrics.push({
+        label: "Mode discipline",
+        target: "No interior commitments attempted against a defensive mode",
+        actual: "Interior commitment attempted against the declared mode",
+        passed: "partial",
+      });
+    }
+  }
+
   // 5b. Exposure protection — did the fire get into the attached
   //     neighbour / adjacent unit? The breach log entry is the durable
   //     record (written on the rising edge), so a later knock-down

@@ -39,6 +39,7 @@ import {
   planRequests,
   requestMet,
   type Handover,
+  type MakeUpRequest,
 } from "@/lib/sim/handover";
 import { STANDARD_PDA } from "@/lib/sim/pda";
 import { getStationAppliances } from "@/lib/sim/data";
@@ -188,6 +189,8 @@ import { TaskingTile } from "./vector/tasking-tile";
 import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
 import { ShiftDebriefScreen, type ShiftJobSummary } from "./components/shift-debrief";
+import { readPlan } from "./vector/command-store";
+import type { PdaSlot } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { useRouter } from "next/navigation";
 import { GlossaryOverlay } from "./components/glossary-overlay";
@@ -351,6 +354,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     /** Command handed to an on-scene unit: the desk is done with this
      *  job and it will close itself. Costs the ground view. */
     handover: Handover | null;
+    /** The building giving way: damage accrues while the fire is fully
+     *  developed and the structure fails at 100. */
+    structuralDamage: number;
+    collapsedAt: number | null;
+    evacuatedAt: number | null;
+    /** Assistance messages sent from the tablet — make pumps and the
+     *  rest — that control has three minutes to answer. */
+    assistance: MakeUpRequest[];
+    /** Attendance slots those messages added. */
+    extraSlots: PdaSlot[];
+    /** BA teams that went past their whistle, by task id. */
+    baEmergencies: string[];
+    committedWithoutMode: boolean;
+    /** Firefighters hurt — caught in a collapse or lost past a whistle. */
+    injuredCrewIds: string[];
   };
   const emptyRuntime = (): IncidentRuntime => ({
     tasks: [],
@@ -363,6 +381,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     sceneCommanderApplianceId: null,
     muster: null,
     handover: null,
+    structuralDamage: 0,
+    collapsedAt: null,
+    evacuatedAt: null,
+    assistance: [],
+    extraSlots: [],
+    baEmergencies: [],
+    committedWithoutMode: false,
+    injuredCrewIds: [],
   });
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -801,6 +827,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           absentCasualtyIds: shifted.absentCasualtyIds ?? [],
           tacticalMode: shifted.tacticalMode,
           sceneCommanderApplianceId: shifted.sceneCommanderApplianceId,
+          structuralDamage: 0,
+          collapsedAt: null,
+          evacuatedAt: null,
+          assistance: [],
+          extraSlots: [],
+          baEmergencies: [],
+          committedWithoutMode: false,
+          injuredCrewIds: [],
           muster: null,
           handover: shifted.handover
             ? {
@@ -931,6 +965,75 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  // The building and the BA board, once a second on the job in view.
+  // Damage accrues while the fire is developed; at 100 the structure
+  // fails and anyone inside is caught. A BA team a minute past its
+  // whistle is an emergency, recovered by the emergency team if one was
+  // nominated and hurt if not.
+  const lastStructTickRef = useRef<number>(0);
+  useEffect(() => {
+    if (!activeIncident || !incidentSim || outcome) { lastStructTickRef.current = now; return; }
+    const dt = lastStructTickRef.current ? Math.min(5, (now - lastStructTickRef.current) / 1000) : 0;
+    lastStructTickRef.current = now;
+    const rt = runtimes[activeIncident.id];
+    if (!rt) return;
+    const stage = incidentSim.fireStage;
+    const material = incidentSim.fireMaterial;
+    const structural = material === "structural" || material === "bulk_combustible" || material === "electrical";
+    const ratePerMin = !structural ? 0 : stage === "flashover_risk" ? 3.2 : stage === "fully_developed" ? 1.3 : stage === "developing" ? 0.25 : 0;
+    const damage = Math.min(100, rt.structuralDamage + ratePerMin * (dt / 60));
+    if (damage !== rt.structuralDamage && !rt.collapsedAt) updateRuntime(activeIncident.id, (r) => ({ ...r, structuralDamage: damage }));
+    if (damage >= 100 && !rt.collapsedAt) {
+      const at = now;
+      const inside = tasks.filter((t) => t.state === "active" && (t.kind === "ba_sar" || (t.kind === "hose_attack" && (t.attackMode ?? "interior_attack") === "interior_attack")));
+      const crew = inside.flatMap((t) => t.assignedCrewIds);
+      for (const t of inside) abortTask(t.id);
+      updateRuntime(activeIncident.id, (r) => ({ ...r, collapsedAt: at, injuredCrewIds: [...new Set([...r.injuredCrewIds, ...crew])] }));
+      setLog((prev) => [
+        ...prev,
+        { id: `collapse:${at}`, timestamp: at, kind: "setback", message: "STRUCTURAL COLLAPSE — the building has failed" },
+        ...(crew.length ? [{ id: `collapse-crews:${at}`, timestamp: at, kind: "setback" as const, message: `CREWS INSIDE AT COLLAPSE — ${crew.length} firefighter${crew.length === 1 ? "" : "s"} caught, firefighter emergency declared` }] : []),
+      ]);
+      alertTone("high");
+    }
+    // BA past the whistle.
+    for (const t of tasks) {
+      if (t.kind !== "ba_sar" || t.state !== "active" || !t.baWhistleAt) continue;
+      const whistle = Math.min(...Object.values(t.baWhistleAt));
+      if (now < whistle + 60_000 || rt.baEmergencies.includes(t.id)) continue;
+      const plan = readPlan(activeIncident.id);
+      const cs = applianceLabel(t.applianceId);
+      abortTask(t.id);
+      updateRuntime(activeIncident.id, (r) => ({ ...r, baEmergencies: [...r.baEmergencies, t.id], injuredCrewIds: plan.emergencyTeam ? r.injuredCrewIds : [...new Set([...r.injuredCrewIds, ...t.assignedCrewIds])] }));
+      setLog((prev) => [
+        ...prev,
+        { id: `ba-emergency:${t.id}`, timestamp: now, kind: "setback", message: `BA EMERGENCY — ${cs} team a minute past time of whistle, wearers unaccounted` },
+        plan.emergencyTeam
+          ? { id: `ba-recovered:${t.id}`, timestamp: now, kind: "ba_withdrawn", message: `Emergency team committed to the team's last known position — ${cs} wearers recovered, shaken, back at entry control` }
+          : { id: `ba-lost:${t.id}`, timestamp: now, kind: "setback", message: `NO EMERGENCY TEAM — ${cs} wearers recovered late by crews off the fireground, ${t.assignedCrewIds.length} firefighter${t.assignedCrewIds.length === 1 ? "" : "s"} injured` },
+      ]);
+      alertTone("high");
+    }
+    // Assistance messages from the tablet: answered, or missed at three minutes.
+    if (rt.assistance.some((r) => r.metAtMs === undefined && !r.missed)) {
+      const typeOf = (id2: string) => applianceById.get(id2)?.type;
+      const next = rt.assistance.map((req) => {
+        if (req.metAtMs !== undefined || req.missed) return req;
+        if (requestMet(req, activeIncident.id, deployments, typeOf)) {
+          setLog((prev) => [...prev, { id: `mu-met:${req.id}`, timestamp: now, kind: "annotation", message: `Assistance message answered — ${req.label}` }]);
+          return { ...req, metAtMs: now };
+        }
+        if (now >= req.dueAtMs) {
+          setLog((prev) => [...prev, { id: `mu-missed:${req.id}`, timestamp: now, kind: "hazard_confirmed", message: `Assistance message unanswered at three minutes — ${req.label}` }]);
+          return { ...req, missed: true };
+        }
+        return req;
+      });
+      if (next.some((r, i) => r !== rt.assistance[i])) updateRuntime(activeIncident.id, (r) => ({ ...r, assistance: next }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
 
   // Subject vehicles drive, get read by cameras, get sighted and get
   // stopped — once a second, against where every unit on the job is.
@@ -1295,15 +1398,38 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           root.type === "hydrant" ||
           (root.type === "tank" &&
             (vehicleGauges[root.applianceId]?.waterPct ?? 100) > 0);
-        if (pumpReady && hasWaterSource) return t;
+        // A hydrant feeds three jets; the fourth on the same supply is
+        // starved, and it is the latest one that loses out.
+        let overHydrant = false;
+        if (root.type === "hydrant") {
+          const hydrantOf = (applianceId: string): string | null => {
+            // Walk the relay chain to the appliance on the hydrant and name it.
+            const seen = new Set<string>();
+            let cur = applianceId;
+            while (cur && !seen.has(cur)) {
+              seen.add(cur);
+              const h = prev.find((x) => x.kind === "connect_hydrant" && x.state !== "aborted" && x.applianceId === cur);
+              if (h) return h.hydrantId ?? `hyd:${cur}`;
+              const relay = prev.find((x) => x.kind === "relay_hose" && x.state !== "aborted" && x.applianceId === cur);
+              if (!relay?.sourceApplianceId) return null;
+              cur = relay.sourceApplianceId;
+            }
+            return null;
+          };
+          const mine = hydrantOf(t.applianceId);
+          const onSame = prev.filter((x) => x.kind === "hose_attack" && x.state === "active" && hydrantOf(x.applianceId) === mine).sort((a, b) => a.startedAt - b.startedAt);
+          overHydrant = mine !== null && onSame.indexOf(t) >= 3;
+        }
+        if (pumpReady && hasWaterSource && !overHydrant) return t;
         changed = true;
+        const dry = pumpReady && !hasWaterSource;
         setLog((L) => [
           ...L,
           {
-            id: `attack-stop:${t.id}:${Date.now()}`,
+            id: `${dry ? "dry" : overHydrant ? "hydrant-cap" : "attack-stop"}:${t.id}:${Date.now()}`,
             timestamp: Date.now(),
-            kind: "annotation",
-            message: `${applianceLabel(t.applianceId)} hose attack stopped · ${!pumpReady ? "pump not running" : "water supply lost"}`,
+            kind: dry ? "setback" : "annotation",
+            message: `${applianceLabel(t.applianceId)} hose attack stopped · ${!pumpReady ? "pump not running" : overHydrant ? "hydrant already feeding three jets" : "TANK DRY — no supply established"}`,
           },
         ]);
         return { ...t, state: "aborted" as const };
@@ -1389,6 +1515,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           kind: "in_attendance",
           message: `${applianceLabel(d.applianceId)} in attendance`,
         });
+        // The first fire appliance's informative message, a minute after
+        // it lands: what it found, in the words it would use on the air.
+        const infKey = `inf-arrive:${d.incidentId}`;
+        const inc = incidents.find((i) => i.id === d.incidentId);
+        const ap = applianceById.get(d.applianceId);
+        if (inc?.scenario.scene?.fireSeat && ap?.service === "Fire" && !log.some((e) => e.id === infKey) && !newEntries.some((e) => e.id === infKey)) {
+          const sim = activeIncident?.id === inc.id ? incidentSim : null;
+          newEntries.push({ id: infKey, timestamp: d.arrivesAt + 60_000, kind: "annotation", message: arrivalMessage(inc, ap.callsign, sim) });
+        }
       }
       if (
         d.hospitalArrivesAt &&
@@ -1541,6 +1676,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         message: `Tactical mode declared · ${mode.charAt(0).toUpperCase() + mode.slice(1)} · ${applianceLabel(sceneCommanderApplianceId)} IC`,
       },
     ]);
+    if (mode === "defensive") {
+      const inside = tasks.filter((t) => t.state === "active" && (t.kind === "ba_sar" || (t.kind === "hose_attack" && (t.attackMode ?? "interior_attack") === "interior_attack")));
+      for (const t of inside) abortTask(t.id);
+      if (inside.length) logAnnotation(`DEFENSIVE — ${inside.length} interior task${inside.length === 1 ? "" : "s"} withdrawn, crews out to exterior positions`, "ba_withdrawn", "withdrawn");
+    }
   }
 
   /** Put a call on the stack. Nothing happens to the world until an
@@ -3593,7 +3733,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         id: `res:${resolvedAt}`,
         timestamp: resolvedAt,
         kind: "resolved",
-        message: "Stop message sent — incident resolved",
+        message: stopMessageFor(activeIncident, deps, tasks, incidentSim, handover?.callsign ?? null),
       },
       ...deps.map(
         (d): LogEntry => ({
@@ -3612,12 +3752,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       log,
       tasks,
       handover?.callsign ?? null,
-      handover
-        ? {
-            asked: handover.requests.length,
-            met: handover.requests.filter((r) => r.metAtMs !== undefined).length,
-          }
-        : null,
+      (() => {
+        const mine = runtimes[incidentId]?.assistance ?? [];
+        const all = [...(handover?.requests ?? []), ...mine];
+        return all.length ? { asked: all.length, met: all.filter((r) => r.metAtMs !== undefined).length } : null;
+      })(),
     );
     updateRuntime(incidentId, (r) => (r.outcome ? r : { ...r, outcome: scored }));
     resolvingRef.current.delete(incidentId);
@@ -3868,6 +4007,28 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
     return m;
   }, [allDeployableStations]);
+
+  // How long each pump's tank lasts at its current draw — the number the
+  // commander wants before the hydrant is in.
+  const waterClock = useMemo<Record<string, number | null>>(() => {
+    const out: Record<string, number | null> = {};
+    const demand = new Map<string, number>();
+    for (const t of tasks) {
+      if (t.state !== "active") continue;
+      const flow = t.kind === "hose_attack" ? HOSE_FLOW_LPM[t.hoseType ?? "70mm"] : t.kind === "ba_sar" && t.baMode === "firefighting" ? INTERIOR_BA_DEFAULT_FLOW_LPM : 0;
+      if (!flow) continue;
+      const root = rootWaterSource(t.applianceId, tasks);
+      if (root.type !== "tank") continue;
+      demand.set(root.applianceId, (demand.get(root.applianceId) ?? 0) + flow);
+    }
+    for (const [id, lpm] of demand) {
+      const a = applianceById.get(id);
+      if (!a) continue;
+      const litres = ((vehicleGauges[id]?.waterPct ?? 100) / 100) * a.waterLitres;
+      out[id] = lpm > 0 ? (litres / lpm) * 60 : null;
+    }
+    return out;
+  }, [tasks, applianceById, vehicleGauges]);
 
   // What the desk map draws for the subject vehicles and the units sent
   // ahead of them.
@@ -4659,6 +4820,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         kind: "fire_stage",
         message,
       });
+      // …and the crew's word for it on the air.
+      const spoken = stageMessage(cur, prev, incidentSim, sceneCommanderApplianceId ? applianceLabel(sceneCommanderApplianceId) : (deployments.find((d) => applianceById.get(d.applianceId)?.service === "Fire" && now >= d.arrivesAt) ? applianceLabel(deployments.find((d) => applianceById.get(d.applianceId)?.service === "Fire" && now >= d.arrivesAt)!.applianceId) : null));
+      if (spoken) newEntries.push({ id: `inf-stage:${cur}:${Date.now()}`, timestamp: Date.now(), kind: "annotation", message: spoken });
     }
 
     // Casualty deterioration + expectant transitions.
@@ -5016,6 +5180,27 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     crsDoneMessage?: string;
   }) {
     const startedAt = Date.now();
+    // Nobody goes inside against the declared mode. Defensive means
+    // exterior only; transitional means no new commitments until the IC
+    // settles it. Going in with no mode declared is allowed and logged —
+    // the debrief will have something to say about it.
+    const interior = args.kind === "ba_sar" || (args.kind === "hose_attack" && (args.attackMode ?? "interior_attack") === "interior_attack");
+    if (interior && activeIncident) {
+      const rt = runtimes[activeIncident.id];
+      const mode = rt?.tacticalMode ?? null;
+      if (mode === "defensive" || mode === "transitional") {
+        logAnnotation(`${applianceLabel(args.applianceId)} — ${args.kind === "ba_sar" ? "BA commitment" : "interior attack"} refused: tactical mode is ${mode}${mode === "transitional" ? ", no new commitments until the IC sets the mode" : ", nobody goes inside"}`, "setback", "mode-refused");
+        setStatusMsg(`Refused — ${mode} mode declared`);
+        return;
+      }
+      if (mode === null && !rt?.committedWithoutMode) {
+        updateRuntime(activeIncident.id, (r) => ({ ...r, committedWithoutMode: true }));
+        logAnnotation(`${applianceLabel(args.applianceId)} committed inside with NO TACTICAL MODE declared — the IC declares offensive before crews go in`, "hazard_confirmed", "no-mode");
+      }
+      if (args.kind === "ba_sar" && !readPlan(activeIncident.id).emergencyTeam && !tasks.some((t) => t.kind === "ba_sar" && t.state === "active")) {
+        logAnnotation(`${applianceLabel(args.applianceId)} BA team committed with NO EMERGENCY TEAM nominated at entry control`, "hazard_confirmed", "ba-no-emerg");
+      }
+    }
     // Realistic per-task timings. Forcible entry gets its duration from
     // the tool-vs-door matrix instead of the generic roll.
     let durationSec =
@@ -5414,6 +5599,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     coveredServices,
     standbySent,
     commandOptionsFor,
+    extraSlots: Object.fromEntries(Object.entries(runtimes).map(([id, r]) => [id, r?.extraSlots ?? []])),
   });
   const groundAvailable = !!activeIncident && !outcome && !handover && !!incidentSim;
 
@@ -5436,10 +5622,41 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
    *  operator answers it by mobilising from the desk. */
   function requestPoliceSupport(kind: string, applianceId: string, detail?: string) {
     const cs = applianceLabel(applianceId);
-    if (kind === "make_pumps") {
-      const n = detail ?? "?";
-      setLog((prev) => [...prev, { id: `mp:${applianceId}:${Date.now()}`, timestamp: Date.now(), kind: "make_pumps", message: `ASSISTANCE MESSAGE from ${cs} — make pumps ${n}` }]);
-      setStatusMsg(`${cs}: make pumps ${n}`);
+    const inc = incidents.find((i) => deployments.some((d) => d.applianceId === applianceId && d.incidentId === i.id)) ?? activeIncident;
+    // Fire assistance messages: the desk has three minutes, and the
+    // attendance grows by what was asked for.
+    const FIRE_WANTS: Record<string, { wants: ApplianceTypeCode[]; label: string; slot: string }> = {
+      ambulance: { wants: ["DCA", "RRV"], label: "Ambulance required", slot: "Ambulance" },
+      police: { wants: ["Police_Response", "Police_Van"], label: "Police required — cordon and traffic", slot: "Police" },
+      aerial: { wants: ["TL", "HLP"], label: "Aerial appliance required", slot: "Aerial" },
+      water_carrier: { wants: ["PM", "WrT"], label: "Water carrier / HVP required", slot: "Water" },
+      hazmat: { wants: ["DIM", "SDU", "TRU_van"], label: "Hazmat / DIM required", slot: "Hazmat" },
+      command_unit: { wants: ["ICU", "CSU"], label: "Command unit required", slot: "Command" },
+    };
+    if (inc && (kind === "make_pumps" || FIRE_WANTS[kind])) {
+      const at = Date.now();
+      let wants: ApplianceTypeCode[];
+      let label: string;
+      let slots: PdaSlot[] = [];
+      if (kind === "make_pumps") {
+        const n = Math.max(1, Number(detail ?? "0") || 0);
+        const rt = runtimes[inc.id];
+        const pumpsNow = deployments.filter((d) => d.incidentId === inc.id && ["WrL", "WrT", "L6P"].includes(applianceById.get(d.applianceId)?.type ?? "")).length + (rt?.extraSlots.filter((x) => x.id.startsWith("mp:")).length ?? 0);
+        const extra = Math.max(0, n - pumpsNow);
+        wants = ["WrL", "WrT", "L6P"];
+        label = `Make pumps ${n}`;
+        slots = Array.from({ length: extra }, (_, i) => ({ id: `mp:${at}:${i}`, label: `Make pumps ${n} · pump ${pumpsNow + i + 1}`, service: "Fire" as const, requiredApplianceTypes: wants, requiredCapabilities: [], notes: `Asked for by ${cs}` }));
+      } else {
+        const w = FIRE_WANTS[kind];
+        wants = w.wants;
+        label = w.label;
+        slots = [{ id: `as:${kind}:${at}`, label: `${w.slot} · asked for by ${cs}`, service: kind === "ambulance" ? "Ambulance" : kind === "police" ? "Police" : "Fire", requiredApplianceTypes: wants, requiredCapabilities: [], notes: label }];
+      }
+      const req: MakeUpRequest = { id: `${kind}:${at}`, atMs: at, dueAtMs: at + 180_000, wants, label, announced: true };
+      updateRuntime(inc.id, (r) => ({ ...r, assistance: [...r.assistance, req], extraSlots: [...r.extraSlots, ...slots] }));
+      setLog((prev) => [...prev, { id: `mu-ask:${req.id}`, timestamp: at, kind: "make_pumps", message: `ASSISTANCE MESSAGE from ${cs} — ${label}. Three minutes to mobilise.` }]);
+      setStatusMsg(`${cs}: ${label}`);
+      alertTone("med");
       return;
     }
     const wording: Record<string, string> = {
@@ -5465,9 +5682,27 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setStatusMsg(`${cs} ${wording[kind] ?? `requests ${kind}`}`);
   }
 
-  function logAnnotation(message: string, kind: LogEntry["kind"] = "annotation") {
+  function logAnnotation(message: string, kind: LogEntry["kind"] = "annotation", tag?: string) {
     const at = Date.now();
-    setLog((prev) => [...prev, { id: `vec:${at}:${prev.length}`, timestamp: at, kind, message }]);
+    // A note may carry its own tag in square brackets — "[sector-cmd] …" —
+    // which becomes the entry's id prefix so the debrief can find it.
+    const m = tag ? null : message.match(/^\[([a-z][a-z0-9-]*)\]\s*/);
+    const t = tag ?? m?.[1];
+    const text = m ? message.slice(m[0].length) : message;
+    setLog((prev) => [...prev, { id: `${t ?? "vec"}:${at}:${prev.length}`, timestamp: at, kind, message: text }]);
+  }
+
+  /** Everyone out. Sounds the whistles: every crew inside comes out now,
+   *  whatever they were doing. */
+  function evacuateFireground() {
+    if (!activeIncident) return;
+    const at = Date.now();
+    const inside = tasks.filter((t) => t.state === "active" && (t.kind === "ba_sar" || (t.kind === "hose_attack" && (t.attackMode ?? "interior_attack") === "interior_attack") || t.kind === "gain_entry" || t.kind === "extract_casualty"));
+    for (const t of inside) abortTask(t.id);
+    updateRuntime(activeIncident.id, (r) => ({ ...r, evacuatedAt: at }));
+    setLog((prev) => [...prev, { id: `evacuation:${at}`, timestamp: at, kind: "ba_withdrawn", message: `EVACUATION — whistles sounded, all crews out of the building${inside.length ? ` · ${inside.length} task${inside.length === 1 ? "" : "s"} stood down` : ""}` }]);
+    alertTone("high");
+    setStatusMsg("EVACUATION — all crews out");
   }
 
   function pickScreen(s: VectorScreen) {
@@ -6548,6 +6783,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 policePage={mdtPolicePage}
                 subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
                 onDeclareTacticalMode={declareTacticalMode}
+                structural={activeIncident ? { integrity: 100 - (runtimes[activeIncident.id]?.structuralDamage ?? 0), collapsedAt: runtimes[activeIncident.id]?.collapsedAt ?? null, evacuatedAt: runtimes[activeIncident.id]?.evacuatedAt ?? null, injured: runtimes[activeIncident.id]?.injuredCrewIds.length ?? 0 } : undefined}
+                onEvacuate={evacuateFireground}
+                waterClock={waterClock}
               />
             )}
           </>
@@ -6665,6 +6903,47 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ]}
     />
   );
+}
+
+/** The first crew's informative message, in the words it would use on
+ *  the air: what it is, what is showing, who is in it, what they are
+ *  doing about it. */
+function arrivalMessage(inc: Incident, callsign: string, sim: IncidentSimState | null): string {
+  const sc = inc.scenario;
+  const cls = sc.property.class.split(/[—–,]/)[0].trim().toLowerCase();
+  const stage = sim?.fireStage ?? "developing";
+  const showing = stage === "none" ? "nothing showing on arrival" : stage === "incipient" ? "light smoke showing" : stage === "developing" ? "smoke issuing, fire showing" : stage === "fully_developed" ? "well alight, fire through the windows" : stage === "flashover_risk" ? "fully involved, flashover conditions" : stage === "under_control" ? "fire under control on arrival" : "fire out on arrival";
+  const persons = sc.type.includes("persons_reported") ? "persons reported, search to commence" : (sc.scene?.casualties?.length ?? 0) > 0 ? "occupancy not confirmed" : "all persons accounted for";
+  const material = sim?.fireMaterial && sim.fireMaterial !== "structural" ? `, ${sim.fireMaterial.replace(/_/g, " ")} involved` : "";
+  return `INFORMATIVE from ${callsign} — ${cls || "premises"}, ${showing}${material}; ${persons}; crews committing, request further informative in 10 minutes`;
+}
+
+function stageMessage(cur: string, prev: string, sim: IncidentSimState, callsign: string | null): string | null {
+  const who = callsign ?? "Fireground";
+  switch (cur) {
+    case "fully_developed": return `INFORMATIVE from ${who} — fire now well developed, ${Math.round(sim.involvement.floor * 100)}% of the floor involved, crews working${sim.smokeRadiusM > 0 ? ", heavy smoke logging the building" : ""}`;
+    case "flashover_risk": return `PRIORITY from ${who} — flashover conditions, all crews out of the compartment, jets to the exterior until it is knocked`;
+    case "under_control": return `INFORMATIVE from ${who} — fire surrounded and under control, damping down, no further assistance required`;
+    case "extinguished": return `INFORMATIVE from ${who} — fire extinguished, crews turning over, ventilating the property`;
+    case "developing": return prev === "flashover_risk" || prev === "fully_developed" ? `INFORMATIVE from ${who} — fire knocked back, crews holding the gain` : null;
+    default: return null;
+  }
+}
+
+/** The stop message, worded from the fireground rather than a stock line. */
+function stopMessageFor(inc: Incident, deps: Deployment[], tasks: Task[], sim: IncidentSimState | null, commander: string | null): string {
+  const sc = inc.scenario;
+  if (!sc.scene?.fireSeat || !sim) return `STOP from ${commander ?? "Control"} — ${sc.title}, incident closed`;
+  const jets = tasks.filter((t) => t.kind === "hose_attack" && t.state !== "aborted").length;
+  const ba = tasks.filter((t) => t.kind === "ba_sar" && t.state !== "aborted").reduce((n, t) => n + t.assignedCrewIds.length, 0);
+  const pumps = deps.length;
+  const inv = sim.involvement;
+  const extent = inv.roof > 0.5 ? "roof and first floor well alight, whole property involved" : inv.floor > 0.5 ? "fire involving the floor of origin and spreading" : inv.room > 0.5 ? "fire confined to the room of origin" : "small fire";
+  const out = sim.fireStage === "extinguished" || sim.fireRadiusM <= 0.1 ? "extinguished" : sim.fireStage === "under_control" ? "under control, damping down" : "still burning at the stop";
+  const stages = Object.values(sim.casualtyProgression).map((c) => c.stage);
+  const persons = stages.length === 0 ? "no persons involved" : `${stages.filter((s) => s === "at_hospital").length} to hospital, ${stages.filter((s) => s === "expectant").length} fatal, ${stages.filter((s) => s === "undiscovered").length} unaccounted`;
+  const cls = sc.property.class.split(/[—–,]/)[0].trim().toLowerCase();
+  return `STOP from ${commander ?? "Control"} — ${cls || "premises"}, ${extent}, ${out}; ${jets} jet${jets === 1 ? "" : "s"}, ${ba} in BA, ${pumps} appliance${pumps === 1 ? "" : "s"}; ${persons}`;
 }
 
 /** Deterministic 0–99 "percentile roll" from a string. Used where an

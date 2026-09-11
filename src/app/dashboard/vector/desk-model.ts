@@ -41,13 +41,16 @@ export type DeskInput = {
   coveredServices: ServiceCode[];
   standbySent: Record<string, boolean>;
   commandOptionsFor: (incidentId: string) => { applianceId: string; callsign: string; typeName: string; advice?: string; comfortable?: boolean }[];
+  /** Attendance slots added by assistance messages, by incident. */
+  extraSlots?: Record<string, PdaSlot[]>;
 };
 
 const PUMP_TYPES: ApplianceTypeCode[] = ["WrL", "WrT", "L6P"];
 const AREA_LABEL: Record<AreaCode, string> = { Southern: "South", Eastern: "East", Western: "West", ForceWide: "Force-wide" };
 
-function pdaSlotsFor(inc: Incident): PdaSlot[] {
-  return STANDARD_PDA[inc.scenario.type]?.slots ?? inc.scenario.pda;
+function pdaSlotsFor(inc: Incident, extra?: PdaSlot[]): PdaSlot[] {
+  const base = STANDARD_PDA[inc.scenario.type]?.slots ?? inc.scenario.pda;
+  return extra && extra.length ? [...base, ...extra] : base;
 }
 
 function isFree(a: Appliance): boolean {
@@ -55,7 +58,7 @@ function isFree(a: Appliance): boolean {
 }
 
 export function useDeskModel(input: DeskInput) {
-  const { incidents, selectedIncidentId, runtimes, deployments, applianceById, stations, etas, now, pendingCalls, log, coveredServices, standbySent, commandOptionsFor } = input;
+  const { incidents, selectedIncidentId, runtimes, deployments, applianceById, stations, etas, now, pendingCalls, log, coveredServices, standbySent, commandOptionsFor, extraSlots } = input;
 
   const stationById = useMemo(() => new Map(stations.map((s) => [s.id, s])), [stations]);
   const stationOf = (a: Appliance) => stationById.get(a.stationId);
@@ -83,7 +86,7 @@ export function useDeskModel(input: DeskInput) {
   /* ---- attendance per incident ---- */
   function coverage(inc: Incident) {
     const deps = deployments.filter((d) => d.incidentId === inc.id);
-    return slotCoverage(inc, deps, pdaSlotsFor(inc), (id) => applianceById.get(id)?.type);
+    return slotCoverage(inc, deps, pdaSlotsFor(inc, extraSlots?.[inc.id]), (id) => applianceById.get(id)?.type);
   }
 
   function pdaRowsFor(inc: Incident | null): PdaRow[] {
