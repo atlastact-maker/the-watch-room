@@ -27,16 +27,38 @@ import { BaControlBoard } from "../components/ba-control-board";
 import { MdtTaskWorkspace, type TaskWorkspaceProps } from "./mdt-task-workspace";
 import { updatePlan, useCommandPlan, type CommandPlan } from "./command-store";
 
-type Tab = "overview" | "assessment" | "crews" | "appliances" | "water" | "ba" | "log";
+type Tab = "overview" | "assessment" | "sectors" | "crews" | "appliances" | "water" | "ba" | "log";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "assessment", label: "Assessment" },
+  { key: "sectors", label: "Sectors" },
   { key: "crews", label: "Crews" },
   { key: "appliances", label: "Appliances" },
-  { key: "water", label: "Water supply" },
+  { key: "water", label: "Water" },
   { key: "ba", label: "BA control" },
-  { key: "log", label: "Incident log" },
+  { key: "log", label: "Log" },
+];
+
+const SECTOR_TASKS = ["Firefighting", "Search and rescue", "Water supply", "Exposure protection", "Ventilation", "Salvage", "Cordon and safety"];
+
+/** The assistance messages a commander sends to control. Make pumps
+ *  carries a number; the rest are one request each. */
+const ASSISTANCE: { kind: string; label: string; wording: string }[] = [
+  { kind: "ambulance", label: "Ambulance", wording: "requests an ambulance to scene" },
+  { kind: "police", label: "Police", wording: "requests police for cordon and traffic" },
+  { kind: "aerial", label: "Aerial", wording: "requests an aerial appliance" },
+  { kind: "water_carrier", label: "Water carrier", wording: "requests a water carrier / high volume pump" },
+  { kind: "hazmat", label: "Hazmat", wording: "requests the hazardous materials unit" },
+  { kind: "command_unit", label: "Command unit", wording: "requests the incident command unit" },
+  { kind: "gas_board", label: "Gas board", wording: "requests the gas emergency service" },
+  { kind: "electricity", label: "Electricity", wording: "requests the DNO to isolate" },
+];
+
+const TACTICAL: { mode: "offensive" | "defensive" | "transitional"; label: string; hint: string }[] = [
+  { mode: "offensive", label: "Offensive", hint: "Crews committed inside — BA and interior attack" },
+  { mode: "defensive", label: "Defensive", hint: "Nobody inside — exterior attack, protect exposures" },
+  { mode: "transitional", label: "Transitional", hint: "Changing from one to the other — everyone out or everyone in" },
 ];
 
 const OBJECTIVES: { key: string; label: string; detail: string }[] = [
@@ -127,6 +149,11 @@ export type FireCommandProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbort
   onUpdateBaEntryPoint?: (taskId: string, label: string) => void;
   onArmPlacement?: (applianceId: string) => void;
   onClose?: () => void;
+  /** The declared tactical mode and the way to change it. */
+  tacticalMode?: "offensive" | "defensive" | "transitional" | null;
+  onDeclareTacticalMode?: (mode: "offensive" | "defensive" | "transitional") => void;
+  /** An assistance message to control: make pumps N, ambulance, police… */
+  onRequestSupport?: (kind: string, applianceId: string, detail?: string) => void;
 };
 
 export function FireCommandScreen(props: FireCommandProps) {
@@ -141,6 +168,8 @@ export function FireCommandScreen(props: FireCommandProps) {
   const [waterSource, setWaterSource] = useState<string | null>(null);
   const [waterStatus, setWaterStatus] = useState<string | null>(null);
   const [draftAssessment, setDraftAssessment] = useState<Partial<CommandPlan["assessment"]>>({});
+  const [makePumps, setMakePumps] = useState(0);
+  const [sectorPick, setSectorPick] = useState<Record<string, string>>({});
   const sc = incident.scenario;
   const set = (fn: (p: CommandPlan) => CommandPlan) => updatePlan(incident.id, fn);
   const note = (text: string) => props.onNote?.(`${appliance.callsign} · ${text}`);
@@ -253,6 +282,39 @@ export function FireCommandScreen(props: FireCommandProps) {
     if (!officer) return;
     props.onStartTask?.({ applianceId: appliance.id, kind: "commander", assignedCrewIds: [officer.id] });
   }
+  const sectors = sc.scene?.sectors ?? [];
+  const allCrew = committed.flatMap((r) => r.appliance.crewMembers.map((c) => ({ c, callsign: r.appliance.callsign })));
+  function setSectorCommander(sectorId: string, crewId: string) {
+    const hit = allCrew.find((x) => x.c.id === crewId);
+    if (!hit) return;
+    set((p) => ({ ...p, sectors: { ...p.sectors, [sectorId]: { ...(p.sectors[sectorId] ?? { applianceIds: [] }), commander: { crewId: hit.c.id, name: hit.c.name, callsign: hit.callsign } } } }));
+    note(`${sectors.find((x) => String(x.id) === sectorId)?.label ?? `Sector ${sectorId}`} · commander ${hit.c.name} (${hit.callsign})`);
+  }
+  function toggleSectorAppliance(sectorId: string, applianceId: string) {
+    const cs = committed.find((r) => r.appliance.id === applianceId)?.appliance.callsign ?? applianceId;
+    let added = false;
+    set((p) => {
+      const cur = p.sectors[sectorId] ?? { applianceIds: [] };
+      const has = cur.applianceIds.includes(applianceId);
+      added = !has;
+      const next: Record<string, typeof cur> = { ...p.sectors };
+      // An appliance works one sector at a time.
+      for (const k of Object.keys(next)) next[k] = { ...next[k], applianceIds: next[k].applianceIds.filter((id) => id !== applianceId) };
+      next[sectorId] = { ...cur, applianceIds: has ? cur.applianceIds.filter((id) => id !== applianceId) : [...cur.applianceIds, applianceId] };
+      return { ...p, sectors: next };
+    });
+    note(`${cs} ${added ? "to" : "released from"} ${sectors.find((x) => String(x.id) === sectorId)?.label ?? `Sector ${sectorId}`}`);
+  }
+  function setSectorTask(sectorId: string, task: string) {
+    set((p) => ({ ...p, sectors: { ...p.sectors, [sectorId]: { ...(p.sectors[sectorId] ?? { applianceIds: [] }), task } } }));
+    note(`${sectors.find((x) => String(x.id) === sectorId)?.label ?? `Sector ${sectorId}`} · ${task.toLowerCase()}`);
+  }
+  function sendAssistance(kind: string, label: string, detail?: string) {
+    set((p) => ({ ...p, assistance: [...p.assistance, { id: `${kind}:${now}`, label, at: now }] }));
+    props.onRequestSupport?.(kind, appliance.id, detail);
+    if (!props.onRequestSupport) note(`ASSISTANCE MESSAGE — ${label}`);
+  }
+  const pumpsOnScene = committed.filter((r) => r.appliance.service === "Fire" && r.appliance.waterLitres > 0).length;
 
   // ---- Pieces ---------------------------------------------------------------
   const tasking = (page: "actions" | "water") => (
@@ -298,9 +360,8 @@ export function FireCommandScreen(props: FireCommandProps) {
       <dl className="fc-facts">
         <dt>Type</dt><dd className="hi">{typeLabel(sc.type)}</dd>
         <dt>Location</dt><dd>{sc.location.address}</dd>
-        <dt>Persons reported</dt><dd className={located.length || personsReported ? "warn" : ""}>{personsText}</dd>
-        <dt>Utilities</dt><dd className={/LIVE/.test(utilities) ? "stop" : ""}>{utilities}</dd>
-        <dt>Fire</dt><dd className={fireStage === "flashover_risk" ? "stop" : fireStage === "under_control" || fireStage === "extinguished" ? "go" : ""}>{STAGE_LABEL[fireStage]}{sim && sim.fireRadiusM > 0 ? ` · ${sim.fireRadiusM.toFixed(0)} m` : ""}{sim?.flashoverCountdownSec != null ? ` · flashover in ${sim.flashoverCountdownSec}s` : ""}</dd>
+        <dt>Attendance</dt><dd>{committed.length} committed · {onScene.length} on scene{pumpsOnScene ? ` · ${pumpsOnScene} pump${pumpsOnScene === 1 ? "" : "s"}` : ""}</dd>
+        <dt>Commander</dt><dd className={isCommander ? "go" : commanderUnit ? "" : "stop"}>{isCommander ? `You · ${officer?.name ?? appliance.callsign}` : commanderUnit ? commanderUnit.appliance.callsign : "Not assigned"}</dd>
       </dl>
       <div className="fc-map">
         {sc.scene ? (
@@ -312,6 +373,88 @@ export function FireCommandScreen(props: FireCommandProps) {
           <div className="vec-tile-empty">No scene plan for this incident</div>
         )}
       </div>
+    </Card>
+  );
+
+  const suppressing = active.filter((t) => ["hose_attack", "aerial_monitor", "wildfire_beating", "wildfire_knapsack"].includes(t.kind));
+  const fireCard = (
+    <Card title="Fire picture" icon="🔥" headerExtra={sim ? <span className="fc-meta">{sim.fireMaterialKnown ? sim.fireMaterial ?? "" : "material not confirmed"}</span> : undefined}>
+      <div className="fc-fire">
+        <div className={`fc-fire-stage ${fireStage === "flashover_risk" || fireStage === "fully_developed" ? "stop" : fireStage === "developing" ? "warn" : fireStage === "under_control" || fireStage === "extinguished" ? "go" : ""}`}>
+          <b>{STAGE_LABEL[fireStage]}</b>
+          <span>{sim && sim.fireRadiusM > 0 ? `${sim.fireRadiusM.toFixed(0)} m · ${sim.fireRateMpm > 0.05 ? `growing ${sim.fireRateMpm.toFixed(1)} m/min` : sim.fireRateMpm < -0.05 ? `knocking down ${Math.abs(sim.fireRateMpm).toFixed(1)} m/min` : "holding"}` : "No fire on the ground"}</span>
+        </div>
+        {sim?.flashoverCountdownSec != null && <div className="fc-fire-alert">FLASHOVER IN {sim.flashoverCountdownSec}s — GET THEM OUT OR GET WATER ON IT</div>}
+        {sim?.exposureBreached && <div className="fc-fire-alert warn">FIRE INTO THE EXPOSURE — the neighbour is involved</div>}
+        <dl className="fc-facts">
+          <dt>Jets</dt><dd className={suppressing.length ? "go" : ""}>{suppressing.length ? `${suppressing.length} working · ${[...new Set(suppressing.map((t) => resolved.find((r) => r.appliance.id === t.applianceId)?.appliance.callsign ?? t.applianceId))].join(", ")}` : "None in play"}</dd>
+          <dt>BA</dt><dd className={baTasks.length ? "warn" : ""}>{baTasks.length ? `${baTasks.length} team${baTasks.length === 1 ? "" : "s"} under air` : "Nobody committed"}</dd>
+          <dt>Persons</dt><dd className={located.length || personsReported ? "warn" : ""}>{personsText}</dd>
+          <dt>Utilities</dt><dd className={/LIVE/.test(utilities) ? "stop" : ""}>{utilities}</dd>
+          <dt>Mode</dt><dd className={props.tacticalMode ? "hi" : "stop"}>{props.tacticalMode ? TACTICAL.find((t) => t.mode === props.tacticalMode)?.label : "Not declared"}</dd>
+        </dl>
+      </div>
+    </Card>
+  );
+
+  const sectorsCard = (full = false) => (
+    <Card title="Sectors" icon="◔" fill={full} headerExtra={<span className="fc-meta">{Object.values(plan.sectors).filter((x) => x.commander).length} of {sectors.length} commanded</span>}>
+      {sectors.length === 0 ? <p className="fc-note">No sector plan on this scene — a single-sector job.</p> : (
+        <div className="fc-sectors">
+          {sectors.map((sec) => {
+            const a = plan.sectors[String(sec.id)] ?? { applianceIds: [] };
+            return (
+              <div key={sec.id} className={`fc-sector${a.commander ? " on" : ""}`}>
+                <div className="fc-sector-head">
+                  <b>{sec.label}</b>
+                  <small>{sec.face} · {sec.bearingDeg}°</small>
+                </div>
+                <label className="fc-field inline"><span>Commander</span>
+                  {a.commander ? <span className="val go"><i className="dot go" />{a.commander.name} · {a.commander.callsign}</span> : (
+                    <select value={sectorPick[String(sec.id)] ?? ""} disabled={!canAct} onChange={(e) => { setSectorPick((m) => ({ ...m, [String(sec.id)]: e.target.value })); if (e.target.value) setSectorCommander(String(sec.id), e.target.value); }}>
+                      <option value="">Not assigned · pick</option>
+                      {allCrew.filter((x) => /Manager|Officer|Commander/i.test(x.c.role)).map((x) => <option key={x.c.id} value={x.c.id} disabled={props.busyCrewIds?.has(x.c.id)}>{x.c.name} · {x.c.role} · {x.callsign}</option>)}
+                    </select>
+                  )}
+                </label>
+                <label className="fc-field inline"><span>Task</span>
+                  <select value={a.task ?? ""} disabled={!canAct} onChange={(e) => e.target.value && setSectorTask(String(sec.id), e.target.value)}>
+                    <option value="">Not set</option>
+                    {SECTOR_TASKS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </label>
+                <div className="fc-sector-units">
+                  {committed.filter((r) => r.appliance.service === "Fire").map((r) => (
+                    <button key={r.appliance.id} type="button" className={`fc-chip${a.applianceIds.includes(r.appliance.id) ? " on" : ""}`} disabled={!canAct} onClick={() => toggleSectorAppliance(String(sec.id), r.appliance.id)}>{r.appliance.callsign}</button>
+                  ))}
+                  {committed.filter((r) => r.appliance.service === "Fire").length === 0 && <span className="fc-note">No appliances committed</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+
+  const assistanceCard = (
+    <Card title="Assistance messages" icon="☎" headerExtra={<span className="fc-meta">{pumpsOnScene} pump{pumpsOnScene === 1 ? "" : "s"} on the job</span>}>
+      <div className="fc-assist-pumps">
+        <span className="lbl">Make pumps</span>
+        <div className="fc-stepper">
+          <button type="button" disabled={!canAct} onClick={() => setMakePumps((n) => Math.max(0, (n || pumpsOnScene) - 1))}>−</button>
+          <output>{makePumps || pumpsOnScene + 1}</output>
+          <button type="button" disabled={!canAct} onClick={() => setMakePumps((n) => (n || pumpsOnScene + 1) + 1)}>+</button>
+        </div>
+        <button type="button" className="fc-primary accent" disabled={!canAct || (makePumps || pumpsOnScene + 1) <= pumpsOnScene} onClick={() => { const n = makePumps || pumpsOnScene + 1; sendAssistance("make_pumps", `Make pumps ${n}`, String(n)); }}>Send · Make pumps {makePumps || pumpsOnScene + 1}</button>
+      </div>
+      <div className="fc-assist">
+        {ASSISTANCE.map((a) => {
+          const sent = [...plan.assistance].reverse().find((x) => x.id.startsWith(`${a.kind}:`));
+          return <button key={a.kind} type="button" className={`fc-mini${sent ? " sent" : ""}`} disabled={!canAct} title={a.wording} onClick={() => sendAssistance(a.kind, a.label)}>{a.label}{sent ? ` ✓ ${mmss(now - sent.at)}` : ""}</button>;
+        })}
+      </div>
+      {plan.assistance.length > 0 && <p className="fc-note">Sent: {plan.assistance.slice(-4).map((x) => `${x.label} (${clock(x.at - incident.receivedAt)})`).join(" · ")}</p>}
     </Card>
   );
 
@@ -550,17 +693,27 @@ export function FireCommandScreen(props: FireCommandProps) {
         </div>
         {rolePicker("commandSupport", supportPick, setSupportPick)}
         {rolePicker("safetyOfficer", safetyPick, setSafetyPick)}
+        <div className="fc-role fc-tactical">
+          <Icon d="M4 4h16v6H4zM4 14h16v6H4z" />
+          <span className="lbl">Tactical mode</span>
+          <div className="vec-segments" role="group" aria-label="Tactical mode">
+            {TACTICAL.map((t) => (
+              <button key={t.mode} type="button" aria-pressed={props.tacticalMode === t.mode} disabled={!props.onDeclareTacticalMode || !isCommander && !commanderUnit || resolvedIncident} title={!isCommander && !commanderUnit ? "Take command first" : t.hint} onClick={() => props.onDeclareTacticalMode?.(t.mode)}>{t.label}</button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <main className={`fc-main ${tab}`}>
         {tab === "overview" && (
           <>
-            <div className="fc-col">{summaryCard}{assessmentCard()}</div>
+            <div className="fc-col">{fireCard}{summaryCard}</div>
             <div className="fc-col">{planCard}{taskingCard}{logCard()}</div>
-            <div className="fc-col">{appliancesCard()}{waterCard()}{baCard}</div>
+            <div className="fc-col">{appliancesCard()}{assistanceCard}{waterCard()}{baCard}</div>
           </>
         )}
-        {tab === "assessment" && <div className="fc-col wide">{assessmentCard(true)}</div>}
+        {tab === "assessment" && <div className="fc-col wide">{fireCard}{assessmentCard(true)}</div>}
+        {tab === "sectors" && <div className="fc-col wide">{sectorsCard(true)}</div>}
         {tab === "crews" && (
           <div className="fc-col wide">
             <div className="fc-sub row">

@@ -4567,3 +4567,41 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-shift-jobs .grade.stop { color: var(--vec-stop); }
 .vec-shift-foot { display: flex; justify-content: flex-end; gap: 8px; }
 .vec-shift-foot .vec-btn { min-height: 36px; padding: 0 16px; font-size: 12px; }
+
+/* ---- Fire command: fire picture, sectors, assistance, tactical mode ---- */
+.fc-fire { display: flex; flex-direction: column; gap: 8px; }
+.fc-fire-stage { display: flex; flex-direction: column; padding: 8px 10px; border: 1px solid var(--fc-line); border-left-width: 4px; border-radius: 2px; background: var(--fc-card-h); }
+.fc-fire-stage b { font: 700 14px var(--vec-sans, Arial, sans-serif); }
+.fc-fire-stage span { font-size: 11px; color: var(--fc-dim); }
+.fc-fire-stage.stop { border-left-color: var(--fc-stop); }
+.fc-fire-stage.stop b { color: var(--fc-stop); }
+.fc-fire-stage.warn { border-left-color: var(--fc-warn); }
+.fc-fire-stage.go { border-left-color: var(--fc-go); }
+.fc-fire-stage.go b { color: var(--fc-go); }
+.fc-fire-alert { padding: 6px 10px; border-radius: 2px; background: var(--fc-stop); color: #fff; font: 700 11px var(--vec-mono, Consolas, monospace); letter-spacing: 0.08em; animation: cc-alarm 0.9s steps(2, end) infinite; }
+.fc-fire-alert.warn { background: var(--fc-warn); color: #1a1a1a; animation: none; }
+.fc-sectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.fc-sector { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--fc-line); border-radius: 2px; background: var(--fc-card); }
+.fc-sector.on { border-color: var(--fc-go); }
+.fc-sector-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fc-sector-head b { font-size: 13px; }
+.fc-sector-head small { font: 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.06em; color: var(--fc-muted); text-transform: uppercase; }
+.fc-sector .fc-field.inline > span { width: 84px; }
+.fc-sector .val { display: inline-flex; align-items: center; font-weight: 600; font-size: 12px; }
+.fc-sector-units { display: flex; flex-wrap: wrap; gap: 4px; }
+.fc-chip { min-height: 24px; padding: 0 8px; border: 1px solid var(--fc-line); border-radius: 2px; background: var(--fc-card-h); font: 700 11px var(--vec-mono, Consolas, monospace); letter-spacing: 0.04em; color: var(--fc-text); }
+.fc-chip.on { background: var(--fc-blue); border-color: var(--fc-blue); color: #fff; }
+.fc-assist-pumps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fc-assist-pumps .lbl { font: 700 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; color: var(--fc-dim); }
+.fc-assist-pumps .fc-primary { flex: 1; min-height: 32px; font-size: 11.5px; }
+.fc-stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--fc-line); border-radius: 2px; overflow: hidden; }
+.fc-stepper button { width: 28px; border: 0; background: var(--fc-card-h); font-size: 14px; font-weight: 700; }
+.fc-stepper output { display: flex; align-items: center; justify-content: center; min-width: 36px; font: 800 14px var(--vec-mono, Consolas, monospace); background: var(--fc-card); }
+.fc-assist { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.fc-assist .fc-mini { min-height: 28px; padding: 0 4px; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc-mini.sent { border-color: var(--fc-go); color: var(--fc-go); }
+.fc-tactical .vec-segments { flex: 1; }
+.fc-tactical .vec-segments button { font-size: 11px; min-height: 26px; padding: 0 8px; }
+@container (max-width: 1100px) {
+  .fc-assist { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

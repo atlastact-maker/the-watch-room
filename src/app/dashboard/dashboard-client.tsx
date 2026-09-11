@@ -5434,9 +5434,22 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   /** A crew asks control for something from the tablet: it goes on the
    *  shift log as an assistance message and on the status line, and the
    *  operator answers it by mobilising from the desk. */
-  function requestPoliceSupport(kind: string, applianceId: string) {
+  function requestPoliceSupport(kind: string, applianceId: string, detail?: string) {
     const cs = applianceLabel(applianceId);
+    if (kind === "make_pumps") {
+      const n = detail ?? "?";
+      setLog((prev) => [...prev, { id: `mp:${applianceId}:${Date.now()}`, timestamp: Date.now(), kind: "make_pumps", message: `ASSISTANCE MESSAGE from ${cs} — make pumps ${n}` }]);
+      setStatusMsg(`${cs}: make pumps ${n}`);
+      return;
+    }
     const wording: Record<string, string> = {
+      police: "requests police for cordon and traffic",
+      aerial: "requests an aerial appliance",
+      water_carrier: "requests a water carrier / high volume pump",
+      hazmat: "requests the hazardous materials unit",
+      command_unit: "requests the incident command unit",
+      gas_board: "requests the gas emergency service",
+      electricity: "requests the DNO to isolate the supply",
       unit: "requests an additional unit",
       supervisor: "requests a supervisor to attend",
       ambulance: "requests an ambulance to scene",
@@ -6534,6 +6547,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 onRequestSupport={requestPoliceSupport}
                 policePage={mdtPolicePage}
                 subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
+                onDeclareTacticalMode={declareTacticalMode}
               />
             )}
           </>

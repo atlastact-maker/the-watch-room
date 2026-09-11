@@ -30,6 +30,17 @@ export type CommandPlan = {
   /** Role given to each appliance by the commander. */
   applianceRoles: Record<string, string>;
   water: { source: string; status: string; updatedAt?: number };
+  /** Sectorisation: who commands each sector and which appliances work
+   *  it, keyed by the scene's sector id. */
+  sectors: Record<string, SectorAssignment>;
+  /** Assistance messages sent to control from the tablet. */
+  assistance: { id: string; label: string; at: number }[];
+};
+
+export type SectorAssignment = {
+  commander?: CommandRole;
+  applianceIds: string[];
+  task?: string;
 };
 
 export const EMPTY_PLAN: CommandPlan = {
@@ -39,6 +50,8 @@ export const EMPTY_PLAN: CommandPlan = {
   assessment: { lifeRisk: "Under assessment", fireSpread: "Unknown", structural: "Not assessed", hazards: "Review required" },
   applianceRoles: {},
   water: { source: "Not confirmed", status: "Pending" },
+  sectors: {},
+  assistance: [],
 };
 
 const store = new Map<string, CommandPlan>();

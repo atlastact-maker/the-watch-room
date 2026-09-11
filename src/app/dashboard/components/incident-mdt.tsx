@@ -143,8 +143,11 @@ type Props = {
   onOpenLeds?: (query?: string, kind?: "vehicle" | "person" | "address") => void;
   onLedsCheck?: (c: LedsCheck) => void;
   onOpenAnpr?: () => void;
-  /** A support request from the crew to control — logged and flagged. */
-  onRequestSupport?: (kind: SupportKind, applianceId: string) => void;
+  /** A support request from the crew to control — logged and flagged.
+   *  Police kinds are typed; fire assistance messages come through the
+   *  same door as strings (make_pumps with the number as detail). */
+  onRequestSupport?: (kind: SupportKind | string, applianceId: string, detail?: string) => void;
+  onDeclareTacticalMode?: (mode: "offensive" | "defensive" | "transitional") => void;
   /** The desk's Systems menu opening PNC or ANPR on the tablet. */
   policePage?: { page: "pnc" | "anpr"; seq: number } | null;
   /** The car the job is chasing, when there is one. */
@@ -323,6 +326,9 @@ export function DraggableIncidentMdt(props: Props) {
           onUpdateBaRemarks={props.onUpdateBaRemarks}
           onUpdateBaEntryPoint={props.onUpdateBaEntryPoint}
           onArmPlacement={props.onArmPlacement}
+          tacticalMode={props.tacticalMode}
+          onDeclareTacticalMode={props.onDeclareTacticalMode}
+          onRequestSupport={props.onRequestSupport}
         />
       );
     }
