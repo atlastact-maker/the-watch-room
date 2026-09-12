@@ -25,7 +25,7 @@ import type { Incident, LogEntry, Task, TaskKind } from "@/lib/sim/incident_type
 import { TASK_MIN_CREW } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { dobDisplay, dobOf, type PersonRecord, type RecordIndex, type VehicleRecord } from "@/lib/sim/records";
-import type { LedsCheck } from "@/lib/sim/leds";
+import { personQueryFor, type LedsCheck } from "@/lib/sim/leds";
 import { generateVehicle } from "@/lib/sim/leds-db";
 import type { SubjectVehicle } from "@/lib/sim/subject";
 import type { ResolvedDeployment } from "../components/incident-view";
@@ -535,7 +535,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   }
 
   function runAction() {
-    if (action.leds === "person" && person) return openPnc(person.record?.name ?? "", "person");
+    if (action.leds === "person" && person) return openPnc(person.record ? personQueryFor(person.record) : "", "person");
     if (action.leds === "vehicle" && vehicle) return openPnc(vehicle.vrm, "vehicle");
     if (action.kind === "convey_custody" && person) {
       if (!carrier || carrierFree.length === 0) return requestSupport("custody");

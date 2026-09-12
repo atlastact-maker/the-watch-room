@@ -486,7 +486,7 @@ export function LedsTerminal({
                   ? "VRM"
                   : kind === "address"
                     ? "STREET / POSTCODE"
-                    : "SURNAME, FORENAME"
+                    : "SURNAME/FORENAME:DDMMYYYY"
               }
               className="min-w-0 flex-1 rounded-none border border-(--color-border) bg-(--color-surface) px-1.5 py-1 font-mono text-[13px] uppercase tracking-wider text-(--color-text) placeholder:tracking-normal placeholder:text-(--color-text-dim)"
             />

@@ -24,7 +24,7 @@
 // claim about how LEDS actually presents anything.
 
 import type { PersonRecord, RecordIndex, VehicleRecord } from "./records";
-import { dobOf, norm, squash } from "./records";
+import { dobDisplay, dobOf, norm, squash } from "./records";
 import { generateAddress, generatePerson, generateVehicle } from "./leds-db";
 
 /** Why the check is being made. A check without one is refused.
@@ -196,13 +196,54 @@ export function vehicleCheck(index: RecordIndex, vrm: string): VehicleReturn {
 /** A person enquiry by name. A real terminal would want a date of birth
  *  to narrow it; this returns the single unambiguous match or no trace,
  *  rather than guessing between several people with the same surname. */
+/** A names enquiry the way it is typed on the real terminal:
+ *  `SURNAME/FORENAME:DDMMYYYY`. The forename and the date of birth are
+ *  each optional — `DEAKIN`, `DEAKIN/CALLUM`, `DEAKIN:01011995` and
+ *  `DEAKIN/CALLUM JOHN:01011995` all parse. Anything without a slash or
+ *  a colon is taken as a free-text name ("Callum Deakin", "DEAKIN,
+ *  Callum") as before. */
+export function parsePersonQuery(raw: string): { name: string; dob?: string; structured: boolean } {
+  const t = raw.trim();
+  if (!/[/:]/.test(t)) return { name: t, structured: false };
+  const [namePart, ...dobParts] = t.split(":");
+  const dobRaw = dobParts.join(":").trim();
+  const [surname = "", ...forenames] = namePart.split("/").map((x) => x.trim()).filter(Boolean);
+  const name = [surname, forenames.join(" ")].filter(Boolean).join(", ");
+  return { name, dob: dobRaw || undefined, structured: true };
+}
+
+/** A record as the terminal would be asked for it — "DEAKIN/CALLUM:04031995". */
+export function personQueryFor(p: Pick<PersonRecord, "name" | "age" | "dob">): string {
+  const n = p.name.trim();
+  let surname: string;
+  let forenames: string;
+  if (n.includes(",")) {
+    const [s, ...rest] = n.split(",");
+    surname = s.trim();
+    forenames = rest.join(" ").trim();
+  } else {
+    const parts = n.split(/\s+/);
+    surname = parts[parts.length - 1];
+    forenames = parts.slice(0, -1).join(" ");
+  }
+  const dob = dobOf(p);
+  const ddmmyyyy = dob ? `${dob.slice(8, 10)}${dob.slice(5, 7)}${dob.slice(0, 4)}` : "";
+  return `${surname}${forenames ? `/${forenames}` : ""}${ddmmyyyy ? `:${ddmmyyyy}` : ""}`.toUpperCase();
+}
+
 export function personCheck(
   index: RecordIndex,
   name: string,
-  /** A date of birth, "1995-03-04" or "04/03/1995", narrows the enquiry
-   *  the way a real terminal insists on. */
+  /** A date of birth, "1995-03-04", "04/03/1995" or the terminal's
+   *  DDMMYYYY, narrows the enquiry the way a real terminal insists on. */
   dob?: string,
 ): PersonReturn & { ambiguous?: PersonRecord[] } {
+  // The real syntax carries the date of birth inside the query.
+  const parsed = parsePersonQuery(name);
+  if (parsed.structured) {
+    name = parsed.name;
+    dob = dob?.trim() ? dob : parsed.dob;
+  }
   const q = norm(name);
   if (q.length < 2) {
     return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [], vehicleIds: [] };
@@ -218,9 +259,16 @@ export function personCheck(
     const nw = nameWords(p.name);
     return words.every((w) => nw.includes(w)) || norm(p.name).includes(q);
   });
-  if (wantDob && hits.length > 1) {
+  if (wantDob && hits.length > 0) {
     const byDob = hits.filter((p) => dobOf(p) === wantDob);
     if (byDob.length) hits = byDob;
+    else {
+      // A name on file with a different date of birth is not that
+      // person. No trace — with the nearest record named, as the
+      // terminal does, so the operator can re-check the details.
+      const near = hits.slice(0, 3).map((p) => `${p.name} ${dobDisplay(dobOf(p)) ?? "DOB not held"}`);
+      return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [`NO TRACE ON THAT DATE OF BIRTH — similar: ${near.join("; ")}`], vehicleIds: [] };
+    }
   }
   if (hits.length === 1) return personFrom(hits[0], name);
   if (hits.length > 1) {
@@ -245,6 +293,9 @@ export function normaliseDob(dob: string | undefined): string | undefined {
   const t = dob.trim();
   let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  // The terminal's own form: DDMMYYYY, no separators.
+  m = t.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
   m = t.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/);
   if (!m) return undefined;
   const y = m[3].length === 2 ? (Number(m[3]) > 26 ? `19${m[3]}` : `20${m[3]}`) : m[3];

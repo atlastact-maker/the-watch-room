@@ -8,7 +8,7 @@
 
 import { useState, type ReactNode } from "react";
 import { dobDisplay, type RecordIndex, type PersonRecord } from "@/lib/sim/records";
-import { POLICING_PURPOSES, personCheck, vehicleCheck, type LedsCheck, type LedsReturn, type PolicingPurpose, type VehicleReturn } from "@/lib/sim/leds";
+import { POLICING_PURPOSES, normaliseDob, parsePersonQuery, personCheck, vehicleCheck, type LedsCheck, type LedsReturn, type PolicingPurpose, type VehicleReturn } from "@/lib/sim/leds";
 
 type Kind = "vehicle" | "person" | "property";
 
@@ -16,7 +16,7 @@ type PropertyReturn = { kind: "property"; query: string; trace: boolean; hits: {
 type Result = { r: LedsReturn | PropertyReturn; ref: string; at: number };
 
 const KIND_LABEL: Record<Kind, string> = { vehicle: "Vehicle", person: "Names", property: "Property" };
-const KIND_FIELD: Record<Kind, string> = { vehicle: "Registration", person: "Name", property: "Serial / description" };
+const KIND_FIELD: Record<Kind, string> = { vehicle: "Registration", person: "Names", property: "Serial / description" };
 
 function stamp(ts: number): string {
   const d = new Date(ts);
@@ -59,7 +59,10 @@ export function PncPage(props: PncPageProps) {
   const { index, checks, now, unitCallsign } = props;
   const [kind, setKind] = useState<Kind>(props.seed?.kind ?? "vehicle");
   const [query, setQuery] = useState(props.seed?.query ?? "");
-  const [dob, setDob] = useState("");
+  // What the terminal made of a names line — echoed under the input so
+  // the operator sees the enquiry before it runs.
+  const parsedPerson = kind === "person" && query.trim() ? parsePersonQuery(query) : null;
+  const parsedDob = parsedPerson?.dob ? normaliseDob(parsedPerson.dob) : undefined;
   const [purpose, setPurpose] = useState<PolicingPurpose>("incident");
   const [results, setResults] = useState<Result[]>([]);
   const [ix, setIx] = useState(0);
@@ -71,7 +74,8 @@ export function PncPage(props: PncPageProps) {
 
   function submit() {
     if (!index) return setError("The record index is not available on this tablet.");
-    if (query.trim().length < 2) return setError("Enter a registration, a name or a description.");
+    if (query.trim().length < 2) return setError(kind === "person" ? "Enter a name — SURNAME/FORENAME:DDMMYYYY." : "Enter a registration, a name or a description.");
+    if (kind === "person" && parsedPerson?.dob && !parsedDob) return setError(`Date of birth "${parsedPerson.dob}" not understood — DDMMYYYY after the colon.`);
     setError(null);
     const at = Date.now();
     const ref = `SIM-${String(checks.length + 1).padStart(5, "0")}`;
@@ -87,9 +91,9 @@ export function PncPage(props: PncPageProps) {
     if (kind === "vehicle") {
       list.push({ r: vehicleCheck(index, query), ref, at });
     } else {
-      const r = personCheck(index, query, dob);
+      const r = personCheck(index, query);
       if (r.ambiguous?.length) {
-        r.ambiguous.forEach((p: PersonRecord, i: number) => list.push({ r: personCheck(index, p.name, dob), ref: `${ref}/${i + 1}`, at }));
+        r.ambiguous.forEach((p: PersonRecord, i: number) => list.push({ r: personCheck(index, p.name, parsedPerson?.dob), ref: `${ref}/${i + 1}`, at }));
       } else {
         list.push({ r, ref, at });
       }
@@ -101,7 +105,7 @@ export function PncPage(props: PncPageProps) {
       id: `leds-${at}-${ref}`,
       atMs: at,
       kind: kind === "vehicle" ? "vehicle" : "person",
-      query: dob.trim() && kind === "person" ? `${query.trim()} · DOB ${dob.trim()}` : query.trim(),
+      query: kind === "person" ? query.trim().toUpperCase() : query.trim(),
       purpose,
       incidentId: props.incidentId,
       reason: `${unitCallsign} · MDT`,
@@ -111,7 +115,6 @@ export function PncPage(props: PncPageProps) {
 
   function clear() {
     setQuery("");
-    setDob("");
     setResults([]);
     setIx(0);
     setError(null);
@@ -132,7 +135,7 @@ export function PncPage(props: PncPageProps) {
       return (
         <>
           {section("ENQUIRY", line(r.kind === "vehicle" ? "Registration" : r.kind === "person" ? "Name" : "Property", up(r.kind === "vehicle" ? r.vrm : r.kind === "person" ? r.name : r.kind === "property" ? r.query : r.address)))}
-          <p className="pnc-notrace">NO TRACE — NOTHING HELD AGAINST THIS ENQUIRY</p>
+          <p className="pnc-notrace">{r.kind === "person" && r.notes.length ? up(r.notes[0]) : "NO TRACE — NOTHING HELD AGAINST THIS ENQUIRY"}</p>
         </>
       );
     }
@@ -230,8 +233,12 @@ export function PncPage(props: PncPageProps) {
             <div className="pnc-kinds">
               {(["vehicle", "person", "property"] as Kind[]).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setError(null); }}>{KIND_LABEL[k]}</button>)}
             </div>
-            <label className="pc-field inline"><span>{KIND_FIELD[kind]}</span><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder={kind === "vehicle" ? "AB12 CDE" : kind === "person" ? "SURNAME, Forename" : "IMEI, serial or description"} /></label>
-            {kind === "person" && <label className="pc-field inline"><span>Date of birth</span><input value={dob} onChange={(e) => setDob(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder="DD/MM/YYYY" /></label>}
+            <label className="pc-field inline"><span>{KIND_FIELD[kind]}</span><input className={kind === "person" ? "pnc-names" : undefined} value={query} onChange={(e) => setQuery(kind === "person" ? e.target.value.toUpperCase() : e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder={kind === "vehicle" ? "AB12 CDE" : kind === "person" ? "SURNAME/FORENAME:DDMMYYYY" : "IMEI, serial or description"} spellCheck={false} autoCapitalize={kind === "person" ? "characters" : undefined} /></label>
+            {kind === "person" && (
+              <p className={`pc-info pnc-parse${parsedPerson?.dob && !parsedDob ? " warn" : ""}`}>
+                <span>{!parsedPerson ? "Surname, a slash, forename, a colon, date of birth — DEAKIN/CALLUM:01011995" : parsedPerson.structured ? `${parsedPerson.name || "—"}${parsedPerson.dob ? ` · DOB ${parsedDob ? dobDisplay(parsedDob) : `${parsedPerson.dob} ?`}` : " · no date of birth"}` : `Free text · ${parsedPerson.name} — add /FORENAME:DDMMYYYY to narrow it`}</span>
+              </p>
+            )}
             <label className="pc-field inline"><span>Reason</span>
               <select value={purpose} onChange={(e) => setPurpose(e.target.value as PolicingPurpose)}>{(Object.keys(POLICING_PURPOSES) as PolicingPurpose[]).map((k) => <option key={k} value={k}>{POLICING_PURPOSES[k]}</option>)}</select>
             </label>

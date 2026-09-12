@@ -4671,3 +4671,9 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 @container (max-width: 900px) {
   .fc-rtc-body { grid-template-columns: 1fr; }
 }
+
+/* PNC names line: the terminal's own syntax */
+.pnc-names { font: 700 13px var(--vec-mono, Consolas, monospace); letter-spacing: 0.08em; text-transform: uppercase; }
+.pnc-names::placeholder { font-weight: 400; letter-spacing: 0.04em; }
+.pnc-parse { padding-left: 126px; font: 11px var(--vec-mono, Consolas, monospace); letter-spacing: 0.02em; }
+.pnc-parse.warn { color: var(--fc-stop); }
