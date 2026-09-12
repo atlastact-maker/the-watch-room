@@ -208,6 +208,8 @@ export function simulateIncident(
    *  the other way. */
   windFrom?: string,
 ): IncidentSimState {
+  // Callers may pass the county fleet; another incident cannot provide attendance here.
+  deployments = deployments.filter((d) => d.incidentId === incident.id);
   const absent = absentCasualtyIds ?? new Set<string>();
   const scene = incident.scenario.scene;
 
