@@ -439,7 +439,7 @@ function kitKindFor(labels: string[]): KitKind {
 
 /** Hydrants known to this scene — the authored list, or the OSM lookup the
  *  Water panel already uses, labelled H1… in the same order. */
-function useSceneHydrants(incident: Incident, enabled: boolean): { label: string; street?: string }[] {
+export function useSceneHydrants(incident: Incident, enabled: boolean): { label: string; street?: string }[] {
   const authored = (incident.scenario.scene?.hydrants ?? []).filter((h) => !!h.coords);
   const [osm, setOsm] = useState<{ label: string }[] | null>(null);
   useEffect(() => {

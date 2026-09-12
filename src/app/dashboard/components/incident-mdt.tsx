@@ -26,6 +26,7 @@ import { PopoutWindow } from "../vector/popout";
 import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
 import { FireCommandScreen } from "../vector/fire-command";
 import { PoliceControlsScreen, type SupportKind, type PoliceSelection } from "../vector/police-controls";
+import type { FireSelection } from "../vector/fire-command";
 import { VitalMonitorPanel } from "../vector/vital-monitor";
 import { MdtNotepad } from "../vector/mdt-notepad";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
@@ -274,6 +275,7 @@ export function DraggableIncidentMdt(props: Props) {
   const [popped, setPopped] = useState(false);
   const [notepad, setNotepad] = useState(false);
   const [policeSel, setPoliceSel] = useState<PoliceSelection | null>(null);
+  const [fireSel, setFireSel] = useState<FireSelection | null>(null);
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
   const [module, setModule] = useState<"care" | "fire" | "police">(props.policePage ? "police" : "care");
@@ -338,6 +340,7 @@ export function DraggableIncidentMdt(props: Props) {
           onEvacuate={props.onEvacuate}
           waterClock={props.waterClock}
           fatigueByApplianceId={props.fatigueByApplianceId}
+          onSelectionChange={setFireSel}
         />
       );
     }
@@ -412,7 +415,26 @@ export function DraggableIncidentMdt(props: Props) {
           <small>{unitState} · {assigned ? `${assigned} patient${assigned === 1 ? "" : "s"} assigned` : "No patients assigned"}</small>
         </div>
         <div className="vec-mdt-vitals">
-          {module === "police" ? (
+          {module === "fire" ? (
+            fireSel && !resolved ? (
+              <div className="vec-mdt-inhand fire">
+                <div className="vec-mdt-inhand-drv first">
+                  <small>FIRE</small>
+                  <b className={fireSel.stageTone}>{fireSel.stage}</b>
+                  <span>{fireSel.detail}</span>
+                  <span className={fireSel.waterTone}>{fireSel.water}</span>
+                </div>
+                <div className="vec-mdt-inhand-drv">
+                  <small>COMMAND</small>
+                  <b className={fireSel.modeTone}>{fireSel.mode}</b>
+                  <span className={fireSel.structureTone}>{fireSel.structure}</span>
+                  <span>{fireSel.ba}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="vec-mdt-vitals-empty">NO FIREGROUND IN HAND · COMMIT A FIRE UNIT</div>
+            )
+          ) : module === "police" ? (
             policeSel && (policeSel.vehicle || policeSel.driver) ? (
               <div className="vec-mdt-inhand">
                 {policeSel.vehicle ? (
