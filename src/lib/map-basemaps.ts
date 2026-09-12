@@ -108,7 +108,10 @@ export const STREET: Basemap = {
  *  no style assembly, nothing for the browser to get wrong. The vector
  *  layer stays defined above for another run at it later. */
 export function groundBasemaps(): Basemap[] {
-  return osMappingEnabled() ? [OS_MAP, OS_OUTDOOR, AERIAL] : [STREET, AERIAL];
+  // Ground view opens on current aerial imagery so buildings, yards and
+  // vehicle staging read as real places. Cartographic OS layers remain
+  // available for street names, hydrants and routing context.
+  return osMappingEnabled() ? [AERIAL, OS_MAP, OS_OUTDOOR] : [AERIAL, STREET];
 }
 
 export function basemapById(id: BasemapId): Basemap {

@@ -474,6 +474,7 @@ export function SceneUnitsTile({ layout, area, rows, onPick, onPlace, onClose, g
    ---------------------------------------------------------------------- */
 export type PdaRow = {
   n: number;
+  slotId: string;
   slot: string;
   applianceId: string | null;
   callsign: string | null;
@@ -549,6 +550,7 @@ export type ResourceCard = {
   blocked: string;
   /** Advice once it can — "Fills Pump 2", "Nothing outstanding needs it". */
   fit: string;
+  compatibleSlotIds: string[];
   cost: { text: string; tone: "off" | "warn" | "stop" };
   deployed: boolean;
 };

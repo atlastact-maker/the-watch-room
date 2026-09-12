@@ -110,7 +110,6 @@ import {
 } from "@/lib/sim/hospitals";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
 import {
-  baDurationMultiplier,
   etaPrecipMultiplier,
   etaTrafficMultiplier,
   fireGrowthWindMultiplier,
@@ -119,9 +118,9 @@ import {
   weatherFromLive,
   type WeatherState,
 } from "@/lib/sim/weather";
+import { liveTasks, mapLiveTasks, dueTasks, waterUseByTank, baConsumption } from "@/lib/sim/runtime-tasks";
 import { simulateIncident } from "@/lib/sim/incident_sim";
 import {
-  BA_BAR_PER_MINUTE,
   CAPABILITIES_BY_TYPE,
   DOOR_TYPE_LABEL,
   ENTRY_TABLE,
@@ -154,6 +153,7 @@ import {
   unlockAudio,
 } from "@/lib/audio/sim-audio";
 import type { StationWithAppliances } from "./page";
+import { parseWatchPreparation } from "@/lib/sim/menu-state";
 import { EmbeddedMap } from "./components/map-panel";
 import {
   DEFAULT_MAP_FILTER,
@@ -193,6 +193,8 @@ import { IncomingCallModal } from "./components/incoming-call";
 import { DebriefScreen } from "./components/debrief-screen";
 import { ShiftDebriefScreen, type ShiftJobSummary } from "./components/shift-debrief";
 import { readPlan, updatePlan, EMPTY_PLAN, type CommandPlan, type SectorAssignment } from "./vector/command-store";
+import { readOrders, updateOrders } from "./vector/mdt-orders";
+import { readPoliceRecord, updatePoliceRecord } from "./vector/police-store";
 import type { PdaSlot } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { useRouter } from "next/navigation";
@@ -429,9 +431,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   /** Build a setState-shaped setter for one field of the selected
    *  incident's runtime, so existing `setX(v)` and `setX(prev => …)` call
    *  sites keep working unchanged. */
-  function runtimeSetter<K extends keyof IncidentRuntime>(key: K) {
+  function runtimeSetter<K extends keyof IncidentRuntime>(key: K, incidentId?: string) {
     return (value: IncidentRuntime[K] | ((prev: IncidentRuntime[K]) => IncidentRuntime[K])) => {
-      updateRuntime(selectedIdRef.current, (rt) => {
+      updateRuntime(incidentId ?? selectedIdRef.current, (rt) => {
         const next =
           typeof value === "function"
             ? (value as (p: IncidentRuntime[K]) => IncidentRuntime[K])(rt[key])
@@ -440,29 +442,6 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       });
     };
   }
-
-  /** Replace the selected incident record itself (resolvedAt, receivedAt
-   *  rewinds). Shaped like the old setActiveIncident. */
-  const setActiveIncident = useCallback(
-    (value: Incident | null | ((prev: Incident | null) => Incident | null)) => {
-      setIncidents((prev) => {
-        const id = selectedIdRef.current;
-        if (!id) return prev;
-        const idx = prev.findIndex((i) => i.id === id);
-        if (idx < 0) return prev;
-        const next =
-          typeof value === "function"
-            ? (value as (p: Incident | null) => Incident | null)(prev[idx])
-            : value;
-        if (!next) return prev.filter((i) => i.id !== id);
-        if (next === prev[idx]) return prev;
-        const out = [...prev];
-        out[idx] = next;
-        return out;
-      });
-    },
-    [],
-  );
 
   const informantLog = runtime.informantLog;
   const setInformantLog = runtimeSetter("informantLog");
@@ -541,6 +520,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // whistle are all hoisted below the state declarations they depend on —
   // see the useEffect blocks near the bottom of this component.
   const [deployments, setDeployments] = useState<Deployment[]>([]);
+  // Synchronous reservation for the Fill remaining batch. React state is
+  // committed asynchronously, so two proposals in one click used to see
+  // the same free appliance and dispatch it twice.
+  const dispatchReservationRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const id of dispatchReservationRef.current) {
+      if (deployments.some((d) => d.applianceId === id)) dispatchReservationRef.current.delete(id);
+    }
+  }, [deployments]);
+  const taskStartGuardRef = useRef<Set<string>>(new Set());
   const [statusOverrides, setStatusOverrides] = useState<Record<string, StatusCode>>({});
   /** Only the selected job's committed units. The map deliberately shows
    *  ALL deployments — an operator wants to see every appliance moving,
@@ -630,6 +619,15 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
 
   // Task + scene commander + crew BA air state.
   const tasks = runtime.tasks;
+  useEffect(() => {
+    for (const key of taskStartGuardRef.current) {
+      const [, applianceId, kind] = key.split("|");
+      if (!tasks.some((t) => t.applianceId === applianceId && t.kind === kind && t.state === "active")) {
+        taskStartGuardRef.current.delete(key);
+      }
+    }
+  }, [tasks]);
+  const allLiveTasks = useMemo(() => liveTasks(runtimes), [runtimes]);
   const setTasks = runtimeSetter("tasks");
   const sceneCommanderApplianceId = runtime.sceneCommanderApplianceId;
   const setSceneCommanderApplianceId = runtimeSetter("sceneCommanderApplianceId");
@@ -763,11 +761,20 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // shift save that might be sitting in localStorage.
     const url = new URL(window.location.href);
     const forceNew = url.searchParams.get("new") === "1";
+    const prepared = forceNew ? parseWatchPreparation(url.searchParams) : null;
     if (forceNew) {
       clearSave();
       localStorage.removeItem(PATCH_STORAGE_KEY);
       url.searchParams.delete("new");
+      for (const key of ["prepared", "intensity", "services"]) url.searchParams.delete(key);
       window.history.replaceState({}, "", url.toString());
+    }
+
+    // The menu's reviewed setup enters the same initialisation path as
+    // the in-simulation picker; malformed/empty service choices use the picker.
+    if (prepared) {
+      selectPatch(PATCH, prepared.intensity, 8, prepared.services);
+      return;
     }
 
     // Check for a fresh shift save first — if present, the modal will
@@ -812,13 +819,17 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setWeather(shifted.weather);
     setPreShiftStates(shifted.preShiftStates);
     const saved = shifted.activeIncident;
-    if (saved) {
-      setIncidents([saved]);
-      setSelectedIncidentId(saved.id);
+    const restoredIncidents = shifted.incidents?.length ? shifted.incidents : saved ? [saved] : [];
+    const restoredSelectedId = shifted.selectedIncidentId ?? saved?.id ?? null;
+    if (restoredIncidents.length) {
+      setIncidents(restoredIncidents);
+      setSelectedIncidentId(restoredSelectedId);
       // Written straight through as well: the ref is only refreshed on
       // render, and the runtime below must not wait for one.
-      selectedIdRef.current = saved.id;
-      setRuntimes({
+      selectedIdRef.current = restoredSelectedId;
+      setRuntimes(shifted.runtimes
+        ? (shifted.runtimes as Record<string, IncidentRuntime>)
+        : saved ? {
         [saved.id]: {
           tasks: shifted.tasks,
           // A shift is only ever saved while the job is live, so a resumed
@@ -848,11 +859,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               }
             : null,
         },
-      });
+      } : {});
     }
     if (saved && shifted.fireground?.plan) {
       const plan = shifted.fireground.plan as Partial<CommandPlan>;
       updatePlan(saved.id, () => ({ ...EMPTY_PLAN, ...plan }));
+    }
+    // Restore per-incident operational records when present. These stores
+    // are deliberately external to React so a tablet can be closed without
+    // losing an order, plan, or police record.
+    for (const [incidentId, orders] of Object.entries(shifted.mdtOrders ?? {})) {
+      updateOrders(incidentId, () => orders as import("./vector/mdt-orders").MdtOrder[]);
+    }
+    for (const [incidentId, plan] of Object.entries(shifted.commandPlans ?? {})) {
+      updatePlan(incidentId, () => plan as CommandPlan);
+    }
+    for (const [incidentId, record] of Object.entries(shifted.policeRecords ?? {})) {
+      updatePoliceRecord(incidentId, () => record as import("./vector/police-store").PoliceRecord);
     }
     setDeployments(shifted.deployments);
     setStatusOverrides(shifted.statusOverrides);
@@ -868,6 +891,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setLastCasualtySeverity(shifted.lastCasualtySeverity);
     setLastAirTickAt(shifted.lastAirTickAt);
     setLastFatigueTickAt(shifted.lastFatigueTickAt);
+    if (shifted.shiftStartedAt) setShiftStartedAt(shifted.shiftStartedAt);
     setPendingSave(null);
   }, []);
 
@@ -894,14 +918,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patch, intensity]);
 
-  // Auto-save the shift snapshot every 3 s while an incident is live so
-  // a reload / crash doesn't lose progress. Writes are cheap
-  // (JSON.stringify to localStorage) but throttled anyway. Cleared when
-  // the incident resolves (see the outcome effect further down).
-  useEffect(() => {
-    if (!patch || !activeIncident || outcome) return;
-    const id = setInterval(() => {
-      writeSave({
+  // Keep the current snapshot in a ref. The clock, task state and logs tick
+  // often; rebuilding the interval on each tick used to postpone the write
+  // forever. The interval below is anchored to the shift/incident lifetime.
+  const saveSnapshotRef = useRef<Parameters<typeof writeSave>[0] | null>(null);
+  saveSnapshotRef.current = patch && incidents.length > 0 && !pendingSave ? {
         patch,
         intensity,
         weather,
@@ -929,6 +950,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         lastCasualtySeverity,
         lastAirTickAt,
         lastFatigueTickAt,
+        incidents,
+        selectedIncidentId,
+        runtimes: runtimes as Record<string, unknown>,
+        mdtOrders: Object.fromEntries(incidents.map((i) => [i.id, readOrders(i.id)])),
+        commandPlans: Object.fromEntries(incidents.map((i) => [i.id, readPlan(i.id)])),
+        policeRecords: Object.fromEntries(incidents.map((i) => [i.id, readPoliceRecord(i.id)])),
+        shiftStartedAt,
         fireground: activeIncident
           ? {
               structuralDamage: runtime.structuralDamage,
@@ -942,43 +970,30 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
               plan: readPlan(activeIncident.id),
             }
           : undefined,
-      });
-    }, 3000);
-    return () => clearInterval(id);
-  }, [
-    patch,
-    intensity,
-    weather,
-    preShiftStates,
-    activeIncident,
-    outcome,
-    deployments,
-    statusOverrides,
-    tasks,
-    crewAir,
-    vehicleGauges,
-    fatigueByApplianceId,
-    treatmentByCasualtyId,
-    sceneCommanderApplianceId,
-    tacticalMode,
-    log,
-    informantLog,
-    informantOnCall,
-    fireIgnition,
-    absentCasualtyIds,
-    coveredServices,
-    newlyFoundCasualties,
-    newlyConfirmedHazards,
-    lastFireStage,
-    lastCasualtySeverity,
-    lastAirTickAt,
-    lastFatigueTickAt,
-  ]);
-
-  // On outcome (shift resolved), drop the save — nothing to resume.
+      } : null;
   useEffect(() => {
-    if (outcome) clearSave();
-  }, [outcome]);
+    if (!patch || pendingSave) return;
+    const save = () => {
+      const snapshot = saveSnapshotRef.current;
+      if (!snapshot) return;
+      const jobs = snapshot.incidents ?? [];
+      writeSave({ ...snapshot,
+        mdtOrders: Object.fromEntries(jobs.map((i) => [i.id, readOrders(i.id)])),
+        commandPlans: Object.fromEntries(jobs.map((i) => [i.id, readPlan(i.id)])),
+        policeRecords: Object.fromEntries(jobs.map((i) => [i.id, readPoliceRecord(i.id)])),
+      });
+    };
+    save();
+    const id = setInterval(save, 3000);
+    const flush = () => save();
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+    };
+  }, [patch, pendingSave]);
 
   // 1 Hz wall clock.
   useEffect(() => {
@@ -1462,63 +1477,58 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     });
   }, [now]);
 
-  // Abort any hose_attack whose ultimate water source has dried up, or
-  // whose appliance has lost its pump operator. Walks the relay graph
-  // via rootWaterSource so a pump relaying from an empty upstream tank
-  // stops correctly — the sim was previously only checking the
-  // attacker's own tank, which let relayed consumers keep spraying air.
+  // Stop attacks at every incident when their pump or supply fails.
   useEffect(() => {
-    setTasks((prev) => {
-      let changed = false;
-      const next = prev.map((t) => {
-        if (t.kind !== "hose_attack" || t.state !== "active") return t;
+    const stopped = new Map<string, { reason: string; dry: boolean }>();
+    for (const rt of Object.values(runtimes)) {
+      if (rt.outcome || rt.handover) continue;
+      for (const t of rt.tasks) {
+        if (t.kind !== "hose_attack" || t.state !== "active") continue;
         const d = deployments.find((x) => x.applianceId === t.applianceId);
-        if (!d) return t;
-        const pumpReady = d.pumpRunning === true && !!d.pumpOperatorCrewId;
-        const root = rootWaterSource(t.applianceId, prev);
-        const hasWaterSource =
-          root.type === "hydrant" ||
-          (root.type === "tank" &&
-            (vehicleGauges[root.applianceId]?.waterPct ?? 100) > 0);
-        // A hydrant feeds three jets; the fourth on the same supply is
-        // starved, and it is the latest one that loses out.
+        const pumpReady = d?.pumpRunning === true && !!d.pumpOperatorCrewId;
+        const root = rootWaterSource(t.applianceId, rt.tasks);
+        const supplied = root.type === "hydrant" ||
+          (root.type === "tank" && (vehicleGauges[root.applianceId]?.waterPct ?? 100) > 0);
+        // Preserve the fireground's three-jet limit on each hydrant,
+        // using this incident's own relay chain and task order.
         let overHydrant = false;
         if (root.type === "hydrant") {
           const hydrantOf = (applianceId: string): string | null => {
-            // Walk the relay chain to the appliance on the hydrant and name it.
             const seen = new Set<string>();
             let cur = applianceId;
             while (cur && !seen.has(cur)) {
               seen.add(cur);
-              const h = prev.find((x) => x.kind === "connect_hydrant" && x.state !== "aborted" && x.applianceId === cur);
+              const h = rt.tasks.find((x) => x.kind === "connect_hydrant" && x.state !== "aborted" && x.applianceId === cur);
               if (h) return h.hydrantId ?? `hyd:${cur}`;
-              const relay = prev.find((x) => x.kind === "relay_hose" && x.state !== "aborted" && x.applianceId === cur);
+              const relay = rt.tasks.find((x) => x.kind === "relay_hose" && x.state !== "aborted" && x.applianceId === cur);
               if (!relay?.sourceApplianceId) return null;
               cur = relay.sourceApplianceId;
             }
             return null;
           };
           const mine = hydrantOf(t.applianceId);
-          const onSame = prev.filter((x) => x.kind === "hose_attack" && x.state === "active" && hydrantOf(x.applianceId) === mine).sort((a, b) => a.startedAt - b.startedAt);
+          const onSame = rt.tasks.filter((x) => x.kind === "hose_attack" && x.state === "active" && hydrantOf(x.applianceId) === mine).sort((a, b) => a.startedAt - b.startedAt);
           overHydrant = mine !== null && onSame.indexOf(t) >= 3;
         }
-        if (pumpReady && hasWaterSource && !overHydrant) return t;
-        changed = true;
-        const dry = pumpReady && !hasWaterSource;
-        setLog((L) => [
-          ...L,
-          {
-            id: `${dry ? "dry" : overHydrant ? "hydrant-cap" : "attack-stop"}:${t.id}:${Date.now()}`,
-            timestamp: Date.now(),
-            kind: dry ? "setback" : "annotation",
-            message: `${applianceLabel(t.applianceId)} hose attack stopped · ${!pumpReady ? "pump not running" : overHydrant ? "hydrant already feeding three jets" : "TANK DRY — no supply established"}`,
-          },
-        ]);
-        return { ...t, state: "aborted" as const };
-      });
-      return changed ? next : prev;
+        if (!pumpReady || !supplied || overHydrant) stopped.set(t.id, {
+          reason: !pumpReady ? "pump not running" : overHydrant ? "hydrant already feeding three jets" : "TANK DRY — no supply established",
+          dry: pumpReady && !supplied,
+        });
+      }
+    }
+    if (!stopped.size) return;
+    setRuntimes((prev) => mapLiveTasks(prev, (t) =>
+      t.state === "active" && stopped.has(t.id) ? { ...t, state: "aborted" } : t));
+    setLog((prev) => {
+      const ids = new Set(prev.map((e) => e.id));
+      const entries = allLiveTasks.filter((t) => stopped.has(t.id) && !ids.has("attack-stop:" + t.id))
+        .map((t): LogEntry => ({
+          id: "attack-stop:" + t.id, timestamp: now, kind: stopped.get(t.id)?.dry ? "setback" : "annotation",
+          message: applianceLabel(t.applianceId) + " hose attack stopped · " + stopped.get(t.id)?.reason,
+        }));
+      return entries.length ? [...prev, ...entries] : prev;
     });
-  }, [vehicleGauges, deployments]);
+  }, [vehicleGauges, deployments, runtimes, allLiveTasks, now]);
 
   // Status overrides derive from (a) active deployments, (b) pre-shift state.
   // Active deployments win if present.
@@ -3203,6 +3213,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ? incidents.find((i) => i.id === args.incidentId) ?? null
       : activeIncident;
     if (!incident) return;
+    if (deployments.some((d) => d.applianceId === args.applianceId) || dispatchReservationRef.current.has(args.applianceId)) {
+      setStatusMsg("That appliance is already reserved or committed");
+      return;
+    }
+    dispatchReservationRef.current.add(args.applianceId);
     const mobilisedAt = Date.now();
     dispatchBeep();
     bumpStats((s) => {
@@ -3447,24 +3462,17 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     ]);
   }, [policeShift, policeHandover, clock.hour, clock.minute]);
 
-  // A delegated incident closes itself when its commander's time is up.
-  const resolveRef = useRef(resolveIncident);
-  resolveRef.current = resolveIncident;
+  // A commander's stop message must not pull the operator out of another job.
+  const resolveByIdRef = useRef(resolveIncidentById);
+  resolveByIdRef.current = resolveIncidentById;
   useEffect(() => {
-    const id = setInterval(() => {
-      const due = incidents.find((i) => {
-        const rt = runtimes[i.id];
-        return rt?.handover && !rt.outcome && Date.now() >= rt.handover.clearAtMs;
-      });
-      if (!due) return;
-      if (selectedIncidentId !== due.id) {
-        setSelectedIncidentId(due.id);
-        return; // resolve on the next pass, once the selection has landed
+    for (const incident of incidents) {
+      const rt = runtimes[incident.id];
+      if (rt?.handover && !rt.outcome && now >= rt.handover.clearAtMs) {
+        void resolveByIdRef.current(incident.id);
       }
-      void resolveRef.current();
-    }, 2000);
-    return () => clearInterval(id);
-  }, [incidents, runtimes, selectedIncidentId]);
+    }
+  }, [now, incidents, runtimes]);
 
   /** Units on scene that could take command of a given incident. Empty
    *  for a job that is closed or already delegated, so the picker simply
@@ -3621,6 +3629,18 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const deps = deployments.filter((d) => d.incidentId === incidentId);
     const handover = runtimes[incidentId]?.handover ?? null;
     const tasks = runtimes[incidentId]?.tasks ?? [];
+    const rt = runtimes[incidentId];
+    const baById: Record<string, number> = {};
+    for (const station of allDeployableStations) {
+      for (const appliance of station.appliances) {
+        if ((CAPABILITIES_BY_TYPE[appliance.type] ?? []).includes("BA")) {
+          baById[appliance.id] = Math.max(0, appliance.crew.min - 1);
+        }
+      }
+    }
+    const incidentSim = simulateIncident(activeIncident, deps, baById, tasks, Date.now(),
+      treatmentByCasualtyId, fireGrowthWindMultiplier(weather.windMph), rt?.fireIgnition,
+      new Set(rt?.absentCasualtyIds ?? []), weather.windDir);
     const resolvedAt = Date.now();
     const incidentCoords = activeIncident.scenario.location.coords;
     const stations = patch ? PATCH_AREAS.flatMap((a) => stationsByArea[a]) : [];
@@ -3861,7 +3881,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       targetsTotal: scored.totalCount,
       casualtiesSaved: stages.filter((st) => st === "at_hospital").length,
       casualtiesLost: stages.filter((st) => st === "expectant").length,
-      resourcesUsed: deployments.length,
+      resourcesUsed: deps.length,
       summary: scored.summary,
       resolvedAt,
     });
@@ -4166,8 +4186,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }, [tasks]);
 
   // Derived incident simulation state (fire radius, hazards, casualties).
-  const incidentSim = useMemo(() => {
-    if (!activeIncident) return null;
+  const incidentSims = useMemo(() => {
     const baById: Record<string, number> = {};
     for (const s of allDeployableStations) {
       for (const a of s.appliances) {
@@ -4175,19 +4194,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         if (caps.includes("BA")) baById[a.id] = Math.max(0, a.crew.min - 1);
       }
     }
-    return simulateIncident(
+    return new Map(incidents.map((activeIncident) => {
+      const rt = runtimes[activeIncident.id] ?? { tasks: [], fireIgnition: null, absentCasualtyIds: [] };
+      return [activeIncident.id, simulateIncident(
       activeIncident,
       deployments,
       baById,
-      tasks,
-      now,
+      rt.tasks,
+      activeIncident.resolvedAt ?? now,
       treatmentByCasualtyId,
       fireGrowthWindMultiplier(weather.windMph),
-      fireIgnition,
-      new Set(absentCasualtyIds),
+      rt.fireIgnition,
+      new Set(rt.absentCasualtyIds),
       weather.windDir,
-    );
-  }, [activeIncident, deployments, allDeployableStations, tasks, now, treatmentByCasualtyId, weather.windMph, weather.windDir, fireIgnition, absentCasualtyIds]);
+      )] as const;
+    }));
+  }, [incidents, runtimes, deployments, allDeployableStations, now, treatmentByCasualtyId, weather.windMph, weather.windDir]);
+  const incidentSim = activeIncident ? incidentSims.get(activeIncident.id) ?? null : null;
 
   // Auto-resolve a job that is genuinely finished.
   //
@@ -4201,37 +4224,23 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // The trigger is HANDOVER, not arrival: an ambulance pulling onto the
   // hospital ramp has not finished, it finishes when the offload window
   // closes. A patient who died on scene counts as dealt with too.
-  const autoResolvedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!activeIncident || outcome || !incidentSim) return;
-    if (autoResolvedRef.current === activeIncident.id) return;
-    const seat = activeIncident.scenario.scene?.fireSeat;
-    const fireJob = (seat?.maxRadiusM ?? 0) > 0 || (seat?.radiusM ?? 0) > 0;
-    if (fireJob) return;
-    const found = incidentSim.foundCasualties;
-    if (found.length === 0) return;
-    const allDealtWith = found.every((c) => {
-      const st = incidentSim.casualtyProgression?.[c.id]?.stage;
-      return st === "at_hospital" || st === "expectant";
-    });
-    if (!allDealtWith) return;
-    // Every conveying ambulance must have finished its handover.
-    const conveying = deployments.filter((d) => d.offloadEndsAt !== undefined);
-    const handedOver = conveying.every((d) => now >= (d.offloadEndsAt ?? 0));
-    if (!handedOver) return;
-    autoResolvedRef.current = activeIncident.id;
-    setLog((prev) => [
-      ...prev,
-      {
-        id: `autoresolve:${Date.now()}`,
-        timestamp: Date.now(),
-        kind: "annotation",
-        message:
-          "All patients dealt with and handed over — incident resolved.",
-      },
-    ]);
-    void resolveIncident();
-  }, [activeIncident, outcome, incidentSim, deployments, now]);
+    for (const incident of incidents) {
+      const rt = runtimes[incident.id];
+      const sim = incidentSims.get(incident.id);
+      if (rt?.outcome || rt?.handover || !sim) continue;
+      const seat = incident.scenario.scene?.fireSeat;
+      if ((seat?.maxRadiusM ?? 0) > 0 || (seat?.radiusM ?? 0) > 0 || rt?.fireIgnition) continue;
+      if (!sim.foundCasualties.length) continue;
+      const finished = sim.foundCasualties.every((c) => {
+        const stage = sim.casualtyProgression?.[c.id]?.stage;
+        return stage === "at_hospital" || stage === "expectant";
+      });
+      const handedOver = deployments.filter((d) => d.incidentId === incident.id && d.offloadEndsAt !== undefined)
+        .every((d) => now >= d.offloadEndsAt!);
+      if (finished && handedOver) void resolveByIdRef.current(incident.id);
+    }
+  }, [now, incidents, runtimes, incidentSims, deployments]);
 
   // Exposure breach — log ONCE the moment the fire radius crosses the
   // scene's authored exposure threshold (fire into the attached
@@ -4289,7 +4298,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   // crosses below 60 bar.
   const baLowFiredRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    for (const t of tasks) {
+    for (const t of allLiveTasks) {
       if (t.kind !== "ba_sar" || t.state !== "active") continue;
       for (const [cid, bar] of Object.entries(t.baPressure ?? {})) {
         if ((bar as number) < 60 && !baLowFiredRef.current.has(cid)) {
@@ -4298,7 +4307,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
       }
     }
-  }, [tasks]);
+  }, [allLiveTasks]);
 
   // Per-station ETA — computed once when an incident opens, shared by the
   // initial deployment panel and the in-shift ground-view deployment board.
@@ -4333,59 +4342,25 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     return () => ctrl.abort();
   }, [activeIncident, allDeployableStations, weather.hourOfDay, weather.precip]);
 
-  // Auto-complete timed tasks (survey, gain_entry, kit_grab, mitigate_hazard).
-  // Two-phase to avoid duplicate log entries under React StrictMode / Turbo
-  // where a setState *updater* may run more than once. Phase 1 reads the
-  // current `tasks` to find which ones just crossed their completesAt
-  // threshold; phase 2 updates tasks + appends log entries at the top
-  // level (single append per tick).
+  // Complete tasks across the county, using each incident's own scenario.
   useEffect(() => {
-    const justCompleted: Task[] = [];
-    for (const t of tasks) {
-      if (t.state !== "active") continue;
-      if (!t.completesAt) continue;
-      if (now >= t.completesAt) justCompleted.push(t);
-    }
-    if (justCompleted.length === 0) return;
-    // Forcible entry rolls against the tool-vs-door odds when its timer
-    // lands. The "roll" is a deterministic hash of the task id so
-    // StrictMode double-invokes, HMR replays, and save/resume all agree
-    // on the outcome. Failures flip to aborted — door held, try again.
-    const doorType = activeIncident
-      ? doorTypeForScenario(activeIncident.scenario)
-      : null;
-    const entryFailedIds = new Set(
-      justCompleted
-        .filter(
-          (t) =>
-            t.kind === "gain_entry" &&
-            t.entryTool &&
-            doorType &&
-            hashPct(t.id) >= ENTRY_TABLE[t.entryTool][doorType].pct,
-        )
-        .map((t) => t.id),
-    );
-    const completedIds = new Set(
-      justCompleted.filter((t) => !entryFailedIds.has(t.id)).map((t) => t.id),
-    );
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.state === "active" && completedIds.has(t.id)
-          ? { ...t, state: "completed" as const }
-          : t.state === "active" && entryFailedIds.has(t.id)
-            ? { ...t, state: "aborted" as const }
-            : t,
-      ),
-    );
+    const completed = dueTasks(runtimes, incidents, now);
+    if (!completed.length) return;
+    const results = new Map(completed.map((c) => [c.task.id, c]));
+    setRuntimes((prev) => mapLiveTasks(prev, (t) => {
+      const result = results.get(t.id);
+      return t.state === "active" && result
+        ? { ...t, state: result.failed ? "aborted" : "completed" } : t;
+    }));
     setLog((lg) => {
       // Dedupe: if a previous tick already logged any of these (StrictMode
       // double-invoke, HMR replay), skip them.
       const existingIds = new Set(lg.map((e) => e.id));
       const toAppend: LogEntry[] = [];
-      for (const t of justCompleted) {
+      for (const { task: t, doorType, failed } of completed) {
         const id = `taskc:${t.id}`;
         if (existingIds.has(id)) continue;
-        if (entryFailedIds.has(t.id)) {
+        if (failed) {
           toAppend.push({
             id,
             timestamp: t.completesAt ?? Date.now(),
@@ -4482,7 +4457,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       }
       return toAppend.length > 0 ? [...lg, ...toAppend] : lg;
     });
-  }, [now, tasks]);
+  }, [now, runtimes, incidents]);
 
   // Stage pre-selected BA teams the moment their appliance lands. The
   // en-route pre-select means "rig in BA on the way" — so on arrival the
@@ -4522,262 +4497,211 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now, deployments]);
 
-  // Water-tank tick — consumer-driven drain using realistic hose flow
-  // rates. Each running hose_attack is a consumer at HOSE_FLOW_LPM for
-  // its hose type. An interior BA team committed in "firefighting" mode
-  // is a consumer at the 45mm rate. The drain lands on whichever tank
-  // the supply chain ultimately terminates at: a hydrant means
-  // effectively unlimited (no drain), a tank further up the relay chain
-  // drains as if the final branch were on it directly, and if no supply
-  // exists the consumer's own tank drains.
+  // Every active incident draws from its own supply chain, even off screen.
   const [lastWaterTickAt, setLastWaterTickAt] = useState<number>(0);
   useEffect(() => {
-    if (!lastWaterTickAt) {
-      setLastWaterTickAt(now);
-      return;
-    }
-    const deltaSec = (now - lastWaterTickAt) / 1000;
-    if (deltaSec < 0.5) return;
-
-    // Gather consumers. Each contributes a flow rate (L/min) that
-    // ultimately draws from one tank (or the hydrant).
-    type Consumer = { applianceId: string; flowLpm: number };
-    const consumers: Consumer[] = [];
-    for (const t of tasks) {
-      if (t.state !== "active") continue;
-      if (t.kind === "hose_attack") {
-        const flow = HOSE_FLOW_LPM[t.hoseType ?? "70mm"];
-        consumers.push({ applianceId: t.applianceId, flowLpm: flow });
-      } else if (t.kind === "ba_sar" && t.baMode === "firefighting") {
-        consumers.push({
-          applianceId: t.applianceId,
-          flowLpm: INTERIOR_BA_DEFAULT_FLOW_LPM,
-        });
-      }
-    }
-    if (consumers.length === 0) {
-      setLastWaterTickAt(now);
-      return;
-    }
-
-    // Sum demand at each tank. Relay chains collapse into the root tank
-    // (or hydrant, which has no tank to drain).
-    const drainLpmByTank = new Map<string, number>();
-    for (const c of consumers) {
-      const root = rootWaterSource(c.applianceId, tasks);
-      if (root.type === "hydrant") continue; // hydrant-supplied → no drain
-      if (root.type === "none") continue; // nothing to drain anyway
-      drainLpmByTank.set(
-        root.applianceId,
-        (drainLpmByTank.get(root.applianceId) ?? 0) + c.flowLpm,
-      );
-    }
-    if (drainLpmByTank.size === 0) {
-      setLastWaterTickAt(now);
-      return;
-    }
-
-    setVehicleGauges((prev) => {
+    if (!lastWaterTickAt) { setLastWaterTickAt(now); return; }
+    if (now - lastWaterTickAt < 500) return;
+    const used = waterUseByTank(runtimes, lastWaterTickAt, now);
+    if (used.size) setVehicleGauges((prev) => {
       let changed = false;
       const next = { ...prev };
-      for (const [applianceId, flowLpm] of drainLpmByTank) {
-        // Find the pump's nominal tank size so we can convert L/s to %/s.
-        const station = allDeployableStations.find((s) =>
-          s.appliances.some((a) => a.id === applianceId),
-        );
-        const app = station?.appliances.find((a) => a.id === applianceId);
-        const tankL = app?.waterLitres ?? 1800;
+      for (const [applianceId, litres] of used) {
+        const tankL = applianceById.get(applianceId)?.waterLitres ?? 1800;
         if (tankL <= 0) continue;
-        const pctPerMin = (flowLpm / tankL) * 100;
-        const drop = (pctPerMin / 60) * deltaSec;
         const cur = next[applianceId] ?? { fuelPct: 100, waterPct: 100, conditionPct: 100 };
-        const newPct = Math.max(0, cur.waterPct - drop);
-        if (newPct !== cur.waterPct) {
-          next[applianceId] = { ...cur, waterPct: newPct };
+        const waterPct = Math.max(0, cur.waterPct - litres / tankL * 100);
+        if (waterPct !== cur.waterPct) {
+          next[applianceId] = { ...cur, waterPct };
           changed = true;
         }
       }
       return changed ? next : prev;
     });
     setLastWaterTickAt(now);
-  }, [now, tasks, lastWaterTickAt, allDeployableStations]);
+  }, [now, runtimes, lastWaterTickAt, applianceById]);
 
   // Informant tick — while the operator has answered the call but no
   // crew has yet landed on scene, scripted updates from the 999 caller
   // fire in real time. Once any committed deployment arrives on scene,
   // the caller "hangs up" and no further updates fire.
+  const lastInformantTick = useRef(new Map<string, number>());
   useEffect(() => {
-    if (!activeIncident) return;
-    // A delegated job is the commander's: its caller stops reaching here.
-    if (handover) return;
-    const script = activeIncident.scenario.informantScript;
-    if (!script || script.length === 0) {
-      // Still track first-arrival to flip the "on call" flag — even when
-      // there's no script the banner should disappear on arrival.
-      const firstOnScene = deployments.some((d) => now >= d.arrivesAt);
-      if (firstOnScene && informantOnCall) {
-        setInformantOnCall(false);
-        setLog((prev) => [
-          ...prev,
-          {
-            id: `inf:end:${Date.now()}`,
-            timestamp: Date.now(),
-            kind: "annotation",
-            message: "Caller cleared the line — first crew on scene",
-          },
-        ]);
-      }
-      return;
-    }
-    const firstOnScene = deployments.some((d) => now >= d.arrivesAt);
-    const sinceOpenSec = (now - activeIncident.receivedAt) / 1000;
-
-    if (firstOnScene) {
-      if (informantOnCall) {
-        setInformantOnCall(false);
-        setLog((prev) => [
-          ...prev,
-          {
-            id: `inf:end:${Date.now()}`,
-            timestamp: Date.now(),
-            kind: "annotation",
-            message: "Caller cleared the line — first crew on scene",
-          },
-        ]);
-      }
-      return;
-    }
-
-    // Find any update whose atSec has passed and that hasn't fired yet.
-    // Walk in order so earlier beats fire before later ones.
-    const firedIds = new Set(informantLog.map((e) => e.id));
-    const committedIds = new Set(
-      informantLog.filter((e) => e.text.length > 0).map((e) => e.id),
-    );
-    for (const update of script) {
-      if (firedIds.has(update.id)) continue;
-      if (sinceOpenSec < update.atSec) continue;
-      // Delay-gated beats: only fire if the response is actually slow.
-      if (
-        update.delayThresholdSec !== undefined &&
-        sinceOpenSec < update.delayThresholdSec
-      ) {
+    for (const activeIncident of incidents) {
+      const rt = runtimes[activeIncident.id];
+      if (!rt || rt.outcome || rt.handover || lastInformantTick.current.get(activeIncident.id) === now) continue;
+      lastInformantTick.current.set(activeIncident.id, now);
+      const { informantLog, informantOnCall, absentCasualtyIds } = rt;
+      const sceneDeployments = deployments.filter((d) => d.incidentId === activeIncident.id);
+      const setInformantLog = runtimeSetter("informantLog", activeIncident.id);
+      const setInformantOnCall = runtimeSetter("informantOnCall", activeIncident.id);
+      const setFireIgnition = runtimeSetter("fireIgnition", activeIncident.id);
+      const setAbsentCasualtyIds = runtimeSetter("absentCasualtyIds", activeIncident.id);
+      const script = activeIncident.scenario.informantScript;
+      if (!script || script.length === 0) {
+        // Still track first-arrival to flip the "on call" flag — even when
+        // there's no script the banner should disappear on arrival.
+        const firstOnScene = sceneDeployments.some((d) => now >= d.arrivesAt);
+        if (firstOnScene && informantOnCall) {
+          setInformantOnCall(false);
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `inf:end:${Date.now()}`,
+              timestamp: Date.now(),
+              kind: "annotation",
+              message: "Caller cleared the line — first crew on scene",
+            },
+          ]);
+        }
         continue;
       }
-      // Persons-reality gates: beats about a casualty only play when that
-      // casualty is actually in the building this run — and the relief
-      // beat ("they're all out") only on runs where they aren't.
-      if (
-        update.requiresCasualtyIds?.some((id) => absentCasualtyIds.includes(id)) ||
-        update.requiresAbsentCasualtyIds?.some((id) => !absentCasualtyIds.includes(id))
-      ) {
-        setInformantLog((prev) => [
-          ...prev,
-          { id: update.id, text: "", tone: "info", firedAt: Date.now() },
-        ]);
+      const firstOnScene = sceneDeployments.some((d) => now >= d.arrivesAt);
+      const sinceOpenSec = (now - activeIncident.receivedAt) / 1000;
+
+      if (firstOnScene) {
+        if (informantOnCall) {
+          setInformantOnCall(false);
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `inf:end:${Date.now()}`,
+              timestamp: Date.now(),
+              kind: "annotation",
+              message: "Caller cleared the line — first crew on scene",
+            },
+          ]);
+        }
         continue;
       }
-      // Dependency gate: follow-on beats wait for their prerequisites to
-      // COMMIT. If a prerequisite was rolled and skipped, this beat can
-      // never happen — mark it silently skipped.
-      if (update.requiresFiredIds && update.requiresFiredIds.length > 0) {
-        const deadPrereq = update.requiresFiredIds.some(
-          (id) => firedIds.has(id) && !committedIds.has(id),
-        );
-        if (deadPrereq) {
+
+      // Find any update whose atSec has passed and that hasn't fired yet.
+      // Walk in order so earlier beats fire before later ones.
+      const firedIds = new Set(informantLog.map((e) => e.id));
+      const committedIds = new Set(
+        informantLog.filter((e) => e.text.length > 0).map((e) => e.id),
+      );
+      for (const update of script) {
+        if (firedIds.has(update.id)) continue;
+        if (sinceOpenSec < update.atSec) continue;
+        // Delay-gated beats: only fire if the response is actually slow.
+        if (
+          update.delayThresholdSec !== undefined &&
+          sinceOpenSec < update.delayThresholdSec
+        ) {
+          continue;
+        }
+        // Persons-reality gates: beats about a casualty only play when that
+        // casualty is actually in the building this run — and the relief
+        // beat ("they're all out") only on runs where they aren't.
+        if (
+          update.requiresCasualtyIds?.some((id) => absentCasualtyIds.includes(id)) ||
+          update.requiresAbsentCasualtyIds?.some((id) => !absentCasualtyIds.includes(id))
+        ) {
           setInformantLog((prev) => [
             ...prev,
             { id: update.id, text: "", tone: "info", firedAt: Date.now() },
           ]);
           continue;
         }
-        const allCommitted = update.requiresFiredIds.every((id) =>
-          committedIds.has(id),
-        );
-        if (!allCommitted) continue; // prerequisites still pending
-      }
-      // Probability roll — single chance per update. Fire the dice the
-      // first time the window opens; either we commit it, or we skip it
-      // permanently by marking it fired with no visible message.
-      const prob = update.probability ?? 1;
-      if (!rollBeat(prob)) {
+        // Dependency gate: follow-on beats wait for their prerequisites to
+        // COMMIT. If a prerequisite was rolled and skipped, this beat can
+        // never happen — mark it silently skipped.
+        if (update.requiresFiredIds && update.requiresFiredIds.length > 0) {
+          const deadPrereq = update.requiresFiredIds.some(
+            (id) => firedIds.has(id) && !committedIds.has(id),
+          );
+          if (deadPrereq) {
+            setInformantLog((prev) => [
+              ...prev,
+              { id: update.id, text: "", tone: "info", firedAt: Date.now() },
+            ]);
+            continue;
+          }
+          const allCommitted = update.requiresFiredIds.every((id) =>
+            committedIds.has(id),
+          );
+          if (!allCommitted) continue; // prerequisites still pending
+        }
+        // Probability roll — single chance per update. Fire the dice the
+        // first time the window opens; either we commit it, or we skip it
+        // permanently by marking it fired with no visible message.
+        const prob = update.probability ?? 1;
+        if (!rollBeat(prob)) {
+          setInformantLog((prev) => [
+            ...prev,
+            {
+              id: update.id,
+              text: "",        // skipped roll — not rendered
+              tone: "info",
+              firedAt: Date.now(),
+            },
+          ]);
+          continue;
+        }
+        // Fire — and silently retire any mutually-exclusive beats so the
+        // other side of an either/or outcome can never land as well.
+        const suppressed = (update.suppressesIds ?? [])
+          .filter((id) => !firedIds.has(id))
+          .map((id) => ({
+            id,
+            text: "",
+            tone: "info" as const,
+            firedAt: Date.now(),
+          }));
         setInformantLog((prev) => [
           ...prev,
+          ...suppressed,
           {
             id: update.id,
-            text: "",        // skipped roll — not rendered
-            tone: "info",
+            text: update.text,
+            tone: update.tone ?? "info",
             firedAt: Date.now(),
           },
         ]);
-        continue;
+        // Apply any hard sim effects.
+        if (update.effect?.accelerateGrowthSec) {
+          setIncidents((prev) => prev.map((inc) => inc.id === activeIncident.id
+            ? { ...inc, receivedAt: inc.receivedAt - update.effect!.accelerateGrowthSec! * 1000 } : inc));
+        }
+        if (update.effect?.igniteFire) {
+          const ig = update.effect.igniteFire;
+          setFireIgnition((prev) =>
+            prev
+              ? {
+                  atMs: prev.atMs,
+                  radiusM: prev.radiusM + ig.radiusM,
+                  growthRateMpm: Math.max(prev.growthRateMpm, ig.growthRateMpm),
+                }
+              : { atMs: Date.now(), radiusM: ig.radiusM, growthRateMpm: ig.growthRateMpm },
+          );
+        }
+        if (update.effect?.revealCasualty) {
+          const revealed = update.effect.revealCasualty;
+          setAbsentCasualtyIds((prev) => prev.filter((id) => id !== revealed));
+        }
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `inf:${update.id}:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: `Informant: ${update.text}`,
+          },
+        ]);
+        // One update per tick so the operator sees beats land sequentially,
+        // not as a wall of text.
+        break;
       }
-      // Fire — and silently retire any mutually-exclusive beats so the
-      // other side of an either/or outcome can never land as well.
-      const suppressed = (update.suppressesIds ?? [])
-        .filter((id) => !firedIds.has(id))
-        .map((id) => ({
-          id,
-          text: "",
-          tone: "info" as const,
-          firedAt: Date.now(),
-        }));
-      setInformantLog((prev) => [
-        ...prev,
-        ...suppressed,
-        {
-          id: update.id,
-          text: update.text,
-          tone: update.tone ?? "info",
-          firedAt: Date.now(),
-        },
-      ]);
-      // Apply any hard sim effects.
-      if (update.effect?.accelerateGrowthSec) {
-        setActiveIncident((prev) =>
-          prev
-            ? { ...prev, receivedAt: prev.receivedAt - update.effect!.accelerateGrowthSec! * 1000 }
-            : prev,
-        );
-      }
-      if (update.effect?.igniteFire) {
-        const ig = update.effect.igniteFire;
-        setFireIgnition((prev) =>
-          prev
-            ? {
-                atMs: prev.atMs,
-                radiusM: prev.radiusM + ig.radiusM,
-                growthRateMpm: Math.max(prev.growthRateMpm, ig.growthRateMpm),
-              }
-            : { atMs: Date.now(), radiusM: ig.radiusM, growthRateMpm: ig.growthRateMpm },
-        );
-      }
-      if (update.effect?.revealCasualty) {
-        const revealed = update.effect.revealCasualty;
-        setAbsentCasualtyIds((prev) => prev.filter((id) => id !== revealed));
-      }
-      setLog((prev) => [
-        ...prev,
-        {
-          id: `inf:${update.id}:${Date.now()}`,
-          timestamp: Date.now(),
-          kind: "annotation",
-          message: `Informant: ${update.text}`,
-        },
-      ]);
-      // One update per tick so the operator sees beats land sequentially,
-      // not as a wall of text.
-      break;
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [now, activeIncident, deployments, informantOnCall]);
+    }
+  }, [now, incidents, runtimes, deployments]);
 
   // Crew fatigue tick — every on-scene deployment accumulates fatigue
   // over time. Accrual rate increases when the appliance is mid-task
   // (physical graft), and when it's in a welfare break the timer pauses
   // (we already reset on welfare start, no need to reduce further here).
   useEffect(() => {
-    if (!activeIncident) return;
     if (!lastFatigueTickAt) {
       setLastFatigueTickAt(now);
       return;
@@ -4789,6 +4713,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       const next = { ...prev };
       let changed = false;
       for (const d of deployments) {
+        if (d.hospitalLegStartedAt && now >= d.hospitalLegStartedAt) continue;
         if (now < d.arrivesAt) continue; // not on scene yet
         if (d.returnStartedAt && now >= d.returnStartedAt) continue; // gone home
         // Welfare break — skip accrual.
@@ -4800,12 +4725,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         ) {
           continue;
         }
-        const hasActiveTask = tasks.some(
+        const hasActiveTask = allLiveTasks.some(
           (t) => t.applianceId === d.applianceId && t.state === "active",
         );
         // Base 0.25 %/min idle on scene, 0.7 %/min with an active task.
         const ratePerMinPct = hasActiveTask ? 0.7 : 0.25;
-        const delta = (ratePerMinPct / 60) * deltaSec;
+        const delta = (ratePerMinPct / 60) * Math.min(deltaSec, Math.max(0, (now - d.arrivesAt) / 1000));
         const cur = next[d.applianceId] ?? 0;
         const updated = Math.min(100, cur + delta);
         if (updated !== cur) {
@@ -4815,52 +4740,36 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       }
       return changed ? next : prev;
     });
-  }, [now, deployments, tasks, activeIncident, lastFatigueTickAt]);
+  }, [now, deployments, allLiveTasks, lastFatigueTickAt]);
 
 
 
 
-  // BA air tick: deplete air for members inside active ba_sar tasks.
-  // ~3% per minute (≈33 min total) — realistic for a 45-min BA set at work rate.
+  // BA teams consume air wherever the operator is looking.
   useEffect(() => {
-    if (!lastAirTickAt) {
-      setLastAirTickAt(now);
-      return;
-    }
-    const deltaSec = (now - lastAirTickAt) / 1000;
-    if (deltaSec < 0.5) return;
-    const baSarActive = tasks.filter((t) => t.kind === "ba_sar" && t.state === "active");
-    if (baSarActive.length === 0) {
-      setLastAirTickAt(now);
-      return;
-    }
-    // Cold weather raises consumption — divide by the multiplier so
-    // cylinders empty faster when it's < 15°C.
-    const coldMult = 1 / baDurationMultiplier(weather.tempC);
-    const perMemberDrop = (3 / 60) * deltaSec * coldMult; // pct
-    const barDropPerMember = (BA_BAR_PER_MINUTE / 60) * deltaSec * coldMult; // bar
-    setCrewAir((prev) => {
-      const next = { ...prev };
-      for (const t of baSarActive) {
-        for (const cid of t.baCrewIds ?? []) {
-          next[cid] = Math.max(0, (next[cid] ?? 100) - perMemberDrop);
+    if (!lastAirTickAt) { setLastAirTickAt(now); return; }
+    if (now - lastAirTickAt < 500) return;
+    const active = allLiveTasks.filter((t) => t.kind === "ba_sar" && t.state === "active");
+    if (active.length) {
+      setCrewAir((prev) => {
+        const next = { ...prev };
+        for (const t of active) {
+          const drop = baConsumption(t, lastAirTickAt, now, weather.tempC);
+          for (const cid of t.baCrewIds ?? []) next[cid] = Math.max(0, (next[cid] ?? 100) - drop.pct);
         }
-      }
-      return next;
-    });
-    // Tick each wearer's cylinder bar gauge on the task record.
-    setTasks((prev) =>
-      prev.map((t) => {
+        return next;
+      });
+      setRuntimes((prev) => mapLiveTasks(prev, (t) => {
         if (t.kind !== "ba_sar" || t.state !== "active" || !t.baPressure) return t;
-        const nextBar: Record<string, number> = { ...t.baPressure };
-        for (const cid of t.baCrewIds ?? []) {
-          nextBar[cid] = Math.max(0, (nextBar[cid] ?? 300) - barDropPerMember);
-        }
-        return { ...t, baPressure: nextBar };
-      }),
-    );
+        const drop = baConsumption(t, lastAirTickAt, now, weather.tempC);
+        if (!drop.bar) return t;
+        const baPressure = { ...t.baPressure };
+        for (const cid of t.baCrewIds ?? []) baPressure[cid] = Math.max(0, (baPressure[cid] ?? 300) - drop.bar);
+        return { ...t, baPressure };
+      }));
+    }
     setLastAirTickAt(now);
-  }, [now, tasks, lastAirTickAt]);
+  }, [now, allLiveTasks, lastAirTickAt, weather.tempC]);
 
   // Emit log entries for newly-found casualties, confirmed hazards,
   // fire-stage transitions and casualty deterioration events.
@@ -5264,6 +5173,12 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     crsDoneMessage?: string;
   }) {
     const startedAt = Date.now();
+    const taskGuardKey = `${activeIncident?.id ?? "none"}|${args.applianceId}|${args.kind}`;
+    if (taskStartGuardRef.current.has(taskGuardKey) || tasks.some((t) => t.applianceId === args.applianceId && t.kind === args.kind && t.state === "active")) {
+      setStatusMsg(`${applianceLabel(args.applianceId)} already has an active ${args.kind.replace(/_/g, " ")} task`);
+      return;
+    }
+    taskStartGuardRef.current.add(taskGuardKey);
     // Nobody goes inside against the declared mode. Defensive means
     // exterior only; transitional means no new commitments until the IC
     // settles it. Going in with no mode declared is allowed and logged —
@@ -5275,6 +5190,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       if (mode === "defensive" || mode === "transitional") {
         logAnnotation(`${applianceLabel(args.applianceId)} — ${args.kind === "ba_sar" ? "BA commitment" : "interior attack"} refused: tactical mode is ${mode}${mode === "transitional" ? ", no new commitments until the IC sets the mode" : ", nobody goes inside"}`, "setback", "mode-refused");
         setStatusMsg(`Refused — ${mode} mode declared`);
+        taskStartGuardRef.current.delete(taskGuardKey);
         return;
       }
       if (mode === null && !rt?.committedWithoutMode) {
@@ -5595,9 +5511,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const { routeEta } = await import("@/lib/sim/eta");
     const r = await routeEta(from, thisDeployment.parkingPos, undefined, "foot");
     if (!r.coords || r.coords.length < 2) return;
-    setTasks((prev) =>
-      prev.map((t) => (t.id === args.taskId ? { ...t, hosePath: r.coords ?? undefined } : t)),
-    );
+    updateRuntime(activeIncident.id, (rt) => ({
+      ...rt,
+      tasks: rt.tasks.map((t) => t.id === args.taskId ? { ...t, hosePath: r.coords ?? undefined } : t),
+    }));
   }
 
   function abortTask(taskId: string) {
@@ -5933,21 +5850,26 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setStatusMsg(`${applianceLabel(applianceId)} to ${target.label}`);
   }
 
-  function mobiliseTo(applianceId: string, stationId: string, incidentId?: string) {
+  function mobiliseTo(applianceId: string, stationId: string, incidentId?: string, assignedSlotId?: string) {
     const ap = applianceById.get(applianceId);
     const target = incidentId ? incidents.find((i) => i.id === incidentId) ?? null : activeIncident;
     if (!target) return;
     // Routed ETAs arrive a moment after the job opens; until then a
     // crow-fly estimate stands in, the same way the ETA service itself
     // falls back when the router is down.
-    const eta = etas[stationId] ?? estimateEta(stationId, target.scenario.location.coords);
+    // ETAs are incident-specific. Never reuse a route calculated for the
+    // selected job when a row in the county board targets another incident.
+    const eta = (incidentId && incidentId !== selectedIncidentId ? undefined : etas[stationId])
+      ?? estimateEta(stationId, target.scenario.location.coords);
     if (!eta) {
       setStatusMsg("No route for that station");
       return;
     }
     const rows = desk.pdaRowsFor(target);
-    const slots = STANDARD_PDA[target.scenario.type]?.slots ?? target.scenario.pda;
-    const open = slots.find((s, i) => !rows[i]?.callsign && ap && s.requiredApplianceTypes.includes(ap.type));
+    const slots = [...(STANDARD_PDA[target.scenario.type]?.slots ?? target.scenario.pda), ...(runtimes[target.id]?.extraSlots ?? [])];
+    const open = assignedSlotId
+      ? slots.find((s) => s.id === assignedSlotId && !rows.find((r) => r.slotId === s.id)?.callsign && !!ap && s.requiredApplianceTypes.includes(ap.type))
+      : slots.find((s) => !rows.find((r) => r.slotId === s.id)?.callsign && ap && s.requiredApplianceTypes.includes(ap.type));
     deployAppliance({
       applianceId,
       slotId: open?.id ?? "extra",
@@ -5965,7 +5887,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       setStatusMsg("Nothing suitable is free for the outstanding slots");
       return;
     }
-    for (const p of picks) mobiliseTo(p.applianceId, p.stationId);
+    for (const p of picks) mobiliseTo(p.applianceId, p.stationId, activeIncident?.id, p.slotId);
   }
 
   function sendStandby(id: string) {
@@ -7039,9 +6961,7 @@ function stopMessageFor(inc: Incident, deps: Deployment[], tasks: Task[], sim: I
   return `STOP from ${commander ?? "Control"} — ${cls || "premises"}, ${extent}, ${out}; ${jets} jet${jets === 1 ? "" : "s"}, ${ba} in BA, ${pumps} appliance${pumps === 1 ? "" : "s"}; ${persons}`;
 }
 
-/** Deterministic 0–99 "percentile roll" from a string. Used where an
- *  outcome must be random-feeling but stable across re-renders, StrictMode
- *  double-invokes and save/resume (e.g. forcible-entry success). */
+/** Stable outcome roll, also used by the fireground commander. */
 function hashPct(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {

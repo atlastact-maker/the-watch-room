@@ -58,6 +58,7 @@ type Props = {
     }[];
   } | null;
   onHandCommandTo?: (applianceId: string) => void;
+  onTakeCommand?: () => void;
   onClose: () => void;
 };
 
@@ -103,10 +104,10 @@ function HandOverStrip({
         >
           <span className="min-w-0">
             <span className="block font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-              Hand over command
+              Delegate incident
             </span>
             <span className="mt-0.5 block truncate text-[12px] text-(--color-text-muted)">
-              Give the incident to a commander on scene and clear the desk.
+              Let a crew commander manage the scene while you run the area.
             </span>
           </span>
           <span className="shrink-0 rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
@@ -128,8 +129,8 @@ function HandOverStrip({
             </button>
           </div>
           <p className="mt-1 text-[11px] leading-snug text-(--color-text-muted)">
-            They take command on arrival. The incident closes on their word, and you lose the
-            ground view for it.
+            They take command on arrival and manage actions through to the stop message.
+            Ground command closes for this incident. You still answer requests for resources.
           </p>
           <ul className="mt-1.5 space-y-1">
             {options.map((o) => (
@@ -188,6 +189,7 @@ export function DraggableIncidentPanel({
   commandOptions,
   handover,
   onHandCommandTo,
+  onTakeCommand,
   onClose,
 }: Props) {
   const [etas, setEtas] = useState<Record<string, Eta>>({});
@@ -289,6 +291,20 @@ export function DraggableIncidentPanel({
           </div>
         </div>
 
+        {!resolved && !handover && onTakeCommand && (
+          <div className="flex items-center justify-between gap-3 border-b border-(--color-border-subtle) bg-(--color-amber)/10 px-5 py-3">
+            <div>
+              <div className="text-sm font-semibold text-(--color-text)">Command this incident</div>
+              <p className="mt-1 text-xs text-(--color-text-muted)">
+                Position resources and assign crew actions in ground view.
+              </p>
+            </div>
+            <button type="button" onClick={onTakeCommand}
+              className="shrink-0 rounded-sm border border-(--color-amber) bg-(--color-amber)/15 px-3 py-2 text-xs font-semibold text-(--color-amber)">
+              Enter ground command
+            </button>
+          </div>
+        )}
         {handover ? (
           <div className="flex items-center justify-between gap-3 border-b border-(--color-border-subtle) bg-(--color-ok)/10 px-5 py-2">
             <div className="min-w-0">
@@ -300,7 +316,7 @@ export function DraggableIncidentPanel({
                 {handover.effectiveAtMs && Date.now() < handover.effectiveAtMs
                   ? "is designated incident commander and takes command on arrival."
                   : "has command."}{" "}
-                Control is clear of this incident.
+                Crews manage the scene; control answers resource requests.
               </div>
             </div>
             <div className="shrink-0 text-right">

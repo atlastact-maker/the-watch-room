@@ -18,6 +18,9 @@ import type { PreShiftState, ShiftIntensity } from "./shift";
 import type { WeatherState } from "./weather";
 import type { StatusCode } from "./types";
 import type { Patch } from "./areas";
+import type { MdtOrder } from "@/app/dashboard/vector/mdt-orders";
+import type { CommandPlan } from "@/app/dashboard/vector/command-store";
+import type { PoliceRecord } from "@/app/dashboard/vector/police-store";
 
 /** Same shape dashboard-client uses inline. Kept public here so save.ts
  *  can type the informantLog snapshot without cross-importing UI code. */
@@ -31,7 +34,7 @@ export type FiredInformant = {
 export const SHIFT_SAVE_KEY = "watch-room.shift-save";
 // 2: the patch collapsed to Greater Manchester. A v1 save carries a
 // borough patch and station lists that no longer match; loadSave drops it.
-export const SHIFT_SAVE_VERSION = 2;
+export const SHIFT_SAVE_VERSION = 3;
 /** Saves older than 48 hours are dropped on load — a stale shift is
  *  almost never what the operator wants to resume. */
 export const SAVE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
@@ -108,6 +111,14 @@ export type ShiftSave = {
   lastCasualtySeverity: Record<string, string>;
   lastAirTickAt: number;
   lastFatigueTickAt: number;
+  /** County-wide snapshot. Optional so v2 saves still resume cleanly. */
+  incidents?: Incident[];
+  selectedIncidentId?: string | null;
+  runtimes?: Record<string, unknown>;
+  mdtOrders?: Record<string, unknown[]>;
+  commandPlans?: Record<string, unknown>;
+  policeRecords?: Record<string, unknown>;
+  shiftStartedAt?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -120,7 +131,7 @@ export function loadSave(): ShiftSave | null {
     const raw = window.localStorage.getItem(SHIFT_SAVE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ShiftSave;
-    if (parsed.version !== SHIFT_SAVE_VERSION) return null;
+    if (parsed.version !== SHIFT_SAVE_VERSION && parsed.version !== 2) return null;
     if (Date.now() - parsed.savedAt > SAVE_MAX_AGE_MS) {
       window.localStorage.removeItem(SHIFT_SAVE_KEY);
       return null;
@@ -217,6 +228,7 @@ function shiftTask(t: Task, offset: number): Task {
     ...t,
     startedAt: t.startedAt + offset,
     completesAt: shift(t.completesAt, offset),
+    baWhistleAt: shiftMap(t.baWhistleAt, offset),
     baEntryAt: shiftMap(t.baEntryAt as Record<string, number> | undefined, offset) as
       | Record<string, number>
       | undefined,
@@ -275,6 +287,62 @@ function shiftTreatment(
   };
 }
 
+function shiftMdtOrder(o: MdtOrder, offset: number): MdtOrder {
+  return {
+    ...o,
+    sentAt: o.sentAt + offset,
+    acceptedAt: shift(o.acceptedAt, offset),
+    issuedAt: shift(o.issuedAt, offset),
+    startedAt: o.startedAt + offset,
+    finishedAt: shift(o.finishedAt, offset),
+    returnedAt: shift(o.returnedAt, offset),
+    events: o.events.map((e) => ({ ...e, at: e.at + offset })),
+    equipmentAllocations: o.equipmentAllocations.map((a) => ({ ...a, returnRecordedAt: shift(a.returnRecordedAt, offset) })),
+  };
+}
+
+function shiftCommandPlan(p: CommandPlan, offset: number): CommandPlan {
+  return {
+    ...p,
+    recordedAt: shift(p.recordedAt, offset),
+    reviewDueAt: shift(p.reviewDueAt, offset),
+    assessedAt: shift(p.assessedAt, offset),
+    water: { ...p.water, updatedAt: shift(p.water.updatedAt, offset) },
+    assistance: p.assistance.map((a) => ({ ...a, at: a.at + offset })),
+    emergencyTeam: p.emergencyTeam ? { ...p.emergencyTeam, at: p.emergencyTeam.at + offset } : p.emergencyTeam,
+    highRise: p.highRise ? { ...p.highRise, at: p.highRise.at + offset } : p.highRise,
+  };
+}
+
+function shiftPoliceRecord(p: PoliceRecord, offset: number): PoliceRecord {
+  return {
+    ...p,
+    persons: Object.fromEntries(Object.entries(p.persons).map(([id, x]) => [id, { ...x, welfareAt: shift(x.welfareAt, offset) }])),
+    vehicles: Object.fromEntries(Object.entries(p.vehicles).map(([id, x]) => [id, { ...x, searchedAt: shift(x.searchedAt, offset), recoveryAt: shift(x.recoveryAt, offset) }])),
+    traffic: p.traffic.map((x) => ({ ...x, at: x.at + offset })),
+    support: p.support.map((x) => ({ ...x, at: x.at + offset })),
+    firearms: { ...p.firearms, declaredAt: shift(p.firearms.declaredAt, offset), recordedAt: shift(p.firearms.recordedAt, offset) },
+  };
+}
+
+/** Shift timestamp-shaped fields in the county runtime snapshot without
+ *  coupling this persistence module to the dashboard's private runtime type.
+ *  Numeric gauges and damage values deliberately pass through unchanged. */
+function shiftRuntimeSnapshot(value: unknown, offset: number, parentKey = ""): unknown {
+  if (typeof value === "number") {
+    const timestamp = /(?:At|AtMs|timestamp)$/i.test(parentKey);
+    return timestamp ? value + offset : value;
+  }
+  if (Array.isArray(value)) return value.map((v) => shiftRuntimeSnapshot(v, offset, parentKey));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).map(([key, v]) => {
+    if (key === "baEntryAt" || key === "baWhistleAt") {
+      return [key, shiftMap(v as Record<string, number>, offset)];
+    }
+    return [key, shiftRuntimeSnapshot(v, offset, key)];
+  }));
+}
+
 /** Apply an offset to every timestamp in the save so the resumed shift
  *  picks up exactly where it left off. Non-timestamp fields (gauges,
  *  air pressure, statuses, etc.) pass through unchanged. */
@@ -287,9 +355,23 @@ export function applyResumeOffset(
   return {
     ...save,
     savedAt: resumeAt,
+    shiftStartedAt: shift(save.shiftStartedAt, offset),
     activeIncident: save.activeIncident
       ? { ...save.activeIncident, receivedAt: save.activeIncident.receivedAt + offset }
       : null,
+    incidents: save.incidents?.map((i) => ({ ...i, receivedAt: i.receivedAt + offset })),
+    mdtOrders: save.mdtOrders
+      ? Object.fromEntries(Object.entries(save.mdtOrders).map(([id, orders]) => [id, (orders as MdtOrder[]).map((o) => shiftMdtOrder(o, offset))]))
+      : save.mdtOrders,
+    commandPlans: save.commandPlans
+      ? Object.fromEntries(Object.entries(save.commandPlans).map(([id, plan]) => [id, shiftCommandPlan(plan as CommandPlan, offset)]))
+      : save.commandPlans,
+    policeRecords: save.policeRecords
+      ? Object.fromEntries(Object.entries(save.policeRecords).map(([id, record]) => [id, shiftPoliceRecord(record as PoliceRecord, offset)]))
+      : save.policeRecords,
+    runtimes: save.runtimes
+      ? shiftRuntimeSnapshot(save.runtimes, offset) as Record<string, unknown>
+      : save.runtimes,
     deployments: save.deployments.map((d) => shiftDeployment(d, offset)),
     tasks: save.tasks.map((t) => shiftTask(t, offset)),
     treatmentByCasualtyId: Object.fromEntries(

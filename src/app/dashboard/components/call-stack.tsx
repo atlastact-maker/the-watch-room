@@ -204,17 +204,17 @@ function HandOverInStack({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        title="Give the incident to a commander on scene and clear the desk"
+        title="Delegate scene actions to a crew commander and manage their resource requests"
         className="flex w-full items-center justify-between gap-2 px-2 py-1 text-left font-mono text-[9px] uppercase tracking-widest text-(--color-amber) hover:bg-(--color-amber)/10"
       >
-        <span>Hand over command</span>
+        <span>Delegate incident</span>
         <span className="shrink-0 text-(--color-text-dim)">{open ? "Cancel" : "Choose"}</span>
       </button>
       {open && (
         <ul className="pb-1">
           <li className="px-2 pb-1 text-[10px] leading-snug text-(--color-text-muted)">
-            They take command on arrival. The incident closes on their word, and you lose the
-            ground view for it.
+            They take command on arrival and manage the scene through to the stop message.
+            Ground command closes for this incident; you still answer resource requests.
           </li>
           {options.map((o) => (
             <li key={o.applianceId}>
