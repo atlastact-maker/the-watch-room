@@ -241,6 +241,56 @@ export function scoreIncident(
         passed: "partial",
       });
     }
+    const doneKind = (kind: string) => fireTasks.some((t) => t.kind === kind && t.state === "completed");
+    if (incident.scenario.scene?.highRise && baCommitted) {
+      metrics.push({
+        label: "Bridgehead",
+        target: "Established two floors below the fire before the first BA team goes up",
+        actual: has("no-bridgehead:") ? "BA committed up the stair with no bridgehead" : doneKind("bridgehead") ? "Bridgehead in place before the first commitment" : "No bridgehead established",
+        passed: has("no-bridgehead:") ? false : doneKind("bridgehead") ? true : "partial",
+      });
+    }
+    if (fireTasks.some((t) => t.kind === "ventilate")) {
+      metrics.push({
+        label: "Ventilation",
+        target: "Opened up only with a jet ready to go in",
+        actual: sim.ventilationFedFire ? "Ventilated before water was on it — the fire took the air" : "Ventilated with a jet working",
+        passed: sim.ventilationFedFire ? false : true,
+      });
+    }
+    const substance = incident.scenario.scene?.hazards.find((h) => h.kind === "chemical" && h.substance)?.substance;
+    if (substance) {
+      metrics.push({
+        label: "Substance identified",
+        target: `${substance.name} confirmed and the cordon set to ${substance.cordonM} m`,
+        actual: sim.hazmatIdentified ? "Identified" : "Never identified — crews worked an unknown",
+        passed: sim.hazmatIdentified,
+      });
+      if (substance.decontamination) {
+        metrics.push({
+          label: "Decontamination",
+          target: "Decon established before anyone left the warm zone",
+          actual: sim.decontaminated ? "Established" : "No decontamination set up",
+          passed: sim.decontaminated ? true : sim.hazmatIdentified ? "partial" : false,
+        });
+      }
+    }
+    if ((incident.scenario.crs?.length ?? 0) > 0 && fireTasks.some((t) => t.kind === "rtc_extrication")) {
+      metrics.push({
+        label: "Vehicles made safe",
+        target: "Every critical CRS action done before cutting started",
+        actual: has("crsrisk:") ? "Cutting started with critical actions outstanding" : has("crssafe:") ? "Made safe — controlled extrication" : "Extrication started",
+        passed: has("crsrisk:") ? "partial" : true,
+      });
+    }
+    if (has("relief-spare:") || has("relieved:")) {
+      metrics.push({
+        label: "Reliefs",
+        target: "Tired crews relieved before they were spent",
+        actual: has("relieved:") ? "Relief pumps stood tired crews down" : "Reliefs arrived with nobody yet tired enough to relieve",
+        passed: has("relieved:") ? true : "partial",
+      });
+    }
   }
 
   // 5b. Exposure protection — did the fire get into the attached

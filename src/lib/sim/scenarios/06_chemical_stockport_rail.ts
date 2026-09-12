@@ -189,6 +189,7 @@ export const scenario06: Scenario = {
         pos: { x: -8, y: -20 },
         kind: "chemical",
         label: "Hazchem 3YE — inflammable liquid pooling on the ballast, vapour visible",
+        substance: { name: "Toluene", unNumber: "UN 1294", hazchem: "3YE", cordonM: 100, decontamination: true },
         discoverAfterMinOnScene: 1,
       },
       {

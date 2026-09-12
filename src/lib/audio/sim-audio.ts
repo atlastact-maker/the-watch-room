@@ -163,6 +163,71 @@ export function baLowPressure() {
   });
 }
 
+/** Evacuation — the fireground signal: repeated short whistle blasts,
+ *  the sound every crew stops for. */
+export function evacuationWhistle() {
+  play((c, dest, now) => {
+    for (let i = 0; i < 8; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "square";
+      o.frequency.value = 2400;
+      const t = now + i * 0.3;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.1, t + 0.01);
+      g.gain.setValueAtTime(0.1, t + 0.16);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      o.connect(g).connect(dest);
+      o.start(t);
+      o.stop(t + 0.21);
+    }
+  });
+}
+
+/** BA emergency / collapse — a low, hard alarm that is not a stage-up. */
+export function emergencyTone() {
+  play((c, dest, now) => {
+    for (let i = 0; i < 3; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(220, now + i * 0.5);
+      o.frequency.linearRampToValueAtTime(160, now + i * 0.5 + 0.4);
+      g.gain.setValueAtTime(0, now + i * 0.5);
+      g.gain.linearRampToValueAtTime(0.16, now + i * 0.5 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.5 + 0.45);
+      o.connect(g).connect(dest);
+      o.start(now + i * 0.5);
+      o.stop(now + i * 0.5 + 0.46);
+    }
+  });
+}
+
+/** Radio — the squelch click before a message on the air. */
+export function radioClick() {
+  play((c, dest, now) => {
+    const b = c.createBuffer(1, Math.floor(c.sampleRate * 0.06), c.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = c.createBufferSource();
+    src.buffer = b;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.08, now);
+    const o = c.createOscillator();
+    const og = c.createGain();
+    o.type = "sine";
+    o.frequency.value = 1200;
+    og.gain.setValueAtTime(0, now + 0.05);
+    og.gain.linearRampToValueAtTime(0.06, now + 0.06);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    src.connect(g).connect(dest);
+    o.connect(og).connect(dest);
+    src.start(now);
+    o.start(now + 0.05);
+    o.stop(now + 0.15);
+  });
+}
+
 /** Dispatch acknowledge — short low-to-high chirp when the operator hits
  *  Mobilise on an appliance. */
 export function dispatchBeep() {

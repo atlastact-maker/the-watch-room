@@ -158,6 +158,7 @@ export const scenario07: Scenario = {
   scene: {
     viewBox: { x: -70, y: -50, width: 140, height: 100 },
     compassNorth: "up",
+    highRise: { floors: 18, fireFloor: 12, bridgeheadFloor: 10, firefightingLift: true, flatsPerFloor: 6 },
     // Twelfth floor, single staircase, bridgehead on it.
     egressExtraSeconds: 600,
     // What this building will not take. Prose above; a locked option

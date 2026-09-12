@@ -1926,6 +1926,12 @@ function taskLabelShort(kind: TaskKind): string {
     case "vehicle_search": return "Veh Search";
     case "convey_custody": return "To Custody";
     case "area_search": return "Area Search";
+    case "ventilate": return "Ventilate";
+    case "bridgehead": return "Bridgehead";
+    case "firefighting_lift": return "FF Lift";
+    case "evacuate_floors": return "Evacuate";
+    case "hazmat_identify": return "DIM";
+    case "decontaminate": return "Decon";
     case "triage_sieve": return "Triage";
     case "extract_casualty": return "Extract";
     case "crs_action": return "CRS Action";

@@ -94,6 +94,15 @@ export type IncidentSimState = {
    *  origin, the rest of the floor, the roof and the neighbour. Read off
    *  the radius against the scene's maximum. */
   involvement: { room: number; floor: number; roof: number };
+  /** Ventilation: clearing the smoke, or the mistake that fed the fire. */
+  ventilated: boolean;
+  ventilationFedFire: boolean;
+  /** A vegetation fire's front, driven downwind: scene-unit offset of
+   *  the head from the seat. Zero for anything that is not a wildfire. */
+  frontOffset: { x: number; y: number };
+  /** Hazmat: DIM has named the substance, and decontamination is done. */
+  hazmatIdentified: boolean;
+  decontaminated: boolean;
 };
 
 // --- Progression cadence constants --------------------------------------
@@ -195,6 +204,9 @@ export function simulateIncident(
    *  presentProbability: 0) has removed from this run — never discovered,
    *  never progress, never scored. */
   absentCasualtyIds?: Set<string> | null,
+  /** Compass direction the wind is coming from — a wildfire's head runs
+   *  the other way. */
+  windFrom?: string,
 ): IncidentSimState {
   const absent = absentCasualtyIds ?? new Set<string>();
   const scene = incident.scenario.scene;
@@ -266,6 +278,14 @@ export function simulateIncident(
       suppressionSub += rate * (taskDurationSec(t, now) / 60);
     }
 
+    // Ventilation before water: opening up an unattacked compartment
+    // gives it air, and the fire takes it. Each such mistake is a burst
+    // of growth the crews then have to knock back.
+    const firstJetAt = tasks.filter((t) => t.kind === "hose_attack" && t.state !== "aborted").reduce<number | null>((acc, t) => (acc === null || t.startedAt < acc ? t.startedAt : acc), null);
+    for (const t of tasks) {
+      if (t.kind !== "ventilate" || t.state !== "completed" || !t.completesAt) continue;
+      if (firstJetAt === null || t.completesAt < firstJetAt) growthAdd += Math.min(3, (seat.growthRateMpm ?? 0.2) * 6);
+    }
     fireRadiusM = Math.min(
       maxR,
       Math.max(0, seat.radiusM + ignitionRadius + growthAdd - suppressionSub),
@@ -331,15 +351,34 @@ export function simulateIncident(
   // fire leaves a building that clears over a few minutes.
   let smokeRadiusM = 0;
   const involvement = { room: 0, floor: 0, roof: 0 };
+  const ventTasks = tasks.filter((t) => t.kind === "ventilate" && t.state === "completed");
+  const firstJet = tasks.filter((t) => t.kind === "hose_attack" && t.state !== "aborted").reduce<number | null>((acc, t) => (acc === null || t.startedAt < acc ? t.startedAt : acc), null);
+  const ventilated = ventTasks.length > 0 && activeSuppressionNow > 0;
+  const ventilationFedFire = ventTasks.some((t) => firstJet === null || (t.completesAt ?? 0) < firstJet);
   if (scene?.fireSeat && fireRadiusM > 0) {
     const maxR = scene.fireSeat.maxRadiusM ?? 15;
     const pct = maxR > 0 ? fireRadiusM / maxR : 0;
     const smokey = material === "vegetation" ? 1.3 : material === "vehicle" ? 1.4 : 1.9;
     smokeRadiusM = fireRadiusM * smokey + (material === "vegetation" ? 0 : 3);
+    // With a jet working, ventilation lifts the smoke by half.
+    if (ventilated) smokeRadiusM *= 0.5;
     involvement.room = Math.min(1, pct / 0.35);
     involvement.floor = Math.max(0, Math.min(1, (pct - 0.3) / 0.4));
     involvement.roof = Math.max(0, Math.min(1, (pct - 0.65) / 0.35));
   }
+  // A wildfire's head runs downwind of the seat, further the bigger it is
+  // and the harder it blows. Scene units are metres on the canvas.
+  const frontOffset = { x: 0, y: 0 };
+  if (scene?.fireSeat && material === "vegetation" && fireRadiusM > 0 && windFrom) {
+    const toDeg: Record<string, number> = { N: 180, NE: 225, E: 270, SE: 315, S: 0, SW: 45, W: 90, NW: 135 };
+    const deg = toDeg[windFrom] ?? 0;
+    const push = fireRadiusM * (0.35 + 0.45 * Math.min(1, (windGrowthMultiplier - 1) / 0.3));
+    // Canvas y runs down the screen; north is up.
+    frontOffset.x = Math.sin((deg * Math.PI) / 180) * push;
+    frontOffset.y = -Math.cos((deg * Math.PI) / 180) * push;
+  }
+  const hazmatIdentified = tasks.some((t) => t.kind === "hazmat_identify" && t.state === "completed");
+  const decontaminated = tasks.some((t) => t.kind === "decontaminate" && t.state === "completed");
 
   // --- Hazard reveal + mitigation ------------------------------------------
   const mitigatedHazardIds = tasks
@@ -530,6 +569,11 @@ export function simulateIncident(
     baSarMinutes,
     smokeRadiusM,
     involvement,
+    ventilated,
+    ventilationFedFire,
+    frontOffset,
+    hazmatIdentified,
+    decontaminated,
   };
 }
 

@@ -39,6 +39,8 @@ export type SceneHazard = {
   pos: ScenePoint;
   kind: "gas" | "cylinders" | "electrical" | "structural" | "chemical";
   label: string;
+  /** Chemical hazards: what DIM finds, and the cordon it wants. */
+  substance?: { name: string; unNumber?: string; hazchem?: string; cordonM: number; decontamination: boolean };
   knownFromPri?: boolean;
   /** Minutes of any crew on-scene before this hazard is revealed (identified
    *  by searching crews). Ignored if knownFromPri is true. */
@@ -251,6 +253,18 @@ export type Scene = {
   hazards: SceneHazard[];
   casualties?: SceneCasualty[];
   sectors?: SceneSector[];
+  /** A block of flats: the fire has a floor, the bridgehead goes two
+   *  below it, and the residents are a decision — stay put or go. */
+  highRise?: {
+    floors: number;
+    fireFloor: number;
+    /** Where the bridgehead belongs by convention: fireFloor − 2. */
+    bridgeheadFloor: number;
+    /** A firefighting lift, to be taken under control before use. */
+    firefightingLift: boolean;
+    /** Flats per floor, for the evacuation arithmetic. */
+    flatsPerFloor: number;
+  };
 };
 
 /**

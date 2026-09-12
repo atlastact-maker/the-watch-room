@@ -1141,6 +1141,13 @@ export type TaskKind =
   | "vehicle_search"      // timed — a search of a vehicle with grounds and a power
   | "convey_custody"      // timed — a detained person to custody in the van
   | "area_search"         // ongoing — driving the ground looking for a subject vehicle
+  // Fire tactics beyond the jet
+  | "ventilate"           // timed — PPV or opening up: clears smoke with water on, feeds the fire without
+  | "bridgehead"          // timed — a high-rise BA bridgehead two floors below the fire
+  | "firefighting_lift"   // timed — take the firefighting lift under control
+  | "evacuate_floors"     // ongoing — full or partial evacuation of a block
+  | "hazmat_identify"     // timed — DIM: identify the substance and size the cordon
+  | "decontaminate"       // timed — decontamination of casualties and crews
   // Ambulance
   | "triage_sieve"        // timed — MCI primary triage sweep
   // BA follow-on
@@ -1557,6 +1564,12 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   vehicle_search: 1,
   convey_custody: 1,
   area_search: 1,
+  ventilate: 2,
+  bridgehead: 2,
+  firefighting_lift: 1,
+  evacuate_floors: 2,
+  hazmat_identify: 2,
+  decontaminate: 2,
   follow_contain: 1,
   tpac_box: 1,
   stinger: 1,
@@ -1603,6 +1616,12 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   vehicle_search: ["Police"],
   convey_custody: ["Police"],
   area_search: ["Police"],
+  ventilate: ["Fire"],
+  bridgehead: ["Fire"],
+  firefighting_lift: ["Fire"],
+  evacuate_floors: ["Fire", "Police"],
+  hazmat_identify: ["Fire"],
+  decontaminate: ["Fire"],
   follow_contain: ["Police"],
   tpac_box: ["Police"],
   stinger: ["Police"],

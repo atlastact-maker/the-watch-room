@@ -15,7 +15,7 @@ type Props = {
   deployments: { deployment: Deployment; callsign: string; service: string }[];
   /** The fire as the simulator has it now — radius and smoke — over the
    *  authored seat. Absent draws the seat as authored. */
-  live?: { fireRadiusM: number; smokeRadiusM: number } | null;
+  live?: { fireRadiusM: number; smokeRadiusM: number; frontOffset?: { x: number; y: number } } | null;
 };
 
 export function SceneCanvas({ scene, deployments, live }: Props) {
@@ -86,6 +86,12 @@ export function SceneCanvas({ scene, deployments, live }: Props) {
       {/* Fire seat + smoke with live pulse animation */}
       {scene.fireSeat && live && live.smokeRadiusM > 0 && (
         <circle cx={scene.fireSeat.pos.x} cy={scene.fireSeat.pos.y} r={live.smokeRadiusM} fill="rgba(60,60,70,0.28)" stroke="rgba(60,60,70,0.45)" strokeWidth="0.2" strokeDasharray="0.8 0.6" />
+      )}
+      {scene.fireSeat && live?.frontOffset && (live.frontOffset.x !== 0 || live.frontOffset.y !== 0) && (
+        <g opacity="0.85">
+          <line x1={scene.fireSeat.pos.x} y1={scene.fireSeat.pos.y} x2={scene.fireSeat.pos.x + live.frontOffset.x} y2={scene.fireSeat.pos.y + live.frontOffset.y} stroke="#f97316" strokeWidth="0.5" strokeDasharray="1 0.6" />
+          <circle cx={scene.fireSeat.pos.x + live.frontOffset.x} cy={scene.fireSeat.pos.y + live.frontOffset.y} r={Math.max(1, live.fireRadiusM * 0.6)} fill="url(#fire-glow)" />
+        </g>
       )}
       {scene.fireSeat && <FireGlyph fire={live ? { ...scene.fireSeat, radiusM: live.fireRadiusM } : scene.fireSeat} />}
 

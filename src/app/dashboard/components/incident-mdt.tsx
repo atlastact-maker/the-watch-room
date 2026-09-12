@@ -337,6 +337,7 @@ export function DraggableIncidentMdt(props: Props) {
           structural={props.structural}
           onEvacuate={props.onEvacuate}
           waterClock={props.waterClock}
+          fatigueByApplianceId={props.fatigueByApplianceId}
         />
       );
     }

@@ -85,6 +85,12 @@ export const TASK_LABEL: Record<TaskKind, string> = {
   vehicle_search: "Search vehicle",
   convey_custody: "Convey to custody",
   area_search: "Area search",
+  ventilate: "Ventilate",
+  bridgehead: "BA bridgehead",
+  firefighting_lift: "Firefighting lift",
+  evacuate_floors: "Evacuate floors",
+  hazmat_identify: "Hazmat identification",
+  decontaminate: "Decontamination",
   follow_contain: "Follow and contain",
   tpac_box: "TPAC enforced stop",
   stinger: "Stinger",
@@ -131,6 +137,12 @@ const TASK_CONFIG: Record<TaskKind, TaskConfig> = {
   vehicle_search: [["Section 1 PACE", "Section 23 MDA", "Section 163 RTA"], ["Body-worn video", "Search record"], false],
   convey_custody: [["Van — cage", "Car — rear seat, two up"], ["Prisoner cage", "Handcuffs", "Body-worn video"], false],
   area_search: [["Drive the ground", "Hold a junction", "Sit on a camera site"], ["Comms", "ANPR-linked"], false],
+  ventilate: [["Positive pressure ventilation", "Natural ventilation — open up", "Tactical ventilation at the top"], ["PPV fan", "Ceiling hook", "Ladder"], true],
+  bridgehead: [["Establish bridgehead", "Move bridgehead"], ["BA board", "Dry riser kit", "Comms"], true],
+  firefighting_lift: [["Take lift under control", "Release lift"], ["Lift key"], true],
+  evacuate_floors: [["Evacuate fire floor and above", "Full evacuation", "Stay put — reassure"], ["Comms", "Loudhailer"], false],
+  hazmat_identify: [["Detection and identification", "Size the cordon", "Chemdata check"], ["DIM kit", "Gas-tight suits"], true],
+  decontaminate: [["Emergency decontamination", "Mass decontamination", "Crew decontamination"], ["Decon tent", "Water supply"], true],
   follow_contain: [["Follow at distance", "Keep observations", "Contain to the area"], ["Comms", "ANPR-linked"], false],
   tpac_box: [["Rolling box", "Static box at a hold point"], ["Comms"], false],
   stinger: [["Deploy ahead", "Deploy at a junction"], ["Stinger"], true],
@@ -175,6 +187,12 @@ const TASK_DETAIL: Record<TaskKind, [string, string, string]> = {
   vehicle_search: ["Search the vehicle with grounds and a power, and record what is found.", "Body-worn video and search record", "Give the grounds|Search the vehicle|Record the findings"],
   convey_custody: ["Convey the detained person to the custody suite and book them in.", "Prisoner cage and handcuffs", "Search and secure|Convey|Book in at custody"],
   area_search: ["Drive the ground where the subject vehicle was last read, eyes open, until it is sighted.", "Comms, ANPR", "Get to the last read|Cover the likely route|Call the sighting"],
+  ventilate: ["Clear the smoke — only once water is on the fire; ventilating an unattacked fire feeds it.", "PPV fan and door management", "Confirm a jet is working|Set the fan and the opening|Confirm the smoke lifting"],
+  bridgehead: ["Set the BA bridgehead two floors below the fire, off the dry riser, with the board.", "BA board, dry riser kit", "Charge the riser|Board up on the landing|Teams away from the bridgehead"],
+  firefighting_lift: ["Take the firefighting lift under control before anyone rides it.", "Lift key", "Key the lift|Check it answers|Crew and kit up"],
+  evacuate_floors: ["The block's residents: stay put, evacuate the fire floor and above, or the lot.", "Comms and a loudhailer", "Decide the strategy|Knock the doors|Account for the flats"],
+  hazmat_identify: ["Detection, identification and monitoring: name the substance and size the cordon.", "DIM kit and gas-tight suits", "Detect|Identify|Set the cordon"],
+  decontaminate: ["Decontaminate the contaminated — casualties first, then crews — before anyone leaves the inner cordon.", "Decon tent and water", "Tent up|Casualties through|Crews through"],
   follow_contain: ["Follow without lights, keep observations and wait for the tactical option — no pursuit without one.", "Comms, ANPR", "Get behind the vehicle|Call direction and speed|Hold until the second car is in"],
   tpac_box: ["A TPAC enforced stop — two cars box the vehicle to a halt. Needs the training and a second roads car.", "Comms", "Position the second car|Box and slow|Detain the occupants"],
   stinger: ["Deploy the stinger ahead of the vehicle's line. Needs the training and the kit.", "Stinger", "Choose the deployment point|Deploy on approach|Recover the stinger"],
@@ -266,6 +284,10 @@ export function catalogueKinds(a: Appliance, incident: Incident): TaskKind[] {
     if (carries(a, "Wildfire beaters")) kinds.push("wildfire_beating", "firebreak");
     if (carries(a, "Knapsack sprayers")) kinds.push("wildfire_knapsack");
     if (carries(a, "Hydraulic cutters") && (incident.scenario.crs?.length ?? 0) > 0) kinds.push("rtc_extrication");
+    if (a.waterLitres > 0 && incident.scenario.scene?.fireSeat) kinds.push("ventilate");
+    if (incident.scenario.scene?.highRise) kinds.push("bridgehead", "evacuate_floors");
+    if (incident.scenario.scene?.highRise?.firefightingLift) kinds.push("firefighting_lift");
+    if (incident.scenario.scene?.hazards.some((h) => h.kind === "chemical")) kinds.push("hazmat_identify", "decontaminate");
   } else if (a.service === "Police") {
     const vehicleJob = /anpr|pursuit|fail_to_stop|drink_driver|vehicle|rtc/i.test(incident.scenario.type);
     kinds = ["cordon", "traffic_mgmt", "scene_preservation", "survey", "commander"];

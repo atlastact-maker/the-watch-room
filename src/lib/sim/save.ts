@@ -92,6 +92,19 @@ export type ShiftSave = {
   newlyFoundCasualties: string[];
   newlyConfirmedHazards: string[];
   lastFireStage: string;
+  /** The fireground as it stood: structure, assistance, BA record, and
+   *  the commander's plan. Optional — older saves resume without. */
+  fireground?: {
+    structuralDamage: number;
+    collapsedAt: number | null;
+    evacuatedAt: number | null;
+    assistance: unknown[];
+    extraSlots: unknown[];
+    baEmergencies: string[];
+    committedWithoutMode: boolean;
+    injuredCrewIds: string[];
+    plan: unknown;
+  };
   lastCasualtySeverity: Record<string, string>;
   lastAirTickAt: number;
   lastFatigueTickAt: number;

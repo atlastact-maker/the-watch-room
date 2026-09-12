@@ -38,6 +38,8 @@ export type CommandPlan = {
   /** The BA emergency team held at entry control — two wearers rigged
    *  and waiting, committed only to bring a team out. */
   emergencyTeam?: { crewIds: string[]; names: string[]; callsign: string; at: number };
+  /** High-rise: what the residents were told to do, and when. */
+  highRise?: { strategy: "stay_put" | "phased" | "simultaneous"; at: number };
 };
 
 export type SectorAssignment = {

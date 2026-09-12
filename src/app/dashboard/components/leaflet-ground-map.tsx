@@ -1422,6 +1422,16 @@ export function LeafletGroundMap({
         </>
       )}
 
+      {/* Smoke ahead of the fire — a soft grey ring the crews are working
+          inside of. Casualties in it are going downhill faster. */}
+      {sim.smokeRadiusM > 0 && (
+        <Circle
+          center={[incidentLat, incidentLng]}
+          radius={sim.smokeRadiusM}
+          pathOptions={{ color: "#4b5563", fillColor: "#374151", fillOpacity: 0.16, weight: 1, dashArray: "3 5" }}
+          interactive={false}
+        />
+      )}
       {/* Fire-growth overlay — translucent circle whose radius is the
           current modelled fire footprint in metres. Tinted by stage so
           the operator can read "small incipient" vs "approaching

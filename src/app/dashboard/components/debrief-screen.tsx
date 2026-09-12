@@ -117,6 +117,11 @@ export function DebriefScreen({
                 tone="critical"
               />
             )}
+            {log
+              .filter((e) => /^(evacuation|collapse|collapse-crews|ba-emergency|ba-lost|no-mode|dry|mu-ask|mu-missed):/.test(e.id))
+              .map((e) => (
+                <TLRow key={e.id} ts={e.timestamp} label={e.message} tone={/^(collapse|collapse-crews|ba-lost|dry):/.test(e.id) ? "critical" : /^(mu-ask|evacuation):/.test(e.id) ? "amber" : "info"} />
+              ))}
             {extinguishedAt && (
               <TLRow
                 ts={extinguishedAt}
