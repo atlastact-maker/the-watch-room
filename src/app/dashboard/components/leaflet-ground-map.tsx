@@ -293,6 +293,7 @@ export function applianceIcon(
       subtitle: applianceType,
       selected: selected || hovered,
       commander,
+      vehicleBody: true,
     },
     { interactive: true },
   );
@@ -315,6 +316,7 @@ function parkingGhostIcon(
     resourceCode: sm.code,
     zoom: mapZoom,
     dimmed: true,
+    vehicleBody: true,
   });
 }
 

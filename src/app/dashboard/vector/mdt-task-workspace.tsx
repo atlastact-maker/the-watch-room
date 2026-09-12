@@ -684,7 +684,15 @@ export function MdtTaskWorkspace({
         ...o.sim,
         hretTurret: o.sim.attackMode === "uhpl_lance" && appliance.capabilities?.includes("HRET"),
       });
+      // The simulator returns no id when a commitment is refused (for
+      // example by defensive mode). Do not mark the order started or issue
+      // its equipment in that case; the crew must still be able to retry
+      // after the incident state changes.
       if (typeof r === "string") simTaskId = r;
+      else {
+        mutate(id, (x) => event(x, "Start refused by simulator", { report: "Start refused — review tactical mode, arrival and crew assignment." }));
+        return;
+      }
     }
     mutate(id, (x) =>
       event(x, "Task started · equipment issue confirmed", {

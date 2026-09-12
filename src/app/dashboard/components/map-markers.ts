@@ -97,6 +97,9 @@ export type ChipOpts = {
    *  distinct from the dashed amber selection ring so the two read apart
    *  when the IC happens to be the selected unit. */
   commander?: boolean;
+  /** Ground view uses a restrained top-down vehicle silhouette; the county
+   *  desk keeps the compact CAD chip for dense fleet monitoring. */
+  vehicleBody?: boolean;
 };
 
 /**
@@ -224,7 +227,9 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
   const roundelW = st.code.length > 1 ? Math.round(t.roundel * 1.29) : t.roundel;
   const roundelFont = st.code.length > 1 ? t.numSize - 1 : t.numSize;
 
-  const anchorX = t.sym / 2;
+  const bodyW = o.vehicleBody ? t.sym + (tier === "detailed" ? 12 : 8) : t.sym;
+  const bodyH = t.sym;
+  const anchorX = bodyW / 2;
   const leaderTop = o.selected ? t.sym + 6 : t.sym;
   const leaderH = o.selected ? SELECTED_LEADER_H : LEADER_H;
   const anchorY = leaderTop + leaderH + DOT / 2;
@@ -250,7 +255,13 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
     ? ""
     : `<div style="position:absolute;top:-${t.roundelOff}px;left:-${t.roundelOff}px;width:${roundelW}px;height:${t.roundel}px;border-radius:2px;border:${t.border}px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.4);background:${st.colour};display:flex;align-items:center;justify-content:center;font:700 ${roundelFont}px/1 ${MONO};color:#fff;">${st.code}</div>`;
 
-  const symbol = `<div style="position:relative;width:${t.sym}px;height:${t.sym}px;background:${o.serviceColour};border:${t.border}px solid #fff;border-radius:${t.plate ? t.radius : "3px"};${outline}box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:700 ${t.codeSize}px/1 ${MONO};color:#fff;">${o.resourceCode}${roundel}</div>`;
+  const symbol = o.vehicleBody
+    ? `<div style="position:relative;width:${bodyW}px;height:${bodyH}px;background:${o.serviceColour};border:${t.border}px solid #f5f5f5;border-radius:3px;${outline}box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:700 ${Math.max(8, t.codeSize - 1)}px/1 ${MONO};color:#fff;">
+        <span style="position:absolute;left:22%;right:22%;top:2px;height:${Math.max(5, Math.round(bodyH * 0.34))}px;background:#263241;border:1px solid rgba(255,255,255,.55);border-radius:2px;opacity:.95;"></span>
+        <span style="position:absolute;left:-3px;top:3px;width:3px;height:${Math.max(7, bodyH - 8)}px;background:#17191c;border-radius:2px;box-shadow:${bodyW - 3}px 0 0 #17191c;"></span>
+        <span style="position:relative;margin-top:${Math.round(bodyH * 0.34)}px;">${o.resourceCode}</span>${roundel}
+      </div>`
+    : `<div style="position:relative;width:${t.sym}px;height:${t.sym}px;background:${o.serviceColour};border:${t.border}px solid #fff;border-radius:${t.plate ? t.radius : "3px"};${outline}box-sizing:border-box;display:flex;align-items:center;justify-content:center;font:700 ${t.codeSize}px/1 ${MONO};color:#fff;">${o.resourceCode}${roundel}</div>`;
 
   const subtitle =
     t.subtitle && o.subtitle
@@ -258,7 +269,7 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
       : "";
 
   const plate = t.plate
-    ? `<div style="height:${t.sym}px;padding:0 ${t.platePad}px;background:#fff;border:${t.border}px solid ${plateBorder};border-left:none;border-radius:0 ${t.sym >= 30 ? "4px 4px" : "3px 3px"} 0;${outline}box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font:700 ${t.plateFont}px/1 ${MONO};color:#18181b;white-space:nowrap;">${cs}${subtitle}</div>`
+    ? `<div style="height:${bodyH}px;padding:0 ${t.platePad}px;background:#fff;border:${t.border}px solid ${plateBorder};border-left:none;border-radius:0 ${t.sym >= 30 ? "4px 4px" : "3px 3px"} 0;${outline}box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font:700 ${t.plateFont}px/1 ${MONO};color:#18181b;white-space:nowrap;">${cs}${subtitle}</div>`
     : "";
 
   const selection = o.selected

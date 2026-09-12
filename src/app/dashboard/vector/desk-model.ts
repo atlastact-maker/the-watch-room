@@ -99,6 +99,7 @@ export function useDeskModel(input: DeskInput) {
       const anyFree = [...applianceById.values()].some((a) => isFree(a) && c.slot.requiredApplianceTypes.includes(a.type) && !deployments.some((x) => x.applianceId === a.id));
       return {
         n: i + 1,
+        slotId: c.slot.id,
         slot: c.slot.label,
         applianceId: c.applianceId,
         callsign: ap?.callsign ?? null,
@@ -238,6 +239,7 @@ export function useDeskModel(input: DeskInput) {
         etaEstimated: !eta || eta.source === "fallback",
         blocked,
         fit,
+        compatibleSlotIds: unfilledSlots.filter((s) => s.requiredApplianceTypes.includes(a.type)).map((s) => s.id),
         cost,
         deployed: onThis,
       });
@@ -407,16 +409,16 @@ export type DeskModel = ReturnType<typeof useDeskModel>;
 
 /** Nearest suitable free unit for each unfilled slot — the "Fill
  *  remaining" order. Returns the units to send, in slot order. */
-export function proposeFill(model: DeskModel, scenario: Scenario | undefined): { applianceId: string; stationId: string }[] {
+export function proposeFill(model: DeskModel, scenario: Scenario | undefined): { applianceId: string; stationId: string; slotId: string }[] {
   void scenario;
-  const picks: { applianceId: string; stationId: string }[] = [];
+  const picks: { applianceId: string; stationId: string; slotId: string }[] = [];
   const used = new Set<string>();
   for (const row of model.pda) {
     if (row.callsign) continue;
-    const c = model.cards.find((k) => !k.blocked && !used.has(k.applianceId) && k.fit.startsWith(`Fills ${row.slot}`));
+    const c = model.cards.find((k) => !k.blocked && !used.has(k.applianceId) && k.compatibleSlotIds.includes(row.slotId));
     if (c) {
       used.add(c.applianceId);
-      picks.push({ applianceId: c.applianceId, stationId: c.stationId });
+      picks.push({ applianceId: c.applianceId, stationId: c.stationId, slotId: row.slotId });
     }
   }
   return picks;

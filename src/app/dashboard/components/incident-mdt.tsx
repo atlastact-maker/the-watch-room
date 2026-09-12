@@ -175,8 +175,11 @@ const MDT_HEIGHT = 920;
 function presetMdtSize(): { width: number; height: number } {
   if (typeof window === "undefined") return { width: MDT_WIDTH, height: MDT_HEIGHT };
   return {
-    width: Math.min(MDT_WIDTH, Math.max(640, window.innerWidth - 24)),
-    height: Math.min(MDT_HEIGHT, Math.max(560, window.innerHeight - 70)),
+    // Leave the ground map visible around the tablet. The MDT remains
+    // readable, but it should not become a full-screen opaque wall when
+    // the operator is placing units or working a scene.
+    width: Math.min(MDT_WIDTH, Math.max(640, Math.min(1020, window.innerWidth - 24))),
+    height: Math.min(MDT_HEIGHT, Math.max(480, Math.min(700, window.innerHeight - 160))),
   };
 }
 

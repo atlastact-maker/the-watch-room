@@ -7,7 +7,8 @@ const saved = { version: SHIFT_SAVE_VERSION, savedAt: now - 60000, patch: "Great
 assert.deepEqual(menuPlayerState(null, null, now), { save: null, last: null }, "First visit must not invent a watch or debrief");
 assert.equal(menuPlayerState(JSON.stringify(saved), null, now).save?.title, "Real saved incident");
 assert.equal(menuPlayerState(JSON.stringify({ ...saved, savedAt: now - SAVE_MAX_AGE_MS - 1 }), null, now).save, null, "Expired saves must not advertise Resume");
-assert.equal(menuPlayerState(JSON.stringify({ ...saved, version: SHIFT_SAVE_VERSION - 1 }), null, now).save, null);
+assert.equal(menuPlayerState(JSON.stringify({ ...saved, version: 1 }), null, now).save, null);
+assert.ok(menuPlayerState(JSON.stringify({ ...saved, version: 2 }), null, now).save, "Previous county saves must still offer Resume");
 assert.equal(menuPlayerState("broken JSON", "{}", now).save, null);
 assert.equal(menuPlayerState(null, JSON.stringify({ grade: "A", resolvedAt: now }), now).last, null, "Incomplete results must not show fake numbers");
 const last = { incidentTitle: "Completed incident", grade: "B", resolvedAt: now, resourcesUsed: 4, targetsMet: 3, targetsTotal: 4, casualtiesSaved: 2, casualtiesLost: 0 };

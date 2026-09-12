@@ -18,7 +18,7 @@ function parse(raw: string | null): Record<string, unknown> | null {
 /** Read-only projection of the same device saves used by the simulation. */
 export function menuPlayerState(saveRaw: string | null, lastRaw: string | null, now: number): MenuPlayerState {
   const saved = parse(saveRaw), last = parse(lastRaw);
-  const validSave = saved?.version === SHIFT_SAVE_VERSION && saved.patch === "GreaterManchester" &&
+  const validSave = (saved?.version === SHIFT_SAVE_VERSION || saved?.version === 2) && saved.patch === "GreaterManchester" &&
     typeof saved.savedAt === "number" && Number.isFinite(saved.savedAt) && saved.savedAt <= now + 60000 && now - saved.savedAt <= SAVE_MAX_AGE_MS &&
     ["quiet", "normal", "busy"].includes(String(saved.intensity)) && Array.isArray(saved.deployments);
   const incident = saved?.activeIncident as { scenario?: { title?: unknown } } | null;
