@@ -831,7 +831,7 @@ export function FireCommandScreen(props: FireCommandProps) {
   );
 
   const activityCard = (
-    <Card title="Current activity" icon="▶">
+    <Card title="Current activity" icon="▶" fill>
       {mine.length === 0 ? (
         <div className="pc-activity">
           <strong>{appliance.callsign} <span>•</span> {here ? "Available on scene" : unit.phase === "mobile" ? "En route" : "Not on scene"}</strong>
@@ -844,7 +844,6 @@ export function FireCommandScreen(props: FireCommandProps) {
             <span className="st">
               <i className="dot warn" />
               {t.completesAt ? `${mmss(t.completesAt - now)} remaining` : `Ongoing · ${mmss(now - t.startedAt)}`} · {t.assignedCrewIds.map((id) => appliance.crewMembers.find((c) => c.id === id)?.name.split(" ").pop() ?? id).join(", ")}
-              {!t.completesAt && props.onCompleteTask && t.kind !== "ba_sar" && <button type="button" className="pc-mini" onClick={() => props.onCompleteTask?.(t.id)}>Complete</button>}
               {props.onAbortTask && <button type="button" className="pc-mini" onClick={() => props.onAbortTask?.(t.id)}>{t.kind === "ba_sar" ? "Withdraw" : "Abort"}</button>}
             </span>
           </div>
@@ -1415,7 +1414,6 @@ export function FireCommandScreen(props: FireCommandProps) {
           )}
         </Card>
         {personsCard}
-        {logCard()}
       </div>
     </>
   );
@@ -1443,14 +1441,14 @@ export function FireCommandScreen(props: FireCommandProps) {
               {resourceCard}
               {fireCardCompact}
             </div>
-            <div className="pc-col">{actionsCard}{tab === "general" && <>{activityCard}{logCard()}</>}</div>
+            <div className="pc-col">{actionsCard}{tab === "general" && activityCard}</div>
             <div className="pc-col">
               {detailsCard}
               {tab === "general" && supportCard}
-              {tab === "fire" && <>{baCard}{logCard()}</>}
+              {tab === "fire" && baCard}
               {tab === "rescue" && <>{personsCard}{highRiseCard}{baCard}</>}
-              {tab === "water" && <>{waterCard}{logCard()}</>}
-              {tab === "scene" && <>{hazardsCard}{hazmatCard}{logCard()}</>}
+              {tab === "water" && waterCard}
+              {tab === "scene" && <>{hazardsCard}{hazmatCard}</>}
             </div>
           </>
         )}
