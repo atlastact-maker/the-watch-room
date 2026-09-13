@@ -4702,3 +4702,21 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   .pc-main.ba, .pc-main.log { grid-template-columns: minmax(0, 1fr); }
   .pc-main.ba .pc-col:nth-child(2), .pc-main.log .pc-col:nth-child(2) { grid-column: auto; grid-row: auto; }
 }
+
+/* ---- The 999 call: the caller's state, key questions, follow-ups ------ */
+.vec-caller-state { display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 2px; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; text-transform: uppercase; vertical-align: middle; border: 1px solid currentColor; }
+.vec-caller-state.go { color: var(--vec-go); }
+.vec-caller-state.warn { color: var(--vec-warn); }
+.vec-caller-state.stop { color: var(--vec-stop); animation: cc-alarm 0.9s steps(2, end) infinite; }
+.vec-key-tag { margin-left: 6px; padding: 0 4px; border-radius: 2px; background: var(--vec-warn-tint, #f6ebd3); color: var(--vec-warn); font: 700 8px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; vertical-align: middle; }
+.vec-qrow.key { border-left: 3px solid var(--vec-warn); }
+.vec-qrow.follow { padding-left: 22px; background: var(--vec-surface-raised); }
+.vec-qrow.follow.asked { background: var(--vec-go-tint); }
+.vec-dialogue .who.sys { color: var(--vec-text-muted); }
+.vec-dialogue .txt.sys { color: var(--vec-text-muted); font-style: italic; }
+.vec-dialogue .txt.urgent { color: var(--vec-warn); font-weight: 700; }
+.vec-dialogue .txt.critical { color: var(--vec-stop); font-weight: 700; }
+.vec-btn.mini.reassure { margin-right: 8px; border-color: var(--vec-work); color: var(--vec-work); }
+.vec-checks i.warn { background: var(--vec-warn); }
+.vec-screen-head .mono.go { color: var(--vec-go); }
+.vec-screen-head .mono.stop { color: var(--vec-stop); }

@@ -293,6 +293,32 @@ export function scoreIncident(
     }
   }
 
+  // 4c. The call. Only on a job that came in on a scripted 999 call:
+  //     how long the operator held the caller before sending, and
+  //     whether the questions the service always asks were asked.
+  if (incident.scenario.call && log) {
+    const answered = log.find((e) => e.id.startsWith("call-answered:"));
+    const sent = log.find((e) => e.id.startsWith("call-sent:"));
+    if (answered && sent) {
+      const sec = Math.max(0, (sent.timestamp - answered.timestamp) / 1000);
+      metrics.push({
+        label: "Time to send",
+        target: "Sent within 90 s of answering — address and nature are enough to send on",
+        actual: `${fmtSecs(sec)} on the line before sending`,
+        passed: sec <= 90 ? true : sec <= 180 ? "partial" : false,
+      });
+    }
+    if (log.some((e) => e.id.startsWith("call-handling:"))) {
+      const missed = log.filter((e) => e.id.startsWith("call-key-missed:"));
+      metrics.push({
+        label: "Call handling",
+        target: "Every key question asked before the phone went down",
+        actual: missed.length === 0 ? "All key questions asked" : `${missed.length} never asked: ${missed.map((m) => m.message.replace(/^.*never asked: /, "")).join("; ")}`,
+        passed: missed.length === 0 ? true : missed.length === 1 ? "partial" : false,
+      });
+    }
+  }
+
   // 5b. Exposure protection — did the fire get into the attached
   //     neighbour / adjacent unit? The breach log entry is the durable
   //     record (written on the rising edge), so a later knock-down

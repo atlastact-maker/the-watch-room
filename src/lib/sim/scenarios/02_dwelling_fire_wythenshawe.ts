@@ -369,4 +369,117 @@ export const scenario02: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Pauline has it: on the house phone at 287, on her front
+  // step, watching the top windows of the semi next door. She knows the
+  // family; she knows the little one will not have heard the alarm.
+  call: {
+    caller: {
+      name: "Pauline Hargreaves",
+      phone: "0161 496 0287",
+      relation: "Neighbour at no. 287",
+      where: "Her own front step, across the driveway from 285",
+      line: "landline",
+      state: "anxious",
+    },
+    opening:
+      "It's next door — 285, Hollyhedge Road — there's smoke coming out the top windows and I can hear the kids shouting. It's Kelly and Dan's, there's four of them in there. Please, quick.",
+    deflection: "I don't know, I don't know — just get them here, please!",
+    reassurance: {
+      text: "Pauline, listen to me. The engines are on their way. Stay on your step, and just tell me what you can see.",
+      reply: "Okay. Okay. I'm here. I'm looking.",
+    },
+    answers: {
+      f_seen: {
+        text: "Thick grey smoke, pouring out of the bedroom window at the front — the little one's room. And there's an orange glow behind the curtains now, I can see it flickering.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "Upstairs, at the front. The downstairs looks alright — the lights are off, I can't see anything down there.",
+      },
+      f_spread: {
+        text: "It's getting worse. It's darker than when I first looked, it's coming out faster. It's not my side yet.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "I don't know — the smoke alarm's been going five minutes, maybe. I thought it was a false one. Then I heard the shouting.",
+      },
+      f_building: {
+        text: "A semi, council house, same as mine. Two floors. They had the loft done out as a bedroom for the eldest.",
+      },
+      f_inside: {
+        text: "Yes — all of them, I think. Kelly and Dan, and Ella and Theo. Theo's only five and he's deaf in one ear, he won't have heard the alarm.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "f_inside_rooms",
+            text: "Which rooms do they sleep in?",
+            answer: {
+              text: "The kids at the front — Theo's is the one with the smoke. Kelly and Dan are at the back. Ella's up in the loft.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_window",
+            text: "Can you see anyone at a window?",
+            answer: {
+              text: "No. Nobody. I banged on the door and nobody came.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "I can't see anyone to tell you. I can't hear the shouting any more.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      f_vulnerable: {
+        text: "Theo, the little one — he's five, and his hearing. And Ella's in the loft, there's only the one stair up to it.",
+      },
+      f_hazards: {
+        text: "There's a gas meter, same as mine, in the cupboard under the stairs. No cylinders or anything like that — Dan doesn't even barbecue.",
+      },
+      f_danger: {
+        text: "Cars parked both sides, it's always tight down here. Nothing else. No one's being funny.",
+      },
+      f_access: {
+        text: "The front door's shut, it's a uPVC one, it'll be locked — they lock it at night. The drive's clear, Dan's van is out on the road. The side gate's bolted from the inside.",
+      },
+      f_safe: {
+        text: "I'm on my own step. I'm not going anywhere near it.",
+      },
+      f_stay: {
+        text: "Yes. Yes, I'll stay on.",
+      },
+      f_details: {
+        text: "Pauline Hargreaves. This is the house phone — 0161 496 0287.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Oh God — the window's gone. The glass has just gone and there's flames coming out of it now.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 95,
+        text: "There's someone at the back! Graham's gone round — he says there's somebody at the back bedroom window, banging on it.",
+        tone: "critical",
+      },
+      {
+        atSec: 150,
+        text: "I can hear sirens. Is that them? Is that them coming?",
+        requiresOpened: true,
+      },
+      {
+        atSec: 170,
+        text: "Where are they? It's been ages — is anyone actually coming?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Thank you. Oh, thank you. Tell them to hurry.",
+  },
 };

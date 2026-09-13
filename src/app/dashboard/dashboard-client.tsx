@@ -180,6 +180,7 @@ import { buildRecordIndex } from "@/lib/sim/records";
 import { SCENARIO_RECORDS } from "@/lib/sim/records/index";
 import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
+import type { CallSummary } from "./vector/call-screen";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
@@ -5584,7 +5585,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   const [tiles, setTiles] = useState<TilesState>({ ...DEFAULT_TILES });
   const layout = useTileLayout();
   const { theme, toggle: toggleTheme } = useVectorTheme();
-  const [activeCall, setActiveCall] = useState<(PendingCall & { answeredAt: number }) | null>(null);
+  const [activeCall, setActiveCall] = useState<(PendingCall & { answeredAt: number; opened?: boolean }) | null>(null);
   const [standbySent, setStandbySent] = useState<Record<string, boolean>>({});
   // Panels lifted into their own browser windows, by id.
   const [popped, setPopped] = useState<Record<string, boolean>>({});
@@ -5745,8 +5746,35 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     }
     setPendingCalls((prev) => prev.filter((c) => c.id !== id));
     setActiveCall({ ...call, answeredAt: Date.now() });
+    logAnnotation(`${call.scenario.title} — 999 call answered${call.scenario.call ? ` · ${call.scenario.call.caller.relation}` : ""}`, "annotation", "call-answered");
     setStatusMsg(`Answered · ${call.scenario.title}`);
     pickScreen("call");
+  }
+
+  /** What the call was, once the phone is down: how much was asked, what
+   *  was never asked, how the caller was. The key questions never asked
+   *  each get their own line so the debrief can count them. */
+  function logCallSummary(call: PendingCall, summary: CallSummary) {
+    const t = call.scenario.title;
+    const dur = `${Math.floor(summary.durationSec / 60)}:${String(summary.durationSec % 60).padStart(2, "0")}`;
+    logAnnotation(`${t} — call handled: ${summary.asked.length} of ${summary.askedTotal} questions in ${dur}, caller ${summary.callerState}${summary.dropped ? ", line lost" : ""}${summary.preAlerted ? ", sent and kept on the line" : ""}, graded ${summary.grade}`, "annotation", "call-handling");
+    for (const k of summary.missedKey) logAnnotation(`${t} — never asked: "${k.text}"`, "setback", "call-key-missed");
+  }
+
+  /** Send on what is known and keep the caller talking. */
+  function preAlertFromCall(call: PendingCall, note: string) {
+    if (activeCall?.opened) return;
+    triggerScenario(call.scenario);
+    setActiveCall((prev) => (prev && prev.id === call.id ? { ...prev, opened: true } : prev));
+    logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}; caller kept on the line`, "annotation", "call-sent");
+    setStatusMsg(`${call.scenario.title} sent — caller still on the line`);
+  }
+
+  function finishCall(call: PendingCall, summary: CallSummary) {
+    setActiveCall(null);
+    logCallSummary(call, summary);
+    setStatusMsg(`${call.scenario.title} — call finished, allocate the attendance`);
+    pickScreen("mob");
   }
 
   function declineCallById(id: string) {
@@ -5766,10 +5794,13 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     setStatusMsg(disp ? "Call closed at the desk" : "Call declined — nobody sent");
   }
 
-  function createFromCall(call: PendingCall, note: string) {
+  function createFromCall(call: PendingCall, note: string, summary: CallSummary) {
     setActiveCall(null);
-    triggerScenario(call.scenario);
-    if (note) logAnnotation(`${call.scenario.title} — typed ${note}`);
+    if (!activeCall?.opened) {
+      triggerScenario(call.scenario);
+      logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}`, "annotation", "call-sent");
+    }
+    logCallSummary(call, summary);
     setStatusMsg(`${call.scenario.title} created — allocate the attendance`);
     pickScreen("mob");
   }
@@ -6177,6 +6208,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       onAnswerCall={answerCallById}
       onDeclineCall={declineCallById}
       onCreateFromCall={createFromCall}
+      onPreAlertFromCall={preAlertFromCall}
+      onFinishCall={finishCall}
       onEndCall={endCall}
       onNote={setStatusMsg}
       onCallNote={(text) => logAnnotation(text)}

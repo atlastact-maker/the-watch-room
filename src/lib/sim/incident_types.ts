@@ -339,6 +339,10 @@ export type Scenario = {
   /** How the call was graded at the point of answer, on the service's
    *  own scale — never one shared scale across three services. */
   callGrade?: CallGrade;
+  /** The 999 call as the caller has it — who is ringing, their opening
+   *  words, what they answer, what they blurt out. See call_script.ts.
+   *  A job without one still takes a call from its own fields. */
+  call?: import("./call_script").CallScript;
 
   /** When the right answer is not to send anyone. Declining a call that
    *  carries this is scored as correct; answering it and mobilising is

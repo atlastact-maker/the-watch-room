@@ -32,7 +32,7 @@ import {
   SceneUnitsTile,
   StandbyTile,
 } from "./dispatch-tiles";
-import { CallScreen } from "./call-screen";
+import { CallScreen, type CallSummary } from "./call-screen";
 import { MobScreen } from "./mob-screen";
 import type { DeskModel } from "./desk-model";
 import type { TileId, TileLayout } from "./tile";
@@ -77,12 +77,14 @@ export function VectorDesk(props: {
   model: DeskModel;
   now: number;
   pendingCalls: PendingCall[];
-  activeCall: (PendingCall & { answeredAt: number }) | null;
+  activeCall: (PendingCall & { answeredAt: number; opened?: boolean }) | null;
   callsReady: boolean;
   onToggleReady: () => void;
   onAnswerCall: (id: string) => void;
   onDeclineCall: (id: string) => void;
-  onCreateFromCall: (call: PendingCall, note: string) => void;
+  onCreateFromCall: (call: PendingCall, note: string, summary: CallSummary) => void;
+  onPreAlertFromCall: (call: PendingCall, note: string) => void;
+  onFinishCall: (call: PendingCall, summary: CallSummary) => void;
   onEndCall: (call: PendingCall, closedAtDesk: boolean) => void;
   onNote: (text: string) => void;
   onCallNote: (text: string) => void;
@@ -315,7 +317,7 @@ export function VectorDesk(props: {
 
       {screen === "call" &&
         (props.activeCall ? (
-          <CallScreen key={props.activeCall.id} call={props.activeCall} answeredAt={props.activeCall.answeredAt} now={props.now} onCreate={props.onCreateFromCall} onEndCall={props.onEndCall} onNote={props.onCallNote} covered={props.coveredServices} />
+          <CallScreen key={props.activeCall.id} call={props.activeCall} answeredAt={props.activeCall.answeredAt} now={props.now} opened={props.activeCall.opened} onCreate={props.onCreateFromCall} onPreAlert={props.onPreAlertFromCall} onFinish={props.onFinishCall} onEndCall={props.onEndCall} onNote={props.onCallNote} covered={props.coveredServices} />
         ) : (
           <div className="vec-screen">
             <div className="vec-screen-head">
