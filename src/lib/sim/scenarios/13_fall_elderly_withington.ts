@@ -212,4 +212,126 @@ export const scenario13: Scenario = {
       tone: "urgent",
     },
   ],
+
+  // The call as Maureen has it: on her mobile, on her knees on the hall
+  // carpet at no. 26 with Doreen's hand in hers and the front door on the
+  // latch behind her. She has known Doreen thirty years. She is not
+  // frightened; she is cross with herself for not coming round sooner.
+  call: {
+    caller: {
+      name: "Maureen Pike",
+      phone: "07700 900612",
+      relation: "Neighbour at no. 28 — holds a key",
+      where: "Kneeling in the hallway at 26 Burton Road, beside the patient",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Hello, love — ambulance, please. It's my neighbour, Doreen, Mrs Ashworth, 26 Burton Road in Withington. She's had a fall in her hall and she's on the floor. She's talking to me, she's alright in herself, but she can't get up and I can't lift her — I've tried. She's eighty-one.",
+    deflection: "I've told you, love — she's on the floor and I can't lift her. What else do you want from me?",
+    reassurance: {
+      text: "Maureen, you're doing everything right. Keep her warm and keep her talking, and I'll sort out getting somebody to you.",
+      reply: "Right. Yes. I'll do that. Sorry, love.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes, she's conscious. She's talking to me — talking sense, she knows who I am, she's asked me to shut the front door. She's just on the floor and she can't get herself up.",
+      },
+      a_breathing: {
+        text: "Yes, she's breathing fine. She's not gasping or wheezing or anything. She's chatting away.",
+      },
+      a_happened: {
+        text: "She's had a fall in her hall — she's on the floor by the kitchen door. She says she went over on that rug of hers, the one at the kitchen doorway, I've told her about it before. I heard her shouting through the wall — we're terraced, you hear everything — so I came round with my key and let myself in. She can't get up and I can't lift her. I'm sixty-eight, I've a bad back myself.",
+        followUps: [
+          {
+            id: "a_happened_position",
+            text: "How is she lying — on her back, on her side?",
+            answer: {
+              text: "On her side, sort of — half on her side, half on her front, with her legs in the kitchen doorway. I've not moved her, I didn't think I should. She's not tried to turn over.",
+            },
+          },
+          {
+            id: "a_happened_legs",
+            text: "Can she move her legs for you?",
+            answer: {
+              text: "She's wiggled her feet for me, both of them. She says she'd rather not try any more than that, and I've not made her.",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "I don't know, love, and I don't think she does. I've only just found her — I heard her calling and came round. She said she'd been shouting a while before I heard.",
+      },
+      a_now: {
+        text: "She's pale, but then she always is. She's not sweating — she's cold, actually, cold to touch, her hands are like ice. She's talking to me fine. She's more bothered about me seeing her in a state than anything.",
+      },
+      a_bleeding: {
+        text: "No, no blood. Not that I can see. She says she's not banged her head — there's nothing on the carpet, nothing on her.",
+      },
+      a_age: {
+        text: "Eighty-one. She was eighty-one in March.",
+      },
+      a_history: {
+        text: "She's got tablets — a whole tray of them on the side, the blister thing the chemist does. Blood pressure, I know that, and water tablets. I don't know what else. She's fallen before — twice this year, your lot came out but they didn't take her in.",
+        followUps: [
+          {
+            id: "a_history_falls",
+            text: "Did she hurt herself the other times?",
+            answer: {
+              text: "No, just bruises. They got her up, she had a cup of tea and off they went. The falls people put a keysafe on for her after the second one.",
+            },
+          },
+        ],
+      },
+      a_count: {
+        text: "Just Doreen. Just her. She lives on her own — her Katherine's in Leeds, I've tried ringing her and she's not picking up.",
+      },
+      a_danger: {
+        text: "It's fine, love, it's her hallway. It's just narrow, that's all — you couldn't swing a cat in it. And there's that rug. I'll pull it out of the way.",
+      },
+      a_access: {
+        text: "Front door, 26 Burton Road — I'll leave it on the latch and I'll be at it. If I'm not, there's a keysafe by the meter box — I don't know the number off by heart, it's on her calendar in the kitchen, I'll go and look. You'll not get a chair in that hall, mind, it's that narrow, and the stairs come right down to the front door.",
+        followUps: [
+          {
+            id: "a_access_parking",
+            text: "Is there anywhere for the ambulance to pull up?",
+            answer: {
+              text: "It's all on-street, it's a terrace. There's usually a gap — if there's not I'll go and knock on and get somebody moved. They'll manage.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "Yes, I'm knelt next to her. I've got her hand.",
+      },
+      a_instructions: {
+        text: "Yes, go on. What do I do? I've not tried to move her — I didn't want to make it worse.",
+      },
+      a_details: {
+        text: "Maureen Pike. I'm at 28, next door. This is my mobile — 07700 900612.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Hang on, love — she wants her glasses. They're on the — hang on, Doreen, they're here. There you are. Sorry. Where were we?",
+      },
+      {
+        atSec: 100,
+        text: "Are you sending somebody? Only I know you're busy, love, I do, but she's on a cold floor and she's not a young woman.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "I've put a cushion under her head. She's shivering a bit now, she says her hall's like a fridge. Was that alright, moving her head, or should I not have?",
+      },
+      {
+        atSec: 220,
+        text: "I'll put the outside light on so they can see the number, and I'll not go anywhere. Do you know how long they'll be, roughly?",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you, love. I'll keep her talking. Tell them the door'll be open.",
+  },
 };

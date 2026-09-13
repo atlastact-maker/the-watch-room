@@ -269,4 +269,129 @@ export const scenario23: Scenario = {
       tone: "urgent",
     },
   ],
+  // The call as Tomasz has it: on his mobile on the pavement opposite, in
+  // a T-shirt and socks, with three housemates he half knows and the
+  // alarm still going through the open door. He can tell the operator how
+  // many rooms there are. He cannot tell them who is in them.
+  call: {
+    caller: {
+      name: "Tomasz Nowak",
+      phone: "07700 900823",
+      relation: "Tenant — ground-floor front room at 212",
+      where: "Pavement opposite 212 Dickenson Road, with three other tenants",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Fire brigade — our house is on fire. 212 Dickenson Road, Rusholme, it's a shared house. There's smoke coming out of the window on the first floor. There's four of us out on the street, but there's more people live here and I don't know who's in. I don't know who's in.",
+    deflection: "I don't know — I don't know who's in, that's what I'm telling you. Just come.",
+    reassurance: {
+      text: "Tomasz, the engines are on their way. You don't have to know everything — just tell me what you can see and who you've got with you.",
+      reply: "Okay. Okay. Sorry. Four of us. Okay.",
+    },
+    answers: {
+      f_seen: {
+        text: "Smoke — loads of it, coming out of the first-floor window at the front, the middle one. Grey, going black. I can't see flames but the room's gone dark behind the glass and the alarm's going off inside, you can hear it from here.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "First floor, the front. That's the room above mine. I don't know whose it is — somebody new moved in there a month back, I've seen him twice.",
+        followUps: [
+          {
+            id: "f_where_stairs",
+            text: "Is the smoke on the stairs?",
+            answer: {
+              text: "Yes — it was on the landing when we came down, that's why Sam didn't go up. It was coming under the door on the first floor and down the stairs. You couldn't see the top of the house.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_spread: {
+        text: "It's coming out faster than it was. I can see it in the landing window now, the little one on the stairs between the floors. It's not out the top windows yet.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "Ten minutes? The alarm went off and we thought it was somebody's cooking again, it does that. Then Sam smelt it on the landing and started banging on doors. We came straight out.",
+      },
+      f_building: {
+        text: "Big old terrace, three floors, split into rooms — it's an HMO, we all rent a room off the same landlord. Eight rooms, and there's one in the cellar as well. Everyone's got their own lock.",
+      },
+      f_inside: {
+        text: "I don't know. That's the thing — I don't know. There's four of us out here. There's eight rooms and everybody keeps their door shut. I couldn't tell you who's home tonight and who's not.",
+        tone: "critical",
+        effect: { regrade: "EMERGENCY", basis: "Persons reported — occupancy unknown, nobody on scene can account for the house" },
+        followUps: [
+          {
+            id: "f_inside_who",
+            text: "Who is out with you, and which rooms are they from?",
+            answer: {
+              text: "Me — ground floor front. Sam, he's ground floor back, next to me. A girl from the second floor, Chloe, I think. And a lad from the second floor as well, I don't know his name. So that's the ground floor and two off the second. Nobody from the first floor and nobody from the top.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_knocked",
+            text: "Did anyone knock on the other doors on the way out?",
+            answer: {
+              text: "Sam banged on the first floor coming down. Nobody answered. Nobody went up to the top — the smoke was on the stairs, you couldn't. I banged on the cellar door from the hall, I don't even know if anyone's living down there at the minute. Nothing.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No — the four of us are alright. Sam's coughing a bit, he got a lungful on the landing, but he's talking, he's alright. Anybody else, I can't tell you.",
+      },
+      f_vulnerable: {
+        text: "Not that I know of. It's all working people and students, nobody old, no kids. But I don't know everybody. I don't know who's in the top rooms.",
+        needsCalm: true,
+      },
+      f_hazards: {
+        text: "No gas bottles or anything like that. People cook in their rooms on those little electric hobs, and there's heaters — everybody's got a heater. The meters are in the cupboard in the hall, gas and electric. That's all I know about.",
+      },
+      f_danger: {
+        text: "No. Cars parked both sides, it's rammed, it always is on here. Nobody's kicking off. There's a few people come out from next door to look.",
+        needsCalm: true,
+      },
+      f_access: {
+        text: "Front door's shut but it's not locked — it's a Yale, it slams shut. It's straight off the pavement. Every bedroom's got its own lock though, every door, they'll have to break them. Round the back there's an entry between the houses, two doors down, into the yards. The back door's bolted, always is.",
+        tone: "urgent",
+      },
+      f_safe: {
+        text: "I'm across the road on the pavement. We're all over here, well away. I'm in my socks.",
+      },
+      f_stay: {
+        text: "Yeah. Yeah, I'll stay on.",
+      },
+      f_details: {
+        text: "Tomasz Nowak — Tomasz with a z. This is my mobile, 07700 900823.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "Sam's just said — he thinks the girl on the top floor's in. Her bike's still chained up out the front and she never goes anywhere without it.",
+        tone: "critical",
+      },
+      {
+        atSec: 100,
+        text: "There's flames now — the first floor, I can see them, orange in the room. The window's gone — the glass has gone. The smoke's black.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 165,
+        text: "I can hear sirens — that's them, is it? Coming up from Wilmslow Road?",
+        requiresOpened: true,
+      },
+      {
+        atSec: 205,
+        text: "Is anyone actually coming? It's been ages. There could be people in there, mate. There could be people in there.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Okay. Okay. Tell them there might be people in. Tell them we don't know — tell them to go in every room.",
+  },
 };

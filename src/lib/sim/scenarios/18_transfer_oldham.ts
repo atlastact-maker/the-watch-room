@@ -168,4 +168,116 @@ export const scenario18: Scenario = {
       tone: "urgent",
     },
   ],
+
+  // The call as Priya has it: on the ward phone at the nurses' station,
+  // the transfer letter under one hand and a buzzer going in bay three,
+  // Mr Holt waving at her from the day room. She is not asking for blue
+  // lights. She is asking for a time, and she has asked once already.
+  call: {
+    caller: {
+      name: "Priya Chauhan",
+      phone: "0161 496 0180",
+      relation: "Nurse in charge, Ward 12 — the sending ward",
+      where: "Nurses' station, Ward 12, level 3, The Royal Oldham Hospital",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Hiya. Ward 12 at the Royal Oldham, it's Priya, I'm nurse in charge. I'm ringing about our transfer to Wythenshawe — Mr Holt. It went on this morning and nobody's rung us back with a time. He's stable, he's dressed and ready, no escort needed, and they're holding a bed for him at the other end. I just need to know whether we're getting a crew and roughly when.",
+    deflection: "I've given you all that, love. It's a ward-to-ward transfer, I'm not asking for blue lights. Have you got a crew for us or not?",
+    reassurance: {
+      text: "Priya, I know you've a bed to turn round and a patient sat waiting. I'll get you a crew and a time as soon as I've one to give you.",
+      reply: "Fair enough. Thanks. Sorry — long shift.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes. Fully. He's doing the crossword. GCS fifteen, if you want it writing down.",
+      },
+      a_breathing: {
+        text: "Normally. Room air, sats ninety-seven, resps sixteen. He's not on oxygen, he's not on anything.",
+      },
+      a_happened: {
+        text: "Nothing's happened — that's rather the point. He's a planned transfer. He came in to us with his chest a fortnight ago, he's been sorted out, and the team at Wythenshawe want him on their ward for the next bit because it's their speciality, not ours. He's been stable four days. Ward to ward, bed to bed.",
+        followUps: [
+          {
+            id: "a_happened_stretcher",
+            text: "Does he need a stretcher, or can he sit?",
+            answer: {
+              text: "He'll sit. He walks with a stick — he's been down to the shop and back this morning. Carry chair's fine, or he'll walk to it. He'd rather walk, to be honest with you.",
+            },
+          },
+          {
+            id: "a_happened_escort",
+            text: "Is anyone travelling with him?",
+            answer: {
+              text: "No escort — he doesn't need one, the consultant's signed that off. His notes go with him and the transfer letter's in the front. His wife's driving down separately to meet him there.",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "The booking went on at nine this morning, off the ward round. He's been on your list since then. I've got the reference number here if it helps you find it.",
+      },
+      a_now: {
+        text: "He's fine. Pink, warm, dry, chatting. Obs are all normal, I've just done them — one twenty-eight over seventy-six, pulse seventy-eight, temp thirty-six eight. If he looked any different I'd not be sending him.",
+      },
+      a_bleeding: {
+        text: "No. Nothing like that. Nothing dressed, nothing draining, no lines in — I took his cannula out this morning so he'd not travel with it.",
+      },
+      a_age: {
+        text: "Sixty-eight.",
+      },
+      a_history: {
+        text: "It's all in the notes and on the transfer letter — the crew get a proper handover from me when they get up here. He's on his usual tablets, he's had his lunchtime ones, and nothing's due before he gets there. Allergies — penicillin, it's on his wristband.",
+      },
+      a_count: {
+        text: "Just the one. Mr Dennis Holt. One patient, one bed.",
+      },
+      a_danger: {
+        text: "It's a hospital ward, love. It's as safe as it gets. The lift's working, before you ask.",
+      },
+      a_access: {
+        text: "Ambulance entrance off Rochdale Road — the one round the side, not the main front. We're Ward 12, level three, and the big lift's straight opposite the doors. I'll have a porter down at the entrance to meet them and bring them up. Just get the crew to ring the ward when they're five minutes off and I'll have him ready.",
+        followUps: [
+          {
+            id: "a_access_bay",
+            text: "Is there somewhere for them to leave the vehicle?",
+            answer: {
+              text: "There's the bays outside the entrance. If A&E have got them all, they can pull onto the ambulance-only bit by the doors — the porters sort that, it's not a problem for a transfer.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "I'm at the desk. He's in the day room, twenty feet away, I can see him from here — he's waving at me now, he knows I'm ringing about him.",
+      },
+      a_instructions: {
+        text: "I'm a nurse, love. I think we're alright. Tell the crew to come to the desk when they get up here and I'll hand over.",
+      },
+      a_details: {
+        text: "Priya Chauhan, nurse in charge, Ward 12. This is the ward phone — 0161 496 0180. Ask for me, or whoever's on the desk.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 60,
+        text: "Sorry — hang on. Bay three's buzzing, can somebody — thanks. Sorry. Where were we.",
+      },
+      {
+        atSec: 130,
+        text: "Is there any chance of a time on it, roughly? Even 'this afternoon' would do. I need to know whether to send him for his dinner or keep him by the door.",
+        requiresOpened: false,
+      },
+      {
+        atSec: 200,
+        text: "Right, that's grand. I'll ring the porters and get his notes photocopied. Tell the crew to ring the ward when they're five minutes off and he'll be sat by the lift.",
+        requiresOpened: true,
+      },
+    ],
+    drops: {
+      atSec: 240,
+      text: "Right, I've got to go, love — drugs round. You've got the ward number. Ring us with a time, or I'll ring you. Ta-ra.",
+    },
+    onDispatch: "Lovely. Thank you. I'll tell him — he'll be made up. Get them to ring the ward on the way.",
+  },
 };

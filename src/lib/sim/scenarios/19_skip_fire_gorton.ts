@@ -199,4 +199,136 @@ export const scenario19: Scenario = {
       tone: "urgent",
     },
   ],
+
+  // The call as Dean has it: on his mobile at the mouth of the service
+  // yard, the dog pulling the other way, the skip lighting up the back
+  // wall of the parade thirty feet from him. He is not frightened of a
+  // skip. He rang because of where it is stood, and he says so early.
+  call: {
+    caller: {
+      name: "Dean Whittaker",
+      phone: "07700 900819",
+      relation: "Passer-by — lives on the side street, out walking his dog",
+      where: "Entrance to the service yard off the side street, thirty feet from the skip",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Fire brigade — there's a skip on fire behind the shops on Hyde Road in Gorton. The parade at 480-odd, the row with the chippy on the end — you go in the side street and the yard's round the back. It's a builders' skip and it's going, flames higher than me. It's stood right against the back wall of the shops, that's why I've rung.",
+    deflection: "Mate, I've told you — skip, back of the shops, Hyde Road. Are you sending someone or not?",
+    reassurance: {
+      text: "Dean, there's a crew on the way. Stay where you are at the yard entrance, and just tell me what it's doing.",
+      reply: "Yeah. Alright. It's still going. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "A big builders' skip, the yellow sort, full up — and the whole lot's alight. Flames going up six, eight foot, loads of sparks, black smoke. It's stood hard up against the back wall of the shops and the flames are going up the brickwork.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "Round the back — the service yard behind the parade. You get in off the side street. The skip's about halfway along the row, behind the third or fourth shop in, tight against the wall. There's a wooden bit under the roof edge right above it, and the guttering.",
+        followUps: [
+          {
+            id: "f_where_units",
+            text: "Which shop is it behind — is there anything above them?",
+            answer: {
+              text: "There's nothing above, they're single storey, the shops. It's behind the vape shop, I think, or the barber's next to it. They're all shut, it's gone eight.",
+            },
+          },
+        ],
+      },
+      f_spread: {
+        text: "It's not caught the building yet — not that I can see. But the flames are right up under that wooden edge and the guttering, the wall's gone black above it, and it's getting bigger, not smaller. If it's going to catch anything it's going to be that.",
+        tone: "urgent",
+        effect: {
+          regrade: "EMERGENCY",
+          basis: "Skip well alight hard against the rear wall of an occupied parade — timber soffit and plastic guttering directly above it",
+        },
+      },
+      f_started: {
+        text: "Five minutes, maybe? It was already well away when I came round the corner with the dog. I've not seen anyone about — no kids, nobody legging it.",
+      },
+      f_building: {
+        text: "It's a row of shops — six of them, single storey, flat roofs, brick. The yard round the back's for the bins and deliveries. Chippy on the end, and that's still open. The rest are shut.",
+      },
+      f_inside: {
+        text: "The shops are shut, all bar the chippy on the end — that's open, lights on, there's people in there. It's the far end from the skip, though. Nobody's in the yard. I'm the only one out here.",
+        followUps: [
+          {
+            id: "f_inside_takeaway",
+            text: "How far is the takeaway from the skip?",
+            answer: {
+              text: "Five or six shops down — the far end. Same roof, though. It's all one row, joined up.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No. Nobody's hurt. There's nobody anywhere near it.",
+      },
+      f_vulnerable: {
+        text: "Nobody's inside the shops, they're shut. The chippy's got customers but they're up the far end and they can walk out the front. Nothing like that.",
+      },
+      f_hazards: {
+        text: "It's a builders' skip, so — God knows. Rubble, wood, plasterboard, there's an old door sticking out of it. A couple of paint tins on top, the big ones. And there's gas meters on the back wall of two of the shops — the grey boxes — one of them's only a few feet along from the skip.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_hazards_cylinders",
+            text: "Can you see any gas bottles or cylinders in it — the tall ones, or the barbecue sort?",
+            answer: {
+              text: "I can't tell — it's all on fire, I'm not going any closer to look. There's stuff in there I can't make out. I wouldn't bet against it, put it that way.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "Cars — there's two parked in the yard, one's not far off it, ten foot maybe. Big wheelie bins along the wall. Nobody being funny, no. No power lines that I can see.",
+      },
+      f_access: {
+        text: "Off the side street — the turning by the chippy. There's a gap between the end shop and the houses, you drive through into the yard. It's narrow, one car wide, and the yard's part blocked with the cars and the bins. An engine might get in the entrance but I doubt it'll get down to the skip. There's a hydrant on the side street right by the entrance, the little yellow sign.",
+        followUps: [
+          {
+            id: "f_access_gate",
+            text: "Is there a gate on the yard entrance, and is it open?",
+            answer: {
+              text: "There's a gate but it's wide open, it's always open — it's rusted back against the wall, nobody ever shuts it.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm at the yard entrance, on the side street, thirty foot off it. Me and the dog. I'm not going in.",
+      },
+      f_stay: {
+        text: "Yeah, I'll stay on. The dog's not happy but he'll cope.",
+      },
+      f_details: {
+        text: "Dean Whittaker. I live on the side street, over the road from the yard. This is my mobile — 07700 900819.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "It's making a right noise now — crackling, and there's a whoosh every so often, like something's catching in the middle of it.",
+        tone: "urgent",
+      },
+      {
+        atSec: 100,
+        text: "Is anybody on their way? Only it's not getting any smaller and I'm stood here on my own.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 135,
+        text: "There's a lad come out the back door of the chippy to have a look — I've shouted him to get back in and shut the door. He's gone back in.",
+      },
+      {
+        atSec: 190,
+        text: "I can hear a siren — that's on Hyde Road, that's coming this way. I'll go to the corner and wave them into the side street, they'll never find the entrance otherwise.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Right. Good. Tell them it's the side street by the chippy, not the front. I'll be on the corner.",
+  },
 };

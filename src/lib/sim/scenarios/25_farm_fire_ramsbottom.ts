@@ -217,4 +217,120 @@ export const scenario25: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+  // The call as John has it: on his mobile in the yard at Higher Croft,
+  // upwind of a hay store he has already written off, with the lad beside
+  // him and forty head of cattle in the next shed. He is not frightened.
+  // He knows where the water is not, and he says so before he is asked.
+  call: {
+    caller: {
+      name: "John Haworth",
+      phone: "07700 900825",
+      relation: "The farmer — Higher Croft is his",
+      where: "The yard at Higher Croft Farm, by the house, with his son",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Fire brigade. It's Higher Croft Farm, up off Moor Road at Holcombe, above Ramsbottom — the big shed's gone up. That's the hay store, and the machinery's in there with it. It's well alight, the whole length of it. Nobody's hurt, me and the lad are in the yard. I'll tell you now, there's no water up here — you'll need to bring it.",
+    deflection: "I've told you what it is. It's a hay barn and it's going. Are you sending them or not?",
+    reassurance: {
+      text: "John, they are on their way, and I've told them about the water. Stay in the yard and keep talking to me — every bit of it helps them.",
+      reply: "Aye. Go on, then.",
+    },
+    answers: {
+      f_seen: {
+        text: "The hay store — it's a steel shed, forty yard long, and it's alight end to end. Flames through the roof at the far end and the whole inside's orange. Smoke's going straight up, you'll see it from Bury.",
+        tone: "urgent",
+        effect: { regrade: "EMERGENCY", basis: "Large agricultural building well alight, livestock and diesel adjoining, no hydrant" },
+      },
+      f_where: {
+        text: "It started at the hay end, the back. It's in the machinery now at the front — the tractor's in there, the baler, the trailer. It's the lot. There's nowt to save in that shed.",
+      },
+      f_spread: {
+        text: "It's moving. The cattle shed's joined on to the side of it — that's the one I'm bothered about. The house is thirty yard off on the other side. Wind's not bad for now, it's taking it away from the house, but it's a moor, it changes.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "Twenty minutes, half an hour. The lad saw the glow from the house window. It'd have been going a while before that — hay does, it smoulders in the middle of the stack and then it goes all at once.",
+      },
+      f_building: {
+        text: "Farm building. Steel frame, tin sides, open at one end. Forty yard by twenty, near enough. The old span at the road end has got the asbestos sheet roof on it, you'll want to know that.",
+      },
+      f_inside: {
+        text: "No. Nobody. It's me and my son and we're stood in the yard. There's nobody else lives up here — the wife's at her sister's in Bury.",
+        followUps: [
+          {
+            id: "f_inside_animals",
+            text: "Are there animals in any of the buildings?",
+            answer: {
+              text: "Forty-odd head of cattle in the shed joined on to it. They're not happy, you can hear them from here. Nowt in the hay store bar the machinery.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No. The lad's singed his eyebrows getting the quad out and that's the height of it. He's alright. He's stood here.",
+      },
+      f_vulnerable: {
+        text: "No. Just the two of us and we're out. It's the beasts in the next shed I'm bothered about, not us.",
+      },
+      f_hazards: {
+        text: "Diesel. There's the tank in the yard — the big green one, two thousand litre — and the red diesel bowser stood next to it. That's twenty yard from the shed, if that. And the old span's got asbestos on the roof. No gas up here, we're on oil for the house.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_hazards_water",
+            text: "Is there any water on the farm at all — a tank, a pond, a trough supply?",
+            answer: {
+              text: "Not a hydrant, no — nearest is down in the village, mile and a half. There's the reservoir feed over the top field, a good bit of water in that if they can get a pump to it — it's two hundred yard over rough ground. The cattle trough's off the mains but that's a half-inch pipe, it's nowt.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "The overhead line comes across the top field to the house, it's clear of the shed. Ground's soft either side of the yard, they'll bog anything heavy if they go off the concrete. That's about it.",
+      },
+      f_access: {
+        text: "Up the lane off Moor Road — there's a sign for Higher Croft at the bottom, by the cattle grid. It's six hundred yard of single track with passing places, and it comes out in the yard. I'll send the lad down to the road end to wave them in when they're close.",
+        tone: "urgent",
+      },
+      f_safe: {
+        text: "Aye. I'm in the yard by the house, upwind of it. I'm not daft.",
+      },
+      f_stay: {
+        text: "I'll stay on while I can. Signal's not great up here, I'll tell you that now — if I go, I go.",
+      },
+      f_details: {
+        text: "John Haworth. Higher Croft. This is my mobile — 07700 900825.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "That's the roof going at the road end. Sheets coming down. Tell your lads to keep off that end, that's the asbestos.",
+        tone: "urgent",
+      },
+      {
+        atSec: 120,
+        text: "Lad's gone down to the road end on the quad. He'll be at the bottom of the lane in his hi-vis, they can't miss him.",
+      },
+      {
+        atSec: 190,
+        text: "I can hear them, down on Moor Road. Long way off yet — it's a long lane.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 235,
+        text: "Are they coming or not? Every minute that's another bale gone, and it's twenty yard off the diesel.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    drops: {
+      atSec: 300,
+      text: "You're breaking up on me — I've one bar. If I lose you I'll ring back from the house.",
+    },
+    onDispatch: "Right. Good. Tell them the lane, and tell them there's no water. I'll have the gate open.",
+  },
 };

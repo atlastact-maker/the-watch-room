@@ -188,4 +188,123 @@ export const scenario15: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Steve has it: hands-free in the outside lane of the
+  // A627(M), the fire shrinking in his mirror and the Chadderton roundabout
+  // coming up. He saw it for four seconds at seventy. He will tell the
+  // operator exactly that and no more than that, and then he has to go.
+  call: {
+    caller: {
+      name: "Stephen Dewhurst",
+      phone: "07700 900509",
+      relation: "Passing motorist — northbound, unable to stop",
+      where: "Driving northbound on the A627(M), hands-free, half a mile past the vehicle",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Yeah, hi — fire brigade. There's a car on fire on the A627(M), the motorway bit going north towards Oldham. It's on the hard shoulder and it's properly going — flames right up over the roof of it. I've just gone past it, I'm on hands-free, I couldn't stop.",
+    deflection: "Mate, I've gone past it — I can't tell you more than what I saw. Just get somebody up there.",
+    reassurance: {
+      text: "Steve, you've done the right thing ringing it in. Keep your eyes on the road, and just tell me what you can see in the mirror.",
+      reply: "Yeah. Yeah, alright. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "A car on the hard shoulder, well alight — the whole front end, and the flames are coming up over the roof. Thick black smoke, loads of it. Blue hatchback, an Astra or something like it. Nobody in it that I could see.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "Northbound, on the hard shoulder. You come on at junction 20 off the M62 and it's a mile, mile and a half up — before you get to the Chadderton end. Just after the bridge. Pretty much halfway along.",
+        followUps: [
+          {
+            id: "f_where_marker",
+            text: "Did you see a marker post or a sign near it?",
+            answer: {
+              text: "No — sorry — I was doing seventy, I was looking at the fire, not the posts. The big blue sign for Oldham and Chadderton is just after it, I think. It's the only car on that hard shoulder, you'll not miss it.",
+            },
+          },
+        ],
+      },
+      f_spread: {
+        text: "It got worse just in the time I was going past. It was the bonnet and now it's the inside as well — I can still see it in my mirror, the smoke's gone right up. It's near the grass on the banking, but I couldn't tell you if it's caught.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "Can't have been long. Nobody was stopped, no cones, nothing — it was just going when I came round the bend. Minutes.",
+      },
+      f_building: {
+        text: "It's a car — a small car, a hatchback. Blue. That's all I could tell you, it's mostly fire now.",
+      },
+      f_inside: {
+        text: "I don't think so. There were two people on the grass behind the barrier, a bit further up from it, stood well back — I'm assuming that's them out of it. I didn't see anybody in the car, but I was past it in a second.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_inside_people",
+            text: "The two on the verge — could you see if they were alright?",
+            answer: {
+              text: "Stood up, both of them. One of them was on his phone. They looked alright from what I saw — they weren't on the floor or anything, they were just watching it.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Not that I saw. The two on the verge were on their feet. I can't tell you more than that, I've gone past.",
+      },
+      f_vulnerable: {
+        text: "I couldn't tell you. Two adults, I think — blokes, I'd say. I didn't see any kids, I didn't see a car seat. I wasn't looking for one, mind.",
+      },
+      f_hazards: {
+        text: "It's a car, so there's a tank of petrol or diesel in it, isn't there. I don't know what they've got in the boot — could be anything. There's nothing else near it, it's motorway — grass and the barrier, that's it.",
+      },
+      f_danger: {
+        text: "The traffic. That's your problem — cars are going past it at seventy, nobody's slowing down, they're all rubbernecking and driving straight through the smoke. Lane one's right next to it. Somebody's going to hit something.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_danger_smoke",
+            text: "Is the smoke going across the carriageway?",
+            answer: {
+              text: "It was going up when I passed, but there's a bit of a wind — it's leaning over, towards the other side, in my mirror. Both carriageways are going to be in it if it keeps on.",
+            },
+          },
+        ],
+      },
+      f_access: {
+        text: "You'll have to come up from junction 20, the M62 end, northbound — there's nothing in between, no way across from the other side, there's a barrier the whole way. It's on the hard shoulder, so that's blocked where it is. I'd get somebody to shut it, honestly.",
+      },
+      f_safe: {
+        text: "I'm fine, I'm driving. I'm on hands-free and I'm well past it now, heading up to the Chadderton end.",
+      },
+      f_stay: {
+        text: "I can for a couple of minutes. I'm driving, though — when I come off at the roundabout I'll have to go.",
+      },
+      f_details: {
+        text: "Steve Dewhurst — Stephen. This is my mobile, 07700 900509. I'm hands-free in the car.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Is somebody going? It's on a motorway, there's cars flying past it. I've never seen anything go up that fast.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 100,
+        text: "I can still see it in my mirror — the smoke's massive now, a big black column. The cars behind me have got their hazards on.",
+      },
+      {
+        atSec: 150,
+        text: "Hang on — there's a blue light going down the other side, the southbound. Is that yours? They'll have to go all the way round at 20, they can't get across.",
+        requiresOpened: true,
+      },
+    ],
+    drops: {
+      atSec: 200,
+      text: "Right, I'm coming off at the roundabout, I'm going to lose you. I've told you everything I saw. The driver was on his phone on the verge — he'll have rung you. Good luck.",
+    },
+    onDispatch: "Good. Tell them it's on the hard shoulder and the traffic's not slowing. I'll keep looking in the mirror while I've got you.",
+  },
 };

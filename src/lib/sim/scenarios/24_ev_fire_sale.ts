@@ -204,4 +204,128 @@ export const scenario24: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+  // The call as Rachel has it: on her mobile on the far pavement of
+  // Northenden Road with both children under her arms, watching the car
+  // burn against the front of her own house. She knows it is the electric
+  // one and that it was on charge, and she knows whose window is above it.
+  call: {
+    caller: {
+      name: "Rachel Openshaw",
+      phone: "07700 900824",
+      relation: "Occupier of no. 58 — the car is hers",
+      where: "Pavement opposite, by the bus stop, with her husband and two children",
+      line: "mobile",
+      state: "panicking",
+    },
+    opening:
+      "Fire — our car's on fire, it's on the drive, it's right up against the house. 58 Northenden Road, Sale. It's the electric one, it was on charge — there's flames underneath it and it's right under the kids' bedroom. We're out, we're all out, all four of us. Please, it's touching the house.",
+    deflection: "I don't know — it's on fire, it's against my house, just get them here!",
+    reassurance: {
+      text: "Rachel, the engines are on their way. You've got everybody out, that's the main thing. Stay over the road with the children and tell me what you can see.",
+      reply: "Okay. Okay. They're here, they're with me. Okay.",
+    },
+    answers: {
+      f_seen: {
+        text: "Flames underneath the car — right along underneath it, and up the side now by the front wheel. Thick dark smoke, loads of it. It's parked nose in, the bonnet's practically touching the porch.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "It's not in the house — it's the car, on the drive. But it's right up against the front of the house, under the porch, and the kids' bedroom window is straight above it. The window's shut. The curtains are right there.",
+        tone: "urgent",
+        effect: { regrade: "EMERGENCY", basis: "Vehicle fire against a dwelling — porch and bedroom directly above it" },
+      },
+      f_spread: {
+        text: "It's getting bigger. It was just underneath when we came out and now it's up the side of it. The porch is plastic — it's not caught, not yet, but it's right there. It's going to go.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "Five minutes? Less. Ben smelt burning from upstairs, we looked out the window and there were flames under it. We just grabbed the kids and got out the back.",
+      },
+      f_building: {
+        text: "It's a house — a semi, two floors. It's the car that's on fire, but it's on our drive, against the front of the house. Next door's joined on to us.",
+      },
+      f_inside: {
+        text: "No — no, we're all out, all four of us. Me, Mark, and the two kids. We're over the road. There's nobody in the house.",
+        followUps: [
+          {
+            id: "f_inside_pets",
+            text: "Any pets in the house?",
+            answer: {
+              text: "The cat. I don't know where she is — she'll have gone out the cat flap at the back, she always does. I'm not going in for a cat. I'm not.",
+            },
+          },
+          {
+            id: "f_inside_doors",
+            text: "Did you shut the doors on your way out?",
+            answer: {
+              text: "The back door — yes, I pulled it to. The front door's shut, the porch door's shut. Ben's bedroom door will be shut, he always shuts it. I don't know about the rest.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No. Nobody's hurt. Ben's coughing — there was smoke on the landing when we came out — but he's alright, he's talking, he's asking about the cat.",
+        followUps: [
+          {
+            id: "f_hurt_ben",
+            text: "Is he struggling to breathe at all?",
+            answer: {
+              text: "No. No, he's just coughing. He's fine. He's stood here going on about the cat. He's fine.",
+            },
+          },
+        ],
+      },
+      f_vulnerable: {
+        text: "The kids — eight and eleven — but they're out, they're with me. Nobody else. There's nobody in the house.",
+        needsCalm: true,
+      },
+      f_hazards: {
+        text: "It's an electric car — that's the thing, it's a big battery, isn't it. It was on charge. The charger's on the wall by the front door, it's wired into the house. There's no petrol in it, it's all battery. There's nothing else on the drive — the bins are at the side.",
+        tone: "urgent",
+      },
+      f_danger: {
+        text: "The cable — the charging cable's under it somewhere, I don't know if that's live. And there's people stopping — a couple of cars have pulled up to look, and the neighbours are out.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      f_access: {
+        text: "The car's across the drive, they can't get on the drive, it's blocking it. They'll have to come off the road. It's Northenden Road, the main road through Sale — there's a bus stop right outside ours, they'll see it. The front door — I don't know if it's locked. We went out the back.",
+      },
+      f_safe: {
+        text: "We're over the road on the pavement, by the bus stop. Is that far enough? Should we go further back? I've got the kids.",
+        tone: "urgent",
+      },
+      f_stay: {
+        text: "Yes — hang on, Ben, stay there — yes. I'm here. I'm staying on.",
+      },
+      f_details: {
+        text: "Rachel Openshaw. This is my mobile — 07700 900824.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 55,
+        text: "It's just gone — there was a bang, a big flash from under it, and the flames are right up the side now. Oh God. It's going to go up the house.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 120,
+        text: "There's people stood right by it — the neighbours are out on the pavement, I've told them to get back. Somebody's saying get a hose on it. Should they? Should we put water on it?",
+        tone: "urgent",
+      },
+      {
+        atSec: 180,
+        text: "I can hear them. Sirens — that's them, that's them coming from the Sale end.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 220,
+        text: "Where are they? It's against my house — it's under my kids' bedroom. Is anybody actually coming?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Okay. Okay. Tell them it's the electric one, tell them it's wired into the house. Please hurry.",
+  },
 };

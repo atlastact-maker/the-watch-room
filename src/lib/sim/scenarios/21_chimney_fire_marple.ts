@@ -187,4 +187,124 @@ export const scenario21: Scenario = {
       tone: "info",
     },
   ],
+
+  // The call as Helen has it: on her mobile at Jean's front window at
+  // no. 6, Rob beside her, the pot of their own chimney throwing sparks
+  // over the lane and the roar coming through the party wall. They got
+  // out, they shut the stove down, they left the door on the latch. She
+  // thinks the station is five minutes away, because it is.
+  call: {
+    caller: {
+      name: "Helen Prescott",
+      phone: "07700 900821",
+      relation: "Occupant of no. 4 — out, at the neighbour's",
+      where: "Front room of no. 6 Church Lane, at the window, husband with her",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Hi — fire brigade, please. It's 4 Church Lane in Marple, SK6 — the stone cottages by the church. Our chimney's on fire. There's flames coming out of the pot, actual flames, and sparks, and there's a roaring noise in the wall. We've got out, we're next door at number 6. But it's a shared chimney and I don't know what it's doing inside.",
+    deflection: "I don't know — I've not been back in and I'm not going back in. Can you just send them?",
+    reassurance: {
+      text: "Helen, you've done the right thing getting out. A crew is coming. Stay at Jean's, and just tell me what you can see from the window.",
+      reply: "Okay. Yes. Sorry. I can see it from here, I'll tell you.",
+    },
+    answers: {
+      f_seen: {
+        text: "Flames out of the top of the chimney pot — a foot, two foot high, orange, and sparks, loads of them, going up and coming down all over the roofs. Ours and next door's. And there's a noise — it's roaring, like a jet engine, you can hear it through the wall from here.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "The chimney. The stack on the left of ours as you look at it from the lane — it's the one we share with number 2. The stove's in our front room, the living room, that's where it goes up from.",
+        followUps: [
+          {
+            id: "f_where_stove",
+            text: "Is the stove door shut?",
+            answer: {
+              text: "Yes — I shut it, and I shut the vents on it, the little sliders. I read you're meant to. I didn't know what else to do. It was still roaring when we came out.",
+            },
+          },
+        ],
+      },
+      f_spread: {
+        text: "It's just the chimney as far as I can see — the pot. There's no smoke from the roof itself, no flames anywhere else. But the sparks are landing on the slates, ours and both next doors', and it's a shared stack, so I don't know what it's doing on number 2's side.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "The roaring started — fifteen minutes ago? We thought it was the wind at first, it's been blowing. Then Rob went out to the bin and saw the sparks and shouted me. We were straight out.",
+      },
+      f_building: {
+        text: "A stone cottage — old, proper thick stone walls, two floors, slate roof. There's three of them in a row and we're the middle one. Number 2's joined on one side and 6 on the other, that's where we are now.",
+      },
+      f_inside: {
+        text: "No — nobody. It's just me and Rob and we're both out, we're at Jean's at number 6. There's no one in ours.",
+        followUps: [
+          {
+            id: "f_inside_no2",
+            text: "And the people at number 2, the other side of the stack — are they in?",
+            answer: {
+              text: "I think so — their lights are on and their fire's lit, you can see their smoke. I've knocked and they've not come to the door. They're older, Ken and Margaret, they'll have the telly up. Rob's going to try again round the back.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No, nobody. We're fine. Bit shaken, that's all. Jean's making tea.",
+      },
+      f_vulnerable: {
+        text: "Not in ours, it's just us two. Next door at 2 — Ken and Margaret — they're in their seventies, but they're alright on their feet. Nobody with kids down here.",
+      },
+      f_hazards: {
+        text: "No cylinders, nothing like that. There's the log basket by the stove and a bag of kindling. That's all there is in that room. No paint, no chemicals.",
+      },
+      f_danger: {
+        text: "No. It's a quiet lane. Only thing is the lane itself — it's narrow and there's cars parked both sides, ours included. I can move ours if it helps.",
+      },
+      f_access: {
+        text: "Church Lane — it's off the main road through Marple, by the church. It's narrow, single track once the cars are parked, and there's a bend. The front door of ours is open, it's on the latch, the key's in it. No gates, the door's straight off the lane.",
+        followUps: [
+          {
+            id: "f_access_rear",
+            text: "Is there a way round to the back?",
+            answer: {
+              text: "There's a path down the side of number 6 to the back gardens — it's a footpath, you'd not get a vehicle down it. The back door's locked, but the front's open.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "We're at Jean's, next door at number 6, in her front room. I'm at the window. Is this far enough? Should we go outside?",
+      },
+      f_stay: {
+        text: "Yes. I'll stay on. I can see the pot from here, I'll tell you if it changes.",
+      },
+      f_details: {
+        text: "Helen Prescott. We live at 4 — we're at 6 now, Jean's. This is my mobile, 07700 900821.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "The sparks are going right over the lane now, they're landing on the cars. There's a big one just come down — it's gone out on the road, it's alright.",
+      },
+      {
+        atSec: 90,
+        text: "Is somebody coming? Only I thought there was a fire station in Marple, it's not five minutes from here.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 140,
+        text: "Rob's got number 2 to the door — they're fine, they're going to have a look upstairs and they're going to let their fire die down.",
+      },
+      {
+        atSec: 200,
+        text: "Still nothing coming, no sirens. You said they were on their way — how far are they coming from? I thought the station was only up the road.",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. We'll stay at Jean's. Tell them the door's on the latch and it's the middle one of the three.",
+  },
 };

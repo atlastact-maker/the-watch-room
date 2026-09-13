@@ -216,4 +216,129 @@ export const scenario22: Scenario = {
       tone: "info",
     },
   ],
+  // The call as Steve has it: on his own mobile on the top deck of the
+  // Heaton Lane multi-storey, forty yards back from a lad who has gone
+  // over the parapet and asked him to come no closer. He is keeping his
+  // voice down. He has the barrier key in his pocket and no idea what to say.
+  call: {
+    caller: {
+      name: "Steve Ashworth",
+      phone: "07700 900822",
+      relation: "Car park attendant — on duty at the Heaton Lane multi-storey",
+      where: "Top deck, by the service stair door, forty yards from the man",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police, please — I'm the attendant at Heaton Lane car park in Stockport, the multi-storey. There's a lad on the top deck who's climbed over the wall, he's on the outside of it. I'm talking to him but he's told me to stay back. I need somebody who knows what they're doing, quick — and quiet, please. No sirens.",
+    deflection: "Hang on — hang on, I can't take my eyes off him. Just — just get someone here.",
+    reassurance: {
+      text: "Steve, you are doing exactly the right thing. Stay where you are, keep your voice down, and just tell me what you can see.",
+      reply: "Yeah. Yeah, okay. He's still there. Okay.",
+    },
+    answers: {
+      p_happening: {
+        text: "There's a young lad on the top deck, he's got himself over the parapet — the wall at the edge — and he's on the outside of it, holding on to the rail behind him. I've been talking to him from where I am. He asked me not to come any nearer and I haven't.",
+        tone: "critical",
+        effect: { regrade: "GRADE 1", basis: "Immediate risk to life — male at height on the wrong side of the parapet" },
+        followUps: [
+          {
+            id: "p_happening_where",
+            text: "Whereabouts on the deck is he?",
+            answer: {
+              text: "Far corner, the Heaton Lane side — the bit that looks out over the road. I'm over by the stair door, forty-odd yards off. There's nothing between us, it's all empty bays.",
+            },
+          },
+          {
+            id: "p_happening_saying",
+            text: "What is he saying to you?",
+            answer: {
+              text: "Not a lot. He asked me what my name was, and he's said he doesn't want a load of people up here. I'm just talking to him about nothing — the weather, the car park. I don't know what I'm supposed to say to him.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes. Right now. He's there now, I'm looking straight at him. He's not moved for a few minutes.",
+        tone: "critical",
+      },
+      p_weapons: {
+        text: "No. Nothing like that. He's got both hands on the rail behind him, that's all. There's nothing in his hands.",
+      },
+      p_injured: {
+        text: "No — nobody's hurt. He's not hurt, he's just — he's where he is. I just don't want him to be.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "Just him, on his own. One lad. There was a woman going to her car when I got up here and I've asked her to go down the stairs, and she has. So it's just me and him on the deck.",
+        followUps: [
+          {
+            id: "p_who_public",
+            text: "Can anyone else get up there?",
+            answer: {
+              text: "Cars can still come up the ramp — it's a public car park, the entrance is open. Nobody's come up in the last few minutes but it's early evening, people do.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "Young lad — twenties, I'd say. White, short dark hair. Dark jacket, a navy one, jeans and trainers. No coat, and it's freezing up here.",
+        needsCalm: true,
+      },
+      p_direction: {
+        text: "He's not going anywhere. He's stood where he is. There's a grey Corsa parked up near him on its own — that might be his, it wasn't there an hour ago.",
+      },
+      p_drink: {
+        text: "I couldn't say. He's not slurring, he's not falling about. He sounds — tired, more than anything. Flat. Not drunk, I don't think.",
+        needsCalm: true,
+      },
+      p_known: {
+        text: "No. Never seen him before. He said his name's Danny when I asked — that's all he's told me about himself.",
+      },
+      p_vulnerable: {
+        text: "He is. That's why I'm ringing you. He's on the wrong side of a wall six floors up and he's on his own. Nobody else is at risk that I can see.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "Heaton Lane multi-storey, Stockport, the one by the viaduct — SK4 1AR. Top deck, that's level six. Come in off Heaton Lane. There's a service stair at the back that comes out on the deck without him seeing it — it's the door I'm stood at.",
+      },
+      p_safe: {
+        text: "I'm fine. I'm well back, by the stair door. I'm nowhere near the edge and I'm not going near it — he asked me not to and I won't.",
+      },
+      p_seen: {
+        text: "I'm looking at him now. I saw him on the camera in the office first, going over the wall, and I came straight up. That was ten, fifteen minutes ago.",
+      },
+      p_details: {
+        text: "Steve Ashworth. I'm the attendant here, I'm on till ten. This is my own mobile — 07700 900822.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Hold on — he's moved. No — no, he's alright, he's just shifted his hands. God. Sorry. He's still there.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 110,
+        text: "A car's just come up the ramp — I've waved them back down, they've gone. He noticed. He's looking over at me now. I'm keeping my voice right down.",
+        tone: "urgent",
+      },
+      {
+        atSec: 170,
+        text: "I can hear a siren, down on the road. He's heard it too, he's gone quiet. Can you tell them — no sirens, please. Not up here.",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+      {
+        atSec: 210,
+        text: "How long are they going to be? I'm on my own up here with him and I don't know what I'm doing. I'm just talking.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Thank you. Tell them quiet, yeah? He doesn't want a crowd. Send them up the back stairs. I'll stay with him.",
+  },
 };

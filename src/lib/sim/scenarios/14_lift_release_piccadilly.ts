@@ -173,4 +173,118 @@ export const scenario14: Scenario = {
       tone: "urgent",
     },
   ],
+
+  // The call as Daniel has it: on the office cordless in the ground-floor
+  // lobby at Wheelwright House, the lift intercom panel beside him with
+  // Nadia's voice coming out of it. He has done the lift company and he
+  // has done the checklist. Now he wants somebody with a key.
+  call: {
+    caller: {
+      name: "Daniel Okonkwo",
+      phone: "0161 496 0140",
+      relation: "Building manager, Wheelwright House",
+      where: "Ground-floor lobby at Wheelwright House, at the lift intercom panel",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Hello — it's not a fire, I should say that first. I'm the building manager at Wheelwright House on Dale Street, in town. I've got four people stuck in our lift between the third and fourth floors. They're all fine, I've got them on the intercom. Our lift company are saying two hours, which is no good to anybody, and one of the four's diabetic. Can you send somebody to get them out?",
+    deflection: "I've told you what it is — four people, one lift, one diabetic. Is somebody coming or not?",
+    reassurance: {
+      text: "Daniel, a crew is coming to you. Keep them talking on that intercom, and keep everybody off the landing doors.",
+      reply: "Fine. Yes. I'm doing that.",
+    },
+    answers: {
+      f_seen: {
+        text: "Nothing to see, honestly — I'm at the intercom panel down in the lobby. The lift's stuck between three and four. I've been up: the landing doors are shut on both floors and the indicator's dead. You can hear them through the doors if you shout.",
+      },
+      f_where: {
+        text: "The lift shaft — it's the only lift, it runs up the middle of the building. The car's somewhere between the third floor and the fourth. It's six storeys, offices.",
+      },
+      f_spread: {
+        text: "It's not a fire. Nothing's spreading, there's nothing to spread. No smoke, no smell, no alarms — it's just stopped. Between floors.",
+      },
+      f_started: {
+        text: "Twenty-five minutes, near enough. They rang down on the intercom at ten past, I rang the lift company first like we're supposed to, they said two hours, so I've rung you.",
+      },
+      f_building: {
+        text: "Converted warehouse — Victorian, six floors, offices above a shop on the ground floor. Wheelwright House, Dale Street, M1. It's evening, most of the offices have gone home. In the building it's me, a cleaner up on five, and the four in the lift.",
+      },
+      f_inside: {
+        text: "Four in the lift. Two men and two women, from the fourth-floor office — they were on their way down. They're all talking, they're all on their feet. Nobody else in the building apart from me and the cleaner.",
+        followUps: [
+          {
+            id: "f_inside_names",
+            text: "Do you know who is in there?",
+            answer: {
+              text: "I've got names for two. Nadia Bashir, she's the one doing the talking on the intercom, and Ryan Hoyle — he's the diabetic one. The other two I don't know, same office.",
+            },
+          },
+          {
+            id: "f_inside_talk",
+            text: "Can you speak to them?",
+            answer: {
+              text: "Yes, on the intercom — there's a button in the car, it rings through to this panel. I've told them to stay off the doors and not try anything clever. They're being sensible.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No, nobody. It stopped with a jolt, they said, but nobody went over. They're stood up, they're warm, they're fed up. That's the extent of it.",
+      },
+      f_vulnerable: {
+        text: "One of them — Ryan — he's diabetic. Type one, on insulin. He's told Nadia he's not eaten since lunchtime and he's got nothing on him. He says he's alright for the minute. I'd sooner not find out how long a minute is.",
+        tone: "urgent",
+      },
+      f_hazards: {
+        text: "No. It's an office building. Nothing stored, no gas, no cylinders — the motor room's up top and that's all electric. That's your lot.",
+      },
+      f_danger: {
+        text: "No. It's quiet. The only thing — where the car is, between floors, if anybody forced the landing doors on three there's a drop into the shaft under it. I've told the ones in the car not to touch the doors and I've kept everyone off the landings.",
+      },
+      f_access: {
+        text: "Main entrance on Dale Street — I'll be stood in it. I've got the motor room keys in my pocket, the motor room's on the sixth, top of the stairs. There's a lift landing on every floor; three and four are where they'll want to be.",
+        followUps: [
+          {
+            id: "f_access_park",
+            text: "Is there somewhere the appliance can stop?",
+            answer: {
+              text: "Not on Dale Street, it's a red route, you'll get done. There's a loading bay round the side, on the side street — I'll unbolt the gate on it. It takes a lorry, it'll take a fire engine.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm fine. I'm in the lobby, nothing's going to happen to me.",
+      },
+      f_stay: {
+        text: "Yes, I'll stay on. I've got the intercom right here, so I can tell you if anything changes with them.",
+      },
+      f_details: {
+        text: "Daniel Okonkwo, building manager. This is the office line — 0161 496 0140.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Hang on — yes, Nadia, I'm on to the fire brigade now, sit tight. Sorry. They're asking how long.",
+      },
+      {
+        atSec: 110,
+        text: "Sorry, are you actually sending anybody? I know it's not a fire. I've got a diabetic lad in a metal box and an engineer two hours away, so I'd like a straight answer.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 170,
+        text: "Nadia says it's getting warm in there — the fan's not running. I've told them to stop pressing the alarm bell, it's doing nothing except deafening the cleaner.",
+      },
+      {
+        atSec: 220,
+        text: "I can hear a siren on Dale Street. I'll go and open up — I'm on the cordless, I'll keep you on.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Right. Thank you. I'll be at the front door with the keys.",
+  },
 };

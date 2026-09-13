@@ -183,4 +183,138 @@ export const scenario17: Scenario = {
       tone: "info",
     },
   ],
+
+  // The call as Janet has it: on the house phone at the foot of her own
+  // stairs, the cord pulled tight, Keith sat six steps up with his fist on
+  // his chest telling her not to fuss. She has seen this colour on him
+  // once before, four years ago, and he said it was indigestion then too.
+  call: {
+    caller: {
+      name: "Janet Nuttall",
+      phone: "0161 496 0170",
+      relation: "The patient's wife",
+      where: "Foot of the stairs in the hall at 141 Walmersley Road, husband sat halfway up",
+      line: "landline",
+      state: "anxious",
+    },
+    opening:
+      "It's my husband — 141 Walmersley Road, Bury, the semi with the drive. He's got a pain across his chest, a bad one, and it's gone down his arm, and he's gone a horrible colour. He's sat on the stairs and he won't come down. He's had a heart attack before. Please, can you send someone.",
+    deflection: "I don't — I don't know, I can't — just send somebody, please, he's a terrible colour!",
+    reassurance: {
+      text: "Janet, an ambulance is coming to you. He's awake and he's talking, and that's good. Stay with him, and answer me as best you can.",
+      reply: "Right. Yes. Sorry. I'm here — Keith, I'm here, love.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes — yes, he's awake, he's talking to me. He's telling me not to fuss. He knows where he is, he's just — he's not right. He's grey.",
+        tone: "urgent",
+      },
+      a_breathing: {
+        text: "He's breathing. It's fast, though — he says he can't get a proper breath in, like there's a weight on him. He's not wheezing or anything, it's just quick.",
+        tone: "urgent",
+      },
+      a_happened: {
+        text: "We were having our tea and he went quiet, and then he said his chest had gone tight. He got up to go and lie down and he only got halfway up the stairs — he sat down and he's not moved since. He says it's like a band, right across here, and it's going down his left arm into his fingers. And he's sweating — he's soaked, his shirt's wet through, and it's not warm in here.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "a_happened_pain",
+            text: "Where exactly is the pain — can he point to it?",
+            answer: {
+              text: "The middle of his chest, he's got his fist on it. Under the bone, he says. And his arm — the left one, all the way down — and up into his jaw a bit now, he says.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "a_happened_like",
+            text: "Is it like the last time — the heart attack he had before?",
+            answer: {
+              text: "He says no. But he said no last time an' all, right up until they put him in the ambulance. It looks the same to me. He looks exactly the same.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "Twenty minutes, maybe. Half six-ish he first said his chest was tight. I thought it was his tea. I should've rung you sooner.",
+      },
+      a_now: {
+        text: "He's grey. Grey, like putty, and there's sweat running off him. He's talking to me but only short — a few words and then he stops to get his breath. He keeps rubbing his arm.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      a_bleeding: {
+        text: "No. No, there's no blood, nothing like that. He's not fallen, he's not hurt himself. It's his chest.",
+      },
+      a_age: {
+        text: "Fifty-eight. He was fifty-eight in June.",
+      },
+      a_history: {
+        text: "He had a heart attack four years ago — 2022, it was. They put a stent in, they took him into Manchester for it, past Fairfield. He's on aspirin every day, and a statin, and something for his blood pressure. They're all in the kitchen cupboard, I can get them for you. No diabetes. No allergies that I know of.",
+        needsCalm: true,
+        followUps: [
+          {
+            id: "a_history_spray",
+            text: "Does he have a spray — a GTN spray, for under his tongue?",
+            answer: {
+              text: "He did have. I don't know where it is — it'll be out of date, he's not used it in years. He's not been near the doctor's about his heart since the check-ups stopped.",
+            },
+          },
+        ],
+      },
+      a_count: {
+        text: "Just Keith. Just him. It's only the two of us in.",
+      },
+      a_danger: {
+        text: "It's our hall, it's fine. It's just — he's on the stairs, halfway up, and they're steep, and the hall's narrow. I can't get him down on my own and he won't try.",
+      },
+      a_access: {
+        text: "The front door — I'll have it open, I'll put the outside light on. There's a drive, they can pull right onto it, our car's out on the road. The stairs are straight in front of the front door, they'll see him the second they come in. There's nothing in the way — well, the hoover. I'll move the hoover.",
+        followUps: [
+          {
+            id: "a_access_stairs",
+            text: "Are the stairs straight, or do they turn?",
+            answer: {
+              text: "Straight. Straight up from the hall, thirteen of them. He's sat on about the sixth.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "I'm right here, I'm at the bottom of the stairs, I've got hold of his hand. I'm on the house phone, it reaches.",
+      },
+      a_instructions: {
+        text: "Yes. Yes, tell me. What do I do? I'll do it.",
+        tone: "urgent",
+      },
+      a_details: {
+        text: "Janet Nuttall. Mrs. It's the house phone — 0161 496 0170.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "He's trying to get up — Keith, SIT DOWN. Sit down. — Sorry. He says he wants to go and lie on the bed. I've told him no.",
+        tone: "urgent",
+      },
+      {
+        atSec: 110,
+        text: "Keith? Keith! — oh God, he'd shut his eyes, I thought — he's alright, he's alright, he's looking at me. He's gone quiet, though. He's gone very quiet.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 150,
+        text: "Are they coming? You've not said anyone's coming. He's getting worse, I can see him getting worse, please.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 210,
+        text: "That's a siren — is that them? I can hear it on the main road. I'm going to open the door. I'll open the door and come straight back.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. Oh, thank you. I'll get the door. Keith — they're coming, love, they're coming.",
+  },
 };

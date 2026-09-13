@@ -181,4 +181,133 @@ export const scenario20: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Carol has it: on her mobile on the far pavement with
+  // three neighbours and a pram, her own front door open behind her, the
+  // hiss coming from the flags outside 66. Nothing to see and nothing to
+  // point at. She wants to know who rings the gas people, and she wants
+  // somebody to get Mrs Pennington out, and she is scared to press a bell.
+  call: {
+    caller: {
+      name: "Carol Ashcroft",
+      phone: "07700 900820",
+      relation: "Resident at no. 68",
+      where: "Pavement across the road from 66–68 Ormskirk Road, with three or four neighbours",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Hello — is that the fire brigade? It's Ormskirk Road in Wigan, WN5, outside number 68 — that's me — and 66. There's a smell of gas out in the street, really strong, it's making your eyes water. And there's a hissing coming from the pavement, by the kerb. A few of us have come out. I didn't know who else to ring.",
+    deflection: "I don't know, love, I don't know what else to tell you — it's gas, it's in the street, just tell me what we're meant to do!",
+    reassurance: {
+      text: "Carol, you've done exactly the right thing. A crew is coming, and the gas people are being told. Stay across the road with the others, and just answer what you can.",
+      reply: "Right. Okay. Sorry. We're across the road. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "There's nothing to see — that's what's odd. No smoke, no flames, nothing. It's the smell. Gas, like when you've left the hob on, only out in the road, and it's strong, it catches the back of your throat. And there's a hissing. You can hear it — a hiss, like a tyre going down, coming from the pavement by the kerb outside 66. It's loudest there.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_seen_hiss",
+            text: "Where exactly is the hissing coming from — a grid, a cover, the ground?",
+            answer: {
+              text: "The pavement, I think — there's one of them little metal covers in the flags outside 66, the square one, and it's loudest round there. I've not gone right up to it. I don't want to.",
+            },
+          },
+        ],
+      },
+      f_where: {
+        text: "It's not in a house, I don't think. It's outside — in the street, the pavement. It's strongest outside 66 and mine, 68, and it fades off a bit by the time you get down to 62. But you can smell it right along.",
+      },
+      f_spread: {
+        text: "It's hanging about. There's no wind to shift it, it's a still night. It's not got any less since I came out, I'll tell you that.",
+      },
+      f_started: {
+        text: "I noticed it when I went to put the bin out — twenty minutes ago, maybe. Sandra at 70 said she'd smelt it when she got in from work, so an hour, could be. We thought it was somebody's boiler at first.",
+      },
+      f_building: {
+        text: "It's houses. A terrace — a row of old terraces, brick, two up two down, front doors straight onto the pavement. They've all got cellars, these, under the front rooms.",
+      },
+      f_inside: {
+        text: "Most of us are out — there's four of us stood here. Mrs Pennington at 66 is still in. She's ninety-two, she's got a frame, she doesn't come to the door quick and she's deaf. Her lights are on. And I don't know about 62, the young couple — their car's not there so I think they're at work.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_inside_alone",
+            text: "Is Mrs Pennington on her own in there?",
+            answer: {
+              text: "On her own, yes. Her daughter comes Tuesdays and Fridays. She's got one of them pendant alarms round her neck but she'll not press it for this, she'd not know anything was wrong.",
+            },
+          },
+          {
+            id: "f_inside_others",
+            text: "Anyone else still inside along the row?",
+            answer: {
+              text: "Sandra's out with the baby, him at 64's out here, I'm out. 62's at work, I think — I've knocked and there's nothing. So it's just her. Just Mrs Pennington.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Nobody's hurt. A couple of us feel a bit sick with it, headachy, but that's the smell. Nobody's collapsed or anything.",
+      },
+      f_vulnerable: {
+        text: "Mrs Pennington at 66 — ninety-two, frame, deaf as a post, she'll not get herself out. And there's a baby at 70, but Sandra's got him out here with us, he's in his pram.",
+      },
+      f_hazards: {
+        text: "Well, it's gas, isn't it — that's the hazard. There's cars parked all along, both sides. Somebody had their engine running to move theirs and I made them turn it off — I didn't know if that was right. Nobody's smoking, I've made sure. The street lights are on, I can't do anything about them.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_hazards_switches",
+            text: "Has anyone gone back into the houses — turned anything on or off?",
+            answer: {
+              text: "Him at 64 went in for his coat and I shouted at him. He didn't touch anything, he says. All the lights that were on are still on — I didn't know whether to turn ours off or leave it. I've left it.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "Nothing like that, love. Nobody's being funny. It's just — it's gas, and there's cars, and there's a bus route down here. I don't know what I'm meant to do if a bus comes.",
+      },
+      f_access: {
+        text: "Ormskirk Road — it's a through road, you can come from either end. Cars both sides, always, but there's room down the middle. Number 66's about halfway along the row. There's a lamppost outside 62 and one outside 70, we're in between.",
+      },
+      f_safe: {
+        text: "We're across the road, on the other pavement, all of us. Is that far enough? Should we go further? I'll move everybody if you say.",
+      },
+      f_stay: {
+        text: "Yes. I'm not going back in the house, that's for certain. I'll stay on.",
+      },
+      f_details: {
+        text: "Carol Ashcroft. I'm at 68. It's my mobile — 07700 900820.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Are you ringing the gas people, or is that us? Sandra's looking the number up on her phone. I don't know who does what with this.",
+        tone: "urgent",
+      },
+      {
+        atSec: 100,
+        text: "Is anybody coming out to us? Only there's a bus due — it comes down here every twenty minutes and it's about now. I don't want it driving through it.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 150,
+        text: "Mrs Pennington's light's just gone off in the front — I think she's gone up to bed. She's no idea, bless her. Her window's right over where it's hissing.",
+        tone: "urgent",
+      },
+      {
+        atSec: 215,
+        text: "There's a fire engine — I can see the blue lights at the top of the road. Tell them not to come right up to it — it's outside 66, tell them to stop at the end.",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Oh, thank you. Tell them it's hissing outside 66, by the kerb, and tell them about Mrs Pennington. We'll stay over here.",
+  },
 };

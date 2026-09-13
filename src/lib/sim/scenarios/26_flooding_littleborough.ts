@@ -233,4 +233,114 @@ export const scenario26: Scenario = {
       tone: "info",
     },
   ],
+  // The call as Sandra has it: on her mobile on the front step of no. 11,
+  // water over her slippers and the whole of Canal Street a brown river.
+  // She has been in to Frank at nine once already. She wants pumps and she
+  // wants them now, and she is going to be told there are two.
+  call: {
+    caller: {
+      name: "Sandra Kershaw",
+      phone: "07700 900826",
+      relation: "Resident at no. 11 — two doors from the gentleman at no. 9",
+      where: "Her front step at 11 Canal Street, in and out of no. 9",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Fire brigade — it's Canal Street in Littleborough, the water's coming in. It's in the house, it's over the front step and it's the whole street, every house, you can't see the road. It's been raining since dinner time and the brook's come over. There's about a dozen of us down here with it in. And there's an old chap at number nine who won't come out.",
+    deflection: "Are you sending pumps or not? It's in the house. It's in all of ours.",
+    reassurance: {
+      text: "Sandra, they are coming. The first thing they'll do is the gentleman at number nine, and then they'll come round every door. Tell me about the water.",
+      reply: "…Alright. Alright. As long as somebody's coming.",
+    },
+    answers: {
+      f_seen: {
+        text: "Water. Brown water, right across the road, kerb to kerb — you can't tell where the road stops and the pavement starts. It's coming under my front door and it's coming up through the floor from the cellar. It's over the step, four inches in the hall.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "Ground floor — the hall and the front room. The cellar's full, I've not been down. It's the same all along the row. The far end's worse, it's deeper down there, it's up to the window sills at twenty-odd.",
+      },
+      f_spread: {
+        text: "It's coming up. Half an hour ago it was in the road, now it's in the houses. It's still hammering down. It's not going anywhere.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "It's been raining since dinner. The brook came over the road about an hour ago and it's been in the house twenty minutes. It's done this before — twice — but never this quick.",
+      },
+      f_building: {
+        text: "Terraced houses — old stone ones, two up two down, cellars under all of them. Fourteen on this side, facing the brook across the road. There's nothing on the other side but the water.",
+      },
+      f_inside: {
+        text: "Everyone's in, more or less. Most have gone upstairs, a couple have gone to family. But Frank at nine won't leave — he's seventy-nine, he's on his own, and he's told me he's stopping put. I've been in and tried. He's downstairs in it.",
+        tone: "urgent",
+        effect: { regrade: "EMERGENCY", basis: "Elderly resident refusing to leave a flooded ground floor — life risk before property" },
+        followUps: [
+          {
+            id: "f_inside_frank",
+            text: "Is he alright in himself — is he ill, or hurt?",
+            answer: {
+              text: "He's not ill, he's stubborn. He's cold, though — he's been stood in it in his slippers and he's shivering, and his heating's off because it's under. He's not confused, he knows what he's doing. He just won't do it.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_count",
+            text: "How many of the houses have people in?",
+            answer: {
+              text: "Fourteen houses. I'd say ten have got somebody in, upstairs. Two have gone to family, I saw them go. Then there's Frank. And the young family at three with the baby, they're upstairs.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No, nobody's hurt. Nobody's fallen or anything. It's cold and it's filthy, that's all. Frank's the only one I'm worried about.",
+      },
+      f_vulnerable: {
+        text: "Frank at nine — seventy-nine, on his own, and he won't come out. There's a baby at number three, they've gone upstairs. Nobody in a wheelchair that I know of on this row.",
+      },
+      f_hazards: {
+        text: "The electric's still on in ours, the lights are on. I've not been near the box. I'd guess it's the same in most of them. No gas bottles or anything, we're all on mains.",
+        tone: "urgent",
+      },
+      f_danger: {
+        text: "The water — you can't see what's under it. There's a grid in the road outside seven and the culvert goes under the street by twenty, you'd not know where. The far end's deep, a car got stuck earlier and had to be pushed out. Come in from the top, off the main road.",
+      },
+      f_access: {
+        text: "Come in from the main road end, the top of the street — the bottom end's under, you'll not get a wagon through, it's up to the sills. My door's open, I'm number eleven. Frank's is nine, two down, his door's on the latch — I left it. You'll be wading from about number five.",
+      },
+      f_safe: {
+        text: "I'm on my step. It's over my slippers, that's all. I'm alright. I want to go back in to Frank in a minute.",
+      },
+      f_stay: {
+        text: "I can for a bit. I keep wanting to go and check on him.",
+      },
+      f_details: {
+        text: "Sandra Kershaw, eleven Canal Street. This is my mobile — 07700 900826.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "It's coming faster now. I can see it moving down the street — there's a current on it, it's pulling at the wheelie bins.",
+        tone: "urgent",
+      },
+      {
+        atSec: 130,
+        text: "Karen at seventeen's on the phone to you as well, she says — she's got it in her kitchen. I've said I'm already through. Are you sending more than one?",
+      },
+      {
+        atSec: 190,
+        text: "I can see blue lights at the top of the street. That's you, is it? Tell them number nine first. Frank first, before anybody's carpet.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 230,
+        text: "Is anybody actually coming? It's in all of ours and it's still coming. We're not asking for much. Just somebody.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Right. Thank you. Number nine first — tell them. I'll go and sit with Frank till they get here.",
+  },
 };
