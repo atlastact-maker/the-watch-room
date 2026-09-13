@@ -330,4 +330,139 @@ export const scenario40: Scenario = {
     basis:
       "Burglary in progress with the occupier in the house and offenders on the premises — a crime in progress with an immediate threat to a person, which GMP grades Grade 1 Immediate. The 15-minute figure is GMP's own published Grade 1 attendance target: Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Immediate or grade 1 incidents - within 15 minutes'), and the GMCA GMP Performance Briefing, Jan 2026 (average 7m52s, 95% within 15 minutes in 2025). GMP publishes one force-wide figure; there is no separate rural target.",
   },
+
+  // The call as Judith has it: on her mobile on the floor of the front
+  // bedroom, back to the locked door, whispering, with two men going
+  // through the rooms underneath her. She rang Michael first and got his
+  // voicemail. The one thing she asks for is quiet.
+  call: {
+    caller: {
+      name: "Judith Hargreaves",
+      phone: "07700 900418",
+      relation: "The occupier — alone in the house, husband away overnight",
+      where: "The front bedroom at 14 Ladythorn Road, on the floor with her back to the locked door, whispering",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Fourteen Ladythorn Road, Bramhall — Stockport. I'm whispering, I have to whisper. There's someone in my house. They're downstairs, right underneath me, I can see a torch going along the hall under the door. I'm in the bedroom with the door locked, on my own. Please — no sirens. Please don't send them with sirens.",
+    deflection: "I can't — I can't talk any louder, they're right under me — just send somebody. Quietly.",
+    reassurance: {
+      text: "Judith, listen to me. Officers are coming, and they are coming quietly. Stay where you are, stay behind that door, and keep your voice low. I'm not going anywhere.",
+      reply: "All right. All right. I'm here. I'm keeping still.",
+    },
+    answers: {
+      p_happening: {
+        text: "There are people in my house — downstairs. I was in bed. I heard a crack, like wood going, and then moving about. I can see a torch going across the hall from under the bedroom door. They're going through the rooms. I'm upstairs on my own with the door locked and I'm whispering because they're right underneath me.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "p_happening_torch",
+            text: "Where is the torch now — which room are they in?",
+            answer: {
+              text: "It went along the hall and into the back — the back room, where the patio doors are. Now it's — I think the kitchen. They're not rushing. They're taking their time, that's what frightens me.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes. They're in the house now. A drawer's just gone — I can hear them. They're still down there.",
+        tone: "critical",
+      },
+      p_weapons: {
+        text: "I haven't seen them. I've seen a torch under a door, that's all. I don't know what they've got — they got in somehow, they've forced something. I'm not opening this door to find out.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_weapons_sound",
+            text: "Did you hear anything that sounded like a tool — a bar, glass breaking?",
+            answer: {
+              text: "One crack, when they came in — like a door being forced, wood going. No glass. Nothing since. They're quiet. They're good at it, that's the thing. This isn't their first.",
+            },
+          },
+        ],
+      },
+      p_injured: {
+        text: "No. No, I'm all right. They don't know I'm here — I don't think they know I'm here. I'm all right as long as they stay downstairs.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "Two of them, I think. I can hear two voices — men, low, I can't make out what they're saying. I've not seen them. Two.",
+      },
+      p_description: {
+        text: "I can't. I haven't seen them — only the torch. Men, from the voices. Two. That's all I can tell you, and I'm not opening the door to look.",
+      },
+      p_direction: {
+        text: "They've not gone anywhere — they're still down there. I've not heard the patio door go again. I haven't looked out the front, I daren't move about, the boards creak in this room.",
+        followUps: [
+          {
+            id: "p_direction_window",
+            text: "Can you get to the window without making a noise, and tell me what is on the road?",
+            answer: {
+              text: "Hold on. Right — I'm at the window. There's a car across the road with no lights on — I can hear its engine, it's running. There's somebody sat in it. A dark one. I'll try and get the number.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "I've no idea. I shouldn't think so — they're not falling about, they're quiet. They know what they're doing.",
+      },
+      p_known: {
+        text: "No. God, no. I don't know anybody who'd — no. We've been here twenty-two years and never had so much as the shed broken into.",
+      },
+      p_vulnerable: {
+        text: "Me. I'm on my own in the house — my husband's away with work, I rang him before I rang you and got his voicemail. I'm fifty-eight and there are two men downstairs who don't know I'm here. Nobody else — no children, nobody. Just me.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_vulnerable_door",
+            text: "Is the bedroom door locked, and would it hold?",
+            answer: {
+              text: "It's locked — it's an old key, it's in the lock and I've turned it. It's a wooden door. It'd not stop anybody who wanted to come through it. I've got my back against it.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "Fourteen Ladythorn Road, Bramhall — SK7 2ES. You come in off Bramhall Lane South, the main road. We're on the left, a few doors past where the Crescent goes off — detached, with the drive down the side. And please — from the main road, no lights, no sirens. The car will hear them before you're anywhere near.",
+      },
+      p_safe: {
+        text: "For now. As long as they stay downstairs. I'm behind a locked door in the front bedroom, on the floor. If they come up the stairs I'm not safe at all.",
+        tone: "urgent",
+      },
+      p_seen: {
+        text: "I'm in it. I'm in the house with them. I heard them come in and I can see the torch. Nobody's told me anything — I'm the one it's happening to.",
+      },
+      p_details: {
+        text: "Judith Hargreaves. It's my mobile — 07700 900418. If the line goes, don't ring me back — the phone will make a noise. Please don't ring me back.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "They're in the back room. The sideboard — I can hear the drawers, the cutlery. That's Michael's mother's silver. They're not rushing. They think nobody's in.",
+        tone: "urgent",
+      },
+      {
+        atSec: 90,
+        text: "One of them's just laughed. Quiet — they're laughing, in my house. I'm sorry. I'm all right. I'm all right.",
+        tone: "urgent",
+      },
+      {
+        atSec: 150,
+        text: "Is anybody coming? You've not told me anybody's coming. They're still down there and I'm still up here and I don't — how long? How long will they be?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 200,
+        text: "I can't hear anything outside. No sirens. Good — that's good, that's what I asked for. Are they close? Tell them I'm upstairs at the front, in case they think I'm one of them.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. No sirens — you've told them? Tell them I'm upstairs at the front, and I'm not coming down until they say my name.",
+  },
 };

@@ -336,7 +336,7 @@ export const scenario48: Scenario = {
   call: {
     caller: {
       name: "Paul Grundy",
-      phone: "0161 496 0418",
+      phone: "0161 496 0100",
       relation: "Resident at 231 Barton Road, opposite the junction",
       where: "The footway outside his own front door, across the road from the two cars",
       line: "landline",
@@ -417,7 +417,7 @@ export const scenario48: Scenario = {
         text: "I heard the bang from my front room and I was out the door in ten seconds. I didn't see the actual hit. I've seen everything since — I've been stood here the whole time.",
       },
       p_details: {
-        text: "Paul Grundy, 231 Barton Road, right opposite. This is the house phone — 0161 496 0418. I've brought the handset out to the step.",
+        text: "Paul Grundy, 231 Barton Road, right opposite. This is the house phone — 0161 496 0100. I've brought the handset out to the step.",
       },
     },
     interjections: [

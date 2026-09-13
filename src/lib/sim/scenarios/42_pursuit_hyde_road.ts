@@ -407,7 +407,6 @@ export const scenario42: Scenario = {
       p_happening: {
         text: "I've got a grey Golf that's failed to stop for me on Hyde Road. I lit him up at Belle Vue for the manner of driving — he was weaving — and he's looked in the mirror and gone. He's eastbound now at sixty-plus in a thirty, four-lane road, traffic both ways. I'm following and I'm commentating. That's all I'm trained to do on this — I can't put anything on him.",
         tone: "critical",
-        effect: { regrade: "GRADE 1", basis: "Pursuit in progress — sixty-plus on an urban A-road with the public on the crossings" },
         followUps: [
           {
             id: "p_happening_speed",
@@ -435,7 +434,7 @@ export const scenario42: Scenario = {
         text: "Nothing seen. One occupant, both hands on the wheel when I was alongside at the lights. I've nothing back on the car — I stopped it for the driving, not for anything I know about it.",
       },
       p_injured: {
-        text: "Nobody yet. He's had people on the crossing step back for him. Nobody hit. I'll tell you the second that changes.",
+        text: "Nobody yet. There's people on the pavements and at the stops and he's not slowing for any of it, but nobody's been hit. I'll tell you the second that changes.",
         tone: "urgent",
       },
       p_who: {
@@ -471,7 +470,7 @@ export const scenario42: Scenario = {
         text: "Can't tell you. The driving says something — he was all over the lane before I lit him up, that's why I went for him. Could be drink, could be he clocked me and panicked.",
       },
       p_known: {
-        text: "No. I've not had the PNC back on the index — I asked for it the second he went and I've nothing yet. Nothing on him either. He's a lad in a grey hoodie in a Golf, that's what I've got.",
+        text: "Not to me, no. I asked for the PNC on the index the second he went — whatever's come back on it is your side of the channel, I've had nothing on my radio. Nothing on him either. He's a lad in a grey hoodie in a Golf, that's what I've got.",
       },
       p_vulnerable: {
         text: "Everybody on this road. There's people at the bus stops and on the crossings — it's not late. And the whole south side of Hyde Road is a twenty-limit estate with kids out on it. If he goes in there it's a different question and I'll be asking it.",
@@ -503,7 +502,7 @@ export const scenario42: Scenario = {
       },
       {
         atSec: 160,
-        text: "I've got sirens coming from the Belle Vue end — is that my RPU or the ambulance? Whichever it is, tell them the Haworth Road turn off Hyde Road, south side. I'll get them from there.",
+        text: "Sirens — coming up Hyde Road from the Belle Vue end. RPU or the ambulance, whichever that is, put them in at Haworth Road off Hyde Road, south side, and I'll talk them in on the channel from there.",
         requiresOpened: true,
       },
       {

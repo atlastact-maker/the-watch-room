@@ -363,10 +363,9 @@ export const scenario11: Scenario = {
   },
 
   // The call as Joanne has it: on her mobile in her front room at 36,
-  // door shut, Mark at the window, and Danny Keane screaming at Leah on
-  // the other side of a nine-inch wall. She saw the gun under his
-  // security light from her kitchen sink and she is not being talked out
-  // of what she saw.
+  // door shut, Mark at the window, Danny Keane screaming at Leah through
+  // a nine-inch wall. She saw the gun under his security light from her
+  // kitchen sink, and she is not being talked out of what she saw.
   call: {
     caller: {
       name: "Joanne Brierley",
@@ -415,14 +414,14 @@ export const scenario11: Scenario = {
         ],
       },
       p_injured: {
-        text: "I don't know. I've not seen her. I can hear her crying and I heard something go over, a crash, like furniture. I don't know if he's hit her.",
+        text: "I don't know. I can't see her from where I am. I can hear her crying through the wall, and I heard something go over, a crash, like furniture. I don't know if he's hit her.",
         tone: "urgent",
       },
       p_who: {
         text: "Two of them. Him — Danny Keane, he's thirties — and his girlfriend Leah, she's younger, late twenties. It's just the two of them in there, there's no kids, thank God.",
       },
       p_description: {
-        text: "He's white, thirties, cropped hair, stocky. He had a grey tracksuit on, grey top and bottoms, and he was in his socks, no shoes. She's slim, long dark hair — I don't know what she's wearing, I've not seen her tonight.",
+        text: "He's white, thirties, cropped hair, stocky. He had a grey tracksuit on, grey top and bottoms, and he was in his socks, no shoes. She's slim, long dark hair, about my height — I couldn't tell you what she's got on.",
         needsCalm: true,
       },
       p_direction: {
@@ -440,7 +439,7 @@ export const scenario11: Scenario = {
         tone: "urgent",
       },
       p_where: {
-        text: "Curzon Road, Ashton — number 34, it's the north side, the terrace, middle of the row. I'm at 36, the next one along towards the shop. It's the road with the corner shop on the end, on Katherine Street.",
+        text: "Curzon Road, Ashton — number 34, the terrace, middle of the row, same side as the corner shop. I'm at 36, next door, the shop side of them. It's the road with the corner shop on the end, where it meets Katherine Street.",
       },
       p_safe: {
         text: "I'm in my front room with the door shut, me and my husband Mark. We're the other side of the wall from them. I've come away from the back — should I go upstairs? I don't know where to go.",
@@ -482,7 +481,7 @@ export const scenario11: Scenario = {
       },
       {
         atSec: 225,
-        text: "Mark says Mrs Patel's light's just come on at 32 — she's up. She'll go out the front, she does, she goes out to see what's going on. Somebody needs to stop her.",
+        text: "Mark says Mrs Patel's light's just come on at 32, he can see it on the pavement — she's up. She'll go out the front, she does, she goes out to see what's going on. Somebody needs to stop her.",
         tone: "urgent",
       },
     ],

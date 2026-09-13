@@ -316,7 +316,7 @@ export const scenario49: Scenario = {
     },
     answers: {
       p_happening: {
-        text: "One of our residents has died. Mr Halliwell, in room 7 — he's 89, he's been on end-of-life care, it's been expected all week. Kayleigh, one of my carers, found him on the four o'clock checks. I've rung the out-of-hours and they can't get a doctor to us for four or five hours. There's nothing happening, if I'm honest. That's rather the problem.",
+        text: "One of our residents has died. Mr Halliwell, in room 7 — he's 89, he's been on end-of-life care, there's a DNACPR in his file, it's been expected all week. Kayleigh, one of my carers, found him on the four o'clock checks. I've rung the out-of-hours and they can't get a doctor to us for four or five hours. There's nothing happening, if I'm honest. That's rather the problem.",
         followUps: [
           {
             id: "p_happening_found",
@@ -346,13 +346,13 @@ export const scenario49: Scenario = {
         text: "Nobody's gone anywhere. Kayleigh's sat outside his door and I'm in the office. The only person moving tonight is whoever you send.",
       },
       p_drink: {
-        text: "No. He's been on the end-of-life pathway three weeks — the district nurses hold his medication and it's all on the chart. Nothing that shouldn't be there.",
+        text: "No — nothing like that. He'd been on the end-of-life pathway three weeks. Everything he had is on his chart, and the district nurses were in every day for the rest of it. There's nothing in that room that shouldn't be.",
       },
       p_known: {
         text: "I've known him four years — he's been with us four years. A widower. Lovely man, sharp as anything until the last month. Everyone here knows him.",
       },
       p_vulnerable: {
-        text: "Twenty-three other residents, all asleep, and half of them have dementia. That's my worry, honestly — not him. If a police car comes up Temple Road with the lights going I'll have the whole corridor up, and I can't settle them again at four in the morning. His daughter's next of kin — she asked to be rung whatever the hour, and I'll be doing that the moment I'm off the phone to you.",
+        text: "Twenty-three other residents, all asleep, and a good few of them have dementia. That's my worry, honestly — not him. If a police car comes up Temple Road with the lights going I'll have the whole corridor up, and I can't settle them again at four in the morning. His daughter's next of kin — she asked to be rung whatever the hour, and I'll be doing that the moment I'm off the phone to you.",
         followUps: [
           {
             id: "p_vulnerable_verify",

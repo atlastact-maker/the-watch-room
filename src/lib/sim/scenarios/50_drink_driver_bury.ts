@@ -347,7 +347,7 @@ export const scenario50: Scenario = {
   call: {
     caller: {
       name: "Lisa Greenhalgh",
-      phone: "07700 900418",
+      phone: "07700 900101",
       relation: "Shopper — a stranger to the driver, three bays from his car",
       where: "Her own car in the supermarket car park, three bays along from the Focus, eyes on the driver",
       line: "mobile",
@@ -362,7 +362,7 @@ export const scenario50: Scenario = {
     },
     answers: {
       p_happening: {
-        text: "There's a man who can't walk straight sat in the driver's seat of a car. I watched him come out of the shop — he went across the car park holding onto other people's cars, and he's got in a silver Focus, driver's side. He's sat in it. He's not started it. I'm three bays along in my own car and I can see the back of his head.",
+        text: "There's a man who can't walk straight sat in the driver's seat of a car. I watched him come out of the shop — he went across the car park holding onto other people's cars, and he's got in a silver Focus, driver's side. He's sat in it. He's not started it. I'm three bays along in my own car and I can see him through his side window.",
         tone: "urgent",
         followUps: [
           {
@@ -388,7 +388,7 @@ export const scenario50: Scenario = {
         text: "Just him. One man, on his own. Nobody else in the car — front seat's empty, I can't see the back properly but I don't think so. And me, in my car.",
       },
       p_description: {
-        text: "Fifties, maybe. Big man, heavy. Bald, or shaved. Grey fleece, jeans, work boots. Silver Ford Focus, the older shape, five-door. It's parked nose-in, three bays down from me towards the trolley bay.",
+        text: "Fifties, maybe. Big man, heavy. Bald, or shaved. Grey fleece, jeans, work boots. Silver Ford Focus, a newish one, five-door I think. It's parked nose-in, three bays down from me towards the trolley bay.",
         followUps: [
           {
             id: "p_description_plate",
@@ -413,7 +413,7 @@ export const scenario50: Scenario = {
         tone: "urgent",
       },
       p_where: {
-        text: "The supermarket car park off Pilsworth Road in Bury — the big one by the motorway, by Pilsworth Interchange. BL9 8RS, I think. I'm in the main car park in front of the store, the rows nearest the trolley bay, sort of the middle. He's three bays from me.",
+        text: "The supermarket car park off Pilsworth Road in Bury — the big one by the motorway, right by Pilsworth Interchange. I don't know the postcode, sorry. I'm in the main car park in front of the store, the rows nearest the trolley bay, sort of the middle. He's three bays from me.",
         followUps: [
           {
             id: "p_where_entry",
@@ -438,10 +438,10 @@ export const scenario50: Scenario = {
         ],
       },
       p_seen: {
-        text: "Saw it all myself. Watched him from the doors to the car. I've got eyes on him right now — I'm looking straight at the back of his head.",
+        text: "Saw it all myself. Watched him from the doors to the car. I've got eyes on him right now — I'm looking straight at him, side on.",
       },
       p_details: {
-        text: "Lisa Greenhalgh. I'm on my mobile — 07700 900418. I'm in a blue Kia, if they want to find me.",
+        text: "Lisa Greenhalgh. I'm on my mobile — 07700 900101. I'm in a blue Kia, if they want to find me.",
       },
     },
     interjections: [

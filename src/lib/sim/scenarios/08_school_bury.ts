@@ -321,7 +321,7 @@ export const scenario08: Scenario = {
       name: "Malcolm Parry",
       phone: "07700 900445",
       relation: "Site caretaker — sole keyholder",
-      where: "Front car park, Hawthorne Brook High, between the sports hall and the main block",
+      where: "Front car park, Hawthorne Brook High — by the staff bays, the tech block windows lit at the far end of the site",
       line: "mobile",
       state: "calm",
     },
@@ -338,7 +338,7 @@ export const scenario08: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "The tech block — it's the separate building on the east side of the site, the old one. Ground floor, the east end, the DT workshop. Not the main block. The main block's a separate building, it's about twenty yards off it.",
+        text: "The tech block — it's the separate building on the east side of the site, the old one. Ground floor, the east end, the DT workshop. Not the main block — that's a separate building, but it's only a few yards off it, there's just the path between them.",
       },
       f_spread: {
         text: "It's building. When I first came past it was one bench going, now it's the whole end of the room. It's timber floors in there, the old block, it'll go through that. Nothing's touched the main block, not yet.",
@@ -394,7 +394,7 @@ export const scenario08: Scenario = {
         ],
       },
       f_safe: {
-        text: "I'm fine. I'm on the car park, well back — the main block's between me and it.",
+        text: "I'm fine. I'm on the car park, well back from it — there's the whole width of the car park between me and it, a good fifty yards.",
       },
       f_stay: {
         text: "I can, but I need to get over to the sports hall and see they've all got out. I'll walk over while I'm talking to you.",
@@ -422,7 +422,7 @@ export const scenario08: Scenario = {
       },
       {
         atSec: 200,
-        text: "I've rung the Head, she's on her way in. She'll want to know who's in charge when she gets here — tell your officer.",
+        text: "Chidi's got the Head on his phone — she's on her way in. She'll want to know who's in charge when she gets here, tell your officer.",
       },
     ],
     onDispatch: "Right. Good. Manchester Road, the main gate — I'll be on the car park where they can see me.",

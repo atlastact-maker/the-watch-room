@@ -478,7 +478,7 @@ export const scenario07: Scenario = {
       },
       {
         atSec: 215,
-        text: "It's so hot. The bedroom door's hot, I can feel it from here. I can't stop coughing. Please.",
+        text: "It's so hot in here. The door's hot — I can feel it from the floor. I can't stop coughing. Please.",
         tone: "critical",
       },
     ],

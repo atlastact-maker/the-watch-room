@@ -400,14 +400,14 @@ export const scenario43: Scenario = {
   call: {
     caller: {
       name: "Gemma Whittaker",
-      phone: "07700 900418",
+      phone: "07700 900100",
       relation: "Mother of the missing child",
       where: "Outside the Lake Cafe at the boating lake, Heaton Park, with her four-year-old son",
       line: "mobile",
       state: "anxious",
     },
     opening:
-      "Police — my little girl's gone missing. Isla, she's seven. We're in Heaton Park at the boating lake, by the cafe — she was stood right next to me at the water and I bent down to do her brother's shoe and she'd gone. That's twenty minutes ago, I've been up and down shouting her. She's got a red coat on. She can't swim. Please.",
+      "Police — please — my daughter's gone, I can't find her. Heaton Park, the boating lake, we're by the cafe. She's seven. She was right next to me and I looked down for one second and she's not there, I've been looking twenty minutes, I've been everywhere — she can't swim and the water's right here. Please, I need someone.",
     deflection: "I don't know, I don't know — just find her, please, please find her!",
     reassurance: {
       text: "Gemma, listen to me. Officers are on their way to you now. I need you to stay by the cafe so she can find you, and keep talking to me.",
@@ -417,7 +417,6 @@ export const scenario43: Scenario = {
       p_happening: {
         text: "My daughter's missing. Isla — she's seven. We're at the boating lake in Heaton Park, by the Lake Cafe. She was right by me at the edge feeding the ducks, I looked down for a second and she wasn't there. I've looked for twenty minutes. Red coat, red duffle coat. She can't swim.",
         tone: "critical",
-        effect: { regrade: "GRADE 1", basis: "High-risk missing child — seven years old, last seen at the water's edge, twenty minutes gone" },
         followUps: [
           {
             id: "p_happening_lastseen",
@@ -441,7 +440,7 @@ export const scenario43: Scenario = {
         tone: "urgent",
       },
       p_who: {
-        text: "Just her — Isla Whittaker, she's seven. I'm here with her little brother, he's four. My friend Karen's in the park with us with her two — she'd gone off to find the toilets before it happened. I've rung her, it's going to voicemail.",
+        text: "Just her — Isla Whittaker, she's seven. I'm here with her little brother, he's four. My friend Karen's in the park with us with her two — she'd gone off to find the toilets before it happened. Isla knows her, she'd go with Karen. I've rung her and it's going to voicemail.",
         followUps: [
           {
             id: "p_who_karen",
@@ -484,11 +483,11 @@ export const scenario43: Scenario = {
         needsCalm: true,
       },
       p_known: {
-        text: "There's nobody — nobody's involved, she's just gone. Unless somebody's — no. No. It's just her. She wandered. She must have wandered.",
+        text: "There's nobody — nobody's involved, she's just gone. Unless somebody's — no. No. It's just her. She's never done this. Not once, she's never wandered off, she's not like that.",
         tone: "urgent",
       },
       p_vulnerable: {
-        text: "She's seven! She can't swim and the water's right there, it's right there, there's nothing stopping her going in. And she'd go with anybody — she's friendly, she'd talk to anybody.",
+        text: "She's seven! She can't swim and the water's right there, it's right there, there's nothing stopping her going in. And she's tiny, she looks about five — anybody could just take her hand and walk off with her.",
         tone: "critical",
       },
       p_where: {
@@ -502,7 +501,7 @@ export const scenario43: Scenario = {
         tone: "urgent",
       },
       p_details: {
-        text: "Gemma Whittaker. It's my mobile — 07700 900418. If I lose you ring me back on it, please. Please ring me back.",
+        text: "Gemma Whittaker. It's my mobile — 07700 900100. If I lose you ring me back on it, please. Please ring me back.",
       },
     },
     interjections: [

@@ -395,7 +395,7 @@ export const scenario09: Scenario = {
       },
       {
         atSec: 230,
-        text: "I'm coming off the bridge — I'm going along the bank on the Lowry side, I'm keeping up with him. I've still got him. I've still got him.",
+        text: "I'm coming off the bridge — I'm going along the quayside on the museum side, keeping level with him. I've still got him. I've still got him.",
         tone: "urgent",
       },
     ],

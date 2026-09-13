@@ -370,7 +370,7 @@ export const scenario46: Scenario = {
   call: {
     caller: {
       name: "Sophie Brennan",
-      phone: "0161 496 0731",
+      phone: "0161 496 0101",
       relation: "ANPR desk, Force Contact — a colleague, not a member of the public",
       where: "The ANPR desk, with the camera image, PNC and the Bolton report in front of her",
       line: "landline",
@@ -398,11 +398,11 @@ export const scenario46: Scenario = {
         ],
       },
       p_ongoing: {
-        text: "It's live — it's a moving car. Read at Ellenbrook, eastbound, so right now it's on the stretch between the camera and the Walkden Road lights. There's nothing of mine between there and the motorway. Next site it'd show on is the ring — Junction 12, Simister — or Farnworth if it turns up the M61.",
+        text: "It's live — it's a moving car. Read at Ellenbrook, eastbound, so right now it's on the stretch between the camera and the Walkden Road lights. There's no site of mine between there and the motorway. Next site it'd show on is the ring — Junction 12, Simister — or Farnworth if it turns up the M61.",
         tone: "urgent",
       },
       p_weapons: {
-        text: "Nothing on the marker for weapons and nothing on the Bolton report — it was a keyless theft off a drive, they never went near the house. I've got a plate under infrared, I can't see hands. Treat it as unknown, not as no.",
+        text: "Nothing on the marker for weapons and nothing on the Bolton report — it was a keyless theft off a drive, they never went in the house. I've got a plate under infrared, I can't see hands. Treat it as unknown, not as no.",
       },
       p_injured: {
         text: "Nobody. It's a camera read, not a call. The Bolton keeper woke up to an empty drive and reported it — nobody's been touched.",
@@ -451,7 +451,7 @@ export const scenario46: Scenario = {
             id: "p_where_stop",
             text: "Is there anywhere to stop it on that stretch?",
             answer: {
-              text: "Not on the carriageway — it's lane one with traffic going past at fifty. Not the lights, for the reasons I've said. If a car's going to be stopped, somebody picks the place first: somewhere lit, off the main drag. That's your call, not mine.",
+              text: "Not on the carriageway — it's lane one with traffic going past at fifty. Not the lights — that's a queue of public with it sat in the middle. If a car's going to be stopped, somebody picks the place first: somewhere lit, off the main drag. That's your call, not mine.",
             },
           },
         ],
@@ -463,13 +463,13 @@ export const scenario46: Scenario = {
         text: "Neither. It's a camera read — I've got the image, the PNC record and the Bolton report in front of me. Nobody has eyes on that car. Whatever you send is the first pair.",
       },
       p_details: {
-        text: "Sophie Brennan, ANPR desk. I'm on 0161 496 0731 and I'm on it till the plate goes quiet.",
+        text: "Sophie Brennan, ANPR desk. I'm on 0161 496 0101 and I'm on it till the plate goes quiet.",
       },
     },
     interjections: [
       {
         atSec: 45,
-        text: "For the log — that's two minutes since the read, so it's at the lights or as good as, if the traffic's held it. Nothing on any other site.",
+        text: "For the log — that's two minutes since the read, so it's at the lights or as near as makes no odds, unless the queue's held it short. Nothing on any other site.",
         tone: "urgent",
       },
       {

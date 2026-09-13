@@ -330,4 +330,137 @@ export const scenario39: Scenario = {
     basis:
       "GMP Grade 1 (Immediate): 'Immediate or grade 1 incidents - within 15 minutes' — GMP Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025; the GMCA GMP Performance Briefing (Jan 2026) calls 15 minutes the force's 'aspired attendance time' (avg 7m52s, 95% within 15 min in 2025). GMP publishes one figure force-wide; there is no separate rural target. Placing a domestic in progress with violence ongoing and children present at Grade 1 on THRIVE (Threat, Harm, Risk, Investigation, Vulnerability, Engagement) is our reading of the published policy, not a GMP-published rule for this call type.",
   },
+
+  // The call as Marie has it: on her mobile in her own front room at
+  // No. 12, one hand flat on the party wall, hearing every word of it.
+  // She rang the February one as well. Leanne asked her not to ring
+  // again, and she is ringing.
+  call: {
+    caller: {
+      name: "Marie Holt",
+      phone: "07700 900161",
+      relation: "Neighbour at No. 12, through the party wall — the same caller as the February job",
+      where: "Her own front room at 12 Prosperity Street, a hand on the party wall",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police — it's next door to me, 14 Prosperity Street, Harpurhey, off Rochdale Road. He's at her again. She's screaming get off me, get off me, and he's roaring at her, and something's just gone against the wall and smashed. It's going on now — I can hear him through the wall as I'm talking to you. There's two kids in that house.",
+    deflection: "I don't know, love, I can't SEE — I'm through a wall! Just get somebody here!",
+    reassurance: {
+      text: "Marie, you've done the right thing ringing. Officers are on their way. Stay in your house, keep your door locked, and just tell me what you can hear.",
+      reply: "I'm not going anywhere. Go on. I'm listening to it.",
+    },
+    answers: {
+      p_happening: {
+        text: "He's beating her. I can't see it but I can hear it — she's screaming 'get off me', over and over, and he's shouting over the top of her. Something's gone against the wall and smashed, a glass or a plate. He's still going. That's him now — can you hear that? That's him.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "p_happening_hear",
+            text: "What can you hear right now?",
+            answer: {
+              text: "Him. Shouting — 'look what you've made me do', that's what he keeps saying. Her, crying more than screaming now. Banging, like furniture going over. And the little one crying upstairs.",
+              tone: "critical",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes. It's going on now. I'm stood in my front room with my hand on the wall and I can feel it through the bricks. He's not stopped.",
+        tone: "critical",
+      },
+      p_weapons: {
+        text: "I don't know. I can't see in, love, I'm through the wall. I've never seen him with a knife. He's not a man who'd need one — he's twice her size.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_weapons_smash",
+            text: "What was it that smashed?",
+            answer: {
+              text: "Glass. It sounded like glass — a glass or a plate, against the wall, hard. There'll be glass all over that floor, and the kids come down barefoot.",
+            },
+          },
+        ],
+      },
+      p_injured: {
+        text: "I don't know — I can't see her. She was screaming, so she's — she was screaming. Nobody's shouted that they're hurt. I don't know what he's done to her, I only know what I can hear.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_injured_last",
+            text: "Was she hurt the last time?",
+            answer: {
+              text: "Split lip and a black eye. She told the police she'd walked into the door. I was on my step when she came out — she'd not walked into any door.",
+            },
+          },
+        ],
+      },
+      p_who: {
+        text: "Him and her — Liam Doherty and Leanne, Leanne Whittaker. They're partners, they've been there five years. And the two kiddies, Maisie and little Alfie. That's it. I've not heard another voice, so he's not got a mate round.",
+      },
+      p_description: {
+        text: "Liam's a big lad — six foot odd and heavy with it, shaved head. He came in from work in grey trackie bottoms and a black T-shirt, he's a roofer. Leanne's tiny, five foot nothing, dark hair. You'll know which is which.",
+      },
+      p_direction: {
+        text: "Nobody's gone anywhere — they're all in there. His van's still outside, the white Transit with the ladders on the roof, so he's not left. If he goes, he'll go in that.",
+        followUps: [
+          {
+            id: "p_direction_van",
+            text: "Do you know the registration of the van?",
+            answer: {
+              text: "It's a white Transit, ladders on a rack on the roof, plain, nothing written on it. It starts MV, I know that much, I see it every day. I can't give you the rest without going out, and I'm not going out.",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "He's been drinking — he was carrying cans in when he got home, and he's been at them since. It's always drink with him. Drugs, I couldn't tell you. I'd not be surprised.",
+      },
+      p_known: {
+        text: "I've known them since they moved in, five years. Leanne's a lovely girl. She'll not say a word against him to your lot — she didn't last time and she'll not this time. That's why it's me ringing and not her.",
+        tone: "urgent",
+      },
+      p_vulnerable: {
+        text: "The kids. Two of them — Maisie's eight and Alfie's three. They're upstairs, they'll have been in bed, it's a school night. I can hear the little one crying through the wall. And her — she's on her own in there with him.",
+        tone: "critical",
+      },
+      p_where: {
+        text: "14 Prosperity Street — the townhouses off Rochdale Road, we're up the Rochdale Road end. 14's the one with the white van outside, and I'm 12, the next door on the Rochdale Road side. M40 8EX. The front doors are straight onto the pavement.",
+      },
+      p_safe: {
+        text: "I'm in my own house with the door locked, I'm fine. I'm not going round — I was told that last time and I'm not daft. He'll know it was me that rang, mind. He knew last time.",
+      },
+      p_seen: {
+        text: "Heard it, not seen it — I can't see in, I'm through the wall. But I've heard every word of it. These walls are paper, you hear their telly through them, never mind this.",
+      },
+      p_details: {
+        text: "Marie Holt. Number 12, next door. It's my mobile — 07700 900161.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "That's another one gone — that's a bigger one, a plate, a bowl. And a door's gone into the frame. Liam, LEAVE her — sorry, sorry, I'm shouting at the wall. He can't hear me.",
+        tone: "critical",
+      },
+      {
+        atSec: 95,
+        text: "He's shouting up the stairs now — at the kids. 'Get back in your room.' The little girl's shouting for her mum. Oh, that poor kid.",
+        tone: "urgent",
+      },
+      {
+        atSec: 160,
+        text: "Are you sending somebody or what? It's gone quiet in there and I don't like quiet. Last time it went quiet she was on my step at midnight with her lip split. Where are they?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 185,
+        text: "I can hear sirens — is that them? Listen — their front window looks straight down the street to Rochdale Road. He'll see the car before they're out of it. Last time he had the door open and a smile on before they'd knocked. Tell them to stop short and walk up.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Good. Thank you. Tell them to stop short of the house — and tell them there's kids in there. I'll leave my door on the latch for her; she knows she can come to me.",
+  },
 };

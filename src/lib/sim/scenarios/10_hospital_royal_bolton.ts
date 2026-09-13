@@ -373,7 +373,7 @@ export const scenario10: Scenario = {
         text: "District general hospital — Royal Bolton. Block C's the inpatient block, concrete frame, sixties-seventies build, link corridors across to Block D on the same floor — that's ITU and theatres. Seven hundred-odd beds across the site.",
       },
       f_inside: {
-        text: "Ward 19's full — it's a 24-bed frail elderly ward, they're all in bed and most of them can't walk. Ward staff are with them, six or seven nurses and HCAs at this time of night. Nobody's evacuating — we're Stage 1, defend in place, while I investigate. That's our policy and it's the right one.",
+        text: "Ward 19's full — it's a 24-bed frail elderly ward, they're all in bed and most of them can't walk. Ward staff are with them, six or seven nurses and HCAs at this time of night. Nobody's evacuating — we're Stage 1, defend in place, while I get up there and look. Anjali, the nurse in charge, has got the beds nearest the pantry ready to go horizontal into ward 20 the second I call it. That's our policy and it's the right one.",
         followUps: [
           {
             id: "f_inside_stage",

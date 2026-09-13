@@ -318,20 +318,20 @@ export const scenario45: Scenario = {
   },
 
   // The call as Bisi has it: on her work mobile on the first-floor
-  // landing at 18 Churchill Way, a flight down from a door that has post
-  // jammed in it and a smell behind it. She has done one of these before.
-  // She has a fob for the front door and no key for the flat.
+  // landing at 18 Churchill Way, a few steps back from a door that has
+  // post jammed in it and a smell behind it. She has done one of these
+  // before. She has a fob for the front door and no key for the flat.
   call: {
     caller: {
       name: "Bisi Ogundipe",
       phone: "07700 900947",
       relation: "Housing officer for the block — Brindle Heath Housing",
-      where: "First-floor landing outside Flat 6, 18 Churchill Way, a flight down from the door",
+      where: "First-floor landing outside Flat 6, 18 Churchill Way, a few steps back from the door",
       line: "mobile",
       state: "calm",
     },
     opening:
-      "Police, please. It's a concern for welfare. I'm the housing officer for the flats on Churchill Way in Pendleton, behind the precinct — I'm on the first-floor landing at number 18, outside Flat 6. It's our tenant, Mr Gaskell. Nobody's seen him since Thursday, there's post jammed in his door, I've knocked and shouted through the letterbox and there's nothing. And there's a smell up here I don't like. I haven't got a key.",
+      "Police, please — it's a welfare check, I think. My name's Bisi Ogundipe, I'm a housing officer, and I'm stood outside one of our tenants' flats on Churchill Way in Pendleton, behind the precinct — 18 Churchill Way, Flat 6, first floor. He's sixty-four, he lives on his own, and nobody's had sight of him since Thursday. His post's stuck in the door, he's not answering me, and to be honest with you there's a smell on this landing I don't like. I can't get in.",
     deflection: "Sorry — hold on. Kevin, leave it — sorry. Go on.",
     reassurance: {
       text: "Bisi, you've done the right thing ringing. Officers are on their way. Stay on the landing and keep everybody else off it.",
@@ -341,7 +341,6 @@ export const scenario45: Scenario = {
       p_happening: {
         text: "Nothing's happening, that's the trouble. It's a man who hasn't answered his door in four days. Dennis Gaskell, Flat 6, he's sixty-four and he lives on his own. Post's jammed in the door, curtains haven't moved, and there's a smell on the landing. I've knocked, I've shouted, I've rung his phone — it goes straight to voicemail. I can't get in.",
         tone: "urgent",
-        effect: { regrade: "GRADE 1", basis: "Man with a heart condition alone behind a locked door, unseen for four days — a risk to life until the door is open" },
       },
       p_ongoing: {
         text: "Well — it's not going on, nothing's going on. That's what I'm ringing about. It's four days of nothing. He's not answered, he's not come out, and I'm stood outside a door I can't open.",
@@ -404,7 +403,7 @@ export const scenario45: Scenario = {
         ],
       },
       p_safe: {
-        text: "I'm fine. I'm on the landing — I've had to step down a flight because of the smell, if I'm honest. Kevin's here, he's alright. Nobody's in any danger except possibly the man behind that door.",
+        text: "I'm fine. I'm on the landing — I've stepped back from his door a bit because of the smell, if I'm honest. Kevin's here, he's alright. Nobody's in any danger except possibly the man behind that door.",
       },
       p_seen: {
         text: "I've seen the post and I've smelt the smell — that's me. The Thursday is Kevin, the neighbour, telling me. I've been to the door myself and shouted through the letterbox and there's nothing.",

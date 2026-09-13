@@ -343,7 +343,7 @@ export const scenario44: Scenario = {
       state: "anxious",
     },
     opening:
-      "Police — I've just been robbed, he had a knife. Piccadilly Gardens, the Market Street corner, right by the tram stop. He's had my phone off me — I'm on my mate's. He's run up Market Street, towards the Arndale. A minute ago, if that. He's still up there.",
+      "Police — yeah, police. Some lad's just pulled a knife on me and had my phone, Piccadilly Gardens, by the tram stop on the Market Street corner. I'm ringing off my mate's phone. He's legged it up Market Street towards the Arndale, that's a minute ago if that — he's still up there, if you're quick you'll get him.",
     deflection: "I've told you what happened. Are you sending someone or not?",
     reassurance: {
       text: "Callum, officers are on their way to you. Every bit of description you give me goes straight to the cars and the cameras — that is what finds him. Stay where you are and go through it with me.",
@@ -353,14 +353,13 @@ export const scenario44: Scenario = {
       p_happening: {
         text: "I've been robbed — he's had my phone off me at knife-point. I was stood by the tram stop looking at my phone, he come up behind me, arm round my neck, I turned round and there's a knife at my stomach. 'Give me the phone.' I grabbed at it like an idiot, he's cut my hand, he's had the phone off me and he's gone up Market Street. I'm on my mate's phone.",
         tone: "critical",
-        effect: { regrade: "GRADE 1", basis: "Robbery with a bladed article — offender on foot in a crowded place within the last two minutes" },
       },
       p_ongoing: {
         text: "He's gone — he's not here, he ran. But he's only just gone, he's on Market Street somewhere, he can't be far. If you're quick you'll have him.",
         tone: "urgent",
       },
       p_weapons: {
-        text: "Yeah — a knife. Small one, silver, one of them folding ones, a lock knife. He had it down by his side and then he showed me it, right at my stomach. He put it back in his jacket, the right pocket, before he ran.",
+        text: "Yeah — a knife. Small one, silver, one of them folding ones, a lock knife. He had it down by his side and then he showed me it, right at my stomach. He's stuck it back in his jacket before he ran, so he's still got it on him.",
         tone: "critical",
       },
       p_injured: {

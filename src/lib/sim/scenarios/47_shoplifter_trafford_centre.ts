@@ -342,16 +342,16 @@ export const scenario47: Scenario = {
         text: "I've seen the face, I think. We get a lot through. I couldn't put a name to him off my own bat.",
       },
       p_vulnerable: {
-        text: "No. Grown man, no kids with him, nobody with him at all. Only thing I'd say is Arjun — he's three months in the job and he was meant to clock off ten minutes ago. He's fine. He's just not been in one that's turned before.",
+        text: "No. Grown man, no kids with him, nobody with him at all. Only thing I'd say is Arjun — he's three months in the job and he's meant to be off in ten minutes. He's fine. He's just never had one kick off on him yet.",
       },
       p_where: {
-        text: "Pendle and Marsh, the Trafford Centre. Upper level. But don't send them into the mall — the office is off the stockroom at the back, you can't get to it from the shop floor. Staff entrance on the service road, round the back of the unit by the staff car park. One of us'll meet them at the door.",
+        text: "Pendle and Marsh, the Trafford Centre. Upper level. But don't send them into the mall — the office is off the stockroom at the back, you can't get to it from the shop floor. Staff entrance on the service road, round the back of the unit by the staff car park. The manager'll meet them at the door.",
         followUps: [
           {
             id: "p_where_meet",
             text: "Who is meeting them, and where exactly?",
             answer: {
-              text: "Arjun'll go down when they're close — ring this number when they're a minute off and he'll be stood at the staff door on the service road. Grey door, 'Pendle and Marsh — deliveries' on it. Not the mall doors. Not across the concourse.",
+              text: "My manager, Claire — she'll go down when they're close. Ring this number when they're a minute off and she'll be stood at the staff door on the service road. Grey door, 'Pendle and Marsh — deliveries' on it. Not the mall doors. Not across the concourse. I'm not sending Arjun down and sat in here with him on my own.",
             },
           },
         ],
@@ -379,7 +379,7 @@ export const scenario47: Scenario = {
       },
       {
         atSec: 190,
-        text: "Right, that's Arjun heading down to the staff door for your lot. Service road, round the back. Tell them not to come through the mall — I don't want him walked across the concourse.",
+        text: "Right, my manager's just been in — she'll be at the staff door for your lot the minute they're close. Service road, round the back. Tell them not to come through the mall — I don't want him walked across the concourse.",
         requiresOpened: true,
       },
       {
@@ -387,6 +387,6 @@ export const scenario47: Scenario = {
         text: "He's asked for a drink of water, I've give him one. Just so you know — he's talking, he's not kicking off.",
       },
     ],
-    onDispatch: "Cheers. I'll get Arjun down to the staff door. Tell them round the back — not through the mall.",
+    onDispatch: "Cheers. I'll get the manager down to the staff door. Tell them round the back — not through the mall.",
   },
 };

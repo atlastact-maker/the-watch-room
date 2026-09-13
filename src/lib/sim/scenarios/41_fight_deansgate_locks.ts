@@ -380,7 +380,7 @@ export const scenario41: Scenario = {
       state: "calm",
     },
     opening:
-      "Police and an ambulance — Cutwater, Deansgate Locks, Whitworth Street West. I'm door staff. We've had a fight on the pavement outside, one lad's gone down and cracked his head on the kerb and he was out cold. He's come round but he's not right. The two that did it have walked off up towards the rank. They've not left the street.",
+      "Police — and you'll want an ambulance with them. Deansgate Locks, Whitworth Street West, outside Cutwater — I'm on the door. Lad's been knocked out on the pavement, one punch, back of his head on the kerb. He's come round but he's all over the place. The two that did it are walking off towards the rank, they've not left the street.",
     deflection: "Hang on — Soph, get them back off him — sorry. Go on.",
     reassurance: {
       text: "Emmanuel, you've done everything right. Officers are coming. Stay with him and keep talking to me.",
@@ -388,9 +388,8 @@ export const scenario41: Scenario = {
     },
     answers: {
       p_happening: {
-        text: "Fight outside the bar, on the pavement on the canal side. One punch, lad's gone down backwards and his head's hit the kerb. He was out — properly out, twenty, thirty seconds. He's come round now but he's mumbling, he's not making sense. Two lads did it and they've walked off west, towards Deansgate. The rank's that way, and the rank's full.",
+        text: "Fight outside the bar, on the pavement on the canal side. Two lads squared up to him, one of them's thrown one punch and he's gone down backwards, head on the kerb. He was out — properly out, twenty, thirty seconds. He's come round now but he's mumbling, he's not making sense. The two of them have walked off west, towards Deansgate. The rank's that way, and the rank's always full at this time.",
         tone: "critical",
-        effect: { regrade: "GRADE 1", basis: "Violence in progress — one male with a head injury, two offenders still on the same street" },
         followUps: [
           {
             id: "p_happening_crowd",
@@ -425,7 +424,7 @@ export const scenario41: Scenario = {
             id: "p_injured_awake",
             text: "Is he awake and talking to you?",
             answer: {
-              text: "Eyes are open. He's saying stuff but it's not making sense — he's asked me what happened three times. His mates are saying he's just drunk. He's not just drunk.",
+              text: "Eyes are open. He's saying stuff but it's not making sense — he's asked me what happened three times. His mates keep telling me he's just had a skinful. He wasn't like this five minutes ago, he was stood in my queue talking.",
               tone: "urgent",
             },
           },
@@ -455,7 +454,7 @@ export const scenario41: Scenario = {
         tone: "urgent",
       },
       p_known: {
-        text: "I know the faces. The one in the white shirt's been put out of the Locks before, I'm nearly sure of it. I'll get you a name — give me a minute, my head's with this lad on the floor.",
+        text: "I know the face on the white shirt — he's been put out of the Locks before, I'm nearly sure of it. The name's not coming to me, my head's with this lad on the floor. Soph might have it, or it'll be on the scheme — half the doors on here have had him.",
       },
       p_vulnerable: {
         text: "Him — he's on the floor with a head injury and he's not with it. And there's the canal right behind us, it's dark and half this crowd have had a skinful. That's what I'm stood on.",
@@ -468,7 +467,7 @@ export const scenario41: Scenario = {
         text: "I'm alright. I'm stood over him with Sophie. The two that did it have gone. It's the crowd I'm watching, not me.",
       },
       p_seen: {
-        text: "I saw it. I was on the bridge end of the door. One punch — I saw it land and I saw him go down. I can pick both of them out.",
+        text: "I saw it. I was on the door, top of our bridge — it's ten yards across the water from where he went down. One punch, I saw it land and I saw him go down. I can pick both of them out.",
       },
       p_details: {
         text: "Emmanuel Okafor. Door supervisor at Cutwater, SIA badge. This is my own mobile — 07700 900377.",
@@ -482,7 +481,7 @@ export const scenario41: Scenario = {
       },
       {
         atSec: 90,
-        text: "His mates are telling me he's just pissed. He's not just pissed. I've seen pissed every night for six years — he went down from one punch and his head hit the kerb.",
+        text: "That's the camera room on my radio — they've picked it up off the scheme, they've got the two of them on the screens heading for the rank. I'm leaving that with them. I'm not leaving this lad.",
         tone: "urgent",
       },
       {
