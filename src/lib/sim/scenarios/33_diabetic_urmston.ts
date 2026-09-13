@@ -216,7 +216,7 @@ export const scenario33: Scenario = {
             id: "a_happened_before",
             text: "Has he gone this low before?",
             answer: {
-              text: "He's gone low before, yes, a few times. Never like this. Normally he'll take the drink off me and he's right as rain in ten minutes and a bit sheepish. He's never once pushed me off.",
+              text: "He's gone low before, yes, a few times. Never like this. Normally he'll take the drink off me in the end and he's right as rain in ten minutes and a bit sheepish. He's never once been like this with me.",
             },
           },
         ],
@@ -235,7 +235,7 @@ export const scenario33: Scenario = {
         text: "Forty-six. He's forty-six.",
       },
       a_history: {
-        text: "Type one diabetic — since he was a lad. He does his own insulin, the pens, four times a day, and he tests himself. Nothing else wrong with him, he's fit as a flea normally. No allergies. His meter's in his bag on the side but I can't get near him with it — he pulled his hand away when I tried.",
+        text: "Type one diabetic — he's had it years, long before I knew him. He does his own insulin, the pens, four times a day, and he tests himself. Nothing else wrong with him, he's fit as a flea normally. No allergies. His meter's in his bag on the side but I can't get near him with it — he pulled his hand away when I tried.",
         followUps: [
           {
             id: "a_history_kit",
@@ -255,7 +255,7 @@ export const scenario33: Scenario = {
         needsCalm: true,
       },
       a_access: {
-        text: "Front door, straight onto Flixton Road — 119, it's the terrace, the red door, near the bus stop by the chippy. There's nowhere to park, they'll have to go on the pavement. I'll — I can't leave him to come to the door.",
+        text: "Front door, straight onto Flixton Road — 119, it's the terrace, the red door, near the bus stop by the chippy. There's nowhere to park, they'll have to go up on the pavement. I'll be at the door the minute I hear them — I daren't leave him stood here till then.",
         followUps: [
           {
             id: "a_access_door",
@@ -298,10 +298,10 @@ export const scenario33: Scenario = {
       },
       {
         atSec: 185,
-        text: "There's — is that them? There's blue lights out the front, on the road. Do I leave him to let them in? The door's open, tell them it's open.",
+        text: "Is that a siren? I can hear a siren — is that them? Do I leave him and go to the door? Tell them it's on the latch, tell them to come straight through.",
         requiresOpened: true,
       },
     ],
-    onDispatch: "Thank you. Oh, thank you. Gary — they're coming, love. Sit down. They're coming.",
+    onDispatch: "Right. Right, thank you. Gary — they're coming, love, sit down for me. They're coming.",
   },
 };

@@ -228,7 +228,7 @@ export const scenario32: Scenario = {
         tone: "urgent",
       },
       a_breathing: {
-        text: "No — no, she's wheezing, you can hear it from here, it's like a whistle every time she breathes in. Her lips are massive, they've gone dark, and her tongue's swollen, she keeps trying to swallow. She's breathing but it's not right.",
+        text: "No — no, she's wheezing, you can hear it, it's like a whistle every time she breathes in. Her lips are massive, they've gone a horrible colour, and her tongue's swollen, she keeps trying to swallow. She's breathing but it's not right.",
         tone: "critical",
         followUps: [
           {
@@ -242,7 +242,7 @@ export const scenario32: Scenario = {
         ],
       },
       a_happened: {
-        text: "We'd just started our mains. She'd asked if there were nuts in it and they said no, the green curry was fine. Two mouthfuls in she said her mouth was tingling. Then her lips started going and she said 'get my bag', and she did the pen herself, in the side of her leg, through her jeans, and held it there. She was alright for a minute. Then she just slid off the chair. We got her sat up against the wall and I rang you.",
+        text: "We'd just started our mains. She'd asked if there were nuts in it and they said no, the green curry was fine. Two mouthfuls in she said her mouth was tingling. Then her lips started going and she said 'get my bag', and she did the pen herself, in the side of her leg, through her jeans, and held it there. And then her legs went and she just slid off the chair. We got her sat up against the wall and I rang you.",
         tone: "urgent",
         followUps: [
           {
@@ -275,7 +275,7 @@ export const scenario32: Scenario = {
         text: "Twenty-eight. She's twenty-eight.",
       },
       a_history: {
-        text: "The nut allergy — it's really bad, she's had it all her life. She's been in hospital with it twice before, once when she was little and once at uni. She carries the pen everywhere. She's got asthma as well, mild — there's a blue inhaler in her bag, she's had two puffs of that, the manager said to try it. Nothing else. She's not on anything from the doctor.",
+        text: "The nut allergy — it's really bad, she's had it all her life. She's been in hospital with it twice before, once when she was little and once at uni. She carries the pen everywhere. She's got asthma as well, mild — there's a blue inhaler in her bag, she's had two puffs of that, the manager said to try it. Nothing else that I know of — no tablets, nothing regular.",
       },
       a_count: {
         text: "Just her. Just Hannah. Everyone else is fine — they're all just stood there staring at us.",
@@ -285,7 +285,7 @@ export const scenario32: Scenario = {
         needsCalm: true,
       },
       a_access: {
-        text: "Goose Green — it's the pedestrian bit, off Stamford New Road, the cobbled lane with the bars. Siam Green, it's got a green front. You can't get a car down here, there's bollards at the end. The manager's here, he's saying he'll sort it — he's sending one of the lads up to the top.",
+        text: "Goose Green — it's the pedestrian bit off Stamford New Road, the lane with all the bars. Siam Green, it's got a green front. You can't get a car down here, there's bollards at the end — I don't know where they'd even park, I've never thought about it. The manager's here, he's saying he'll sort it.",
         followUps: [
           {
             id: "a_access_floor",
@@ -328,7 +328,7 @@ export const scenario32: Scenario = {
       },
       {
         atSec: 215,
-        text: "Someone's shouting from the door — there's someone in green coming down the lane with a bag. Is that yours? Here! In here! — Sorry. Sorry. He's here.",
+        text: "Someone at the door's saying they can hear a siren, up on the main road — is that yours? Is that them? Somebody go up and wave them down — go on, RUN.",
         requiresOpened: true,
       },
     ],

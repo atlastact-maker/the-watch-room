@@ -345,7 +345,7 @@ export const scenario39: Scenario = {
       state: "anxious",
     },
     opening:
-      "Police — it's next door to me, 14 Prosperity Street, Harpurhey, off Rochdale Road. He's at her again. She's screaming get off me, get off me, and he's roaring at her, and something's just gone against the wall and smashed. It's going on now — I can hear him through the wall as I'm talking to you. There's two kids in that house.",
+      "Police — it's next door to me, 14 Prosperity Street, Harpurhey, off Rochdale Road. He's at her again. She's screaming get off me, get off me, and he's roaring at her, and something's just gone up the wall and smashed. It's happening now, this minute — listen, that's him. There's two kids in that house.",
     deflection: "I don't know, love, I can't SEE — I'm through a wall! Just get somebody here!",
     reassurance: {
       text: "Marie, you've done the right thing ringing. Officers are on their way. Stay in your house, keep your door locked, and just tell me what you can hear.",
@@ -384,7 +384,7 @@ export const scenario39: Scenario = {
         ],
       },
       p_injured: {
-        text: "I don't know — I can't see her. She was screaming, so she's — she was screaming. Nobody's shouted that they're hurt. I don't know what he's done to her, I only know what I can hear.",
+        text: "I don't know — I can't see her. She was screaming, so she's — she was screaming. Nobody's shouted that they're hurt. Threatened — listen to him, that's all it is, one threat after another. I don't know what he's done to her, I only know what I can hear.",
         tone: "urgent",
         followUps: [
           {

@@ -198,7 +198,7 @@ export const scenario37: Scenario = {
     },
     opening:
       "Ambulance — please — 9 Ashfield Grove, Cheadle. It's my granddaughter, she's three, she's choking, she's got a grape stuck, she's coughing and nothing's coming up and she's going a terrible colour. Please tell me what to do. Please.",
-    deflection: "I don't know — I don't know! She can't breathe — just tell me what to do with her, please!",
+    deflection: "I can't — I can't think — she can't breathe, just tell me what to do with her, please!",
     reassurance: {
       text: "Yvonne, listen to me. Help is on its way to you right now, and I'm staying on this line with you. You are the best thing she has got, and I'm going to tell you exactly what to do.",
       reply: "Okay. Okay. I'm listening. Tell me.",
@@ -310,10 +310,10 @@ export const scenario37: Scenario = {
       },
       {
         atSec: 160,
-        text: "I can hear a siren — is that them? Is that for us? The door's on the latch, tell them to come straight in, straight through to the back.",
+        text: "I can hear a siren — is that them? Is that for us? The door'll be on the latch for them — tell them to come straight in, straight through to the back.",
         requiresOpened: true,
       },
     ],
-    onDispatch: "Thank you — oh, thank you. The door's open for them. Tell them to run in. Tell them the kitchen.",
+    onDispatch: "Thank you — oh, thank you. The door'll be on the latch for them. Tell them to run in. Tell them the kitchen.",
   },
 };

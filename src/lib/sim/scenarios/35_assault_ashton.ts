@@ -229,7 +229,7 @@ export const scenario35: Scenario = {
     },
     opening:
       "Police, and an ambulance — Old Street, Ashton, outside Sixteen, the bar. I'm door staff. Three lads have battered one lad on the pavement and kicked him in the head while he was down. He's on the floor and he's going in and out — eyes open, then gone. The three of them are still up the road, they've not gone anywhere.",
-    deflection: "Hang on — Aaron, HOLD him, keep him there — sorry. Go on.",
+    deflection: "Hang on — Aaron, keep them back, keep them THERE — sorry. Go on.",
     reassurance: {
       text: "Jason, you've done everything right. Officers are on their way to you. Keep him on his side and keep talking to me.",
       reply: "Yeah. I'm here. Go on.",
@@ -251,21 +251,21 @@ export const scenario35: Scenario = {
         ],
       },
       p_ongoing: {
-        text: "The hitting's stopped. But they've not gone — they're stood twenty, thirty yards up, outside the kebab shop, and they're shouting down at us. And it's chucking-out time, so half the street's stood watching. It's not finished. It's paused.",
+        text: "The hitting's stopped. But they've not gone — they're stood twenty, thirty yards up, outside the kebab shop, and they keep looking back down at us. It's chucking-out time, so there's people everywhere. It's not finished. It's paused.",
         tone: "urgent",
       },
       p_weapons: {
-        text: "Nothing I saw. Fists and feet. I looked at their hands when they came past me and they were empty. One of them had a bottle earlier, inside — a Peroni bottle — I took it off him when I put him out and it's in the bin by the door. He's not got it now. They're thirty yards off and it's dark, so I'll not swear to what's in their pockets.",
+        text: "Nothing I saw. Fists and feet. I looked at their hands when they came past me and they were empty. One of them had a bottle earlier, inside — I took it off him when I put him out and it's in the bin by the door. He's not got it now. They're thirty yards off and it's dark, so I'll not swear to what's in their pockets.",
       },
       p_injured: {
-        text: "The lad on the floor — the back of his head, and his face. His head's hit the flags when he went down, then the kicks. There's blood coming out of his left ear, and his nose. He's breathing, but he's not right — he opens his eyes, mumbles, and then he's gone again. Nobody else is hurt. Aaron's got a fat lip from earlier, that's nothing.",
+        text: "The lad on the floor — the back of his head, and his face. His head's hit the flags when he went down, then the kicks. There's blood coming out of his left ear, and his nose. He's breathing, but he's not right — he opens his eyes, mumbles, and then he's gone again. Nobody else is hurt. Aaron caught one in the mouth putting them out earlier, that's nothing.",
         tone: "critical",
         followUps: [
           {
             id: "p_injured_breathing",
             text: "Is he breathing normally?",
             answer: {
-              text: "He's breathing. It's loud — a bit snory. We've got him on his side so he doesn't choke on it. Aaron's a first aider, he's had his hand on his head keeping it still.",
+              text: "He's breathing. It's loud — a bit snory. I've got him on his side so he doesn't choke on it, and I've got a hand on his head keeping it still. I've done the first aid, you have to for the badge.",
               tone: "urgent",
             },
           },
@@ -280,7 +280,7 @@ export const scenario35: Scenario = {
         ],
       },
       p_who: {
-        text: "Three lads did it — twenties, all of them. I'd put two of them out of the bar twenty minutes before for hassling a table of girls. The lad on the floor — his mates are calling him Ryan — he's off the same table, I think he'd said something to them on the way out. Then there's me, my colleague Aaron on the door, and forty-odd people stood watching.",
+        text: "Three lads did it — twenties, all of them. I'd put two of them out of the bar twenty minutes before for hassling a table of girls. The lad on the floor — the girls are calling him Ryan — he's off the same table, I think he'd said something to them on the way out. Then there's me, my colleague Aaron on the door, and forty-odd people stood watching.",
       },
       p_description: {
         text: "The main one, the one that stamped — grey Stone Island jacket, the badge on the arm, dark jeans, shaved head, stocky, five-eight or five-nine. Second one — white T-shirt, tattoos both arms, taller, six foot, dark hair gelled back. Third one's in a black puffer with the hood up, skinnier, younger, I didn't get a proper look at his face. All three white lads, local accents.",
@@ -335,12 +335,12 @@ export const scenario35: Scenario = {
       },
       {
         atSec: 140,
-        text: "He's just been sick. We've rolled him further onto his side — it's gone all over Aaron's boots. He opened his eyes for it and then he's gone again.",
+        text: "He's just been sick. I've rolled him further onto his side — it's gone all over my knees. He opened his eyes for it and then he's gone again.",
         tone: "critical",
       },
       {
         atSec: 175,
-        text: "Blue lights — I can see blue lights coming down from the Stamford Street end. That's you, is it? Tell them the red front, halfway down. I'm in the black coat with the badge on my arm.",
+        text: "Sirens — I can hear sirens, from the Stamford Street end by the sound of it. That's you, is it? Tell them the red front, halfway down. I'm in the black coat with the badge on my arm.",
         requiresOpened: true,
       },
     ],

@@ -210,21 +210,21 @@ export const scenario31: Scenario = {
         text: "Breathing? Yes. Yes, she's breathing all right, normal I think. She's not gasping or anything. She's just sat there. Her mouth — one side of it's gone down and there's a bit of dribble. I've wiped it.",
       },
       a_happened: {
-        text: "She was in her chair. I came in and I — her face. The left side, it's dropped, like it's melted, and when I asked her what was wrong the words were all jumbled. And her arm. I told her to hold my hand and the left one just lies there. She can't lift it. She lifted the right one.",
+        text: "She's in her chair. I looked at her and — her face. The left side, it's dropped, like it's melted, and when I asked her what was wrong the words were all jumbled. And her arm. I told her to hold my hand and the left one just lies there. She can't lift it. She lifted the right one.",
         tone: "urgent",
         followUps: [
           {
             id: "a_happened_smile",
             text: "Ask her to smile for me — does one side of her face not move?",
             answer: {
-              text: "Margaret, love, smile — smile for the lady. …No. The right side goes up and the left side just — it stays. It doesn't move.",
+              text: "Margaret, love, smile — smile for them on the phone. …No. The right side goes up and the left side just — it stays. It doesn't move.",
               tone: "urgent",
             },
           },
         ],
       },
       a_when: {
-        text: "I — when did — I'm not sure. I'm trying to think. I was out of the room, and then I — I'm sorry, love, I'm all over the place. I can't think when.",
+        text: "I — when did — I'm not sure. I'm trying to think. It's all — I'm sorry, love, I'm all over the place. I can't think when.",
         tone: "urgent",
         needsCalm: true,
         followUps: [
@@ -267,7 +267,7 @@ export const scenario31: Scenario = {
         text: "It's our front room, it's — it's fine. It's warm. She's in her armchair by the window. There's nothing — no, it's safe. It's just us.",
       },
       a_access: {
-        text: "The front door — I'll open it. There's a short drive, they can come straight on, the car's in the garage. 88, it's the semi with the white gate, opposite the bus stop. I'll put the porch light on. I'll stand at the door. No — I'll stay with her. Which do you want me to do?",
+        text: "The front door — I'll open it. There's a short drive, our car's on it — they can pull in behind or stop on the road. 88, it's the semi with the white gate. I'll put the porch light on. I'll stand at the door. No — I'll stay with her. Which do you want me to do?",
         followUps: [
           {
             id: "a_access_door",
@@ -303,12 +303,12 @@ export const scenario31: Scenario = {
       },
       {
         atSec: 165,
-        text: "You asked me when. I keep thinking about that. It matters, doesn't it — I could tell by how you asked.",
+        text: "I keep thinking about when it started — when she was last right. I'm trying to put a time on it and I can't. It matters, doesn't it. I can tell it matters.",
         tone: "urgent",
       },
       {
         atSec: 225,
-        text: "That's a siren, I can hear a siren. Is that for us? I'll go to the door. No — I said I'd stay. I'll stay. They can come in, it's open.",
+        text: "That's a siren, I can hear a siren. Is that for us? I'll go and stand at the door for them — I can still see her from the door. Margaret, love, I'm only at the door.",
         requiresOpened: true,
       },
     ],

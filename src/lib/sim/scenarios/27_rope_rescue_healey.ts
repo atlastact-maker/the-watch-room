@@ -243,7 +243,7 @@ export const scenario27: Scenario = {
       state: "anxious",
     },
     opening:
-      "Hello? Is that — right, I need the fire brigade, or — I don't know who. My mate's fallen down a quarry. Healey Dell, the nature reserve, up from Rochdale. He's stuck on a ledge, he can't get up, and I can't get down to him. I don't know what to do.",
+      "Healey Dell — the nature reserve, up above Rochdale. I can't give you an address, it's woods. My mate's gone over the edge of a quarry, he's on a ledge about forty foot down and he can't move. I can't get down to him. Please — I don't know what to do.",
     deflection: "I don't know — I don't know, I can't see properly from here, just tell me what to do, how do I get him up?",
     reassurance: {
       text: "Liam, listen to me. People are coming who do exactly this. You're doing the right thing staying with him. Keep your torch on him and answer what you can.",
@@ -265,7 +265,7 @@ export const scenario27: Scenario = {
         ],
       },
       f_where: {
-        text: "It's not a building — it's a quarry, an old one, in the woods. The face goes straight down from where I am. He's about a third of the way down, on a ledge that sticks out. There's loose stuff all above him and I don't know what's under him.",
+        text: "It's not a building — it's a quarry, an old one, in the woods. The face goes straight down from where I am. He's a good way down, forty foot maybe, on a ledge that sticks out, and the face carries on down past him. There's loose stuff all above him and I don't know what's under him.",
       },
       f_spread: {
         text: "It's not — nothing's spreading, it's rock. But bits keep coming off the face, little stones go past him every time I move, so I've stopped moving. He's not going anywhere. He can't.",
@@ -288,17 +288,10 @@ export const scenario27: Scenario = {
               tone: "urgent",
             },
           },
-          {
-            id: "f_inside_reach",
-            text: "Is there any way to reach him from where you are — no, don't try. Can you see one?",
-            answer: {
-              text: "No. I've looked. It's straight down and it's all crumbly, I'd go over myself. I threw my coat down for him and it missed and it's gone. I'm not going down there.",
-            },
-          },
         ],
       },
       f_hurt: {
-        text: "Yeah — Sam is. His leg's broke, I'm sure it is, it's bent wrong. He hit his head on the way down I think, there's blood on his face. He landed hard — it's twelve metres, fifteen, onto rock.",
+        text: "Yeah — Sam is. His leg's broke, I'm sure it is, it's bent wrong under him. And he's all scraped up, the rock's had him all the way down. He landed hard — it's forty foot, near enough, onto rock.",
         tone: "critical",
         needsCalm: true,
         effect: {
@@ -324,7 +317,7 @@ export const scenario27: Scenario = {
             id: "f_access_map",
             text: "Have you got a map on your phone — can you read me what it says where the blue dot is?",
             answer: {
-              text: "Hang on — it's — it says Healey Dell, it's just green, it's all green. There's a road off to the right of it, a way off — Whitworth Road? I can't — I've got one bar, it's not loading properly.",
+              text: "Hang on — it's — it says Healey Dell and it's just green, it's all green. There's roads round the edge of it but I couldn't tell you which one we came off. I've got one bar, it's not loading properly.",
             },
           },
           {
@@ -367,7 +360,7 @@ export const scenario27: Scenario = {
       },
       {
         atSec: 240,
-        text: "He's asking me if they're coming. He keeps asking. He's shivering that much I can hear his teeth from up here.",
+        text: "He's asking me if they're coming. He keeps asking. He's shivering that bad his voice is going all over the place.",
         tone: "urgent",
       },
     ],

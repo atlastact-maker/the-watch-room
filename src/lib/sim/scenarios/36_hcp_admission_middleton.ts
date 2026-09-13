@@ -211,7 +211,7 @@ export const scenario36: Scenario = {
         ],
       },
       a_happened: {
-        text: "Her daughter rang us this morning — she's been chesty since the weekend, off her food, and this morning she couldn't get from her chair to the kitchen without stopping for breath. Dr Hollins went out on his visits and examined her. He's written 'lower respiratory tract infection, probable pneumonia' — she needs antibiotics through a drip and some oxygen, and she can't have that at home on her own. He rang the assessment unit from her house, they've accepted her, and he's back here now. He left her about twenty minutes ago.",
+        text: "Her daughter rang us this morning — she's been chesty since the weekend, off her food, and this morning she couldn't get from her chair to the kitchen without stopping for breath. Dr Hollins went out on his visits and examined her. He's written 'lower respiratory tract infection, probable pneumonia' — she needs antibiotics through a drip and some oxygen, and she can't have that at home on her own. He rang the assessment unit from her house, they've accepted her, and he's back here now. He left her about half an hour ago.",
         followUps: [
           {
             id: "a_happened_temp",
@@ -223,10 +223,10 @@ export const scenario36: Scenario = {
         ],
       },
       a_when: {
-        text: "She's been poorly since the weekend, her daughter said. Worse this morning. Doctor saw her about an hour ago and rang the bed through before he left her.",
+        text: "She's been poorly since the weekend, her daughter said. Worse this morning. Doctor was with her about half an hour ago and rang the bed through before he left her.",
       },
       a_now: {
-        text: "I've not seen her, love, I'm going off his note. He's written 'alert and orientated, flushed, febrile, tachypnoeic' — hot and breathing fast, in English. He said she was chatty enough with him. She's not confused. He's told her to get her bag packed and she's doing that.",
+        text: "I've not seen her myself, I'm going off his note. He's written 'alert and orientated, flushed, febrile, tachypnoeic' — hot and breathing fast, in English. He said she was chatty enough with him. She's not confused. He's told her to get her bag packed and she's doing that.",
       },
       a_bleeding: {
         text: "No, nothing like that. It's her chest.",
@@ -250,16 +250,16 @@ export const scenario36: Scenario = {
         text: "Just her. Just Mrs Openshaw.",
       },
       a_danger: {
-        text: "It's her bungalow, love. It's fine. She's sat in her chair. No dogs, nothing like that — it's sheltered housing, they're all little bungalows.",
+        text: "It's her bungalow. It's fine. She's sat in her chair. No dogs, nothing like that — it's sheltered housing, they're all little bungalows.",
       },
       a_access: {
-        text: "12 Bowness Court, off Rochdale Road — it's the sheltered bungalows, the little close set back from the main road. Front door. Doctor says she'll get to the door herself, she's slow but she's on her feet. It's number twelve, she's on the left as you come in.",
+        text: "12 Bowness Court, off Rochdale Road — it's the sheltered bungalows, the little close set back from the main road. Front door, number twelve's on it. Doctor says she'll get to the door herself, she's slow but she's on her feet.",
         followUps: [
           {
             id: "a_access_warden",
             text: "Is there anyone on site who can let the crew in if she can't get to the door?",
             answer: {
-              text: "There's a warden — it's warden-assisted, there's an office on the court. I'd have to find the number. I can ring her if you want me to, so she knows you're coming.",
+              text: "There's a warden — it's warden-assisted, there's an office at the head of the court. I think Doctor had a word with her on his way out. I'll ring her myself and make sure, if you like.",
             },
           },
         ],
@@ -268,7 +268,7 @@ export const scenario36: Scenario = {
         text: "No, I'm at the surgery — I'm the practice administrator. Doctor's been and gone. She's on her own at home. Her daughter's in Rochdale, she's at work, she's trying to get over.",
       },
       a_instructions: {
-        text: "I'm not with her, love — I'm at the surgery. There's nothing I can do for her from here. If you need someone with her I'll ring the warden.",
+        text: "I'm not with her — I'm at the surgery. There's nothing I can do for her from here. If you need someone with her I'll ring the warden.",
       },
       a_details: {
         text: "Bev Tomlinson, practice administrator at the Lakeside Practice, Middleton. It's the surgery number, 0161 496 0360 — ask for me, or for Dr Hollins if you need him. He's back in surgery but he'll come out for you.",
@@ -286,14 +286,14 @@ export const scenario36: Scenario = {
       },
       {
         atSec: 160,
-        text: "Doctor's just put his head round — he says to tell you she lives alone and she's not to be left overnight. That's why he wants her in today, not tomorrow. He says if it's going to be hours, tell him and he'll ring the ward himself.",
+        text: "Doctor's just put his head round — he says to tell you she lives alone and she's not to be left overnight. That's why he wants her in today, not tomorrow. He says if it's going to be hours, tell him and he'll ring your clinical desk himself.",
       },
       {
         atSec: 210,
-        text: "Right — that's booked, is it? I'll ring her and tell her to have her bag by the door, and I'll let the ward know she's on her way. Thank you, love.",
+        text: "While you're there — is there a reference number I can put on her notes? The ward always ask, and Doctor will want it for the letter.",
         requiresOpened: true,
       },
     ],
-    onDispatch: "Lovely. I'll ring her and tell her to have her bag by the door, and I'll let the ward know. Thanks, love.",
+    onDispatch: "Lovely, thank you. I'll ring her and tell her to have her bag by the door, and I'll let the ward know she's coming.",
   },
 };

@@ -231,19 +231,19 @@ export const scenario34: Scenario = {
 
   // The call as Dean has it: on his work mobile at the foot of the scaffold
   // ladder, looking up at the boards where the lads have put Tomek, with
-  // the site stopped behind him and the gates already open. He saw the
-  // landing, not the fall. He knows exactly how far it was.
+  // the site stopped behind him and the gates already open. He did not
+  // see him go; he saw where he landed, and he knows how far it was.
   call: {
     caller: {
       name: "Dean Prescott",
       phone: "07700 900834",
       relation: "Site manager, Pendleton Frame — the casualty is one of his bricklayers",
-      where: "On the slab at the foot of the scaffold ladder, Ordsall Lane site, looking up at the first-lift boards",
+      where: "On the hard standing at the foot of the scaffold ladder, Ordsall Lane site, looking up at the first-lift boards",
       line: "mobile",
       state: "calm",
     },
     opening:
-      "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the scaffold onto a concrete slab — four metres, near enough. He's awake and he's talking to us, but his leg's badly broken, it's bent the wrong way, and he's saying his hip. And he's up on the first-floor boards — the lads moved him before I got to him. I need you here quick.",
+      "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the scaffold onto concrete — four metres, near enough. He's awake and he's talking to us, but his leg's badly broken, it's bent the wrong way, and he's saying his hip. And he's up on the first-floor boards — the lads moved him before I got to him. I need you here quick.",
     deflection: "Hang on. — Kev, keep him flat, don't let him — sorry. Go on.",
     reassurance: {
       text: "Dean, you've got this well in hand. Help is coming. Keep everyone off him and keep talking to me.",
@@ -268,14 +268,14 @@ export const scenario34: Scenario = {
         ],
       },
       a_happened: {
-        text: "He was on the top lift of the scaffold, the third, laying blocks. Either a board's gone or he's stepped back off the edge — I've not got to the bottom of it yet. He's gone off backwards, about four metres, onto the first-floor slab. Concrete. He's landed on his right side with his leg under him. Before I got there two of the lads had dragged him off the slab onto the scaffold boards at that level, God knows why, they panicked. So he's on the first lift now, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
+        text: "He was on the top lift of the scaffold, the third, laying blocks. Whether a board's gone or he's stepped back into nothing I don't know yet — nobody's told me the same thing twice. He's come down about four metres onto the first floor of the frame, and that's concrete, the floor's poured up there. He's landed on his right side with his leg under him. Before I got there two of the lads had dragged him off the concrete onto the scaffold boards at that level, God knows why, they panicked. So he's on the first lift now, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
         tone: "urgent",
       },
       a_when: {
         text: "Four, five minutes. I was in the cabin — the shout went up, I've run over, and I rang you as soon as I'd seen him.",
       },
       a_now: {
-        text: "A bit pale, and he's sweating, but he's with it — chatting away, swearing at the lads that moved him. He says his hip's killing him, more than the leg. He can't move the leg at all. He's asked for his missus twice.",
+        text: "A bit pale, and he's sweating, but he's with it — chatting away, giving the lads grief. He says his hip's killing him, more than the leg. He can't move the leg at all. He's asked for his missus twice.",
       },
       a_bleeding: {
         text: "There's blood on his trouser leg, the right shin — the trousers are torn and it's wet through, and I think the bone's come through. It's soaking, not spurting. Nothing from his head that I can see, and he had his hat on.",
@@ -300,7 +300,7 @@ export const scenario34: Scenario = {
         text: "Just him. Nobody else was on that lift. The two that moved him are fine — shaken up, but fine.",
       },
       a_danger: {
-        text: "It's a live site but I've stopped it — nothing's moving now. The telehandler's parked up on the slab and the keys are in my pocket. There's open edges on the first-floor slab and the hatch on that lift's got no cover. Everyone's in hats and boots. Your crew'll want hats — I've got spares in the cabin.",
+        text: "It's a live site but I've stopped it — nothing's moving now. The telehandler's parked up on the hard standing and the keys are in my pocket. There's open edges on the first floor where he is, and the hatch on that lift's got no cover. Everyone's in hats and boots. Your crew'll want hats — I've got spares in the cabin.",
         followUps: [
           {
             id: "a_danger_height",
@@ -313,13 +313,13 @@ export const scenario34: Scenario = {
         ],
       },
       a_access: {
-        text: "The site gates on Ordsall Lane — green hoarding, big double gates, the crane's on the site so you can't miss it. The gates are open now, I've put a lad on them, and I'll be stood in them myself in the orange hi-vis. Come straight in — it's concrete inside, hard standing, you can drive right up to the frame.",
+        text: "The site gates on Ordsall Lane — green hoarding, big double gates, the scaffold's right behind them so you can't miss it. The gates are open now, I've put a lad on them, and I'll be stood in them myself in the orange hi-vis. Come straight in — it's concrete inside, hard standing, you can drive right up to the frame.",
         followUps: [
           {
             id: "a_access_slab",
             text: "How much clear space is there on the hard standing inside the gates?",
             answer: {
-              text: "The slab out front's about forty by twenty and it's flat. The telehandler's on it, and a couple of pallets of blocks by the cabins. What do you need it for?",
+              text: "The hard standing out front's about forty by twenty and it's flat. The telehandler's on it, and a couple of pallets of blocks by the cabins. What do you need it for?",
             },
           },
         ],
@@ -352,10 +352,10 @@ export const scenario34: Scenario = {
       },
       {
         atSec: 220,
-        text: "I can hear you — that's a siren on Regent Road. Gates are open, I'm stood in them, orange vest, white hat. Tell them straight onto the slab, and tell them he's on the first lift, not the ground.",
+        text: "I can hear you — that's a siren on Regent Road. Gates are open, I'm stood in them, orange vest, white hat. Tell them straight in onto the hard standing, and tell them he's on the first lift, not the ground.",
         requiresOpened: true,
       },
     ],
-    onDispatch: "Right. Good. Gates are open — I'll be in them. Tell them to come straight onto the slab, and tell them he's up on the boards, not on the deck. They'll need to think about how they're getting him down.",
+    onDispatch: "Right. Good. Gates are open — I'll be in them. Tell them to come straight in onto the hard standing, and tell them he's up on the boards, not on the ground. They'll want to think about how they're getting him down.",
   },
 };

@@ -224,7 +224,7 @@ export const scenario30: Scenario = {
       "Hello — yeah — I need an ambulance, quick. It's the park, Pennington Park in Leigh. It's my mate, he's gone — he's out, he's on the floor and I can't get him to wake up. Please.",
     deflection: "I've told you what's happening. He's dying in front of me — are you sending someone or not?",
     reassurance: {
-      text: "Danny, I've got you. A paramedic is coming to him. Nobody's here to judge anybody — what matters is Kyle breathing. Stay with him and answer me.",
+      text: "Listen to me — I've got you. I'm getting a paramedic to him. Nothing you tell me slows that down — what matters is him breathing. Stay with him and answer me.",
       reply: "…Alright. Alright. Go on. I'm here.",
     },
     answers: {
@@ -247,7 +247,7 @@ export const scenario30: Scenario = {
         ],
       },
       a_happened: {
-        text: "We were just sat here on the grass, having a smoke and that. He was fine, he was laughing. Then he went quiet, and I looked and he'd gone all sort of slumped, and I thought he was messing about, and then he slid over and he's not moved since.",
+        text: "We were just sat here on the grass, chatting, having a laugh. He was fine, he was laughing. Then he went quiet, and I looked and he'd gone all sort of slumped, and I thought he was messing about, and then he slid over and he's not moved since.",
         followUps: [
           {
             id: "a_happened_long",
@@ -276,7 +276,7 @@ export const scenario30: Scenario = {
         followUps: [
           {
             id: "a_history_taken",
-            text: "Has he taken anything tonight — anything at all? I'm not the police. The paramedic needs to know what they're treating.",
+            text: "Has he taken anything today — anything at all? I'm not the police. The paramedic needs to know what they're treating.",
             answer: {
               text: "…I'll tell the paramedic. I'll tell them everything when they get here, I promise. Just get them here.",
               tone: "urgent",
@@ -289,10 +289,10 @@ export const scenario30: Scenario = {
         text: "Just him. Just Kyle. It's only me and him here, there's no one else in the park, it's dead.",
       },
       a_danger: {
-        text: "It's a park, it's fine, it's just grass. There's a bit of a mess on the grass next to him — I'll clear it. Tell them to mind where they kneel.",
+        text: "It's a park, it's fine, it's just grass. There's — there's stuff on the grass next to him. Tell them to mind where they kneel. I've not touched it.",
       },
       a_access: {
-        text: "Pennington Park — the big gates on St Helens Road. We're in the middle, by the bandstand. It's a fair walk from the gates, you can't see us from the road, it's dark. There's a tarmac path up from the gates past the hut, that's the way — there's a barrier on it with a padlock, I don't know if it's locked.",
+        text: "Pennington Park — the big gates on St Helens Road. We're in the middle, by the bandstand. It's a fair walk from the gates and you can't see us from the road for the trees. There's a tarmac path straight up from the gates to the bandstand, that's the way in — there's a barrier across it with a padlock, I don't know if it's locked.",
         followUps: [
           {
             id: "a_access_meet",
@@ -337,7 +337,7 @@ export const scenario30: Scenario = {
       },
       {
         atSec: 230,
-        text: "I can hear a siren, on St Helens Road — is that them? Which way are they coming in? Tell them the bandstand, tell them to look for a phone torch.",
+        text: "I can hear a siren, on St Helens Road — is that them? Which way are they coming in? Tell them the bandstand — I'll stand up and wave when I see them.",
         tone: "urgent",
         requiresOpened: true,
       },

@@ -233,7 +233,7 @@ export const scenario38: Scenario = {
         ],
       },
       a_happened: {
-        text: "He's had a bad chest all day — he's been coughing since this morning, said it was a cold. Then about twenty minutes ago he came out of the bathroom and he couldn't get his breath. He got the inhaler and it didn't do anything, and he's got worse since. He's sat on the edge of his bed leaning forward with his hands on his knees. I've never seen him like this.",
+        text: "He's had a bad chest all day — he was coughing before he went to work this morning, said it was a cold. Then about twenty minutes ago he came out of the bathroom and he couldn't get his breath. He got the inhaler and it didn't do anything, and he's got worse since. He's sat on the edge of his bed leaning forward with his hands on his knees. I've never seen him like this.",
         tone: "urgent",
       },
       a_when: {
@@ -260,7 +260,7 @@ export const scenario38: Scenario = {
         text: "Twenty-four. He's twenty-four. Ryan — Ryan Whitehead.",
       },
       a_history: {
-        text: "Asthma, bad asthma — he's had it since he was a kid. He's got the blue inhaler and a brown one, and he's on tablets for it as well, I think, there's a box in the kitchen. He's been in hospital with it before — a couple of years back, a bad one, before I lived here. Nothing else that I know of. No allergies that I know of.",
+        text: "Asthma, bad asthma — he's had it since he was a kid. He's got the blue inhaler and a brown one, and he's on tablets for it as well, I think, there's a box in the kitchen. He's been in hospital with it before, a couple of years back, before I lived here — I don't know the ins and outs of it. Nothing else that I know of. No allergies that I know of.",
         needsCalm: true,
       },
       a_count: {

@@ -207,7 +207,7 @@ export const scenario29: Scenario = {
       state: "panicking",
     },
     opening:
-      "Hi — hi, I need an ambulance, my girlfriend's having the baby. Like now, she's having it now. 74 Brownley Road, Wythenshawe. She's — Chloe, breathe, breathe — she's pushing, she says she can't stop it, we were meant to go to Wythenshawe and there's no time, there's no — please.",
+      "Hi — hi, I need an ambulance, my girlfriend's having the baby. Like now, she's having it now. 74 Brownley Road, Wythenshawe. She's — Chloe, breathe, breathe — she's pushing, she says she can't stop it, we were meant to be going in to the hospital and there's no time, there's no — please.",
     deflection: "I don't know — I don't know, I don't know what I'm doing, please just get someone here, she's having it!",
     reassurance: {
       text: "Jordan, listen. An ambulance is coming. Babies come on their own more often than not, and you're not on your own with this — I'm staying with you. Take a breath and answer me.",
@@ -249,7 +249,7 @@ export const scenario29: Scenario = {
         ],
       },
       a_when: {
-        text: "The waters went about an hour ago — sixish, quarter past six. The pains started properly maybe forty minutes ago. She'd been having twinges all afternoon and she said they were nothing. It's gone so fast.",
+        text: "The waters went about an hour ago. The pains started properly maybe forty minutes ago. She'd been having twinges all day and she said they were nothing. It's gone so fast.",
       },
       a_now: {
         text: "She's red in the face, she's sweating, her hair's stuck to her. She's talking in between them — telling me to shut up, mostly — but when one comes she can't say anything, she just grabs my arm and bears down. She's on her side with her knees up.",
@@ -270,7 +270,7 @@ export const scenario29: Scenario = {
             id: "a_history_notes",
             text: "Has she got her maternity notes — the folder?",
             answer: {
-              text: "Yeah — it's in the hospital bag by the door. Her folder. Do you want me to get it? I don't want to leave her. I'll get it after.",
+              text: "Yeah — it's in the hospital bag by the door. Her folder. Do you want me to get it? I don't want to leave her. Her mum can grab it when she gets here.",
             },
           },
         ],
@@ -286,7 +286,7 @@ export const scenario29: Scenario = {
         text: "Front door, straight off Brownley Road. There's a drive, my car's on it — I'll leave it, they can pull up on the road. The door's on the latch, I'll put the hall light on. The front room's first on the left as you come in. I've got you on speaker so I'll hear them.",
       },
       a_with: {
-        text: "I'm right next to her, I'm on the floor by the sofa. She's got hold of my hand, she's not letting go. I've got you on speaker.",
+        text: "I'm right next to her, I'm on the floor by the sofa. She's got hold of my hand, she's not letting go. It's just me and her — her mum's on her way round, she only lives up the road. I've got you on speaker.",
       },
       a_instructions: {
         text: "Yes. Yes. Tell me. Tell me what to do, I'll do anything, just tell me slowly.",

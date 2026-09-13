@@ -297,12 +297,12 @@ export const scenario28: Scenario = {
       name: "Tony Brierley",
       phone: "07700 900828",
       relation: "Neighbour — rung round by the mother at 31",
-      where: "The driveway of 31 Higham Lane, by the open front door",
+      where: "The drive at 31 Higham Lane, a few steps back from the open front door",
       line: "mobile",
       state: "anxious",
     },
     opening:
-      "I need — is it ambulance or fire? I don't know. 31 Higham Lane, Gee Cross, in Hyde. The whole family's poorly, all of them, and the dad's collapsed on the front room floor. I've just been in and I've come out feeling sick myself. I think there's something in the house.",
+      "31 Higham Lane, Gee Cross, in Hyde. I didn't know who to ask for — the whole family's poorly in there, all four of them, and the dad's collapsed on the front room floor. I've just been in and I've come out feeling sick myself. I think there's something in the house.",
     deflection: "I don't know what it is — that's what I'm telling you, there's nothing to see, they're just all going down — send someone!",
     reassurance: {
       text: "Tony, you've done right ringing. Help's coming, fire and ambulance both. Stay outside, keep them coming out to you, and answer me what you can.",
@@ -310,14 +310,14 @@ export const scenario28: Scenario = {
     },
     answers: {
       f_seen: {
-        text: "That's the thing — there's nothing. No smoke, no fire, no smell. It's a normal house. But every one of them's got a splitting head, the little one's been sick, and Craig's flat out on the front room carpet. And I was only in there two minutes and I came out and the drive was going round. It's the house. There's something in it.",
+        text: "That's the thing — there's nothing. No smoke, no fire, no smell. It's a normal house. But every one of them's got a splitting head, one of the girls has been sick, and Craig's flat out on the front room carpet. And I was only in there two minutes and I came out and the drive was going round. It's the house. There's something in it.",
         tone: "urgent",
         followUps: [
           {
             id: "f_seen_craig",
             text: "The man on the floor — is he awake? Is he breathing?",
             answer: {
-              text: "He's breathing. He's not awake — well, he's sort of groaning. Leanne's shaking him and he's not coming round. He was fine yesterday, I saw him washing the car.",
+              text: "He's breathing. He's not awake — well, he's sort of groaning. Leanne's shaking him and he's not coming round. I saw him yesterday and he was right as rain.",
               tone: "critical",
             },
           },
@@ -331,7 +331,7 @@ export const scenario28: Scenario = {
         tone: "urgent",
       },
       f_started: {
-        text: "She says they've been off since this morning — heads, feeling sick. She thought it was a bug. He went down about ten minutes ago, that's when she rang me. I've been round five minutes.",
+        text: "She says they've all been off it since last night, and worse this morning — heads, feeling sick. She thought it was a bug. He went down about ten minutes ago, that's when she rang me. I've been round five minutes.",
       },
       f_building: {
         text: "A semi. Normal three-bed semi, brick, gas heating. Two up two down and a kitchen on the back. It's joined on to the next one along.",
@@ -348,7 +348,7 @@ export const scenario28: Scenario = {
             id: "f_inside_out",
             text: "Can you get them out — her and the children — without going back in yourself?",
             answer: {
-              text: "I've shouted for her to send the girls out to me. The little one's coming to the door now. The other one — she'll have to go up for her. Do I go in? Tell me. I'll go in if you tell me to.",
+              text: "I've shouted for her to send the girls out to me. One of the girls is coming to the door now. The other one — she'll have to go up for her. Do I go in? Tell me. I'll go in if you tell me to.",
               tone: "urgent",
             },
           },
@@ -362,7 +362,7 @@ export const scenario28: Scenario = {
         ],
       },
       f_hurt: {
-        text: "Craig's the worst — he's out of it on the floor. Leanne's up and about but she's not right, she's confused, she keeps asking me the same thing. The little one's been sick twice. And me — I'm alright, I'm just dizzy. I'll be alright.",
+        text: "Craig's the worst — he's out of it on the floor. Leanne's up and about but she's not right, she's confused, she keeps asking me the same thing. One of the girls has been sick twice. And me — I'm alright, I'm just dizzy. I'll be alright.",
         tone: "urgent",
         needsCalm: true,
       },
@@ -377,7 +377,7 @@ export const scenario28: Scenario = {
             id: "f_hazards_alarm",
             text: "Do they have a carbon monoxide alarm — has anything been going off?",
             answer: {
-              text: "I don't know. I didn't hear anything, nothing's going off. I've got one in mine — I don't know if they've got one.",
+              text: "I don't know. Nothing's going off, I didn't hear anything. I've not got one myself, I keep meaning to — I don't know if they've got one.",
             },
           },
         ],
@@ -386,7 +386,7 @@ export const scenario28: Scenario = {
         text: "Only what's in there. Whatever it is, it had me in two minutes — your lot'll be walking into the same. Nothing else. Nobody's kicking off. Cars on the road, the usual.",
       },
       f_access: {
-        text: "Front door's open — I've propped it with the mat. There's a drive with a red Corsa on it, they can pull in behind it or stop on the road. Higham Lane, the stretch up from the Gee Cross lights — 31's on the left going up, the one with the grey door. I'm stood outside it.",
+        text: "Front door's open — I've propped it with the mat. There's a drive with a red Corsa on it, they can pull in behind it or stop on the road. Higham Lane, up off Stockport Road at Gee Cross — 31's on the left going up, the one with the grey door. I'm stood outside it.",
       },
       f_safe: {
         text: "I'm on the drive. Outside. I'm not going back in — well, I will if you tell me, for the girls. But I'm out. I feel sick but I'm out.",
@@ -414,7 +414,7 @@ export const scenario28: Scenario = {
       },
       {
         atSec: 175,
-        text: "The little one's on the doorstep now, she's white as a sheet. Leanne's gone back up the stairs for the other one. I've told her — she's not listening to me.",
+        text: "One of the girls is out on the doorstep now, she's white as a sheet. Leanne's gone back up the stairs for the other one. I've told her — she's not listening to me.",
         tone: "urgent",
       },
       {

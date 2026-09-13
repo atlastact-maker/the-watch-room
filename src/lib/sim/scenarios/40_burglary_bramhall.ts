@@ -394,7 +394,7 @@ export const scenario40: Scenario = {
         text: "I can't. I haven't seen them — only the torch. Men, from the voices. Two. That's all I can tell you, and I'm not opening the door to look.",
       },
       p_direction: {
-        text: "They've not gone anywhere — they're still down there. I've not heard the patio door go again. I haven't looked out the front, I daren't move about, the boards creak in this room.",
+        text: "They've not gone anywhere — they're still down there. I've not heard a door go, they've not gone out. I haven't looked out the front, I daren't move about, the boards creak in this room.",
         followUps: [
           {
             id: "p_direction_window",
