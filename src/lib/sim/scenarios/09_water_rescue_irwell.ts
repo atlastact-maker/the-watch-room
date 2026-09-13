@@ -284,4 +284,121 @@ export const scenario09: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Rachel has it: on her mobile, back at the rail of the
+  // footbridge she had just walked off, watching a man she has never met
+  // go under and come up again thirty metres out. The bank is fire-shaped;
+  // she answers it about the river, because that is what she has got.
+  call: {
+    caller: {
+      name: "Rachel Holden",
+      phone: "07700 900356",
+      relation: "Bystander on the Lowry footbridge — eyes on him",
+      where: "The Lowry footbridge, IWM end, at the downstream rail",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "There's a man in the river — in the Irwell, at the Lowry, the footbridge at Salford Quays. He's in the water, he's right out in the middle, he's going under. Please, you need to get someone here now, he can't get out.",
+    deflection: "I don't know, I don't know — he's in the water, just get someone here!",
+    reassurance: {
+      text: "Rachel, listen to me. The boat's on its way. Keep your eyes on him and keep talking to me — you're his eyes until they get there.",
+      reply: "Okay. Okay. I've got him. I've still got him.",
+    },
+    answers: {
+      f_seen: {
+        text: "A man in the water, right out in the middle of the river. He's splashing, he's shouting, and he keeps going under and coming back up. He's fully dressed, he's got a jacket on. He's about thirty metres off the bridge.",
+        tone: "critical",
+      },
+      f_where: {
+        text: "There's no building — it's the river, the Irwell, at the Lowry footbridge. He's out towards the middle, just off the bridge on the downstream side, the Lowry side of the water. The water's taking him along, away from the bridge.",
+        tone: "urgent",
+      },
+      f_spread: {
+        text: "He's getting further from the bridge. The water's moving, it's taking him along with it — that way, west, towards the locks end. He's still fighting it, his arms are still going.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "Two minutes? Three? I'd walked off the bridge to my car and I heard the splash and the shouting and I've come straight back. Two minutes, no more.",
+      },
+      f_building: {
+        text: "It's the river — the Irwell, at the Quays, the footbridge between the Lowry and the war museum. It's wide here, forty metres or so, and it's deep, it's the ship canal really. The sides are all sheer, there's nothing to grab hold of.",
+      },
+      f_inside: {
+        text: "It's just him in the water. One man. There's people on the bridge with me and there's some lads on the Lowry side by the railing, but nobody else is in. Just him.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_inside_who",
+            text: "Do you know who he is? Did you see him go in?",
+            answer: {
+              text: "No, I don't know him. I didn't see him go — I heard it. Someone on the bridge said he climbed over the rail. He's a man, thirties maybe, dark hair, that's all I can tell you from here.",
+            },
+          },
+          {
+            id: "f_inside_swimming",
+            text: "Is he swimming, or just trying to stay up?",
+            answer: {
+              text: "He's trying. He's thrashing, his arms are going, and he keeps going under. He's shouting something but I can't hear what.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "I don't know — I can't see any blood or anything. He's in the water, he's freezing, that's what's hurting him. He's gasping, you can hear him gasping from up here.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      f_vulnerable: {
+        text: "It's a grown man, he's not a kid. But he can't get himself out, that's the point, he can't get to the side. The walls are sheer, there's no steps, there's nothing.",
+        needsCalm: true,
+      },
+      f_hazards: {
+        text: "No — nothing like that, it's the river. The water's freezing though, it's April, it's bitter. And there's the big locks further down, Mode Wheel — the water goes over there. That's what I'm scared of.",
+      },
+      f_danger: {
+        text: "There's people crowding on the bridge, and there's a group of lads on the Lowry side right up against the railing — one of them's leaning right over. I've shouted at them to stay back. The water's filthy as well, it's brown.",
+        tone: "urgent",
+      },
+      f_access: {
+        text: "The war museum side — Trafford Wharf Road, you can drive right down to the quayside, my car's parked down there. The Lowry side you get to along the walkway from the Lowry car park but I don't know if you'd get a vehicle down it. There's railings all along both sides.",
+      },
+      f_safe: {
+        text: "Yes, I'm on the bridge, I'm holding the rail. I'm not going anywhere near the water, I can't swim. I'm not going in.",
+      },
+      f_stay: {
+        text: "Yes. Yes, I'll stay, I've got my eyes on him. I'm not taking my eyes off him.",
+      },
+      f_details: {
+        text: "Rachel Holden. This is my mobile — 07700 900356.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "He's gone under — he's gone under again — no, no, he's up, he's up. Oh God. He was under for ages that time.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 110,
+        text: "Are they coming? Is there a boat coming? He can't keep this up, he's going to — please, is someone coming?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 170,
+        text: "I can hear a siren — over the museum side, there's a siren. Is that them? Tell them he's past the bridge, downstream, they need to come along the bank.",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+      {
+        atSec: 230,
+        text: "I'm coming off the bridge — I'm going along the bank on the Lowry side, I'm keeping up with him. I've still got him. I've still got him.",
+        tone: "urgent",
+      },
+    ],
+    onDispatch: "Thank you. Please tell them to hurry — he's further away every time I look.",
+  },
 };

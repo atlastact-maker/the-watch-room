@@ -335,4 +335,117 @@ export const scenario10: Scenario = {
       tone: "info",
     },
   ],
+
+  // The call as Michael has it: on his mobile on the Block C stairwell,
+  // radio in the other hand, the panel print-out in his head. He has not
+  // seen the pantry yet and he will not pretend he has. He has rung with
+  // a request, not a plea, and he expects to be met with the same.
+  call: {
+    caller: {
+      name: "Michael Crompton",
+      phone: "07700 900513",
+      relation: "Trust duty fire officer, Royal Bolton Hospital",
+      where: "Block C stairwell, second-floor landing, heading up to ward 19",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Royal Bolton Hospital, trust fire officer — Michael Crompton. I've got a confirmed alarm on Block C, third floor, ward 19. Ward staff are reporting smoke in the pantry, a smell of burning. I'm on my way up to it now and my team are checking the compartment. I'd like a fire attendance to the Block C entrance off Minerva Road, please.",
+    deflection: "I've given you what I've got. Are they mobilised?",
+    reassurance: {
+      text: "Michael, they're mobilised. Keep going — what have you got now?",
+      reply: "Right. Understood.",
+    },
+    answers: {
+      f_seen: {
+        text: "I've not got eyes on it yet — I'm on the stairs. What I've got is the panel: one smoke head in the ward 19 pantry, Block C third floor, and the nurse in charge on the phone saying there's smoke in the pantry and a burning smell. Smoke, not flames. That's all I've got until I'm up there.",
+      },
+      f_where: {
+        text: "Block C, third floor, ward 19 — the pantry, that's the little ward kitchen off the corridor, about a third of the way down. Block C's the inpatient block, the middle one on the site.",
+      },
+      f_spread: {
+        text: "I've no reason to think so yet. The pantry's got a fire door on it and the ward's its own compartment — the whole floor's split, ward 19 and ward 20 are separate compartments. Nothing else has come up on the panel: one head, one zone.",
+      },
+      f_started: {
+        text: "The panel activated three minutes ago, near enough. The nurse says she smelt burning a minute or two before that. So five minutes, tops.",
+      },
+      f_building: {
+        text: "District general hospital — Royal Bolton. Block C's the inpatient block, concrete frame, sixties-seventies build, link corridors across to Block D on the same floor — that's ITU and theatres. Seven hundred-odd beds across the site.",
+      },
+      f_inside: {
+        text: "Ward 19's full — it's a 24-bed frail elderly ward, they're all in bed and most of them can't walk. Ward staff are with them, six or seven nurses and HCAs at this time of night. Nobody's evacuating — we're Stage 1, defend in place, while I investigate. That's our policy and it's the right one.",
+        followUps: [
+          {
+            id: "f_inside_stage",
+            text: "What does Stage 1 mean for the crews coming in?",
+            answer: {
+              text: "Nothing moves unless it has to. Patients stay where they are behind the compartment doors. If I need to, we go to Stage 2 — horizontal, into the next ward along — and I'll tell you the moment that happens. Nobody goes down a staircase unless I say so.",
+            },
+          },
+          {
+            id: "f_inside_ward20",
+            text: "What about the wards either side?",
+            answer: {
+              text: "Ward 20's the other side of the compartment door — another 24 beds, general medical. The floors below are wards as well. Everyone's Stage 1, staying put.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "No. Nobody hurt reported, nobody's been in smoke that I know of. The nurse in charge smelt it and shut the pantry door — she's done exactly right.",
+      },
+      f_vulnerable: {
+        text: "All of them, frankly. Ward 19 is frail elderly — twenty-four of them, most non-ambulant, some on oxygen, a few with dementia. Moving them is a risk in itself, which is why we don't unless we have to. That's the whole point of staging it.",
+      },
+      f_hazards: {
+        text: "Piped oxygen on every ward — there's an isolation valve at the ward 19 entrance, my team can shut it if you want it shut. The bulk oxygen's the VIE compound outside Block D, estates only touch that. Nitrous manifold. Pharmacy's got the controlled drugs store, that's Block A. And MRI in Block B — the magnet's always on, nothing ferrous goes in that room, ever. It's all on the PRI you hold for us.",
+      },
+      f_danger: {
+        text: "Lifts'll be in fire mode on Block C, so it's the stairs. Beyond that, no — it's a hospital, everyone's where they should be. Keep your appliances off the helipad, it's marked.",
+      },
+      f_access: {
+        text: "Block C entrance, off Minerva Road — come in at the main site entrance, follow the internal road round and it's the middle block, it's signed. One of my team will be on the door. Bridgehead on the second-floor landing, one below the ward.",
+        followUps: [
+          {
+            id: "f_access_vehicles",
+            text: "Is there room for four appliances at Block C?",
+            answer: {
+              text: "The forecourt takes two, and the internal road's wide enough to hold the rest without blocking the drop-off. Keep the ambulance bay clear — that's the Block D side. The helipad's north-east, don't put anything on it.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm fine — I'm on the Block C stairwell, second floor, nothing's on the stairs. I've got a radio and my team's with me.",
+      },
+      f_stay: {
+        text: "I'll stay on as long as I can, but I'll be on the radio to my team as well, so bear with me if I go quiet.",
+      },
+      f_details: {
+        text: "Michael Crompton, trust duty fire officer, Royal Bolton. This is my mobile, 07700 900513 — if it drops, go through switchboard, 0161 496 0400, and ask for the fire team bleep.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "Hold on — Craig's on the radio. Compartment doors at the ward 19 and 20 junction are shut and holding, nothing showing on the ward 20 side. Good.",
+      },
+      {
+        atSec: 100,
+        text: "Are you mobilising, or are you waiting on me to confirm it? I'd rather have them turning round on the forecourt than not here.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 150,
+        text: "I can hear them coming up Minerva Road. I'm heading down to the entrance now with the plans.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 200,
+        text: "Estates duty engineer's on his way over to us — Imran — for the gas side, in case your crews want anything isolated.",
+      },
+    ],
+    onDispatch: "Understood. Block C entrance, Minerva Road. We'll be ready for them.",
+  },
 };

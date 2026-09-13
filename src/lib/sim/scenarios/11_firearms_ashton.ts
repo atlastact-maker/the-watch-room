@@ -361,4 +361,131 @@ export const scenario11: Scenario = {
       { id: 4, label: "Sector 4 · Evacuation (west terrace)", face: "left", bearingDeg: 270 },
     ],
   },
+
+  // The call as Joanne has it: on her mobile in her front room at 36,
+  // door shut, Mark at the window, and Danny Keane screaming at Leah on
+  // the other side of a nine-inch wall. She saw the gun under his
+  // security light from her kitchen sink and she is not being talked out
+  // of what she saw.
+  call: {
+    caller: {
+      name: "Joanne Brierley",
+      phone: "07700 900352",
+      relation: "Neighbour at no. 36 — party wall to no. 34",
+      where: "Her front room at 36 Curzon Road, door shut, husband with her",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police — it's the man next door, he's got a gun. Curzon Road in Ashton, number 34. He's screaming at his girlfriend and I've just seen him out in the back yard with a gun in his hand, a handgun. Please, you need to get here.",
+    deflection: "He's got a GUN. What else do you need? Just send someone!",
+    reassurance: {
+      text: "Joanne, officers are on their way and I've told them everything you've said. Stay away from that wall, keep your voice down, and stay with me.",
+      reply: "Okay. Okay. I'm here. Sorry.",
+    },
+    answers: {
+      p_happening: {
+        text: "The man next door — Danny, Danny Keane at 34 — he's screaming at his girlfriend, proper screaming, and he's just been out in the back yard with a gun in his hand. A handgun. A black one. I saw it from my kitchen window. He was waving it about.",
+        tone: "critical",
+      },
+      p_ongoing: {
+        text: "Yes. It's still going. He's in the house — I can hear him through the wall, he's shouting, there's banging. And she's in there with him.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "Yes — a gun. A handgun, a pistol, black. In his right hand, he was holding it up, waving it about, pointing it back at the house. I'm not making it up. I know what I saw.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "p_weapons_sure",
+            text: "How sure are you it was a real gun?",
+            answer: {
+              text: "It looked real. It was black and it was metal and he was holding it like a gun. I'm not an expert, am I. I'm sure enough that I've rung you.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "p_weapons_fired",
+            text: "Has it been fired — have you heard any bangs?",
+            answer: {
+              text: "No. No bangs. Shouting and banging on things, doors, but not — no. Not a shot. Not yet.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_injured: {
+        text: "I don't know. I've not seen her. I can hear her crying and I heard something go over, a crash, like furniture. I don't know if he's hit her.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "Two of them. Him — Danny Keane, he's thirties — and his girlfriend Leah, she's younger, late twenties. It's just the two of them in there, there's no kids, thank God.",
+      },
+      p_description: {
+        text: "He's white, thirties, cropped hair, stocky. He had a grey tracksuit on, grey top and bottoms, and he was in his socks, no shoes. She's slim, long dark hair — I don't know what she's wearing, I've not seen her tonight.",
+        needsCalm: true,
+      },
+      p_direction: {
+        text: "He's not gone anywhere, he's in the house. The back yard's got a gate onto the alley — the alley runs the whole length of the terrace, it comes out both ends. His car's out the front, the grey Astra.",
+      },
+      p_drink: {
+        text: "He's been drinking, I'd say. They had music on earlier and I heard bottles going in the bin. I don't know about drugs. He sounds — he sounds off his head, to be honest, the way he's screaming.",
+      },
+      p_known: {
+        text: "Yes, they're next door, they've been there a couple of years. I say hello. He's alright normally — he's got a temper on him, you lot have been out to them once before, last year, for a row. Nothing like this. Never anything like this.",
+        needsCalm: true,
+      },
+      p_vulnerable: {
+        text: "Leah — she's in there with him and he's got a gun. And there's Mrs Patel the other side of them, at 32 — she's on her own, she's in her seventies, she's got a frame and she's deaf as a post, she'll not have a clue what's going on. Her wall's the same as mine.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "Curzon Road, Ashton — number 34, it's the north side, the terrace, middle of the row. I'm at 36, the next one along towards the shop. It's the road with the corner shop on the end, on Katherine Street.",
+      },
+      p_safe: {
+        text: "I'm in my front room with the door shut, me and my husband Mark. We're the other side of the wall from them. I've come away from the back — should I go upstairs? I don't know where to go.",
+        followUps: [
+          {
+            id: "p_safe_husband",
+            text: "Is your husband with you now?",
+            answer: {
+              text: "Yes, Mark's here. He's at the front window, he keeps looking out. I've told him to come away from it.",
+            },
+          },
+        ],
+      },
+      p_seen: {
+        text: "I saw it myself. I was at my kitchen sink — our kitchens look out onto the yards, there's only a wall between them. I saw him come out with it, plain as day, under his security light. Mark heard him but he didn't see the gun.",
+      },
+      p_details: {
+        text: "Joanne Brierley. 36 Curzon Road. This is my mobile — 07700 900352.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "He's shouting 'I'll do it' — 'I'll do it, don't make me do it' — over and over. He means it. Oh God, he means it.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 110,
+        text: "Are you sending anyone? You've not said — I've told you he's got a gun and you've not said anyone's coming!",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 170,
+        text: "I can hear sirens — somewhere over towards town. Is that them? Tell them not to come down the front, he'll see them from upstairs. He's got a gun.",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+      {
+        atSec: 225,
+        text: "Mark says Mrs Patel's light's just come on at 32 — she's up. She'll go out the front, she does, she goes out to see what's going on. Somebody needs to stop her.",
+        tone: "urgent",
+      },
+    ],
+    onDispatch: "Thank you. Please — tell them she's in there with him. Tell them to be quick.",
+  },
 };

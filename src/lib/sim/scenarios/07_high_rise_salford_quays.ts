@@ -347,4 +347,141 @@ export const scenario07: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Tolu has it: on her mobile on the bedroom floor of 12B,
+  // the door shut, the kitchen going on the other side of it and the
+  // front door beyond that. She knows the windows do not open. Everything
+  // she says, she says between coughs.
+  call: {
+    caller: {
+      name: "Tolu Adeyemi",
+      phone: "07700 900429",
+      relation: "Resident of Flat 12B — trapped in the fire flat",
+      where: "Bedroom floor of Flat 12B, 12th floor, door shut against the smoke",
+      line: "mobile",
+      state: "panicking",
+    },
+    opening:
+      "There's a fire in my flat — my kitchen's on fire and I can't get out, I can't get to the door. Quay Heights, Salford Quays, the twelfth floor, flat 12B. Please, I'm stuck in here, please.",
+    deflection: "I can't — I can't get out, I can't breathe properly, please just get them here!",
+    reassurance: {
+      text: "Tolu, listen to me. The fire engines are on their way to you right now. Get down low, keep that door shut, and stay talking to me.",
+      reply: "Okay. Okay. I'm on the floor. I'm here.",
+    },
+    answers: {
+      f_seen: {
+        text: "The kitchen. The alarm went and I opened the bedroom door and the whole worktop was on fire, right up the cupboards, and the smoke was black, it was all along the ceiling. I shut the door again. I can't see it now — I can hear it.",
+        tone: "critical",
+      },
+      f_where: {
+        text: "The kitchen — it's open plan, the kitchen and the living room's all one, and the front door comes off that. I'm in the bedroom at the other end. It's between me and the door.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_where_side",
+            text: "Which side of the building is your flat on?",
+            answer: {
+              text: "The corner — the water side, I look out over the dock. Twelfth floor. 12B, it's the corner one.",
+            },
+          },
+        ],
+      },
+      f_spread: {
+        text: "I don't know, I can't see it, I've got the door shut. It's louder than it was. There's a crackling, things keep popping. And the smoke's coming in round the door frame, at the top — I've put a jumper along the bottom.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      f_started: {
+        text: "I don't know how it started. I was in the bedroom on my laptop, the alarm went off and I opened the door and it was already — the worktop was already going. Five minutes? Less. It's so fast.",
+      },
+      f_building: {
+        text: "It's a tower — Quay Heights, it's twenty-odd floors of flats, a new one, concrete. There's a concierge downstairs, Faisal, he'll be on the desk.",
+      },
+      f_inside: {
+        text: "Just me in here. I live on my own. But there's people all along the floor — there's a little girl next door in 12A — and there's the whole building, there's hundreds of people in here.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "f_inside_floor",
+            text: "Do you know if anyone else on your floor has got out?",
+            answer: {
+              text: "I don't know. I can't hear anyone. I banged on the wall for Justyna next door but I don't know if she heard me.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_window",
+            text: "Can you get to a window?",
+            answer: {
+              text: "I'm at the window. It doesn't open — none of them open, they're sealed, there's only a little vent thing at the top. I can't get any air.",
+              tone: "critical",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "I'm — I'm coughing, I can't stop coughing, my throat's burning. I'm not burnt. I don't think I'm burnt.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      f_vulnerable: {
+        text: "There's an old man up on fourteen, Dennis, he's got a walking frame, he can't do stairs. And next door's got a little girl, she's about three.",
+      },
+      f_hazards: {
+        text: "No — I don't think there's gas, I've got an electric hob. There's nothing, no cylinders or anything, it's a flat. Cleaning stuff under the sink, that's all.",
+      },
+      f_danger: {
+        text: "No. Nothing like that. The lifts go off when the alarm goes, they'll be sat at the bottom. It's the stairs — there's only the one stairs in the whole building.",
+      },
+      f_access: {
+        text: "The front entrance, off the Quays — the plaza at the front. The doors are on fobs but Faisal's on the desk, he'll let them in, he's got all the keys. Twelfth floor, 12B — the corner flat, the dock side.",
+        followUps: [
+          {
+            id: "f_access_door",
+            text: "Is your front door locked?",
+            answer: {
+              text: "Yes — it locks itself when it shuts, it's on the latch. It's a heavy door, one of them composite ones. My keys are in the kitchen. I can't get to them.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "No! No, I'm not — I'm in the flat, I'm in the bedroom with the door shut. I'm on the floor by the window. I can't get out of here.",
+        tone: "critical",
+      },
+      f_stay: {
+        text: "Yes — don't go. Please don't go. Don't leave me on my own.",
+      },
+      f_details: {
+        text: "Tolu. Tolu Adeyemi. It's my mobile — 07700 900429. Twelve B.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Something's just gone — a bang, through the door, like glass going. Oh God. Oh God, it's getting louder.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 100,
+        text: "Is anyone coming? You've not said — are they coming? How long, how long is it going to be?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "There's blue lights — I can see blue lights on the water, they're reflecting on the water. Is that them? Is that them?",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+      {
+        atSec: 215,
+        text: "It's so hot. The bedroom door's hot, I can feel it from here. I can't stop coughing. Please.",
+        tone: "critical",
+      },
+    ],
+    onDispatch: "Thank you. Oh, thank you. Tell them to be quick. Twelve B — tell them twelve B.",
+  },
 };
