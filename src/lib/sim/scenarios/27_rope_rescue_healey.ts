@@ -228,4 +228,149 @@ export const scenario27: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Liam has it: flat on his front at the lip of the quarry
+  // with his mobile in one hand and the torch on Sam forty foot below.
+  // He can see his mate the whole time. He cannot tell anyone where they
+  // are.
+  call: {
+    caller: {
+      name: "Liam Ogden",
+      phone: "07700 900827",
+      relation: "The casualty's friend — the other walker",
+      where: "Lying at the top edge of the quarry face, Healey Dell, looking down at Sam",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Hello? Is that — right, I need the fire brigade, or — I don't know who. My mate's fallen down a quarry. Healey Dell, the nature reserve, up from Rochdale. He's stuck on a ledge, he can't get up, and I can't get down to him. I don't know what to do.",
+    deflection: "I don't know — I don't know, I can't see properly from here, just tell me what to do, how do I get him up?",
+    reassurance: {
+      text: "Liam, listen to me. People are coming who do exactly this. You're doing the right thing staying with him. Keep your torch on him and answer what you can.",
+      reply: "Okay. Okay. Sam — Sam, they're coming, mate. Right. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "He's below me — I'm lying on the edge looking straight down at him. He's on a ledge, a shelf of rock, sort of on his side. He's got one leg twisted under him and it's not right. He's got his face up to me and he's talking, but it's all rock and trees down there, I can only just make him out with the torch.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_seen_below",
+            text: "What's below the ledge he's on — is it the bottom, or is there more?",
+            answer: {
+              text: "More. There's more of a drop under him — I can't see the bottom, it just goes black. If he rolls off that ledge he's gone.",
+              tone: "critical",
+            },
+          },
+        ],
+      },
+      f_where: {
+        text: "It's not a building — it's a quarry, an old one, in the woods. The face goes straight down from where I am. He's about a third of the way down, on a ledge that sticks out. There's loose stuff all above him and I don't know what's under him.",
+      },
+      f_spread: {
+        text: "It's not — nothing's spreading, it's rock. But bits keep coming off the face, little stones go past him every time I move, so I've stopped moving. He's not going anywhere. He can't.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "Ten minutes? Fifteen? He went over and I was shouting down to him for a bit before I thought to ring. It's — I don't know. It's not long.",
+      },
+      f_building: {
+        text: "It's not a building. It's an old quarry in Healey Dell, the nature reserve. Woods all round it, a path along the top — he stepped off the path to look over and the edge just went under him.",
+      },
+      f_inside: {
+        text: "There's no inside — it's just us two. He's on the ledge and I'm at the top. There's nobody else about, we've not seen a soul for an hour.",
+        followUps: [
+          {
+            id: "f_inside_talking",
+            text: "Is he still talking to you — does he know where he is?",
+            answer: {
+              text: "Yeah, he's talking. He knows what's happened. He keeps saying his leg, and he's cold — he says he's freezing. He's making sense, he's just scared.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_reach",
+            text: "Is there any way to reach him from where you are — no, don't try. Can you see one?",
+            answer: {
+              text: "No. I've looked. It's straight down and it's all crumbly, I'd go over myself. I threw my coat down for him and it missed and it's gone. I'm not going down there.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Yeah — Sam is. His leg's broke, I'm sure it is, it's bent wrong. He hit his head on the way down I think, there's blood on his face. He landed hard — it's twelve metres, fifteen, onto rock.",
+        tone: "critical",
+        needsCalm: true,
+        effect: {
+          regrade: "EMERGENCY",
+          basis: "Fall of around 12 m onto a ledge with a further drop beneath — conscious, cannot move; a line rescue and a long carry",
+        },
+      },
+      f_vulnerable: {
+        text: "It's just Sam. He's 27, he's fit, he plays five-a-side. But he can't move his leg and he can't get himself up. He's not getting off that ledge on his own.",
+      },
+      f_hazards: {
+        text: "No — nothing like that, it's a nature reserve. It's rock. The face is all loose, bits come off it when you touch it, above him and I think under him too. And it's wet, everything's wet, the path's like a stream.",
+      },
+      f_danger: {
+        text: "The drop. Whoever comes down for him — it's straight down and it's loose. No power lines, nothing like that, and nobody's about. It's steep and wet all the way back to the path though. I don't know how you'd carry anyone out of here.",
+      },
+      f_access: {
+        text: "There's no road. You can't drive to it. We walked in — parked up and walked, half an hour, more, uphill along the river and then up through the trees onto the top path. I don't know how to tell you which way. It's all woods. I'm not from round here.",
+        tone: "urgent",
+        needsCalm: true,
+        followUps: [
+          {
+            id: "f_access_map",
+            text: "Have you got a map on your phone — can you read me what it says where the blue dot is?",
+            answer: {
+              text: "Hang on — it's — it says Healey Dell, it's just green, it's all green. There's a road off to the right of it, a way off — Whitworth Road? I can't — I've got one bar, it's not loading properly.",
+            },
+          },
+          {
+            id: "f_access_hear",
+            text: "What can you see or hear from where you are — water, a road, a sign?",
+            answer: {
+              text: "Trees. Water, below us somewhere — I can hear the river. No signs up here. If I go looking I lose him. I'm not leaving him.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm lying on the edge. Flat. I'm not going any closer. I'm not leaving him though.",
+      },
+      f_stay: {
+        text: "Yeah. Yes. I'm not going anywhere. Don't leave me on my own with this.",
+      },
+      f_details: {
+        text: "Liam Ogden. It's my mobile — 07700 900827. He's Sam Rigby, the one who's fallen.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Shit — sorry — the edge just went under my hand, a lump of it, I've had to shuffle back. I'm lying flat now. I'm lying flat.",
+        tone: "urgent",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 100,
+        text: "Is anyone coming? You've not said. I can't get him up on my own and I don't know how long he's got down there.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "There's a siren — I can hear a siren, down the valley somewhere. But they'll never find us up here. How are they going to find us?",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+      {
+        atSec: 240,
+        text: "He's asking me if they're coming. He keeps asking. He's shivering that much I can hear his teeth from up here.",
+        tone: "urgent",
+      },
+    ],
+    onDispatch: "Thank you. Tell them it's the quarry, in the woods — tell them he's on a ledge. Sam! They're coming, mate. Stay still.",
+  },
 };

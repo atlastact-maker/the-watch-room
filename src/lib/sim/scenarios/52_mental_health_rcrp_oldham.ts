@@ -314,4 +314,127 @@ export const scenario52: Scenario = {
       tone: "info",
     },
   ],
+
+  // The call as Lorraine has it: on her own mobile on the Waterloo Street
+  // pavement, a plate of his tea going cold on the windowsill, knocking
+  // on a door her son will not open. He is texting her from behind it.
+  // She wants a police officer because that is the door she thinks he
+  // will open to, and she will ask for one.
+  call: {
+    caller: {
+      name: "Lorraine Crabtree",
+      phone: "07700 900318",
+      relation: "The occupant's mother — walked round from Fitton Hill, no key",
+      where: "The pavement outside 47 Waterloo Street, at the front door",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "I don't know if this is a 999 or not. It's my son — he's thirty-one, he lives on his own on Waterloo Street in Glodwick, and he won't open the door to me. He's been in a terrible way all week, crying, not eating, and now he's shut himself in. He's in there, I can hear the telly. Can somebody come and knock on? He'd open it to a police officer.",
+    deflection: "I don't — sorry, I don't know why you're asking me that. I just want somebody to come and knock on his door.",
+    reassurance: {
+      text: "Lorraine, you did the right thing ringing. I'm going to go through this with you properly, and then we'll work out together what happens next.",
+      reply: "Okay. Okay. Sorry. I'm just stood here and I don't know what to do with myself.",
+    },
+    answers: {
+      p_happening: {
+        text: "Nothing's happening — that's just it. He's in there and he won't open the door. It's my son, Daniel. He's thirty-one, he lives on his own at 47 Waterloo Street. He's been in a state all week — crying down the phone at me, not eating. I've come round with his tea like I do every day and he won't come to the door. He's in there. I can hear the telly. I just need somebody to get him to open it.",
+        followUps: [
+          {
+            id: "p_happening_before",
+            text: "Has he ever done this before — not answered the door to you?",
+            answer: {
+              text: "Not to me. Never. He's been low before — last year was bad — but he's always let me in. I'd bring his tea, he'd eat half of it, we'd sit. Today the curtains are shut and he's texted me to go home.",
+            },
+          },
+          {
+            id: "p_happening_seen",
+            text: "Can you see him at all — through a window, anything?",
+            answer: {
+              text: "No. The front curtains are shut. There's a light on upstairs and the telly's on. I've not been round the back — I've not wanted to leave the front in case he opens it and I'm not there.",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "He's still in there, if that's what you mean. He's not going anywhere and I'm not going anywhere. He texted me a couple of minutes ago — 'leave it mum'. That's all I get off him. So he's awake, he's got his phone in his hand, he's just not coming to the door.",
+      },
+      p_weapons: {
+        text: "No. No, nothing like that. He's a soft lad, Daniel, he wouldn't hurt a fly. There's nothing in that house — it's a two-up two-down with a telly in it. Why would you ask me that?",
+      },
+      p_injured: {
+        text: "Nobody's hurt. He's not hurt. I asked him — has he done anything, is he thinking anything daft — and he said no. He said he's just tired and he wants leaving be. He's not threatened anybody. He'd not threaten anybody. He's just gone into himself.",
+        followUps: [
+          {
+            id: "p_injured_self",
+            text: "When you asked him that — what exactly did he say?",
+            answer: {
+              text: "'No, Mum.' Like I was being daft for asking. 'No, Mum, I'm not going to do anything, I just want to be on my own.' And I believed him. I still believe him. I just don't want him on his own.",
+            },
+          },
+        ],
+      },
+      p_who: {
+        text: "Just Daniel. He's on his own in there — he lives on his own, since last year. There's nobody with him. And me out here on the pavement. That's everyone.",
+      },
+      p_description: {
+        text: "Describe him? He's — five foot ten, dark hair, he'll need a shave. He'll be in his joggers and a T-shirt, he's been in them all week. He's my son. You're not going to have to pick him out of a crowd, he's behind this door.",
+      },
+      p_direction: {
+        text: "He's not gone anywhere, that's the point. He's inside. I don't think he's been out of that house since Sunday. The only place he's going is nowhere, and that's what's frightening me.",
+      },
+      p_drink: {
+        text: "No. He doesn't drink, not really — a can at Christmas. He's never touched drugs, not that I've known, and I'd know. It's not that. It's his head. It's his mood.",
+      },
+      p_known: {
+        text: "He's my son. Daniel Crabtree, thirty-one. I'm his mum, Lorraine. I know him better than anybody alive and I'm telling you he's not right.",
+      },
+      p_vulnerable: {
+        text: "He is. He's not well — it's his nerves, his mental health, whatever you want to call it. He's had proper help for it before and he was doing alright. This week he's gone right down. He's not eating — you can see it in his face. That's what I'd call at risk. He's not a danger to anybody. He's just not looking after himself and I can't get to him.",
+        followUps: [
+          {
+            id: "p_vulnerable_child",
+            text: "Is there any child in the house, or anyone who depends on him?",
+            answer: {
+              text: "No. No children. It's just him. That's half the trouble — there's nobody in there to notice.",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "47 Waterloo Street, Glodwick. OL4 1ES. The terrace on the north side — red door, grey wheelie bin out the front, I'm stood right by it. I've walked round from Fitton Hill, it's ten minutes.",
+      },
+      p_safe: {
+        text: "Me? I'm fine. I'm stood on the pavement outside his front door. Nobody's bothering me. It's him I'm ringing about, not me.",
+      },
+      p_seen: {
+        text: "I'm stood here. I've knocked, I've shouted through the letterbox, I've rung him, I've texted him. He's texted me back to go home. That's what I've seen — a shut door and a text. There's nobody to tell me anything.",
+      },
+      p_details: {
+        text: "Lorraine Crabtree. I'm his mum. This is my mobile — 07700 900318. You can ring me back on it, I'll be stood right here.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Hang on — he's texting. …'Leave it mum.' That's all. Leave it. He's awake, then. He's sat in there with his phone, reading me stood outside.",
+      },
+      {
+        atSec: 120,
+        text: "You're going to tell me to ring somebody else, aren't you. I can hear it coming. I rang you last November and somebody rang me back the next day. The next day.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "I've knocked again. He's put the telly up. He's turned it up so he can't hear me. Thirty-one years old and he's turned the telly up on his mum.",
+      },
+      {
+        atSec: 200,
+        text: "You're sending somebody? Oh — thank you. Thank you. …Should I tell him? He'll not like it if he thinks I've set the police on him. I won't tell him. I'll just wait.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. I'll be stood by the door. I won't tell him they're coming — he'd only get himself in a state.",
+  },
 };

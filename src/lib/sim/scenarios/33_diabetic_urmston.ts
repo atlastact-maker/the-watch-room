@@ -173,4 +173,135 @@ export const scenario33: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Julie has it: on the house cordless in the kitchen at 119,
+  // one hand on the phone and the other keeping Gary off the cooker. She
+  // has seen him hypo before. She has never seen him push her.
+  call: {
+    caller: {
+      name: "Julie Ferris",
+      phone: "0161 496 0330",
+      relation: "The patient's wife",
+      where: "The kitchen at the back of 119 Flixton Road, on the cordless, between Gary and the cooker",
+      line: "landline",
+      state: "anxious",
+    },
+    opening:
+      "It's my husband — he's diabetic and he's having a hypo, a bad one. He's dripping with sweat and he's talking rubbish and he won't take his drink, he keeps knocking it away. 119 Flixton Road, Urmston. I can't get anything into him. I need somebody.",
+    deflection: "I can't — Gary, NO — sorry, sorry, I can't hold him and talk to you at the same time.",
+    reassurance: {
+      text: "Julie, listen. An ambulance is coming. He's not himself and he can't help it — don't get hurt trying to hold him. Just keep the floor clear and keep talking to me.",
+      reply: "Okay. Okay. I've let go of him. I'm here.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes — he's awake, he's stood up. Well, he's up and down. He's looking at me but he's not there, he doesn't know what I'm saying to him. He's not out or anything.",
+        tone: "urgent",
+      },
+      a_breathing: {
+        text: "Yes, he's breathing fine — he's breathing fast, but that's because he's fighting me. He's not blue, nothing like that. It's not his breathing.",
+      },
+      a_happened: {
+        text: "He's been out most of the afternoon. He came in about half an hour ago and I thought he was just tired, he was quiet. Then he started with the sweating, and he went all vacant, and when I asked him if he was going low he got nasty with me — he's never nasty. I got the Lucozade out and he won't have it. He clamps his mouth shut and turns his head away like a kid.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "a_happened_drink",
+            text: "What have you managed to get into him so far?",
+            answer: {
+              text: "Nothing. A mouthful of the Lucozade, maybe, and most of that went down his front. I tried a spoon of jam and he spat it at me. I've got the glucose tablets in my hand and he won't open his mouth.",
+            },
+          },
+          {
+            id: "a_happened_before",
+            text: "Has he gone this low before?",
+            answer: {
+              text: "He's gone low before, yes, a few times. Never like this. Normally he'll take the drink off me and he's right as rain in ten minutes and a bit sheepish. He's never once pushed me off.",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "He came in about half an hour ago. It's the last ten minutes it's got bad. I rang you when he knocked the drink out of my hand — it's all over the floor.",
+      },
+      a_now: {
+        text: "He's dripping — his T-shirt's wet through — and he's grey, a horrible colour. He's shaking. He's talking but it's not words, it's rubbish, and then he laughs at me. He keeps trying to walk off and his legs won't do it. He's got hold of the worktop now.",
+        tone: "urgent",
+      },
+      a_bleeding: {
+        text: "No. No blood. He's not fallen — not yet. He's going to, the way he's going.",
+      },
+      a_age: {
+        text: "Forty-six. He's forty-six.",
+      },
+      a_history: {
+        text: "Type one diabetic — since he was a lad. He does his own insulin, the pens, four times a day, and he tests himself. Nothing else wrong with him, he's fit as a flea normally. No allergies. His meter's in his bag on the side but I can't get near him with it — he pulled his hand away when I tried.",
+        followUps: [
+          {
+            id: "a_history_kit",
+            text: "Is there a glucagon kit in the house — an orange box, usually in the fridge?",
+            answer: {
+              text: "The orange box — yes, it's in the fridge door, the nurse gave us it. I've never used it. I don't even know if it's in date. Do I do it? You'll have to tell me how.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_count: {
+        text: "Just Gary. It's just the two of us in.",
+      },
+      a_danger: {
+        text: "It's our kitchen. It's fine. He's not dangerous — he's not a violent man, it's the sugar. He's just pushing me off. Tell them he'll push them off as well, it's not him, it's not Gary.",
+        needsCalm: true,
+      },
+      a_access: {
+        text: "Front door, straight onto Flixton Road — 119, it's the terrace, the red door, near the bus stop by the chippy. There's nowhere to park, they'll have to go on the pavement. I'll — I can't leave him to come to the door.",
+        followUps: [
+          {
+            id: "a_access_door",
+            text: "Can you get the front door open without leaving him?",
+            answer: {
+              text: "It's just down the hall. Hang on — Gary, stay there, stay THERE — right. It's on the latch. It's open. Tell them to come straight through, the kitchen's at the back.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "I'm right here, I'm in the kitchen with him. I've got the phone in one hand and I'm trying to keep him off the cooker with the other.",
+      },
+      a_instructions: {
+        text: "Yes — yes. Tell me. Just tell me what to do with him.",
+        tone: "urgent",
+      },
+      a_details: {
+        text: "Julie Ferris. He's Gary. This is the house phone — 0161 496 0330. I'm on the cordless.",
+        needsCalm: true,
+      },
+    },
+    interjections: [
+      {
+        atSec: 55,
+        text: "Gary, love, sit down — sit DOWN — he's trying to get to the back door and his legs are going. He's just gone into the table.",
+        tone: "urgent",
+      },
+      {
+        atSec: 110,
+        text: "He's just shoved me — he's shoved me right into the cooker. Twenty years and he's never once. He doesn't know it's me. He doesn't know it's me.",
+        tone: "urgent",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 150,
+        text: "Is somebody actually coming? You've not said. I can't hold him on my own, I've told you what he's like.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 185,
+        text: "There's — is that them? There's blue lights out the front, on the road. Do I leave him to let them in? The door's open, tell them it's open.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. Oh, thank you. Gary — they're coming, love. Sit down. They're coming.",
+  },
 };

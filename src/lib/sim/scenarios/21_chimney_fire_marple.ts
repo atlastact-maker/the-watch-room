@@ -190,9 +190,8 @@ export const scenario21: Scenario = {
 
   // The call as Helen has it: on her mobile at Jean's front window at
   // no. 6, Rob beside her, the pot of their own chimney throwing sparks
-  // over the lane and the roar coming through the party wall. They got
-  // out, they shut the stove down, they left the door on the latch. She
-  // thinks the station is five minutes away, because it is.
+  // over the lane. They got out, they shut the stove down, they left the
+  // door on the latch. She thinks the station is five minutes away, because it is.
   call: {
     caller: {
       name: "Helen Prescott",
@@ -211,11 +210,11 @@ export const scenario21: Scenario = {
     },
     answers: {
       f_seen: {
-        text: "Flames out of the top of the chimney pot — a foot, two foot high, orange, and sparks, loads of them, going up and coming down all over the roofs. Ours and next door's. And there's a noise — it's roaring, like a jet engine, you can hear it through the wall from here.",
+        text: "Flames out of the top of the chimney pot — a foot, two foot high, orange, and sparks, loads of them, going up and coming down all over the roofs. Ours and next door's. And there's a noise — it's roaring, like a jet engine. You could hear it in the wall when we were in, and you can still hear it out in the lane.",
         tone: "urgent",
       },
       f_where: {
-        text: "The chimney. The stack on the left of ours as you look at it from the lane — it's the one we share with number 2. The stove's in our front room, the living room, that's where it goes up from.",
+        text: "The chimney. The stack on the left of ours as you look at it from the lane — it's the one we share with number 2. The stove's in our living room, on the wall we share with number 2 — that's where it goes up from.",
         followUps: [
           {
             id: "f_where_stove",
@@ -296,7 +295,7 @@ export const scenario21: Scenario = {
       },
       {
         atSec: 140,
-        text: "Rob's got number 2 to the door — they're fine, they're going to have a look upstairs and they're going to let their fire die down.",
+        text: "Rob's been round and got the people at number 2 to the door — the other side of the chimney from us. They're fine, they're going to have a look upstairs and let their fire die down.",
       },
       {
         atSec: 200,

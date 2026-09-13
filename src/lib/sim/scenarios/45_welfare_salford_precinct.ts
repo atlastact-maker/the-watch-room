@@ -316,4 +316,125 @@ export const scenario45: Scenario = {
     basis:
       "GMP's own published Grade 1 (Immediate) figure: 'Immediate or grade 1 incidents - within 15 minutes' (GMP Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025) and 'under 15 minutes (our aspired attendance time)' (GMCA GMP Performance Briefing, Jan 2026; 95% within 15 min in 2025). Graded 1 on THRIVE because a man may be collapsed behind a locked door — a real and immediate risk to life until proven otherwise — and forcing entry to a private dwelling is a police function. GMP's Right Care Right Person pathway (live 30 Sep 2024) would signpost a pure physical-health concern to NWAS; keeping police on this one for the door and the likely sudden death is our reading of that pathway, not GMP's published text.",
   },
+
+  // The call as Bisi has it: on her work mobile on the first-floor
+  // landing at 18 Churchill Way, a flight down from a door that has post
+  // jammed in it and a smell behind it. She has done one of these before.
+  // She has a fob for the front door and no key for the flat.
+  call: {
+    caller: {
+      name: "Bisi Ogundipe",
+      phone: "07700 900947",
+      relation: "Housing officer for the block — Brindle Heath Housing",
+      where: "First-floor landing outside Flat 6, 18 Churchill Way, a flight down from the door",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Police, please. It's a concern for welfare. I'm the housing officer for the flats on Churchill Way in Pendleton, behind the precinct — I'm on the first-floor landing at number 18, outside Flat 6. It's our tenant, Mr Gaskell. Nobody's seen him since Thursday, there's post jammed in his door, I've knocked and shouted through the letterbox and there's nothing. And there's a smell up here I don't like. I haven't got a key.",
+    deflection: "Sorry — hold on. Kevin, leave it — sorry. Go on.",
+    reassurance: {
+      text: "Bisi, you've done the right thing ringing. Officers are on their way. Stay on the landing and keep everybody else off it.",
+      reply: "Right. Yes. I'm here. I'll keep them back.",
+    },
+    answers: {
+      p_happening: {
+        text: "Nothing's happening, that's the trouble. It's a man who hasn't answered his door in four days. Dennis Gaskell, Flat 6, he's sixty-four and he lives on his own. Post's jammed in the door, curtains haven't moved, and there's a smell on the landing. I've knocked, I've shouted, I've rung his phone — it goes straight to voicemail. I can't get in.",
+        tone: "urgent",
+        effect: { regrade: "GRADE 1", basis: "Man with a heart condition alone behind a locked door, unseen for four days — a risk to life until the door is open" },
+      },
+      p_ongoing: {
+        text: "Well — it's not going on, nothing's going on. That's what I'm ringing about. It's four days of nothing. He's not answered, he's not come out, and I'm stood outside a door I can't open.",
+      },
+      p_weapons: {
+        text: "No. No, nothing like that. It's not that sort of call. It's a man in his sixties on his own who hasn't answered his door.",
+      },
+      p_injured: {
+        text: "I don't know. That's why I'm ringing you. He could be on the floor in there — he could be worse. Nobody's threatened anybody. Do you send an ambulance with this, or is that a separate call? I've never been sure.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "Just Mr Gaskell — Dennis Gaskell, sixty-four, lives alone in Flat 6. Then there's me on the landing, and Kevin from Flat 2 downstairs has come up — he's the one who told me Thursday.",
+        followUps: [
+          {
+            id: "p_who_kevin",
+            text: "What has Kevin told you?",
+            answer: {
+              text: "He saw him Thursday afternoon going out to the shop, and nothing since. He says the telly's been on day and night through his ceiling, and the curtains haven't moved. And Dennis's car's outside and it's not been anywhere.",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "Sixty-four, white, grey hair, glasses, slight — he's not a big man. I can't tell you what he's wearing because I've not seen him. That's rather the point.",
+      },
+      p_direction: {
+        text: "He's not gone anywhere. His car's outside on the road — silver Focus, it's not moved. That's what worries me. If he'd gone to stay with somebody the car would be gone.",
+      },
+      p_drink: {
+        text: "Not that I know of. He's not a drinker — nothing's ever come to us about that. He's on tablets for his heart. That's all I know.",
+      },
+      p_known: {
+        text: "Yes, he's our tenant — has been since 2011. I've dealt with him a few times, rent things, a repair. Quiet man, keeps himself to himself. We had a call like this about him once before, a couple of years back, and he opened the door and gave me a right look. I'm hoping for the same.",
+      },
+      p_vulnerable: {
+        text: "He is. Sixty-four, on his own, a heart condition — he had a spell in hospital last year, he's on tablets for it. His phone's going straight to voicemail. I'd call that at risk, yes.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_vulnerable_heard",
+            text: "Can you hear anything from inside?",
+            answer: {
+              text: "The telly. That's all. It's loud — some quiz thing. No footsteps, nothing when I shout. I've had my ear to the letterbox and it's just the telly.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "Flat 6, 18 Churchill Way, Pendleton — the estate behind Salford Shopping City, the south-east side. M6 5QX. Three-storey block, six flats. The communal door's on a fob, so your officers won't get in without me — I'll come down and let them in. First floor, no lift. I haven't got a key to the flat itself; my office are checking the board.",
+        followUps: [
+          {
+            id: "p_where_door",
+            text: "What sort of door is it on the flat?",
+            answer: {
+              text: "uPVC — the white plastic ones with the multipoint lock, they all got done about ten years ago. They're solid. I don't know how you'd get through one without wrecking it.",
+            },
+          },
+        ],
+      },
+      p_safe: {
+        text: "I'm fine. I'm on the landing — I've had to step down a flight because of the smell, if I'm honest. Kevin's here, he's alright. Nobody's in any danger except possibly the man behind that door.",
+      },
+      p_seen: {
+        text: "I've seen the post and I've smelt the smell — that's me. The Thursday is Kevin, the neighbour, telling me. I've been to the door myself and shouted through the letterbox and there's nothing.",
+      },
+      p_details: {
+        text: "Bisi Ogundipe — B-I-S-I, then O-G-U-N-D-I-P-E. Housing officer, Brindle Heath Housing. This is my work mobile, 07700 900947.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 60,
+        text: "I've just shouted through the letterbox again. Nothing. The telly's still going in there — I can hear it from here.",
+        tone: "urgent",
+      },
+      {
+        atSec: 120,
+        text: "It might be the bins, mind. The bin store's on the end of the block and the lorry's not been. I want to say that. I don't think it is, but I want to say it.",
+      },
+      {
+        atSec: 180,
+        text: "There's a car — blue lights, just turned onto Churchill Way. I'll go down and let them in with the fob. Tell them number 18, the middle block, the door on the path.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 240,
+        text: "How long are you going to be? I've got Kevin stood here and another two doors open on this landing wanting to know what's going on. I can't keep them out here indefinitely.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Thank you. I'll be at the communal door with the fob. Tell them there's no key — they'll want to know that before they get out of the car.",
+  },
 };

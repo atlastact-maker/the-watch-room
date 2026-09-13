@@ -250,7 +250,7 @@ export const scenario17: Scenario = {
         text: "Fifty-eight. He was fifty-eight in June.",
       },
       a_history: {
-        text: "He had a heart attack four years ago — 2022, it was. They put a stent in, they took him into Manchester for it, past Fairfield. He's on aspirin every day, and a statin, and something for his blood pressure. They're all in the kitchen cupboard, I can get them for you. No diabetes. No allergies that I know of.",
+        text: "He had a heart attack four years ago — 2022, it was. They put a stent in, they took him into Manchester for it, past Fairfield. He's on aspirin every day, and a statin. They're in the kitchen cupboard, I can get them for you. No diabetes. No allergies that I know of.",
         needsCalm: true,
         followUps: [
           {

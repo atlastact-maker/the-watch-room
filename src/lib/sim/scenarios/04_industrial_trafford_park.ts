@@ -351,4 +351,130 @@ export const scenario04: Scenario = {
       tone: "urgent",
     },
   ],
+  // The call as Siobhan has it: stood in her own yard at Wharfside, on
+  // the west boundary, watching the vents along Albright's roof turn from
+  // grey to black. She runs a site herself; she knows what a shed full of
+  // plastic means, and she knows Victor next door is counting heads.
+  call: {
+    caller: {
+      name: "Siobhan Brennan",
+      phone: "07700 900462",
+      relation: "Site manager of the neighbouring unit — Wharfside Corrugated, Unit 3, west boundary",
+      where: "Her own yard at Unit 3, Mosley Road — about 20 m from Albright's west wall, with a view of the roller door and the yard",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "It's Albright's — the plastics factory on Mosley Road, Trafford Park, next door to us. There's smoke pouring out of their roof, all the vents, thick and black. Their alarm's going and their people are coming out. You'll want more than one engine for this, it's a big shed.",
+    deflection: "I've told you what I can see — I'm not going in there to look! Just send them.",
+    reassurance: {
+      text: "Siobhan, they're coming — a full attendance. Stay in your yard, and just tell me what changes.",
+      reply: "Right. Okay. I'm watching it.",
+    },
+    answers: {
+      f_seen: {
+        text: "Thick black smoke, pouring out of the roof vents all along Albright's main shed — the plastics place next to us. It's going straight up and then flattening out, you'll see it from the motorway. I can't see flames, it's all inside, but the vents are pumping it out.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "The main shed — the big production building. It's coming out of the vents at my end, the west end, nearest our boundary. That's where they keep the raw stock, the bulk bags of granules. Their office on the front corner and the maintenance bay at the far end look alright for now.",
+      },
+      f_spread: {
+        text: "Getting worse by the minute. When I first saw it there was one vent going, now it's the whole run of them. It's not out through the roof yet. Our building's about twenty metres off their wall — if it comes through that end we've a store full of cardboard.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "I noticed it maybe five minutes ago — I was locking up and I smelt it before I saw it. Their alarm's been going since.",
+      },
+      f_building: {
+        text: "Big industrial shed — steel frame, cladding panels, must be a hundred metres long and twelve metres to the eaves. Plastic injection moulding. There's an office block on the front corner and a separate maintenance bay at the far end. Sprinklered — I can hear the bell.",
+      },
+      f_inside: {
+        text: "Their night shift's coming out into the yard — I can see them gathering by the gate. Whether they're all out I can't tell you. Their duty manager's over there counting heads.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_inside_count",
+            text: "How many are on the shift tonight?",
+            answer: {
+              text: "Hang on — Victor! How many on tonight? — He says twelve. He's still going through them, he'll come and tell me when he's done.",
+            },
+          },
+          {
+            id: "f_inside_where",
+            text: "If anyone were still inside, where would they be?",
+            answer: {
+              text: "The dispatch office, if anywhere — that's the low bit on the front corner, by the yard, where they clock in and out. The production floor'd be empty if they were on a break, but I don't know their shifts.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Nobody I can see. They're coughing, some of them — they came out through the smoke. Nobody's on the floor.",
+      },
+      f_vulnerable: {
+        text: "It's a factory — no kids, nobody lives there. Grown men and women on a shift. Nobody in a wheelchair that I've seen.",
+      },
+      f_hazards: {
+        text: "It's a plastics factory — the whole place is a hazard. Bulk plastic granules in the store, tonnes of it, and they've oil for the machines, hydraulic oil, in tanks somewhere at the back. Whether they've bottles or anything like that I couldn't tell you — you'd need Victor, their duty manager.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_hazards_manager",
+            text: "Can you ask the duty manager?",
+            answer: {
+              text: "He's gone over to the gate with his list — I'll grab him when he comes back. He'll have their site plan, they've a proper fire plan for the place, it's on the wall in his office.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "The smoke — it's blowing across the yard and over Mosley Road, you can't see the far side. Their yard's full of cars and there's an artic parked up by their roller door with a trailer on. Nobody's being difficult, they're all just stood watching.",
+      },
+      f_access: {
+        text: "Their yard's off Trafford Wharf Road — big turning circle for the lorries, the gate's open, that's where the staff are. You can get in off Mosley Road as well, round the front. The main roller door's shut. Come in off Wharf Road, that's the wide way.",
+        followUps: [
+          {
+            id: "f_access_parked",
+            text: "Is anything parked in the way?",
+            answer: {
+              text: "The artic — it's on their yard near the roller door, trailer still on. Staff cars along the front. The turning circle itself's clear.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm in my own yard, next door — Wharfside, Unit 3. There's a fence and about twenty metres between us. I'm alright for now, I'll move if it comes this way.",
+      },
+      f_stay: {
+        text: "Yes. I'll stay on. I'm not leaving my unit anyway.",
+      },
+      f_details: {
+        text: "Siobhan Brennan — I'm the site manager at Wharfside Corrugated, Unit 3 Mosley Road, the unit next door. This is my mobile, 07700 900462. The office line's 0161 496 0731 if you lose me.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "The smoke's changed — it was grey when I rang, it's black now, properly black, and there's more of it.",
+        tone: "urgent",
+      },
+      {
+        atSec: 110,
+        text: "Is anyone coming? I can't see anything, I can't hear anything — that's a plastics factory, it'll be gone if you don't get here.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 170,
+        text: "I can hear sirens — from the Wharf Road end. Is that yours? Tell them the yard gate's open.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 250,
+        text: "The lorry driver's here with me now — Kevin, his artic's still on their yard by the roller door. He says the trailer's half loaded with their pallets. He's not going back for it.",
+      },
+    ],
+    onDispatch: "Thank you. Tell them Wharf Road for the yard — the staff are at the gate, they'll wave them in.",
+  },
 };

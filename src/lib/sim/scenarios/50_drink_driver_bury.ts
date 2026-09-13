@@ -339,4 +339,133 @@ export const scenario50: Scenario = {
     basis:
       "GMP's own published figure: 'Priority or grade 2 — within 1 hour' (Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025); the GMCA GMP Performance Briefing of January 2026 reports priority incidents against a one-hour 'aspired attendance time'. Graded priority here as a THRIVE judgement made for this scenario, not a published GMP rule: nobody injured, no violence, the car stationary and the suspect contained by a witness with eyes on. A real handler could defensibly call it Grade 1 once the engine starts — the moment he drives, the threat and harm change and so should the grade",
   },
+
+  // The call as Lisa has it: in her own car with the doors locked, three
+  // bays from a silver Focus with a man slumped in the driver's seat,
+  // shopping still in the boot. She is not scared of him. She is scared
+  // of what he does next, and she has already decided to go after him.
+  call: {
+    caller: {
+      name: "Lisa Greenhalgh",
+      phone: "07700 900418",
+      relation: "Shopper — a stranger to the driver, three bays from his car",
+      where: "Her own car in the supermarket car park, three bays along from the Focus, eyes on the driver",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police — there's a man in the supermarket car park off Pilsworth Road in Bury, the big one by the motorway, and he's just got in a car and he can't even stand up. He came out the shop like he was on a boat, he's bounced off a trolley, and he's got in the driver's side of a silver Focus. He's sat in it now. He's not started it. Please, somebody needs to get here before he does.",
+    deflection: "I don't know, I don't know — just get somebody here before he starts it!",
+    reassurance: {
+      text: "Lisa, listen. A car's coming. Stay in your seat, keep your eyes on him, and tell me what he does.",
+      reply: "Okay. Okay. I'm watching him. I'm not going anywhere.",
+    },
+    answers: {
+      p_happening: {
+        text: "There's a man who can't walk straight sat in the driver's seat of a car. I watched him come out of the shop — he went across the car park holding onto other people's cars, and he's got in a silver Focus, driver's side. He's sat in it. He's not started it. I'm three bays along in my own car and I can see the back of his head.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_happening_drunk",
+            text: "What makes you think he's been drinking?",
+            answer: {
+              text: "He couldn't walk. He dropped his keys twice getting the door open. And I was behind him at the self-checkout — he had a bottle of vodka and a bag of ice and he stank of it, I could smell it from where I was stood. I'm not guessing.",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes — he's still sat there. Engine's off, lights are off. He's sort of slumped, looking at his phone. He could go any second, that's why I rang.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "No — no, nothing like that. It's not that sort of thing. He's just drunk. The only weapon is the car.",
+      },
+      p_injured: {
+        text: "Nobody. Not yet. He's not hit anything — he nearly went over with a trolley, but that was him, not anybody else.",
+      },
+      p_who: {
+        text: "Just him. One man, on his own. Nobody else in the car — front seat's empty, I can't see the back properly but I don't think so. And me, in my car.",
+      },
+      p_description: {
+        text: "Fifties, maybe. Big man, heavy. Bald, or shaved. Grey fleece, jeans, work boots. Silver Ford Focus, the older shape, five-door. It's parked nose-in, three bays down from me towards the trolley bay.",
+        followUps: [
+          {
+            id: "p_description_plate",
+            text: "Can you get me the registration?",
+            answer: {
+              text: "Not from here — it's nose-in and I'm side on to it. I'd have to get out and walk round the back of it, and he'd see me. Give me a minute. I'll try and get it without him clocking me.",
+            },
+          },
+        ],
+      },
+      p_direction: {
+        text: "He's not gone anywhere yet. If he does — there's only one way out of here, the service road onto Pilsworth Road. Right is the motorway, the M66, it's right there. Left is Manchester Road. I'll tell you which.",
+      },
+      p_drink: {
+        text: "Drink — yes. Definitely. I've told you, he was in front of me at the checkout with a bottle of vodka and he couldn't walk to his car. I don't know about drugs. Drink, though, yes.",
+      },
+      p_known: {
+        text: "No. Never seen him before in my life. I just do my shop here.",
+      },
+      p_vulnerable: {
+        text: "The car park's full of people — it's teatime, there's kids in trolleys, there's people loading their boots between him and the exit. If he pulls out into that — that's who's at risk. Everyone.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "The supermarket car park off Pilsworth Road in Bury — the big one by the motorway, by Pilsworth Interchange. BL9 8RS, I think. I'm in the main car park in front of the store, the rows nearest the trolley bay, sort of the middle. He's three bays from me.",
+        followUps: [
+          {
+            id: "p_where_entry",
+            text: "How do the officers get into the car park?",
+            answer: {
+              text: "Off Pilsworth Road — there's a service road by the petrol station, that's the only way in and out for cars. Come in there and the store's on your left, we're in the rows in front of it.",
+            },
+          },
+        ],
+      },
+      p_safe: {
+        text: "I'm in my car with the doors locked and he's not looked my way. I'm fine. But I'm telling you now — if he pulls out, I'm going after him. I'm not losing him and having him hit some kid.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_safe_follow",
+            text: "I need you to stay exactly where you are. Will you do that for me?",
+            answer: {
+              text: "I — alright. Alright. I'll stay put. But you'd better be quick, because I'm not promising anything if he goes.",
+            },
+          },
+        ],
+      },
+      p_seen: {
+        text: "Saw it all myself. Watched him from the doors to the car. I've got eyes on him right now — I'm looking straight at the back of his head.",
+      },
+      p_details: {
+        text: "Lisa Greenhalgh. I'm on my mobile — 07700 900418. I'm in a blue Kia, if they want to find me.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "He's got his head down on the wheel now. Oh — no, he's up again, he's fumbling with something. Keys, I think. Please hurry.",
+        tone: "urgent",
+      },
+      {
+        atSec: 130,
+        text: "Is anyone actually coming? Because I'm telling you now, if he pulls out of that bay I'm going after him. I'm not having him kill somebody.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 200,
+        text: "I can't see any police yet. Which way are they coming in? There's only the one way in off Pilsworth Road — tell them the service road by the petrol station.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 235,
+        text: "A woman with a trolley's just walked right past his window and he's not even looked up. He's just staring. It's not right.",
+      },
+    ],
+    onDispatch: "Thank you. Please tell them to hurry. I'm staying here — I'm looking right at him.",
+  },
 };

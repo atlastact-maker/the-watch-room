@@ -183,10 +183,9 @@ export const scenario20: Scenario = {
   ],
 
   // The call as Carol has it: on her mobile on the far pavement with
-  // three neighbours and a pram, her own front door open behind her, the
-  // hiss coming from the flags outside 66. Nothing to see and nothing to
-  // point at. She wants to know who rings the gas people, and she wants
-  // somebody to get Mrs Pennington out, and she is scared to press a bell.
+  // three neighbours and a pram, the hiss coming from the flags outside
+  // 66. Nothing to see and nothing to point at. She wants to know who
+  // rings the gas people, and she is scared to go near Mrs Pennington's door.
   call: {
     caller: {
       name: "Carol Ashcroft",
@@ -197,7 +196,7 @@ export const scenario20: Scenario = {
       state: "anxious",
     },
     opening:
-      "Hello — is that the fire brigade? It's Ormskirk Road in Wigan, WN5, outside number 68 — that's me — and 66. There's a smell of gas out in the street, really strong, it's making your eyes water. And there's a hissing coming from the pavement, by the kerb. A few of us have come out. I didn't know who else to ring.",
+      "Hello — is that the fire brigade? It's Ormskirk Road in Wigan, WN5, outside number 68 — that's me — and 66. There's a smell of gas out in the street, really strong, you can taste it. And there's a hissing coming from the pavement, by the kerb. A few of us have come out. I didn't know who else to ring.",
     deflection: "I don't know, love, I don't know what else to tell you — it's gas, it's in the street, just tell me what we're meant to do!",
     reassurance: {
       text: "Carol, you've done exactly the right thing. A crew is coming, and the gas people are being told. Stay across the road with the others, and just answer what you can.",
@@ -230,7 +229,7 @@ export const scenario20: Scenario = {
         text: "It's houses. A terrace — a row of old terraces, brick, two up two down, front doors straight onto the pavement. They've all got cellars, these, under the front rooms.",
       },
       f_inside: {
-        text: "Most of us are out — there's four of us stood here. Mrs Pennington at 66 is still in. She's ninety-two, she's got a frame, she doesn't come to the door quick and she's deaf. Her lights are on. And I don't know about 62, the young couple — their car's not there so I think they're at work.",
+        text: "Most of us are out — there's four of us stood here. Mrs Pennington at 66 is still in. She's ninety-two, she's got a frame, she doesn't come to the door quick and she's deaf. Her lights are on. I've not been up to her door — it's right where it's hissing. And I don't know about 62, the young couple — their car's not there so I think they're at work.",
         tone: "urgent",
         followUps: [
           {

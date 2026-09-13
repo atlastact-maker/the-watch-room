@@ -328,4 +328,133 @@ export const scenario44: Scenario = {
     basis:
       "GMP Grade 1 (Immediate) — 'within 15 minutes', GMP's own published aspired attendance time, force-wide with no urban/rural split (Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025; GMCA GMP Performance Briefing, Jan 2026 — 95% within 15 min in 2025, average 7m52s). Robbery with a bladed article, offender at large on foot in a crowded place: Threat and Harm both live on THRIVE.",
   },
+
+  // The call as Callum has it: on Tayo's phone by the tram stop on the
+  // Market Street corner, hand wrapped in a hoodie, a minute after a lad
+  // in a snood put a knife to his stomach and walked off with his phone.
+  // The description comes out in the order it comes back to him.
+  call: {
+    caller: {
+      name: "Callum Rowe",
+      phone: "07700 900523",
+      relation: "The victim — on his friend Tayo's phone, his own having been taken",
+      where: "By the tram shelter at the Market Street corner of Piccadilly Gardens, with his friend",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police — I've just been robbed, he had a knife. Piccadilly Gardens, the Market Street corner, right by the tram stop. He's had my phone off me — I'm on my mate's. He's run up Market Street, towards the Arndale. A minute ago, if that. He's still up there.",
+    deflection: "I've told you what happened. Are you sending someone or not?",
+    reassurance: {
+      text: "Callum, officers are on their way to you. Every bit of description you give me goes straight to the cars and the cameras — that is what finds him. Stay where you are and go through it with me.",
+      reply: "…Alright. Alright. Go on.",
+    },
+    answers: {
+      p_happening: {
+        text: "I've been robbed — he's had my phone off me at knife-point. I was stood by the tram stop looking at my phone, he come up behind me, arm round my neck, I turned round and there's a knife at my stomach. 'Give me the phone.' I grabbed at it like an idiot, he's cut my hand, he's had the phone off me and he's gone up Market Street. I'm on my mate's phone.",
+        tone: "critical",
+        effect: { regrade: "GRADE 1", basis: "Robbery with a bladed article — offender on foot in a crowded place within the last two minutes" },
+      },
+      p_ongoing: {
+        text: "He's gone — he's not here, he ran. But he's only just gone, he's on Market Street somewhere, he can't be far. If you're quick you'll have him.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "Yeah — a knife. Small one, silver, one of them folding ones, a lock knife. He had it down by his side and then he showed me it, right at my stomach. He put it back in his jacket, the right pocket, before he ran.",
+        tone: "critical",
+      },
+      p_injured: {
+        text: "My hand — he's caught my hand. Across the palm, I grabbed at the blade. It's bleeding but it's not pouring, it's pretty much stopped, my mate's got his hoodie wrapped round it. I don't want an ambulance. I want you to find him.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_injured_bleeding",
+            text: "Is the bleeding stopping?",
+            answer: {
+              text: "Yeah. It's come through the hoodie a bit but it's stopped now. It's stinging more than anything. It's a cut, it's not — I'll live. Honestly, don't send me an ambulance, send them after him.",
+            },
+          },
+        ],
+      },
+      p_who: {
+        text: "One lad, on his own — I didn't see anyone with him. He come up behind me so I didn't see him till he was on me. Then it's me and my mate Tayo, he was stood next to me, he saw him run.",
+      },
+      p_description: {
+        text: "White lad, young — eighteen, twenty. Black puffer jacket with the hood up, and a snood or a mask thing pulled up over his nose, so all I got was his eyes. Taller than me — five ten, five eleven. Skinny.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_description_more",
+            text: "Anything else — trousers, shoes, a bag?",
+            answer: {
+              text: "Grey trackies, I think. Grey. Black trainers. And — yeah, a little bag across his front, black, he shoved my phone in it. I'm trying to see his face and I can't, I just see the snood.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_direction: {
+        text: "Market Street — up Market Street towards the Arndale, on foot, running. He went off the corner past the tram stop and I lost him in the crowd by the shops. Thirty seconds, a minute ago.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_direction_findmy",
+            text: "Can you see where your phone is?",
+            answer: {
+              text: "Hang on — Tayo's logged me into Find My on his. It's showing on Market Street. It's a blue dot on a map, that's all I can tell you. Tayo says it's still on Market Street.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "Me? I've had two pints, I'm not drunk. Him — I don't know, he wasn't stumbling, he was quick. He knew what he was doing, it was over in five seconds.",
+        needsCalm: true,
+      },
+      p_known: {
+        text: "No. Never seen him in my life. I wouldn't know him again either, not with the snood. I'd know the jacket.",
+        needsCalm: true,
+      },
+      p_vulnerable: {
+        text: "Not me — no. But there's loads of people about, kids, people waiting for the tram, and he's got a knife on him. That's what I'm saying.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "Piccadilly Gardens, the Market Street corner — right next to the tram stop, by the crossing onto Market Street. I'm stood at the tram shelter. I'll stay put. I don't know the postcode, it's the gardens.",
+      },
+      p_safe: {
+        text: "Yeah, I'm alright. He's gone. I'm with my mate. There's a load of people looking at me and someone's filming, but yeah. My hand's throbbing. I'm fine.",
+      },
+      p_seen: {
+        text: "It happened to me. I was looking at my phone, arm round my neck, knife at my stomach, phone gone. Tayo saw him run off, he didn't see the knife.",
+      },
+      p_details: {
+        text: "Callum Rowe — R-O-W-E. This is my mate's phone, Tayo Mensah, 07700 900523. Mine's the one he's nicked. Ring this one.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 60,
+        text: "Hang on — my hand's come through the hoodie. It's — no, it's alright, it's alright, Tayo's wrapped it again. It's not bad.",
+        tone: "urgent",
+      },
+      {
+        atSec: 110,
+        text: "He's got my whole life on that phone. My bank, everything. Can they get into it? It's got Face ID. Sorry — sorry, that's not — what do you need?",
+      },
+      {
+        atSec: 170,
+        text: "There's police — a car on Piccadilly with the blue lights on, by the tram stop. Is that for me? Do I go to them or do they come to me?",
+        requiresOpened: true,
+      },
+      {
+        atSec: 220,
+        text: "Are you sending anyone or what? I've been stood here ages with my hand in a hoodie and he's getting further away every minute. He'll be on a tram by now.",
+        tone: "urgent",
+        effect: { state: "hostile" },
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Right. Good. Tell them I'm by the tram stop on the Market Street corner — grey jacket, hand wrapped in a black hoodie. And tell them to go up Market Street, not here. He's not here.",
+  },
 };

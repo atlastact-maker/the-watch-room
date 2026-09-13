@@ -180,4 +180,138 @@ export const scenario31: Scenario = {
       tone: "info",
     },
   ],
+
+  // The call as Ken has it: on the cordless in the front room at 88
+  // Bramhall Lane, standing over Margaret's chair. He is seventy-four and
+  // he cannot get his thoughts in a line, and one of them is the answer
+  // that decides this job.
+  call: {
+    caller: {
+      name: "Ken Whitelegg",
+      phone: "0161 496 0310",
+      relation: "The patient's husband",
+      where: "Front room at 88 Bramhall Lane, stood beside Margaret's armchair on the cordless",
+      line: "landline",
+      state: "confused",
+    },
+    opening:
+      "Hello — hello, yes, I need an ambulance for my wife. It's Margaret. Something's — her face isn't right, love, and she's — 88 Bramhall Lane. Stockport. I can't understand what she's saying to me. She's in her chair. What do I do?",
+    deflection: "I… sorry, what? What did you — sorry, love. I'm all — say it again.",
+    reassurance: {
+      text: "Ken, you're doing fine. An ambulance is coming. There's no rush on you — just look at Margaret and tell me what you see, one thing at a time.",
+      reply: "Right. Yes. Sorry. One thing at a time. Right.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes — she's awake, she's looking at me. She knows me. She's trying to tell me something and it's all — it's coming out wrong, like she's had a drink. She's not had a drink.",
+        tone: "urgent",
+      },
+      a_breathing: {
+        text: "Breathing? Yes. Yes, she's breathing all right, normal I think. She's not gasping or anything. She's just sat there. Her mouth — one side of it's gone down and there's a bit of dribble. I've wiped it.",
+      },
+      a_happened: {
+        text: "She was in her chair. I came in and I — her face. The left side, it's dropped, like it's melted, and when I asked her what was wrong the words were all jumbled. And her arm. I told her to hold my hand and the left one just lies there. She can't lift it. She lifted the right one.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "a_happened_smile",
+            text: "Ask her to smile for me — does one side of her face not move?",
+            answer: {
+              text: "Margaret, love, smile — smile for the lady. …No. The right side goes up and the left side just — it stays. It doesn't move.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "I — when did — I'm not sure. I'm trying to think. I was out of the room, and then I — I'm sorry, love, I'm all over the place. I can't think when.",
+        tone: "urgent",
+        needsCalm: true,
+        followUps: [
+          {
+            id: "a_when_lastwell",
+            text: "Take your time. When did you last see her as her normal self — talking properly, moving properly?",
+            answer: {
+              text: "Let me think. Let me — I need to think about this properly. I'll have to look at the clock. Hang on.",
+            },
+          },
+        ],
+      },
+      a_now: {
+        text: "Her colour's all right, I think. She's not sweaty. She's frightened — I can see she's frightened, her eyes are going. She's trying to talk and it's like a mouthful of marbles. She's squeezing my hand with her right one.",
+        tone: "urgent",
+      },
+      a_bleeding: {
+        text: "No. No blood. She's not fallen, she's not hurt. She's just sat in her chair like she always does.",
+      },
+      a_age: {
+        text: "She's seventy-one. Seventy-one in March. I'm seventy-four.",
+      },
+      a_history: {
+        text: "She's got — she's got tablets, a lot of tablets. Her heart, there's something with her heart, the doctor's got her on things for it. And her blood pressure. They're all in the kitchen in the — the box with the days on. I can't tell you what they're called, I'd have to go and look, and I don't want to leave her.",
+        needsCalm: true,
+        followUps: [
+          {
+            id: "a_history_before",
+            text: "Has anything like this happened to her before — a stroke, a mini-stroke?",
+            answer: {
+              text: "No. Never. Nothing like this. She's had her heart looked at, but never this. Never her face.",
+            },
+          },
+        ],
+      },
+      a_count: {
+        text: "Just Margaret. Just her. It's only the two of us.",
+      },
+      a_danger: {
+        text: "It's our front room, it's — it's fine. It's warm. She's in her armchair by the window. There's nothing — no, it's safe. It's just us.",
+      },
+      a_access: {
+        text: "The front door — I'll open it. There's a short drive, they can come straight on, the car's in the garage. 88, it's the semi with the white gate, opposite the bus stop. I'll put the porch light on. I'll stand at the door. No — I'll stay with her. Which do you want me to do?",
+        followUps: [
+          {
+            id: "a_access_door",
+            text: "Stay with her for now, Ken. Can they get in if you don't come to the door?",
+            answer: {
+              text: "It's a Yale. I'll take it off the latch now — hang on. …There. It's open. They can just come in. Straight in, first door on the right.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "I'm right here, I'm stood next to her chair. I've got the cordless. I've got her hand.",
+      },
+      a_instructions: {
+        text: "Yes. Yes, tell me. Slowly, love, tell me slowly and I'll do it.",
+      },
+      a_details: {
+        text: "Ken Whitelegg. Kenneth. And she's Margaret. It's the house phone — 0161 496 0310. I'm on the cordless.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "She's crying now. Margaret, love, don't — it's all right, they're coming — she's trying to say something and I can't — I can't make it out. What's she saying? I can't understand her.",
+        tone: "urgent",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 105,
+        text: "Is somebody coming? You've not — have you sent them? I don't know if you've sent them. She needs somebody now.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 165,
+        text: "You asked me when. I keep thinking about that. It matters, doesn't it — I could tell by how you asked.",
+        tone: "urgent",
+      },
+      {
+        atSec: 225,
+        text: "That's a siren, I can hear a siren. Is that for us? I'll go to the door. No — I said I'd stay. I'll stay. They can come in, it's open.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. Thank you, love. Margaret — they're coming. They're coming, they'll not be long. Hold my hand.",
+  },
 };

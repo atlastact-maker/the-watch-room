@@ -293,4 +293,118 @@ export const scenario49: Scenario = {
     basis:
       "GMP Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 (judiciary.uk, 2025-0342): \"Priority or grade 2 - within 1 hour\". Corroborated by the GMCA GMP Performance Briefing, January 2026, which calls one hour the force's aspired attendance time for priority incidents (77% met in 2025). Sixty minutes is GMP's own published figure, not a generic one. Grading an expected death Priority — no threat, harm or risk, but a vulnerable premises with nobody able to act, an attendance the coroner's system may need, and a next of kin waiting — is our application of THRIVE, not a GMP-published worked example; GMP's sudden-death procedure, and whether it would attend an expected death at all rather than close it with advice, were not obtained.",
   },
+
+  // The call as Grace has it: the office line at four in the morning,
+  // the file open on the desk, a carer sat outside a shut door down the
+  // corridor and twenty-three people asleep. She is not frightened. She
+  // is stuck, and she is sorry to be ringing.
+  call: {
+    caller: {
+      name: "Grace Oyelaran",
+      phone: "0161 496 0417",
+      relation: "Night manager, Whitethorn House",
+      where: "The office at Whitethorn House, with the resident's file in front of her",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Hello — I'm sorry, I'm not sure this is a 999 thing. It's Grace, I'm the night manager at Whitethorn House, the care home on Temple Road in Sale Moor. One of our residents has died in his sleep. He's 89 and he was on end-of-life care, it's been expected all week. I've rung the out-of-hours doctor and they've said four or five hours before anyone can come, and there's nobody here who's allowed to verify him. I didn't know who else to ring.",
+    deflection: "I'm sorry — I've told you everything there is. He's died, it was expected, and nobody can come. What do I do?",
+    reassurance: {
+      text: "Grace, you've done everything right. Let me work out who needs to come, and I'll tell you what happens next.",
+      reply: "Thank you. Sorry. It's just — I've never had nobody to ring before.",
+    },
+    answers: {
+      p_happening: {
+        text: "One of our residents has died. Mr Halliwell, in room 7 — he's 89, he's been on end-of-life care, it's been expected all week. Kayleigh, one of my carers, found him on the four o'clock checks. I've rung the out-of-hours and they can't get a doctor to us for four or five hours. There's nothing happening, if I'm honest. That's rather the problem.",
+        followUps: [
+          {
+            id: "p_happening_found",
+            text: "Tell me how he was found.",
+            answer: {
+              text: "In his bed, on his back, the covers up as they were. Kayleigh checked him at two and he was asleep and breathing. At four he'd gone. She could see he had. She didn't move him — she came and got me, I went in, and we shut the door.",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "No. Nothing's going on. He's died and he's in his room with the door shut, and nothing can happen till somebody official has seen him. That's what I'm ringing about.",
+      },
+      p_weapons: {
+        text: "Good heavens, no. Nothing like that. He was 89 and he was dying. There's nobody involved — nobody's done anything to anybody.",
+      },
+      p_injured: {
+        text: "No. No injuries, nothing untoward, nothing to see. He's just gone in his sleep, the way we'd all hoped he would.",
+      },
+      p_who: {
+        text: "Just him — Mr Halliwell, Arthur. On duty it's me, Grace, the night manager, and two care assistants — Kayleigh, who found him, and one other. Twenty-three residents asleep. That's the whole building.",
+      },
+      p_description: {
+        text: "He's an 89-year-old man in his bed in his pyjamas. I'm sorry, I don't know what you want me to describe. Slight, white hair, he was a big man once. He's in room 7 and the door's shut.",
+      },
+      p_direction: {
+        text: "Nobody's gone anywhere. Kayleigh's sat outside his door and I'm in the office. The only person moving tonight is whoever you send.",
+      },
+      p_drink: {
+        text: "No. He's been on the end-of-life pathway three weeks — the district nurses hold his medication and it's all on the chart. Nothing that shouldn't be there.",
+      },
+      p_known: {
+        text: "I've known him four years — he's been with us four years. A widower. Lovely man, sharp as anything until the last month. Everyone here knows him.",
+      },
+      p_vulnerable: {
+        text: "Twenty-three other residents, all asleep, and half of them have dementia. That's my worry, honestly — not him. If a police car comes up Temple Road with the lights going I'll have the whole corridor up, and I can't settle them again at four in the morning. His daughter's next of kin — she asked to be rung whatever the hour, and I'll be doing that the moment I'm off the phone to you.",
+        followUps: [
+          {
+            id: "p_vulnerable_verify",
+            text: "Is there anyone there who can verify the death?",
+            answer: {
+              text: "No, and that's the whole problem. We're residential, not nursing — there's no nurse on at night, and the carers and I aren't allowed to. The district nurses' line put me through to the out-of-hours doctor, and the out-of-hours can't get anyone for four or five hours. So then I rang you.",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "Whitethorn House, 41 Temple Road, Sale Moor — M33 2FQ. It's the big Edwardian house on the west side with the drive. The drive takes two cars and the road's parked both sides, so tell them to come onto the drive. The front door's on a keypad and it's locked overnight. Ring the bell and I'll come — I'll be watching for them anyway.",
+        followUps: [
+          {
+            id: "p_where_room",
+            text: "Where is he in the building?",
+            answer: {
+              text: "Room 7. Ground floor, at the back of the main house, on the corridor between the lounge and the dining room. Door shut, Kayleigh sat outside it. Nobody's been in since I came out.",
+            },
+          },
+        ],
+      },
+      p_safe: {
+        text: "Yes, of course. I'm in the office. It's a care home at four in the morning — the most dangerous thing in it is the stairs.",
+      },
+      p_seen: {
+        text: "I've seen him myself. Kayleigh found him and came and got me, and I went in. I've done this before, sadly — it's not the first time. It's the first time I've had nobody to ring.",
+      },
+      p_details: {
+        text: "Grace Oyelaran — O-Y-E-L-A-R-A-N. Night manager. I'm on the office line, 0161 496 0417. If it's engaged, my mobile's 07700 900584.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Sorry — Kayleigh's just put her head round the door. She's alright. I've asked her to stay sat outside his room so nobody goes in. She's only twenty-four, she's a bit shaken.",
+      },
+      {
+        atSec: 115,
+        text: "Is somebody coming, or is it not a police thing? I honestly don't mind which. I just need to know what I'm telling the day staff at seven.",
+        requiresOpened: false,
+      },
+      {
+        atSec: 185,
+        text: "Thank you. Can I just say again — no lights, please, when they come up Temple Road. I'll have the door open before they've got out of the car, they won't need to knock.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 240,
+        text: "Mrs Ashworth in room 9 has just buzzed. It's nothing, she does most nights — but I'm going to have to go to her in a minute, so if there's anything else you need, ask me now.",
+      },
+    ],
+    onDispatch: "Thank you. No lights, please. I'll be at the front door with his file, and I'll ring his daughter now.",
+  },
 };

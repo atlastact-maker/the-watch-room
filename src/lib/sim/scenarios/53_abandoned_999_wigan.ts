@@ -310,4 +310,109 @@ export const scenario53: Scenario = {
     basis:
       "GMP Grade 2 'Priority' — within 1 hour. GMP's own published figure: Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Priority or grade 2 - within 1 hour'); GMCA GMP Performance Briefing, Jan 2026 (one hour is 'our aspired attendance time'; 77% met in 2025, average 1h 06m 49s). GMP's grading policy opens an abandoned 999 as a Police Administration (PA) record 'required to identify the grading by THRIVE' (GMP FOI 01/FOI/24/012708/K, 28 Jun 2024); the raised voice and the door heard on this call take it to a priority attendance unless a call-back accounts for it.",
   },
+
+  // The call as the desk has it, because nobody has it any other way: a
+  // mobile that has dialled 999 and been put through with an open line.
+  // Nobody speaks to the handler. What comes down the phone is a room —
+  // a man's raised voice somewhere away from it, then a door, then
+  // nothing — and a handset fix on Kendal Street. The number's holder is
+  // on the records; the desk does not have her name until the log search
+  // finds it, so nothing here gives it.
+  call: {
+    caller: {
+      name: "Not given — nobody has spoken",
+      phone: "07700 900314",
+      relation: "Unknown — 999 from a mobile, open line, nobody speaking to the handler; the number is not yet matched to anyone",
+      where: "Unknown — the handset plots to Kendal Street, Wallgate, radius about 30 m. A phone location, not a house",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening: "…— …no. No, I've told you. I've TOLD you — …",
+    deflection: "…",
+    reassurance: {
+      text: "Caller, if you can hear me but you can't speak, stay on the line. Tap the phone twice for yes.",
+      reply: "…",
+    },
+    answers: {
+      p_happening: {
+        text: "…— …every time. EVERY time. I'm not — …",
+        followUps: [
+          {
+            id: "p_happening_tap",
+            text: "If you can hear me and you can't speak, tap the phone twice.",
+            answer: {
+              text: "…",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "…",
+      },
+      p_weapons: {
+        text: "…",
+      },
+      p_injured: {
+        text: "— …what? WHAT? …",
+      },
+      p_who: {
+        text: "…",
+      },
+      p_description: {
+        text: "…",
+      },
+      p_direction: {
+        text: "— …come ON. Come ON — …",
+      },
+      p_drink: {
+        text: "…",
+      },
+      p_known: {
+        text: "…",
+      },
+      p_vulnerable: {
+        text: "…",
+        followUps: [
+          {
+            id: "p_vulnerable_noise",
+            text: "If there's someone there and you can't talk, cough or make any sound for me.",
+            answer: {
+              text: "…— …I've SAID. I'm not — …",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "…",
+      },
+      p_safe: {
+        text: "— …are you having a laugh? Are you actually — …",
+      },
+      p_seen: {
+        text: "…",
+      },
+      p_details: {
+        text: "…",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "— …who's that? Who's THAT? …Eh? Who are you — …",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 42,
+        text: "— …no. NO. Right. RIGHT — …",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+    ],
+    drops: {
+      atSec: 46,
+      text: "— …that's it. THAT'S IT — …",
+    },
+    onDispatch: "…",
+  },
 };

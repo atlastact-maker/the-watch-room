@@ -291,4 +291,129 @@ export const scenario51: Scenario = {
     basis:
       "GMP Grade 2 (Priority): attendance within one hour — Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Priority or grade 2 - within 1 hour'), and the GMCA GMP Performance Briefing of Jan 2026, which calls the hour GMP's 'aspired attendance time' (77% met in 2025). Nothing below Grade 2 is an attendance in GMP terms: GMP removed Grades 3 to 5 in February 2022 (GMP FOI 01/FOI/24/012708/K), so the two earlier calls this week sat at Grade C, central resolution. The threat to burn the house out is what lifts this one — a threat to destroy property by fire is an offence in its own right (Criminal Damage Act 1971 s.2) and, made against an occupied house on a party wall, a threat of serious harm. Grade 1 turns on a real and immediate risk: a man at the fence with a lighter is closer to it than a man shouting over it, and the log should say which.",
   },
+
+  // The call as Janice has it: on her mobile in the kitchen at 61 with
+  // the back door locked, a hand on Barry's sleeve and the neighbour the
+  // other side of a four-foot fence. She has made this call twice this
+  // week already. She wants a car, not a reference number.
+  call: {
+    caller: {
+      name: "Janice Holroyd",
+      phone: "07700 900174",
+      relation: "Occupier at no. 61 — the repeat caller; wife of the man the threat was shouted at",
+      where: "Her own kitchen at 61, back door shut and locked, looking down the garden at the fence",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police, please. It's 61 Daventry Road, Kirkholt — Janice Holroyd, you've had me twice this week already. It's him next door again, he's out the back at the fence screaming at my husband. And this time he's said he'll burn us out. He's said it twice. I want somebody here tonight, not a phone call.",
+    deflection: "I've told you what he said. Are you sending somebody, or is this going to be another phone call?",
+    reassurance: {
+      text: "Janice, I'm not putting you on a list. I'm dealing with this now, and I'm keeping you on the line while I do. Help me tell the officers what they're walking into.",
+      reply: "…Right. Right. Go on, then.",
+    },
+    answers: {
+      p_happening: {
+        text: "It's next door — 63. He's out in his back garden at the fence, shouting at my Barry, and he's been at it a good ten minutes. And he's said he'll burn us out. Not 'I'll have you out', not 'you'll be sorry' — 'I'll burn the pair of you out.' He looked at the house when he said it, not at Barry. Nothing's on fire, I'm not telling you that. But he's said it and he meant me to hear it.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_happening_words",
+            text: "Tell me exactly what he said, word for word.",
+            answer: {
+              text: "'I'll burn the pair of you out. See how you like that.' Then he said it again, slower, like he wanted me to write it down. Barry was stood at the back door and I was behind him. I've not made a word of that up.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "p_happening_now",
+            text: "Where is he right now?",
+            answer: {
+              text: "Still out there. Stood at the fence with his arms folded and the music going behind him. Barry's at the back door, half in, half out, and I've got hold of his sleeve. I'm looking at the man now.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes. He's still out there. I can see him from the kitchen window — he's stood at the fence, he's stopped shouting for the minute but he's not gone in. The music's still going. He's watching my back door.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "No. Nothing in his hands — I've looked, I'm not daft. He's not carrying a can of anything, there's nothing lit, there's no smoke. It's what he said, not what he's holding. Yet.",
+      },
+      p_injured: {
+        text: "Nobody's hurt. Nobody's touched anybody, there's a fence between them. He's threatened us, that's what he's done — he's said he'll set fire to my house with me and Barry in it. That's hurt enough for one night.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "Him at 63 — Lee, Lee Duckworth. He's on his own out there. His partner's inside, Kelly, and they've a little lad. This side it's me and my husband Barry. That's it. Four grown-ups and a child, and one of them wants to set fire to a house.",
+      },
+      p_description: {
+        text: "What's he wearing? Grey joggers and a black hoodie, hood down. Shaved head, big lad, forty-odd. You'll not need a description to find him, love, he lives next door. He'll be the one with the music on.",
+        needsCalm: true,
+      },
+      p_direction: {
+        text: "He's not gone anywhere. He's in his own back garden, at the fence, and if he goes anywhere it'll be in his own back door. He doesn't need to go anywhere. He's the other side of a four-foot fence from my kitchen.",
+      },
+      p_drink: {
+        text: "He's had a drink. He's always had a drink by this time of night, you can hear it in him — he's slurring. Anything else, I couldn't tell you and I'm not going to say I can.",
+        needsCalm: true,
+      },
+      p_known: {
+        text: "Know him? I've had him since February. Lee Duckworth, and his partner's Kelly Sutcliffe. It's been the music, it's been the parking, it's been the fence — you've got it all written down, I've rung enough times. I've never said a word to the little lad and I never would.",
+      },
+      p_vulnerable: {
+        text: "There's a little lad at 63. Mason, he's about nine — he'll be in there now with his mum, hearing all this. And it's a semi. It's one roof. If he sets fire to my side he sets fire to his own, with that boy in it. That's the bit I can't get past.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_vulnerable_husband",
+            text: "And your husband — how is he?",
+            answer: {
+              text: "He's sixty-one and he's had enough. He's stood at the back door and he's shaking, and it's not fright. I've got hold of his arm. I can hold him tonight. I'm not promising I can hold him all week.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "61 Daventry Road, Kirkholt. OL11 2HY. It's the semi with the hanging basket by the door — his is 63, attached, the one with the music. Come to my door first, please. Not his. Mine.",
+      },
+      p_safe: {
+        text: "I'm in my kitchen with the back door shut and the key turned. He can't get to me — there's a fence and a wall. I don't feel safe, if that's what you're asking. I've not felt safe since Wednesday.",
+      },
+      p_seen: {
+        text: "I heard it with my own ears, stood behind my husband at the back door. Barry heard it. Half the street will have heard it, the volume he was at. Nobody needed to tell me.",
+      },
+      p_details: {
+        text: "Janice Holroyd. H-O-L-R-O-Y-D. You've got me on your system, I'm on it three times this week. This is my mobile — 07700 900174.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "He's started again. He's shouting 'go on, ring them, ring them again, see what good it does you.' He knows I'm on the phone to you.",
+        tone: "urgent",
+      },
+      {
+        atSec: 110,
+        text: "You're going to give me a reference number and somebody's going to ring me back, aren't you. I can hear it in your voice. I had that on Thursday. Nobody rang.",
+        tone: "urgent",
+        requiresOpened: false,
+        effect: { state: "hostile" },
+      },
+      {
+        atSec: 150,
+        text: "Barry's got his shoes on. He's saying he's going round the front to have a word. I've told him he's going nowhere, he's sixty-one — he's sat back down, but he's not happy and neither am I.",
+        tone: "urgent",
+      },
+      {
+        atSec: 200,
+        text: "Right. If there's a car coming I'll put the porch light on and stand at the front window so they see which one's me. It's the door with the hanging basket. Tell them mine first.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. That's all I wanted — somebody coming, not somebody ringing. I'll put the light on for them.",
+  },
 };

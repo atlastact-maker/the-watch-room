@@ -275,4 +275,119 @@ export const scenario05: Scenario = {
       tone: "info",
     },
   ],
+  // The call as Sophie has it: back at her car in the A635 layby after a
+  // morning on the hill, one bar of signal, watching a line of flame walk
+  // up the heather away from her. She reads ground for a living, near
+  // enough; she gives distances and directions, and she knows the paths.
+  call: {
+    caller: {
+      name: "Sophie Harrison",
+      phone: "07700 900341",
+      relation: "Walker — just off the hill, at her car in the A635 layby",
+      where: "The A635 layby at Wessenden Head, beside her grey Skoda estate, looking north-east up the moor",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "I'm on the A635 above Greenfield — the Holmfirth road, at the layby by Wessenden Head. There's a moor fire — a line of flames going across the heather above the reservoir, a hundred metres wide at least, and the wind's pushing it up the hill. It's spreading as I'm looking at it.",
+    deflection: "Sorry — I'm looking at it now, I'm trying to tell you — it's just moving so fast.",
+    reassurance: {
+      text: "Sophie, you're doing well. Stay by your car, and tell me what you can see.",
+      reply: "Okay. Yes. I'm here.",
+    },
+    answers: {
+      f_seen: {
+        text: "A line of fire across the moor — heather burning, a long line of it, must be a hundred metres wide. Orange flames, not high, a metre maybe, but they're moving. White smoke going up off it and drifting north, away from me, up the hill.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "It's not a building. It's the moor above Wessenden Head reservoir — north-east of the layby, up the slope. Maybe four or five hundred metres up from the road, below the ridge line.",
+      },
+      f_spread: {
+        text: "Yes — it's spreading. The wind's behind it, pushing it up the hill. It's getting wider at the edges as well as going up. It's not coming toward the road, not at the moment.",
+        tone: "urgent",
+      },
+      f_started: {
+        text: "I don't know when it started. I've been in the layby five minutes — I came down off the hill and saw the smoke from the car. It was already a line when I saw it.",
+      },
+      f_building: {
+        text: "There's no building. It's open moorland — heather and grass, dry as anything, it's not rained for weeks. There's a stone hut, a shooting cabin, way over to the west, but that's nowhere near it.",
+      },
+      f_inside: {
+        text: "There's no inside — it's the hill. I can't see anyone on it from here. There's one other car in the layby besides mine, a blue Golf, so somebody's up there somewhere. I've not seen who.",
+        followUps: [
+          {
+            id: "f_inside_paths",
+            text: "Where would walkers be on that hill?",
+            answer: {
+              text: "The Pennine Way goes up from the road here, past the reservoir and over the top. That's the main path — it runs north, the same way the fire's going. There's a footpath off it eastwards along the slope as well.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_golf",
+            text: "The other car — how long has it been there?",
+            answer: {
+              text: "It was here when I parked up this morning, about nine. Blue Golf, an older one. I've not seen anyone come back to it.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Nobody that I can see. I'm fine. There's nobody else down here.",
+      },
+      f_vulnerable: {
+        text: "Not that I know of. Anyone up there would be a walker. There's nothing else out here — no houses, no farms on this side of the road.",
+      },
+      f_hazards: {
+        text: "Nothing like that. It's heather and peat. The peat's the worry, I'd have thought — it's deep up there, it'll burn underneath. The reservoir's the other side of the road from the fire.",
+      },
+      f_danger: {
+        text: "The road — the A635 is fast and there's a bend by the layby. If the smoke comes across it, that'll be dangerous. And it's boggy off the tracks up there, you'd sink a vehicle.",
+      },
+      f_access: {
+        text: "The layby on the A635 — the Holmfirth road out of Greenfield, the Isle of Skye road, they call it. Big layby on the left going toward Holmfirth, just past where the Pennine Way crosses. It's the only place to pull off. There's a track up onto the moor with a padlocked gate, but I don't know who has the key. Beyond the road it's foot only, or a proper four-by-four.",
+        followUps: [
+          {
+            id: "f_access_track",
+            text: "Where does the track go?",
+            answer: {
+              text: "West along the slope to the shooting cabin, about a kilometre. It doesn't go toward the fire — that's the wrong direction — but it gets you off the road. The ground beyond the cabin is bog.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "Yes — I'm at my car in the layby. The fire's going away from me, uphill. If the wind changes I'll drive off toward Greenfield.",
+      },
+      f_stay: {
+        text: "Yes, I'll stay. I've got signal here, just about — one bar. If I lose you I'll ring back.",
+      },
+      f_details: {
+        text: "Sophie Harrison. This is my mobile — 07700 900341. My car's the grey Skoda estate in the layby.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "A van's just pulled in behind me — the driver's seen it from the road, he's on his phone as well. You might get two calls for this.",
+      },
+      {
+        atSec: 100,
+        text: "Is anyone coming? It's a long way out here — I know it's not a house, but it's moving, and there's nobody up here but me.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 180,
+        text: "I can hear a siren — down the valley, Greenfield way. It'll take them a while up this road.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 280,
+        text: "There's a green pickup just come up the road and stopped — a man in a wax jacket's getting out, looking at it like he knows it. Might be the keeper for the moor.",
+      },
+    ],
+    onDispatch: "Thank you. I'll stay in the layby so they can find it — I'll flash my lights when I see them.",
+  },
 };

@@ -312,4 +312,149 @@ export const scenario06: Scenario = {
       tone: "urgent",
     },
   ],
+  // The call as Craig has it: the site control line at the gatehouse,
+  // fourteen staff counted and stood behind him, two of them coughing,
+  // and a pool of something under a live overhead a hundred and fifty
+  // metres up the yard. He has drilled this. He is not sending anyone
+  // back up there, and he says so more than once.
+  call: {
+    caller: {
+      name: "Craig Barlow",
+      phone: "0161 496 0418",
+      relation: "Site control — terminal shift manager and the PRI site liaison",
+      where: "The gatehouse by the security gate on Lancashire Hill, with the whole shift and both exposed staff",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Site control at Stockport rail freight terminal, Lancashire Hill. We've got a chemical leak — a tank wagon in siding four, product coming off it and pooling on the track, vapour visible. Hazchem panel reads three-Y-E. I've two men exposed, and I've pulled everyone back to the gate. Network Rail have been paged.",
+    deflection: "I've given you what I've got. Nobody's going back up there to get you more.",
+    reassurance: {
+      text: "Craig, that's exactly right — keep them at the gate. Help is coming; just give me what you can see from where you are.",
+      reply: "Understood. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "A tank wagon in siding four with product coming off it — it's running down the side of the tank and pooling on the ballast underneath, and there's a shimmer over it, vapour, you can see it in the air. No fire. No smoke. The Hazchem panel on the wagon reads three-Y-E.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "Siding four — that's the fourth road up from the apron, north side of the yard, about the middle of the siding. Third wagon along in a rake of tank wagons. It's roughly a hundred and fifty metres from the gate, where I am.",
+      },
+      f_spread: {
+        text: "The pool was about the size of a car when the lads saw it, before I pulled them back. Whether it's still growing I can't see from the gatehouse, and I'm not sending anyone to look. The vapour's hanging low.",
+        followUps: [
+          {
+            id: "f_spread_wind",
+            text: "Which way is the wind blowing?",
+            answer: {
+              text: "Light, from the north-east — off the sidings toward the gate, and the houses behind us on Hillgate. It's not strong. I can't smell anything at the gate yet.",
+            },
+          },
+        ],
+      },
+      f_started: {
+        text: "The site alarm went nine minutes ago. The two lads found it on a walk-round about five minutes before that and came straight to me. So it's been leaking a quarter of an hour at least.",
+      },
+      f_building: {
+        text: "It's a rail freight yard — six sidings and a reception road, container stacks on the apron, a maintenance shed. Open air. Overhead line equipment above the sidings, twenty-five kV. Gatehouse and site office by the gate on Lancashire Hill.",
+      },
+      f_inside: {
+        text: "Nobody's trackside. I've pulled the whole shift back to the gate — fourteen on today and I've got fourteen, I've counted them twice. The shunter driver's here too. He's left the loco running up by siding six.",
+        followUps: [
+          {
+            id: "f_inside_shunter",
+            text: "The loco — is it still running?",
+            answer: {
+              text: "Yes — a diesel shunter, stood on siding six, fifty metres or so from the wagon. Tomasz shut the cab and came down when the alarm went. It's still ticking over. I didn't want anyone going back up.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Two of my yard staff walked through it before they'd read the panel — they're both with me at the gatehouse. Both coughing, eyes streaming, throats. One of them's struggling more than the other. I've sat them down outside, upwind, and got them out of their hi-vis.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_hurt_worse",
+            text: "Tell me about the one who is struggling.",
+            answer: {
+              text: "Imran — he's thirty-five. He's on our first-aid register as asthmatic, he's got a blue inhaler on him and he's had it twice already. He's talking, but short sentences. The other one's Gary, fifty-two — more frightened than hurt, I think.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_hurt_contact",
+            text: "Did they touch the liquid, or was it just the vapour?",
+            answer: {
+              text: "Vapour, they say — they didn't touch it. Gary thinks he's got some on his boots. I've kept them outside the gatehouse and told them not to go in the building.",
+            },
+          },
+        ],
+      },
+      f_vulnerable: {
+        text: "Nobody on site. But there's houses behind us — Lancashire Hill, Hillgate, Canal Street, two or three hundred metres south-west. We've a shelter-in-place list for them in the site plan; there's a few elderly on it.",
+      },
+      f_hazards: {
+        text: "The product's inflammable — three-Y-E, that's foam or water spray, breathing apparatus, and it's a water pollutant. Our drains run to the Mersey. The overheads are live, twenty-five kV, until Network Rail isolate. There's other tank wagons in the same rake — I'd need the consignment sheet to tell you what's in them.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "f_hazards_substance",
+            text: "Do you know what the product is?",
+            answer: {
+              text: "Not off the top of my head — the panel's three-Y-E and the UN number's on the plate, but the lads didn't get it. Today's consignment sheet's in the site office. I can have it in front of me in two minutes.",
+            },
+          },
+          {
+            id: "f_hazards_drains",
+            text: "Where do the yard drains go?",
+            answer: {
+              text: "Surface water off the apron goes to an interceptor at the south corner of the yard and out to the Mersey. There's a valve on the interceptor — it's on the drain plan, and it's nearer the gate than the wagon. I've not shut it; I wasn't sending anyone.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "The overheads — twenty-five kV, live over every siding until Network Rail confirm they're dead. They've been paged, same time as you. The passenger line runs along the top of the yard with trains still on it. And anything that sparks near that pool — I've told everyone no phones, no fags.",
+        tone: "urgent",
+      },
+      f_access: {
+        text: "Security gate on Lancashire Hill — our security officer, Funmi, is on it, she'll open it for you. There's a yard pickup at the gatehouse. Nothing goes up the apron without my say-so and the rail authority's, though — it's railway land, you can't just walk up the sidings. The wagon's about a hundred and fifty metres in from the gate.",
+      },
+      f_safe: {
+        text: "Yes — at the gatehouse by the gate, well back from siding four. If the vapour comes this way I'll move everyone out onto Lancashire Hill.",
+      },
+      f_stay: {
+        text: "Yes. This is the site control line, I'm not going anywhere. If it drops, ring it straight back — 0161 496 0418.",
+      },
+      f_details: {
+        text: "Craig Barlow — shift manager, Stockport Rail Freight Terminal. I'm the site liaison on your plan for this place. I'm on the site control landline, 0161 496 0418.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Just to say — the gate's shut and nothing's coming in or out. And I've double-checked the plate with the lads: three, Y, E. The E's there, it's not a blank.",
+      },
+      {
+        atSec: 120,
+        text: "Have you got anything moving? I've a man here on his second go of his inhaler, and I'm looking at a pool of something inflammable under twenty-five thousand volts. I need to know what's coming.",
+        tone: "urgent",
+        requiresOpened: false,
+        effect: { state: "anxious" },
+      },
+      {
+        atSec: 200,
+        text: "I can hear you — sirens on Lancashire Hill. Funmi's at the gate to bring them in. Tell them the gatehouse, not the apron.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 320,
+        text: "The two lads are asking whether they need to strip off — Gary's worried about his boots. What do I tell them?",
+      },
+    ],
+    onDispatch: "Understood. Gate's open for them, RVP is the gatehouse. I'll have the consignment sheet and the drain plan on the desk when they get here.",
+  },
 };

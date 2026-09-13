@@ -392,4 +392,143 @@ export const scenario43: Scenario = {
     basis:
       "High-risk missing child. College of Policing APP, Missing persons — risk identification, assessment and management (updated 3 Jul 2026): high risk is where 'the risk of significant harm to the subject or the public is assessed as very likely' and the category 'almost always requires the immediate deployment of police resources' — a seven-year-old beside open water, twenty minutes gone, is squarely inside it. GMP Grade 1 Immediate, 15 minutes force-wide: GMP Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Immediate or grade 1 incidents – within 15 minutes'), and the GMCA GMP Performance Briefing, Jan 2026 ('under 15 minutes (our aspired attendance time)'). The APP prescribes no THRIVE number; putting an immediate-deployment high-risk missing child at Grade 1 is inference from the APP wording, not a GMP-published mapping.",
   },
+
+  // The call as Gemma has it: on her own mobile outside the Lake Cafe
+  // with a four-year-old on her hip, twenty minutes after she looked up
+  // and Isla was not there. The water is five yards away and she cannot
+  // stop looking at it. Clear on the description; not on much else.
+  call: {
+    caller: {
+      name: "Gemma Whittaker",
+      phone: "07700 900418",
+      relation: "Mother of the missing child",
+      where: "Outside the Lake Cafe at the boating lake, Heaton Park, with her four-year-old son",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Police — my little girl's gone missing. Isla, she's seven. We're in Heaton Park at the boating lake, by the cafe — she was stood right next to me at the water and I bent down to do her brother's shoe and she'd gone. That's twenty minutes ago, I've been up and down shouting her. She's got a red coat on. She can't swim. Please.",
+    deflection: "I don't know, I don't know — just find her, please, please find her!",
+    reassurance: {
+      text: "Gemma, listen to me. Officers are on their way to you now. I need you to stay by the cafe so she can find you, and keep talking to me.",
+      reply: "Okay. Okay. I'm here. I'm by the cafe.",
+    },
+    answers: {
+      p_happening: {
+        text: "My daughter's missing. Isla — she's seven. We're at the boating lake in Heaton Park, by the Lake Cafe. She was right by me at the edge feeding the ducks, I looked down for a second and she wasn't there. I've looked for twenty minutes. Red coat, red duffle coat. She can't swim.",
+        tone: "critical",
+        effect: { regrade: "GRADE 1", basis: "High-risk missing child — seven years old, last seen at the water's edge, twenty minutes gone" },
+        followUps: [
+          {
+            id: "p_happening_lastseen",
+            text: "Where exactly was she when you last saw her?",
+            answer: {
+              text: "Right at the water's edge, by the cafe — the lake side of it. Feeding the ducks, five yards from me. There's no railings, that's the thing, it's just the path and then the water.",
+              tone: "critical",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes — she's still gone. She's not come back. I've been round the playground twice and up the path both ways shouting her name and nobody's seen her. It's twenty minutes. More.",
+        tone: "critical",
+      },
+      p_weapons: {
+        text: "No — no, it's nothing like that. Nobody's — she's just gone. She's a little girl and she's gone.",
+      },
+      p_injured: {
+        text: "Nobody's hurt. I don't — I don't know if she's hurt. I don't know where she is. That's the whole thing.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "Just her — Isla Whittaker, she's seven. I'm here with her little brother, he's four. My friend Karen's in the park with us with her two — she'd gone off to find the toilets before it happened. I've rung her, it's going to voicemail.",
+        followUps: [
+          {
+            id: "p_who_karen",
+            text: "Where is Karen now?",
+            answer: {
+              text: "I don't know. She went to find the toilets with her two, that was before — before Isla. I've rung her twice and it's straight to voicemail. She'd have said if — she'd have said.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "She's seven but she's small, she looks about five. Long blonde hair in a bobble on top. Red duffle coat with the toggles, grey leggings, pink trainers — the ones with the lights in the heels. She had a bag of bread for the ducks.",
+        followUps: [
+          {
+            id: "p_description_photo",
+            text: "Have you got a photograph of her on your phone?",
+            answer: {
+              text: "Yes — yes, loads, I took one this morning by the car, she's in the same coat. I can send it — tell me where to send it.",
+            },
+          },
+        ],
+      },
+      p_direction: {
+        text: "I don't know. I DON'T know. If I knew which way I'd be — sorry. Sorry. I looked up and she wasn't there. Not on the path, not in the playground. I don't know if she went round the lake or — or the other way, or —",
+        tone: "urgent",
+        needsCalm: true,
+        followUps: [
+          {
+            id: "p_direction_paths",
+            text: "Which ways can she have gone from there?",
+            answer: {
+              text: "The path goes round the lake both ways. The playground's right there, the adventure one — I've been through it twice. And there's the road down to the car park, she knows the car park, that's where we came in. That's all I can think.",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "What? No — she's seven. No. Nobody's — no.",
+        needsCalm: true,
+      },
+      p_known: {
+        text: "There's nobody — nobody's involved, she's just gone. Unless somebody's — no. No. It's just her. She wandered. She must have wandered.",
+        tone: "urgent",
+      },
+      p_vulnerable: {
+        text: "She's seven! She can't swim and the water's right there, it's right there, there's nothing stopping her going in. And she'd go with anybody — she's friendly, she'd talk to anybody.",
+        tone: "critical",
+      },
+      p_where: {
+        text: "Heaton Park — the boating lake, the Lake Cafe. We're right outside the cafe. You come in off Middleton Road, there's a car park by the lake, and it's up the road from there. I don't know the postcode. It's Heaton Park, everybody knows it.",
+      },
+      p_safe: {
+        text: "I'm fine — it's not me. I'm at the cafe, I've got her brother with me. I'm not going anywhere, I've stayed by the cafe in case she comes back.",
+      },
+      p_seen: {
+        text: "I was there. I was right there. I looked down to do his shoe and when I looked up she'd gone. It was seconds. That was twenty minutes ago. Twenty-five now.",
+        tone: "urgent",
+      },
+      p_details: {
+        text: "Gemma Whittaker. It's my mobile — 07700 900418. If I lose you ring me back on it, please. Please ring me back.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 55,
+        text: "Isla! ISLA! — sorry, sorry, I thought — it's another little girl. There's loads of them in red coats. Sorry.",
+        tone: "urgent",
+      },
+      {
+        atSec: 130,
+        text: "I can't stop looking at the water. It's right there. She was right at the edge — oh God, if she's gone in — she can't swim, she can't swim —",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 190,
+        text: "There's a siren — I can hear a siren on the main road. Is that them? Tell them the cafe, the Lake Cafe, I'm outside the front of it in a green coat with a little boy.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 240,
+        text: "Is anyone coming? It's been — she's been gone nearly half an hour. Please. Please just send someone.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Thank you. Thank you. Tell them the cafe — the Lake Cafe, I'll be outside it. Please tell them to hurry.",
+  },
 };

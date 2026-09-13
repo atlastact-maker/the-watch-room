@@ -193,4 +193,133 @@ export const scenario29: Scenario = {
       tone: "urgent",
     },
   ],
+
+  // The call as Jordan has it: kneeling on the front-room carpet at 74
+  // Brownley Road with the phone on speaker and Chloe on the sofa
+  // shouting at him. It is their first. He has never been so frightened.
+  call: {
+    caller: {
+      name: "Jordan Kaye",
+      phone: "07700 900829",
+      relation: "The patient's partner — the baby's father",
+      where: "On the floor by the sofa in the front room at 74 Brownley Road, phone on speaker",
+      line: "mobile",
+      state: "panicking",
+    },
+    opening:
+      "Hi — hi, I need an ambulance, my girlfriend's having the baby. Like now, she's having it now. 74 Brownley Road, Wythenshawe. She's — Chloe, breathe, breathe — she's pushing, she says she can't stop it, we were meant to go to Wythenshawe and there's no time, there's no — please.",
+    deflection: "I don't know — I don't know, I don't know what I'm doing, please just get someone here, she's having it!",
+    reassurance: {
+      text: "Jordan, listen. An ambulance is coming. Babies come on their own more often than not, and you're not on your own with this — I'm staying with you. Take a breath and answer me.",
+      reply: "Okay. Okay. Okay. Sorry. I'm here. Chloe, they're coming. Go on.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yeah — yes, she's awake, she's — God, she's very awake, she's shouting at me. She knows what's going on, she's just in agony. Every couple of minutes she goes again.",
+        tone: "urgent",
+      },
+      a_breathing: {
+        text: "She's breathing, yeah — it's like panting, really fast, and then she sort of holds it and grunts and goes red. That's when she's pushing. Then it eases off and she's breathing normal again. Is that right? Is that what's meant to happen?",
+        tone: "urgent",
+      },
+      a_happened: {
+        text: "She's 39 weeks, she's due next week. Her waters went about an hour ago, in the kitchen, all over the floor, and I said right let's go, and she said wait, and then the pains came on really fast, and now they're coming all the time and she's saying she needs to push. She's on the sofa on her side. I tried to get her to the car and she couldn't stand up.",
+        tone: "urgent",
+        effect: {
+          regrade: "CAT 2",
+          basis: "Imminent birth — 39 weeks, waters gone, contractions two minutes apart and pushing; first baby, no complications recorded",
+        },
+        followUps: [
+          {
+            id: "a_happened_see",
+            text: "Can you see anything — any part of the baby?",
+            answer: {
+              text: "I've not — I've not looked, she's — hang on. Chloe, I need to — no. No, I can't see anything, there's nothing, it's just — there's a lot of — I don't know what I'm looking at. I can't see a head or anything.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "a_happened_contractions",
+            text: "How far apart are the pains — from the start of one to the start of the next?",
+            answer: {
+              text: "They're — there's one now. Okay. Okay, it's gone. That was — two minutes? Not even. They just keep coming, there's barely a gap. And they're long, it's like a minute each one.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "The waters went about an hour ago — sixish, quarter past six. The pains started properly maybe forty minutes ago. She'd been having twinges all afternoon and she said they were nothing. It's gone so fast.",
+      },
+      a_now: {
+        text: "She's red in the face, she's sweating, her hair's stuck to her. She's talking in between them — telling me to shut up, mostly — but when one comes she can't say anything, she just grabs my arm and bears down. She's on her side with her knees up.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      a_bleeding: {
+        text: "There's — there's some blood, a bit, mixed in with the water on the towel. Pinky. Not loads. Not pouring. Is that bad? Tell me that's normal.",
+        needsCalm: true,
+      },
+      a_age: {
+        text: "She's 27. Chloe's 27. I'm 28. The baby's — it's a girl, we know it's a girl.",
+      },
+      a_history: {
+        text: "Nothing. She's healthy, she's been fine the whole way through — all the scans were fine, they said everything's normal. She's booked in at Wythenshawe, the midwife unit. No diabetes or anything. She's not on anything, just the vitamins. Not allergic to anything. It's her first.",
+        followUps: [
+          {
+            id: "a_history_notes",
+            text: "Has she got her maternity notes — the folder?",
+            answer: {
+              text: "Yeah — it's in the hospital bag by the door. Her folder. Do you want me to get it? I don't want to leave her. I'll get it after.",
+            },
+          },
+        ],
+      },
+      a_count: {
+        text: "Just Chloe — well, Chloe and the baby, when it — is that two? It's going to be two, isn't it.",
+        tone: "urgent",
+      },
+      a_danger: {
+        text: "It's our front room. It's fine, it's just — small. She's on the sofa and the sofa's up against the wall, and there's the telly and the coffee table — I've shoved the table out. There's not much room round her.",
+      },
+      a_access: {
+        text: "Front door, straight off Brownley Road. There's a drive, my car's on it — I'll leave it, they can pull up on the road. The door's on the latch, I'll put the hall light on. The front room's first on the left as you come in. I've got you on speaker so I'll hear them.",
+      },
+      a_with: {
+        text: "I'm right next to her, I'm on the floor by the sofa. She's got hold of my hand, she's not letting go. I've got you on speaker.",
+      },
+      a_instructions: {
+        text: "Yes. Yes. Tell me. Tell me what to do, I'll do anything, just tell me slowly.",
+        tone: "urgent",
+      },
+      a_details: {
+        text: "Jordan Kaye. It's my mobile — 07700 900829. She's Chloe Dennett, if you need her name.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "I've put towels down — I've got towels, is that right? Do I need to boil water or is that just off the telly? Tell me what to get.",
+        tone: "urgent",
+      },
+      {
+        atSec: 90,
+        text: "Are they coming? Have you sent them? You've not said — please, I can't do this on my own — you've not said if they're coming.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 140,
+        text: "She wants to get on the floor — she's getting off the sofa, onto her hands and knees — is that alright? Chloe, wait — can she do that?",
+        tone: "urgent",
+      },
+      {
+        atSec: 210,
+        text: "I can hear it — is that them? That's a siren. I'm going to open the door — no, I can't leave her — Chloe, I'm just going to the door. Two seconds.",
+        tone: "urgent",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you — thank you. How long? Chloe, they're coming, babe, they're on their way. What do I do till then? Stay on. Please stay on with me.",
+  },
 };

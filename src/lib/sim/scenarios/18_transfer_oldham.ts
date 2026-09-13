@@ -172,7 +172,7 @@ export const scenario18: Scenario = {
   // The call as Priya has it: on the ward phone at the nurses' station,
   // the transfer letter under one hand and a buzzer going in bay three,
   // Mr Holt waving at her from the day room. She is not asking for blue
-  // lights. She is asking for a time, and she has asked once already.
+  // lights. She is asking for a time, and the drugs round is due.
   call: {
     caller: {
       name: "Priya Chauhan",
@@ -228,7 +228,7 @@ export const scenario18: Scenario = {
         text: "Sixty-eight.",
       },
       a_history: {
-        text: "It's all in the notes and on the transfer letter — the crew get a proper handover from me when they get up here. He's on his usual tablets, he's had his lunchtime ones, and nothing's due before he gets there. Allergies — penicillin, it's on his wristband.",
+        text: "It's all in the notes and on the transfer letter — the crew get a proper handover from me when they get up here. He's on his usual tablets, he's had his morning ones, and nothing's due before he gets there. Allergies — penicillin, it's on his wristband.",
       },
       a_count: {
         text: "Just the one. Mr Dennis Holt. One patient, one bed.",
@@ -270,14 +270,14 @@ export const scenario18: Scenario = {
       },
       {
         atSec: 200,
-        text: "Right, that's grand. I'll ring the porters and get his notes photocopied. Tell the crew to ring the ward when they're five minutes off and he'll be sat by the lift.",
+        text: "Right, that's grand. I'll ring the porters and get his notes photocopied. He'll be sat by the lift with his bag.",
         requiresOpened: true,
       },
+      {
+        atSec: 240,
+        text: "I'm going to have to go in a minute, love — it's the drugs round. You've got the ward number. Ring us with a time, or I'll ring you.",
+      },
     ],
-    drops: {
-      atSec: 240,
-      text: "Right, I've got to go, love — drugs round. You've got the ward number. Ring us with a time, or I'll ring you. Ta-ra.",
-    },
     onDispatch: "Lovely. Thank you. I'll tell him — he'll be made up. Get them to ring the ward on the way.",
   },
 };

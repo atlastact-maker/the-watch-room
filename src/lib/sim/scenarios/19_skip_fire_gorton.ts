@@ -249,7 +249,7 @@ export const scenario19: Scenario = {
         text: "Five minutes, maybe? It was already well away when I came round the corner with the dog. I've not seen anyone about — no kids, nobody legging it.",
       },
       f_building: {
-        text: "It's a row of shops — six of them, single storey, flat roofs, brick. The yard round the back's for the bins and deliveries. Chippy on the end, and that's still open. The rest are shut.",
+        text: "It's a row of shops — six of them, single storey, brick, all joined. The yard round the back's for the bins and deliveries. Chippy on the end, and that's still open. The rest are shut.",
       },
       f_inside: {
         text: "The shops are shut, all bar the chippy on the end — that's open, lights on, there's people in there. It's the far end from the skip, though. Nobody's in the yard. I'm the only one out here.",
@@ -258,7 +258,7 @@ export const scenario19: Scenario = {
             id: "f_inside_takeaway",
             text: "How far is the takeaway from the skip?",
             answer: {
-              text: "Five or six shops down — the far end. Same roof, though. It's all one row, joined up.",
+              text: "Two or three shops down — it's the end one. Same roof, though, it's all one row, joined up.",
             },
           },
         ],
@@ -270,7 +270,7 @@ export const scenario19: Scenario = {
         text: "Nobody's inside the shops, they're shut. The chippy's got customers but they're up the far end and they can walk out the front. Nothing like that.",
       },
       f_hazards: {
-        text: "It's a builders' skip, so — God knows. Rubble, wood, plasterboard, there's an old door sticking out of it. A couple of paint tins on top, the big ones. And there's gas meters on the back wall of two of the shops — the grey boxes — one of them's only a few feet along from the skip.",
+        text: "It's a builders' skip, so — God knows. Rubble, wood, plasterboard, there's an old door sticking out of it. A couple of paint tins on top, the big ones. And there's gas meters on the back wall of two of the shops — the meter boxes — one of them's only a few feet along from the skip.",
         tone: "urgent",
         followUps: [
           {
@@ -320,8 +320,8 @@ export const scenario19: Scenario = {
         requiresOpened: false,
       },
       {
-        atSec: 135,
-        text: "There's a lad come out the back door of the chippy to have a look — I've shouted him to get back in and shut the door. He's gone back in.",
+        atSec: 145,
+        text: "There's a lad come out the back door of the chippy to have a look — I've shouted him to keep away from it. He's gone back in and shut the door.",
       },
       {
         atSec: 190,

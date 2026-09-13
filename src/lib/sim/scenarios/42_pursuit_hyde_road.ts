@@ -382,4 +382,137 @@ export const scenario42: Scenario = {
     basis:
       "GMP Grade 1 (Immediate) — a pursuit in progress with the public at risk. 15 minutes is GMP's own published force-wide attendance target: Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Immediate or grade 1 incidents - within 15 minutes'), and GMCA GMP Performance Briefing Jan 2026 (95% within 15 min, average 7m52s in 2025). GMP publishes no separate rural figure. Authority, phase and discontinuance wording is the College of Policing APP 'Police pursuits' (updated 4 Mar 2026); GMP's own pursuit policy was not obtained.",
   },
+
+  // The call as Dan has it: AP314, single-crewed, two hundred metres
+  // behind a grey Golf on Hyde Road with the blues on, commentating on
+  // the radio through the control room. Clipped and trained. He has
+  // nothing back on the car yet and he knows he cannot end this himself.
+  call: {
+    caller: {
+      name: "PC Daniel Holt",
+      phone: "07700 900842",
+      relation: "Pursuing officer, AP314 — single-crewed response car",
+      where: "Eastbound on the A57 Hyde Road behind the Golf, just past Belle Vue station — on the radio, relayed by the control room; the position moves",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "AP314, fail to stop. Grey VW Golf, Mike Kilo six six Hotel Zulu Romeo. Tried to pull it at the lights by Belle Vue on Hyde Road for the driving and it's gone — eastbound, A57, speeds five-zero, six-zero in the thirty. I'm behind it on blues, single-crewed, initial phase. I'm asking for authority to continue and I need a tactical car behind me.",
+    deflection: "Stand by — stand by, I'm driving. …Go on.",
+    reassurance: {
+      text: "AP314, received, keep the commentary coming — I'm getting RPU and the aircraft moving now.",
+      reply: "Received. Still with it, still eastbound.",
+    },
+    answers: {
+      p_happening: {
+        text: "I've got a grey Golf that's failed to stop for me on Hyde Road. I lit him up at Belle Vue for the manner of driving — he was weaving — and he's looked in the mirror and gone. He's eastbound now at sixty-plus in a thirty, four-lane road, traffic both ways. I'm following and I'm commentating. That's all I'm trained to do on this — I can't put anything on him.",
+        tone: "critical",
+        effect: { regrade: "GRADE 1", basis: "Pursuit in progress — sixty-plus on an urban A-road with the public on the crossings" },
+        followUps: [
+          {
+            id: "p_happening_speed",
+            text: "What speed is he doing now?",
+            answer: {
+              text: "Six-zero, six-five. In the thirty. I'm matching it to keep eyes on him and I don't like it — I'm holding two hundred metres back.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "p_happening_traffic",
+            text: "What is the traffic like?",
+            answer: {
+              text: "Moderate both ways. Buses at the stops. He's using the outside lane and the oncoming when he wants it — there's a bus stop and a signal crossing coming up by the retail park.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes — live. I'm behind it now. Eastbound A57, past Belle Vue station, retail park coming up on my left. Speed five-five, six-zero.",
+        tone: "critical",
+      },
+      p_weapons: {
+        text: "Nothing seen. One occupant, both hands on the wheel when I was alongside at the lights. I've nothing back on the car — I stopped it for the driving, not for anything I know about it.",
+      },
+      p_injured: {
+        text: "Nobody yet. He's had people on the crossing step back for him. Nobody hit. I'll tell you the second that changes.",
+        tone: "urgent",
+      },
+      p_who: {
+        text: "One occupant that I saw — the driver. Nobody in the passenger seat at the lights. That's the lot on his side; on mine it's me, single-crewed.",
+        followUps: [
+          {
+            id: "p_who_sure",
+            text: "Are you sure there is only one in it?",
+            answer: {
+              text: "One that I saw. Driver's seat, passenger seat empty. Rear windows are tinted — I'll not swear to the back.",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "Grey Golf, five-door, Mike Kilo six six Hotel Zulu Romeo. Driver's an IC1 male, early twenties, grey hooded top, hood down. That's what I had at the lights — I'm not close enough now for more.",
+      },
+      p_direction: {
+        text: "Eastbound, A57 Hyde Road, towards Debdale and the Reddish Lane lights. He's using the main road so far — he's not turned off. Sixty, sixty-five.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_direction_ahead",
+            text: "What is ahead of him?",
+            answer: {
+              text: "Bus stops both sides, the signal crossing at the retail park, then it's a straight run to the Reddish Lane lights. And side roads off to his right every hundred yards — the estate. All twenty-limit, all parked solid.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "Can't tell you. The driving says something — he was all over the lane before I lit him up, that's why I went for him. Could be drink, could be he clocked me and panicked.",
+      },
+      p_known: {
+        text: "No. I've not had the PNC back on the index — I asked for it the second he went and I've nothing yet. Nothing on him either. He's a lad in a grey hoodie in a Golf, that's what I've got.",
+      },
+      p_vulnerable: {
+        text: "Everybody on this road. There's people at the bus stops and on the crossings — it's not late. And the whole south side of Hyde Road is a twenty-limit estate with kids out on it. If he goes in there it's a different question and I'll be asking it.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "A57 Hyde Road, eastbound, just past Belle Vue station — the stop was at the lights outside the station. Retail park on my left now. I'm moving, this'll be out of date by the time you've typed it.",
+      },
+      p_safe: {
+        text: "I'm fine. I'm holding two hundred metres back, I'm not closing on him and I'm not going to push him. Initial phase — I follow and I talk. That's all I'm doing.",
+      },
+      p_seen: {
+        text: "I'm looking at it. I put the blues on for him at the Belle Vue lights, he looked in the mirror and he went. I've had eyes on him the whole way.",
+      },
+      p_details: {
+        text: "PC Holt, AP314 — Alpha Papa three one four. Single-crewed. This is coming through the control room on the radio. My handset's 07700 900842 if you lose the channel.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Update — still eastbound, Hyde Road, six-zero, he's just undertaken a bus at the stop by the retail park. I'm two hundred metres back. I'm not closing.",
+        tone: "urgent",
+      },
+      {
+        atSec: 85,
+        text: "Oncoming's pulling in for him — he's had two on the wrong side of the island already. I'm dropping back a touch, I don't want him doing it for me.",
+        tone: "urgent",
+      },
+      {
+        atSec: 160,
+        text: "I've got sirens coming from the Belle Vue end — is that my RPU or the ambulance? Whichever it is, tell them the Haworth Road turn off Hyde Road, south side. I'll get them from there.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 200,
+        text: "Control, AP314 — have I got anything coming? No RPU, no aircraft, nothing from the dog. There's a car in that estate that was doing sixty in a twenty and I'm the only unit on it.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Received. Tell RPU I'm the marked response car with the blues on — I'll drop back the second they're past me and hand it over.",
+  },
 };
