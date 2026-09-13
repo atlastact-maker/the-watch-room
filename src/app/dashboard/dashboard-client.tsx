@@ -3019,6 +3019,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           message: `${applianceLabel(applianceId)} cannot convey — no stretcher. Pair a DCA (or the air ambulance) for the hospital leg.`,
         },
       ]);
+      setStatusMsg(`${applianceLabel(applianceId)} cannot convey — no stretcher. Pair a DCA (or the air ambulance) for the hospital leg.`);
       return;
     }
     // Nothing leaves until the patient is physically at the vehicle.
@@ -3036,6 +3037,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           message: `${applianceLabel(applianceId)} — nobody has moved the patient yet. Pick how they come out on the patient card before starting the hospital leg.`,
         },
       ]);
+      setStatusMsg(`${applianceLabel(applianceId)} — nobody has moved the patient yet. Pick how they come out on the patient card before starting the hospital leg.`);
       return;
     }
     // The last method chosen is the one in use.
@@ -3056,6 +3058,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           message: `${applianceLabel(applianceId)} — still bringing the patient out. About ${leftMin} min before they are at the vehicle.`,
         },
       ]);
+      setStatusMsg(`${applianceLabel(applianceId)} — still bringing the patient out. About ${leftMin} min before they are at the vehicle.`);
       return;
     }
 
@@ -3089,6 +3092,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           message: `${applianceLabel(applianceId)} — patient is see-and-treat, not conveying.`,
         },
       ]);
+      setStatusMsg(`${applianceLabel(applianceId)} — patient is see-and-treat, not conveying.`);
       return;
     }
     const hospital = decision.hospital;
@@ -3110,6 +3114,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             message: `${conveyor.callsign} cannot fly the patient — ${why}. Convey by road in the DCA with the HEMS crew aboard.`,
           },
         ]);
+        setStatusMsg(`${conveyor.callsign} cannot fly the patient — ${why}`);
       };
       if (!hasHelipad(hospital)) {
         refuse(`${hospital.name} has no recorded helipad`);
