@@ -3725,15 +3725,71 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-mdt-modules button:last-child { border-right: 0; }
 .vec-mdt-modules button[aria-pressed="true"] { background: var(--vec-surface); color: var(--vec-work); box-shadow: inset 0 -3px var(--vec-work); }
 .vec-mdt-unit { display: flex; align-items: center; gap: 12px; }
-.vec-mdt-unit select {
+/* The unit in hand is the map's own resource card; more than one unit on
+   the job and the card opens a list of the others' cards. */
+.vec-mdt-unitpick { position: relative; }
+.vec-mdt-unitpick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 2px 2px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   font: 12px var(--vec-sans, Arial, sans-serif);
-  padding: 3px 8px;
-  border: 1px solid var(--vec-handle-border, #657b89);
-  border-radius: 2px;
-  background: var(--vec-handle, #334d5d);
-  color: var(--vec-handle-text, #fff);
-  min-height: 28px;
 }
+.vec-mdt-unitpick-btn:disabled { cursor: default; }
+.vec-mdt-unitpick-btn:not(:disabled):hover,
+.vec-mdt-unitpick.open .vec-mdt-unitpick-btn {
+  border-color: var(--vec-handle-border, #657b89);
+  background: var(--vec-handle, #334d5d);
+}
+.vec-mdt-unitpick-btn .who { font-weight: 700; letter-spacing: 0.02em; }
+.vec-mdt-unitpick-btn .caret { font-size: 11px; opacity: 0.8; }
+.vec-mdt-chip {
+  display: block;
+  height: 40px;
+  padding: 8px 0 0 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+  line-height: 1;
+}
+.vec-mdt-unitpick-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 280px;
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--vec-handle, #334d5d);
+  border: 1px solid var(--vec-handle-border, #657b89);
+  border-radius: 3px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.vec-mdt-unitpick-menu li button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 3px 8px 3px 2px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--vec-handle-text, #fff);
+  text-align: left;
+  cursor: pointer;
+  font: 12px var(--vec-sans, Arial, sans-serif);
+}
+.vec-mdt-unitpick-menu li button:hover,
+.vec-mdt-unitpick-menu li[aria-selected="true"] button { background: rgba(255, 255, 255, 0.12); }
+.vec-mdt-unitpick-menu .meta { display: flex; flex-direction: column; gap: 2px; }
+.vec-mdt-unitpick-menu .meta small { opacity: 0.75; font-size: 11px; }
 .vec-mdt--care > .vec-mdt-body.care { overflow: hidden; }
 .vec-mdt-body.care .vec-patients { flex: 1; min-height: 0; }
 .vec-mdt-body.care .vec-tile-empty { padding: 30px 12px; }
@@ -4241,7 +4297,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-mdt-me { display: grid; gap: 3px; align-content: start; min-width: 0; }
 .vec-mdt-me .link { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vec-mdt-me .vec-mdt-unit { flex-wrap: wrap; gap: 8px; }
-.vec-mdt-me .vec-mdt-unit select { max-width: 100%; }
+.vec-mdt-me .vec-mdt-unitpick-menu { max-width: min(420px, 90vw); }
 .vec-mdt-vitals {
   --cc-line: #1e3242;
   --cc-card-h: #0d1a26;

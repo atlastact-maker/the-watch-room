@@ -6932,6 +6932,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
                 onOpenAnpr={() => setShowAnpr(true)}
                 onRequestSupport={requestPoliceSupport}
                 policePage={mdtPolicePage}
+                commanderApplianceId={handover?.applianceId ?? null}
                 subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
                 onDeclareTacticalMode={declareTacticalMode}
                 structural={activeIncident ? { integrity: 100 - (runtimes[activeIncident.id]?.structuralDamage ?? 0), collapsedAt: runtimes[activeIncident.id]?.collapsedAt ?? null, evacuatedAt: runtimes[activeIncident.id]?.evacuatedAt ?? null, injured: runtimes[activeIncident.id]?.injuredCrewIds.length ?? 0 } : undefined}

@@ -30,6 +30,7 @@ import type { FireSelection } from "../vector/fire-command";
 import { VitalMonitorPanel } from "../vector/vital-monitor";
 import { MdtNotepad } from "../vector/mdt-notepad";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
+import { serviceMarker, unitMarkerHtml, type MarkerStatusKey } from "./unit-chip";
 import type { RecordIndex } from "@/lib/sim/records";
 import type { LedsCheck } from "@/lib/sim/leds";
 import type { SubjectVehicle } from "@/lib/sim/subject";
@@ -156,6 +157,9 @@ type Props = {
   waterClock?: Record<string, number | null>;
   /** The desk's Systems menu opening PNC or ANPR on the tablet. */
   policePage?: { page: "pnc" | "anpr"; seq: number } | null;
+  /** The unit holding command of the incident — its card carries the
+   *  gold plate, as on the map. */
+  commanderApplianceId?: string | null;
   /** The car the job is chasing, when there is one. */
   subject?: SubjectVehicle | null;
 };
@@ -447,21 +451,13 @@ export function DraggableIncidentMdt(props: Props) {
         <div className="vec-mdt-me">
           <div className="link">{unitService.toUpperCase()} · {ref} · {sc.title}</div>
           <div className="vec-mdt-unit">
-            <strong>{unitCallsign}</strong>
-            {resolvedDeps.length > 1 && (
-              <select
-                aria-label="Unit"
-                value={unitAppliance?.id ?? ""}
-                onChange={(e) => setUnitId(e.target.value || null)}
-                title="Which unit this tablet is controlling"
-              >
-                {resolvedDeps.map((r) => (
-                  <option key={r.appliance.id} value={r.appliance.id}>
-                    {r.appliance.callsign} · {r.appliance.typeName}
-                  </option>
-                ))}
-              </select>
-            )}
+            <UnitPicker
+              units={resolvedDeps}
+              value={unitAppliance?.id ?? null}
+              onChange={setUnitId}
+              commanderId={props.commanderApplianceId ?? null}
+              stateOf={phaseLabel}
+            />
           </div>
           <small>{unitState} · {assigned ? `${assigned} patient${assigned === 1 ? "" : "s"} assigned` : "No patients assigned"}</small>
         </div>
@@ -653,3 +649,123 @@ export function DraggableIncidentMdt(props: Props) {
 
 // Kept for the props the desk still passes; the tablet no longer shows them.
 export type { Eta, Patch, LogEntry, Deployment, Incident, IncidentOutcome, StationWithAppliances, IncidentViewProps };
+
+function phaseLabel(r: ResolvedDeployment): string {
+  return r.phase === "at_incident"
+    ? "In attendance"
+    : r.phase === "mobile"
+      ? "Mobile to incident"
+      : r.phase === "at_hospital"
+        ? "At hospital"
+        : r.phase === "returning"
+          ? "Returning"
+          : "Back at station";
+}
+
+/** A unit's card as the maps draw it — symbol, status roundel and
+ *  callsign plate at the detailed tier — cropped above the position dot,
+ *  which means nothing on a tablet. */
+function UnitChip({ r, commander }: { r: ResolvedDeployment; commander: boolean }) {
+  const sm = serviceMarker(r.appliance.service, r.appliance.type);
+  const status: MarkerStatusKey =
+    r.phase === "mobile"
+      ? "mobile"
+      : r.phase === "returning"
+        ? "returning"
+        : r.phase === "home"
+          ? "available"
+          : "attendance";
+  const { html } = unitMarkerHtml({
+    callsign: r.appliance.callsign,
+    status,
+    serviceColour: sm.colour,
+    resourceCode: sm.code,
+    zoom: 18,
+    subtitle: r.appliance.type,
+    commander,
+    vehicleBody: true,
+  });
+  return <span className="vec-mdt-chip" aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** Which unit the tablet is controlling: the map's own resource card for
+ *  the unit in hand, and a drop-down of the same cards for the rest of
+ *  the attendance when there is more than one. */
+function UnitPicker({
+  units,
+  value,
+  onChange,
+  commanderId,
+  stateOf,
+}: {
+  units: ResolvedDeployment[];
+  value: string | null;
+  onChange: (id: string | null) => void;
+  commanderId: string | null;
+  stateOf: (r: ResolvedDeployment) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    // The tablet may be popped out into its own window: listen on the
+    // document the picker is actually in.
+    const doc = boxRef.current?.ownerDocument ?? document;
+    const onDown = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    doc.addEventListener("mousedown", onDown);
+    doc.addEventListener("keydown", onKey);
+    return () => {
+      doc.removeEventListener("mousedown", onDown);
+      doc.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const current = (value ? units.find((u) => u.appliance.id === value) : undefined) ?? units[0] ?? null;
+  const many = units.length > 1;
+  return (
+    <div className={`vec-mdt-unitpick${open ? " open" : ""}`} ref={boxRef}>
+      <button
+        type="button"
+        className="vec-mdt-unitpick-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={current ? `Unit ${current.appliance.callsign}` : "Unit"}
+        disabled={!many}
+        title={many ? "Which unit this tablet is controlling" : undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {current ? <UnitChip r={current} commander={current.appliance.id === commanderId} /> : <strong>NO UNIT</strong>}
+        {current && <span className="who">{current.appliance.typeName}</span>}
+        {many && <span className="caret" aria-hidden="true">▾</span>}
+      </button>
+      {open && (
+        <ul className="vec-mdt-unitpick-menu" role="listbox" aria-label="Unit">
+          {units.map((u) => {
+            const isCurrent = u.appliance.id === current?.appliance.id;
+            return (
+              <li key={u.appliance.id} role="option" aria-selected={isCurrent}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(u.appliance.id);
+                    setOpen(false);
+                  }}
+                >
+                  <UnitChip r={u} commander={u.appliance.id === commanderId} />
+                  <span className="meta">
+                    <b>{u.appliance.typeName}</b>
+                    <small>{stateOf(u)}{u.appliance.id === commanderId ? " · Incident commander" : ""}</small>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
