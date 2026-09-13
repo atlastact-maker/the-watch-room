@@ -7,7 +7,7 @@ import { shiftGate } from "@/lib/auth/api-guard";
 // per-(coords, radius) for the lifetime of the server process so a
 // given incident only resolves once.
 
-type Way = { id: string; coords: [number, number][]; highway?: string };
+type Way = { id: string; coords: [number, number][]; highway?: string; name?: string };
 type Success = { ways: Way[]; source: "overpass" };
 type Failure = { error: string; source: "overpass" };
 
@@ -93,6 +93,7 @@ async function fetchRoads(
           id: `osm-${el.id}`,
           coords: el.geometry.map((g) => [g.lat, g.lon] as [number, number]),
           highway: el.tags?.highway,
+          name: el.tags?.name,
         });
       }
       return ways;

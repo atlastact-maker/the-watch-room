@@ -21,6 +21,8 @@ import {
   roadStretchAround,
   snapToNearestRoad,
   snapToNearestRoadWithBearing,
+  hydrantKerbPosition,
+  carriagewayHalfWidthM,
   type OsmRoadWay,
 } from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
@@ -1131,6 +1133,15 @@ export function LeafletGroundMap({
   //      curated by the scenario author).
   //   2. Real OSM-tagged hydrants near the incident.
   //   3. Scenario-authored scene-metre offsets (legacy / schematic fallback).
+  //
+  // Whatever the source, a hydrant stands on the pavement: once the roads
+  // are in, each point goes to the kerb of its street (by name where the
+  // author gave one) or of the nearest road. Authored coordinates are
+  // often only four decimal places — ten metres of slack, enough to put a
+  // hydrant in a back garden — and synthesised ones sit on the centreline
+  // by construction. A surveyed OSM hydrant is left where the surveyor put
+  // it unless that is on the carriageway. Until the roads have loaded the
+  // raw point stands, so the labels never vanish.
   const renderedHydrants: {
     label: string;
     lat: number;
@@ -1138,40 +1149,43 @@ export function LeafletGroundMap({
     sourceId: string;
     street?: string;
   }[] = (() => {
+    const incidentAt = incident.scenario.location.coords;
+    const kerb = (
+      p: { lat: number; lng: number },
+      street: string | undefined,
+      surveyed: boolean,
+    ): { lat: number; lng: number } | null => {
+      if (osmRoads.length === 0) return p;
+      const placed = hydrantKerbPosition(p, osmRoads, { maxSnapM: 80, street, towards: incidentAt });
+      if (!placed) return surveyed ? p : null;
+      if (surveyed && placed.snap.distanceM > carriagewayHalfWidthM(placed.snap.highway)) return p;
+      return { lat: placed.lat, lng: placed.lng };
+    };
     const scenarioAuthored = (scene?.hydrants ?? []).filter((h) => !!h.coords);
     if (scenarioAuthored.length > 0) {
-      return scenarioAuthored.map((h) => ({
-        label: h.label,
-        lat: h.coords!.lat,
-        lng: h.coords!.lng,
-        sourceId: `scene:${h.label}`,
-        street: h.street,
-      }));
+      return scenarioAuthored.map((h) => {
+        // An authored hydrant with no road in reach is still the author's
+        // call: it stays where it was put rather than vanishing.
+        const at = kerb(h.coords!, h.street, false) ?? h.coords!;
+        return { label: h.label, lat: at.lat, lng: at.lng, sourceId: `scene:${h.label}`, street: h.street };
+      });
     }
     if (osmHydrants && osmHydrants.length > 0) {
-      return osmHydrants.slice(0, 8).map((h, i) => ({
-        label: `H${i + 1}`,
-        lat: h.lat,
-        lng: h.lng,
-        sourceId: h.id,
-      }));
+      return osmHydrants.slice(0, 8).flatMap((h, i) => {
+        const surveyed = !h.id.startsWith("synth-");
+        const at = kerb(h, undefined, surveyed);
+        if (!at) return [];
+        return [{ label: `H${i + 1}`, lat: at.lat, lng: at.lng, sourceId: h.id }];
+      });
     }
-    // Schematic offsets are a drawing, not a survey: a hydrant is on a
-    // main under a road, so each one goes to the kerb of the nearest
-    // road, and one with no road within eighty metres is not there. Until
-    // the roads have loaded the offset stands, so the labels never vanish.
+    // Schematic offsets are a drawing, not a survey: one with no road
+    // within eighty metres is not there.
     return (scene?.hydrants ?? [])
       .filter((h) => !!h.pos)
       .flatMap((h) => {
-        const p = metresToLatLng(incident.scenario.location.coords, h.pos!);
-        let lat = p.lat;
-        let lng = p.lng;
-        if (osmRoads.length > 0) {
-          const snapped = snapToNearestRoadWithBearing(p, osmRoads, 80);
-          if (!snapped) return [];
-          [lat, lng] = offsetAlongBearing(snapped.lat, snapped.lng, snapped.bearingDeg + 90, 2.5);
-        }
-        return [{ label: h.label, lat, lng, sourceId: `scene:${h.label}`, street: h.street }];
+        const at = kerb(metresToLatLng(incidentAt, h.pos!), h.street, false);
+        if (!at) return [];
+        return [{ label: h.label, lat: at.lat, lng: at.lng, sourceId: `scene:${h.label}`, street: h.street }];
       });
   })();
 

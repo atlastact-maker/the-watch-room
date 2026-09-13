@@ -8,6 +8,7 @@ export type OsmRoadWay = {
   id: string;
   coords: [number, number][];
   highway?: string;
+  name?: string;
 };
 
 const cache = new Map<string, Promise<OsmRoadWay[]>>();
@@ -72,14 +73,22 @@ export function snapToNearestRoad(
 /** Like snapToNearestRoad, but also reports the road's bearing at the
  *  snapped segment (compass degrees, 0 = north). Used by road-closure
  *  placement so the cone line can render square across the carriageway. */
+export type RoadSnap = {
+  lat: number;
+  lng: number;
+  distanceM: number;
+  bearingDeg: number;
+  /** The way the point landed on — its OSM class and name, when tagged. */
+  highway?: string;
+  name?: string;
+};
+
 export function snapToNearestRoadWithBearing(
   click: LatLng,
   ways: OsmRoadWay[],
   maxSnapM = 25,
-): { lat: number; lng: number; distanceM: number; bearingDeg: number } | null {
-  let best:
-    | { lat: number; lng: number; distanceM: number; bearingDeg: number }
-    | null = null;
+): RoadSnap | null {
+  let best: RoadSnap | null = null;
   for (const way of ways) {
     for (let i = 1; i < way.coords.length; i++) {
       const [aLat, aLng] = way.coords[i - 1];
@@ -93,12 +102,86 @@ export function snapToNearestRoadWithBearing(
       if (!best || d < best.distanceM) {
         const bearingDeg =
           ((Math.atan2(bLng - aLng, bLat - aLat) * 180) / Math.PI + 360) % 360;
-        best = { lat: snapped.lat, lng: snapped.lng, distanceM: d, bearingDeg };
+        best = {
+          lat: snapped.lat,
+          lng: snapped.lng,
+          distanceM: d,
+          bearingDeg,
+          highway: way.highway,
+          name: way.name,
+        };
       }
     }
   }
   if (!best || best.distanceM > maxSnapM) return null;
   return best;
+}
+
+/** Half the carriageway for an OSM road class, in metres: how far a kerb
+ *  sits from the centreline the way geometry describes. */
+export function carriagewayHalfWidthM(highway?: string): number {
+  switch (highway) {
+    case "primary":
+    case "primary_link":
+    case "trunk_link":
+      return 5.5;
+    case "secondary":
+    case "secondary_link":
+      return 5;
+    case "tertiary":
+    case "tertiary_link":
+    case "motorway_link":
+      return 4.5;
+    case "service":
+      return 2.5;
+    default:
+      return 3.5;
+  }
+}
+
+/** Where a fire hydrant stands: on the pavement, a step back from the kerb
+ *  of the road whose main it sits on.
+ *
+ *  Snaps `p` to its street when the roads are named and `street` matches
+ *  one within reach, else to the nearest road within `maxSnapM`, then
+ *  steps off the centreline to the side `p` already lay on. A point on
+ *  the centreline itself (a synthesised hydrant at a road node) takes the
+ *  side facing `towards`. Null when no road is in reach. */
+export function hydrantKerbPosition(
+  p: LatLng,
+  ways: OsmRoadWay[],
+  opts: { maxSnapM: number; street?: string; towards: LatLng },
+): { lat: number; lng: number; snap: RoadSnap } | null {
+  const wanted = opts.street ? normaliseStreet(opts.street) : "";
+  const named = wanted
+    ? ways.filter((w) => !!w.name && normaliseStreet(w.name) === wanted)
+    : [];
+  const snap =
+    (named.length > 0
+      ? snapToNearestRoadWithBearing(p, named, Math.max(opts.maxSnapM, 120))
+      : null) ?? snapToNearestRoadWithBearing(p, ways, opts.maxSnapM);
+  if (!snap) return null;
+  const rad = (snap.bearingDeg * Math.PI) / 180;
+  const cosLat = Math.cos((snap.lat * Math.PI) / 180);
+  // Positive when `q` is to the right of the road's direction of travel.
+  const rightOf = (q: LatLng) => {
+    const dN = (q.lat - snap.lat) * 111_320;
+    const dE = (q.lng - snap.lng) * 111_320 * cosLat;
+    return dE * Math.cos(rad) - dN * Math.sin(rad);
+  };
+  let side = rightOf(p);
+  if (Math.abs(side) < 0.75) side = rightOf(opts.towards);
+  const kerbM = carriagewayHalfWidthM(snap.highway) + 0.8;
+  const out = (snap.bearingDeg + (side >= 0 ? 90 : -90)) * (Math.PI / 180);
+  return {
+    lat: snap.lat + (kerbM * Math.cos(out)) / 111_320,
+    lng: snap.lng + (kerbM * Math.sin(out)) / (111_320 * cosLat),
+    snap,
+  };
+}
+
+function normaliseStreet(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 /** Project `p` onto segment `a`→`b`. Uses equirectangular approximation
