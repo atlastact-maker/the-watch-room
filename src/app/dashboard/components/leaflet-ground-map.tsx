@@ -26,6 +26,7 @@ import {
   type OsmRoadWay,
 } from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
+import { routeEta } from "@/lib/sim/eta";
 import type {
   Deployment,
   HoseType,
@@ -902,6 +903,83 @@ function hoseRun(
   return [[from.lat, from.lng], ...ordered.slice(1, -1), [to.lat, to.lng]];
 }
 
+/** The point on a building's outline nearest `p` — the face a crew would
+ *  put the hose in through. Equirectangular, fine at building scale. */
+function nearestOnRing(
+  ring: [number, number][],
+  p: { lat: number; lng: number },
+): { lat: number; lng: number } {
+  const cosLat = Math.cos((p.lat * Math.PI) / 180);
+  let best = { lat: ring[0][0], lng: ring[0][1] };
+  let bestD2 = Infinity;
+  for (let i = 0; i < ring.length; i++) {
+    const [aLat, aLng] = ring[i];
+    const [bLat, bLng] = ring[(i + 1) % ring.length];
+    const bx = (bLng - aLng) * 111_320 * cosLat;
+    const by = (bLat - aLat) * 111_320;
+    const px = (p.lng - aLng) * 111_320 * cosLat;
+    const py = (p.lat - aLat) * 111_320;
+    const len2 = bx * bx + by * by;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2));
+    const dx = px - bx * t;
+    const dy = py - by * t;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = { lat: aLat + (bLat - aLat) * t, lng: aLng + (bLng - aLng) * t };
+    }
+  }
+  return best;
+}
+
+/** Where a jet goes. With the building's outline known the hose runs to
+ *  its nearest face and in from there; the branch stands at the fire's
+ *  edge inside, or at the door when the fire has reached it. Without an
+ *  outline the branch stands at the fire's edge on the line from the
+ *  pump, as before. */
+function jetGeometry(
+  pumpPos: { lat: number; lng: number },
+  centre: { lat: number; lng: number },
+  fireRadiusM: number,
+  interior: boolean,
+  entry: { lat: number; lng: number } | null,
+): { approachTo: { lat: number; lng: number }; target: { lat: number; lng: number }; viaEntry: boolean } {
+  const anchor = entry ?? pumpPos;
+  const distM = Math.max(1, haversineMetres(anchor, centre));
+  const edgeM = interior ? 2 : entry ? Math.max(2, fireRadiusM + 4) : Math.min(distM - 3, Math.max(3, fireRadiusM + 4));
+  const f = Math.max(0, Math.min(1, 1 - edgeM / distM));
+  const target = { lat: anchor.lat + (centre.lat - anchor.lat) * f, lng: anchor.lng + (centre.lng - anchor.lng) * f };
+  return { approachTo: entry ?? target, target, viaEntry: !!entry };
+}
+
+type HoseSpec = { key: string; from: { lat: number; lng: number }; to: { lat: number; lng: number } };
+
+function hoseKey(id: string, from: { lat: number; lng: number }, to: { lat: number; lng: number }): string {
+  return `${id}|${from.lat.toFixed(5)},${from.lng.toFixed(5)}>${to.lat.toFixed(5)},${to.lng.toFixed(5)}`;
+}
+
+/** Foot routes for hose the simulator did not route itself — a jet, or a
+ *  supply the desk's own fetch lost — asked for once per run and kept for
+ *  the incident. A run the router cannot place keeps its hand-laid curve. */
+function useFootRoutes(specs: HoseSpec[]): Record<string, [number, number][]> {
+  const [routes, setRoutes] = useState<Record<string, [number, number][]>>({});
+  const inFlight = useRef(new Set<string>());
+  useEffect(() => {
+    for (const spec of specs) {
+      if (routes[spec.key] || inFlight.current.has(spec.key)) continue;
+      inFlight.current.add(spec.key);
+      routeEta(spec.from, spec.to, undefined, "foot")
+        .then((r) => {
+          setRoutes((prev) => ({ ...prev, [spec.key]: r.coords && r.coords.length >= 2 ? r.coords : [] }));
+        })
+        .catch(() => {
+          inFlight.current.delete(spec.key);
+        });
+    }
+  }, [specs, routes]);
+  return routes;
+}
+
 function runMetres(path: [number, number][]): number {
   let m = 0;
   for (let i = 1; i < path.length; i++) m += haversineMetres({ lat: path[i - 1][0], lng: path[i - 1][1] }, { lat: path[i][0], lng: path[i][1] });
@@ -1208,6 +1286,34 @@ export function LeafletGroundMap({
   const ghostMarkers = enRoute
     .filter((r) => r.deployment.parkingPos && !r.deployment.hospitalLegStartedAt)
     .map((r) => ({ ...r, pos: r.deployment.parkingPos! }));
+
+  // Hose that needs a road: a jet from each pump to the building, and any
+  // supply or relay the desk could not route when it was ordered.
+  const fireCentre = { lat: incidentLat, lng: incidentLng };
+  const buildingEntryFrom = (p: { lat: number; lng: number }) =>
+    osmBuildingPoly && osmBuildingPoly.length >= 3 ? nearestOnRing(osmBuildingPoly, p) : null;
+  const hoseSpecs: HoseSpec[] = [];
+  for (const t of tasks) {
+    if (t.state === "aborted") continue;
+    if (t.kind === "relay_hose" && !t.hosePath) {
+      const from = onSceneMarkers.find((m) => m.appliance.id === t.sourceApplianceId);
+      const to = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
+      if (from && to) hoseSpecs.push({ key: hoseKey(t.id, from.pos, to.pos), from: from.pos, to: to.pos });
+    } else if (t.kind === "connect_hydrant" && !t.hosePath) {
+      const pump = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
+      const hydrant = renderedHydrants.find((h) => h.label === t.hydrantId);
+      if (pump && hydrant) {
+        const from = { lat: hydrant.lat, lng: hydrant.lng };
+        hoseSpecs.push({ key: hoseKey(t.id, from, pump.pos), from, to: pump.pos });
+      }
+    } else if (t.kind === "hose_attack" && t.state === "active") {
+      const pump = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
+      if (!pump) continue;
+      const g = jetGeometry(pump.pos, fireCentre, sim.fireRadiusM, t.attackMode === "interior_attack", buildingEntryFrom(pump.pos));
+      hoseSpecs.push({ key: hoseKey(t.id, pump.pos, g.approachTo), from: pump.pos, to: g.approachTo });
+    }
+  }
+  const footRoutes = useFootRoutes(hoseSpecs);
 
   const hydrantConnections = (() => {
     const m = new Map<string, string>(); // hydrantLabel → callsign
@@ -1769,7 +1875,7 @@ export function LeafletGroundMap({
           const from = onSceneMarkers.find((m) => m.appliance.id === t.sourceApplianceId);
           const to = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
           if (!from || !to) return null;
-          const positions = hoseRun(t.hosePath, from.pos, to.pos);
+          const positions = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, from.pos, to.pos)], from.pos, to.pos);
           const metres = runMetres(positions);
           return (
             <HoseLine
@@ -1790,7 +1896,8 @@ export function LeafletGroundMap({
           const appliance = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
           const hydrant = renderedHydrants.find((h) => h.label === t.hydrantId);
           if (!appliance || !hydrant) return null;
-          const positions = hoseRun(t.hosePath, { lat: hydrant.lat, lng: hydrant.lng }, appliance.pos);
+          const hydrantAt = { lat: hydrant.lat, lng: hydrant.lng };
+          const positions = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, hydrantAt, appliance.pos)], hydrantAt, appliance.pos);
           const metres = runMetres(positions);
           return (
             <HoseLine
@@ -1810,14 +1917,22 @@ export function LeafletGroundMap({
         .map((t) => {
           const pump = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
           if (!pump) return null;
-          // The branch stands at the edge of the fire; an interior attack
-          // takes it to the seat.
-          const centre = { lat: incidentLat, lng: incidentLng };
-          const distM = Math.max(1, haversineMetres(pump.pos, centre));
-          const edgeM = t.attackMode === "interior_attack" || t.kind === "aerial_monitor" ? 2 : Math.min(distM - 3, Math.max(3, sim.fireRadiusM + 4));
-          const f = Math.max(0, Math.min(1, 1 - edgeM / distM));
-          const target = { lat: pump.pos.lat + (centre.lat - pump.pos.lat) * f, lng: pump.pos.lng + (centre.lng - pump.pos.lng) * f };
-          const positions = curvedPolyline(pump.pos, target, 20, 0.08);
+          // An aerial's monitor plays from the ladder head: a straight
+          // throw to the fire. A hand-held jet is hose on the ground: it
+          // follows the road to the building's nearest face, goes in there,
+          // and the branch stands at the edge of the fire — or at the seat
+          // for an interior attack.
+          let positions: [number, number][];
+          if (t.kind === "aerial_monitor") {
+            const distM = Math.max(1, haversineMetres(pump.pos, fireCentre));
+            const f = Math.max(0, Math.min(1, 1 - 2 / distM));
+            positions = curvedPolyline(pump.pos, { lat: pump.pos.lat + (fireCentre.lat - pump.pos.lat) * f, lng: pump.pos.lng + (fireCentre.lng - pump.pos.lng) * f }, 20, 0.08);
+          } else {
+            const g = jetGeometry(pump.pos, fireCentre, sim.fireRadiusM, t.attackMode === "interior_attack", buildingEntryFrom(pump.pos));
+            const approach = hoseRun(footRoutes[hoseKey(t.id, pump.pos, g.approachTo)], pump.pos, g.approachTo);
+            positions = g.viaEntry ? [...approach, [g.target.lat, g.target.lng]] : approach;
+          }
+          const metres = runMetres(positions);
           return (
             <HoseLine
               key={`ja-${t.id}`}
@@ -1825,7 +1940,7 @@ export function LeafletGroundMap({
               hoseType={t.kind === "aerial_monitor" ? "70mm" : t.hoseType ?? "45mm"}
               kind="jet"
               layStartedAt={t.startedAt}
-              laySeconds={t.kind === "aerial_monitor" ? 20 : 35}
+              laySeconds={t.kind === "aerial_monitor" ? 20 : Math.max(35, 15 + metres / 1.2)}
               charged={t.kind === "aerial_monitor" || pump.deployment.pumpRunning === true}
               now={now}
             />
