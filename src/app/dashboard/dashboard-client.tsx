@@ -99,6 +99,8 @@ import {
   haversineMeters,
   rescaleBlueLightSeconds,
   routeEta,
+  routeEtaRouted,
+  routeMatrix,
 } from "@/lib/sim/eta";
 import { pagerDelaySec } from "@/lib/sim/turnout";
 import { scoreIncident } from "@/lib/sim/scoring";
@@ -675,7 +677,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           const from = pts[i];
           const to = pts[(i + 1) % pts.length];
           try {
-            const r = await routeEta(from, to);
+            // Asks again with backoff: a circuit that never draws means a
+            // relief that never patrols.
+            const r = await routeEtaRouted(from, to);
             if (!r.coords || r.coords.length < 2) {
               ok = false;
               break;
@@ -3382,7 +3386,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       const from = origin ?? findStationForAppliance(args.applianceId)?.coords;
       const target = incident.scenario.location.coords;
       if (from) {
-        void routeEta(from, target)
+        void routeEtaRouted(from, target)
           .then((r) => {
             if (!r.coords || r.coords.length < 2) return;
             setDeployments((prev) =>
@@ -4432,19 +4436,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     const traffic = etaTrafficMultiplier(weather.hourOfDay);
     const precip = etaPrecipMultiplier(weather.precip);
     const envMult = traffic * precip;
-    Promise.all(
-      allDeployableStations.map((s) =>
-        routeEta(s.coords, target, ctrl.signal)
-          .then(blueLight)
-          .then((r) => ({
-            stationId: s.id,
-            ...r,
-            seconds: r.seconds * envMult,
-          })),
-      ),
-    )
+    // One matrix request prices every station. Pricing them one route at
+    // a time blew the routers' per-minute quota the moment a job opened,
+    // and every unit sent after that drove a straight line. The road line
+    // for the unit actually sent is fetched when it is mobilised.
+    const stations = allDeployableStations;
+    routeMatrix(stations.map((s) => s.coords), target, ctrl.signal)
       .then((rows) => {
-        setEtas(Object.fromEntries(rows.map((r) => [r.stationId, r])));
+        setEtas(
+          Object.fromEntries(
+            rows.map((raw, i) => {
+              const r = blueLight(raw);
+              return [stations[i].id, { stationId: stations[i].id, ...r, seconds: r.seconds * envMult }];
+            }),
+          ),
+        );
       })
       .catch(() => {});
     return () => ctrl.abort();
@@ -5987,6 +5993,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     );
     logAnnotation(`${applianceLabel(applianceId)} sent to ${target.label} — ${Math.max(1, Math.round(secs / 60))} min`);
     setStatusMsg(`${applianceLabel(applianceId)} to ${target.label}`);
+    if (!r.coords) {
+      void routeEtaRouted(from, target).then((rr) => {
+        if (!rr.coords || rr.coords.length < 2) return;
+        setDeployments((prev) =>
+          prev.map((x) => (x.applianceId === applianceId && x.mobilisedAt === at ? { ...x, routeCoords: rr.coords!, routeMeters: rr.meters } : x)),
+        );
+      });
+    }
   }
 
   function mobiliseTo(applianceId: string, stationId: string, incidentId?: string, assignedSlotId?: string) {

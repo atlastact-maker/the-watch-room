@@ -207,6 +207,65 @@ export async function routeEta(
 }
 
 /**
+ * A route with road geometry, or the last answer once the retries are
+ * spent. The routers rate-limit in bursts, and a unit drawn on a straight
+ * line stays on it unless somebody asks again.
+ */
+export async function routeEtaRouted(
+  from: Coords,
+  to: Coords,
+  mode: "driving" | "foot" = "driving",
+  delaysMs: number[] = [3_000, 10_000, 30_000, 60_000, 120_000],
+): Promise<EtaResult> {
+  let last = await routeEta(from, to, undefined, mode);
+  for (const d of delaysMs) {
+    if (last.coords) return last;
+    await new Promise<void>((resolve) => setTimeout(resolve, d));
+    last = await routeEta(from, to, undefined, mode);
+  }
+  return last;
+}
+
+/**
+ * Driving time and road distance from many origins to one destination in
+ * a single request — no geometry. Prices a station sweep without spending
+ * one routing call per station. An origin the matrix cannot place, or the
+ * whole call failing, falls back to crow-fly for that row.
+ */
+export async function routeMatrix(
+  froms: Coords[],
+  to: Coords,
+  signal?: AbortSignal,
+): Promise<EtaResult[]> {
+  if (froms.length === 0) return [];
+  try {
+    const res = await fetch("/api/route-matrix", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: froms, to }),
+      signal,
+    });
+    if (!res.ok) throw new Error(`route-matrix ${res.status}`);
+    const body = (await res.json()) as {
+      rows?: ({ meters?: number; seconds?: number } | null)[];
+      error?: string;
+    };
+    if (!Array.isArray(body.rows) || body.rows.length !== froms.length) {
+      throw new Error(body.error ?? "route-matrix bad response");
+    }
+    return body.rows.map((row, i) =>
+      row && typeof row.meters === "number" && typeof row.seconds === "number"
+        ? { meters: row.meters, seconds: row.seconds, source: "ors" as const, coords: null }
+        : haversineFallback(froms[i], to),
+    );
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    console.warn("[route-matrix] fallback to haversine:", err);
+    return froms.map((f) => haversineFallback(f, to));
+  }
+}
+
+/**
  * Interpolate a position along a polyline by fractional progress `t` ∈ [0, 1],
  * weighted by cumulative haversine distance so constant-speed travel maps to
  * roughly constant screen-speed along the path.

@@ -964,17 +964,32 @@ function hoseKey(id: string, from: { lat: number; lng: number }, to: { lat: numb
 function useFootRoutes(specs: HoseSpec[]): Record<string, [number, number][]> {
   const [routes, setRoutes] = useState<Record<string, [number, number][]>>({});
   const inFlight = useRef(new Set<string>());
+  const attempts = useRef(new Map<string, number>());
   useEffect(() => {
+    const RETRY_MS = [3_000, 10_000, 30_000, 60_000];
     for (const spec of specs) {
       if (routes[spec.key] || inFlight.current.has(spec.key)) continue;
       inFlight.current.add(spec.key);
+      // A run the router will not place is asked for again with backoff —
+      // the routers rate-limit in bursts — and only after that keeps its
+      // hand-laid curve.
+      const later = () => {
+        const tries = (attempts.current.get(spec.key) ?? 0) + 1;
+        attempts.current.set(spec.key, tries);
+        if (tries > RETRY_MS.length) {
+          setRoutes((prev) => ({ ...prev, [spec.key]: [] }));
+          return;
+        }
+        window.setTimeout(() => inFlight.current.delete(spec.key), RETRY_MS[tries - 1]);
+      };
       routeEta(spec.from, spec.to, undefined, "foot")
         .then((r) => {
-          setRoutes((prev) => ({ ...prev, [spec.key]: r.coords && r.coords.length >= 2 ? r.coords : [] }));
+          if (r.coords && r.coords.length >= 2) {
+            const coords = r.coords;
+            setRoutes((prev) => ({ ...prev, [spec.key]: coords }));
+          } else later();
         })
-        .catch(() => {
-          inFlight.current.delete(spec.key);
-        });
+        .catch(later);
     }
   }, [specs, routes]);
   return routes;
