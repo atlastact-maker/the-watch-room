@@ -276,7 +276,7 @@ export const scenario01: Scenario = {
         text: "The signal hit our panel four minutes ago. We hold a short delay on commercial accounts overnight in case a keyholder cancels it — nobody has, so I've passed it.",
       },
       f_building: {
-        text: "Small industrial unit — light engineering with a trade counter. Single storey, mezzanine office over the front. Middle one of a row of three, steel roller shutter across the front.",
+        text: "Small industrial unit — light engineering with a trade counter. Single storey, mezzanine office over the front. The access note has it third on the left off the estate road, in a terrace of units, steel roller shutter across the front.",
       },
       f_inside: {
         text: "Nobody, as far as we know. They trade eight till five, weekdays — there's no sleeping accommodation on the account and nobody's touched the panel from inside. It's the detector, not a person.",
@@ -309,7 +309,7 @@ export const scenario01: Scenario = {
         ],
       },
       f_danger: {
-        text: "Nothing on the file. The estate'll be dark — there's nobody about at this hour. I can't speak to traffic or anything on the ground, I'm not there.",
+        text: "Nothing on the file. I'd expect the estate to be dark at this hour, but I can't speak to traffic or who's about on the ground — I'm not there. Nothing's been reported to us.",
       },
       f_access: {
         text: "It's locked and shuttered. Roller shutter down across the front, and a personnel door round the back off a shared yard. The estate gates stand open overnight. Nobody's getting in without a keyholder — there's two on the account and I'm about to start ringing them.",

@@ -190,7 +190,7 @@ export const scenario15: Scenario = {
   ],
 
   // The call as Steve has it: hands-free in the outside lane of the
-  // A627(M), the fire shrinking in his mirror and the Chadderton roundabout
+  // A627(M) northbound, the fire shrinking in his mirror and the M62
   // coming up. He saw it for four seconds at seventy. He will tell the
   // operator exactly that and no more than that, and then he has to go.
   call: {
@@ -203,7 +203,7 @@ export const scenario15: Scenario = {
       state: "calm",
     },
     opening:
-      "Yeah, hi — fire brigade. There's a car on fire on the A627(M), the motorway bit going north towards Oldham. It's on the hard shoulder and it's properly going — flames right up over the roof of it. I've just gone past it, I'm on hands-free, I couldn't stop.",
+      "Yeah, hi — fire brigade. There's a car on fire on the A627, the motorway bit — the northbound, going up from Oldham towards the M62. It's on the hard shoulder and it's properly going — flames right up over the roof of it. I've just gone past it, I'm on hands-free, I couldn't stop.",
     deflection: "Mate, I've gone past it — I can't tell you more than what I saw. Just get somebody up there.",
     reassurance: {
       text: "Steve, you've done the right thing ringing it in. Keep your eyes on the road, and just tell me what you can see in the mirror.",
@@ -215,13 +215,13 @@ export const scenario15: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "Northbound, on the hard shoulder. You come on at junction 20 off the M62 and it's a mile, mile and a half up — before you get to the Chadderton end. Just after the bridge. Pretty much halfway along.",
+        text: "Northbound, on the hard shoulder. It's right at the bottom end — the Chadderton end. You come off the Elk Mill roundabout, by the retail park, onto the motorway, and it's not half a mile up from there, on the left. Nowhere near the M62 yet.",
         followUps: [
           {
             id: "f_where_marker",
             text: "Did you see a marker post or a sign near it?",
             answer: {
-              text: "No — sorry — I was doing seventy, I was looking at the fire, not the posts. The big blue sign for Oldham and Chadderton is just after it, I think. It's the only car on that hard shoulder, you'll not miss it.",
+              text: "No — sorry — I was doing seventy, I was looking at the fire, not the posts. You're barely on the motorway when you pass it — the first big sign for the M62's just after it, I think. It's the only car on that hard shoulder, you'll not miss it.",
             },
           },
         ],
@@ -272,13 +272,13 @@ export const scenario15: Scenario = {
         ],
       },
       f_access: {
-        text: "You'll have to come up from junction 20, the M62 end, northbound — there's nothing in between, no way across from the other side, there's a barrier the whole way. It's on the hard shoulder, so that's blocked where it is. I'd get somebody to shut it, honestly.",
+        text: "You'll have to come at it on the northbound — there's no way across from the other side, there's a barrier the whole way up. It's on the hard shoulder, so that's blocked where it is, and lane one's right next to it. I'd get somebody to shut it, honestly.",
       },
       f_safe: {
-        text: "I'm fine, I'm driving. I'm on hands-free and I'm well past it now, heading up to the Chadderton end.",
+        text: "I'm fine, I'm driving. I'm on hands-free and I'm well past it now, heading up towards the M62.",
       },
       f_stay: {
-        text: "I can for a couple of minutes. I'm driving, though — when I come off at the roundabout I'll have to go.",
+        text: "I can for a couple of minutes. I'm driving, though — when I get to the M62 I'll have to go.",
       },
       f_details: {
         text: "Steve Dewhurst — Stephen. This is my mobile, 07700 900509. I'm hands-free in the car.",
@@ -297,13 +297,13 @@ export const scenario15: Scenario = {
       },
       {
         atSec: 150,
-        text: "Hang on — there's a blue light going down the other side, the southbound. Is that yours? They'll have to go all the way round at 20, they can't get across.",
+        text: "Hang on — there's a blue light going down the other side, the southbound. Is that yours? They can't get across — they'll have to go round at the bottom, at Elk Mill, and come back up.",
         requiresOpened: true,
       },
     ],
     drops: {
       atSec: 200,
-      text: "Right, I'm coming off at the roundabout, I'm going to lose you. I've told you everything I saw. The driver was on his phone on the verge — he'll have rung you. Good luck.",
+      text: "Right, I'm at the M62 now, I'm coming off — I'm going to lose you. I've told you everything I saw. The driver was on his phone on the verge — he'll have rung you. Good luck.",
     },
     onDispatch: "Good. Tell them it's on the hard shoulder and the traffic's not slowing. I'll keep looking in the mirror while I've got you.",
   },

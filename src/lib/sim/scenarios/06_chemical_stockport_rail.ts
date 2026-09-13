@@ -314,8 +314,8 @@ export const scenario06: Scenario = {
   ],
   // The call as Craig has it: the site control line at the gatehouse,
   // fourteen staff counted and stood behind him, two of them coughing,
-  // and a pool of something under a live overhead a hundred and fifty
-  // metres up the yard. He has drilled this. He is not sending anyone
+  // and a pool of something under a live overhead a hundred metres up
+  // the yard. He has drilled this. He is not sending anyone
   // back up there, and he says so more than once.
   call: {
     caller: {
@@ -339,7 +339,7 @@ export const scenario06: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "Siding four — that's the fourth road up from the apron, north side of the yard, about the middle of the siding. Third wagon along in a rake of tank wagons. It's roughly a hundred and fifty metres from the gate, where I am.",
+        text: "Siding four — the sidings run across the top of the yard, north of the apron, and four's in the middle of the group. It's a rake of tank wagons and the leaker's about the middle of the siding. Getting on for a hundred metres from the gate, where I am.",
       },
       f_spread: {
         text: "The pool was about the size of a car when the lads saw it, before I pulled them back. Whether it's still growing I can't see from the gatehouse, and I'm not sending anyone to look. The vapour's hanging low.",
@@ -380,15 +380,8 @@ export const scenario06: Scenario = {
             id: "f_hurt_worse",
             text: "Tell me about the one who is struggling.",
             answer: {
-              text: "Imran — he's thirty-five. He's on our first-aid register as asthmatic, he's got a blue inhaler on him and he's had it twice already. He's talking, but short sentences. The other one's Gary, fifty-two — more frightened than hurt, I think.",
+              text: "Imran — he's thirty-five. He's on our first-aid register as asthmatic, he's got a blue inhaler on him and he's had it twice already. He's talking, but short sentences. The other one's Gary, fifty-two — more frightened than hurt, I think. It was the vapour, they say, they didn't touch the liquid — though Gary thinks he's got some on his boots, so I've kept them both outside the gatehouse.",
               tone: "urgent",
-            },
-          },
-          {
-            id: "f_hurt_contact",
-            text: "Did they touch the liquid, or was it just the vapour?",
-            answer: {
-              text: "Vapour, they say — they didn't touch it. Gary thinks he's got some on his boots. I've kept them outside the gatehouse and told them not to go in the building.",
             },
           },
         ],
@@ -397,7 +390,7 @@ export const scenario06: Scenario = {
         text: "Nobody on site. But there's houses behind us — Lancashire Hill, Hillgate, Canal Street, two or three hundred metres south-west. We've a shelter-in-place list for them in the site plan; there's a few elderly on it.",
       },
       f_hazards: {
-        text: "The product's inflammable — three-Y-E, that's foam or water spray, breathing apparatus, and it's a water pollutant. Our drains run to the Mersey. The overheads are live, twenty-five kV, until Network Rail isolate. There's other tank wagons in the same rake — I'd need the consignment sheet to tell you what's in them.",
+        text: "The product's inflammable — three-Y-E, that's foam or water spray, breathing apparatus, and it's a water pollutant. Our drains run to the Mersey — there's an interceptor valve at the south corner of the yard on the drain plan, nearer the gate than the wagon, and I've not shut it, I wasn't sending anyone. The overheads are live, twenty-five kV, until Network Rail isolate. There's other tank wagons in the same rake — I'd need the consignment sheet to tell you what's in them.",
         tone: "urgent",
         followUps: [
           {
@@ -407,13 +400,6 @@ export const scenario06: Scenario = {
               text: "Not off the top of my head — the panel's three-Y-E and the UN number's on the plate, but the lads didn't get it. Today's consignment sheet's in the site office. I can have it in front of me in two minutes.",
             },
           },
-          {
-            id: "f_hazards_drains",
-            text: "Where do the yard drains go?",
-            answer: {
-              text: "Surface water off the apron goes to an interceptor at the south corner of the yard and out to the Mersey. There's a valve on the interceptor — it's on the drain plan, and it's nearer the gate than the wagon. I've not shut it; I wasn't sending anyone.",
-            },
-          },
         ],
       },
       f_danger: {
@@ -421,7 +407,7 @@ export const scenario06: Scenario = {
         tone: "urgent",
       },
       f_access: {
-        text: "Security gate on Lancashire Hill — our security officer, Funmi, is on it, she'll open it for you. There's a yard pickup at the gatehouse. Nothing goes up the apron without my say-so and the rail authority's, though — it's railway land, you can't just walk up the sidings. The wagon's about a hundred and fifty metres in from the gate.",
+        text: "Security gate on Lancashire Hill — our security officer, Funmi, is on it, she'll open it for you. There's a yard pickup at the gatehouse. Nothing goes up the apron without my say-so and the rail authority's, though — it's railway land, you can't just walk up the sidings. The wagon's getting on for a hundred metres in from the gate.",
       },
       f_safe: {
         text: "Yes — at the gatehouse by the gate, well back from siding four. If the vapour comes this way I'll move everyone out onto Lancashire Hill.",
@@ -440,14 +426,14 @@ export const scenario06: Scenario = {
       },
       {
         atSec: 120,
-        text: "Have you got anything moving? I've a man here on his second go of his inhaler, and I'm looking at a pool of something inflammable under twenty-five thousand volts. I need to know what's coming.",
+        text: "Have you got anything moving? I've a man here on his second go of his inhaler, and a pool of something inflammable sat under twenty-five thousand volts up my yard. I need to know what's coming.",
         tone: "urgent",
         requiresOpened: false,
         effect: { state: "anxious" },
       },
       {
         atSec: 200,
-        text: "I can hear you — sirens on Lancashire Hill. Funmi's at the gate to bring them in. Tell them the gatehouse, not the apron.",
+        text: "I can hear them — sirens, on Lancashire Hill. Funmi's at the gate to bring them in. Tell them the gatehouse, not the apron.",
         requiresOpened: true,
       },
       {

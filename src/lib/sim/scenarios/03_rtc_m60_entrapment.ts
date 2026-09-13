@@ -620,7 +620,7 @@ export const scenario03: Scenario = {
       state: "anxious",
     },
     opening:
-      "There's been a crash on the M60 — westbound, between seventeen and eighteen, just before the Heaton Park bridge. Three of them, a van and two cars, all gone into each other. There's smoke coming off the van and the driver's still in it, he's not moving. You need to get everyone — fire, ambulance, the lot.",
+      "There's been a crash on the M60 — westbound, between seventeen and eighteen, just past the Heaton Park bridge. Three of them, a van and two cars, all gone into each other. There's smoke coming off the van and the driver's still in it, he's not moving. You need to get everyone — fire, ambulance, the lot.",
     deflection: "I've told you — there's a bloke trapped in a van on the M60! What else d'you need to know?",
     reassurance: {
       text: "Darren, they're on their way — fire, ambulance and police. I need you to stay behind your barrier and keep telling me what you can see. Can you do that?",
@@ -632,7 +632,7 @@ export const scenario03: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "It's not a building, love, it's the motorway. M60 westbound, between seventeen and eighteen — about a hundred yards short of the Heaton Park bridge. Lanes two and three are blocked. Lane one's still open and they're still coming through it.",
+        text: "It's not a building, love, it's the motorway. M60 westbound, between seventeen and eighteen — they've come under the Heaton Park bridge and gone into each other fifty yards the other side of it. Lanes two and three are blocked. Lane one's still open and they're still coming through it.",
       },
       f_spread: {
         text: "The smoke off the van's not got any worse that I can see — it's whitish, I think it's the radiator. There's a smell of diesel, though. Strong. I'll tell you if it changes.",
@@ -641,7 +641,7 @@ export const scenario03: Scenario = {
         text: "Two, three minutes. It happened right in front of me — I was two back from the Polo. I've got the wagon on the hard shoulder and rung you straight off.",
       },
       f_building: {
-        text: "There's no building. Three lanes and a hard shoulder, steel barrier down the middle, a bridge over the top a bit further on. I'm on the hard shoulder about fifty yards back from it with my beacons going.",
+        text: "There's no building. Three lanes and a hard shoulder, steel barrier down the middle, a bridge over the top just behind me. I'm on the hard shoulder about fifty yards back from it with my beacons going.",
       },
       f_inside: {
         text: "The van driver — he's still in his cab and he's not moving. His door's pushed right in on him. The two in the Kia are still sat in it, a woman driving and a fella next to her. The Polo lad's out, he's stood here with me.",
@@ -651,7 +651,7 @@ export const scenario03: Scenario = {
             id: "f_inside_van",
             text: "The van driver — is he conscious? Is he breathing?",
             answer: {
-              text: "I can't tell you from here, I've not been up to him. There's a fella from an Astra up there and he's been shouting at him through the window. He was groaning, I heard that much. I'm not walking up the live lane to check, I'll be under the next lorry.",
+              text: "I can't tell you from here, I've not been up to him. There's a fella from an Astra up there, he's been shouting at him through the window — he shouted back to me that he's groaning, so he's breathing, but he's not answering. I'm not walking up the live lane to check, I'll be under the next lorry.",
               tone: "urgent",
             },
           },
@@ -669,7 +669,7 @@ export const scenario03: Scenario = {
         tone: "urgent",
       },
       f_vulnerable: {
-        text: "The van driver, if he's trapped — he's not getting himself out of that. The rest are grown-ups, no kids that I've seen. No car seats in the back of the Kia.",
+        text: "The van driver, if he's trapped — he's not getting himself out of that. The rest are grown-ups — no kids that I've seen or heard, and nobody's shouting about any.",
       },
       f_hazards: {
         text: "Diesel — I can smell it from here, and that Transit'll have a good tank on it. The cars'll be petrol. No load on the van that I know of, it's a courier van, parcels.",
@@ -696,7 +696,7 @@ export const scenario03: Scenario = {
             id: "f_access_bridge",
             text: "Are you before or after the bridge?",
             answer: {
-              text: "Before it. The bridge is past the crash, going west — maybe a hundred yards on. Heaton Park Road, I think it is.",
+              text: "After it — coming westbound you come under the bridge and they're right there, fifty yards on. I'm this side of it, on the shoulder, so the bridge is more or less between me and them. Heaton Park Road, I think it is.",
             },
           },
         ],
@@ -708,7 +708,7 @@ export const scenario03: Scenario = {
         text: "Yeah. I'm not going anywhere, I've a wagon on the shoulder. I'll stay on.",
       },
       f_details: {
-        text: "Darren Brennan. I'm on my mobile — 07700 900184. I drive for Pennine Reach, the artic's mine, KX70 RVJ, it's on the shoulder behind me.",
+        text: "Darren Brennan. I'm on my mobile — 07700 900184. I drive for Pennine Reach — the artic's KX70 RVJ, it's on the shoulder behind me.",
       },
     },
     interjections: [
@@ -731,7 +731,7 @@ export const scenario03: Scenario = {
       },
       {
         atSec: 280,
-        text: "I've got the Polo lad sat in my cab now, out of the way of it. He's shaking like a leaf, keeps saying it weren't his fault.",
+        text: "The Polo lad's stood here with me on the shoulder, I've got him behind the barrier. He's shaking like a leaf, keeps saying it weren't his fault.",
       },
     ],
     onDispatch: "Right. Good. Tell them to come up the hard shoulder — I'll keep my beacons on so they can see where we are.",

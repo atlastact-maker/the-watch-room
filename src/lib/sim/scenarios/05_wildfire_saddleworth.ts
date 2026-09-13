@@ -301,7 +301,7 @@ export const scenario05: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "It's not a building. It's the moor above Wessenden Head reservoir — north-east of the layby, up the slope. Maybe four or five hundred metres up from the road, below the ridge line.",
+        text: "It's not a building. It's the moor above Wessenden Head reservoir — north-east of the layby, up the slope. A hundred, hundred and fifty metres up from the road, below the ridge line.",
       },
       f_spread: {
         text: "Yes — it's spreading. The wind's behind it, pushing it up the hill. It's getting wider at the edges as well as going up. It's not coming toward the road, not at the moment.",
@@ -314,7 +314,7 @@ export const scenario05: Scenario = {
         text: "There's no building. It's open moorland — heather and grass, dry as anything, it's not rained for weeks. There's a stone hut, a shooting cabin, way over to the west, but that's nowhere near it.",
       },
       f_inside: {
-        text: "There's no inside — it's the hill. I can't see anyone on it from here. There's one other car in the layby besides mine, a blue Golf, so somebody's up there somewhere. I've not seen who.",
+        text: "There's no inside — it's the hill. I can't see anyone on it from here. There's one other car in the layby besides mine, a blue Golf, so somebody's up there somewhere. I don't know whose it is.",
         followUps: [
           {
             id: "f_inside_paths",
@@ -340,7 +340,7 @@ export const scenario05: Scenario = {
         text: "Not that I know of. Anyone up there would be a walker. There's nothing else out here — no houses, no farms on this side of the road.",
       },
       f_hazards: {
-        text: "Nothing like that. It's heather and peat. The peat's the worry, I'd have thought — it's deep up there, it'll burn underneath. The reservoir's the other side of the road from the fire.",
+        text: "Nothing like that. It's heather and peat. The peat's the worry, I'd have thought — it's deep up there, it'll burn underneath. The reservoir's off to the west of it, the far side of the Pennine Way — the fire's nowhere near the water yet.",
       },
       f_danger: {
         text: "The road — the A635 is fast and there's a bend by the layby. If the smoke comes across it, that'll be dangerous. And it's boggy off the tracks up there, you'd sink a vehicle.",
@@ -352,7 +352,7 @@ export const scenario05: Scenario = {
             id: "f_access_track",
             text: "Where does the track go?",
             answer: {
-              text: "West along the slope to the shooting cabin, about a kilometre. It doesn't go toward the fire — that's the wrong direction — but it gets you off the road. The ground beyond the cabin is bog.",
+              text: "West along the slope to the shooting cabin — it's only a couple of hundred metres. It doesn't go toward the fire, that's the wrong direction, but it gets a vehicle off the road. The ground beyond the cabin is bog.",
             },
           },
         ],

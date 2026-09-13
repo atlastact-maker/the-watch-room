@@ -352,8 +352,8 @@ export const scenario04: Scenario = {
     },
   ],
   // The call as Siobhan has it: stood in her own yard at Wharfside, on
-  // the west boundary, watching the vents along Albright's roof turn from
-  // grey to black. She runs a site herself; she knows what a shed full of
+  // the west boundary, watching black smoke pump out of every vent along
+  // Albright's roof. She runs a site herself; she knows what a shed full of
   // plastic means, and she knows Victor next door is counting heads.
   call: {
     caller: {
@@ -377,7 +377,7 @@ export const scenario04: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "The main shed — the big production building. It's coming out of the vents at my end, the west end, nearest our boundary. That's where they keep the raw stock, the bulk bags of granules. Their office on the front corner and the maintenance bay at the far end look alright for now.",
+        text: "The main shed — the big production building. It's coming out of the vents at my end, the west end, nearest our boundary. That's where they keep the raw stock, the bulk bags of granules. Their office on the front corner looks alright for now. The maintenance bay's at the far end — I can't see that end properly from here, but there's nothing coming off the roof over it yet.",
       },
       f_spread: {
         text: "Getting worse by the minute. When I first saw it there was one vent going, now it's the whole run of them. It's not out through the roof yet. Our building's about twenty metres off their wall — if it comes through that end we've a store full of cardboard.",
@@ -456,7 +456,7 @@ export const scenario04: Scenario = {
     interjections: [
       {
         atSec: 50,
-        text: "The smoke's changed — it was grey when I rang, it's black now, properly black, and there's more of it.",
+        text: "It's dropped — the smoke — the wind's pushing it down over their yard now. Their people are moving out onto Wharf Road, they can't stand where they were.",
         tone: "urgent",
       },
       {
