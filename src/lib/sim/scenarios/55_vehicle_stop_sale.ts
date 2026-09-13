@@ -198,19 +198,20 @@ export const scenario55: Scenario = {
   // The call as PC Lomas has it: police generated, not a 999 — a
   // Trafford patrol behind a grey Astra in the bus lay-by on the A56,
   // lights on, the driver sat with his hands on the wheel and half the
-  // parade watching from their doorways. She has not spoken to him yet.
-  // She wants the van rolling before she needs it.
+  // parade watching from their doorways. She has been to his window once,
+  // to tell him to sit tight, and nothing more yet. She wants the van
+  // rolling before she needs it.
   call: {
     caller: {
       name: "PC Sarah Lomas",
       phone: "07700 900855",
       relation: "Trafford response — the patrol that called the stop; police generated, not a 999",
-      where: "In the patrol car behind the stopped Astra in the northbound bus lay-by on Washway Road, then up the nearside to the driver's window",
+      where: "Back in the patrol car behind the stopped Astra in the northbound bus lay-by on Washway Road — been to the driver's window once to tell him to sit tight",
       line: "mobile",
       state: "calm",
     },
     opening:
-      "Control, Trafford patrol — vehicle stop, Washway Road northbound, the bus lay-by outside the parade in Sale. Grey Vauxhall Astra, Mike Victor one five, Uniform Kilo Zulu. ANPR's flagged it no insurance. One male up, he's stayed in the car, hands on the wheel, compliant. I'm calling it before I go up to him. I'll want a second unit for transport if this goes the way these go.",
+      "Control, two-four-seven-one, Trafford. Vehicle stop — A56 Washway Road northbound, we've put a grey Astra into the bus lay-by outside the parade in Sale. Mike Victor one five, Uniform Kilo Zulu. ANPR's given us no insurance on it. One up, male. I've been to his window and told him to sit tight with his hands on the wheel, and he has. I'm back in the car calling it in before I take his details — can you show us at the stop, and have a second unit in mind for transport if this goes the way these usually go.",
     deflection: "Control, I've given you the stop. I need the van, not questions.",
     reassurance: {
       text: "Two-four-seven-one, received. The van's being sorted. Stay nearside and keep him in the car.",
@@ -218,7 +219,7 @@ export const scenario55: Scenario = {
     },
     answers: {
       p_happening: {
-        text: "Vehicle stop, police generated. Grey Astra, Mike Victor one five Uniform Kilo Zulu, in the bus lay-by on Washway Road northbound outside the parade. ANPR's given me no insurance. One male driver, on his own, engine off, sat in the seat with his hands where I can see them. Nothing's kicked off. I'm calling it in before I go to the window, and I'll want a second unit for transport if it goes the way these usually go.",
+        text: "Vehicle stop, police generated. Grey Astra, Mike Victor one five Uniform Kilo Zulu, in the bus lay-by on Washway Road northbound outside the parade. ANPR's given me no insurance. One male driver, on his own, engine off, sat in the seat with his hands where I can see them. I've had a word through the window and told him to sit tight — nothing's kicked off. I'm calling it in before I take his details, and I'll want a second unit for transport if it goes the way these usually go.",
         followUps: [
           {
             id: "p_happening_anpr",
@@ -279,7 +280,7 @@ export const scenario55: Scenario = {
     interjections: [
       {
         atSec: 45,
-        text: "Stand by — I'm out of the car and going up to him on the nearside. My colleague's stopping in the car with the lights on.",
+        text: "Stand by — I'm out of the car and going back up to him for his details, nearside. My colleague's stopping in the car with the lights on.",
       },
       {
         atSec: 100,

@@ -330,7 +330,7 @@ export const scenario52: Scenario = {
       state: "anxious",
     },
     opening:
-      "I don't know if this is a 999 or not. It's my son — he's thirty-one, he lives on his own on Waterloo Street in Glodwick, and he won't open the door to me. He's been in a terrible way all week, crying, not eating, and now he's shut himself in. He's in there, I can hear the telly. Can somebody come and knock on? He'd open it to a police officer.",
+      "I don't know if I should be ringing you or not. It's my son. I'm stood outside his house on Waterloo Street in Glodwick and he won't open the door to me. He's been in a terrible way all week and today he's just — he's shut himself in. He's in there, I can hear the telly. I don't know what else to do. Can you send somebody? He'd not ignore the police.",
     deflection: "I don't — sorry, I don't know why you're asking me that. I just want somebody to come and knock on his door.",
     reassurance: {
       text: "Lorraine, you did the right thing ringing. I'm going to go through this with you properly, and then we'll work out together what happens next.",
@@ -338,7 +338,7 @@ export const scenario52: Scenario = {
     },
     answers: {
       p_happening: {
-        text: "Nothing's happening — that's just it. He's in there and he won't open the door. It's my son, Daniel. He's thirty-one, he lives on his own at 47 Waterloo Street. He's been in a state all week — crying down the phone at me, not eating. I've come round with his tea like I do every day and he won't come to the door. He's in there. I can hear the telly. I just need somebody to get him to open it.",
+        text: "Nothing's happening — that's just it. He's in there and he won't open the door. It's Daniel, my son. Thirty-one, he lives on his own, 47 Waterloo Street. He's been in a state all week — crying down the phone at me, not eating — and I've come round with his tea like I do every day and he'll not come to the door. I just need somebody to get him to open it.",
         followUps: [
           {
             id: "p_happening_before",
@@ -357,13 +357,13 @@ export const scenario52: Scenario = {
         ],
       },
       p_ongoing: {
-        text: "He's still in there, if that's what you mean. He's not going anywhere and I'm not going anywhere. He texted me a couple of minutes ago — 'leave it mum'. That's all I get off him. So he's awake, he's got his phone in his hand, he's just not coming to the door.",
+        text: "He's still in there, if that's what you mean. He's not going anywhere and I'm not going anywhere. He texted me just before I rang you — 'go home mum'. That's all I get off him. So he's awake, he's got his phone in his hand, he's just not coming to the door.",
       },
       p_weapons: {
         text: "No. No, nothing like that. He's a soft lad, Daniel, he wouldn't hurt a fly. There's nothing in that house — it's a two-up two-down with a telly in it. Why would you ask me that?",
       },
       p_injured: {
-        text: "Nobody's hurt. He's not hurt. I asked him — has he done anything, is he thinking anything daft — and he said no. He said he's just tired and he wants leaving be. He's not threatened anybody. He'd not threaten anybody. He's just gone into himself.",
+        text: "Nobody's hurt. He's not hurt. I asked him on Tuesday, straight out — are you thinking of doing anything daft — and he said no. He said he's just tired and he wants leaving be. He's not threatened anybody. He'd not threaten anybody. He's just gone into himself.",
         followUps: [
           {
             id: "p_injured_self",
@@ -402,7 +402,7 @@ export const scenario52: Scenario = {
         ],
       },
       p_where: {
-        text: "47 Waterloo Street, Glodwick. OL4 1ES. The terrace on the north side — red door, grey wheelie bin out the front, I'm stood right by it. I've walked round from Fitton Hill, it's ten minutes.",
+        text: "47 Waterloo Street, Glodwick. OL4 1ES. It's the terrace — red door, grey wheelie bin out the front, I'm stood right by it. I've walked round from mine in Fitton Hill, it's a quarter of an hour.",
       },
       p_safe: {
         text: "Me? I'm fine. I'm stood on the pavement outside his front door. Nobody's bothering me. It's him I'm ringing about, not me.",
@@ -421,7 +421,7 @@ export const scenario52: Scenario = {
       },
       {
         atSec: 120,
-        text: "You're going to tell me to ring somebody else, aren't you. I can hear it coming. I rang you last November and somebody rang me back the next day. The next day.",
+        text: "I know what you're going to say. You're going to give me a number to ring. I rang you about him last November and somebody rang me back the day after — the day after — and by then he'd come round on his own. I'm not ringing a number and going home while he's sat in there like that.",
         tone: "urgent",
         requiresOpened: false,
       },
@@ -431,7 +431,7 @@ export const scenario52: Scenario = {
       },
       {
         atSec: 200,
-        text: "You're sending somebody? Oh — thank you. Thank you. …Should I tell him? He'll not like it if he thinks I've set the police on him. I won't tell him. I'll just wait.",
+        text: "Is it far, where they're coming from? Only I'm thinking — should I stand round the corner, so he doesn't see me and think I've set the police on him? …No. No, I'll stop here. He'll want his mum here whatever he says.",
         requiresOpened: true,
       },
     ],

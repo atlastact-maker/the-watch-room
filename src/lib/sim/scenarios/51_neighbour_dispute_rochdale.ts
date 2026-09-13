@@ -292,21 +292,21 @@ export const scenario51: Scenario = {
       "GMP Grade 2 (Priority): attendance within one hour — Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Priority or grade 2 - within 1 hour'), and the GMCA GMP Performance Briefing of Jan 2026, which calls the hour GMP's 'aspired attendance time' (77% met in 2025). Nothing below Grade 2 is an attendance in GMP terms: GMP removed Grades 3 to 5 in February 2022 (GMP FOI 01/FOI/24/012708/K), so the two earlier calls this week sat at Grade C, central resolution. The threat to burn the house out is what lifts this one — a threat to destroy property by fire is an offence in its own right (Criminal Damage Act 1971 s.2) and, made against an occupied house on a party wall, a threat of serious harm. Grade 1 turns on a real and immediate risk: a man at the fence with a lighter is closer to it than a man shouting over it, and the log should say which.",
   },
 
-  // The call as Janice has it: on her mobile in the kitchen at 61 with
-  // the back door locked, a hand on Barry's sleeve and the neighbour the
-  // other side of a four-foot fence. She has made this call twice this
-  // week already. She wants a car, not a reference number.
+  // The call as Janice has it: on her mobile in the kitchen at 61, Barry
+  // stood in the open back door with her hand on his sleeve, and the
+  // neighbour the other side of a four-foot fence. She has made this
+  // call twice this week already. She wants a car, not a reference number.
   call: {
     caller: {
       name: "Janice Holroyd",
       phone: "07700 900174",
       relation: "Occupier at no. 61 — the repeat caller; wife of the man the threat was shouted at",
-      where: "Her own kitchen at 61, back door shut and locked, looking down the garden at the fence",
+      where: "Her own kitchen at 61, a hand on Barry's sleeve in the open back door, looking down the garden at the fence",
       line: "mobile",
       state: "anxious",
     },
     opening:
-      "Police, please. It's 61 Daventry Road, Kirkholt — Janice Holroyd, you've had me twice this week already. It's him next door again, he's out the back at the fence screaming at my husband. And this time he's said he'll burn us out. He's said it twice. I want somebody here tonight, not a phone call.",
+      "It's Janice Holroyd, 61 Daventry Road, Kirkholt — you've had me twice this week already, it'll be on your screen. It's him next door. He's out the back at the fence screaming at my husband and this time he's said he'll burn us out. Burn us out, with us in it. He's said it twice now. I'm not having another phone call, I want somebody here.",
     deflection: "I've told you what he said. Are you sending somebody, or is this going to be another phone call?",
     reassurance: {
       text: "Janice, I'm not putting you on a list. I'm dealing with this now, and I'm keeping you on the line while I do. Help me tell the officers what they're walking into.",
@@ -381,7 +381,7 @@ export const scenario51: Scenario = {
         text: "61 Daventry Road, Kirkholt. OL11 2HY. It's the semi with the hanging basket by the door — his is 63, attached, the one with the music. Come to my door first, please. Not his. Mine.",
       },
       p_safe: {
-        text: "I'm in my kitchen with the back door shut and the key turned. He can't get to me — there's a fence and a wall. I don't feel safe, if that's what you're asking. I've not felt safe since Wednesday.",
+        text: "I'm in my kitchen. He can't get to me, there's a fence and a wall between us — the back door's open because Barry's stood in it and he won't come in off the step. Safe? I don't feel safe, if that's what you're asking. I've not felt safe since Wednesday.",
       },
       p_seen: {
         text: "I heard it with my own ears, stood behind my husband at the back door. Barry heard it. Half the street will have heard it, the volume he was at. Nobody needed to tell me.",
@@ -398,7 +398,7 @@ export const scenario51: Scenario = {
       },
       {
         atSec: 110,
-        text: "You're going to give me a reference number and somebody's going to ring me back, aren't you. I can hear it in your voice. I had that on Thursday. Nobody rang.",
+        text: "You're going to give me a reference number and somebody's going to ring me back, aren't you. I can hear it in your voice. I had that on Wednesday — a number and 'somebody will ring you'. Nobody rang.",
         tone: "urgent",
         requiresOpened: false,
         effect: { state: "hostile" },

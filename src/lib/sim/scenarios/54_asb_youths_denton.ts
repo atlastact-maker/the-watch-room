@@ -364,7 +364,7 @@ export const scenario54: Scenario = {
       state: "calm",
     },
     opening:
-      "Hello, yes — it's the shops on Mancunian Road, Haughton Green, the parade by the Tesco. There's a gang of kids on the roof again, five or six of them, throwing stones down at the cars on the front and across at the bus stop. I'm at number 41, straight across the road, I'm looking right at them from upstairs. I've rung about this lot before.",
+      "Hello, yes — it's Haughton Green, the parade of shops on Mancunian Road, next to the Tesco. There's kids up on the roof of it again, five or six of them, and they're throwing stones down — at the cars on the front, at the bus stop. I'm at number 41, straight over the road from it, I'm watching them now from upstairs. I've rung you about this lot before.",
     deflection: "I've told you what's happening — there's children on a roof throwing stones. Are you sending somebody or not?",
     reassurance: {
       text: "Janet, I've got it. I'm getting a car to you. Keep watching them for me and tell me if anything changes.",

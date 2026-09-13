@@ -315,8 +315,8 @@ export const scenario06: Scenario = {
   // The call as Craig has it: the site control line at the gatehouse,
   // fourteen staff counted and stood behind him, two of them coughing,
   // and a pool of something under a live overhead a hundred metres up
-  // the yard. He has drilled this. He is not sending anyone
-  // back up there, and he says so more than once.
+  // the yard. He has drilled this. He is not sending anyone back up
+  // there, and he says so more than once.
   call: {
     caller: {
       name: "Craig Barlow",
