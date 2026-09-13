@@ -170,15 +170,39 @@ const MDT_FRAME_KEY = "twr:mdt-frame:v3";
 const MDT_WIDTH = 1400;
 const MDT_HEIGHT = 920;
 
-/** As big as the screen allows up to the preset — the police and fire
- *  modules are laid out to fit the tablet without the page scrolling,
- *  so the tablet takes the room it can get. */
-function presetMdtSize(): { width: number; height: number } {
+/** Two sizes, the operator's choice from the handle. Compact leaves the
+ *  ground map visible around the tablet while units are being placed;
+ *  full takes the room the screen allows, so the police and fire modules
+ *  lay out three columns without a column scrolling. */
+type MdtSizeMode = "compact" | "full";
+const MDT_SIZE_KEY = "twr:mdt-size:v1";
+
+function loadSizeMode(): MdtSizeMode {
+  if (typeof window === "undefined") return "compact";
+  try {
+    return window.localStorage.getItem(MDT_SIZE_KEY) === "full" ? "full" : "compact";
+  } catch {
+    return "compact";
+  }
+}
+function saveSizeMode(mode: MdtSizeMode): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MDT_SIZE_KEY, mode);
+  } catch {
+    // best-effort
+  }
+}
+
+function presetMdtSize(mode: MdtSizeMode = loadSizeMode()): { width: number; height: number } {
   if (typeof window === "undefined") return { width: MDT_WIDTH, height: MDT_HEIGHT };
+  if (mode === "full") {
+    return {
+      width: Math.min(MDT_WIDTH, Math.max(640, window.innerWidth - 24)),
+      height: Math.min(MDT_HEIGHT, Math.max(560, window.innerHeight - 70)),
+    };
+  }
   return {
-    // Leave the ground map visible around the tablet. The MDT remains
-    // readable, but it should not become a full-screen opaque wall when
-    // the operator is placing units or working a scene.
     width: Math.min(MDT_WIDTH, Math.max(640, Math.min(1020, window.innerWidth - 24))),
     height: Math.min(MDT_HEIGHT, Math.max(480, Math.min(700, window.innerHeight - 160))),
   };
@@ -248,6 +272,22 @@ export function DraggableIncidentMdt(props: Props) {
   // off the edges included, and a drop that would lose the grab strip is
   // pulled back just far enough to reach it.
   const [pos, setPos] = useState({ x: initialFrame.x, y: initialFrame.y });
+  const [sizeMode, setSizeMode] = useState<MdtSizeMode>(() => loadSizeMode());
+  const [frameSize, setFrameSize] = useState({ width: initialFrame.width, height: initialFrame.height });
+  function toggleSize() {
+    const next: MdtSizeMode = sizeMode === "compact" ? "full" : "compact";
+    const size = presetMdtSize(next);
+    const maxX = typeof window !== "undefined" ? Math.max(0, window.innerWidth - size.width - 8) : pos.x;
+    const maxY = typeof window !== "undefined" ? Math.max(0, window.innerHeight - size.height - 8) : pos.y;
+    const x = Math.max(0, Math.min(pos.x, maxX));
+    const y = Math.max(0, Math.min(pos.y, maxY));
+    frame.current = { ...frame.current, ...size, x, y };
+    saveMdtFrame(frame.current);
+    saveSizeMode(next);
+    setSizeMode(next);
+    setFrameSize(size);
+    setPos({ x, y });
+  }
   useEffect(() => {
     setUnitId(null);
   }, [resolved, incident.id]);
@@ -386,6 +426,7 @@ export function DraggableIncidentMdt(props: Props) {
         <span>MOBILE DATA TERMINAL</span>
         <div className="vec-mdt-handle-btns">
           <button type="button" className="txt" title="Notebook" aria-pressed={notepad} onClick={() => setNotepad((v) => !v)}>✎ Notebook</button>
+          {!popped && <button type="button" className="txt" title={sizeMode === "compact" ? "Full-size tablet — three columns without scrolling" : "Compact tablet — keeps the ground map in view"} aria-pressed={sizeMode === "full"} onClick={toggleSize}>{sizeMode === "compact" ? "⤢ Full" : "⤡ Compact"}</button>}
           {!popped && <button type="button" title="Minimise MDT" aria-label="Minimise" onClick={() => setMinimised(true)}>−</button>}
           {popped ? (
             <button type="button" title="Dock the MDT back on the desk" aria-label="Dock" onClick={() => setPopped(false)}>⤶</button>
@@ -559,7 +600,7 @@ export function DraggableIncidentMdt(props: Props) {
   return (
     <>
       <Rnd
-        size={{ width: initialFrame.width, height: initialFrame.height }}
+        size={frameSize}
         position={pos}
         onDrag={(_e, d) => setPos({ x: d.x, y: d.y })}
         onDragStop={(_e, d) => {

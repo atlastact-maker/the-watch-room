@@ -4199,13 +4199,16 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pnc-seg button[aria-pressed="true"] { background: var(--fc-blue); border-color: var(--fc-blue); color: #fff; }
 .pnc-term-status { display: flex; justify-content: space-between; gap: 10px; padding: 6px 14px; border-top: 1px solid #3b5468; font-size: 11px; color: #9fb3c3; letter-spacing: 0.04em; }
 
-@container (max-width: 1000px) {
-  .pc-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+/* The compact tablet is 962 px inside its bezel: still three columns.
+   Only a genuinely narrow tablet folds to two, and then the page scrolls. */
+@container (max-width: 880px) {
+  .pc-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); overflow: auto; }
   .pc-main .pc-col:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
+  .pc-main .pc-col { overflow: visible; }
   .pnc-page { grid-template-columns: minmax(0, 1fr); }
 }
 @container (max-width: 700px) {
-  .pc-main { grid-template-columns: minmax(0, 1fr); }
+  .pc-main { grid-template-columns: minmax(0, 1fr); overflow: auto; }
   .pc-main .pc-col:nth-child(2) { grid-column: auto; grid-row: auto; }
   .pc-foot button span { display: none; }
 }
@@ -4326,8 +4329,10 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pc-screen .fc-time strong { font-size: 14px; }
 .pc-screen .fc-close { min-height: 26px; }
 .pc-main { overflow: hidden; gap: 6px; padding: 6px; }
-.pc-col { gap: 6px; overflow: hidden; }
-.pc-col > .pc-card.fill { flex: 1 1 auto; min-height: 0; }
+/* A column that has more than the tablet's height scrolls on its own —
+   nothing is chopped. A fill card still takes the room when there is room. */
+.pc-col { gap: 6px; overflow: auto; }
+.pc-col > .pc-card.fill { flex: 1 1 auto; min-height: 160px; }
 .pc-col > .pc-card:not(.fill) { flex: 0 0 auto; }
 .pc-col > .pc-card:not(.fill) .pc-card-body { overflow: visible; }
 .pc-card > header { min-height: 24px; padding: 0 8px; font-size: 9px; }
@@ -4686,7 +4691,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pc-screen .dot.off { background: var(--vec-off, #8a98a4); }
 .pc-screen output .pc-mini { margin-left: auto; }
 .pc-screen .pc-field > .fc-sector-units { margin-top: 2px; }
-.pc-screen .fc-fire .fc-map { flex: 1; min-height: 160px; max-height: none; }
+.pc-screen .fc-fire .fc-map { flex: 1; min-height: 120px; max-height: 240px; }
 .pc-screen .pc-support .pc-action { min-height: 44px; }
 .pc-screen .fc-assist-pumps .pc-primary { flex: 1; min-height: 34px; font-size: 12px; }
 .fc-rtc-vehicles.column { flex-direction: column; }
@@ -4696,7 +4701,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-mdt-inhand b.go { color: #4ade80; }
 .vec-mdt-inhand b.warn { color: #facc15; }
 .vec-mdt-inhand b.stop { color: #ff7b72; }
-@container (max-width: 1000px) {
+@container (max-width: 880px) {
   .pc-main.command, .pc-main.rtc { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .pc-main.command .pc-col:nth-child(2), .pc-main.rtc .pc-col:nth-child(2) { grid-column: auto; grid-row: auto; }
   .pc-main.ba, .pc-main.log { grid-template-columns: minmax(0, 1fr); }
@@ -4720,3 +4725,16 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-checks i.warn { background: var(--vec-warn); }
 .vec-screen-head .mono.go { color: var(--vec-go); }
 .vec-screen-head .mono.stop { color: var(--vec-stop); }
+
+/* Action buttons in a 312 px column: labels wrap, nothing clips. */
+.pc-action { min-width: 0; }
+.pc-action span { min-width: 0; }
+.pc-action strong, .pc-action small { overflow-wrap: anywhere; }
+.pc-col::-webkit-scrollbar { width: 8px; }
+.pc-col::-webkit-scrollbar-thumb { background: var(--fc-line); border-radius: 4px; }
+/* A short tablet: the fire picture keeps its numbers and drops the plan. */
+.pc-screen { container-type: size; }
+@container (max-height: 560px) {
+  .pc-screen .fc-fire .fc-map { display: none; }
+  .pc-screen .pc-brief { display: none; }
+}
