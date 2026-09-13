@@ -723,7 +723,6 @@ export function FireCommandScreen(props: FireCommandProps) {
         <dt>Incident reference</dt><dd>{incidentRef}</dd>
         <dt>Status</dt><dd className={resolvedIncident ? "" : stageTone || "hi"}>{statusText}</dd>
         {tab === "general" && (<><dt>Reported at</dt><dd>{stamp(incident.receivedAt)}</dd></>)}
-        <dt>Attendance</dt><dd>{committed.length} committed · {onScene.length} on scene{pumpsOnScene ? ` · ${pumpsOnScene} pump${pumpsOnScene === 1 ? "" : "s"}` : ""}</dd>
       </dl>
       {tab === "general" && (<><div className="pc-sub">Brief details</div><p className="pc-brief">{sc.trigger}</p></>)}
     </Card>
@@ -735,9 +734,45 @@ export function FireCommandScreen(props: FireCommandProps) {
         <dt>Resource</dt><dd className="hi">{appliance.callsign}<small> · {appliance.typeName}</small></dd>
         <dt>Status</dt><dd><i className={`dot ${here ? "go" : unit.phase === "mobile" ? "warn" : "off"}`} />{here ? (mine.length ? "On scene · working" : "On scene") : unit.phase === "mobile" ? "En route" : unit.phase.replace(/_/g, " ")}<small> · {appliance.crewMembers.length} crew{freeCrew.length < appliance.crewMembers.length ? `, ${appliance.crewMembers.length - freeCrew.length} committed` : ""}</small></dd>
         {appliance.waterLitres > 0 && (<><dt>Pump</dt><dd className={pumpOn ? "go" : ""}>{pumpOn ? `Running · ${pumpOperator?.name ?? "operator"}` : "Not running"}<small> · {waterText.toLowerCase()}</small></dd></>)}
-        <dt>Command</dt><dd className={isCommander ? "go" : commanderUnit ? "" : "warn"}>{isCommander ? `You · ${officer?.name ?? appliance.callsign}` : commanderUnit ? commanderUnit.appliance.callsign : "Not assigned"}</dd>
-        <dt>Mode</dt><dd className={mode ? "hi" : "stop"}>{mode ? TACTICAL.find((t) => t.mode === mode)?.label : "Not declared"}</dd>
+        <dt>Command</dt><dd className={isCommander ? "go" : commanderUnit ? "" : "warn"}>{isCommander ? `You · ${officer?.name ?? appliance.callsign}` : commanderUnit ? commanderUnit.appliance.callsign : <>Not assigned <button type="button" className="pc-mini" disabled={!canAct || !props.onStartTask} onClick={takeCommand}>Take command</button></>}</dd>
+        <dt>Mode</dt><dd>
+          <div className="pc-tabs mini" role="group" aria-label="Tactical mode">
+            {TACTICAL.map((t) => (
+              <button key={t.mode} type="button" role="tab" aria-selected={mode === t.mode} disabled={!props.onDeclareTacticalMode || (!isCommander && !commanderUnit) || resolvedIncident} title={!isCommander && !commanderUnit ? "Take command first" : t.hint} onClick={() => props.onDeclareTacticalMode?.(t.mode)}>{t.label}</button>
+            ))}
+          </div>
+        </dd>
       </dl>
+    </Card>
+  );
+
+  // The fire picture as the action page carries it: the stage, the alarms
+  // and the numbers, without the involvement bars and the scene plan —
+  // those are on the BA page and Fire command.
+  const fireCardCompact = (
+    <Card title="Fire picture" icon="🔥" fill headerExtra={sim ? <span className="pc-meta">{sim.fireMaterialKnown ? sim.fireMaterial ?? "" : "material not confirmed"}</span> : undefined}>
+      <div className="fc-fire">
+        <div className={`fc-fire-stage ${stageTone}`}>
+          <b>{STAGE_LABEL[fireStage]}</b>
+          <span>{sim && sim.fireRadiusM > 0 ? `${sim.fireRadiusM.toFixed(0)} m · ${sim.fireRateMpm > 0.05 ? `growing ${sim.fireRateMpm.toFixed(1)} m/min` : sim.fireRateMpm < -0.05 ? `knocking down ${Math.abs(sim.fireRateMpm).toFixed(1)} m/min` : "holding"}${sim.smokeRadiusM > 0 ? ` · smoke ${sim.smokeRadiusM.toFixed(0)} m` : ""}` : "No fire on the ground"}</span>
+        </div>
+        {sim?.flashoverCountdownSec != null && <div className="fc-fire-alert">FLASHOVER IN {sim.flashoverCountdownSec}s — GET THEM OUT OR GET WATER ON IT</div>}
+        {sim?.exposureBreached && <div className="fc-fire-alert warn">FIRE INTO THE EXPOSURE — the neighbour is involved</div>}
+        {collapsed && <div className="fc-fire-alert">STRUCTURAL COLLAPSE — nobody goes back in</div>}
+        <dl className="pc-facts tight">
+          <dt>Jets</dt><dd className={suppressing.length ? "go" : ""}>{suppressing.length ? `${suppressing.length} working · ${[...new Set(suppressing.map((t) => callsignOf(t.applianceId)))].join(", ")}` : "None in play"}</dd>
+          <dt>BA</dt><dd className={baTasks.length ? "warn" : ""}>{baTasks.length ? `${baTasks.length} team${baTasks.length === 1 ? "" : "s"} under air` : "Nobody committed"}</dd>
+          <dt>Persons</dt><dd className={located.length || personsReported ? "warn" : ""}>{personsText}</dd>
+          <dt>Utilities</dt><dd className={/LIVE/.test(utilities) ? "stop" : ""}>{utilities}</dd>
+          {isStructure && (<><dt>Structure</dt><dd className={structureTone}>{structureText}{props.structural?.injured ? ` · ${props.structural.injured} injured` : ""}</dd></>)}
+        </dl>
+        {props.structural && isStructure && (
+          <div className={`fc-structure ${structureTone}`} title="Structural integrity — damage accrues while the fire is developed">
+            <i style={{ width: `${Math.max(0, Math.min(100, integrity))}%` }} />
+            <span>{collapsed ? "STRUCTURE FAILED" : `Structure ${Math.round(integrity)}%`}</span>
+          </div>
+        )}
+      </div>
     </Card>
   );
 
@@ -1406,12 +1441,12 @@ export function FireCommandScreen(props: FireCommandProps) {
             <div className="pc-col">
               {summaryCard}
               {resourceCard}
-              {fireCard}
+              {fireCardCompact}
             </div>
             <div className="pc-col">{actionsCard}{tab === "general" && <>{activityCard}{logCard()}</>}</div>
             <div className="pc-col">
               {detailsCard}
-              {tab === "general" && <>{commandCard}{supportCard}</>}
+              {tab === "general" && supportCard}
               {tab === "fire" && <>{baCard}{logCard()}</>}
               {tab === "rescue" && <>{personsCard}{highRiseCard}{baCard}</>}
               {tab === "water" && <>{waterCard}{logCard()}</>}

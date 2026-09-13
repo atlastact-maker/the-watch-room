@@ -163,7 +163,7 @@ type Props = {
 // Remembered tablet frame — survives the MDT being collapsed/reopened
 // (component unmount) and full reloads. Best-effort localStorage.
 type MdtFrame = { x: number; y: number; width: number; height: number };
-const MDT_FRAME_KEY = "twr:mdt-frame:v3";
+const MDT_FRAME_KEY = "twr:mdt-frame:v4";
 /** The tablet is one fixed size — a device, not a window. It moves, it
  *  pops out, it hides; it does not resize. Clamped to the screen it is
  *  on so a laptop still gets the whole thing. */
@@ -202,9 +202,11 @@ function presetMdtSize(mode: MdtSizeMode = loadSizeMode()): { width: number; hei
       height: Math.min(MDT_HEIGHT, Math.max(560, window.innerHeight - 70)),
     };
   }
+  // Compact is narrow, not short: the ground map stays visible beside the
+  // tablet, and the modules still get the height their three columns need.
   return {
     width: Math.min(MDT_WIDTH, Math.max(640, Math.min(1020, window.innerWidth - 24))),
-    height: Math.min(MDT_HEIGHT, Math.max(480, Math.min(700, window.innerHeight - 160))),
+    height: Math.min(MDT_HEIGHT, Math.max(480, window.innerHeight - 70)),
   };
 }
 
@@ -213,9 +215,14 @@ function loadMdtFrame(): MdtFrame | null {
   try {
     const raw = window.localStorage.getItem(MDT_FRAME_KEY);
     if (!raw) return null;
-    const f = JSON.parse(raw) as { x: number; y: number };
+    const f = JSON.parse(raw) as { x: number; y: number; width?: number; height?: number };
     if (typeof f.x !== "number" || typeof f.y !== "number") return null;
-    const size = presetMdtSize();
+    const preset = presetMdtSize();
+    // A size the operator dragged out is kept, within the screen; else the preset.
+    const size =
+      typeof f.width === "number" && typeof f.height === "number" && f.width >= 640 && f.height >= 480
+        ? { width: Math.min(f.width, window.innerWidth - 8), height: Math.min(f.height, window.innerHeight - 8) }
+        : preset;
     // Never restore a position that has drifted off the visible screen.
     return {
       ...size,
@@ -230,7 +237,7 @@ function loadMdtFrame(): MdtFrame | null {
 function saveMdtFrame(f: MdtFrame): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(MDT_FRAME_KEY, JSON.stringify({ x: f.x, y: f.y }));
+    window.localStorage.setItem(MDT_FRAME_KEY, JSON.stringify({ x: f.x, y: f.y, width: f.width, height: f.height }));
   } catch {
     // best-effort
   }
@@ -612,7 +619,17 @@ export function DraggableIncidentMdt(props: Props) {
           saveMdtFrame(frame.current);
           setPos({ x, y });
         }}
-        enableResizing={false}
+        enableResizing={{ bottom: true, right: true, bottomRight: true, top: false, left: false, topLeft: false, topRight: false, bottomLeft: false }}
+        minWidth={640}
+        minHeight={480}
+        onResizeStop={(_e, _dir, el, _delta, position) => {
+          const width = el.offsetWidth;
+          const height = el.offsetHeight;
+          frame.current = { ...frame.current, width, height, x: position.x, y: position.y };
+          saveMdtFrame(frame.current);
+          setFrameSize({ width, height });
+          setPos({ x: position.x, y: position.y });
+        }}
         dragHandleClassName="vec-mdt-handle"
         className="z-[1250]"
         style={minimised || popped ? { display: "none" } : undefined}

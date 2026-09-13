@@ -4738,3 +4738,19 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   .pc-screen .fc-fire .fc-map { display: none; }
   .pc-screen .pc-brief { display: none; }
 }
+
+/* The tablet at full height: the fire module's pages fit their columns.
+   Smaller segments in a facts row, two-up objectives, shorter notes. */
+.pc-tabs.mini { width: 100%; }
+.pc-tabs.mini button { min-height: 24px; font-size: 10.5px; gap: 4px; padding: 0 4px; }
+.pc-facts dd .pc-tabs { flex: 1; }
+.pc-facts dd .pc-mini { margin-left: 6px; min-height: 22px; font-size: 10px; }
+.pc-screen .fc-objectives { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.pc-screen .fc-objective { padding: 5px 8px; gap: 6px; grid-template-columns: 18px minmax(0, 1fr); }
+.pc-screen .fc-objective i { width: 16px; height: 16px; font-size: 11px; }
+.pc-screen .fc-objective strong { font-size: 11.5px; }
+.pc-screen .fc-objective span { font-size: 10px; line-height: 1.3; }
+.pc-screen .pc-account.short { min-height: 48px; }
+.pc-screen .fc-sectors { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.pc-screen .fc-rtc-action { padding: 4px 8px; }
+.pc-col > .pc-card.fill { min-height: 120px; }
