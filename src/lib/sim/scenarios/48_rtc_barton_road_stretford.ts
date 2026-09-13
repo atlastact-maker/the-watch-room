@@ -328,4 +328,119 @@ export const scenario48: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Paul has it: the cordless handset brought out to his
+  // front step, two cars nose to nose across the junction opposite, a
+  // lad shouting and a woman not shouting back. He heard the bang from
+  // his front room. He is not getting in between them.
+  call: {
+    caller: {
+      name: "Paul Grundy",
+      phone: "0161 496 0418",
+      relation: "Resident at 231 Barton Road, opposite the junction",
+      where: "The footway outside his own front door, across the road from the two cars",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Police, please. There's been a crash outside my house — Barton Road in Stretford, at the Moss Park Road junction. Two cars, a little silver Toyota and a black BMW, and they're sat right across the road, nothing's getting past. Nobody's hurt, I've asked them. But the lad out of the BMW is shouting the odds at the woman and it's not getting any friendlier.",
+    deflection: "I've told you what's happening. Two cars across the road and a lad shouting. What else do you want off me?",
+    reassurance: {
+      text: "Mr Grundy, you're doing the right thing. Stay on your side of the road and keep telling me what you see.",
+      reply: "Aye. Alright. I'm here.",
+    },
+    answers: {
+      p_happening: {
+        text: "Two cars have gone into each other at the junction outside my house — a little silver Toyota and a black BMW. They're sat across the road, nose to nose, nothing's getting past either way. Both drivers are out. The lad out of the BMW's shouting the odds at the woman out of the Toyota. Nobody's hurt.",
+        followUps: [
+          {
+            id: "p_happening_cars",
+            text: "Can either car be moved?",
+            answer: {
+              text: "The Toyota's not going anywhere — her front wheel's pushed right back under the arch. The BMW's got its front hanging off and there's water or something coming out from under it. He's not tried to move it. I wouldn't.",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "The crash is done, they're not going anywhere. The shouting's still going on, if that's what you mean. He's not letting up at her. And the road's blocked, that's not changing till somebody moves them.",
+      },
+      p_weapons: {
+        text: "No, nothing. He's got his phone in his hand and that's it. He's shouting, he's not gone for her. Not yet, anyway.",
+      },
+      p_injured: {
+        text: "Nobody's hurt — I've asked them both. She said she's fine, he said he's fine, in more words than that. They're both walking about. Nobody's bleeding, nobody's holding anything.",
+      },
+      p_who: {
+        text: "Two drivers. A woman, fifties, out of the little silver Toyota, and a young lad out of the black BMW. Just the two of them. And me, I'm across the road on the pavement.",
+        followUps: [
+          {
+            id: "p_who_passengers",
+            text: "Anyone else in either car?",
+            answer: {
+              text: "No, they were both on their own. I looked. Nobody in the back of either.",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "The lad — early twenties, white, short dark hair, black jacket, grey joggers. Big lad. The woman — fifties, glasses, a green coat, grey hair tied back. She's stood by her car with her arms folded and he's stood in the road at her.",
+      },
+      p_direction: {
+        text: "They've not gone anywhere, that's the trouble. The cars are in the mouth of the junction and the two of them are stood in the road next to them. Nobody's leaving.",
+      },
+      p_drink: {
+        text: "I couldn't say. He's angry, not staggering. I've not been close enough to smell anything and I'm not going to be.",
+      },
+      p_known: {
+        text: "I don't know the lad, never seen him. The lady — I think she's off Moss Park Road, I've seen her about. Not to talk to.",
+      },
+      p_vulnerable: {
+        text: "No kids, nobody elderly. Only thing I'd say is she's a woman on her own with a big lad shouting in her face, and there's people on the pavement — there's a bus stop right there. Nobody's in danger yet. It's the yet I'm ringing about.",
+      },
+      p_where: {
+        text: "Barton Road, Stretford, right at the Moss Park Road junction. If you're coming from Park Road it's just past the German church on your right — the Lutheran one. M32 9RA, that's mine, and I'm right opposite.",
+        followUps: [
+          {
+            id: "p_where_access",
+            text: "Is there a way in that avoids the queue?",
+            answer: {
+              text: "Down Moss Park Road, from the west — that's the twenty road, that's where she come out of. You'd come in right behind the Toyota. Barton Road's going to be solid both ways before long.",
+            },
+          },
+        ],
+      },
+      p_safe: {
+        text: "I'm on the pavement outside my own front door, across from them. I'm not in the road. I'm not getting in between them either — I'm sixty-one.",
+      },
+      p_seen: {
+        text: "I heard the bang from my front room and I was out the door in ten seconds. I didn't see the actual hit. I've seen everything since — I've been stood here the whole time.",
+      },
+      p_details: {
+        text: "Paul Grundy, 231 Barton Road, right opposite. This is the house phone — 0161 496 0418. I've brought the handset out to the step.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "He's just pointed at her and called her something I won't repeat. She's got her arms folded, she's not saying anything back. Good for her.",
+      },
+      {
+        atSec: 110,
+        text: "Are you sending somebody, or is this one of them where I've to sort it out myself? Only I'm stood here and it's not getting any friendlier.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 175,
+        text: "I've told them both there's a car coming. He's not happy about that either, but he's stopped shouting for a minute and gone and stood by his car.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 230,
+        text: "She's on her phone to somebody now — her husband, I think, from what I can hear. So there'll be another one turning up. Just so you know.",
+      },
+    ],
+    onDispatch: "Thank you. I'll tell them both. I'll stay put on my step till they get here.",
+  },
 };

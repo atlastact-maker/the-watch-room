@@ -362,4 +362,133 @@ export const scenario46: Scenario = {
     basis:
       "GMP Grade 1 — Immediate: attendance 'within 15 minutes'. GMP's own published figure, not a generic national one — Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Immediate or grade 1 incidents - within 15 minutes'); GMCA GMP Performance Briefing, Jan 2026 (15 minutes described as 'our aspired attendance time', average 7m52s, 95% within it in 2025). GMP publishes no separate rural figure and none is used. That an ANPR stolen-vehicle hit is graded Immediate is the sim's THRIVE judgement rather than a published GMP rule: a live, moving offence with a window of a few minutes before the M60, likely fail-to-stop offenders, and a real chance the driver is an innocent keeper on cloned plates — which argues for speed in getting a car behind it and against speed in stopping it.",
   },
+
+  // The call as Sophie has it: a colleague on an internal line, the
+  // camera image, PNC and the Bolton report on the screen in front of
+  // her. She has a plate and a direction and nothing else, and she is
+  // careful to say which is which.
+  call: {
+    caller: {
+      name: "Sophie Brennan",
+      phone: "0161 496 0731",
+      relation: "ANPR desk, Force Contact — a colleague, not a member of the public",
+      where: "The ANPR desk, with the camera image, PNC and the Bolton report in front of her",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "ANPR desk, it's Sophie. The East Lancs site at Ellenbrook's just hit — grey Audi A3 Sportback, Mike Alpha six eight, Kilo Hotel Victor, eastbound in the outside lane. There's a clone marker on the plate — believed to be on an A3 that went off a drive in Bolton overnight. It's heading for the Walkden Road lights, and the M60's a minute and a half past them. Nobody's got eyes on it. This is the camera and me.",
+    deflection: "I've given you what the camera's given me. Ask me the road and I'll tell you the road.",
+    reassurance: {
+      text: "Sophie, I've got the road. Keep the updates coming and I'll do the rest.",
+      reply: "Understood. I'm here till it goes quiet.",
+    },
+    answers: {
+      p_happening: {
+        text: "A fixed site on the East Lancs has read a plate that's flagged as a clone. Grey Audi A3, MA68 KHV, eastbound. The read's already a minute old — the car's moving toward the Walkden Road signals, and if the traffic lets it, it's at the lights in a couple of minutes and on the M60 a minute and a half after that. What it actually is depends on who's driving, and I can't tell you that yet.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_happening_marker",
+            text: "What does the marker actually say?",
+            answer: {
+              text: "Cloned plate, ANPR interest. The plate's a genuine plate on a genuine car — the marker's saying the same number has been read where the genuine car wasn't. That's a clone. Believed to be on the Bolton Audi now. Intel are working it up and I'll give you what they give me, as they give it.",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "It's live — it's a moving car. Read at Ellenbrook, eastbound, so right now it's on the stretch between the camera and the Walkden Road lights. There's nothing of mine between there and the motorway. Next site it'd show on is the ring — Junction 12, Simister — or Farnworth if it turns up the M61.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "Nothing on the marker for weapons and nothing on the Bolton report — it was a keyless theft off a drive, they never went near the house. I've got a plate under infrared, I can't see hands. Treat it as unknown, not as no.",
+      },
+      p_injured: {
+        text: "Nobody. It's a camera read, not a call. The Bolton keeper woke up to an empty drive and reported it — nobody's been touched.",
+      },
+      p_who: {
+        text: "That's the whole question. If it's the Bolton car, two — two males on the doorbell footage, faces covered, and they weren't at it two minutes. If the plate's on the car it belongs to, it's one — the genuine keeper, going about their business. I can't tell you which from what I've got.",
+        followUps: [
+          {
+            id: "p_who_image",
+            text: "What can you actually see in the image?",
+            answer: {
+              text: "A front plate under infrared and the shape of an A3 Sportback. It reads grey — everything reads grey at night. No faces. Could be one up, could be two. I'm not going to guess for you.",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "Grey Audi A3 Sportback, five-door, showing MA68 KHV. That's all the camera gives me — the plate and the front of the car. I've not got a description of anyone in it, and I'm not inventing one.",
+      },
+      p_direction: {
+        text: "Eastbound on the East Lancs, outside lane when it went past the camera. Toward the A575 Walkden Road lights, and past them it's the M60 at Junction 14, about a kilometre and a half on. In the car — nobody's on foot.",
+        followUps: [
+          {
+            id: "p_direction_window",
+            text: "How long have we got before the motorway?",
+            answer: {
+              text: "The lights in a couple of minutes, depending on the queue. Ninety seconds past them to the slip. Call it four minutes from the read, and the read's already a minute old. Once it's on the motorway it's a network job and my next look at it is Junction 12 or Simister.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "Couldn't tell you. It's a camera. Nothing on the marker either way.",
+      },
+      p_known: {
+        text: "Nobody's been put in that car. Intel are looking at the Bolton MO now — there's been a run of these keyless Audis and they'll have a view on who's been doing them. You'll have a name the second they give me one. Not before.",
+      },
+      p_vulnerable: {
+        text: "The keeper. If that plate's on the car it belongs to, whoever's driving it has done nothing, and a hard stop on them is a hard stop on a member of the public. And the queue at the Walkden Road lights — anything forced there has the public sat in the middle of it.",
+      },
+      p_where: {
+        text: "A580 East Lancashire Road, eastbound carriageway. Camera site's at Ellenbrook, by the Newearth Road junction; the car's between there and the A575 Walkden Road signals at Worsley — M28 7AT for the map. Dual carriageway, no hard shoulder. Nowhere on it to hold a car safely.",
+        followUps: [
+          {
+            id: "p_where_stop",
+            text: "Is there anywhere to stop it on that stretch?",
+            answer: {
+              text: "Not on the carriageway — it's lane one with traffic going past at fifty. Not the lights, for the reasons I've said. If a car's going to be stopped, somebody picks the place first: somewhere lit, off the main drag. That's your call, not mine.",
+            },
+          },
+        ],
+      },
+      p_safe: {
+        text: "I'm sat at a desk in Force Contact, so yes. The people who aren't safe are whoever ends up stood in lane one.",
+      },
+      p_seen: {
+        text: "Neither. It's a camera read — I've got the image, the PNC record and the Bolton report in front of me. Nobody has eyes on that car. Whatever you send is the first pair.",
+      },
+      p_details: {
+        text: "Sophie Brennan, ANPR desk. I'm on 0161 496 0731 and I'm on it till the plate goes quiet.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "For the log — that's two minutes since the read, so it's at the lights or as good as, if the traffic's held it. Nothing on any other site.",
+        tone: "urgent",
+      },
+      {
+        atSec: 100,
+        text: "Nothing of yours is showing mobile on this. I've got a car a minute off the M60 and nobody behind it. Are you putting anything on it?",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "Seen your roads car go mobile — it's on my screen. The FIM's watching the log, so whatever it does when it gets behind that Audi, get the tactic in before anyone shows a blue light.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 230,
+        text: "I'm staying on the ring for you. The moment that plate reads anywhere — Junction 12, Simister, Farnworth — you'll have it before the log does.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Logged. I'll keep the ring lit for that plate and shout the second it reads anywhere. Whatever intel come back with, you'll have it as I get it.",
+  },
 };

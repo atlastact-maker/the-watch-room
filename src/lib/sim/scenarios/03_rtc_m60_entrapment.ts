@@ -606,4 +606,134 @@ export const scenario03: Scenario = {
       { id: 4, label: "Sector 4 · Fuel / Hazmat", face: "left", bearingDeg: 0 },
     ],
   },
+  // The call as Darren has it: stood by the cab of a forty-four-tonner
+  // on the hard shoulder, fifty yards back from the wreck, beacons going,
+  // lane one still live beside him. He drives this road every night. He
+  // will not walk up the carriageway, and he says so.
+  call: {
+    caller: {
+      name: "Darren Brennan",
+      phone: "07700 900184",
+      relation: "HGV driver — two vehicles behind the Polo, stopped clear of the debris",
+      where: "Hard shoulder, M60 westbound, about 50 m east of the wreckage, beside his artic",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "There's been a crash on the M60 — westbound, between seventeen and eighteen, just before the Heaton Park bridge. Three of them, a van and two cars, all gone into each other. There's smoke coming off the van and the driver's still in it, he's not moving. You need to get everyone — fire, ambulance, the lot.",
+    deflection: "I've told you — there's a bloke trapped in a van on the M60! What else d'you need to know?",
+    reassurance: {
+      text: "Darren, they're on their way — fire, ambulance and police. I need you to stay behind your barrier and keep telling me what you can see. Can you do that?",
+      reply: "…Yeah. Yeah. Sorry. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "Three vehicles gone into each other across lanes two and three. White Transit at the front with its nose in the central barrier — a grey Kia's gone into the back of it, and a little red Polo's into the back of the Kia. There's white smoke or steam coming off the front of the van. Glass and bits all over the road.",
+        tone: "urgent",
+      },
+      f_where: {
+        text: "It's not a building, love, it's the motorway. M60 westbound, between seventeen and eighteen — about a hundred yards short of the Heaton Park bridge. Lanes two and three are blocked. Lane one's still open and they're still coming through it.",
+      },
+      f_spread: {
+        text: "The smoke off the van's not got any worse that I can see — it's whitish, I think it's the radiator. There's a smell of diesel, though. Strong. I'll tell you if it changes.",
+      },
+      f_started: {
+        text: "Two, three minutes. It happened right in front of me — I was two back from the Polo. I've got the wagon on the hard shoulder and rung you straight off.",
+      },
+      f_building: {
+        text: "There's no building. Three lanes and a hard shoulder, steel barrier down the middle, a bridge over the top a bit further on. I'm on the hard shoulder about fifty yards back from it with my beacons going.",
+      },
+      f_inside: {
+        text: "The van driver — he's still in his cab and he's not moving. His door's pushed right in on him. The two in the Kia are still sat in it, a woman driving and a fella next to her. The Polo lad's out, he's stood here with me.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "f_inside_van",
+            text: "The van driver — is he conscious? Is he breathing?",
+            answer: {
+              text: "I can't tell you from here, I've not been up to him. There's a fella from an Astra up there and he's been shouting at him through the window. He was groaning, I heard that much. I'm not walking up the live lane to check, I'll be under the next lorry.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "f_inside_kia",
+            text: "The two in the Kia — can they get themselves out?",
+            answer: {
+              text: "The fella in the passenger seat's moving, he's turned round to the woman. I can't see her properly from here. The Astra bloke's gone over to them.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "The van driver, for definite — he's not moved since. The woman in the Kia, the fella with her's shouting for help, so I'd say yes. The lad from the Polo's cut his hands and he's shaking, but he's on his feet.",
+        tone: "urgent",
+      },
+      f_vulnerable: {
+        text: "The van driver, if he's trapped — he's not getting himself out of that. The rest are grown-ups, no kids that I've seen. No car seats in the back of the Kia.",
+      },
+      f_hazards: {
+        text: "Diesel — I can smell it from here, and that Transit'll have a good tank on it. The cars'll be petrol. No load on the van that I know of, it's a courier van, parcels.",
+        followUps: [
+          {
+            id: "f_hazards_fuel",
+            text: "Can you see where the diesel is coming from?",
+            answer: {
+              text: "Not from here. It's under the van somewhere, the smell's coming from that end. I'm not going up to look.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "The traffic. That's the danger. Lane one's live and they're coming through at sixty, seventy, right past us. Nobody's slowing down. And the diesel.",
+        tone: "urgent",
+        needsCalm: true,
+      },
+      f_access: {
+        text: "Westbound, from seventeen. The hard shoulder's clear up to my wagon — I'm fifty yards back from it, then there's a silver Astra just behind the Polo. Nothing's getting past in two and three. Come up the shoulder and I'll shift the wagon back if you need me to.",
+        needsCalm: true,
+        followUps: [
+          {
+            id: "f_access_bridge",
+            text: "Are you before or after the bridge?",
+            answer: {
+              text: "Before it. The bridge is past the crash, going west — maybe a hundred yards on. Heaton Park Road, I think it is.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm on the hard shoulder by my cab, behind the barrier when I can be. It's not safe, love, it's the M60. But I'm as far off the road as I can get.",
+      },
+      f_stay: {
+        text: "Yeah. I'm not going anywhere, I've a wagon on the shoulder. I'll stay on.",
+      },
+      f_details: {
+        text: "Darren Brennan. I'm on my mobile — 07700 900184. I drive for Pennine Reach, the artic's mine, KX70 RVJ, it's on the shoulder behind me.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 60,
+        text: "I've got my beacons on and I've put the triangle out behind the wagon. That's all I can do from here.",
+      },
+      {
+        atSec: 130,
+        text: "Where are you? It's been five minutes. There's a bloke dying in that van and there's nothing coming — nothing!",
+        tone: "urgent",
+        requiresOpened: false,
+        effect: { state: "hostile" },
+      },
+      {
+        atSec: 200,
+        text: "There's blue lights — coming up the hard shoulder behind me. Is that yours? Tell me that's yours.",
+        requiresOpened: true,
+        effect: { state: "anxious" },
+      },
+      {
+        atSec: 280,
+        text: "I've got the Polo lad sat in my cab now, out of the way of it. He's shaking like a leaf, keeps saying it weren't his fault.",
+      },
+    ],
+    onDispatch: "Right. Good. Tell them to come up the hard shoulder — I'll keep my beacons on so they can see where we are.",
+  },
 };

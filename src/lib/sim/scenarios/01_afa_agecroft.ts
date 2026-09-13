@@ -242,4 +242,124 @@ export const scenario01: Scenario = {
       tone: "urgent",
     },
   ],
+  // The call as Marianne has it: a headset on the monitoring floor in
+  // Wakefield, forty miles from the unit, with a panel signal, an account
+  // file and nothing else. She has passed a thousand of these. Everything
+  // she gives is off the screen, and she says so whenever it matters.
+  call: {
+    caller: {
+      name: "Marianne Doyle",
+      phone: "03069 990118",
+      relation: "Alarm receiving centre operator — Northgate ARC, monitoring the unit's fire alarm",
+      where: "A desk at Northgate Alarm Receiving Centre, Wakefield — forty miles from the premises, no eyes on the building",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Fire control? Northgate ARC, Wakefield, operator Marianne. I've an automatic fire alarm to pass to you. Unit 7, Agecroft Commerce Park, Agecroft Road, Salford, M27 8UJ — that's Brennand Tooling. Zone 2 actuation, single zone. Premises are closed and there's nobody on site that we know of.",
+    deflection: "I can only give you what the panel gives me. There's nobody at the site to ask.",
+    reassurance: {
+      text: "Marianne, that's fine — give me what the panel gives you and we'll work the rest from here.",
+      reply: "Understood. Zone 2, single zone, premises closed. Go on.",
+    },
+    answers: {
+      f_seen: {
+        text: "Nothing — I can't see anything, I'm in Wakefield. What I've got is a fire signal off their panel: zone 2, which the account has down as the workshop. No call from anyone at the site, no confirmation of a fire from anybody. Just the head.",
+      },
+      f_where: {
+        text: "Zone 2 is the workshop — the back half of the unit. Zone 1's the trade counter at the front, zone 3's the office mezzanine above it. Only the one zone in so far.",
+      },
+      f_spread: {
+        text: "I can't tell you that. All I'd see is another zone dropping in. If it does, you'll hear it from me before you've finished asking.",
+      },
+      f_started: {
+        text: "The signal hit our panel four minutes ago. We hold a short delay on commercial accounts overnight in case a keyholder cancels it — nobody has, so I've passed it.",
+      },
+      f_building: {
+        text: "Small industrial unit — light engineering with a trade counter. Single storey, mezzanine office over the front. Middle one of a row of three, steel roller shutter across the front.",
+      },
+      f_inside: {
+        text: "Nobody, as far as we know. They trade eight till five, weekdays — there's no sleeping accommodation on the account and nobody's touched the panel from inside. It's the detector, not a person.",
+        followUps: [
+          {
+            id: "f_inside_certain",
+            text: "How sure are you that nobody is in there?",
+            answer: {
+              text: "Not certain — I can't be. What I can tell you is the system was set at ten past five and it's not been unset since. If someone had gone in with the code I'd see it. Nobody has.",
+            },
+          },
+        ],
+      },
+      f_hurt: {
+        text: "Not that I'm aware of. I've had nothing from anyone at the premises — I've only the signal.",
+      },
+      f_vulnerable: {
+        text: "None listed. It's a workshop — no sleeping, no public overnight. It's an empty building until somebody tells me different.",
+      },
+      f_hazards: {
+        text: "The account notes paint and thinners in the rear workshop — quantities not declared to us, I'm afraid. And there's a compressor and a dust extraction plant in the same room. That's all I hold on it.",
+        followUps: [
+          {
+            id: "f_hazards_zone",
+            text: "Is the paint in the same zone as the actuation?",
+            answer: {
+              text: "Yes. Rear workshop — that's zone 2. Same room as the head that's gone.",
+            },
+          },
+        ],
+      },
+      f_danger: {
+        text: "Nothing on the file. The estate'll be dark — there's nobody about at this hour. I can't speak to traffic or anything on the ground, I'm not there.",
+      },
+      f_access: {
+        text: "It's locked and shuttered. Roller shutter down across the front, and a personnel door round the back off a shared yard. The estate gates stand open overnight. Nobody's getting in without a keyholder — there's two on the account and I'm about to start ringing them.",
+        followUps: [
+          {
+            id: "f_access_keyholders",
+            text: "Who are the keyholders, and how far off are they?",
+            answer: {
+              text: "First is Colin Brennand — he's the owner, lives in Swinton, about ten minutes from the unit. He's got the shutter key and the door. The second's a member of staff, Yusuf Akhtar — he's further out, Bury way, and he's only got the door key. I'll start with Colin.",
+            },
+          },
+          {
+            id: "f_access_yard",
+            text: "Can an appliance get round the back?",
+            answer: {
+              text: "There's a service loop behind the units into a shared yard — fenced, the gate's not locked as far as the account goes. The note says it's tight; they'd likely have to reverse in.",
+            },
+          },
+        ],
+      },
+      f_safe: {
+        text: "I'm at a desk in Wakefield, love. I'm fine.",
+      },
+      f_stay: {
+        text: "I can hold while you need me, but I've other accounts coming in. If I have to go I'll ring you straight back on this line the moment anything changes.",
+      },
+      f_details: {
+        text: "Marianne Doyle, Northgate Alarm Receiving Centre, Wakefield. You've got us on 03069 990118 — ask for the fire desk. I'll give you the account number at the end for your log.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "Panel's still showing the one zone. Nothing further's come in.",
+      },
+      {
+        atSec: 95,
+        text: "Sorry — are you attending this one? I need to log a yes or a no against the account either way.",
+        requiresOpened: false,
+      },
+      {
+        atSec: 150,
+        text: "I've logged your attendance against the account. When I get a keyholder I'll tell him your crew's already there and to come to the estate gate.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 230,
+        text: "I've another account calling in, so I'll need to go in a minute. You've got the number — anything else you want from me before I do?",
+      },
+    ],
+    onDispatch: "Noted, thank you. I'll log it and come back to you if another zone drops in, or as soon as I've got a keyholder moving.",
+  },
 };

@@ -284,4 +284,109 @@ export const scenario47: Scenario = {
     basis:
       "GMP Grade 2 — Priority: attendance 'within 1 hour'. GMP's own published figure, not a generic national one — Chief Constable's Regulation 28 response to HM Senior Coroner Manchester West, 26 Aug 2025 ('Priority or grade 2 - within 1 hour'); GMCA GMP Performance Briefing, Jan 2026 (one hour described as 'our aspired attendance time'; 77% of priority incidents attended within it over the year, up from 68%; average 1h 06m 49s). Both documents re-read for this scenario; neither gives a separate allocation target for grade 2, so none is used here. A shoplifter detained by store staff, compliant and not injured, is priority rather than immediate: no threat to life, offender contained, but a time-limited opportunity that a slow-time response would lose.",
   },
+
+  // The call as Dean has it: stood in the doorway of a windowless office
+  // with a lad on a chair, Arjun by the desk and the manager at his
+  // shoulder. He has done this most weeks. What he wants is a time.
+  call: {
+    caller: {
+      name: "Dean Halliwell",
+      phone: "07700 900814",
+      relation: "Store security officer, Pendle & Marsh — made the detention",
+      where: "The doorway of the back office off the stockroom, with the detained male and a second officer",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Hiya, it's security at Pendle and Marsh, the Trafford Centre. We've got a male detained for theft — about two hundred quid of fragrance, straight past the tills. He's in our back office, he's sat down, he's not giving us any bother. There's two of us in with him. I just need to know how long you're going to be.",
+    deflection: "Mate, I've told you what I've got. He's sat down, he's not going anywhere. I need a time.",
+    reassurance: {
+      text: "Dean, you're doing everything right. Keep him sat, keep the door, and I'll get you a car.",
+      reply: "Right. Fair enough. He's sat.",
+    },
+    answers: {
+      p_happening: {
+        text: "We've got a male detained for theft. He walked past the last till with about two hundred quid of fragrance in a carrier bag, we've stopped him at the exit, and he's now in the back office sat on a chair. Two of us in with him. He's not fighting, he's not saying much. I just need to know how long.",
+      },
+      p_ongoing: {
+        text: "It's done — he's detained, he's sat down. He's not going anywhere while there's two of us in here. But we can't sit on him all day, so whenever you can.",
+      },
+      p_weapons: {
+        text: "Nothing in his hands. He had a carrier bag with the perfume in and we've had that off him. I've not searched him — I'm not allowed to and I'm not going to — so I can't tell you what's in his pockets.",
+      },
+      p_injured: {
+        text: "No. Nobody. He come quiet at the door — bit of a moan, no pushing. My colleague's fine, I'm fine, he's fine.",
+      },
+      p_who: {
+        text: "One male. Thirties, I'd say. Two of us with him — me and Arjun, my colleague. Then it's the manager out on the floor, and she's on at me already.",
+        followUps: [
+          {
+            id: "p_who_name",
+            text: "Has he given you a name?",
+            answer: {
+              text: "Not yet — we're getting his details off him now. He's talking, he's not refusing. I'll give you whatever he gives me when I've got it.",
+            },
+          },
+        ],
+      },
+      p_description: {
+        text: "White lad, five ten, thin. Dark grey tracksuit bottoms, black puffer jacket, black cap — he's kept the cap on. Nothing on him you'd remember. He's sat with his head down.",
+      },
+      p_direction: {
+        text: "He's not gone anywhere, that's the point. He's in the office off the stockroom, upper level, one door, and I'm stood in it. If he was going anywhere it'd be the staff door onto the service road, and he's not getting past me to it.",
+      },
+      p_drink: {
+        text: "Doesn't smell of drink. He's a bit vacant, if I'm honest. Could be something, could be he's just been nicked. I wouldn't put money on it either way.",
+      },
+      p_known: {
+        text: "I've seen the face, I think. We get a lot through. I couldn't put a name to him off my own bat.",
+      },
+      p_vulnerable: {
+        text: "No. Grown man, no kids with him, nobody with him at all. Only thing I'd say is Arjun — he's three months in the job and he was meant to clock off ten minutes ago. He's fine. He's just not been in one that's turned before.",
+      },
+      p_where: {
+        text: "Pendle and Marsh, the Trafford Centre. Upper level. But don't send them into the mall — the office is off the stockroom at the back, you can't get to it from the shop floor. Staff entrance on the service road, round the back of the unit by the staff car park. One of us'll meet them at the door.",
+        followUps: [
+          {
+            id: "p_where_meet",
+            text: "Who is meeting them, and where exactly?",
+            answer: {
+              text: "Arjun'll go down when they're close — ring this number when they're a minute off and he'll be stood at the staff door on the service road. Grey door, 'Pendle and Marsh — deliveries' on it. Not the mall doors. Not across the concourse.",
+            },
+          },
+        ],
+      },
+      p_safe: {
+        text: "Yeah, I'm fine. I'm in the doorway, he's on the chair, Arjun's by the desk. It's a small room, mind. If he goes, it's going to be at me.",
+      },
+      p_seen: {
+        text: "Saw it myself. Watched him on the floor, watched him put four boxes in a bag, watched him walk past the last till. Stopped him outside the exit. It's all on the cameras as well — the manager's got the CCTV.",
+      },
+      p_details: {
+        text: "Dean Halliwell, store security at Pendle and Marsh. This is the security mobile — 07700 900814. It's on me, not in a drawer.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 55,
+        text: "That's my manager at the office door asking how long. I've told her I'm on to you now.",
+      },
+      {
+        atSec: 120,
+        text: "Are you actually putting somebody on this, or is it going in a queue? I'm not having a go. I just need to tell my manager something.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 190,
+        text: "Right, that's Arjun heading down to the staff door for your lot. Service road, round the back. Tell them not to come through the mall — I don't want him walked across the concourse.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 235,
+        text: "He's asked for a drink of water, I've give him one. Just so you know — he's talking, he's not kicking off.",
+      },
+    ],
+    onDispatch: "Cheers. I'll get Arjun down to the staff door. Tell them round the back — not through the mall.",
+  },
 };

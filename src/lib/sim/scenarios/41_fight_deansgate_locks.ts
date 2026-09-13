@@ -365,4 +365,138 @@ export const scenario41: Scenario = {
     basis:
       "GMP Grade 1 (Immediate) — 15 minutes, GMP's own published figure: Chief Constable's Regulation 28 response, 26 Aug 2025 (\"Immediate or grade 1 incidents - within 15 minutes\") and GMCA GMP Performance Briefing, Jan 2026 (\"under 15 minutes (our aspired attendance time)\"). Violence in progress with an injured party and offenders still on the street is Grade 1 on GMP's THRIVE. GMP publishes one force-wide figure, no rural split",
   },
+
+  // The call as Emmanuel has it: on his own mobile on the north pavement
+  // at the foot of the Cutwater bridge, stood over a lad who went down
+  // from one punch, with Sophie holding his head and two hundred people
+  // watching. He can see the patient. He cannot see the rank.
+  call: {
+    caller: {
+      name: "Emmanuel Okafor",
+      phone: "07700 900377",
+      relation: "Door supervisor at Cutwater, Deansgate Locks",
+      where: "North pavement of Whitworth Street West, at the foot of the bridge to the arch, stood over the patient",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Police and an ambulance — Cutwater, Deansgate Locks, Whitworth Street West. I'm door staff. We've had a fight on the pavement outside, one lad's gone down and cracked his head on the kerb and he was out cold. He's come round but he's not right. The two that did it have walked off up towards the rank. They've not left the street.",
+    deflection: "Hang on — Soph, get them back off him — sorry. Go on.",
+    reassurance: {
+      text: "Emmanuel, you've done everything right. Officers are coming. Stay with him and keep talking to me.",
+      reply: "Yeah. Yeah, I'm here. Go on.",
+    },
+    answers: {
+      p_happening: {
+        text: "Fight outside the bar, on the pavement on the canal side. One punch, lad's gone down backwards and his head's hit the kerb. He was out — properly out, twenty, thirty seconds. He's come round now but he's mumbling, he's not making sense. Two lads did it and they've walked off west, towards Deansgate. The rank's that way, and the rank's full.",
+        tone: "critical",
+        effect: { regrade: "GRADE 1", basis: "Violence in progress — one male with a head injury, two offenders still on the same street" },
+        followUps: [
+          {
+            id: "p_happening_crowd",
+            text: "How many people are round him?",
+            answer: {
+              text: "His mates, four or five of them, and everybody in the queue's turned round to look. Couple of hundred on the pavement between here and the rank. Sophie's keeping his mates off him — they keep trying to sit him up.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Not here, no — the two of them have gone. He's on the floor, that's what's still going on. But they've not left, they've walked up the pavement towards the rank and there's a queue up there. I'd not say it's finished.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "No. Nothing. Fists — one punch. I didn't see anything in their hands and I was looking, it's the first thing you look for on this door.",
+      },
+      p_injured: {
+        text: "The lad on the floor. Back of his head on the kerb, he was out cold, and now he's come round he's not with it. There's blood at the back of his head — not loads, but it's there. Nobody else hurt that I've seen.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "p_injured_breathing",
+            text: "Is he breathing normally?",
+            answer: {
+              text: "He's breathing. Bit snory. We've got him on his side — Sophie's a first aider, she's got his head. He's a bit pale.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "p_injured_awake",
+            text: "Is he awake and talking to you?",
+            answer: {
+              text: "Eyes are open. He's saying stuff but it's not making sense — he's asked me what happened three times. His mates are saying he's just drunk. He's not just drunk.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_who: {
+        text: "Two lads did it — one in a white shirt, one in a dark jacket, twenties, both of them. The lad on the floor, his mates are calling him Connor. Then it's me and my colleague Sophie, and the crowd.",
+      },
+      p_description: {
+        text: "White shirt — short sleeves, dark hair, stocky, shorter of the two. The other one's in a dark jacket, black or navy, jeans, taller and thinner, I think a beard. Both white lads, mid-twenties. Walking, not running. Cocky with it.",
+      },
+      p_direction: {
+        text: "West, along our pavement — the canal side — towards Deansgate and the taxi rank. On foot. I lost them past the next arch, there's a queue there. I can't see the rank from here, there's too many people.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_direction_now",
+            text: "Can you see them now?",
+            answer: {
+              text: "No. There's two hundred people between me and the rank. The council cameras cover this whole street and they listen to our radio — they'll have heard me put it out. Ask them.",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "He's had a drink, they all have, it's quarter to two. But he wasn't falling about before. He went down from one punch and his head hit the kerb — that's not the drink, that's his head.",
+        tone: "urgent",
+      },
+      p_known: {
+        text: "I know the faces. The one in the white shirt's been put out of the Locks before, I'm nearly sure of it. I'll get you a name — give me a minute, my head's with this lad on the floor.",
+      },
+      p_vulnerable: {
+        text: "Him — he's on the floor with a head injury and he's not with it. And there's the canal right behind us, it's dark and half this crowd have had a skinful. That's what I'm stood on.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "Whitworth Street West, Deansgate Locks — the north pavement, canal side, right at the foot of the bridge to Cutwater. M1 5LH. Bring your ambulance in from the Albion Street end, it's quieter that side — the Deansgate end is the rank and it's chocka.",
+      },
+      p_safe: {
+        text: "I'm alright. I'm stood over him with Sophie. The two that did it have gone. It's the crowd I'm watching, not me.",
+      },
+      p_seen: {
+        text: "I saw it. I was on the bridge end of the door. One punch — I saw it land and I saw him go down. I can pick both of them out.",
+      },
+      p_details: {
+        text: "Emmanuel Okafor. Door supervisor at Cutwater, SIA badge. This is my own mobile — 07700 900377.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Sorry — his mates are trying to sit him up again. I've told them leave him where he is. Soph's got him back on his side.",
+        tone: "urgent",
+      },
+      {
+        atSec: 90,
+        text: "His mates are telling me he's just pissed. He's not just pissed. I've seen pissed every night for six years — he went down from one punch and his head hit the kerb.",
+        tone: "urgent",
+      },
+      {
+        atSec: 150,
+        text: "I can hear sirens on Deansgate. Tell them north side, canal side, foot of the Cutwater bridge — I'm in the black coat with the lanyard, stood over him.",
+        requiresOpened: true,
+      },
+      {
+        atSec: 200,
+        text: "Is anyone actually coming? I've got a full street out here, a lad who's not right on the floor, and the two who did it are still on it. I can't hold this with two of us.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+    ],
+    onDispatch: "Good. Tell your ambulance the Albion Street end — I'll walk them in myself once your lot have got the pavement. Foot of the Cutwater bridge.",
+  },
 };
