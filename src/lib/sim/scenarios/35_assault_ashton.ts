@@ -213,4 +213,137 @@ export const scenario35: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Jason has it: on his own mobile, knelt on the flags outside
+  // Sixteen with the lad on his side in front of him, Aaron stood on the
+  // door between them and the three up at the kebab shop. He saw every
+  // kick. He can still see the three of them.
+  call: {
+    caller: {
+      name: "Jason Kaye",
+      phone: "07700 900835",
+      relation: "Door supervisor at Sixteen, Old Street — was on the door when it happened",
+      where: "The pavement outside Sixteen, Old Street, knelt beside the patient with his colleague on the door",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Police, and an ambulance — Old Street, Ashton, outside Sixteen, the bar. I'm door staff. Three lads have battered one lad on the pavement and kicked him in the head while he was down. He's on the floor and he's going in and out — eyes open, then gone. The three of them are still up the road, they've not gone anywhere.",
+    deflection: "Hang on — Aaron, HOLD him, keep him there — sorry. Go on.",
+    reassurance: {
+      text: "Jason, you've done everything right. Officers are on their way to you. Keep him on his side and keep talking to me.",
+      reply: "Yeah. I'm here. Go on.",
+    },
+    answers: {
+      p_happening: {
+        text: "Assault outside the bar — Sixteen, on Old Street. Three lads have set about one lad on the pavement. He's gone down from the first punch and they've kicked him in the head while he was on the floor. It's stopped — they've walked off up the road, but they've only gone as far as the kebab shop. He's on the flags in front of me and he's going in and out. Eyes open, then gone. Eyes open, then gone.",
+        tone: "critical",
+        effect: { regrade: "GRADE 1", basis: "Violence — one male kicked in the head and losing consciousness, the three responsible still on the same street" },
+        followUps: [
+          {
+            id: "p_happening_kicked",
+            text: "Kicked in the head — how many times?",
+            answer: {
+              text: "Twice that I saw, maybe three. Proper kicks, like a football. Then the one in the grey's stamped on him. I got between them and they backed off — I'm not a small man.",
+              tone: "critical",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "The hitting's stopped. But they've not gone — they're stood twenty, thirty yards up, outside the kebab shop, and they're shouting down at us. And it's chucking-out time, so half the street's stood watching. It's not finished. It's paused.",
+        tone: "urgent",
+      },
+      p_weapons: {
+        text: "Nothing I saw. Fists and feet. I looked at their hands when they came past me and they were empty. One of them had a bottle earlier, inside — a Peroni bottle — I took it off him when I put him out and it's in the bin by the door. He's not got it now. They're thirty yards off and it's dark, so I'll not swear to what's in their pockets.",
+      },
+      p_injured: {
+        text: "The lad on the floor — the back of his head, and his face. His head's hit the flags when he went down, then the kicks. There's blood coming out of his left ear, and his nose. He's breathing, but he's not right — he opens his eyes, mumbles, and then he's gone again. Nobody else is hurt. Aaron's got a fat lip from earlier, that's nothing.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "p_injured_breathing",
+            text: "Is he breathing normally?",
+            answer: {
+              text: "He's breathing. It's loud — a bit snory. We've got him on his side so he doesn't choke on it. Aaron's a first aider, he's had his hand on his head keeping it still.",
+              tone: "urgent",
+            },
+          },
+          {
+            id: "p_injured_awake",
+            text: "When he opens his eyes, does he answer you?",
+            answer: {
+              text: "Not really. He said 'get off' once. Mostly it's just noise. His eyes roll and then they shut again. That's what's bothering me — I've seen a hundred lads knocked out on this door and they come round and stay round. He keeps going.",
+              tone: "critical",
+            },
+          },
+        ],
+      },
+      p_who: {
+        text: "Three lads did it — twenties, all of them. I'd put two of them out of the bar twenty minutes before for hassling a table of girls. The lad on the floor — his mates are calling him Ryan — he's off the same table, I think he'd said something to them on the way out. Then there's me, my colleague Aaron on the door, and forty-odd people stood watching.",
+      },
+      p_description: {
+        text: "The main one, the one that stamped — grey Stone Island jacket, the badge on the arm, dark jeans, shaved head, stocky, five-eight or five-nine. Second one — white T-shirt, tattoos both arms, taller, six foot, dark hair gelled back. Third one's in a black puffer with the hood up, skinnier, younger, I didn't get a proper look at his face. All three white lads, local accents.",
+      },
+      p_direction: {
+        text: "On foot, up Old Street towards Stamford Street — the kebab shop on the corner, they're stood outside it under the light. Thirty yards, if that. Nobody's got in a car. I can see them from here.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_direction_now",
+            text: "Can you still see them right now?",
+            answer: {
+              text: "Yeah. All three. Grey jacket's on his phone. If they start walking I'll tell you which way.",
+            },
+          },
+        ],
+      },
+      p_drink: {
+        text: "All of them, yes. They've been on it since teatime by the look of them — that's why I put two of them out. The lad on the floor's had a few as well, but he was walking straight, this isn't the drink. And the one in the grey — his jaw was going, I'd say he's on something. That's a guess.",
+      },
+      p_known: {
+        text: "Not by name. The grey jacket's been in before, I know the face. Aaron scans IDs on the way in, so if they went through the scanner there's a name on our system, and the camera over the door will have all three. I'll check when I've a hand free.",
+      },
+      p_vulnerable: {
+        text: "Him, on the floor — he's the one at risk. He's in and out and he's bleeding from his ear. And there's two girls from that table stood here crying, they're the ones the three of them were bothering, and they've had a drink too. That's it.",
+        tone: "urgent",
+      },
+      p_where: {
+        text: "Old Street, Ashton — outside Sixteen, the bar with the red front, about halfway down between the market end and Stamford Street. OL6 7SB. He's on the pavement right outside our door, under the sign.",
+      },
+      p_safe: {
+        text: "I'm alright. It's what I'm for. I'm knelt by him and Aaron's stood on the door between us and them. If they come back down I'll know before you do.",
+      },
+      p_seen: {
+        text: "I saw it. I was on the door — six foot away. I saw the first punch, I saw him go down, and I saw the kicks. So did Aaron. So did the camera over the door.",
+      },
+      p_details: {
+        text: "Jason Kaye — door supervisor at Sixteen, SIA badge, I'll give you the number when you're here. This is my own mobile — 07700 900835.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 40,
+        text: "Oi — OI. Back off. Get behind Aaron. — Sorry. Two of his mates have just come out and they've clocked who did it. Aaron's stood in front of them.",
+        tone: "urgent",
+      },
+      {
+        atSec: 95,
+        text: "Is anybody coming or what? I've told you what's stood up the road. I've one man on the door and one on the floor.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 140,
+        text: "He's just been sick. We've rolled him further onto his side — it's gone all over Aaron's boots. He opened his eyes for it and then he's gone again.",
+        tone: "critical",
+      },
+      {
+        atSec: 175,
+        text: "Blue lights — I can see blue lights coming down from the Stamford Street end. That's you, is it? Tell them the red front, halfway down. I'm in the black coat with the badge on my arm.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Good. Red front, halfway down — I'm in black with the badge on my arm. How long? He needs your ambulance as much as he needs you.",
+  },
 };

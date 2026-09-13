@@ -348,4 +348,116 @@ export const scenario54: Scenario = {
     basis:
       "Graded 3 on the simulator's generic THRIVE ladder: nuisance and damage, nobody hurt, no immediate risk stated by the caller. GMP itself has not used a Grade 3 since February 2022 — on the force's own ladder this is a Grade C (Central Resolution) or Grade L (Local Tasking) job with no published attendance time (GMP FOI 01/FOI/24/012708/K, 28 Jun 2024). The 'scheduled' label is generic, not GMP wording. If one comes off the roof it is a Grade 1 with GMP's 15-minute aspired attendance (Chief Constable's Regulation 28 response, 26 Aug 2025)",
   },
+
+  // The call as Janet has it: on her mobile at the upstairs front window
+  // of no. 41 with the light off, looking straight across Mancunian Road
+  // at six shapes on a wet flat roof and her own car on the forecourt
+  // under them. She has rung about this lot before. She is not
+  // frightened yet. She is waiting to be.
+  call: {
+    caller: {
+      name: "Janet Hough",
+      phone: "07700 900431",
+      relation: "Resident at no. 41 Mancunian Road, across the road from the parade — has rung about the same group before",
+      where: "Her upstairs front window at no. 41, light off, looking straight across at the parade roof and the forecourt",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Hello, yes — it's the shops on Mancunian Road, Haughton Green, the parade by the Tesco. There's a gang of kids on the roof again, five or six of them, throwing stones down at the cars on the front and across at the bus stop. I'm at number 41, straight across the road, I'm looking right at them from upstairs. I've rung about this lot before.",
+    deflection: "I've told you what's happening — there's children on a roof throwing stones. Are you sending somebody or not?",
+    reassurance: {
+      text: "Janet, I've got it. I'm getting a car to you. Keep watching them for me and tell me if anything changes.",
+      reply: "Right. I'm here. I'm not going anywhere, I've a good view.",
+    },
+    answers: {
+      p_happening: {
+        text: "There's five, maybe six kids on the flat roof of the shops — the parade on Mancunian Road, next to the Tesco. They're picking stones up off the roof, it's a felt roof with gravel on it, and lobbing them down at the cars on the forecourt and across the road at the bus stop. Nobody's been hit that I've seen. Not yet. They've been up there a good quarter of an hour.",
+        followUps: [
+          {
+            id: "p_happening_below",
+            text: "Is there anyone underneath them — on the forecourt, at the bus stop?",
+            answer: {
+              text: "There's a couple of cars on the forecourt, mine's one of them. The off-licence is still open, there's a lad stood outside it on his phone with no idea what's above him. And there's always somebody at that stop — there's two there now.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_ongoing: {
+        text: "Yes — they're still up there and they're still throwing. One's just bent down for another handful. They're not bothered who sees them. They're laughing.",
+      },
+      p_weapons: {
+        text: "Weapons? No. Stones. Bits of the roof, the gravel off it — one of them had a bit of a stick earlier and he's thrown that. Nothing else. They're thirteen, fourteen. It's stones.",
+      },
+      p_injured: {
+        text: "No, nobody's hurt. Nobody's been hit that I've seen. It's the cars that are getting it, and the bus shelter — I heard one go off the glass. They don't think, do they. They don't think where it lands.",
+      },
+      p_who: {
+        text: "Five or six of them. Boys, I think, all of them — hoods up, so I'll not swear to it. Young. Thirteen, fourteen, fifteen at the very most. Nobody with them, nobody in charge of them. That's the point.",
+      },
+      p_description: {
+        text: "Dark clothes, all of them, hoods up. One's in a grey tracksuit, lighter than the rest — he's the one doing most of the throwing. One's smaller than the others, he's stopping back near the middle of the roof. It's dark and they've their hoods up. I'm not going to give you faces from here.",
+      },
+      p_direction: {
+        text: "They're not going anywhere, they're on a roof. They got up round the back somewhere — I can't see the back from here, I've only the front. If they come down it'll be the back, the way they went up, and then they'll be off across the estate. They'll not come down the front, there's nothing to climb.",
+      },
+      p_drink: {
+        text: "I couldn't tell you. They're kids. They're daft with it, but I'd not say they're drunk — they're too quick on their feet for that, more's the pity.",
+      },
+      p_known: {
+        text: "I know the faces — it's the same lot every time, they're off the estate round the back. I couldn't swear to who's who from here, it's dark and they've hoods up. If one of them turns round under the light I'll tell you.",
+      },
+      p_vulnerable: {
+        text: "Them. They're children on a flat roof, two storeys up, and there's only a little kerb of a wall round the edge — it's knee high. It's wet up there, it's been raining. Nobody else is at risk except whoever's under a stone. But if one of them comes off that roof it's concrete.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "p_vulnerable_edge",
+            text: "How close to the edge are they?",
+            answer: {
+              text: "Right on it. They have to be, to throw — they stand at the front wall and lean over to watch where it lands. Every time one of them leans I hold my breath.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      p_where: {
+        text: "The parade on Mancunian Road, Haughton Green — the row of shops right next to the Tesco Express, where Tatton Road comes round the back. M34 7NP. The bus stop opposite is the Library one. I'm at number 41, straight across the road, in the upstairs front.",
+      },
+      p_safe: {
+        text: "I'm in my bedroom with the light off so they can't see me watching. I'm fine. My car's not — it's on the forecourt, it's under them. I'm not going out to move it while they're throwing.",
+      },
+      p_seen: {
+        text: "I'm watching them now. I've been watching since they went up. Nobody's told me anything — I'm looking straight at them.",
+      },
+      p_details: {
+        text: "Janet Hough — H-O-U-G-H. 41 Mancunian Road, straight across from the parade. This is my mobile, 07700 900431. You've had it before.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "That's another one gone — a big one, that. It's bounced off the forecourt and out into the road, there's a car had to swerve round it.",
+        tone: "urgent",
+      },
+      {
+        atSec: 100,
+        text: "Are you sending anybody, or is it going on the list again? I've rung twice this month and nobody's come either time. I'm not being funny, but it's kids on a roof.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 150,
+        text: "They're daring each other now. One's stood right up on the front wall with his arms out like he's on a diving board, and the others are egging him on. Oh, get down. Get down, you daft —",
+        tone: "urgent",
+      },
+      {
+        atSec: 200,
+        text: "Right — if they're coming, tell them to come along from the Tesco end, not straight up the front. If the kids see a car they'll bolt over the back, and that's the wrong way to bolt on a wet roof.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. I'll keep watching. Tell them the Tesco end — and tell them they're only kids, but they're kids on a roof.",
+  },
 };

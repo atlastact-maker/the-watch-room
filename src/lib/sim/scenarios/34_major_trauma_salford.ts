@@ -228,4 +228,134 @@ export const scenario34: Scenario = {
       tone: "urgent",
     },
   ],
+
+  // The call as Dean has it: on his work mobile at the foot of the scaffold
+  // ladder, looking up at the boards where the lads have put Tomek, with
+  // the site stopped behind him and the gates already open. He saw the
+  // landing, not the fall. He knows exactly how far it was.
+  call: {
+    caller: {
+      name: "Dean Prescott",
+      phone: "07700 900834",
+      relation: "Site manager, Pendleton Frame — the casualty is one of his bricklayers",
+      where: "On the slab at the foot of the scaffold ladder, Ordsall Lane site, looking up at the first-lift boards",
+      line: "mobile",
+      state: "calm",
+    },
+    opening:
+      "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the scaffold onto a concrete slab — four metres, near enough. He's awake and he's talking to us, but his leg's badly broken, it's bent the wrong way, and he's saying his hip. And he's up on the first-floor boards — the lads moved him before I got to him. I need you here quick.",
+    deflection: "Hang on. — Kev, keep him flat, don't let him — sorry. Go on.",
+    reassurance: {
+      text: "Dean, you've got this well in hand. Help is coming. Keep everyone off him and keep talking to me.",
+      reply: "Yeah. Yeah, I'm here. Go on.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes. He's awake, he's talking to me — he knows where he is, he knows what's happened. He's in a lot of pain, he's shouting when anyone goes near the leg. But he's with us.",
+        tone: "urgent",
+      },
+      a_breathing: {
+        text: "Breathing's alright. Fast, but he's talking in sentences. He's not short of breath — he's swearing at the lads that moved him, so there's nothing wrong with his lungs.",
+        followUps: [
+          {
+            id: "a_breathing_chest",
+            text: "Any pain in his chest, or trouble getting a breath in?",
+            answer: {
+              text: "He says his side hurts when he breathes in — the right side, low down. That's the side he landed on, the lads say. He's not gasping. It's the hip and the leg he's shouting about.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_happened: {
+        text: "He was on the top lift of the scaffold, the third, laying blocks. Either a board's gone or he's stepped back off the edge — I've not got to the bottom of it yet. He's gone off backwards, about four metres, onto the first-floor slab. Concrete. He's landed on his right side with his leg under him. Before I got there two of the lads had dragged him off the slab onto the scaffold boards at that level, God knows why, they panicked. So he's on the first lift now, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
+        tone: "urgent",
+      },
+      a_when: {
+        text: "Four, five minutes. I was in the cabin — the shout went up, I've run over, and I rang you as soon as I'd seen him.",
+      },
+      a_now: {
+        text: "A bit pale, and he's sweating, but he's with it — chatting away, swearing at the lads that moved him. He says his hip's killing him, more than the leg. He can't move the leg at all. He's asked for his missus twice.",
+      },
+      a_bleeding: {
+        text: "There's blood on his trouser leg, the right shin — the trousers are torn and it's wet through, and I think the bone's come through. It's soaking, not spurting. Nothing from his head that I can see, and he had his hat on.",
+        tone: "urgent",
+        followUps: [
+          {
+            id: "a_bleeding_pressure",
+            text: "Is anyone putting pressure on it?",
+            answer: {
+              text: "Kev's got a clean towel from the cabin on it and he's leaning on it. He's our first aider, he's done the three-day course. He's told the lads nobody straightens that leg.",
+            },
+          },
+        ],
+      },
+      a_age: {
+        text: "Thirty-four. Tomasz Wozniak — Tomek. He's one of the brickies, been with us two years.",
+      },
+      a_history: {
+        text: "Nothing I know of. He's fit, he's a big lad. His induction form's in the cabin — there's next of kin and medical on it, I'll get it pulled. No allergies on it that I remember, I'd have flagged it. He's not on anything as far as I know.",
+      },
+      a_count: {
+        text: "Just him. Nobody else was on that lift. The two that moved him are fine — shaken up, but fine.",
+      },
+      a_danger: {
+        text: "It's a live site but I've stopped it — nothing's moving now. The telehandler's parked up on the slab and the keys are in my pocket. There's open edges on the first-floor slab and the hatch on that lift's got no cover. Everyone's in hats and boots. Your crew'll want hats — I've got spares in the cabin.",
+        followUps: [
+          {
+            id: "a_danger_height",
+            text: "How high up is he, and how do you get to him?",
+            answer: {
+              text: "First lift — about three metres off the ground. The scaffold ladder up through the hatch, that's the only way. There's no stair tower on this side of the frame, it's not gone up yet.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_access: {
+        text: "The site gates on Ordsall Lane — green hoarding, big double gates, the crane's on the site so you can't miss it. The gates are open now, I've put a lad on them, and I'll be stood in them myself in the orange hi-vis. Come straight in — it's concrete inside, hard standing, you can drive right up to the frame.",
+        followUps: [
+          {
+            id: "a_access_slab",
+            text: "How much clear space is there on the hard standing inside the gates?",
+            answer: {
+              text: "The slab out front's about forty by twenty and it's flat. The telehandler's on it, and a couple of pallets of blocks by the cabins. What do you need it for?",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "I'm at the bottom of the ladder looking up at him. Kev's up there with him, and one of the other lads holding his head still. I can go up if you want me to.",
+      },
+      a_instructions: {
+        text: "Yes. Go on. Kev's first-aid trained — I'll shout it up to him, he'll do it.",
+      },
+      a_details: {
+        text: "Dean Prescott, site manager, Pendleton Frame. It's my work mobile — 07700 900834.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Hang on — GET OFF HIM. Leave him where he is — don't — sorry. They keep wanting to sit him up. I've told them twice.",
+        tone: "urgent",
+      },
+      {
+        atSec: 100,
+        text: "Can you tell me what's coming, and how long? I've a man on the boards with a leg like that and twenty lads stood round looking at me. I need to tell him something.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "The lads are saying he went off backwards, arms out. The board he was stood on's still up there — it's cracked clean through. I'll leave it where it is for the HSE.",
+      },
+      {
+        atSec: 220,
+        text: "I can hear you — that's a siren on Regent Road. Gates are open, I'm stood in them, orange vest, white hat. Tell them straight onto the slab, and tell them he's on the first lift, not the ground.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Right. Good. Gates are open — I'll be in them. Tell them to come straight onto the slab, and tell them he's up on the boards, not on the deck. They'll need to think about how they're getting him down.",
+  },
 };

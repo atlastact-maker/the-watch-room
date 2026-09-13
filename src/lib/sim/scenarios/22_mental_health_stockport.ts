@@ -253,7 +253,7 @@ export const scenario22: Scenario = {
             id: "p_happening_saying",
             text: "What is he saying to you?",
             answer: {
-              text: "Not a lot. He asked me what my name was, and he's said he doesn't want a load of people up here. I'm just talking to him about nothing — the weather, the car park. I don't know what I'm supposed to say to him.",
+              text: "Not a lot. He asked me what my name was. He's asked me twice not to come any nearer, so I haven't. I'm just talking to him about nothing — the weather, the car park. I don't know what I'm supposed to say to him.",
               tone: "urgent",
             },
           },
@@ -308,7 +308,7 @@ export const scenario22: Scenario = {
         text: "I'm fine. I'm well back, by the stair door. I'm nowhere near the edge and I'm not going near it — he asked me not to and I won't.",
       },
       p_seen: {
-        text: "I'm looking at him now. I saw him on the camera in the office first, going over the wall, and I came straight up. That was ten, fifteen minutes ago.",
+        text: "I'm looking at him now. I saw him on the camera in the office first, going over the wall, and I came straight up. That's five minutes ago, maybe ten — I tried talking him back over myself first, then I rang you.",
       },
       p_details: {
         text: "Steve Ashworth. I'm the attendant here, I'm on till ten. This is my own mobile — 07700 900822.",

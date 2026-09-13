@@ -185,4 +185,136 @@ export const scenario38: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Josh has it: on his mobile, sat on the edge of Ryan's bed
+  // with a hand on his back, four floors up a block whose lift has been
+  // out for a fortnight. He can hear the wheeze from the hall. He has
+  // never seen his mate like this.
+  call: {
+    caller: {
+      name: "Josh Meredith",
+      phone: "07700 900838",
+      relation: "The patient's flatmate",
+      where: "Ryan's bedroom, flat 14 on the fourth floor of Ryebank Court, sat beside him on the bed",
+      line: "mobile",
+      state: "anxious",
+    },
+    opening:
+      "Ambulance — Flat 14, Ryebank Court, Beswick, M11. It's my flatmate, he's asthmatic and he's having a really bad attack — he can't breathe properly, he's had his inhaler loads of times and it's not doing anything. He can't talk to me. We're on the fourth floor and the lift's broke.",
+    deflection: "I don't know — I don't KNOW, I'm not a doctor — just get someone here, he can't breathe!",
+    reassurance: {
+      text: "Josh, you're doing everything right. The ambulance is coming. Keep him sat forward, keep him as calm as you can, and tell me what you can see.",
+      reply: "Right. Yeah. Okay. Sorry. I'm here. He's — yeah. I'm here.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yeah — yeah, he's awake. He's sat up on the edge of the bed, he's looking at me. He knows what's going on, he's just — he can't talk to me. He gets a word out and then he's got to breathe again.",
+        tone: "urgent",
+      },
+      a_breathing: {
+        text: "No. That's the whole thing — he's asthmatic and it's a bad one. He's wheezing, you can hear it from the hall, can you hear that? He's breathing dead fast and his shoulders are going up and down with it. He can't finish a sentence. He's had his inhaler six, seven times and it's done nothing.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "a_breathing_sentences",
+            text: "Can he speak in full sentences at all?",
+            answer: {
+              text: "No. One word, two words. He said 'can't' and then 'ring them', and that was two goes. He's nodding and shaking his head at me instead.",
+              tone: "critical",
+            },
+          },
+          {
+            id: "a_breathing_inhaler",
+            text: "Which inhaler has he used, and how many puffs?",
+            answer: {
+              text: "The blue one — Ventolin, the reliever. He's had it six times at least, more, he just keeps going at it. There's a brown one as well but that's his morning one, he's not touched that. It's the blue one that's meant to sort it and it's not.",
+            },
+          },
+        ],
+      },
+      a_happened: {
+        text: "He's had a bad chest all day — he's been coughing since this morning, said it was a cold. Then about twenty minutes ago he came out of the bathroom and he couldn't get his breath. He got the inhaler and it didn't do anything, and he's got worse since. He's sat on the edge of his bed leaning forward with his hands on his knees. I've never seen him like this.",
+        tone: "urgent",
+      },
+      a_when: {
+        text: "The bad bit, twenty minutes? Half an hour, tops. He's been wheezy since he got in from work but it went proper bad about twenty minutes ago. I rang you when he'd had the inhaler five times and it wasn't touching it.",
+      },
+      a_now: {
+        text: "He's white. Pale, and he's sweating buckets, his T-shirt's stuck to him. He's leaning forward on his knees and he can't sit back. He can't talk to me properly, he's mouthing at me. He's scared. I can see he's scared.",
+        tone: "critical",
+        followUps: [
+          {
+            id: "a_now_lips",
+            text: "What colour are his lips?",
+            answer: {
+              text: "They're — normal, I think. They're not blue. He's just white in the face. Is that what I watch for? I'll watch for that.",
+              tone: "urgent",
+            },
+          },
+        ],
+      },
+      a_bleeding: {
+        text: "No, nothing like that. Nothing's happened to him, it's his chest. It's just his asthma.",
+      },
+      a_age: {
+        text: "Twenty-four. He's twenty-four. Ryan — Ryan Whitehead.",
+      },
+      a_history: {
+        text: "Asthma, bad asthma — he's had it since he was a kid. He's got the blue inhaler and a brown one, and he's on tablets for it as well, I think, there's a box in the kitchen. He's been in hospital with it before — a couple of years back, a bad one, before I lived here. Nothing else that I know of. No allergies that I know of.",
+        needsCalm: true,
+      },
+      a_count: {
+        text: "Just Ryan. It's just me and him in the flat.",
+      },
+      a_danger: {
+        text: "Yeah, it's just our flat, nothing wrong in here. It's getting him out that's the problem — we're on the fourth floor and the lift's knackered.",
+      },
+      a_access: {
+        text: "Ryebank Court, the main door on the front — it's a buzzer, flat 14. We're on the fourth floor. The lift's out, it's been out two weeks and nobody's fixed it, so it's the stairs all the way up — eight flights, two a floor. Sorry. I'll leave the flat door open.",
+        followUps: [
+          {
+            id: "a_access_door",
+            text: "Is there anyone else who can go down to the door, so you can stay with him?",
+            answer: {
+              text: "No — it's just us. I'll go down when I hear them and come straight back up. The buzzer's rubbish, half the time it doesn't open, it's quicker if I'm stood at the door. I'll not leave him till I hear them.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "Yeah, I'm sat next to him on the bed. I've got my hand on his back. He's leaning on me a bit.",
+      },
+      a_instructions: {
+        text: "Yeah. Yeah, go on, what do I do? I'll do whatever.",
+      },
+      a_details: {
+        text: "Josh Meredith. It's my mobile — 07700 900838. If it cuts out ring it back, I'll be here.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 50,
+        text: "Hang on — he's going at the inhaler again. Ryan, mate — he's had it that many times. Is that bad? Should I take it off him?",
+        tone: "urgent",
+      },
+      {
+        atSec: 110,
+        text: "He's just grabbed hold of my arm — he's scared, he's proper scared, he's mouthing something at me and I can't tell what he's saying. Ryan. RYAN. I don't know what to do. Tell me what to do.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 165,
+        text: "Is anyone actually coming? You've not said anyone's coming. He's getting worse, I'm telling you he's getting worse, and I can't get him down eight flights on my own.",
+        tone: "urgent",
+        requiresOpened: false,
+      },
+      {
+        atSec: 210,
+        text: "I can hear a siren — is that you? I'm going down to let them in, I'll be two minutes. Fourth floor, flat 14, the flat door's open. Tell them the lift's out, tell them not to stand there waiting for it.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Thank you. Tell them the lift's out — fourth floor, flat 14, I'll come down and let them in. Tell them to bring a chair or whatever it is. Please be quick.",
+  },
 };

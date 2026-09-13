@@ -230,7 +230,7 @@ export const scenario24: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "It's not in the house — it's the car, on the drive. But it's right up against the front of the house, under the porch, and the kids' bedroom window is straight above it. The window's shut. The curtains are right there.",
+        text: "It's not in the house — it's the car, on the drive. But it's right up against the front of the house, under the porch, and the kids' bedroom window is straight above it. The window's shut — Mark pulled it to on the way out. The curtains are right there.",
         tone: "urgent",
         effect: { regrade: "EMERGENCY", basis: "Vehicle fire against a dwelling — porch and bedroom directly above it" },
       },
@@ -239,7 +239,7 @@ export const scenario24: Scenario = {
         tone: "urgent",
       },
       f_started: {
-        text: "Five minutes? Less. Ben smelt burning from upstairs, we looked out the window and there were flames under it. We just grabbed the kids and got out the back.",
+        text: "Five minutes? Less. Ben smelt burning in his room, he opened his window to look and there were flames under it. We just grabbed the kids and got out the back.",
       },
       f_building: {
         text: "It's a house — a semi, two floors. It's the car that's on fire, but it's on our drive, against the front of the house. Next door's joined on to us.",
@@ -264,7 +264,7 @@ export const scenario24: Scenario = {
         ],
       },
       f_hurt: {
-        text: "No. Nobody's hurt. Ben's coughing — there was smoke on the landing when we came out — but he's alright, he's talking, he's asking about the cat.",
+        text: "No. Nobody's hurt. Ben's coughing — the smoke was coming straight in when he opened his window — but he's alright, he's talking, he's asking about the cat.",
         followUps: [
           {
             id: "f_hurt_ben",
@@ -289,7 +289,7 @@ export const scenario24: Scenario = {
         needsCalm: true,
       },
       f_access: {
-        text: "The car's across the drive, they can't get on the drive, it's blocking it. They'll have to come off the road. It's Northenden Road, the main road through Sale — there's a bus stop right outside ours, they'll see it. The front door — I don't know if it's locked. We went out the back.",
+        text: "The car's across the drive, they can't get on the drive, it's blocking it. They'll have to come off the road. It's Northenden Road, the main road through Sale — there's a bus stop right opposite, we're stood at it, they'll see us. The front door — I don't know if it's locked. We went out the back.",
       },
       f_safe: {
         text: "We're over the road on the pavement, by the bus stop. Is that far enough? Should we go further back? I've got the kids.",
@@ -305,7 +305,7 @@ export const scenario24: Scenario = {
     interjections: [
       {
         atSec: 55,
-        text: "It's just gone — there was a bang, a big flash from under it, and the flames are right up the side now. Oh God. It's going to go up the house.",
+        text: "The tyre's just gone — there was a bang and it's dropped down at the front, and the flames are right up the side now. Oh God. It's going to go up the house.",
         tone: "critical",
         effect: { state: "panicking" },
       },
@@ -316,7 +316,7 @@ export const scenario24: Scenario = {
       },
       {
         atSec: 180,
-        text: "I can hear them. Sirens — that's them, that's them coming from the Sale end.",
+        text: "I can hear them. Sirens — that's them, that's them coming from the town end.",
         requiresOpened: true,
       },
       {

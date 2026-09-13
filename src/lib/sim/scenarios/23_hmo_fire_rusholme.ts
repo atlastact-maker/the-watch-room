@@ -301,7 +301,7 @@ export const scenario23: Scenario = {
             id: "f_where_stairs",
             text: "Is the smoke on the stairs?",
             answer: {
-              text: "Yes — it was on the landing when we came down, that's why Sam didn't go up. It was coming under the door on the first floor and down the stairs. You couldn't see the top of the house.",
+              text: "Yes — Sam went up when the alarm went and it was all along the first-floor landing, coming under that door and down the stairs at him. He couldn't see up to the top. He came straight back down.",
               tone: "urgent",
             },
           },
@@ -312,13 +312,13 @@ export const scenario23: Scenario = {
         tone: "urgent",
       },
       f_started: {
-        text: "Ten minutes? The alarm went off and we thought it was somebody's cooking again, it does that. Then Sam smelt it on the landing and started banging on doors. We came straight out.",
+        text: "Ten minutes? The alarm went off and we thought it was somebody's cooking again, it does that. Then Sam went up to look and smelt it on the landing, and he started banging on doors. We came straight out.",
       },
       f_building: {
-        text: "Big old terrace, three floors, split into rooms — it's an HMO, we all rent a room off the same landlord. Eight rooms, and there's one in the cellar as well. Everyone's got their own lock.",
+        text: "Big old terrace, three floors, split into rooms — it's an HMO, we all rent a room off the same landlord. Eight rooms, I think, I've never counted. There's a cellar under it and all, I've never been down. Everyone's got their own lock.",
       },
       f_inside: {
-        text: "I don't know. That's the thing — I don't know. There's four of us out here. There's eight rooms and everybody keeps their door shut. I couldn't tell you who's home tonight and who's not.",
+        text: "I don't know. That's the thing — I don't know. There's four of us out here. There's about eight rooms and everybody keeps their door shut. I couldn't tell you who's home tonight and who's not.",
         tone: "critical",
         effect: { regrade: "EMERGENCY", basis: "Persons reported — occupancy unknown, nobody on scene can account for the house" },
         followUps: [
@@ -326,7 +326,7 @@ export const scenario23: Scenario = {
             id: "f_inside_who",
             text: "Who is out with you, and which rooms are they from?",
             answer: {
-              text: "Me — ground floor front. Sam, he's ground floor back, next to me. A girl from the second floor, Chloe, I think. And a lad from the second floor as well, I don't know his name. So that's the ground floor and two off the second. Nobody from the first floor and nobody from the top.",
+              text: "Me — ground floor front. Sam, he's ground floor back, next to me. A girl off the first floor, Chloe, I think — the back room, she came down through it coughing. And a lad from the top floor, I don't know his name — he was down in the kitchen when it went off. So that's two of us off the ground, one off the first and one off the top. Nobody's out from the room that's burning, and there's more rooms up there than that.",
               tone: "urgent",
             },
           },
@@ -334,14 +334,14 @@ export const scenario23: Scenario = {
             id: "f_inside_knocked",
             text: "Did anyone knock on the other doors on the way out?",
             answer: {
-              text: "Sam banged on the first floor coming down. Nobody answered. Nobody went up to the top — the smoke was on the stairs, you couldn't. I banged on the cellar door from the hall, I don't even know if anyone's living down there at the minute. Nothing.",
+              text: "Sam banged on the first-floor doors when he went up — Chloe came out, nobody else answered. He couldn't get up to the top, the smoke was on the stairs, you couldn't see. I banged on the cellar door from the hall — I don't even know if anyone's living down there at the minute. Nothing.",
               tone: "urgent",
             },
           },
         ],
       },
       f_hurt: {
-        text: "No — the four of us are alright. Sam's coughing a bit, he got a lungful on the landing, but he's talking, he's alright. Anybody else, I can't tell you.",
+        text: "No — the four of us are alright. Sam and Chloe are coughing a bit, they both got a lungful on the landing, but they're talking, they're alright. Anybody else, I can't tell you.",
       },
       f_vulnerable: {
         text: "Not that I know of. It's all working people and students, nobody old, no kids. But I don't know everybody. I don't know who's in the top rooms.",
@@ -355,7 +355,7 @@ export const scenario23: Scenario = {
         needsCalm: true,
       },
       f_access: {
-        text: "Front door's shut but it's not locked — it's a Yale, it slams shut. It's straight off the pavement. Every bedroom's got its own lock though, every door, they'll have to break them. Round the back there's an entry between the houses, two doors down, into the yards. The back door's bolted, always is.",
+        text: "Front door's wide open, we came straight out of it and nobody's shut it — it's straight off the pavement. Every bedroom's got its own lock though, every door, they'll have to break them. Round the back there's an entry between the houses, two doors down, into the yards. The back door's bolted, always is.",
         tone: "urgent",
       },
       f_safe: {

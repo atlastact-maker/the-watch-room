@@ -173,4 +173,127 @@ export const scenario36: Scenario = {
       effect: { pulseCritical: true },
     },
   ],
+
+  // The call as Bev has it: on the surgery line at the front desk of the
+  // Lakeside Practice with a queue in front of her and Dr Hollins's
+  // referral note in her hand. She has not seen Mrs Openshaw. She is
+  // reading the doctor's numbers off the form, and she says so.
+  call: {
+    caller: {
+      name: "Bev Tomlinson",
+      phone: "0161 496 0360",
+      relation: "Practice administrator at the Lakeside Practice, ringing for Dr Hollins",
+      where: "The front desk at the Lakeside Practice, Middleton — the surgery, not the patient's address",
+      line: "landline",
+      state: "calm",
+    },
+    opening:
+      "Hello, it's the Lakeside Practice in Middleton — I'm ringing for Dr Hollins. He's been out on a visit to one of our patients, a Mrs Openshaw, 12 Bowness Court, off Rochdale Road. She's eighty-three, she's got a chest infection and she's not managing at home, and he wants her admitting. He's rung the medical assessment unit and they've got a bed for her. He's asked me to book the ambulance.",
+    deflection: "Sorry, love — I've got three at the desk and the other line going. Say that again?",
+    reassurance: {
+      text: "Bev, I know you're busy. I've nearly got what I need — just stay with me one more minute.",
+      reply: "Go on then, love. Quick as you like.",
+    },
+    answers: {
+      a_conscious: {
+        text: "Yes — she's awake and she's with it. Doctor's just come back from her, she was sat in her chair talking to him. It's a chest infection, love, she's not collapsed or anything like that.",
+      },
+      a_breathing: {
+        text: "She's short of breath, that's why he wants her in. It's on his note — 'breathless on minimal exertion, respiratory rate twenty-four, saturations ninety-two on air'. I'm reading it off the referral, I've not seen her myself. She's not gasping, she's just not managing.",
+        followUps: [
+          {
+            id: "a_breathing_oxygen",
+            text: "Is she on any oxygen at home?",
+            answer: {
+              text: "No, nothing like that. She's got an inhaler for her chest from last winter, that's all it says.",
+            },
+          },
+        ],
+      },
+      a_happened: {
+        text: "Her daughter rang us this morning — she's been chesty since the weekend, off her food, and this morning she couldn't get from her chair to the kitchen without stopping for breath. Dr Hollins went out on his visits and examined her. He's written 'lower respiratory tract infection, probable pneumonia' — she needs antibiotics through a drip and some oxygen, and she can't have that at home on her own. He rang the assessment unit from her house, they've accepted her, and he's back here now. He left her about twenty minutes ago.",
+        followUps: [
+          {
+            id: "a_happened_temp",
+            text: "Has he written a temperature and a pulse?",
+            answer: {
+              text: "Thirty-eight point three. Pulse a hundred and two, and blood pressure one-eighteen over sixty-eight. It's all on here, I can read you the lot if you want it.",
+            },
+          },
+        ],
+      },
+      a_when: {
+        text: "She's been poorly since the weekend, her daughter said. Worse this morning. Doctor saw her about an hour ago and rang the bed through before he left her.",
+      },
+      a_now: {
+        text: "I've not seen her, love, I'm going off his note. He's written 'alert and orientated, flushed, febrile, tachypnoeic' — hot and breathing fast, in English. He said she was chatty enough with him. She's not confused. He's told her to get her bag packed and she's doing that.",
+      },
+      a_bleeding: {
+        text: "No, nothing like that. It's her chest.",
+      },
+      a_age: {
+        text: "Eighty-three. Irene Openshaw. I've got her date of birth and her NHS number here if you need them for the booking.",
+      },
+      a_history: {
+        text: "She's on a fair bit — I've got her repeat list up. Blood pressure tablets, a water tablet, something for her thyroid, and the blue inhaler. Penicillin allergy — that's flagged on her record, he's put it in capitals on the letter, so the ward knows. No diabetes, no heart trouble that's written down. She had a fall last year, nothing broken.",
+        followUps: [
+          {
+            id: "a_history_meds",
+            text: "Will her medication and the letter go with her?",
+            answer: {
+              text: "Doctor's told her to put her tablets in her bag. He's left the referral letter on her side table for the crew, with a copy of the list.",
+            },
+          },
+        ],
+      },
+      a_count: {
+        text: "Just her. Just Mrs Openshaw.",
+      },
+      a_danger: {
+        text: "It's her bungalow, love. It's fine. She's sat in her chair. No dogs, nothing like that — it's sheltered housing, they're all little bungalows.",
+      },
+      a_access: {
+        text: "12 Bowness Court, off Rochdale Road — it's the sheltered bungalows, the little close set back from the main road. Front door. Doctor says she'll get to the door herself, she's slow but she's on her feet. It's number twelve, she's on the left as you come in.",
+        followUps: [
+          {
+            id: "a_access_warden",
+            text: "Is there anyone on site who can let the crew in if she can't get to the door?",
+            answer: {
+              text: "There's a warden — it's warden-assisted, there's an office on the court. I'd have to find the number. I can ring her if you want me to, so she knows you're coming.",
+            },
+          },
+        ],
+      },
+      a_with: {
+        text: "No, I'm at the surgery — I'm the practice administrator. Doctor's been and gone. She's on her own at home. Her daughter's in Rochdale, she's at work, she's trying to get over.",
+      },
+      a_instructions: {
+        text: "I'm not with her, love — I'm at the surgery. There's nothing I can do for her from here. If you need someone with her I'll ring the warden.",
+      },
+      a_details: {
+        text: "Bev Tomlinson, practice administrator at the Lakeside Practice, Middleton. It's the surgery number, 0161 496 0360 — ask for me, or for Dr Hollins if you need him. He's back in surgery but he'll come out for you.",
+      },
+    },
+    interjections: [
+      {
+        atSec: 45,
+        text: "Sorry — bear with me, I've got a patient at the desk. — Right. Go on.",
+      },
+      {
+        atSec: 100,
+        text: "Is that being sent, or is it going on a list? Only Doctor's told her 'this afternoon' and I'd rather not have him promising her something that isn't true.",
+        requiresOpened: false,
+      },
+      {
+        atSec: 160,
+        text: "Doctor's just put his head round — he says to tell you she lives alone and she's not to be left overnight. That's why he wants her in today, not tomorrow. He says if it's going to be hours, tell him and he'll ring the ward himself.",
+      },
+      {
+        atSec: 210,
+        text: "Right — that's booked, is it? I'll ring her and tell her to have her bag by the door, and I'll let the ward know she's on her way. Thank you, love.",
+        requiresOpened: true,
+      },
+    ],
+    onDispatch: "Lovely. I'll ring her and tell her to have her bag by the door, and I'll let the ward know. Thanks, love.",
+  },
 };

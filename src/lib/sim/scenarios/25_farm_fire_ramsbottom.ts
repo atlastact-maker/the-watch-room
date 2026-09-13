@@ -226,7 +226,7 @@ export const scenario25: Scenario = {
       name: "John Haworth",
       phone: "07700 900825",
       relation: "The farmer — Higher Croft is his",
-      where: "The yard at Higher Croft Farm, by the house, with his son",
+      where: "The yard at Higher Croft Farm, at the lane head with his son, upwind of the shed",
       line: "mobile",
       state: "calm",
     },
@@ -247,11 +247,11 @@ export const scenario25: Scenario = {
         text: "It started at the hay end, the back. It's in the machinery now at the front — the tractor's in there, the baler, the trailer. It's the lot. There's nowt to save in that shed.",
       },
       f_spread: {
-        text: "It's moving. The cattle shed's joined on to the side of it — that's the one I'm bothered about. The house is thirty yard off on the other side. Wind's not bad for now, it's taking it away from the house, but it's a moor, it changes.",
+        text: "It's moving. The cattle shed's joined on to the side of it — that's the one I'm bothered about. The house is thirty yard off on the other side and the wind's on that side — there's not much of it yet, but the smoke's going over the house roof. It's a moor. It'll get up.",
         tone: "urgent",
       },
       f_started: {
-        text: "Twenty minutes, half an hour. The lad saw the glow from the house window. It'd have been going a while before that — hay does, it smoulders in the middle of the stack and then it goes all at once.",
+        text: "Ten minutes since the lad saw the glow from the house window, and it was through the roof by the time we'd got our boots on. It'd have been going a while before that — hay does, it smoulders in the middle of the stack and then it goes all at once.",
       },
       f_building: {
         text: "Farm building. Steel frame, tin sides, open at one end. Forty yard by twenty, near enough. The old span at the road end has got the asbestos sheet roof on it, you'll want to know that.",
@@ -292,14 +292,14 @@ export const scenario25: Scenario = {
         text: "The overhead line comes across the top field to the house, it's clear of the shed. Ground's soft either side of the yard, they'll bog anything heavy if they go off the concrete. That's about it.",
       },
       f_access: {
-        text: "Up the lane off Moor Road — there's a sign for Higher Croft at the bottom, by the cattle grid. It's six hundred yard of single track with passing places, and it comes out in the yard. I'll send the lad down to the road end to wave them in when they're close.",
+        text: "Up the lane off Moor Road — there's a sign for Higher Croft at the bottom, by the cattle grid. It's six hundred yard of single track with passing places, and it comes out in the yard. The lad's going down to the road end on the quad to wave them in — he'll be there in his hi-vis.",
         tone: "urgent",
       },
       f_safe: {
-        text: "Aye. I'm in the yard by the house, upwind of it. I'm not daft.",
+        text: "Aye. I'm at the top of the lane, the yard gate, with the wind at my back. I'm not daft.",
       },
       f_stay: {
-        text: "I'll stay on while I can. Signal's not great up here, I'll tell you that now — if I go, I go.",
+        text: "I'll stay on while I can. I've beasts to see to, and the signal's not great up here — if I go, I go.",
       },
       f_details: {
         text: "John Haworth. Higher Croft. This is my mobile — 07700 900825.",
@@ -329,7 +329,7 @@ export const scenario25: Scenario = {
     ],
     drops: {
       atSec: 300,
-      text: "You're breaking up on me — I've one bar. If I lose you I'll ring back from the house.",
+      text: "Right, that's enough talking. I'm getting them beasts out before it gets to their shed — I'm putting this in my pocket. Your lads know where I am.",
     },
     onDispatch: "Right. Good. Tell them the lane, and tell them there's no water. I'll have the gate open.",
   },

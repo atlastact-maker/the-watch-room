@@ -241,13 +241,13 @@ export const scenario26: Scenario = {
     caller: {
       name: "Sandra Kershaw",
       phone: "07700 900826",
-      relation: "Resident at no. 11 — two doors from the gentleman at no. 9",
+      relation: "Resident at no. 11 — next door to the gentleman at no. 9",
       where: "Her front step at 11 Canal Street, in and out of no. 9",
       line: "mobile",
       state: "anxious",
     },
     opening:
-      "Fire brigade — it's Canal Street in Littleborough, the water's coming in. It's in the house, it's over the front step and it's the whole street, every house, you can't see the road. It's been raining since dinner time and the brook's come over. There's about a dozen of us down here with it in. And there's an old chap at number nine who won't come out.",
+      "Fire brigade — it's Canal Street in Littleborough, the water's coming in. It's in the house, it's over the front step and it's the whole street, every house, you can't see the road. It's been raining since dinner time and the brook's come over. There's about a dozen of us down here with it in. And there's an old chap at number nine I'm worried about.",
     deflection: "Are you sending pumps or not? It's in the house. It's in all of ours.",
     reassurance: {
       text: "Sandra, they are coming. The first thing they'll do is the gentleman at number nine, and then they'll come round every door. Tell me about the water.",
@@ -300,14 +300,14 @@ export const scenario26: Scenario = {
         text: "Frank at nine — seventy-nine, on his own, and he won't come out. There's a baby at number three, they've gone upstairs. Nobody in a wheelchair that I know of on this row.",
       },
       f_hazards: {
-        text: "The electric's still on in ours, the lights are on. I've not been near the box. I'd guess it's the same in most of them. No gas bottles or anything, we're all on mains.",
+        text: "The electric's still on in ours — the lights are on and I've not touched anything. I couldn't tell you about the others. No gas bottles or anything, we're all on mains.",
         tone: "urgent",
       },
       f_danger: {
         text: "The water — you can't see what's under it. There's a grid in the road outside seven and the culvert goes under the street by twenty, you'd not know where. The far end's deep, a car got stuck earlier and had to be pushed out. Come in from the top, off the main road.",
       },
       f_access: {
-        text: "Come in from the main road end, the top of the street — the bottom end's under, you'll not get a wagon through, it's up to the sills. My door's open, I'm number eleven. Frank's is nine, two down, his door's on the latch — I left it. You'll be wading from about number five.",
+        text: "Come in from the main road end, the top of the street — the bottom end's under, you'll not get a wagon through, it's up to the sills. My door's open, I'm number eleven. Frank's is nine, next door, his door's on the latch — I left it. You'll be wading from about number five.",
       },
       f_safe: {
         text: "I'm on my step. It's over my slippers, that's all. I'm alright. I want to go back in to Frank in a minute.",
