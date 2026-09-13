@@ -48,6 +48,7 @@ import {
   PATROL_CIRCUITS,
   circuitForCallsign,
   measure,
+  metresAlongNearest,
   offsetFor,
   patrolPosition,
   type Coords as PatrolCoords,
@@ -1648,9 +1649,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         now >= d.returnArrivesAt &&
         !log.some((e) => e.id === returnedKey)
       ) {
-        const msg = d.rehabUntil
-          ? `${applianceLabel(d.applianceId)} back at station · refuel / rehab ${fmtSec((d.rehabUntil - d.returnArrivesAt) / 1000)}`
-          : `${applianceLabel(d.applianceId)} back at station · available`;
+        const home = patrolTrackFor(d.applianceId) ? "back on patrol" : "back at station";
+        const msg = d.rehabUntil && d.rehabUntil - d.returnArrivesAt > 120_000
+          ? `${applianceLabel(d.applianceId)} ${home} · refuel / rehab ${fmtSec((d.rehabUntil - d.returnArrivesAt) / 1000)}`
+          : `${applianceLabel(d.applianceId)} ${home} · available`;
         newEntries.push({
           id: returnedKey,
           timestamp: d.returnArrivesAt,
@@ -2077,16 +2079,16 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       ]);
       return;
     }
-    const station = findStationForAppliance(applianceId);
-    if (!station) return;
     const now = Date.now();
-    // Turn-around estimate: routed ETA from incident to station. For an
+    // Turn-around estimate: routed ETA from the incident home. For an
     // en-route appliance this slightly overshoots reality (they'd turn
     // around mid-trip), but it's a tolerable simplification — the operator
     // still sees a live countdown.
-    const r = await routeEta(activeIncident.scenario.location.coords, station.coords);
+    const r = await returnLegFor(applianceId, activeIncident.scenario.location.coords, now);
+    if (!r) return;
     const returnArrivesAt = now + r.seconds * 1000;
-    const rehabSeconds = Math.round(10 * 60 + Math.random() * 5 * 60);
+    // A roads unit books off the job and is patrolling again.
+    const rehabSeconds = r.rejoins ? 60 : Math.round(10 * 60 + Math.random() * 5 * 60);
     setDeployments((prev) =>
       prev.map((x) =>
         x.applianceId === applianceId
@@ -2124,6 +2126,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }
 
   function findStationForAppliance(applianceId: string) {
+    // The relief on duty first: police ids carry the shift, and the base
+    // station list only knows the earlies.
+    const onDuty = shiftedStations.find((s) => s.appliances.some((a) => a.id === applianceId));
+    if (onDuty) return onDuty;
     for (const area of PATCH_AREAS) {
       for (const s of stationsByArea[area]) {
         if (s.appliances.some((a) => a.id === applianceId)) return s;
@@ -3204,6 +3210,10 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     etaSeconds: number;
     routeMeters?: number;
     routeCoords?: [number, number][];
+    /** Where the unit moves off from, when that is not its station. A
+     *  roads unit on patrol is worked out here when the caller gives
+     *  nothing. */
+    origin?: { lat: number; lng: number };
     selectedPodType?: import("@/lib/sim/types").PodTypeCode;
     /** The job to mobilise to. Defaults to the one on screen; the call
      *  stack names it explicitly, because a unit dropped on a row is
@@ -3253,12 +3263,37 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         crewEquipment[m.id] = applyLoadout(wanted).items;
       }
     }
+    const isAircraft = appliance?.type === "HEMS" || appliance?.type === "Police_NPAS";
+
+    // A roads unit on its circuit moves off from where it is, not from
+    // the station the board priced. Its ETA is the crow-fly estimate from
+    // there until the router hands back the road line, as for any station
+    // the ETA sweep could not route.
+    let origin = args.origin;
+    let etaBase = args.etaSeconds;
+    let routeMeters = args.routeMeters;
+    let routeCoords = args.routeCoords;
+    if (!origin && !isAircraft) {
+      const track = patrolTrackFor(args.applianceId);
+      if (track) {
+        origin = track.at(mobilisedAt);
+        const meters = haversineMeters(origin, incident.scenario.location.coords) * 1.3;
+        etaBase =
+          (meters / 13.4) *
+          BLUE_LIGHT_FACTOR *
+          etaTrafficMultiplier(weather.hourOfDay) *
+          etaPrecipMultiplier(weather.precip);
+        routeMeters = meters;
+        routeCoords = undefined;
+      }
+    }
+
     // The board's ETAs are priced at the fleet-average blue-light factor;
     // rescale to what THIS vehicle class actually does on blues (bike <
     // car < ambulance < pump < aerial). Aircraft rescale as a no-op.
     let etaSeconds = appliance
-      ? rescaleBlueLightSeconds(args.etaSeconds, appliance.type)
-      : args.etaSeconds;
+      ? rescaleBlueLightSeconds(etaBase, appliance.type)
+      : etaBase;
 
     // Day-crewed stations: outside crewed hours the crew respond from
     // home on alerters before the vehicle turns a wheel.
@@ -3269,12 +3304,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // Aircraft fly direct — never hand them the road polyline the station
     // ETA sweep priced. Replace route + timing with the flight model, and
     // for HEMS gate arrival on the operator confirming a landing zone.
-    let routeMeters = args.routeMeters;
-    let routeCoords = args.routeCoords;
     let arrivesAt = mobilisedAt + etaSeconds * 1000;
     let hemsFlight: Deployment["hemsFlight"];
     let airborneAt: number | undefined;
-    const isAircraft = appliance?.type === "HEMS" || appliance?.type === "Police_NPAS";
     if (isAircraft && appliance) {
       const base = findStationForAppliance(appliance.id)?.coords;
       const target = incident.scenario.location.coords;
@@ -3309,6 +3341,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         arrivesAt,
         routeMeters,
         routeCoords,
+        origin,
         lightState: "999",
         crewEquipment,
         selectedPodType: args.selectedPodType,
@@ -3325,7 +3358,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         kind: "mobilised",
         message: `Mobilised ${applianceLabel(args.applianceId)}${
           args.selectedPodType ? ` carrying ${args.selectedPodType}` : ""
-        } · ETA ${fmtSec(etaSeconds)}${
+        } · ETA ${fmtSec(etaSeconds)}${origin && !args.origin ? " — moving off from patrol" : ""}${
           pagerSec > 0
             ? ` — day-crewed station, crew responding on alerters (+${fmtSec(pagerSec)} turnout)`
             : ""
@@ -3340,11 +3373,11 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
     // route now (a single request, so it's never rate-limited away) and
     // patches the geometry in — timing is left untouched to avoid ETA
     // jumps mid-run. Aircraft are excluded — their straight line IS the route.
-    if (!isAircraft && (!args.routeCoords || args.routeCoords.length < 2)) {
-      const station = findStationForAppliance(args.applianceId);
+    if (!isAircraft && (!routeCoords || routeCoords.length < 2)) {
+      const from = origin ?? findStationForAppliance(args.applianceId)?.coords;
       const target = incident.scenario.location.coords;
-      if (station) {
-        void routeEta(station.coords, target)
+      if (from) {
+        void routeEta(from, target)
           .then((r) => {
             if (!r.coords || r.coords.length < 2) return;
             setDeployments((prev) =>
@@ -3644,7 +3677,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       new Set(rt?.absentCasualtyIds ?? []), weather.windDir);
     const resolvedAt = Date.now();
     const incidentCoords = activeIncident.scenario.location.coords;
-    const stations = patch ? PATCH_AREAS.flatMap((a) => stationsByArea[a]) : [];
+    const stations = patch ? shiftedStations : [];
 
     // For each deployment, compute the return leg. Ambulances go via the
     // nearest hospital (route incident → hospital, offload window, route
@@ -3665,6 +3698,8 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       returnCoords: [number, number][] | null;
       /** A scheme responder — no rehab, and off the run afterwards. */
       virtual?: boolean;
+      /** A roads unit rejoining its circuit — no rehab at a station. */
+      patrol?: boolean;
     };
     const legs: Leg[] = await Promise.all(
       deps.map(async (d): Promise<Leg> => {
@@ -3745,13 +3780,14 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           };
         }
 
-        const r = await routeEta(incidentCoords, station.coords);
+        const r = await returnLegFor(d.applianceId, incidentCoords, resolvedAt);
         return {
           id: d.applianceId,
           service,
-          returnSeconds: r.seconds,
-          returnMeters: r.meters,
-          returnCoords: r.coords,
+          returnSeconds: r?.seconds ?? 60,
+          returnMeters: r?.meters ?? 0,
+          returnCoords: r?.coords ?? null,
+          patrol: r?.rejoins === true,
         };
       }),
     );
@@ -3788,7 +3824,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
         }
         // Fire / other: direct return
         const returnArrivesAt = resolvedAt + l.returnSeconds * 1000;
-        const rehab = l.virtual ? 1 : rehabSeconds;
+        const rehab = l.virtual ? 1 : l.patrol ? 60 : rehabSeconds;
         return {
           ...d,
           returnStartedAt: resolvedAt,
@@ -4030,8 +4066,21 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   /** Where every roads unit is right now. A unit committed to an incident
    *  is not patrolling — it is on a job, and the deployment layer draws
    *  it — so it drops out of here the moment it is mobilised. */
+  // Where a roads unit slots back into its circuit after a job, in
+  // metres along the line at the shift's start: set when its return leg
+  // is priced, so it resumes from where it rejoined rather than from
+  // wherever the clock says it would have been.
+  const [patrolRejoin, setPatrolRejoin] = useState<Record<string, number>>({});
+
   const patrols = useMemo(() => {
-    const committed = new Set(deployments.map((d) => d.applianceId));
+    // Committed means on the job or on the way back; a unit that has
+    // rejoined is patrolling again even though its deployment lingers
+    // until the incident leaves the board.
+    const committed = new Set(
+      deployments
+        .filter((d) => !(d.returnStartedAt && d.returnArrivesAt && now >= d.returnArrivesAt))
+        .map((d) => d.applianceId),
+    );
     const elapsedSec = Math.max(0, (now - shiftStartedAt) / 1000);
     const out: {
       applianceId: string;
@@ -4053,7 +4102,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
           built.line,
           circuit,
           elapsedSec,
-          offsetFor(a.callsign, built.measured.total),
+          patrolRejoin[a.id] ?? offsetFor(a.callsign, built.measured.total),
           built.measured,
         );
         out.push({
@@ -4067,7 +4116,60 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       }
     }
     return out;
-  }, [shiftedStations, patrolLines, deployments, now, shiftStartedAt, selectedApplianceId]);
+  }, [shiftedStations, patrolLines, patrolRejoin, deployments, now, shiftStartedAt, selectedApplianceId]);
+
+  /** A roads unit's circuit and where on it the unit is at a moment —
+   *  null for anything that does not patrol, or whose circuit has no
+   *  road line yet. */
+  function patrolTrackFor(applianceId: string) {
+    for (const s of shiftedStations) {
+      if (s.service !== "Police") continue;
+      const a = s.appliances.find((x) => x.id === applianceId);
+      if (!a) continue;
+      const circuit = circuitForCallsign(a.callsign);
+      const built = circuit ? patrolLines[circuit.id] : undefined;
+      if (!circuit || !built) return null;
+      const offset = patrolRejoin[applianceId] ?? offsetFor(a.callsign, built.measured.total);
+      return {
+        circuit,
+        built,
+        at: (atMs: number) =>
+          patrolPosition(built.line, circuit, Math.max(0, (atMs - shiftStartedAt) / 1000), offset, built.measured).coords,
+      };
+    }
+    return null;
+  }
+
+  /** The leg home for a unit leaving a job at `from`. A roads unit does
+   *  not go home: it rejoins its circuit where the circuit will be when
+   *  it gets there, and is booked to resume from that point. Anything
+   *  else drives back to its station. */
+  async function returnLegFor(applianceId: string, from: { lat: number; lng: number }, startAt: number) {
+    const track = patrolTrackFor(applianceId);
+    if (!track) {
+      const station = findStationForAppliance(applianceId);
+      if (!station) return null;
+      const r = await routeEta(from, station.coords);
+      return { seconds: r.seconds, meters: r.meters, coords: r.coords, rejoins: false };
+    }
+    // Aim at where the circuit will be around the time of arrival: one
+    // crow-fly guess, then the routed time.
+    const guessSec = (haversineMeters(from, track.at(startAt)) * 1.3) / 13.4;
+    const to = track.at(startAt + guessSec * 1000);
+    const r = await routeEta(from, to);
+    const arriveAt = startAt + r.seconds * 1000;
+    const along = metresAlongNearest(track.built.line, to, track.built.measured);
+    const total = track.built.measured.total;
+    const elapsedSec = Math.max(0, (arriveAt - shiftStartedAt) / 1000);
+    const offset = total > 0 ? (((along - elapsedSec * track.circuit.speedMps) % total) + total) % total : 0;
+    setPatrolRejoin((prev) => ({ ...prev, [applianceId]: offset }));
+    return {
+      seconds: r.seconds,
+      meters: r.meters,
+      coords: r.coords ?? ([[from.lat, from.lng], [to.lat, to.lng]] as [number, number][]),
+      rejoins: true,
+    };
+  }
 
   const recordIndex = useMemo(() => {
     const crews: Parameters<typeof buildRecordIndex>[0]["crews"] = [];
@@ -5855,8 +5957,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       return { lat, lng };
     }
     const st = allDeployableStations.find((x) => x.appliances.some((a) => a.id === d.applianceId));
-    if (!st || !to) return to;
-    return { lat: st.coords.lat + (to.lat - st.coords.lat) * t, lng: st.coords.lng + (to.lng - st.coords.lng) * t };
+    const from = d.origin ?? st?.coords;
+    if (!from || !to) return to;
+    return { lat: from.lat + (to.lat - from.lat) * t, lng: from.lng + (to.lng - from.lng) * t };
   }
 
   /** Send a committed unit to hold a point on the patch — a camera site

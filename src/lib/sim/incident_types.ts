@@ -940,6 +940,10 @@ export type Deployment = {
   routeMeters?: number;      // route distance from OSRM
   /** Outbound route polyline, [lat, lng] pairs. */
   routeCoords?: [number, number][];
+  /** Where the unit moved off from: its live position on its circuit for
+   *  a roads unit on patrol, else its station. The outbound leg is drawn
+   *  from here until the router hands back the road line. */
+  origin?: { lat: number; lng: number };
 
   /** A unit sent to hold or search a point on the patch rather than the
    *  incident address — an ANPR site ahead of a subject vehicle, a

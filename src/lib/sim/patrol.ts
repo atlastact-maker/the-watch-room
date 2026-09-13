@@ -136,6 +136,38 @@ export function measure(line: Coords[]): { cum: number[]; total: number } {
   return { cum, total: cum[cum.length - 1] ?? 0 };
 }
 
+/** Metres along the polyline of the point on it nearest `p`: where a unit
+ *  coming back to the circuit slots in. */
+export function metresAlongNearest(
+  line: Coords[],
+  p: Coords,
+  measured?: { cum: number[]; total: number },
+): number {
+  if (line.length < 2) return 0;
+  const { cum } = measured ?? measure(line);
+  const cosLat = Math.cos(rad(p.lat));
+  let best = 0;
+  let bestD2 = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1];
+    const b = line[i];
+    const bx = (b.lng - a.lng) * 111_320 * cosLat;
+    const by = (b.lat - a.lat) * 111_320;
+    const px = (p.lng - a.lng) * 111_320 * cosLat;
+    const py = (p.lat - a.lat) * 111_320;
+    const len2 = bx * bx + by * by;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, (px * bx + py * by) / len2));
+    const dx = px - bx * t;
+    const dy = py - by * t;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = cum[i - 1] + (cum[i] - cum[i - 1]) * t;
+    }
+  }
+  return best;
+}
+
 /** The point exactly `metres` along the polyline, and the heading there.
  *
  *  Interpolation is BETWEEN TWO ADJACENT ROUTE POINTS ONLY, so the result

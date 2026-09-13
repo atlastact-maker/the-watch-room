@@ -457,8 +457,9 @@ export function PatchLayers({
         s.appliances.some((a) => a.id === d.applianceId),
       );
       if (!station) continue;
+      const from = d.origin ?? station.coords;
       out.set(d.applianceId, [
-        [station.coords.lat, station.coords.lng],
+        [from.lat, from.lng],
         [inc.lat, inc.lng],
       ]);
       if (d.hospitalCoords) {
