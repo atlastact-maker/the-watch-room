@@ -16,7 +16,10 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
-const cache = new Map<string, Hydrant[]>();
+// A found set is kept for the process; an empty answer for a minute, so a
+// mirror that timed out does not cost the incident its hydrants.
+const cache = new Map<string, { at: number; hydrants: Hydrant[] }>();
+const EMPTY_TTL_MS = 60_000;
 
 export async function GET(request: NextRequest): Promise<Response> {
   const gate = await shiftGate();
@@ -42,11 +45,9 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   const key = `${lat.toFixed(6)},${lng.toFixed(6)}@${radius}`;
-  if (cache.has(key)) {
-    return NextResponse.json({
-      hydrants: cache.get(key) ?? [],
-      source: "overpass",
-    } satisfies Success);
+  const hit = cache.get(key);
+  if (hit && (hit.hydrants.length > 0 || Date.now() - hit.at < EMPTY_TTL_MS)) {
+    return NextResponse.json({ hydrants: hit.hydrants, source: "overpass" } satisfies Success);
   }
 
   let hydrants = await fetchHydrants({ lat, lng }, radius);
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   if (hydrants.length === 0) {
     hydrants = await synthesiseRoadHydrants({ lat, lng }, radius);
   }
-  cache.set(key, hydrants);
+  cache.set(key, { at: Date.now(), hydrants });
   return NextResponse.json({ hydrants, source: "overpass" } satisfies Success);
 }
 

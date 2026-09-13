@@ -17,7 +17,10 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
-const cache = new Map<string, Way[]>();
+// A found set is kept for the process; an empty answer for a minute, so a
+// mirror that timed out does not cost the incident its roads.
+const cache = new Map<string, { at: number; ways: Way[] }>();
+const EMPTY_TTL_MS = 60_000;
 
 export async function GET(request: NextRequest): Promise<Response> {
   const gate = await shiftGate();
@@ -43,15 +46,13 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   const key = `${lat.toFixed(6)},${lng.toFixed(6)}@${radius}`;
-  if (cache.has(key)) {
-    return NextResponse.json({
-      ways: cache.get(key) ?? [],
-      source: "overpass",
-    } satisfies Success);
+  const hit = cache.get(key);
+  if (hit && (hit.ways.length > 0 || Date.now() - hit.at < EMPTY_TTL_MS)) {
+    return NextResponse.json({ ways: hit.ways, source: "overpass" } satisfies Success);
   }
 
   const ways = await fetchRoads({ lat, lng }, radius);
-  cache.set(key, ways);
+  cache.set(key, { at: Date.now(), ways });
   return NextResponse.json({ ways, source: "overpass" } satisfies Success);
 }
 

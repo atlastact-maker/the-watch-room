@@ -37,6 +37,7 @@ import type { Patch } from "@/lib/sim/areas";
 import type { StationWithAppliances } from "../page";
 import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitDivIcon } from "./map-markers";
+import { HoseLine } from "./hose-line";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
 import {
@@ -883,6 +884,28 @@ function curvedPolyline(
   return points;
 }
 
+/** A hose run from its source to its destination: the router's foot
+ *  route when there is one, pinned to the two ends so it starts at the
+ *  hydrant plate and finishes at the pump, else a hand-laid curve. */
+function hoseRun(
+  routed: [number, number][] | undefined,
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): [number, number][] {
+  if (!routed || routed.length < 2) return curvedPolyline(from, to);
+  const first = routed[0];
+  const dFrom = Math.hypot(first[0] - from.lat, first[1] - from.lng);
+  const dTo = Math.hypot(first[0] - to.lat, first[1] - to.lng);
+  const ordered = dFrom <= dTo ? routed : [...routed].reverse();
+  return [[from.lat, from.lng], ...ordered.slice(1, -1), [to.lat, to.lng]];
+}
+
+function runMetres(path: [number, number][]): number {
+  let m = 0;
+  for (let i = 1; i < path.length; i++) m += haversineMetres({ lat: path[i - 1][0], lng: path[i - 1][1] }, { lat: path[i][0], lng: path[i][1] });
+  return m;
+}
+
 // Task-start callback signature — used by the LeafletGroundMap props chain.
 type StartTaskFn = (args: {
   applianceId: string;
@@ -1133,17 +1156,22 @@ export function LeafletGroundMap({
         sourceId: h.id,
       }));
     }
+    // Schematic offsets are a drawing, not a survey: a hydrant is on a
+    // main under a road, so each one goes to the kerb of the nearest
+    // road, and one with no road within eighty metres is not there. Until
+    // the roads have loaded the offset stands, so the labels never vanish.
     return (scene?.hydrants ?? [])
       .filter((h) => !!h.pos)
-      .map((h) => {
+      .flatMap((h) => {
         const p = metresToLatLng(incident.scenario.location.coords, h.pos!);
-        return {
-          label: h.label,
-          lat: p.lat,
-          lng: p.lng,
-          sourceId: `scene:${h.label}`,
-          street: h.street,
-        };
+        let lat = p.lat;
+        let lng = p.lng;
+        if (osmRoads.length > 0) {
+          const snapped = snapToNearestRoadWithBearing(p, osmRoads, 80);
+          if (!snapped) return [];
+          [lat, lng] = offsetAlongBearing(snapped.lat, snapped.lng, snapped.bearingDeg + 90, 2.5);
+        }
+        return [{ label: h.label, lat, lng, sourceId: `scene:${h.label}`, street: h.street }];
       });
   })();
 
@@ -1716,61 +1744,77 @@ export function LeafletGroundMap({
         />
       ))}
 
-      {/* Relay hose lines between appliances — follow foot-route, else a curve */}
+      {/* Hose on the ground. A relay from one pump to another, a supply
+          from a hydrant to a pump, a jet from a pump to the branch on the
+          fire — each run out at a crew's pace along the foot route when
+          the router gave one, else a hand-laid curve, coupled every length,
+          and showing water moving once the pump feeding it is running. */}
       {tasks
         .filter((t) => t.kind === "relay_hose" && t.state !== "aborted")
         .map((t) => {
           const from = onSceneMarkers.find((m) => m.appliance.id === t.sourceApplianceId);
           const to = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
           if (!from || !to) return null;
-          const colour =
-            t.hoseType === "LDH_150mm"
-              ? "#38bdf8"
-              : t.hoseType === "70mm"
-                ? "#10b981"
-                : "#f59e0b";
-          const positions: [number, number][] =
-            t.hosePath && t.hosePath.length >= 2
-              ? t.hosePath
-              : curvedPolyline(from.pos, to.pos);
+          const positions = hoseRun(t.hosePath, from.pos, to.pos);
+          const metres = runMetres(positions);
           return (
-            <Fragment key={`rh-${t.id}`}>
-              <Polyline
-                positions={positions}
-                pathOptions={{ color: "#0a0a0c", weight: 6, opacity: 0.55, lineCap: "round" }}
-              />
-              <Polyline
-                positions={positions}
-                pathOptions={{ color: colour, weight: 3, opacity: 1, lineCap: "round" }}
-              />
-            </Fragment>
+            <HoseLine
+              key={`rh-${t.id}`}
+              path={positions}
+              hoseType={t.hoseType ?? "70mm"}
+              kind="relay"
+              layStartedAt={t.startedAt}
+              laySeconds={Math.min(t.durationSec ?? 180, 15 + metres / 1.2)}
+              charged={t.state === "completed" && from.deployment.pumpRunning === true}
+              now={now}
+            />
           );
         })}
-
-      {/* Hydrant → appliance supply lines \u2014 follow foot-route when ORS returned
-          a polyline, else a smooth curve. Drawn as a dark halo + a crisp inner
-          line for a clean, readable look at any zoom. */}
       {tasks
         .filter((t) => t.kind === "connect_hydrant" && t.state !== "aborted")
         .map((t) => {
           const appliance = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
           const hydrant = renderedHydrants.find((h) => h.label === t.hydrantId);
           if (!appliance || !hydrant) return null;
-          const positions: [number, number][] =
-            t.hosePath && t.hosePath.length >= 2
-              ? t.hosePath
-              : curvedPolyline({ lat: hydrant.lat, lng: hydrant.lng }, appliance.pos);
+          const positions = hoseRun(t.hosePath, { lat: hydrant.lat, lng: hydrant.lng }, appliance.pos);
+          const metres = runMetres(positions);
           return (
-            <Fragment key={`ch-${t.id}`}>
-              <Polyline
-                positions={positions}
-                pathOptions={{ color: "#0a0a0c", weight: 6, opacity: 0.55, lineCap: "round" }}
-              />
-              <Polyline
-                positions={positions}
-                pathOptions={{ color: "#3b82f6", weight: 3, opacity: 1, lineCap: "round" }}
-              />
-            </Fragment>
+            <HoseLine
+              key={`ch-${t.id}`}
+              path={positions}
+              hoseType="70mm"
+              kind="supply"
+              layStartedAt={t.startedAt}
+              laySeconds={Math.min(t.durationSec ?? 120, 20 + metres / 1.2)}
+              charged={t.state === "completed" && appliance.deployment.pumpRunning === true}
+              now={now}
+            />
+          );
+        })}
+      {tasks
+        .filter((t) => (t.kind === "hose_attack" || t.kind === "aerial_monitor") && t.state === "active")
+        .map((t) => {
+          const pump = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
+          if (!pump) return null;
+          // The branch stands at the edge of the fire; an interior attack
+          // takes it to the seat.
+          const centre = { lat: incidentLat, lng: incidentLng };
+          const distM = Math.max(1, haversineMetres(pump.pos, centre));
+          const edgeM = t.attackMode === "interior_attack" || t.kind === "aerial_monitor" ? 2 : Math.min(distM - 3, Math.max(3, sim.fireRadiusM + 4));
+          const f = Math.max(0, Math.min(1, 1 - edgeM / distM));
+          const target = { lat: pump.pos.lat + (centre.lat - pump.pos.lat) * f, lng: pump.pos.lng + (centre.lng - pump.pos.lng) * f };
+          const positions = curvedPolyline(pump.pos, target, 20, 0.08);
+          return (
+            <HoseLine
+              key={`ja-${t.id}`}
+              path={positions}
+              hoseType={t.kind === "aerial_monitor" ? "70mm" : t.hoseType ?? "45mm"}
+              kind="jet"
+              layStartedAt={t.startedAt}
+              laySeconds={t.kind === "aerial_monitor" ? 20 : 35}
+              charged={t.kind === "aerial_monitor" || pump.deployment.pumpRunning === true}
+              now={now}
+            />
           );
         })}
 
