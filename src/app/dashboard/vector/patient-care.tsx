@@ -184,11 +184,11 @@ export function PatientCareWorkspace(props: PatientCareProps) {
                 <div className="obs">
                   {vitals ? (
                     <>
-                      <span>HR <b>{vitals.hr}</b></span>
+                      <span>HR <b>{Math.round(vitals.hr)}</b></span>
                       <span>SpO₂ <b>{Math.round(vitals.spo2)}%</b></span>
-                      <span>RR <b>{vitals.rr}</b></span>
-                      <span>BP <b>{vitals.bpSys}/{vitals.bpDia}</b></span>
-                      <span>GCS <b>{vitals.gcs}</b></span>
+                      <span>RR <b>{Math.round(vitals.rr)}</b></span>
+                      <span>BP <b>{Math.round(vitals.bpSys)}/{Math.round(vitals.bpDia)}</b></span>
+                      <span>GCS <b>{Math.round(vitals.gcs)}</b></span>
                     </>
                   ) : (
                     <span className="dim">{tx?.surveyStartedAt ? "Primary survey in progress" : "No observations yet"}</span>

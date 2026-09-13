@@ -77,11 +77,13 @@ export function monitorPicture(treatment: PatientTreatmentState | null, resus: R
   const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
   const rhythm: TraceRhythm = inArrest ? resus!.rhythm : "sinus";
   const compressions = inArrest && (!!resus!.compressorCrewId || !!resus!.lucasFittedAt);
-  const hrShown = surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
+  // Whole numbers, as a monitor shows them; the model underneath is not.
+  const hrRaw = surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
+  const hrShown = hrRaw === null ? null : Math.round(hrRaw);
   const spo2Shown = surveyDone && vitals && !inArrest ? Math.round(vitals.spo2) : null;
   const rrShown = surveyDone && vitals && !inArrest ? Math.round(vitals.rr) : null;
   const updatedAt = treatment?.liveVitalsLastTickAt ?? treatment?.surveyCompletedAt;
-  const nibpShown = state.nibp ?? (surveyDone && treatment?.revealedVitals ? { sys: treatment.revealedVitals.bpSys, dia: treatment.revealedVitals.bpDia, at: treatment.surveyCompletedAt ?? now } : null);
+  const nibpShown = state.nibp ?? (surveyDone && treatment?.revealedVitals ? { sys: Math.round(treatment.revealedVitals.bpSys), dia: Math.round(treatment.revealedVitals.bpDia), at: treatment.surveyCompletedAt ?? now } : null);
   const nibpMap = nibpShown ? Math.round((nibpShown.sys + 2 * nibpShown.dia) / 3) : null;
   const measuring = state.measuringSince !== null;
   const silenced = now < state.silencedUntil;

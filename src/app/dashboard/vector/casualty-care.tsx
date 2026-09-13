@@ -327,9 +327,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   // ---- Pieces ----------------------------------------------------------------
   const surveyRows: { k: string; label: string; status: string; tone: "go" | "warn" | "stop" | "off"; tab: CareTab }[] = [
     { k: "A", label: "Airway", tab: "airway", ...(!surveyDone ? na(surveyRunning) : flags.includes("airway_compromise") ? { status: "Compromised", tone: "stop" } : { status: "Patent", tone: "go" }) },
-    { k: "B", label: "Breathing", tab: "breathing", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `RR ${vitals.rr} · SpO₂ ${Math.round(vitals.spo2)}%`, tone: vitals.spo2 < 92 || vitals.rr > 25 || vitals.rr < 10 ? "stop" : vitals.spo2 < 95 ? "warn" : "go" }) },
-    { k: "C", label: "Circulation", tab: "circulation", ...(!surveyDone || !vitals ? na(surveyRunning) : inArrest ? { status: "Cardiac arrest", tone: "stop" } : { status: `HR ${vitals.hr} · BP ${vitals.bpSys}/${vitals.bpDia}`, tone: vitals.bpSys < 90 ? "stop" : vitals.hr > 110 || vitals.bpSys < 100 ? "warn" : "go" }) },
-    { k: "D", label: "Disability", tab: "assess", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `GCS ${vitals.gcs} · BM ${vitals.bm}`, tone: vitals.gcs < 9 ? "stop" : vitals.gcs < 13 ? "warn" : "go" }) },
+    { k: "B", label: "Breathing", tab: "breathing", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `RR ${Math.round(vitals.rr)} · SpO₂ ${Math.round(vitals.spo2)}%`, tone: vitals.spo2 < 92 || vitals.rr > 25 || vitals.rr < 10 ? "stop" : vitals.spo2 < 95 ? "warn" : "go" }) },
+    { k: "C", label: "Circulation", tab: "circulation", ...(!surveyDone || !vitals ? na(surveyRunning) : inArrest ? { status: "Cardiac arrest", tone: "stop" } : { status: `HR ${Math.round(vitals.hr)} · BP ${Math.round(vitals.bpSys)}/${Math.round(vitals.bpDia)}`, tone: vitals.bpSys < 90 ? "stop" : vitals.hr > 110 || vitals.bpSys < 100 ? "warn" : "go" }) },
+    { k: "D", label: "Disability", tab: "assess", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `GCS ${Math.round(vitals.gcs)} · BM ${vitals.bm.toFixed(1)}`, tone: vitals.gcs < 9 ? "stop" : vitals.gcs < 13 ? "warn" : "go" }) },
     { k: "E", label: "Exposure", tab: "immobilise", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `${vitals.temp.toFixed(1)} °C${flags.includes("major_haemorrhage") ? " · haemorrhage" : ""}`, tone: flags.includes("major_haemorrhage") ? "stop" : "go" }) },
   ];
 
@@ -629,15 +629,21 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                 <div className="cc-list">
                   {paired.map((p) => {
                     const canConvey = p.appliance.type === "DCA" || (p.appliance.type === "HEMS" && props.hemsFlyable !== false);
+                    // Nothing leaves until the patient is at the vehicle:
+                    // a way out chosen, and the carry finished.
+                    const atVehicle = !!move && moveLeft <= 0;
+                    const ready = canConvey && atVehicle && !!props.onConveyCasualtyVia;
                     return (
-                      <button key={p.appliance.id} type="button" className="cc-row" disabled={!canConvey || !props.onConveyCasualtyVia} onClick={() => props.onConveyCasualtyVia?.(p.appliance.id, casualtyId)}>
+                      <button key={p.appliance.id} type="button" className="cc-row" disabled={!ready} onClick={() => props.onConveyCasualtyVia?.(p.appliance.id, casualtyId)}>
                         <strong>{p.appliance.callsign}</strong>
                         <span>{SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)]}</span>
-                        <em>{canConvey ? "Convey" : "No stretcher"}</em>
+                        <em>{!canConvey ? "No stretcher" : !move ? "Patient not moved" : moveLeft > 0 ? `At vehicle in ${clock(moveLeft)}` : "Convey"}</em>
                       </button>
                     );
                   })}
                   {paired.every((p) => p.appliance.type !== "DCA" && p.appliance.type !== "HEMS") && <p className="cc-note">Only a DCA or the air ambulance can convey. Pair one to carry this patient.</p>}
+                  {!move && paired.some((p) => p.appliance.type === "DCA" || p.appliance.type === "HEMS") && <p className="cc-note">Pick how the patient comes out under Egress first — nothing leaves until they are at the vehicle.</p>}
+                  {!!move && moveLeft > 0 && <p className="cc-note">{EGRESS_LABEL[move[0]]} under way · at the vehicle in {clock(moveLeft)}.</p>}
                 </div>
               </Card>
             )}

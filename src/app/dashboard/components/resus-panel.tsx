@@ -259,10 +259,10 @@ export function ResusPanel({
             compressions={!rosc && quality > 0}
             capnographyOn={state.capnographyOn}
             etco2={etco2}
-            hr={vitals?.hr}
-            spo2={vitals?.spo2}
-            bpSys={vitals?.bpSys}
-            bpDia={vitals?.bpDia}
+            hr={vitals ? Math.round(vitals.hr) : undefined}
+            spo2={vitals ? Math.round(vitals.spo2) : undefined}
+            bpSys={vitals ? Math.round(vitals.bpSys) : undefined}
+            bpDia={vitals ? Math.round(vitals.bpDia) : undefined}
             leadLabel={state.monitor === "lead_12" ? "12-LEAD" : state.monitor === "lead_3" ? "LEAD II" : "PADS"}
             hasOutput={rosc}
           />
