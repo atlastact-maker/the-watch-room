@@ -1,6 +1,6 @@
 import type { RecordSet } from "../records";
 
-// Records for scenario 03 — RTC, persons trapped, M60 westbound J17→J18.
+// Records for scenario 03 — RTC, persons trapped, M60 eastbound (clockwise) J17→J18.
 //
 // A night-time three-vehicle pile-up on a live carriageway. The 999 comes
 // from a passing HGV driver who was two vehicles back and stopped on the
@@ -32,7 +32,7 @@ export const records03: RecordSet = {
       phone: "07700 900184",
       roles: ["caller"],
       notes: [
-        "Calling from the hard shoulder ~50 m east of the wreckage, beacons and hazards on — kept on the line. Reports three vehicles, smoke from the van and the van driver not moving.",
+        "Calling from the hard shoulder ~50 m west of the wreckage, beacons and hazards on — kept on the line. Reports three vehicles, smoke from the van and the van driver not moving.",
         "HGV driver, Pennine Reach Logistics — was two vehicles behind the Polo and stopped clear of the debris. Not injured, not involved.",
       ],
       scenarioId: "03",
@@ -49,7 +49,7 @@ export const records03: RecordSet = {
       roles: ["patient"],
       notes: [
         "Driver of BN69 KVD — trapped by the steering column, critical. Identity from the depot's run sheet via the transport office, not from the casualty.",
-        "Employed driver, Irwell Valley Couriers — night parcel run, on the return leg to the Whitefield depot. Next of kin (wife) held by the depot; contact on request.",
+        "Employed driver, Irwell Valley Couriers — night parcel run, just out of the Whitefield depot on the outbound leg. Next of kin (wife) held by the depot; contact on request.",
         "No trace PNC.",
       ],
       scenarioId: "03",
@@ -194,7 +194,7 @@ export const records03: RecordSet = {
       colour: "White",
       keeperName: "Pennine Reach Logistics Ltd — fleet vehicle",
       notes: [
-        "Caller's HGV — stopped on the hard shoulder ~50 m east of the wreckage, beacons on. Not involved in the collision.",
+        "Caller's HGV — stopped on the hard shoulder ~50 m west of the wreckage, beacons on. Not involved in the collision.",
         "Takes up the hard shoulder behind the scene — will need moving back before the fend-off appliance is positioned.",
       ],
       scenarioId: "03",
@@ -223,8 +223,8 @@ export const records03: RecordSet = {
       postcode: "M45 7SW",
       coords: { lat: 53.5452, lng: -2.2975 },
       notes: [
-        "RVP for units not first in attendance — approach westbound from J17 only; the hard shoulder narrows once the rolling block is in.",
-        "Rolling block to start from the J17 on-slip — request via National Highways control. Advance warning from the Heaton Park Road overbridge eastwards.",
+        "RVP for units not first in attendance — approach eastbound (clockwise) from J17 only; the hard shoulder narrows once the rolling block is in.",
+        "Rolling block to start from the J17 on-slip — request via National Highways control. Advance warning from the J17 on-slip eastwards to the scene; the overbridge sits just beyond the wreck.",
       ],
       scenarioId: "03",
     },
@@ -237,7 +237,7 @@ export const records03: RecordSet = {
       coords: { lat: 53.5512, lng: -2.2988 },
       notes: [
         "Registered keeper of BN69 KVD. Transport office staffed overnight: 0161 496 0312 — holds the run sheet, tracker position and the driver's next-of-kin details.",
-        "Van was under 2 km from the depot on its return leg at the time of the collision.",
+        "Van was under 2 km from the depot on its outbound leg at the time of the collision.",
       ],
       scenarioId: "03",
     },

@@ -1,15 +1,16 @@
 import type { Scenario } from "../incident_types";
 
 /**
- * RTC with entrapment — M60 westbound between Junction 17 and 18,
- * Prestwich. Two cars plus a light goods van: front vehicle a Ford
+ * RTC with entrapment — M60 eastbound (clockwise) between Junction 17
+ * and 18, Prestwich. Two cars plus a light goods van: front vehicle a Ford
  * Transit with the driver trapped by the steering column; rear car a
  * Kia hatchback, two adult casualties (one conscious, one serious head
  * injury). Hard shoulder + traffic running in live lanes.
  *
  * Tests: TRU (R2 / R4) extrication, HART or Advanced Paramedic support,
  * police rolling roadblock, NWAS trauma handling with correct MTC
- * selection (Salford Royal). Night call so HEMS may be grounded.
+ * selection (Salford Royal). The aircraft may be grounded — the
+ * Critical Care Car is the fallback.
  */
 export const scenario03: Scenario = {
   id: "03",
@@ -19,13 +20,13 @@ export const scenario03: Scenario = {
   patch: "Western",
   severity: "high",
   trigger:
-    "999 from a lorry driver — three cars piled up on the westbound carriageway, smoke, someone still in the cab",
+    "999 from a lorry driver — a van and two cars piled up on the eastbound carriageway, smoke, someone still in the cab",
 
   location: {
-    // M60 westbound, between Junction 17 (Whitefield) and Junction 18
-    // (Simister Island) — near the Heaton Park overbridge. Coordinates
-    // sit in the westbound running lane.
-    address: "M60 westbound between J17 and J18, near Heaton Park overbridge",
+    // M60 eastbound (clockwise), between Junction 17 (Whitefield) and
+    // Junction 18 (Simister Island) — ~1 km east of J17, just short of an
+    // overbridge. Coordinates sit in the eastbound running lane.
+    address: "M60 eastbound (clockwise) between J17 and J18, Prestwich",
     postcode: "M25 0UA",
     coords: { lat: 53.5478, lng: -2.2824 },
   },
@@ -35,15 +36,15 @@ export const scenario03: Scenario = {
     size: "RTC footprint ~35 m long, blocking lanes 2–3",
     materials: "Tarmac carriageway, concrete central reservation, steel Armco",
     occupants:
-      "Ford Transit LGV driver (M, ~55) trapped by steering column; Kia Ceed driver (F, ~34) + front passenger (M, ~32) conscious with injuries; VW Polo driver (M, ~22) walking wounded",
+      "Ford Transit LGV driver (M, ~55) trapped by steering column; Kia Ceed driver (F, ~34) scalp laceration, ?C-spine + front passenger (M, ~32) chest pain, seatbelt bruising; VW Polo driver (M, ~22) walking wounded",
     vulnerabilities: [
       "LGV driver trapped — extended extrication likely",
       "Fuel spillage suspected from the LGV's split tank",
     ],
     access:
-      "Hard shoulder clear initially but will narrow once rolling block imposed. Lane 1 must stay trafficable for approach. Overbridge approach from the east (J17)",
+      "Hard shoulder clear initially but will narrow once rolling block imposed. Lane 1 must stay trafficable for approach. Approach eastbound from J17 (upstream, to the west); the overbridge is beyond the wreck",
     knownHazards: [
-      "Live carriageway — running traffic at 55 mph until rolling block in place",
+      "Live carriageway — running traffic at 60–70 mph (no variable limit set yet) until rolling block in place",
       "Possible diesel spillage from LGV",
       "Overbridge constrains helicopter landing on immediate scene",
     ],
@@ -53,18 +54,18 @@ export const scenario03: Scenario = {
   pri: {
     hasFormalPri: false,
     items: [
-      "Highways England / National Highways on the main scheme — request rolling road block via control.",
-      "Salford Royal is the designated MTC for the north-west; direct conveyance for the LGV driver once extricated.",
-      "HEMS usually off-duty by 23:00 unless NWAA H145 is night-qualified — check availability before requesting.",
+      "National Highways on the main scheme — request rolling road block from the J17 on-slip via control.",
+      "Salford Royal is the GM MTC for blunt and cranial major trauma (Pathfinder); direct conveyance for the LGV driver once extricated.",
+      "NWAA may be grounded overnight or by weather — request the Critical Care Car (HX) from Barton and check aircraft availability before asking for HEMS.",
     ],
   },
 
   methane: {
     M: "Stand-by — declaration depends on casualty count once scene confirmed",
-    E: "M60 westbound between J17 Whitefield and J18 Simister, ~1.3 km west of J17",
-    T: "Three-car RTC with entrapment, one LGV (split fuel tank suspected), motorway",
+    E: "M60 eastbound (clockwise) between J17 Whitefield and J18 Simister, ~1 km east of J17, 1.6 km west of J18",
+    T: "Three-vehicle RTC (LGV + two cars) with entrapment, LGV split fuel tank suspected, motorway",
     H: "Running traffic, fuel spillage, confined working space against Armco",
-    A: "Westbound approach from J17; live carriageway — need rolling block",
+    A: "Eastbound approach from J17 (upstream); live carriageway — need rolling block from the J17 on-slip",
     N: "4 casualties confirmed — 1 entrapped critical, 2 serious, 1 walking",
     emergencyServices: "Fire, ambulance, police (Roads Policing) all required",
   },
@@ -83,9 +84,9 @@ export const scenario03: Scenario = {
       fuel: "diesel",
       body: "van",
       notes: [
-        "12V battery beneath the DRIVER'S SEAT — isolation is restricted while the driver is trapped; cut both leads as soon as access allows",
+        "12V battery beneath the DRIVER'S SEAT — reach it from the passenger side; isolate before any cutting near the column",
         "Diesel tank ruptured in this collision — foam blanket and containment before any cutting or sharp work",
-        "Steering-column entrapment: column relocation with a ram footed on the A-pillar base, not dash roll alone",
+        "Steering-column entrapment: dash roll with the ram footed at the A-pillar base to lift the column off the driver",
         "Conventional diesel — no high-voltage system on board",
       ],
       components: [
@@ -98,7 +99,7 @@ export const scenario03: Scenario = {
           action: {
             id: "isolate-12v",
             label: "Isolate 12V battery",
-            detail: "Under the driver's seat — cut and tape both leads",
+            detail: "Under the driver's seat, from the passenger side — cut and tape both leads",
             durationSec: 90,
             minCrew: 1,
             requiredEquipment: ["small_tools"],
@@ -351,7 +352,7 @@ export const scenario03: Scenario = {
       service: "Police",
       requiredApplianceTypes: ["Police_Response", "Police_TraffMot"],
       requiredCapabilities: ["Police_Traffic"],
-      notes: "Rolling roadblock coordination, accident investigation",
+      notes: "Rolling roadblock coordination, collision investigation",
     },
   ],
 
@@ -359,7 +360,7 @@ export const scenario03: Scenario = {
     targets: [
       { metric: "Time-to-mobilise first pump + TRU", target: "< 3 minutes" },
       { metric: "First appliance in attendance", target: "< 12 minutes" },
-      { metric: "Entrapped driver extricated + conveyed", target: "< 45 minutes" },
+      { metric: "Entrapped LGV driver released", target: "Controlled release — every critical CRS action done before cutting" },
       { metric: "Rolling roadblock in place before primary rescue", target: "< 20 minutes" },
       { metric: "LGV driver conveyed to MTC (Salford Royal)", target: "destination correct" },
     ],
@@ -384,14 +385,14 @@ export const scenario03: Scenario = {
     {
       id: "second-car",
       atSec: 45,
-      text: "The woman in the Kia's bleeding badly from her head, her passenger's holding her up.",
+      text: "The Astra fella's shouting back — the woman in the Kia's bleeding from her head, her passenger's holding her up.",
       tone: "urgent",
     },
     {
       id: "traffic-squeeze",
       atSec: 80,
       probability: 0.7,
-      text: "Traffic's still running past us in the offside lane — someone's going to go into the back of us.",
+      text: "Traffic's still coming through in lane one, right past the shoulder — someone's going to go into the back of us.",
       tone: "urgent",
     },
     {
@@ -401,7 +402,7 @@ export const scenario03: Scenario = {
       probability: 0.5,
       text: "The van's starting to smoke — I think it's from the engine, not a proper fire yet, but it's getting worse.",
       tone: "critical",
-      effect: { accelerateGrowthSec: 90, pulseCritical: true },
+      effect: { igniteFire: { radiusM: 0.5, growthRateMpm: 0.3 }, pulseCritical: true },
     },
     {
       id: "driver-deteriorating",
@@ -417,35 +418,38 @@ export const scenario03: Scenario = {
       atSec: 300,
       delayThresholdSec: 540,
       probability: 0.4,
-      text: "A lorry just came through at speed — nearly took out one of the walking wounded on the hard shoulder.",
+      text: "A lorry just came through at speed — nearly took out the Astra fella crossing back to his car on the shoulder.",
       tone: "critical",
     },
   ],
 
   // Top-down scene — 120 m wide × 40 m deep motorway section. SVG +Y = south.
-  // Carriageway runs east-to-west with three westbound lanes + hard shoulder.
-  // Wreckage in lane 2/3 with the LGV nose-on to the central reservation.
+  // Carriageway runs west-to-east: three eastbound lanes with the hard
+  // shoulder on the north (nearside) edge and the central reservation to
+  // the south, westbound beyond that. Traffic arrives from the west (J17).
+  // Wreckage in lane 2/3 with the LGV at the front (east), nose-on to the
+  // central reservation; the overbridge is downstream of the wreck.
   scene: {
     viewBox: { x: -60, y: -20, width: 120, height: 40 },
     compassNorth: "up",
     buildings: [
-      // Overbridge (Heaton Park Road over the motorway) — shown as a
-      // rectangle spanning the carriageway at the eastern edge.
+      // Overbridge — shown as a rectangle spanning the carriageway at the
+      // eastern edge, downstream of the wreck.
       {
         shape: { x: 42, y: -18, w: 8, h: 36 },
         kind: "other",
-        label: "Heaton Park Rd overbridge",
+        label: "Overbridge",
       },
     ],
     roads: [
-      // Hard shoulder (north side)
+      // Hard shoulder (north side — nearside for eastbound)
       { shape: { x: -60, y: -12, w: 120, h: 3 }, kind: "pavement", label: "Hard shoulder" },
-      // Westbound carriageway — three lanes
-      { shape: { x: -60, y: -9, w: 120, h: 11 }, kind: "road", label: "M60 westbound" },
+      // Eastbound carriageway — three lanes
+      { shape: { x: -60, y: -9, w: 120, h: 11 }, kind: "road", label: "M60 eastbound" },
       // Central reservation
       { shape: { x: -60, y: 2, w: 120, h: 2 }, kind: "pavement", label: "Central res." },
-      // Eastbound carriageway — runs opposite direction, shown as bleed
-      { shape: { x: -60, y: 4, w: 120, h: 11 }, kind: "road", label: "M60 eastbound" },
+      // Westbound carriageway — runs opposite direction, shown as bleed
+      { shape: { x: -60, y: 4, w: 120, h: 11 }, kind: "road", label: "M60 westbound" },
       // Hard shoulder (south)
       { shape: { x: -60, y: 15, w: 120, h: 3 }, kind: "pavement", label: "Hard shoulder" },
     ],
@@ -455,22 +459,25 @@ export const scenario03: Scenario = {
     // the LGV engine fire develops).
     hydrants: [],
     landmarks: [
-      // The wreckage — three vehicles roughly in lanes 2/3
-      { pos: { x: -2, y: -4 }, kind: "car", label: "LGV (trapped)" },
+      // The wreckage — three vehicles roughly in lanes 2/3, LGV at the front
+      { pos: { x: 18, y: -4 }, kind: "car", label: "LGV (trapped)" },
       { pos: { x: 8, y: -2 }, kind: "car", label: "Kia Ceed" },
-      { pos: { x: 18, y: 0 }, kind: "car", label: "VW Polo" },
+      { pos: { x: -2, y: 0 }, kind: "car", label: "VW Polo" },
+      // Stopped behind the wreck on the hard shoulder — the witness's Astra
+      // and the caller's artic
+      { pos: { x: -12, y: -10 }, kind: "car", label: "Astra (witness)" },
+      { pos: { x: -45, y: -10 }, kind: "car", label: "HGV (caller)" },
       // Debris field
-      { pos: { x: 4, y: -6 }, kind: "tree" },
-      { pos: { x: 12, y: -4 }, kind: "tree" },
-      // Cones for the rolling block
-      { pos: { x: 32, y: -8 }, kind: "lamppost", label: "Advance warning" },
+      { pos: { x: 4, y: -6 }, kind: "other", label: "Debris" },
+      { pos: { x: 12, y: -4 }, kind: "other", label: "Debris" },
+      // Cones for the rolling block — upstream, west of the wreck
+      { pos: { x: -32, y: -8 }, kind: "other", label: "Cones — advance warning" },
     ],
-    // No structural fire seat on the RTC — the van may develop an engine
-    // fire via the informant's "van smoking" beat, but authored as zero
-    // initially. Setting fireSeat with small radius + low growth so the
-    // sim has something to tick against if the informant beat fires.
+    // No fire on the RTC as authored — the seat sits at zero radius and
+    // zero growth, and the informant's "van smoking" beat ignites it
+    // (effect.igniteFire) on the runs where it fires.
     fireSeat: {
-      pos: { x: -2, y: -4 },
+      pos: { x: 18, y: -4 },
       radiusM: 0,
       growthRateMpm: 0.0,
       maxRadiusM: 4,
@@ -479,7 +486,7 @@ export const scenario03: Scenario = {
     hazards: [
       {
         id: "fuel-spill",
-        pos: { x: -2, y: -3 },
+        pos: { x: 18, y: -3 },
         kind: "chemical",
         label: "Diesel spillage — LGV split tank",
         knownFromPri: false,
@@ -487,9 +494,9 @@ export const scenario03: Scenario = {
       },
       {
         id: "live-traffic",
-        pos: { x: -20, y: -2 },
+        pos: { x: -30, y: -7 },
         kind: "structural",
-        label: "Running traffic in lane 1 — rolling block required",
+        label: "Running traffic in lane 1 from the west — rolling block required",
         knownFromPri: true,
       },
       {
@@ -503,7 +510,7 @@ export const scenario03: Scenario = {
     casualties: [
       {
         id: "cas-1",
-        pos: { x: -2, y: -4 },
+        pos: { x: 18, y: -4 },
         severity: "critical",
         discoverAfterMinBa: 0,
         label: "LGV driver (M, ~55) — trapped, steering column impingement",
@@ -576,7 +583,7 @@ export const scenario03: Scenario = {
       },
       {
         id: "cas-4",
-        pos: { x: 18, y: 0 },
+        pos: { x: -40, y: -10 },
         severity: "walking",
         discoverAfterMinBa: 0,
         label: "VW Polo driver (M, ~22) — walking wounded, shock",
@@ -600,8 +607,8 @@ export const scenario03: Scenario = {
       },
     ],
     sectors: [
-      { id: 1, label: "Sector 1 · Wreckage", face: "front", bearingDeg: 270 },
-      { id: 2, label: "Sector 2 · Traffic block east", face: "right", bearingDeg: 90 },
+      { id: 1, label: "Sector 1 · Wreckage", face: "front", bearingDeg: 90 },
+      { id: 2, label: "Sector 2 · Traffic block west", face: "right", bearingDeg: 270 },
       { id: 3, label: "Sector 3 · Offload / CCS", face: "rear", bearingDeg: 180 },
       { id: 4, label: "Sector 4 · Fuel / Hazmat", face: "left", bearingDeg: 0 },
     ],
@@ -615,12 +622,12 @@ export const scenario03: Scenario = {
       name: "Darren Brennan",
       phone: "07700 900184",
       relation: "HGV driver — two vehicles behind the Polo, stopped clear of the debris",
-      where: "Hard shoulder, M60 westbound, about 50 m east of the wreckage, beside his artic",
+      where: "Hard shoulder, M60 eastbound, about 50 m west of the wreckage, beside his artic",
       line: "mobile",
       state: "anxious",
     },
     opening:
-      "There's been a crash on the M60 — westbound, between seventeen and eighteen, just past the Heaton Park bridge. Three of them, a van and two cars, all gone into each other. There's smoke coming off the van and the driver's still in it, he's not moving. You need to get everyone — fire, ambulance, the lot.",
+      "There's been a crash on the M60 — eastbound, clockwise, between seventeen and eighteen, just before the bridge. Three of them, a van and two cars, all gone into each other. There's smoke coming off the van and the driver's still in it, he's not moving. You need to get everyone — fire, ambulance, the lot.",
     deflection: "I've told you — there's a bloke trapped in a van on the M60! What else d'you need to know?",
     reassurance: {
       text: "Darren, they're on their way — fire, ambulance and police. I need you to stay behind your barrier and keep telling me what you can see. Can you do that?",
@@ -632,7 +639,7 @@ export const scenario03: Scenario = {
         tone: "urgent",
       },
       f_where: {
-        text: "It's not a building, love, it's the motorway. M60 westbound, between seventeen and eighteen — they've come under the Heaton Park bridge and gone into each other fifty yards the other side of it. Lanes two and three are blocked. Lane one's still open and they're still coming through it.",
+        text: "It's not a building, love, it's the motorway. M60 eastbound, clockwise, between seventeen and eighteen — they've gone into each other just short of the bridge, fifty yards before it. Lanes two and three are blocked. Lane one's still open and they're still coming through it.",
       },
       f_spread: {
         text: "The smoke off the van's not got any worse that I can see — it's whitish, I think it's the radiator. There's a smell of diesel, though. Strong. I'll tell you if it changes.",
@@ -641,7 +648,7 @@ export const scenario03: Scenario = {
         text: "Two, three minutes. It happened right in front of me — I was two back from the Polo. I've got the wagon on the hard shoulder and rung you straight off.",
       },
       f_building: {
-        text: "There's no building. Three lanes and a hard shoulder, steel barrier down the middle, a bridge over the top just behind me. I'm on the hard shoulder about fifty yards back from it with my beacons going.",
+        text: "There's no building. Three lanes and a hard shoulder, steel barrier down the middle, a bridge over the top just past them. I'm on the hard shoulder about fifty yards back from it with my beacons going.",
       },
       f_inside: {
         text: "The van driver — he's still in his cab and he's not moving. His door's pushed right in on him. The two in the Kia are still sat in it, a woman driving and a fella next to her. The Polo lad's out, he's stood here with me.",
@@ -689,14 +696,14 @@ export const scenario03: Scenario = {
         needsCalm: true,
       },
       f_access: {
-        text: "Westbound, from seventeen. The hard shoulder's clear up to my wagon — I'm fifty yards back from it, then there's a silver Astra just behind the Polo. Nothing's getting past in two and three. Come up the shoulder and I'll shift the wagon back if you need me to.",
+        text: "Eastbound — clockwise — from seventeen. The hard shoulder's clear up to my wagon — I'm fifty yards back from it, then there's a silver Astra just behind the Polo. Nothing's getting past in two and three. Come up the shoulder and I'll shift the wagon back if you need me to.",
         needsCalm: true,
         followUps: [
           {
             id: "f_access_bridge",
             text: "Are you before or after the bridge?",
             answer: {
-              text: "After it — coming westbound you come under the bridge and they're right there, fifty yards on. I'm this side of it, on the shoulder, so the bridge is more or less between me and them. Heaton Park Road, I think it is.",
+              text: "Before it — coming clockwise from seventeen you're on them fifty yards short of the bridge. I'm behind them on the shoulder, so the bridge is past the lot of us.",
             },
           },
         ],
@@ -725,7 +732,7 @@ export const scenario03: Scenario = {
       },
       {
         atSec: 200,
-        text: "There's blue lights — coming up the hard shoulder behind me. Is that yours? Tell me that's yours.",
+        text: "I can hear sirens — somewhere back towards Whitefield. Is that yours? Tell me that's yours.",
         requiresOpened: true,
         effect: { state: "anxious" },
       },
