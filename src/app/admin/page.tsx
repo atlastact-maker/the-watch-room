@@ -5,6 +5,7 @@ import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
 import {
   setRole,
+  setTester,
   deleteRole,
   setBan,
   deleteUser,
@@ -88,6 +89,9 @@ type UserRow = {
   is_advisor_applicant: boolean;
   assigned_role: "admin" | "operator" | "advisor" | null;
   banned: boolean;
+  /** On the closed pre-alpha tester list. Undefined until migration 016
+   *  is run, which the control treats as false. */
+  tester?: boolean;
 };
 
 const inputCls =
@@ -170,6 +174,7 @@ export default async function AdminPage({
   // a missing list function is.
   const { missing, tab: tabParam } = await searchParams;
   const missing015 = missing === "015";
+  const missing016 = missing === "016";
   // Which of the three lists is on screen. Applications first: it is the
   // one with decisions waiting in it.
   const tab: AdminTab =
@@ -203,6 +208,10 @@ export default async function AdminPage({
     roles.length > 0 && roles.every((r) => r.discord_granted === undefined);
   const overview = ((overviewRes.data ?? []) as Overview[])[0];
   const users = (usersRes.data ?? []) as UserRow[];
+  // Same test for the tester tick: rows without the column mean the API
+  // is still serving the pre-016 shape of admin_list_users.
+  const usersLackTester =
+    users.length > 0 && users.every((u) => u.tester === undefined);
   // Notes are fetched for every listed account in one call rather than
   // per row — 25 round trips to render a page would be daft.
   const notesByUser = new Map<string, NoteRow[]>();
@@ -237,9 +246,11 @@ export default async function AdminPage({
           </Link>
         </div>
 
-        {(firstError || missing015 || rolesLackTick) && (
+        {(firstError || missing015 || missing016 || rolesLackTick || usersLackTester) && (
           <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-            {missing015
+            {missing016 || usersLackTester
+              ? "Migration 016 (tester tick) has not reached the app yet — run supabase/migrations/016_testers.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, 'reload schema';  and reload this page."
+              : missing015
               ? "Migration 015 (Discord permission tick) has not been run in Supabase yet — run supabase/migrations/015_roles_discord_granted.sql in the SQL editor, then reload."
               : rolesLackTick
                 ? "The Discord tick column is not reaching the app yet — the API is still serving the old shape of admin_list_roles. In the Supabase SQL editor run:  notify pgrst, 'reload schema';  then reload this page."
@@ -617,6 +628,11 @@ export default async function AdminPage({
                           {u.assigned_role}
                         </span>
                       )}
+                      {u.tester && (
+                        <span className="rounded-sm border border-(--color-amber)/60 px-1.5 py-0.5 text-(--color-amber)">
+                          Tester
+                        </span>
+                      )}
                       {u.newsletter && (
                         <span className="text-(--color-text-dim)">✉</span>
                       )}
@@ -625,6 +641,28 @@ export default async function AdminPage({
                   </div>
                   {u.assigned_role !== "admin" && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {/* The pre-alpha list: one tick, and they can open
+                          the game without holding a role. */}
+                      <form action={setTester} className="flex items-center gap-1.5">
+                        <input type="hidden" name="email" value={u.email} />
+                        <input type="hidden" name="tester" value={u.tester ? "false" : "true"} />
+                        <button
+                          type="submit"
+                          role="checkbox"
+                          aria-checked={!!u.tester}
+                          aria-label="Pre-alpha tester"
+                          title={u.tester ? "On the tester list — click to remove" : "Not a tester — click to add to the pre-alpha"}
+                          className={
+                            "inline-flex h-5 w-5 items-center justify-center rounded-[2px] border text-[12px] leading-none transition-colors " +
+                            (u.tester
+                              ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
+                              : "border-(--color-border) text-transparent hover:border-(--color-amber)/60")
+                          }
+                        >
+                          ✓
+                        </button>
+                        <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Tester</span>
+                      </form>
                       {!u.assigned_role && (
                         <form action={setRole} className="flex items-center gap-1.5">
                           <input type="hidden" name="email" value={u.email} />

@@ -115,6 +115,28 @@ export async function resolveInsignia(
   }
 }
 
+/** Whether this account is on the closed pre-alpha tester list
+ *  (migration 016). Read with the caller's own session, so RLS limits it
+ *  to their own row. A missing table or a failed query reads as "not a
+ *  tester" with the failure flagged, the same as the role lookup. */
+export const isTester = cache(async function isTester(
+  supabase: SupabaseClient,
+  email: string | undefined | null,
+): Promise<{ tester: boolean; lookupFailed: boolean }> {
+  if (!email) return { tester: false, lookupFailed: false };
+  try {
+    const { data, error } = await supabase
+      .from("testers")
+      .select("email")
+      .ilike("email", email.trim())
+      .maybeSingle();
+    if (error) return { tester: false, lookupFailed: true };
+    return { tester: !!data, lookupFailed: false };
+  } catch {
+    return { tester: false, lookupFailed: true };
+  }
+});
+
 /** Whether this account may open the menu and run a shift. Advisor is
  *  deliberately not enough — advising is about authenticity review, and
  *  an advisor is promoted to operator per person when playtesting is
@@ -135,10 +157,13 @@ export async function shiftAccess(
   email: string | undefined | null,
 ): Promise<{ allowed: boolean; lookupFailed: boolean }> {
   if (isOperator(email)) return { allowed: true, lookupFailed: false };
-  const { role, lookupFailed } = await accessProfile(supabase, email);
+  const [{ role, lookupFailed }, tester] = await Promise.all([
+    accessProfile(supabase, email),
+    isTester(supabase, email),
+  ]);
   return {
-    allowed: role === "admin" || role === "operator",
-    lookupFailed: lookupFailed === true,
+    allowed: role === "admin" || role === "operator" || tester.tester,
+    lookupFailed: lookupFailed === true || tester.lookupFailed,
   };
 }
 

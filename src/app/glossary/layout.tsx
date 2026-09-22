@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/require-admin";
+import { requireShift } from "@/lib/auth/require-admin";
 
 // Administrator-only while the site is closed to everything but the
 // advisor programme. Gating in the layout covers this route whether its
@@ -8,6 +8,6 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  await requireShift();
   return <>{children}</>;
 }

@@ -141,6 +141,25 @@ export async function setDiscordGranted(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/** Tick or untick someone as a closed pre-alpha tester. A ticked account
+ *  can open the game without holding a role; the admin area stays
+ *  admin-only. */
+export async function setTester(formData: FormData): Promise<void> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return;
+  const tester = String(formData.get("tester") ?? "") === "true";
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_tester", {
+    p_email: email,
+    p_tester: tester,
+  });
+  if (error?.message?.includes("admin_set_tester")) {
+    redirect("/admin?missing=016");
+  }
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
 /** Suspend or reinstate an account. A banned account cannot sign in or
  *  refresh its session; an already-live session lasts until its token
  *  expires (about an hour). */
