@@ -40,7 +40,7 @@ export const scenario02: Scenario = {
   pri: {
     hasFormalPri: false,
     items: [
-      "Local intel: same street had a fatal house fire in 2019; local commanders prefer 4-pump make-up if persons confirmed.",
+      "Local intel: previous fatal house fire on the estate; local commanders prefer 4-pump make-up if persons confirmed.",
     ],
   },
 
@@ -50,10 +50,16 @@ export const scenario02: Scenario = {
     T: "House fire — smoke from upper windows, neighbour heard shouting",
     H: "Gas meter believed inside, parked cars on road",
     A: "Driveway clear, no width restriction",
-    N: "Unknown — family of 4 believed inside, 02:34 night call",
-    emergencyServices: "Fire, ambulance running, police for cordon and traffic",
+    N: "Unknown — family of 4 believed inside",
+    emergencyServices: "Fire, ambulance running, police informed for cordon and traffic",
   },
 
+  // Slot ids match the standard persons-reported attendance (pda-standard
+  // pump1/pump2/pump3/officer/ambulance) so the desk's fill and the
+  // debrief's conformance read the same list. The aerial and police are
+  // make-up, not PDA: an HLP/TL on persons confirmed at an upper floor,
+  // and GMP informed for cordon, traffic and family welfare on the
+  // pavement — neither is mobilised on the initial call.
   pda: [
     {
       id: "pump1",
@@ -73,28 +79,28 @@ export const scenario02: Scenario = {
       notes: "Second BA team, second jet, search",
     },
     {
-      id: "aerial",
-      label: "Aerial",
+      id: "pump3",
+      label: "Pump 3",
       service: "Fire",
-      requiredApplianceTypes: ["HLP", "TL"],
-      requiredCapabilities: ["Aerial"],
-      notes: "Precaution; rescue platform if upper-floor casualty",
+      requiredApplianceTypes: ["WrL", "WrT", "TRU_pump"],
+      requiredCapabilities: ["BA"],
+      notes: "Persons-reported uplift — BA relief and the exposure at 287. Make-up to 4 on persons confirmed; aerial then, not before",
     },
     {
-      id: "nwas_dca",
-      label: "Ambulance (auto)",
+      id: "officer",
+      label: "Station Manager",
+      service: "Fire",
+      requiredApplianceTypes: ["FIRE_SM"],
+      requiredCapabilities: ["Command"],
+      notes: "Nearest Station Manager — persons reported brings the officer",
+    },
+    {
+      id: "ambulance",
+      label: "Ambulance",
       service: "Ambulance",
       requiredApplianceTypes: ["DCA"],
       requiredCapabilities: ["Medical"],
-      notes: "NWAS attendance is automatic for persons-reported dwelling fire",
-    },
-    {
-      id: "police",
-      label: "Police (auto)",
-      service: "Police",
-      requiredApplianceTypes: ["Police_Response"],
-      requiredCapabilities: ["Police_Response"],
-      notes: "Cordon + traffic on Hollyhedge Road; family welfare on the pavement",
+      notes: "One DCA with the PDA when persons are reported; police informed, not mobilised",
     },
   ],
 
@@ -123,19 +129,20 @@ export const scenario02: Scenario = {
     ],
     buildings: [
       {
-        shape: { x: -4, y: -6, w: 8, h: 12 },
+        // 7 × 8 m footprint — ~56 m² a floor, the ~95 m² over two storeys.
+        shape: { x: -3.5, y: -5, w: 7, h: 8 },
         kind: "target",
         label: "285 Hollyhedge Rd",
       },
       {
         // Attached neighbour (semi-detached partner) — no.287, the caller
-        shape: { x: 4, y: -6, w: 8, h: 12 },
+        shape: { x: 3.5, y: -5, w: 7, h: 8 },
         kind: "neighbour",
-        label: "287 (semi-attached)",
+        label: "287 (attached)",
       },
       {
         // Neighbour on the other side — no.283
-        shape: { x: -20, y: -6, w: 8, h: 12 },
+        shape: { x: -19, y: -5, w: 7, h: 8 },
         kind: "neighbour",
         label: "283",
       },
@@ -148,9 +155,9 @@ export const scenario02: Scenario = {
     ],
     roads: [
       // Rear gardens (north, behind target + neighbours)
-      { shape: { x: -28, y: -22, w: 60, h: 16 }, kind: "garden" },
+      { shape: { x: -28, y: -22, w: 60, h: 17 }, kind: "garden" },
       // Front gardens / driveways strip
-      { shape: { x: -28, y: 6, w: 60, h: 4 }, kind: "garden" },
+      { shape: { x: -28, y: 3, w: 60, h: 7 }, kind: "garden" },
       // Pavement front of houses
       { shape: { x: -40, y: 10, w: 80, h: 2 }, kind: "pavement" },
       // Road
@@ -158,7 +165,7 @@ export const scenario02: Scenario = {
       // Pavement opposite
       { shape: { x: -40, y: 20, w: 80, h: 2 }, kind: "pavement" },
       // Driveway in front of target
-      { shape: { x: -2, y: 6, w: 4, h: 4 }, kind: "driveway" },
+      { shape: { x: -2, y: 3, w: 4, h: 7 }, kind: "driveway" },
     ],
     // Real kerbside hydrant (v2 real-street coords) locations around 285 Hollyhedge Road. Each one
     // is a verified OSM road position \u2014 the map markers sit on actual
@@ -183,7 +190,9 @@ export const scenario02: Scenario = {
     fireSeat: {
       pos: { x: 0, y: -3 },
       radiusM: 2.5,
-      growthRateMpm: 0.25,
+      // Below the exterior-attack rate (0.18) only just: a jet from outside
+      // holds it, and only an interior attack or BA on the search shrinks it.
+      growthRateMpm: 0.18,
       suppressionPerBaMpm: 0.08,
       maxRadiusM: 14,
       material: "structural",
@@ -206,7 +215,7 @@ export const scenario02: Scenario = {
       },
     ],
     // The attached semi at no. 287 — the fire is through the party wall
-    // once it reaches ~6 m (about 15 unsuppressed minutes from the
+    // once it reaches ~6 m (about 19 unsuppressed minutes from the
     // kitchen seat). Breaching it is a scored failure.
     exposureRisk: { atRadiusM: 6, label: "No. 287 (attached neighbour)" },
     hazards: [
@@ -218,14 +227,16 @@ export const scenario02: Scenario = {
         knownFromPri: true,
       },
       {
+        // On the property record and in the caller's own words — the
+        // desk knows it before anyone is on scene.
         id: "loft-conversion",
-        pos: { x: 0, y: -5 },
+        pos: { x: 0, y: -4 },
         kind: "structural",
         label: "Non-conforming loft conversion — single staircase",
-        discoverAfterMinOnScene: 3,
+        knownFromPri: true,
       },
       {
-        id: "meter-cupboard-paint",
+        id: "utility-paint",
         pos: { x: -3, y: 0 },
         kind: "chemical",
         label: "Paint / solvent storage (utility cupboard)",
@@ -248,10 +259,15 @@ export const scenario02: Scenario = {
     // across all-out / one-inside / two-inside.
     casualties: [
       {
+        // "serious" on the sim's clock, not the vitals: the engine drops a
+        // grade every 600 s from the call (480 s while he is unfound in
+        // the smoke), so a critical five-year-old is lost before the
+        // 14-minute BA target the job sets. Serious keeps him survivable
+        // to a BA team that is in on time and an ambulance paired with him.
         id: "cas-1",
         pos: { x: 2, y: -4 },
-        severity: "critical",
-        discoverAfterMinBa: 4,
+        severity: "serious",
+        discoverAfterMinBa: 2,
         presentProbability: 0.67,
         label: "Child (5) — back bedroom",
         clinical: {
@@ -297,6 +313,8 @@ export const scenario02: Scenario = {
       { id: 4, label: "Sector 4 · Left", face: "left", bearingDeg: 270 },
     ],
   },
+  // Every beat is Pauline, the neighbour, on her own step — relaying what
+  // Kelly and Graham tell her. She never hands the phone over.
   informantScript: [
     {
       // Origin-neutral — the seat of fire varies per run and the caller
@@ -310,7 +328,7 @@ export const scenario02: Scenario = {
       id: "child-upstairs",
       atSec: 25,
       requiresCasualtyIds: ["cas-1"],
-      text: "My son's upstairs, he was asleep in the back bedroom. I can't get back in — the hallway's black with smoke.",
+      text: "Kelly's here — she's got Ella, and Dan's out with her, they got out the back. But Theo's still upstairs, in the back bedroom. Nobody can get back in — the hallway's black with smoke.",
       tone: "critical",
     },
     {
@@ -319,14 +337,26 @@ export const scenario02: Scenario = {
       id: "all-out",
       atSec: 30,
       requiresAbsentCasualtyIds: ["cas-1"],
-      text: "Wait — they're out! They're ALL out — she's got both kids with her at next door's. Everyone's accounted for. The house has properly gone up though, it's through the kitchen roof.",
+      text: "Wait — they're out! They're ALL out — Kelly's got both kids with her, here on my step, and Dan's out. Everyone's accounted for. The house has properly gone up though, the whole back of it.",
       tone: "urgent",
     },
     {
+      // Graham is Pauline's husband, next door at 287. Someone at the back
+      // window only when someone is actually in the building this run.
+      id: "back-window",
+      atSec: 40,
+      requiresCasualtyIds: ["cas-1"],
+      text: "My husband Graham's gone round the back — he says there's someone at the back bedroom window, banging on it.",
+      tone: "critical",
+    },
+    {
+      // Heat through the party wall — 287 is Pauline's own house. Only on
+      // a slow attendance, when the fire has had time to reach it.
       id: "neighbour",
-      atSec: 55,
+      atSec: 400,
+      delayThresholdSec: 400,
       probability: 0.7,
-      text: "The neighbour's banging on their wall — they think there's heat coming through the party wall.",
+      text: "Graham says our wall's getting warm in the back bedroom — it's coming through the party wall.",
       tone: "info",
     },
     {
@@ -335,7 +365,7 @@ export const scenario02: Scenario = {
       delayThresholdSec: 270,
       probability: 0.8,
       requiresCasualtyIds: ["cas-1"],
-      text: "There are flames at the upstairs window now, it's really gone up — I can't see my son.",
+      text: "There are flames at the upstairs window now, it's really gone up — I can't see Theo.",
       tone: "critical",
       effect: { accelerateGrowthSec: 60, pulseCritical: true },
     },
@@ -348,7 +378,7 @@ export const scenario02: Scenario = {
       delayThresholdSec: 330,
       probability: 0.45,
       requiresCasualtyIds: ["cas-1"],
-      text: "My husband went back in to get our son — he hasn't come out. They're both in there.",
+      text: "Dan's gone back in for Theo — he hasn't come out. They're both in there.",
       tone: "critical",
       effect: { pulseCritical: true, revealCasualty: "cas-2" },
     },
@@ -373,12 +403,14 @@ export const scenario02: Scenario = {
   // The call as Pauline has it: on the house phone at 287, on her front
   // step, watching the top windows of the semi next door. She knows the
   // family; she knows the little one will not have heard the alarm.
+  // Her answers are origin-neutral — the seat is rolled per run and she
+  // can only see smoke and a glow from the step.
   call: {
     caller: {
       name: "Pauline Hargreaves",
       phone: "0161 496 0287",
       relation: "Neighbour at no. 287",
-      where: "Her own front step, across the driveway from 285",
+      where: "Her own front step, the attached semi at 287",
       line: "landline",
       state: "anxious",
     },
@@ -386,16 +418,16 @@ export const scenario02: Scenario = {
       "It's next door — 285, Hollyhedge Road — there's smoke coming out the top windows and I can hear the kids shouting. It's Kelly and Dan's, there's four of them in there. Please, quick.",
     deflection: "I don't know, I don't know — just get them here, please!",
     reassurance: {
-      text: "Pauline, listen to me. The engines are on their way. Stay on your step, and just tell me what you can see.",
+      text: "Pauline, listen to me. Help is coming. Stay on your step, and just tell me what you can see.",
       reply: "Okay. Okay. I'm here. I'm looking.",
     },
     answers: {
       f_seen: {
-        text: "Thick grey smoke, pouring out of the bedroom window at the front — the little one's room. And there's an orange glow behind the curtains now, I can see it flickering.",
+        text: "Thick grey smoke, pouring out of the upstairs windows — both of them. And there's an orange glow inside somewhere, I can see it flickering on the curtains.",
         tone: "urgent",
       },
       f_where: {
-        text: "Upstairs, at the front. The downstairs looks alright — the lights are off, I can't see anything down there.",
+        text: "I can't tell — upstairs is where the smoke's coming out, but it's everywhere. The lights are off, I can't see anything downstairs.",
       },
       f_spread: {
         text: "It's getting worse. It's darker than when I first looked, it's coming out faster. It's not my side yet.",
@@ -413,9 +445,9 @@ export const scenario02: Scenario = {
         followUps: [
           {
             id: "f_inside_rooms",
-            text: "Which rooms do they sleep in?",
+            text: "Which rooms would they be in?",
             answer: {
-              text: "The kids at the front — Theo's is the one with the smoke. Kelly and Dan are at the back. Ella's up in the loft.",
+              text: "Theo's at the back, over the kitchen. Kelly and Dan are at the front. Ella's up in the loft.",
               tone: "urgent",
             },
           },
@@ -444,7 +476,7 @@ export const scenario02: Scenario = {
         text: "Cars parked both sides, it's always tight down here. Nothing else. No one's being funny.",
       },
       f_access: {
-        text: "The front door's shut, it's a uPVC one, it'll be locked — they lock it at night. The drive's clear, Dan's van is out on the road. The side gate's bolted from the inside.",
+        text: "The front door's shut, it's a uPVC one, it'll be locked — they always lock it. The drive's clear, Dan's car is out on the road, the grey Focus. The side gate's bolted from the inside.",
       },
       f_safe: {
         text: "I'm on my own step. I'm not going anywhere near it.",
@@ -458,15 +490,12 @@ export const scenario02: Scenario = {
     },
     interjections: [
       {
+        // The flames themselves are the informant's to report after the
+        // send (flames-upstairs) — here the window is only going.
         atSec: 50,
-        text: "Oh God — the window's gone. The glass has just gone and there's flames coming out of it now.",
+        text: "Oh God — the window's cracking, I can hear it going. The smoke's black now, it's black.",
         tone: "critical",
         effect: { state: "panicking" },
-      },
-      {
-        atSec: 95,
-        text: "There's someone at the back! Graham's gone round — he says there's somebody at the back bedroom window, banging on it.",
-        tone: "critical",
       },
       {
         atSec: 150,

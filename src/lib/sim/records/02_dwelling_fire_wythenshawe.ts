@@ -3,17 +3,16 @@ import type { RecordSet } from "../records";
 // Records for scenario 02 — house fire, persons reported, Hollyhedge Road,
 // Wythenshawe.
 //
-// A 02:34 call from the attached neighbour at no. 287: smoke pouring from
-// the upper windows of no. 285 and shouting from inside. The informant
-// script shifts voice part-way through — "she's got both kids with her at
-// next door's" is the neighbour, "my son's upstairs" and "my husband went
-// back in" are the mother — so the desk holds it the way a control room
-// would log it: the call is on the neighbour's number, and the mother of
-// the family at no. 285 is on the line from the caller's handset.
+// A call from the attached neighbour at no. 287: smoke pouring from the
+// upper windows of no. 285 and shouting from inside. Every word on the
+// line is the neighbour's — she relays what the mother and her own
+// husband tell her from the pavement — so the desk holds it the way a
+// control room would log it: the call is on the neighbour's number, and
+// the family at no. 285 are with her, or not, as she reports it.
 //
 // The family of four on the housing register (adults 41 and 38, children
 // 8 and 5) are all recorded — but only as the desk could know them at
-// 02:34. The persons reality is rolled per run (about a third of runs the
+// the time of the call. The persons reality is rolled per run (about a third of runs the
 // whole family is out; on the rest the boy is in the back bedroom, and on
 // a slow attendance his father may go back in after him), so nobody here
 // is a "patient": the boy (cas-1) and the father (cas-2) keep their
@@ -48,11 +47,11 @@ export const records02: RecordSet = {
       age: 67,
       address: "Hollyhedge Road, Wythenshawe, Manchester",
       postcode: "M22",
-      phone: "07700 900412",
+      phone: "0161 496 0287",
       roles: ["caller"],
       notes: [
-        "02:34 — 999 from this number: smoke from the upper windows of no. 285 and shouting inside. Caller on the pavement outside no. 287, has handed the handset to the mother from no. 285.",
-        "Attached neighbour (semi-detached partner). Husband Graham still inside no. 287 at the time of the call.",
+        "999 from this number (the house landline at no. 287): smoke from the upper windows of no. 285 and shouting inside. Caller on her own front step, relaying what the family and her husband tell her.",
+        "Attached neighbour (semi-detached partner). Husband Graham inside no. 287 when the call came in; now round the back of no. 285 per the caller.",
         "No previous calls from this number.",
       ],
       scenarioId: "02",
@@ -68,7 +67,7 @@ export const records02: RecordSet = {
       phone: "0161 496 0287",
       roles: ["occupant"],
       notes: [
-        "Occupant of no. 287, the attached semi — inside the property at the time of the call; to be brought out to the pavement.",
+        "Occupant of no. 287, the attached semi — inside when the call came in; now round the back of no. 285 per the caller. Shares the landline the call is on.",
         "No. 287 is the direct exposure if the fire is not knocked down.",
       ],
       scenarioId: "02",
@@ -83,7 +82,7 @@ export const records02: RecordSet = {
       phone: "07700 900187",
       roles: ["occupant", "caller"],
       notes: [
-        "On the line from the caller's handset — outside no. 287 with her daughter. States her son (5) was asleep in the back bedroom when the alarm went; whereabouts being confirmed on the pavement. House reported smoke-logged.",
+        "With the caller on the pavement outside no. 287, with her daughter — the caller is relaying what she says. States her son (5) was in the back bedroom when the alarm went; whereabouts being confirmed on the pavement. House reported smoke-logged.",
         "Mother of the family at no. 285 — adults 41 and 38, children 8 and 5 on the housing register.",
         "No previous contact.",
       ],
@@ -99,7 +98,7 @@ export const records02: RecordSet = {
       phone: "07700 900233",
       roles: ["occupant"],
       notes: [
-        "Occupant of no. 285 — accounted for on the pavement at 02:34 per the informant.",
+        "Occupant of no. 285 — whereabouts being confirmed on the pavement per the informant.",
         "Father of the family. Registered keeper of the grey Focus parked kerbside outside.",
       ],
       scenarioId: "02",
@@ -130,8 +129,8 @@ export const records02: RecordSet = {
       roles: ["occupant"],
       markers: ["CHILD", "VULNERABLE"],
       notes: [
-        "Son of the family at no. 285. Was asleep in the rear first-floor bedroom when the alarm went; whereabouts being confirmed on the pavement.",
-        "Hearing impairment — wears hearing aids, removed at night; slower to wake to an alarm (vulnerability flag on the housing register).",
+        "Son of the family at no. 285. Was in the rear first-floor bedroom when the alarm went; whereabouts being confirmed on the pavement.",
+        "Hearing impairment — wears hearing aids, often out at home; slower to react to an alarm (vulnerability flag on the housing register).",
       ],
       scenarioId: "02",
       casualtyId: "cas-1",
