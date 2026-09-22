@@ -2293,6 +2293,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         prevLiveVitals: { ...clinical.vitals },
         liveVitalsLastTickAt: completedAt,
         activeRedFlags: [...clinical.redFlags],
+        // An authored arrest carries its own rhythm hint; a patient who
+        // arrests later keeps whatever the physiology decides.
+        arrestRhythmHint: clinical.arrestRhythmHint ?? p.arrestRhythmHint,
         events: [...p.events, { kind: "survey_completed", at: completedAt }],
       }));
       // Seed the hidden physiology and calibrate it to the authored

@@ -107,6 +107,11 @@ export type PatientClinical = {
   /** Age in years. 15 and under is paediatric for trauma routing (GMMTN
    *  is explicit that 16 is hard); absent is treated as adult. */
   ageYears?: number;
+  /** How this patient arrested, for the rhythm roll when the crew first
+   *  gets a monitor on. A witnessed exertional collapse in a young adult
+   *  is VF until proven otherwise; a drowning or an overdose is not.
+   *  Absent means the population default. */
+  arrestRhythmHint?: "shockable" | "non_shockable";
   /** What the GM supplementary Pathfinder splits on — penetrating and
    *  thoraco-abdominal trauma go to MRI, cranial to Salford. Absent means
    *  blunt or not applicable. */

@@ -15,17 +15,21 @@ import type { Scenario } from "../incident_types";
  *     grass from the nearest hard standing — the carry has to be
  *     planned before it's needed, and pitch 12 makes a HEMS LZ),
  *   - skill-weighted outcome: the dice colour the story (community
- *     defib found or not, shockable rhythm or not) but survival runs on
- *     the vitals engine — fast crews + CPR + defib usually get ROSC,
- *     slow play usually doesn't. Post-ROSC conveyance is scored to the
- *     PCI centre, not the nearest A&E.
+ *     defib found or not) but the resus itself runs on the arrest board
+ *     from the moment the crew's survey opens it — a young witnessed
+ *     collapse is authored shockable, and a well-run loop (compressor
+ *     swaps, early shock, drugs on time) is what gets ROSC. Post-ROSC
+ *     conveyance is scored on the DESTINATION TYPE: MRI is both the
+ *     nearest ED and the PPCI centre here, and the point is that the
+ *     patient goes there pre-alerted as a PPCI patient, not booked in as
+ *     a generic resus call.
  *
  * Venue is real (Hough End, Manchester's biggest Sunday league site;
  * the Hough End Centre pavilion fronts Mauldeth Road West). Incident
- * coords are OSM-verified: a mapped grass soccer pitch at the centre of
- * the fields (OSM way 616654223), ~450 m SE of the Hough End Centre car
- * park entrance (junction node 3005535518 at 53.43854, -2.25603). The
- * patient is fictional.
+ * coords are OSM-verified: a mapped grass football pitch at the centre
+ * of the fields (OSM way 616654223), ~450 m SE of the Hough End Centre
+ * car park entrance (junction node 3005535518 at 53.43854, -2.25603).
+ * The patient is fictional.
  */
 export const scenario12: Scenario = {
   id: "12",
@@ -35,7 +39,7 @@ export const scenario12: Scenario = {
   patch: "Southern",
   severity: "high",
   trigger:
-    "999 from a football coach — player collapsed mid-match with nobody near him, unresponsive, not breathing normally; telephone CPR in progress",
+    "999 from a football coach — player collapsed mid-match with nobody near him, unresponsive, not breathing normally; bystanders with him, caller on the line for CPR instructions",
 
   location: {
     address: "Hough End Playing Fields, Mauldeth Road West, Chorlton-cum-Hardy",
@@ -71,7 +75,7 @@ export const scenario12: Scenario = {
       "Hough End is Manchester's biggest Sunday league venue — match days put two dozen fixtures on at once. Expect the access gate marshalled by players waving you in.",
       "Community defib (PAD) on the wall of the Hough End Centre foyer, registered on The Circuit — the call handler will direct a runner to it.",
       "NWAA task the Barton crew to young / witnessed arrests — same doctor-paramedic team by air (Helimed) or road (critical care car).",
-      "Category 1 call — 7-minute mean standard. Every minute from collapse to defibrillation costs roughly 10% survival.",
+      "Category 1 call — 7-minute mean standard. The first defib on the chest is the whole job until the crew arrive; nothing else on the attendance matters until it is there.",
     ],
   },
 
@@ -115,22 +119,13 @@ export const scenario12: Scenario = {
       notes: "A working arrest eats hands — CPR carousel, kit shuttle, and the 450 m carry out",
     },
     {
-      id: "ccc",
-      label: "Critical care car — NWAA Barton",
+      id: "nwaa",
+      label: "NWAA critical care — Helimed by day, car by night",
       service: "Ambulance",
-      requiredApplianceTypes: ["CCC"],
+      requiredApplianceTypes: ["HEMS", "CCC"],
       requiredCapabilities: ["Medical"],
       preferredStationId: "A-HEMS",
-      notes: "Doctor–critical care paramedic team by road — advanced airway and post-ROSC care",
-    },
-    {
-      id: "hems",
-      label: "Helimed — NWAA Barton",
-      service: "Ambulance",
-      requiredApplianceTypes: ["HEMS"],
-      requiredCapabilities: ["HEMS"],
-      preferredStationId: "A-HEMS",
-      notes: "Young witnessed arrest meets NWAA tasking criteria. LZ on pitch 12 — cleared and marked before the aircraft commits",
+      notes: "One doctor–critical care paramedic team, by air or by road — advanced airway and post-ROSC care. Young witnessed arrest meets NWAA tasking criteria. If by air, LZ on pitch 12 — cleared and marked before the aircraft commits",
     },
     {
       id: "od",
@@ -149,23 +144,24 @@ export const scenario12: Scenario = {
       { metric: "Crew CPR / defib taken over from bystanders", target: "< 2 minutes from first arrival" },
       { metric: "Backup crew and critical care mobilised", target: "< 15 minutes" },
       { metric: "Egress planned — carry party and route to hard standing", target: "before conveyance, not during" },
-      { metric: "Post-ROSC conveyance, pre-alerted", target: "PCI centre — not the nearest A&E" },
+      { metric: "Post-ROSC conveyance, pre-alerted", target: "MRI as the PPCI centre — sent as a post-ROSC PPCI patient, not a generic resus call" },
     ],
     lesson:
-      "An arrest is the purest dispatch job in the game: the patient's survival is a straight line from the operator's first sixty seconds. Every minute from collapse to defibrillation costs roughly 10% — so the RRV goes on the first click, and over-mobilising is the correct answer, because a working arrest on grass needs a CPR carousel, a kit shuttle, a carry party and someone to hold the crowd and the family. Playing fields add the access trap: the job is 450 m from the nearest wheel, so the way OUT has to be planned while the resus is still running. And the save isn't finished at ROSC — a young primary-cardiac arrest belongs at the PCI centre, pre-alerted, not the nearest A&E.",
+      "An arrest is the purest dispatch job in the game: the Category 1 clock starts on the operator's first sixty seconds. The RRV goes on the first click, and over-mobilising is the correct answer, because a working arrest on grass needs a CPR carousel, a kit shuttle, a carry party and someone to hold the crowd and the family. Playing fields add the access trap: the job is 450 m from the nearest wheel, so the way OUT has to be planned while the resus is still running. And the save isn't finished at ROSC. From Hough End the nearest ED and the PPCI centre are the same building — MRI — but they are not the same call: a young primary-cardiac arrest goes there pre-alerted as a post-ROSC PPCI patient, straight to the cath lab team, not booked in as another resus job for the department.",
+  },
+
+  callGrade: {
+    scale: "ambulance_arp",
+    grade: 1,
+    standardMinutes: 7,
+    basis: "Unresponsive and not breathing normally at the point of answer — cardiac arrest",
   },
 
   informantScript: [
     {
-      id: "initial",
-      atSec: 3,
-      text: "It's one of our players — he's just dropped, nobody near him, no contact, he just went down. He's not waking up.",
-      tone: "critical",
-    },
-    {
       id: "agonal",
       atSec: 20,
-      text: "He's making these horrible gasping noises every few seconds — that's not proper breathing, is it?... Okay. Okay. Starting compressions now.",
+      text: "Right — Jordan, hands on his chest, middle, like they're telling me. Push. Push. Count it out loud. Go.",
       tone: "critical",
       effect: { pulseCritical: true },
     },
@@ -184,7 +180,7 @@ export const scenario12: Scenario = {
     {
       id: "access",
       atSec: 110,
-      text: "We're on pitch 11, right in the middle — you can't drive to it. I've sent two lads to the car park on Mauldeth Road West to wave you through the gate.",
+      text: "The two lads are at the car park gate now, on Mauldeth Road West — they'll wave you through. It's a long run down the path from there, tell them to bring everything.",
       tone: "info",
     },
     // --- Roll 1: is the community defib actually there for them? -------
@@ -199,7 +195,7 @@ export const scenario12: Scenario = {
     {
       id: "defib-missing",
       atSec: 160,
-      text: "The cabinet's there but it's code-locked and nobody can raise the number — forget it, we're staying on his chest until you get here.",
+      text: "The cabinet's open but it's empty — there's a card in it saying the unit's away for servicing. Forget it, we're staying on his chest until you get here.",
       tone: "urgent",
     },
     // --- Roll 2: shockable or not — only if the pads went on. ----------
@@ -236,25 +232,24 @@ export const scenario12: Scenario = {
     },
   ],
 
-  // Top-down scene — the Mauldeth Road West frontage (road, car park,
-  // Hough End Centre) along the top, the spine path running south, and
-  // the pitches either side. Patient mid-pitch-11; pitch 12 below it is
-  // the LZ candidate.
+  // Top-down scene — the middle of the fields only. The Mauldeth Road
+  // West frontage (car park, Hough End Centre, the defib) is 450 m off
+  // the top of this canvas: the spine path runs out of frame to it.
+  // Patient mid-pitch-11; pitch 12 below it is the LZ candidate.
   scene: {
     viewBox: { x: -60, y: -55, width: 120, height: 105 },
     compassNorth: "up",
-    buildings: [
-      {
-        shape: { x: 8, y: -42, w: 26, h: 12 },
-        kind: "other",
-        label: "Hough End Centre — community defib in foyer",
-      },
+    // The way out is the job: 450 m of soft grass and a narrow path to
+    // the car park. No wheels on the grass — scoop or manual carry to
+    // the hard standing, and the extra minutes are real.
+    egressExtraSeconds: 420,
+    egressBlocked: [
+      { action: "trolley", reason: "450 m of soft grass — the trolley sinks; scoop or manual carry to the car park" },
+      { action: "wheelchair", reason: "Open ground — no wheels to the car park" },
     ],
+    buildings: [],
     roads: [
-      { shape: { x: -60, y: -52, w: 120, h: 6 }, kind: "road", label: "Mauldeth Road West" },
-      { shape: { x: -60, y: -46, w: 120, h: 2 }, kind: "pavement", label: "Pavement" },
-      { shape: { x: -20, y: -42, w: 24, h: 14 }, kind: "driveway", label: "Car park — RVP / hard standing" },
-      { shape: { x: -10, y: -28, w: 4, h: 78 }, kind: "pavement", label: "Spine path (foot / 4x4 only)" },
+      { shape: { x: -10, y: -55, w: 4, h: 105 }, kind: "pavement", label: "Spine path (foot / 4x4 only) — to car park, 450 m NW ↑" },
       { shape: { x: -58, y: -20, w: 44, h: 28 }, kind: "garden", label: "Pitch 10" },
       { shape: { x: -4, y: -18, w: 44, h: 30 }, kind: "garden", label: "Pitch 11 — match abandoned" },
       { shape: { x: -4, y: 16, w: 44, h: 28 }, kind: "garden", label: "Pitch 12 — candidate LZ" },
@@ -264,20 +259,9 @@ export const scenario12: Scenario = {
     landmarks: [
       { pos: { x: -2, y: -3 }, kind: "other", label: "Goalposts" },
       { pos: { x: 38, y: -3 }, kind: "other", label: "Goalposts" },
-      { pos: { x: 12, y: -29 }, kind: "other", label: "PAD cabinet — foyer wall" },
-      { pos: { x: -14, y: -36 }, kind: "car", label: "Parked cars" },
-      { pos: { x: -8, y: -39 }, kind: "car" },
       { pos: { x: -34, y: -44 }, kind: "tree" },
       { pos: { x: 46, y: -44 }, kind: "tree" },
     ],
-    // No fire — zero seat so the sim has nothing to grow.
-    fireSeat: {
-      pos: { x: 55, y: 44 },
-      radiusM: 0,
-      growthRateMpm: 0,
-      maxRadiusM: 0,
-      material: "vegetation",
-    },
     hazards: [
       {
         id: "egress",
@@ -312,7 +296,7 @@ export const scenario12: Scenario = {
         label: "Player (M, 23) — collapsed mid-match, in cardiac arrest",
         clinical: {
           vitals: {
-            rr: 4,
+            rr: 0,
             spo2: 68,
             hr: 0,
             bpSys: 0,
@@ -323,8 +307,10 @@ export const scenario12: Scenario = {
           },
           ageYears: 23,
           presumedCondition:
-            "Witnessed non-contact collapse — cardiac arrest, presumed primary cardiac (young male, ?arrhythmogenic). Bystander CPR from the moment of collapse",
+            "Witnessed non-contact collapse — cardiac arrest, presumed primary cardiac (young male, ?arrhythmogenic). Agonal gasps, no effective breathing. Bystander CPR from the moment of collapse",
           redFlags: ["cardiac_arrest"],
+          // Young, witnessed, exertional — VF until the monitor says otherwise.
+          arrestRhythmHint: "shockable",
           preferredDestination: "pci",
           criticalInterventions: ["cpr", "defib", "oxygen", "iv_access"],
         },
@@ -334,7 +320,7 @@ export const scenario12: Scenario = {
       { id: 1, label: "Sector 1 · Patient / resus", face: "front", bearingDeg: 0 },
       { id: 2, label: "Sector 2 · LZ — pitch 12", face: "rear", bearingDeg: 180 },
       { id: 3, label: "Sector 3 · Crowd line / spectators", face: "right", bearingDeg: 90 },
-      { id: 4, label: "Sector 4 · Egress — path to car park", face: "left", bearingDeg: 270 },
+      { id: 4, label: "Sector 4 · Egress — path to car park", face: "left", bearingDeg: 315 },
     ],
   },
 

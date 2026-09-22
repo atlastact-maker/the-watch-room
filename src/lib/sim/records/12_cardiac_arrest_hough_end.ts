@@ -130,7 +130,7 @@ export const records12: RecordSet = {
       phone: "07700 900344",
       roles: ["witness"],
       notes: [
-        "Substitute — sent sprinting to the Hough End Centre foyer for the community defib; call handler to give him the cabinet code.",
+        "Substitute — sent sprinting to the Hough End Centre foyer for the community defib; whether the unit is actually in the cabinet is not known until he gets there.",
       ],
       scenarioId: "12",
     },
@@ -178,7 +178,7 @@ export const records12: RecordSet = {
       postcode: "M21 7SX",
       coords: { lat: 53.4383, lng: -2.2553 },
       notes: [
-        "Community defib (PAD) on the foyer wall — code-locked cabinet, registered on The Circuit; the call handler issues the code to the runner.",
+        "Community defib (PAD) on the foyer wall — cabinet registered on The Circuit; the runner reports back whether the unit is in it.",
         "Changing rooms, café and foyer — pavilion staffed on Sunday match days.",
         "Car park off Mauldeth Road West is the hard standing for every pitch to the south; spine path beyond the gate is foot / 4x4 only.",
       ],
