@@ -190,7 +190,9 @@ export default async function AdminPage({
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
-    supabase.rpc("admin_list_users", { p_limit: 25 }),
+    // Every account, not the newest twenty-five: the advisors who signed up
+    // first were dropping off the bottom. 200 is the function's ceiling.
+    supabase.rpc("admin_list_users", { p_limit: 200 }),
     supabase.rpc("admin_notes_all"),
   ]);
 
@@ -592,6 +594,9 @@ export default async function AdminPage({
           <section className="space-y-3">
             <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
               Registered users
+              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
+                {users.length}{users.length >= 200 ? " · newest 200 shown" : ""}
+              </span>
             </h2>
             <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
               {users.map((u) => (
