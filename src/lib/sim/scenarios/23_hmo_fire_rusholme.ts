@@ -20,7 +20,7 @@ import type { Scenario } from "../incident_types";
 export const scenario23: Scenario = {
   id: "23",
   slug: "23_hmo_fire_rusholme",
-  title: "House fire, persons reported — HMO, Rusholme",
+  title: "House Fire, Persons Reported — HMO, Rusholme",
   type: "hmo_fire",
   patch: "Southern",
   severity: "high",
@@ -30,7 +30,7 @@ export const scenario23: Scenario = {
   location: {
     address: "212 Dickenson Road, Rusholme, Manchester",
     postcode: "M14 5HQ",
-    coords: { lat: 53.4468, lng: -2.2141 },
+    coords: { lat: 53.4516, lng: -2.2146 },
   },
 
   property: {
@@ -52,12 +52,16 @@ export const scenario23: Scenario = {
       "Compartmentation likely poor — the conversion is old and the last inspection is not on file",
     ],
     firstDueStationId: "G13",
+    // A big Victorian timber front door on a rim lock — what the caller
+    // describes, and what the Halligan is for.
+    doorType: "timber",
   },
 
   pri: {
     hasFormalPri: false,
     items: [
-      "Licensed HMO per the local authority register, but no fire service PRI on file.",
+      "Licensed HMO per the local authority register — no fire service PRI on file; what follows is the licence conditions.",
+      "Licence conditions on file: a lock on every letting-room door, and a converted cellar room with a single stair.",
       "Landlord contact held; landlord does not live at the property.",
       "No occupancy list is held by anybody who is on scene.",
     ],
@@ -121,14 +125,14 @@ export const scenario23: Scenario = {
   evaluation: {
     targets: [
       { metric: "Time-to-mobilise", target: "< 90 seconds" },
-      { metric: "First attendance", target: "< 8 minutes" },
+      { metric: "First attendance", target: "< 10 minutes" },
       {
         metric: "Resourcing the unknown",
         target: "three pumps on the initial attendance — the count is not knowable from outside",
       },
       {
         metric: "Search",
-        target: "attendance held until every room has been entered, not until the fire is out",
+        target: "nobody left undiscovered at the stop — the attendance is held for the search, not the fire",
       },
     ],
     lesson:
@@ -136,7 +140,7 @@ export const scenario23: Scenario = {
   },
 
   scene: {
-    viewBox: { x: -45, y: -40, width: 90, height: 80 },
+    viewBox: { x: -32, y: -30, width: 64, height: 56 },
     compassNorth: "up",
     // Three storeys of Victorian terrace with a half-landing.
     egressExtraSeconds: 180,
@@ -145,64 +149,73 @@ export const scenario23: Scenario = {
     egressBlocked: [
       { action: "trolley", reason: "Victorian terrace stair with a half-landing turn, and a cellar room under it — the trolley stays on Dickenson Road" },
     ],
+    // A Victorian terrace: seven-metre frontages on shared party walls,
+    // fourteen metres deep, a yard behind each, and the shared entry to
+    // the yards two doors down as the caller has it.
     buildings: [
-      { shape: { x: -10, y: -30, w: 20, h: 32 }, kind: "target", label: "212 — HMO" },
-      { shape: { x: -32, y: -30, w: 20, h: 32 }, kind: "neighbour", label: "210" },
-      { shape: { x: 12, y: -30, w: 20, h: 32 }, kind: "neighbour", label: "214" },
+      { shape: { x: -17.5, y: -12, w: 7, h: 14 }, kind: "neighbour", label: "208" },
+      { shape: { x: -10.5, y: -12, w: 7, h: 14 }, kind: "neighbour", label: "210" },
+      { shape: { x: -3.5, y: -12, w: 7, h: 14 }, kind: "target", label: "212 — HMO" },
+      { shape: { x: 3.5, y: -12, w: 7, h: 14 }, kind: "neighbour", label: "214" },
+      { shape: { x: 10.5, y: -12, w: 7, h: 14 }, kind: "neighbour", label: "216" },
+      { shape: { x: 20, y: -12, w: 7, h: 14 }, kind: "neighbour", label: "218" },
     ],
     roads: [
-      { shape: { x: -45, y: 6, w: 90, h: 2 }, kind: "pavement" },
-      { shape: { x: -45, y: 8, w: 90, h: 11 }, kind: "road", label: "Dickenson Road" },
-      { shape: { x: 32, y: -34, w: 6, h: 40 }, kind: "driveway", label: "Shared entry" },
+      { shape: { x: -17.5, y: -19, w: 44.5, h: 7 }, kind: "garden", label: "Rear yards" },
+      { shape: { x: -32, y: 6, w: 64, h: 2 }, kind: "pavement" },
+      { shape: { x: -32, y: 8, w: 64, h: 11 }, kind: "road", label: "Dickenson Road" },
+      { shape: { x: 17.5, y: -19, w: 2.5, h: 25 }, kind: "driveway", label: "Shared entry" },
     ],
     hydrants: [
-      { label: "H1", coords: { lat: 53.4471, lng: -2.2148 }, street: "Dickenson Road" },
-      { label: "H2", coords: { lat: 53.4464, lng: -2.2134 }, street: "Dickenson Road" },
+      { label: "H1", coords: { lat: 53.4515, lng: -2.2154 }, street: "Dickenson Road" },
+      { label: "H2", coords: { lat: 53.4514, lng: -2.2136 }, street: "Dickenson Road" },
     ],
     landmarks: [
-      { pos: { x: -24, y: 13 }, kind: "car" },
-      { pos: { x: -6, y: 13 }, kind: "car" },
-      { pos: { x: 14, y: 13 }, kind: "car" },
-      { pos: { x: -38, y: 22 }, kind: "lamppost" },
+      { pos: { x: -14, y: 13 }, kind: "car" },
+      { pos: { x: -2, y: 13 }, kind: "car" },
+      { pos: { x: 10, y: 13 }, kind: "car" },
+      { pos: { x: 8, y: 7 }, kind: "lamppost" },
     ],
     fireSeat: {
-      pos: { x: 2, y: -16 },
+      // First-floor front room, above the caller's — the window the
+      // smoke is coming out of faces the road.
+      pos: { x: 0, y: -3 },
       radiusM: 2.5,
-      growthRateMpm: 0.55,
+      // Two jets to turn it; one jet and a BA team only hold it.
+      growthRateMpm: 0.4,
       suppressionPerBaMpm: 0.8,
       maxRadiusM: 12,
       material: "structural",
     },
+    // The locks and the cellar room are carried in the PRI items and the
+    // caller's own words: as hazards they would be offered USAR shoring.
     hazards: [
       {
-        id: "room-locks",
-        pos: { x: -4, y: -22 },
-        kind: "structural",
-        label: "Locks on every bedroom door — every room is a forced entry",
-        knownFromPri: true,
-      },
-      {
-        id: "cellar-room",
-        pos: { x: 4, y: -4 },
-        kind: "structural",
-        label: "Converted cellar room — one way out",
-        knownFromPri: true,
-      },
-      {
+        // The stair and landings — where an old conversion's
+        // compartmentation fails first.
         id: "compartmentation",
-        pos: { x: -2, y: -26 },
+        pos: { x: 0, y: -7 },
         kind: "structural",
         label: "Conversion compartmentation unverified — fire spread between rooms",
         discoverAfterMinOnScene: 3,
+      },
+      {
+        // The caller says where the meters are; the crews see the
+        // cupboard as they go through the front door.
+        id: "meters",
+        pos: { x: -2.5, y: 0.5 },
+        kind: "gas",
+        label: "Gas and electric meters — hall cupboard by the front door",
+        discoverAfterMinOnScene: 0,
       },
     ],
     casualties: [
       {
         id: "cas-23-top-floor",
         label: "Occupant — top floor rear room",
-        pos: { x: 4, y: -27 },
+        pos: { x: 1.5, y: -10 },
         severity: "serious",
-        discoverAfterMinBa: 6,
+        discoverAfterMinBa: 4,
         presentProbability: 0.55,
         clinical: {
           vitals: { rr: 26, spo2: 91, hr: 118, bpSys: 118, bpDia: 72, gcs: 13, temp: 36.9, bm: 5.7 },
@@ -216,14 +229,18 @@ export const scenario23: Scenario = {
       {
         id: "cas-23-cellar",
         label: "Occupant — cellar room",
-        pos: { x: 5, y: -3 },
-        severity: "critical",
-        discoverAfterMinBa: 9,
+        // The cellar room is under the front room, with its one stair
+        // coming up into the hall.
+        pos: { x: -1.5, y: -1.5 },
+        // Serious, not critical: critical is expectant at ten minutes from
+        // the send, before a BA team could reach a cellar.
+        severity: "serious",
+        discoverAfterMinBa: 5,
         presentProbability: 0.3,
         clinical: {
           // Found last, in the cellar room with one way out. Longest
           // exposure of anyone in the house.
-          vitals: { rr: 8, spo2: 76, hr: 138, bpSys: 88, bpDia: 52, gcs: 5, temp: 36.4, bm: 5.2 },
+          vitals: { rr: 10, spo2: 82, hr: 132, bpSys: 96, bpDia: 58, gcs: 8, temp: 36.4, bm: 5.2 },
           ageYears: 30,
           presumedCondition: "Severe smoke inhalation, unresponsive — prolonged exposure in the cellar room",
           redFlags: ["airway_compromise", "head_injury_severe"],
@@ -243,14 +260,14 @@ export const scenario23: Scenario = {
   informantScript: [
     {
       id: "tenant-first",
-      atSec: 5,
-      text: "The house is on fire — there's smoke coming out the window upstairs. There's four of us out on the street. I don't know who else is in, I only know the lad next door to me.",
+      atSec: 20,
+      text: "Sam's counting the bikes and the cars out front — he reckons two more are in, at least. The smoke's blacker than it was.",
       tone: "critical",
     },
     {
       id: "how-many",
-      atSec: 45,
-      text: "There's normally about eight of us live here. I couldn't tell you who's home. Everyone keeps their door locked, we all just come and go.",
+      atSec: 60,
+      text: "Nobody's answering their phones. Chloe's tried the girl on the top floor twice and it's ringing out. Nobody's seen her come down.",
       tone: "urgent",
     },
     {
@@ -286,12 +303,12 @@ export const scenario23: Scenario = {
       "Fire brigade — our house is on fire. 212 Dickenson Road, Rusholme, it's a shared house. There's smoke coming out of the window on the first floor. There's four of us out on the street, but there's more people live here and I don't know who's in. I don't know who's in.",
     deflection: "I don't know — I don't know who's in, that's what I'm telling you. Just come.",
     reassurance: {
-      text: "Tomasz, the engines are on their way. You don't have to know everything — just tell me what you can see and who you've got with you.",
+      text: "Tomasz, help is coming. You don't have to know everything — just tell me what you can see and who you've got with you.",
       reply: "Okay. Okay. Sorry. Four of us. Okay.",
     },
     answers: {
       f_seen: {
-        text: "Smoke — loads of it, coming out of the first-floor window at the front, the middle one. Grey, going black. I can't see flames but the room's gone dark behind the glass and the alarm's going off inside, you can hear it from here.",
+        text: "Smoke — loads of it, coming out of the first-floor window at the front, the middle one. Grey, going black. I couldn't see flames a minute ago, just smoke, but the room's gone dark behind the glass and the alarm's going off inside, you can hear it from here.",
         tone: "urgent",
       },
       f_where: {
@@ -355,7 +372,7 @@ export const scenario23: Scenario = {
         needsCalm: true,
       },
       f_access: {
-        text: "Front door's wide open, we came straight out of it and nobody's shut it — it's straight off the pavement. Every bedroom's got its own lock though, every door, they'll have to break them. Round the back there's an entry between the houses, two doors down, into the yards. The back door's bolted, always is.",
+        text: "Front door's on the latch — it'll have swung to behind us, it's a big old timber door, straight off the pavement. Every bedroom's got its own lock though, every door, they'll have to break them. Round the back there's an entry between the houses, two doors down, into the yards. The back door's bolted, always is.",
         tone: "urgent",
       },
       f_safe: {
