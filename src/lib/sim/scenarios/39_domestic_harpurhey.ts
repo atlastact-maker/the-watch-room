@@ -13,14 +13,16 @@ import type { Scenario } from "../incident_types";
 //   - Two response units. Not one — a single officer alone in that house
 //     is a second victim, and two officers cannot hold him, talk to her
 //     and see to two children at once. Not five either.
-//   - The caller feeds the risk questions the call handler asks — the
-//     DASH-style cues: children in the house, a weapon, a previous
-//     threat to kill. They arrive as answers, the way they do on the
-//     line.
-//   - The cancel. Before anyone is there, the victim rings from her own
-//     phone: it was nothing, it is sorted, she does not want police. She
-//     is calm and there is a man's voice near the handset. That call is
-//     the risk signal, not the all-clear, and the grade does not move.
+//   - The risk cues — the DASH-style questions: children in the house,
+//     a weapon, a previous threat to kill — are in the call script as
+//     answers. Once the job is sent, the neighbour volunteers what she
+//     is hearing as it changes, and does not repeat the call.
+//   - The cancel. Before anyone is there, the neighbour hears the victim
+//     ring from her own phone: it was nothing, it is sorted, she does
+//     not want police. She is calm and he is stood over her. That call
+//     is the risk signal, not the all-clear, and the grade does not
+//     move. Nothing on the desk needs pressing — the test is what the
+//     operator does NOT do.
 //   - Ambulance only if injury is reported. On about a third of nights
 //     she comes to the door with a tea towel round her hand; the PDA
 //     stays at two and the ambulance is added when the injury appears.
@@ -28,7 +30,7 @@ import type { Scenario } from "../incident_types";
 //     is the correct answer, not a mark against it.
 //   - A slow response has a cost that is not medical: he leaves in the
 //     van before anyone arrives, and an arrest at the door becomes a
-//     circulation.
+//     plate to find.
 //
 // GEOGRAPHY. Prosperity Street is real: a short street of modern
 // three-storey terraced townhouses whose west end is about twenty
@@ -83,10 +85,10 @@ export const scenario39: Scenario = {
   pri: {
     hasFormalPri: false,
     items: [
-      "No PRI — private dwelling.",
+      "No formal PRI — private dwelling. What follows is from the Feb 2026 log, not a premises record.",
       "Repeat address: one previous domestic here (Feb 2026). Male arrested for assault, released with no further action when the victim withdrew. His VIOLENT marker dates from that job. Same neighbour rang it in.",
       "Two children on the household record, 8 and 3. Any attendance is a safeguarding referral as well as an arrest.",
-      "Nearest ambulance station is Philips Park, about a mile and a half east — if an injury is reported, the ambulance is close.",
+      "Nearest ambulance station is Philips Park, about a mile south-east — if an injury is reported, the ambulance is close.",
     ],
   },
 
@@ -115,7 +117,7 @@ export const scenario39: Scenario = {
       id: "police2",
       label: "Police — second unit",
       service: "Police",
-      requiredApplianceTypes: ["Police_Response"],
+      requiredApplianceTypes: ["Police_Response", "Police_Van"],
       requiredCapabilities: [],
       preferredStationId: "MP-MCR",
       notes:
@@ -136,22 +138,24 @@ export const scenario39: Scenario = {
       },
       {
         metric: "The cancel call",
-        target: "grade held at 1 and both units kept running when the victim rings to cancel",
+        target: "advice, not a score — when the victim rings to cancel, do not stand the units down or regrade; nothing on the desk needs pressing",
       },
       {
         metric: "Ambulance",
-        target: "requested on a report of injury and not before",
+        target: "advice, not a score — requested on a report of injury and not before; the discipline row reads +1 on those nights and that is correct",
       },
     ],
     lesson:
-      "This is the job the shift is made of, and the one where the desk goes wrong most quietly. Two cars, not one — not because he is big, but because one officer alone in that house is a second victim and two officers cannot hold him, talk to her and see to two children at the same time. The answers you draw out of the caller are the risk assessment before anyone arrives: children in the house, a threat to kill, a weapon you cannot rule out. And then she rings you to cancel. She is calm and there is a man's voice near the phone. That call is not the all-clear. It is the clearest sign yet of what is happening in the room, and the grade stays where it is. Ambulance only when somebody is actually hurt; the moment the tea towel appears, it goes.",
+      "This is the job the shift is made of, and the one where the desk goes wrong most quietly. Two cars, not one — not because he is big, but because one officer alone in that house is a second victim and two officers cannot hold him, talk to her and see to two children at the same time. The answers you draw out of the caller are the risk assessment before anyone arrives: children in the house, a threat to kill, a weapon you cannot rule out. And then she rings to cancel — the neighbour hears her do it, calm, with him stood over her. That call is not the all-clear. It is the clearest sign yet of what is happening in the room, and the grade stays where it is: nothing on the desk needs pressing, the test is what you do not do. Ambulance only when somebody is actually hurt; the moment the tea towel appears, it goes, and the +1 on the discipline row that night is the right answer.",
   },
 
   scene: {
     viewBox: { x: -55, y: -32, width: 110, height: 64 },
     compassNorth: "up",
     buildings: [
-      { shape: { x: -42, y: -14, w: 30, h: 10 }, kind: "neighbour", label: "Terrace (north side, west)" },
+      // Two houses between No. 12 and the Rochdale Road junction — the
+      // caller's "we're up the Rochdale Road end" is true.
+      { shape: { x: -26, y: -14, w: 14, h: 10 }, kind: "neighbour", label: "Terrace (north side, west)" },
       { shape: { x: -12, y: -14, w: 7, h: 10 }, kind: "neighbour", label: "No. 12 — caller, through the party wall" },
       { shape: { x: -5, y: -14, w: 7, h: 10 }, kind: "target", label: "No. 14 — target dwelling" },
       { shape: { x: 2, y: -14, w: 48, h: 10 }, kind: "neighbour", label: "Terrace (north side, east)" },
@@ -238,28 +242,24 @@ export const scenario39: Scenario = {
     ],
   },
 
+  // These run from the moment the job is sent, in the neighbour's
+  // voice, and only say what has CHANGED since the call — the risk
+  // questions themselves live in the call script above.
   informantScript: [
     {
-      id: "first",
-      atSec: 4,
-      text: "It's next door — number 14, Prosperity Street. She's screaming, proper screaming, 'get off me, get off me', and he's shouting over the top of her. Something's just gone against the wall — a glass or a plate, it smashed. It's still going on now. I can hear him through the wall as I'm talking to you.",
-      tone: "critical",
-    },
-    {
-      // The first DASH-style answer. Children in the house changes the
-      // grade of everything that follows.
+      // The children are no longer a fact on a form: the caller can
+      // hear one of them.
       id: "children",
       atSec: 40,
-      text: "Kids — yes. Two. The little girl's about eight and there's a toddler. I can hear the little one crying upstairs now. It's a school night, they'll all be in.",
+      text: "The little one's crying upstairs now — I can hear it through the wall. He's not stopped. She's gone quieter and he hasn't.",
       tone: "urgent",
     },
     {
-      // Weapon: unknown is the honest answer, and the description comes
-      // out with it — the arriving crew want to know who they are
-      // looking at.
+      // Weapon still unknown; what she can add is history, and who the
+      // crew are looking at.
       id: "weapon",
       atSec: 80,
-      text: "A weapon — I don't know. I can't see in. He's smashed things before. Last time your lot came he'd put his fist through the kitchen door. I've never seen him with a knife, but I've never been in there when it's going off, have I. He's a big lad, shaved head, grey trackie bottoms. He'd not need one.",
+      text: "I still can't tell you if he's got anything in his hand, I can't see in. Last time your lot came he'd put his fist through the kitchen door. He's a big lad, shaved head, grey trackie bottoms — he'd not need a knife.",
       tone: "urgent",
     },
     {
@@ -267,26 +267,20 @@ export const scenario39: Scenario = {
       // items on the checklist, from a witness rather than the victim.
       id: "threats",
       atSec: 120,
-      text: "Has he threatened to kill her — she told me once, out the back, he'd said he'd do it if she ever left him. She made me promise not to ring you. I'm ringing you. It's gone quieter now. I can hear him talking low. I can't hear her at all.",
+      text: "There's something I should have said. She told me once, out the back, he'd said he'd kill her if she ever left him. She made me promise not to ring you. I'm ringing you. It's gone quieter now — I can hear him talking low. I can't hear her at all.",
       tone: "critical",
     },
     {
-      // The beat the scenario is built around. Control-room voice, not
-      // the neighbour's: it arrives as a second call on the same
-      // address, from the victim's own phone. Certain, because the
-      // lesson lives here and every run should have to face it.
+      // The beat the scenario is built around: the victim rings to
+      // cancel, and the neighbour hears her do it. Certain, because the
+      // lesson lives here and every run should have to face it. There
+      // is nothing for the operator to press — the test is that they
+      // do not stand anyone down.
       id: "cancel",
       atSec: 200,
-      text: "CONTROL: second call on this address — the female occupant, from her own mobile. Says it was an argument, it's sorted, nothing is broken and she does not want police. She is calm. There is a male voice close to the phone. Your first caller is still on the line to us saying it was not nothing. Grade unchanged.",
+      text: "She's on her phone — she's ringing you now, I can hear her. Saying it was an argument, it's sorted, nothing's broken, she doesn't want police. She sounds calm. She's not calm. He's stood over her telling her what to say, I can hear him through the wall. Do not cancel it. Please.",
       tone: "critical",
       effect: { pulseCritical: true },
-    },
-    {
-      id: "cancel-neighbour",
-      atSec: 215,
-      requiresFiredIds: ["cancel"],
-      text: "She's rung you to cancel? He's stood over her, that's why. I can hear him through the wall telling her what to say. Do not cancel it. Please.",
-      tone: "urgent",
     },
     {
       // Roughly one night in three, there is an injury to see, and the
@@ -311,14 +305,14 @@ export const scenario39: Scenario = {
     },
     {
       // The cost of a slow response on a domestic is not medical. He
-      // leaves, and an arrest at the door becomes a circulation for a
-      // white Transit heading into town.
+      // leaves, and an arrest at the door becomes a white Transit
+      // somewhere on Rochdale Road.
       id: "leaving",
       atSec: 600,
       delayThresholdSec: 600,
       probability: 0.5,
       requiresFiredIds: ["slow"],
-      text: "He's out. He's got his keys — he's getting in the van, the white Transit with the ladders on. He's pulling off now, down to Rochdale Road, turning left, towards town. She's still inside with the kids.",
+      text: "He's out. He's got his keys — he's getting in the van, the white Transit with the ladders on. He's gone — down to Rochdale Road, turned left, towards town. You'll want that plate. She's still inside with the kids.",
       tone: "urgent",
     },
   ],
@@ -346,7 +340,6 @@ export const scenario39: Scenario = {
     },
     opening:
       "Police — it's next door to me, 14 Prosperity Street, Harpurhey, off Rochdale Road. He's at her again. She's screaming get off me, get off me, and he's roaring at her, and something's just gone up the wall and smashed. It's happening now, this minute — listen, that's him. There's two kids in that house.",
-    deflection: "I don't know, love, I can't SEE — I'm through a wall! Just get somebody here!",
     reassurance: {
       text: "Marie, you've done the right thing ringing. Officers are on their way. Stay in your house, keep your door locked, and just tell me what you can hear.",
       reply: "I'm not going anywhere. Go on. I'm listening to it.",
@@ -391,7 +384,7 @@ export const scenario39: Scenario = {
             id: "p_injured_last",
             text: "Was she hurt the last time?",
             answer: {
-              text: "Split lip and a black eye. She told the police she'd walked into the door. I was on my step when she came out — she'd not walked into any door.",
+              text: "Split lip and a black eye. She told the police she'd walked into the door. She came to my door after they'd gone — she'd not walked into any door.",
             },
           },
         ],
@@ -422,7 +415,7 @@ export const scenario39: Scenario = {
         tone: "urgent",
       },
       p_vulnerable: {
-        text: "The kids. Two of them — Maisie's eight and Alfie's three. They're upstairs, they'll have been in bed, it's a school night. I can hear the little one crying through the wall. And her — she's on her own in there with him.",
+        text: "The kids. Two of them — Maisie's eight and Alfie's three. They're upstairs — I can hear the little one crying through the wall. And her — she's on her own in there with him.",
         tone: "critical",
       },
       p_where: {
@@ -451,7 +444,7 @@ export const scenario39: Scenario = {
       },
       {
         atSec: 160,
-        text: "Are you sending somebody or what? It's gone quiet in there and I don't like quiet. Last time it went quiet she was on my step at midnight with her lip split. Where are they?",
+        text: "Are you sending somebody or what? It's gone quiet in there and I don't like quiet. Last time it went quiet she was at my door with her lip split. Where are they?",
         tone: "urgent",
         requiresOpened: false,
       },

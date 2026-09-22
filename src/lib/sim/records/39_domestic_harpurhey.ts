@@ -112,7 +112,7 @@ export const records39: RecordSet = {
       notes: [
         "Usually parked on the street outside No. 14. Roof rack and ladders.",
         "Tax and MOT in date. No markers on the vehicle; the marker is on the keeper.",
-        "If he leaves in it before units arrive, circulate — the natural route is down to Rochdale Road and into town.",
+        "If he leaves in it before units arrive, the natural route is down to Rochdale Road and into town.",
       ],
       scenarioId: "39",
     },
