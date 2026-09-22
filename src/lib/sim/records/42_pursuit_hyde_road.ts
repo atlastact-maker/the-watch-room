@@ -20,10 +20,9 @@ export const records42: RecordSet = {
       name: "HOLT, Daniel",
       sex: "M",
       age: 31,
-      address: "GMP — City of Manchester division, response",
-      roles: ["caller", "witness"],
+      roles: ["witness"],
       notes: [
-        "Pursuing officer, callsign AP314. Single-crewed response driver, initial-phase pursuit trained — can follow and commentate, cannot run tactics.",
+        "Pursuing officer, callsign AP214. Single-crewed response driver, initial-phase pursuit trained — can follow and commentate, cannot run tactics.",
         "Attempted the stop on Hyde Road at Belle Vue for the manner of driving. The Golf accelerated away eastbound before any check had come back.",
         "Commentary relayed through the control room; not on a phone.",
       ],
@@ -57,7 +56,7 @@ export const records42: RecordSet = {
       markers: ["WANTED"],
       notes: [
         "Named in intelligence as the person seen using MK66 HZR since it was taken. Not confirmed as tonight's driver until he is stopped.",
-        "Description passed by AP314 of the driver: IC1 male, early twenties, grey hooded top — matches.",
+        "Description passed by AP214 of the driver: IC1 male, early twenties, grey hooded top — matches.",
         "Wanted on a fail-to-appear warrant for driving while disqualified. Disqualified driver.",
         "Previous for taking without consent and fail to stop. No weapons history recorded.",
       ],
@@ -78,7 +77,6 @@ export const records42: RecordSet = {
       notes: [
         "Reported STOLEN two nights ago — taken with its keys in a burglary at the keeper's address in Reddish. ANPR marker placed the same night.",
         "Read twice since on the A57 corridor, both times eastbound in the early hours. Not stopped.",
-        "Tonight: failed to stop for AP314 on Hyde Road at Belle Vue, eastbound. One occupant seen.",
       ],
       scenarioId: "42",
     },
