@@ -2,20 +2,23 @@ import type { Scenario } from "../incident_types";
 
 // Scenario 34 — fall from height on a building site, Salford.
 //
-// Major trauma, which is a triage decision before it is a clinical one.
-// A patient meeting the trauma criteria goes to a major trauma centre and
-// bypasses everything nearer, and the operator's part is recognising that
-// from the mechanism alone — a fall of four metres onto concrete is
-// enough, before anybody has counted a respiratory rate.
+// Major trauma, at the one point in the patch where the trauma centre is
+// not a bypass. The nearest emergency department to Ordsall Lane is the
+// MRI, and the MRI is itself half of the Greater Manchester major trauma
+// centre; Salford Royal is the other half, a kilometre further. So the
+// decision here is not "trauma centre or nearest" — it is WHICH trauma
+// centre, and the Pathfinder answers it: a pelvis and a right chest wall
+// are thoraco-abdominal, and thoraco-abdominal goes to the MRI. Then the
+// pre-alert, so the team is stood in resus when the doors open.
 //
 // It is also the strongest HEMS case in the sim, and not because of the
 // flying. HEMS bring a doctor and interventions a road crew cannot do,
-// and on a building site with a long carry the aircraft is often the
-// faster route to the trauma centre as well.
+// and the site has hard standing the manager can clear for them.
 //
-// Fire attend for the extrication rather than the fire: he is on
-// scaffolding boards at first-floor level with a leg that will not be
-// carried down a ladder.
+// Fire attend for the site rather than the fire: a live construction
+// site with open edges, and a man on scaffold boards a couple of metres
+// up who has to come down flat. The crew plan the carry; the pump is the
+// hands and the working-at-height kit.
 //
 // FICTIONAL: the site, the firm and the casualty. Ordsall Lane is a real
 // Salford road; the development is not.
@@ -28,7 +31,7 @@ export const scenario34: Scenario = {
   patch: "Western",
   severity: "high",
   trigger:
-    "Category 2 major trauma — male fallen approximately four metres onto concrete, then dragged to scaffolding at first-floor level by workmates. Conscious, leg deformed",
+    "Category 2 major trauma — male fallen approximately six metres from scaffolding onto a concrete slab, then carried up onto first-lift scaffold boards by workmates. Conscious, leg deformed, pelvic pain",
 
   location: {
     address: "Construction site, Ordsall Lane, Salford",
@@ -40,23 +43,23 @@ export const scenario34: Scenario = {
     class: "Construction site — partially built frame, scaffolded to three levels",
     occupants: "Around twenty on site. Site manager on scene and controlling access",
     vulnerabilities: [
-      "Casualty at first-floor level on scaffolding boards — cannot be carried down a ladder",
+      "Casualty on first-lift scaffolding boards, about two metres up — he cannot come down a ladder",
       "Workmates have already moved him, which nobody wanted but which has happened",
     ],
     access:
       "Site gates off Ordsall Lane, hard standing inside. Site manager holds the gate and can clear a landing area on the slab",
     knownHazards: [
-      "Working at height for the extrication",
+      "Working at height — casualty on scaffold boards",
       "Live site — plant movements, open edges, materials stacked",
     ],
-    firstDueStationId: "A-SAL",
+    firstDueStationId: "A-SFD",
   },
 
   pri: {
     hasFormalPri: false,
     items: [
       "No PRI — construction site.",
-      "Major trauma triage: mechanism alone (fall over three metres) meets the criteria for a trauma centre.",
+      "Major trauma: the nearest emergency department from here is the MRI, which is itself a major trauma centre site. The decision is which MTC — the Pathfinder sends thoraco-abdominal trauma to the MRI — and pre-alerting it.",
       "Site has hard standing and the manager can clear a landing area — HEMS is viable here.",
     ],
   },
@@ -64,11 +67,11 @@ export const scenario34: Scenario = {
   methane: {
     M: "No",
     E: "Construction site, Ordsall Lane, Salford, M5 3EN",
-    T: "Fall from height, approximately 4 m onto concrete. One casualty at first-floor level",
+    T: "Fall from height, approximately 6 m onto a concrete slab. One casualty, now on first-lift scaffold boards",
     H: "Working at height; live construction site",
     A: "Site gates off Ordsall Lane; manager holding the gate, landing area available on the slab",
-    N: "One — male, conscious, obvious lower limb deformity",
-    emergencyServices: "Ambulance leading; fire for extrication; HEMS requested",
+    N: "One — male, conscious, obvious lower limb deformity, pelvic pain",
+    emergencyServices: "Ambulance leading; fire and HEMS to be considered",
   },
 
   pda: [
@@ -78,17 +81,17 @@ export const scenario34: Scenario = {
       service: "Ambulance",
       requiredApplianceTypes: ["DCA"],
       requiredCapabilities: [],
-      preferredStationId: "A-SAL",
-      notes: "First road resource. Major trauma triage decides where he goes, not how fast he leaves",
+      preferredStationId: "A-SFD",
+      notes: "First road resource. The trauma centre is three kilometres away; the question is which one, and whether they know he is coming",
     },
     {
       id: "hems",
       label: "HEMS",
       service: "Ambulance",
-      requiredApplianceTypes: ["HEMS"],
+      requiredApplianceTypes: ["HEMS", "CCC"],
       requiredCapabilities: [],
       notes:
-        "A doctor and interventions a road crew cannot do — and on a site with a long carry, often the faster route to the trauma centre as well",
+        "A doctor and interventions a road crew cannot do. The aircraft by day, the critical care car by night or in weather — the same team either way",
     },
     {
       id: "pump1",
@@ -97,7 +100,7 @@ export const scenario34: Scenario = {
       requiredApplianceTypes: ["WrL", "WrT"],
       requiredCapabilities: [],
       preferredStationId: "G58",
-      notes: "He is on boards at first-floor level. Somebody has to bring him down, and it is not the ambulance crew",
+      notes: "A live site with open edges and a man on the boards a couple of metres up. The hands and the working-at-height kit for a carry the crew will have to plan",
     },
   ],
 
@@ -106,33 +109,33 @@ export const scenario34: Scenario = {
       { metric: "Time-to-mobilise", target: "< 90 seconds" },
       {
         metric: "Trauma triage",
-        target: "recognised from the mechanism — a fall over three metres, before any observations",
+        target: "major trauma centre chosen as soon as the survey is in, and the ATMIST pre-alert sent — the Pathfinder puts this pelvis and chest at the MRI",
       },
       {
         metric: "HEMS",
-        target: "requested early; the site has a landing area and the carry is long",
+        target: "requested early; the site has a landing area and the crew will want the doctor",
       },
       {
-        metric: "Extrication",
-        target: "fire mobilised — he cannot come down a ladder",
+        metric: "Fire attendance",
+        target: "a pump mobilised — a live site, working at height, and hands for the carry",
       },
     ],
     lesson:
-      "Major trauma is a triage decision before it is a clinical one, and the mechanism alone decides it: four metres onto concrete meets the criteria before anybody has taken a pulse. So he bypasses everything nearer for a trauma centre. Ask for HEMS early — not for the speed but for the doctor — and send fire, because a man on scaffolding boards with a broken leg is not coming down a ladder.",
+      "Major trauma is usually a bypass decision. Not here: from Ordsall Lane the nearest emergency department is the MRI, and the MRI is a major trauma centre. So the decision is which trauma centre, and the Pathfinder answers it — a pelvis and a right chest wall are thoraco-abdominal, and thoraco-abdominal goes to the MRI, not the kilometre further to Salford. Choose it as soon as the survey is in, send the pre-alert so the team is stood in resus, and ask for HEMS early — not for the speed but for the doctor.",
   },
 
   scene: {
     viewBox: { x: -60, y: -45, width: 120, height: 90 },
     compassNorth: "up",
-    // First-floor scaffold — he has to come down before he goes anywhere.
+    // First-lift scaffold — he has to come down flat before he goes anywhere.
     egressExtraSeconds: 420,
     // What this building will not take. Prose above; a locked option
     // with its reason on it here.
     egressBlocked: [
-      { action: "walked", reason: "First-floor scaffold boards. Nobody walks off that, and he could not if he wanted to" },
+      { action: "walked", reason: "First-lift scaffold boards. Nobody walks off that, and he could not if he wanted to" },
       { action: "carry_chair", reason: "A chair on a scaffold ladder is how you make a second casualty" },
-      { action: "trolley", reason: "He is at first-floor level on boards — the trolley cannot be got to him" },
-      { action: "wheelchair", reason: "He is at first-floor level on boards — the trolley cannot be got to him" },
+      { action: "trolley", reason: "He is on boards two metres up — the trolley cannot be got to him" },
+      { action: "wheelchair", reason: "Nothing with wheels gets to a first-lift scaffold, and he is not sitting up with that pelvis" },
     ],
     buildings: [
       { shape: { x: -26, y: -32, w: 52, h: 34 }, kind: "target", label: "Frame — scaffolded" },
@@ -143,18 +146,18 @@ export const scenario34: Scenario = {
       { shape: { x: -60, y: 26, w: 120, h: 4 }, kind: "driveway", label: "Site gates" },
       { shape: { x: -60, y: 30, w: 120, h: 10 }, kind: "road", label: "Ordsall Lane" },
     ],
-    hydrants: [{ label: "H1", coords: { lat: 53.4736, lng: -2.2706 }, street: "Ordsall Lane" }],
+    hydrants: [{ label: "H1", pos: { x: -30, y: 33 }, street: "Ordsall Lane" }],
     landmarks: [
       { pos: { x: 36, y: 14 }, kind: "car" },
       { pos: { x: 44, y: 14 }, kind: "car" },
-      { pos: { x: -44, y: 34 }, kind: "lamppost" },
+      { pos: { x: -44, y: 28 }, kind: "lamppost" },
     ],
     hazards: [
       {
         id: "height",
         pos: { x: -4, y: -18 },
         kind: "structural",
-        label: "Casualty on scaffolding boards at first-floor level",
+        label: "Casualty on first-lift scaffolding boards, about two metres up",
         knownFromPri: true,
       },
       {
@@ -164,29 +167,26 @@ export const scenario34: Scenario = {
         label: "Live site — plant movements, open edges, stacked materials",
         knownFromPri: true,
       },
-      {
-        id: "landing",
-        pos: { x: -20, y: 14 },
-        kind: "structural",
-        label: "Hard standing clear enough for an aircraft if the manager moves the plant",
-        discoverAfterMinOnScene: 2,
-      },
     ],
     casualties: [
       {
         id: "cas-34-worker",
-        label: "Male, 30s — fall approximately 4 m, lower limb deformity",
+        label: "Male, 30s — fall approximately 6 m, lower limb deformity, pelvic pain",
         pos: { x: -4, y: -17 },
         severity: "critical",
-        discoverAfterMinBa: 1,
+        // On open boards in plain sight — nobody has to search for him.
+        discoverAfterMinBa: 0,
         clinical: {
           // Talking on arrival and quietly bleeding into his pelvis and
           // thigh. The blood pressure is the thing to watch, not the leg.
           vitals: { rr: 26, spo2: 94, hr: 124, bpSys: 96, bpDia: 58, gcs: 14, temp: 36.1, bm: 6.0 },
           ageYears: 34,
-          presumedCondition: "Fall from height approximately 4 m — open lower limb deformity, pelvic pain",
+          presumedCondition: "Fall from height approximately 6 m — open lower limb deformity, pelvic pain, right-sided chest wall pain",
           redFlags: ["hypovolaemic_shock", "spinal_injury_suspected", "major_haemorrhage"],
           preferredDestination: "mtc",
+          // The pelvis and the right chest are what the Pathfinder splits
+          // on: thoraco-abdominal to the MRI, not to Salford.
+          injuryPattern: ["thoraco_abdominal"],
           criticalInterventions: ["oxygen", "iv_access", "tXA", "pelvic_binder", "spine_board"],
         },
       },
@@ -203,7 +203,7 @@ export const scenario34: Scenario = {
     {
       id: "manager-first",
       atSec: 5,
-      text: "Site manager, Ordsall Lane. One of the lads has come off the scaffold — twelve, thirteen foot onto the concrete. He's awake and talking but his leg's the wrong shape. They've moved him up onto the boards, I know they shouldn't have.",
+      text: "Site manager, Ordsall Lane. One of the lads has come off the top of the scaffold — twenty foot, near enough, onto the slab. He's awake and talking but his leg's the wrong shape. They've carried him up onto the first-lift boards, I know they shouldn't have.",
       tone: "critical",
     },
     {
@@ -224,15 +224,15 @@ export const scenario34: Scenario = {
       id: "carry",
       atSec: 300,
       probability: 0.7,
-      text: "Your crew are saying they can't get him down the ladder like that. They're asking about a different way off the scaffold.",
+      text: "Kev's had a look at the ladder. There's no way he's coming down that flat on his back — it's a hatch and a ladder, that's all there is on this side. Whoever comes is going to have to work that out.",
       tone: "urgent",
     },
   ],
 
   // The call as Dean has it: on his work mobile at the foot of the scaffold
-  // ladder, looking up at the boards where the lads have put Tomek, with
-  // the site stopped behind him and the gates already open. He did not
-  // see him go; he saw where he landed, and he knows how far it was.
+  // ladder, looking up at the first-lift boards where the lads have put
+  // Tomek, with the site stopped behind him and the gates already open. He
+  // did not see him go; he saw where he landed, and he knows how far it was.
   call: {
     caller: {
       name: "Dean Prescott",
@@ -243,7 +243,7 @@ export const scenario34: Scenario = {
       state: "calm",
     },
     opening:
-      "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the scaffold onto concrete — four metres, near enough. He's awake and he's talking to us, but his leg's badly broken, it's bent the wrong way, and he's saying his hip. And he's up on the first-floor boards — the lads moved him before I got to him. I need you here quick.",
+      "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the top of the scaffold onto the concrete — six metres, near enough. He's awake and he's talking to us, but his leg's badly broken, it's bent the wrong way, and he's saying his hip. And he's up on the first-lift boards now — the lads carried him up there before I got to him. I need you here quick.",
     deflection: "Hang on. — Kev, keep him flat, don't let him — sorry. Go on.",
     reassurance: {
       text: "Dean, you've got this well in hand. Help is coming. Keep everyone off him and keep talking to me.",
@@ -268,7 +268,7 @@ export const scenario34: Scenario = {
         ],
       },
       a_happened: {
-        text: "He was on the top lift of the scaffold, the third, laying blocks. Whether a board's gone or he's stepped back into nothing I don't know yet — nobody's told me the same thing twice. He's come down about four metres onto the first floor of the frame, and that's concrete, the floor's poured up there. He's landed on his right side with his leg under him. Before I got there two of the lads had dragged him off the concrete onto the scaffold boards at that level, God knows why, they panicked. So he's on the first lift now, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
+        text: "He was on the top lift of the scaffold, the third, laying blocks. The lads reckon a board went under him — I've not been up to look. He's come down about six metres onto the ground slab, and that's concrete. He's landed on his right side with his leg under him. Before I got there two of the lads had carried him up the ladder onto the first-lift boards, out of the way of the plant, God knows why, they panicked. So he's on the first lift now, a couple of metres up, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
         tone: "urgent",
       },
       a_when: {
@@ -300,13 +300,13 @@ export const scenario34: Scenario = {
         text: "Just him. Nobody else was on that lift. The two that moved him are fine — shaken up, but fine.",
       },
       a_danger: {
-        text: "It's a live site but I've stopped it — nothing's moving now. The telehandler's parked up on the hard standing and the keys are in my pocket. There's open edges on the first floor where he is, and the hatch on that lift's got no cover. Everyone's in hats and boots. Your crew'll want hats — I've got spares in the cabin.",
+        text: "It's a live site but I've stopped it — nothing's moving now. The telehandler's parked up on the hard standing and the keys are in my pocket. There's open edges on the frame behind him, and the hatch on that lift's got no cover. Everyone's in hats and boots. Your crew'll want hats — I've got spares in the cabin.",
         followUps: [
           {
             id: "a_danger_height",
             text: "How high up is he, and how do you get to him?",
             answer: {
-              text: "First lift — about three metres off the ground. The scaffold ladder up through the hatch, that's the only way. There's no stair tower on this side of the frame, it's not gone up yet.",
+              text: "First lift — about two metres off the ground. The scaffold ladder up through the hatch, that's the only way. There's no stair tower on this side of the frame, it's not gone up yet.",
               tone: "urgent",
             },
           },
@@ -337,7 +337,7 @@ export const scenario34: Scenario = {
     interjections: [
       {
         atSec: 45,
-        text: "Hang on — GET OFF HIM. Leave him where he is — don't — sorry. They keep wanting to sit him up. I've told them twice.",
+        text: "Hang on — Kev, keep him FLAT. Don't let him — sorry. He keeps trying to sit himself up to look at the leg. Kev's got him.",
         tone: "urgent",
       },
       {
@@ -348,7 +348,7 @@ export const scenario34: Scenario = {
       },
       {
         atSec: 160,
-        text: "The lads are saying he went off backwards, arms out. The board he was stood on's still up there — it's cracked clean through. I'll leave it where it is for the HSE.",
+        text: "The lads are saying he went off backwards, arms out. The board he was stood on's still up there — cracked clean through, like they said. I'll leave it where it is for the HSE.",
       },
       {
         atSec: 220,
@@ -356,6 +356,6 @@ export const scenario34: Scenario = {
         requiresOpened: true,
       },
     ],
-    onDispatch: "Right. Good. Gates are open — I'll be in them. Tell them to come straight in onto the hard standing, and tell them he's up on the boards, not on the ground. They'll want to think about how they're getting him down.",
+    onDispatch: "Right. Good. Gates are open — I'll be in them. Tell them to come straight in onto the hard standing, and tell them he's up on the boards, not on the ground. They'll want to think about how they're getting him down flat.",
   },
 };
