@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -26,3 +27,15 @@ export async function createClient() {
     },
   );
 }
+
+/** The signed-in account for this request, looked up once. A layout and
+ *  its page both gate on the user; without this each asked Supabase
+ *  again, one round trip after the other, before a byte of the page
+ *  went out. */
+export const currentUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return { supabase, user };
+});

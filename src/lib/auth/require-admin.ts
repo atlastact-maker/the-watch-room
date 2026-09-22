@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess } from "./operator-access";
 
 // Closed site: the advisor programme is the only thing open. Everything
@@ -14,10 +14,7 @@ import { hasAdminAccess, hasShiftAccess } from "./operator-access";
 // of the locked routes are client components and cannot await a server
 // check themselves. A layout is a server component either way.
 export async function requireAdmin(): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await currentUser();
   if (!user) redirect("/login");
   // Not an error page: an applicant who wanders in lands on their own
   // standing rather than being told off.
@@ -33,10 +30,7 @@ export async function requireAdmin(): Promise<void> {
 // blip), the request carries on unauthenticated. A page that reads an
 // account's own data cannot rely on that.
 export async function requireSession(): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await currentUser();
   if (!user) redirect("/login");
 }
 
@@ -49,10 +43,7 @@ export async function requireSession(): Promise<void> {
 // service record. An advisor who follows a link to one lands back on
 // their own standing rather than on an error.
 export async function requireShift(): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await currentUser();
   if (!user) redirect("/login");
   if (!(await hasShiftAccess(supabase, user.email))) redirect("/standby");
 }

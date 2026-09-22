@@ -188,7 +188,14 @@ import { SCENARIOS } from "@/lib/sim/scenarios";
 import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
-import { StationBayPanel } from "./components/station-bay-panel";
+import dynamic from "next/dynamic";
+// Opened from the map, not on the way in: the bay view and the glossary
+// carry the vehicle artwork, four hundred kilobytes the desk does not
+// need until somebody asks for them.
+const StationBayPanel = dynamic(
+  () => import("./components/station-bay-panel").then((m) => m.StationBayPanel),
+  { ssr: false, loading: () => null },
+);
 import { IncidentView, resolveDeployments, type PendingClosure } from "./components/incident-view";
 import { canGiveDrug, generateProfile, initialPhysio, calibrate, withInfusion } from "@/lib/sim/physiology";
 import { PatientCareTile } from "./vector/patient-care";
@@ -202,7 +209,10 @@ import { readPoliceRecord, updatePoliceRecord } from "./vector/police-store";
 import type { PdaSlot } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { useRouter } from "next/navigation";
-import { GlossaryOverlay } from "./components/glossary-overlay";
+const GlossaryOverlay = dynamic(
+  () => import("./components/glossary-overlay").then((m) => m.GlossaryOverlay),
+  { ssr: false, loading: () => null },
+);
 import { ResumePrompt } from "./components/resume-prompt";
 import {
   applyResumeOffset,

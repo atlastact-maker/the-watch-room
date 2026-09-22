@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   serviceKeyFor,
@@ -50,7 +51,7 @@ export type AccessProfile = {
 /** The account's assigned role and icon, from user_roles (migrations
  *  004/005). Null role when unassigned, the table is missing, or the
  *  lookup fails — callers treat that as plain standby. */
-export async function accessProfile(
+export const accessProfile = cache(async function accessProfile(
   supabase: SupabaseClient,
   email: string | undefined | null,
 ): Promise<AccessProfile> {
@@ -77,7 +78,7 @@ export async function accessProfile(
   } catch {
     return { role: null, icon: "", lookupFailed: true };
   }
-}
+});
 
 /** The insignia this account wears, as a ServiceKey for the
  *  service-insignia components. The icon column in user_roles overrides
