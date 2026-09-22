@@ -235,6 +235,7 @@ import { Poppable } from "./vector/popout";
 import type { Menu, VectorScreen } from "./vector/chrome";
 import { shortAddress, incidentRef } from "./vector/model";
 import { BugReportDialog } from "./components/bug-report-dialog";
+import { setViewAs } from "@/app/actions/view-as";
 import { LATEST as LATEST_RELEASE } from "@/lib/changelog";
 import "./vector/vector.css";
 
@@ -269,9 +270,11 @@ type Props = {
   /** The scenarios this desk may draw from — the released set for a
    *  tester, null for an admin, who gets everything. */
   releasedScenarioIds?: string[] | null;
+  /** For a real admin: which view they are in. Null for everyone else. */
+  viewAs?: "admin" | "tester" | null;
 };
 
-export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds = null }: Props) {
+export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds = null, viewAs = null }: Props) {
   // The jobs on offer to this desk. Fixed for the page's life, so the
   // call generator can close over it safely.
   const openScenarios = useMemo(
@@ -6267,11 +6270,25 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       items: [
         { label: "Glossary · shortcuts", hint: "?", act: () => setGlossaryOpen(true) },
         { label: "Report a problem", act: () => setBugOpen(true), title: "File a bug or a suggestion with the team" },
+        ...(viewAs
+          ? [
+              {
+                label: viewAs === "tester" ? "Back to admin view" : "View as tester",
+                title: viewAs === "tester" ? "Back to every scenario and the admin links" : "See the desk as a tester does — released scenarios only",
+                act: () => {
+                  const fd = new FormData();
+                  fd.set("mode", viewAs === "tester" ? "admin" : "tester");
+                  void setViewAs(fd).then(() => window.location.reload());
+                },
+              },
+            ]
+          : []),
         { label: "About VECTOR", act: () => setStatusMsg("VECTOR — The Watch Room's command and control desk. Simulation only.") },
       ],
     },
   ];
   const lights: { label: string; tone: "go" | "warn" | "off" | "stop" | "none"; title?: string }[] = [
+    ...(viewAs === "tester" ? [{ label: "TESTER VIEW", tone: "warn" as const, title: "You are seeing the desk as a tester does — Help → Back to admin view" }] : []),
     { label: "AIRWAVE", tone: "go", title: "Radio — simulated, always up" },
     { label: "MDT", tone: groundAvailable ? "go" : "warn", title: groundAvailable ? "MDT reachable for the selected job" : "No live job selected" },
     { label: "OS GAZ", tone: osMappingEnabled() ? "go" : "warn", title: osMappingEnabled() ? "OS mapping connected" : "OS mapping not configured — street map in use" },

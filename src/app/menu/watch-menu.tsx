@@ -8,6 +8,7 @@ import { useFormStatus } from "react-dom";
 import { logout } from "@/lib/auth/actions";
 import { CHANGELOG, LATEST, formatEntryDate } from "@/lib/changelog";
 import { submitBugReport } from "@/app/actions/bug-report";
+import { setViewAs } from "@/app/actions/view-as";
 import { BUG_CATEGORIES, BUG_SEVERITIES, isBugCategory, isBugSeverity } from "@/lib/bug-reports";
 import { preparedWatchUrl, WATCH_SERVICES } from "@/lib/sim/menu-state";
 import type { ServiceCode } from "@/lib/sim/types";
@@ -17,7 +18,7 @@ import { usePlayerRecord } from "./use-player-record";
 import styles from "./watch-menu.module.css";
 
 export type MenuView = "overview" | "shift" | "guide" | "updates";
-type Props = { userId: string; callsign: string; email: string; discord: string; isAdmin: boolean; view: MenuView };
+type Props = { userId: string; callsign: string; email: string; discord: string; isAdmin: boolean; view: MenuView; viewAs: "admin" | "tester" | null };
 const titles: Record<MenuView, string> = { overview: "Watch overview", shift: "New shift", guide: "How to play", updates: "What's new & feedback" };
 const serviceName = (service: ServiceCode) => service === "Fire" ? "Fire & rescue" : service;
 const intensityName = (intensity: string) => intensity === "normal" ? "Standard" : intensity === "quiet" ? "Quiet" : "Busy";
@@ -117,14 +118,14 @@ function Preparation({ hasSave, ready }: { hasSave: boolean; ready: boolean }) {
   </>;
 }
 
-export function WatchMenu({ userId, callsign, email, discord, isAdmin, view }: Props) {
+export function WatchMenu({ userId, callsign, email, discord, isAdmin, view, viewAs }: Props) {
   const record = usePlayerRecord();
   const nav = (target: MenuView, icon: string) => <Link className={view === target ? styles.active : undefined} href={viewHref(target)} aria-current={view === target ? "page" : undefined} title={titles[target]}><span aria-hidden="true">{icon}</span><span>{target === "shift" ? "Start a shift" : titles[target]}</span></Link>;
   const savedAgo = record.save ? Math.max(0, Math.round((record.now - record.save.savedAt) / 60000)) : 0;
   return <div className={styles.shell}>
     <aside className={styles.sidebar}><Link href="/menu" className={styles.brand} aria-label="The Watch Room home"><Image src="/email-logo.png" width={42} height={32} alt="The Watch Room logo" /><span>THE<br />WATCH ROOM</span></Link>
       <nav className={styles.nav} aria-label="Main navigation"><p>Operations</p>{nav("overview", "⌂")}{nav("shift", "◇")}<Link href="/stats"><span aria-hidden="true">▤</span><span>Service record</span></Link>{nav("guide", "?")}<Link href="/glossary"><span aria-hidden="true">▥</span><span>Reference library</span></Link><p>Community</p><a href={community} target="_blank" rel="noreferrer"><span aria-hidden="true">◎</span><span>Discord community</span></a>{nav("updates", "+")}<p>Account</p>{isAdmin && <Link href="/admin"><span aria-hidden="true">♜</span><span>Administration</span></Link>}<Link href="/settings"><span aria-hidden="true">⚙</span><span>Settings</span></Link></nav>
-      <div className={styles.account}><Link href="/settings" title={email}><strong>{callsign || "Your account"}</strong><small>{isAdmin ? "Administrator" : "Operator"}</small></Link><form action={logout}><LogoutButton /></form><p>GREATER MANCHESTER<br />CLOSED DEVELOPMENT</p></div>
+      <div className={styles.account}><Link href="/settings" title={email}><strong>{callsign || "Your account"}</strong><small>{viewAs === "tester" ? "Administrator · viewing as tester" : isAdmin ? "Administrator" : "Operator"}</small></Link>{viewAs && <form action={setViewAs}><input type="hidden" name="mode" value={viewAs === "tester" ? "admin" : "tester"} /><button className={styles.button} type="submit" title={viewAs === "tester" ? "Back to everything an administrator sees" : "See the ops centre and the desk as a tester does"}>{viewAs === "tester" ? "Back to admin view" : "View as tester"}</button></form>}<form action={logout}><LogoutButton /></form><p>GREATER MANCHESTER<br />CLOSED DEVELOPMENT</p></div>
     </aside>
     <main className={styles.main}><div className={styles.topbar}><span>Operations / <strong>{titles[view]}</strong></span><span>Greater Manchester</span></div><div className={styles.content}>
       {view === "overview" && <><p className={styles.greeting}>Welcome{record.save || record.last ? " back" : ""}{callsign ? `, ${callsign}` : ""}. Your next watch is waiting.</p>

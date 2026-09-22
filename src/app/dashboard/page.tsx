@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
+import { viewingAsTester } from "@/lib/auth/view-as";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import type { Appliance, AreaCode, Station } from "@/lib/sim/types";
 import { DashboardClient } from "./dashboard-client";
@@ -19,7 +20,9 @@ export default async function DashboardPage() {
   // draws from all of them. Before migration 018 the table is missing and
   // the query errors, which reads as "nothing released" for a tester —
   // the safe way round.
-  const admin = await hasAdminAccess(supabase, user.email);
+  const realAdmin = await hasAdminAccess(supabase, user.email);
+  const asTester = realAdmin && (await viewingAsTester());
+  const admin = realAdmin && !asTester;
   let releasedScenarioIds: string[] | null = null;
   if (!admin) {
     const { data } = await supabase.from("released_scenarios").select("scenario_id");
@@ -42,6 +45,7 @@ export default async function DashboardPage() {
       userEmail={user.email ?? ""}
       stationsByArea={stationsByArea}
       releasedScenarioIds={releasedScenarioIds}
+      viewAs={realAdmin ? (asTester ? "tester" : "admin") : null}
     />
   );
 }
