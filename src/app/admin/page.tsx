@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SCENARIOS } from "@/lib/sim/scenarios";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
@@ -7,6 +8,7 @@ import {
   setRole,
   setTester,
   setBugReport,
+  setScenarioReleased,
   deleteRole,
   setBan,
   deleteUser,
@@ -101,7 +103,7 @@ const inputCls =
 const btnCls =
   "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
 
-type AdminTab = "applications" | "users" | "advisors" | "bugs";
+type AdminTab = "applications" | "users" | "advisors" | "bugs" | "scenarios";
 
 type BugRow = {
   id: string;
@@ -193,10 +195,13 @@ export default async function AdminPage({
   const missing015 = missing === "015";
   const missing016 = missing === "016";
   const missing017 = missing === "017";
+  const missing018 = missing === "018";
   // Which of the three lists is on screen. Applications first: it is the
   // one with decisions waiting in it.
   const tab: AdminTab =
-    tabParam === "users" || tabParam === "advisors" || tabParam === "bugs" ? tabParam : "applications";
+    tabParam === "users" || tabParam === "advisors" || tabParam === "bugs" || tabParam === "scenarios"
+      ? tabParam
+      : "applications";
   const supabase = await createClient();
   const {
     data: { user },
@@ -204,7 +209,7 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
@@ -213,7 +218,10 @@ export default async function AdminPage({
     supabase.rpc("admin_list_users", { p_limit: 200 }),
     supabase.rpc("admin_notes_all"),
     supabase.rpc("admin_list_bug_reports", { p_limit: 200 }),
+    supabase.from("released_scenarios").select("scenario_id, note"),
   ]);
+  const missingReleased = releasedRes.error?.message?.includes("released_scenarios") === true;
+  const released = new Set(((releasedRes.data ?? []) as { scenario_id: string }[]).map((r) => r.scenario_id));
   // Reports are the newest table; before migration 017 the function is
   // missing, which is a banner on its tab rather than an error page.
   const missingBugs = bugsRes.error?.message?.includes("admin_list_bug_reports") === true;
@@ -323,6 +331,7 @@ export default async function AdminPage({
           />
           <AdminTabLink tab="users" current={tab} label="Registered users" count={users.length} />
           <AdminTabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} countTone={openBugs > 0 ? "amber" : undefined} />
+          <AdminTabLink tab="scenarios" current={tab} label="Scenarios" count={released.size} />
           <AdminTabLink
             tab="advisors"
             current={tab}
@@ -491,6 +500,61 @@ export default async function AdminPage({
 
         {/* Current advisors — the access-roles table: everyone who has
             been granted something, with the Discord tick. */}
+        {tab === "scenarios" && (
+          <section className="space-y-3">
+            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+              Scenarios open to testers
+              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
+                {released.size} of {SCENARIOS.length} · admins see all of them
+              </span>
+            </h2>
+            {(missing018 || missingReleased) && (
+              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
+                Migration 018 (scenario release) has not reached the app yet — run supabase/migrations/018_released_scenarios.sql in the Supabase SQL editor, then reload. Until it has, testers get no calls at all.
+              </div>
+            )}
+            {(["Fire", "Ambulance", "Police"] as const).map((service) => {
+              const rows = SCENARIOS.filter((sc) => (sc.pda[0]?.service ?? "Fire") === service);
+              return (
+                <div key={service} className="space-y-1.5">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+                    {service} · {rows.filter((sc) => released.has(sc.id)).length} of {rows.length} open
+                  </h3>
+                  <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
+                    {rows.map((sc) => {
+                      const on = released.has(sc.id);
+                      return (
+                        <form key={sc.id} action={setScenarioReleased} className="flex items-center gap-3 px-3 py-1.5 text-[12px]">
+                          <input type="hidden" name="scenarioId" value={sc.id} />
+                          <input type="hidden" name="released" value={on ? "false" : "true"} />
+                          <button
+                            type="submit"
+                            role="checkbox"
+                            aria-checked={on}
+                            aria-label={`${sc.title} open to testers`}
+                            title={on ? "Open to testers — click to close" : "Closed — click to open to testers"}
+                            className={
+                              "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[2px] border text-[12px] leading-none transition-colors " +
+                              (on
+                                ? "border-(--color-ok) bg-(--color-ok)/15 text-(--color-ok)"
+                                : "border-(--color-border) text-transparent hover:border-(--color-ok)/60")
+                            }
+                          >
+                            ✓
+                          </button>
+                          <span className="font-mono text-[10px] text-(--color-text-dim)">#{sc.id}</span>
+                          <span className={on ? "text-(--color-text)" : "text-(--color-text-muted)"}>{sc.title}</span>
+                          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{sc.severity}</span>
+                        </form>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
         {tab === "bugs" && (
           <section className="space-y-3">
             <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">

@@ -266,9 +266,18 @@ const SEVERITY_WORSE: Record<string, number> = {
 type Props = {
   userEmail: string;
   stationsByArea: Record<AreaCode, StationWithAppliances[]>;
+  /** The scenarios this desk may draw from — the released set for a
+   *  tester, null for an admin, who gets everything. */
+  releasedScenarioIds?: string[] | null;
 };
 
-export function DashboardClient({ userEmail, stationsByArea }: Props) {
+export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds = null }: Props) {
+  // The jobs on offer to this desk. Fixed for the page's life, so the
+  // call generator can close over it safely.
+  const openScenarios = useMemo(
+    () => (releasedScenarioIds ? SCENARIOS.filter((s) => releasedScenarioIds.includes(s.id)) : SCENARIOS),
+    [releasedScenarioIds],
+  );
   const [patch, setPatch] = useState<Patch | null | undefined>(null);
   const [intensity, setIntensity] = useState<ShiftIntensity>("normal");
   // Director mode: pick up ?director=loud|quiet|off once on mount.
@@ -1869,7 +1878,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       }
       const live = new Set(incidents.map((i) => i.scenarioId));
       const waiting = new Set(pendingCalls.map((c) => c.scenario.id));
-      const candidates = SCENARIOS.filter(
+      const candidates = openScenarios.filter(
         (sc) =>
           scenarioCovered(sc, coveredServices) &&
           !live.has(sc.id) &&
@@ -6073,7 +6082,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }
 
   function queueTestCall() {
-    const pool = SCENARIOS.filter(
+    const pool = openScenarios.filter(
       (s) => scenarioCovered(s, coveredServices) && !incidents.some((i) => i.scenarioId === s.id && !runtimes[i.id]?.outcome) && !pendingCalls.some((c) => c.scenario.id === s.id),
     );
     if (pool.length === 0) {
@@ -6090,7 +6099,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   };
   const scenarioMenu: Menu = {
     label: "Scenarios",
-    items: SCENARIOS.filter((s) => scenarioCovered(s, coveredServices)).map((s) => ({
+    items: openScenarios.filter((s) => scenarioCovered(s, coveredServices)).map((s) => ({
       label: s.title,
       hint: `#${s.id} · ${s.severity.toUpperCase()}`,
       act: () => {

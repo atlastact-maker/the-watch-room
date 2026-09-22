@@ -161,6 +161,23 @@ export async function setTester(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/** Open or close a scenario to testers. */
+export async function setScenarioReleased(formData: FormData): Promise<void> {
+  const id = String(formData.get("scenarioId") ?? "").trim();
+  if (!id) return;
+  const released = String(formData.get("released") ?? "") === "true";
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_scenario_released", {
+    p_scenario_id: id,
+    p_released: released,
+  });
+  if (error?.message?.includes("admin_set_scenario_released")) {
+    redirect("/admin?missing=018&tab=scenarios");
+  }
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
 /** Triage a bug report: status, and a note if one was typed. */
 export async function setBugReport(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "").trim();

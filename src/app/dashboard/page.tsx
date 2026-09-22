@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { hasShiftAccess } from "@/lib/auth/operator-access";
+import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import type { Appliance, AreaCode, Station } from "@/lib/sim/types";
 import { DashboardClient } from "./dashboard-client";
@@ -14,6 +14,17 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
   // Same lock as the menu — the dashboard is the shift, so it holds too.
   if (!(await hasShiftAccess(supabase, user.email))) redirect("/standby");
+
+  // A tester's desk only draws from the released scenarios; an admin's
+  // draws from all of them. Before migration 018 the table is missing and
+  // the query errors, which reads as "nothing released" for a tester —
+  // the safe way round.
+  const admin = await hasAdminAccess(supabase, user.email);
+  let releasedScenarioIds: string[] | null = null;
+  if (!admin) {
+    const { data } = await supabase.from("released_scenarios").select("scenario_id");
+    releasedScenarioIds = (data ?? []).map((r) => String(r.scenario_id));
+  }
 
   // Pre-compute appliances per station server-side so the client bundle stays lean.
   const stationsByArea: Record<AreaCode, StationWithAppliances[]> = {
@@ -30,6 +41,7 @@ export default async function DashboardPage() {
     <DashboardClient
       userEmail={user.email ?? ""}
       stationsByArea={stationsByArea}
+      releasedScenarioIds={releasedScenarioIds}
     />
   );
 }
