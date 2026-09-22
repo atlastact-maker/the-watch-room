@@ -27,7 +27,7 @@ export const scenario32: Scenario = {
     "Category 1 — female late twenties, known nut allergy, collapsed in a restaurant. Lips and tongue swelling, wheezing. Own auto-injector used once",
 
   location: {
-    address: "Goose Green, Altrincham",
+    address: "Siam Green (Thai restaurant), Goose Green, Altrincham",
     postcode: "WA14 1DW",
     coords: { lat: 53.3874, lng: -2.3512 },
   },
@@ -56,7 +56,7 @@ export const scenario32: Scenario = {
 
   methane: {
     M: "No",
-    E: "Goose Green, Altrincham, WA14 1DW",
+    E: "Siam Green, Goose Green, Altrincham, WA14 1DW — green frontage, pedestrianised lane off Stamford New Road",
     T: "Anaphylaxis — airway swelling and wheeze, one auto-injector already given",
     H: "Crowded dining room. Pedestrianised access with a carry out",
     A: "Top of the lane by vehicle, then approximately 60 m on foot",
@@ -89,7 +89,7 @@ export const scenario32: Scenario = {
   evaluation: {
     targets: [
       { metric: "Time-to-mobilise", target: "< 90 seconds" },
-      { metric: "C1 response", target: "first clinician on scene inside 15 minutes" },
+      { metric: "C1 response", target: "first clinician on scene and paired to her inside 10 minutes" },
       {
         metric: "Nearest clinician",
         target: "RRV sent — the immediate need is a drug, not a vehicle",
@@ -100,7 +100,7 @@ export const scenario32: Scenario = {
       },
     ],
     lesson:
-      "The one job here where a rapid response vehicle is the right answer rather than a compromise. She needs adrenaline in the next few minutes and a solo responder carries it; holding out for an ambulance because she will need transport is solving the second problem first. Send both. And note the street is pedestrianised — the last sixty metres are on foot whatever you send.",
+      "The one job here where a rapid response vehicle is the right answer rather than a compromise. She needs adrenaline in the next few minutes and a solo responder carries it; holding out for an ambulance because she will need transport is solving the second problem first. Send both. She has ten minutes from the moment you send: pair the first unit to her the second it books in attendance. And note the street is pedestrianised — the last sixty metres are on foot whatever you send.",
   },
 
   scene: {
@@ -138,7 +138,7 @@ export const scenario32: Scenario = {
       },
       {
         id: "crowded",
-        pos: { x: -2, y: -16 },
+        pos: { x: -2, y: -14 },
         kind: "structural",
         label: "Forty covers in a small dining room — carry out through tables",
         discoverAfterMinOnScene: 1,
@@ -148,7 +148,7 @@ export const scenario32: Scenario = {
       {
         id: "cas-32-diner",
         label: "Female, late twenties — airway swelling, wheeze",
-        pos: { x: -2, y: -15 },
+        pos: { x: 4, y: -23 },
         severity: "critical",
         discoverAfterMinBa: 0,
         clinical: {
@@ -156,8 +156,11 @@ export const scenario32: Scenario = {
           // still tachycardic, still hypotensive, still wheezing.
           vitals: { rr: 30, spo2: 90, hr: 132, bpSys: 84, bpDia: 50, gcs: 14, temp: 36.9, bm: 5.9 },
           ageYears: 28,
-          presumedCondition: "Anaphylaxis — airway swelling, wheeze, urticaria, hypotension",
-          redFlags: ["anaphylaxis", "airway_compromise"],
+          presumedCondition: "Anaphylaxis — peanut, known nut allergy, mild asthma; airway swelling, wheeze, urticaria, hypotension",
+          // Anaphylaxis alone: the model swells the airway itself and
+          // adrenaline is what opens it. A structural airway flag on top
+          // made the swelling something no drug could touch.
+          redFlags: ["anaphylaxis"],
           preferredDestination: "nearest_a_e",
           // Adrenaline is the treatment. Everything else supports it.
           criticalInterventions: ["adrenaline_im", "oxygen", "iv_access", "fluids"],
@@ -175,8 +178,8 @@ export const scenario32: Scenario = {
   informantScript: [
     {
       id: "friend-first",
-      atSec: 4,
-      text: "My friend's having an allergic reaction — she's got a nut allergy and her lips and tongue have swelled right up. She's wheezing and she's gone blotchy all over. We've used her pen already.",
+      atSec: 20,
+      text: "She's leaning on me more. Her breathing's got that whistle on every breath now — is someone actually on their way?",
       tone: "critical",
     },
     {
@@ -189,7 +192,7 @@ export const scenario32: Scenario = {
       id: "access",
       atSec: 100,
       probability: 0.85,
-      text: "You can't drive down here, it's all pedestrian. If they come to the top of the lane one of the staff will run down and bring them.",
+      text: "The manager's sent a lad up to the top of the lane with a torch to wave them in — he's stood by the bollards.",
       tone: "info",
     },
     {
@@ -327,7 +330,7 @@ export const scenario32: Scenario = {
         tone: "urgent",
       },
       {
-        atSec: 215,
+        atSec: 300,
         text: "Someone at the door's saying they can hear a siren, up on the main road — is that yours? Is that them? Somebody go up and wave them down — go on, RUN.",
         requiresOpened: true,
       },

@@ -8,6 +8,7 @@ import type {
   Task,
 } from "./incident_types";
 import type { IncidentSimState } from "./incident_sim";
+import { STANDARD_PDA } from "./pda";
 
 const MOBILISE_TARGET_SEC = 90;
 const ATTENDANCE_TARGET_SEC = 10 * 60;
@@ -57,15 +58,23 @@ export function scoreIncident(
   }, null);
   const attendanceSec =
     firstArrival !== null ? (firstArrival - incident.receivedAt) / 1000 : null;
+  // A graded police call is judged against its own published standard —
+  // an hour for a Grade 2 — not the fire service's ten minutes.
+  const attendanceTargetSec = incident.scenario.callGrade?.standardMinutes
+    ? incident.scenario.callGrade.standardMinutes * 60
+    : ATTENDANCE_TARGET_SEC;
   metrics.push({
     label: "First appliance in attendance",
-    target: `< ${fmtSecs(ATTENDANCE_TARGET_SEC)}`,
+    target: `< ${fmtSecs(attendanceTargetSec)}`,
     actual: attendanceSec !== null ? fmtSecs(attendanceSec) : "none arrived",
-    passed: attendanceSec !== null && attendanceSec <= ATTENDANCE_TARGET_SEC,
+    passed: attendanceSec !== null && attendanceSec <= attendanceTargetSec,
   });
 
-  // 3. PDA conformance
-  const pdaSlots = incident.scenario.pda;
+  // 3. PDA conformance — against the slots the desk actually offered.
+  // Where a standard PDA exists for the type the desk assigns from it,
+  // so scoring the scenario's own list would count the right attendance
+  // as the wrong slots.
+  const pdaSlots = STANDARD_PDA[incident.scenario.type]?.slots ?? incident.scenario.pda;
   const filledSlotIds = new Set(deployments.map((d) => d.slotId));
   const filled = pdaSlots.filter((s) => filledSlotIds.has(s.id)).length;
   const pdaComplete = filled === pdaSlots.length;

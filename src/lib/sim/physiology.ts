@@ -161,7 +161,18 @@ export function generateProfile(seed: string, casualty: SceneCasualty, clinical:
     if (rnd() < 0.3) medications.push("Prednisolone — recent course");
   }
   if (flags.has("anaphylaxis")) {
-    const agent = ["Peanuts", "Bee sting", "Penicillin", "Shellfish"][Math.floor(rnd() * 4)];
+    // The allergen the scenario names wins; the roll is for a scenario
+    // that names none. Otherwise the crew's history check contradicts
+    // the caller three runs in four.
+    const agent = /nut|peanut/.test(condition)
+      ? "Peanuts"
+      : /sting|bee|wasp/.test(condition)
+        ? "Bee sting"
+        : /shellfish|prawn|crab/.test(condition)
+          ? "Shellfish"
+          : /penicillin|amoxicillin|antibiotic/.test(condition)
+            ? "Penicillin"
+            : ["Peanuts", "Bee sting", "Penicillin", "Shellfish"][Math.floor(rnd() * 4)];
     history.push(`Known ${agent.toLowerCase()} allergy — carries an adrenaline auto-injector`);
     medications.push("Adrenaline auto-injector 300 µg");
     allergies.push({ agent, drugs: agent === "Penicillin" ? [] : [], reaction: "anaphylaxis" });
@@ -198,7 +209,7 @@ export function generateProfile(seed: string, casualty: SceneCasualty, clinical:
     if (rnd() < 0.1) { history.push("Type 2 diabetes"); medications.push("Metformin 500 mg BD"); }
   }
   if (age >= 16 && rnd() < 0.15) history.push("Anxiety / depression");
-  if (age <= 15 && rnd() < 0.15 && !flags.has("severe_asthma")) { history.push("Asthma — mild"); medications.push("Salbutamol inhaler PRN"); }
+  if (!flags.has("severe_asthma") && (/asthma/.test(condition) || (age <= 15 && rnd() < 0.15))) { history.push("Asthma — mild"); medications.push("Salbutamol inhaler PRN"); }
 
   // Drug allergies — the ones that matter to a crew's own formulary.
   if (rnd() < 0.12) allergies.push({ agent: "Penicillin", drugs: [], reaction: rnd() < 0.3 ? "anaphylaxis" : "rash" });

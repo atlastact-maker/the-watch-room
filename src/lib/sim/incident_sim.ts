@@ -501,8 +501,13 @@ export function simulateIncident(
       // extra time, while *missed* critical red-flag interventions cut
       // the deterioration window in half.
       const incidentSec = Math.max(0, (now - incident.receivedAt) / 1000);
-      const initialSeverity = (c.severity as CasualtyProgression["severity"]) ?? "serious";
-      let effectiveIdx = SEVERITY_ORDER.indexOf(initialSeverity);
+      // "walking" is how scenarios author the walking wounded; on the
+      // deterioration ladder that is the mildest rung, not a rung of its
+      // own — indexOf would give -1 and march them up from nothing.
+      const authored = c.severity as CasualtyProgression["severity"] | "walking" | undefined;
+      const initialSeverity: CasualtyProgression["severity"] =
+        authored === "walking" || authored === undefined ? (authored === "walking" ? "minor" : "serious") : authored;
+      let effectiveIdx = Math.max(0, SEVERITY_ORDER.indexOf(initialSeverity));
       if (!treated) {
         const tx = treatmentByCasualtyId?.[c.id];
         const { windowSec: baseWindow, savedGrades } = treatmentModifiers(tx, incidentSec);
