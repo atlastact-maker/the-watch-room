@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
+import { isBugStatus } from "@/lib/bug-reports";
 import { sendEmail } from "@/lib/email/send";
 import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
 import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
@@ -155,6 +156,26 @@ export async function setTester(formData: FormData): Promise<void> {
   });
   if (error?.message?.includes("admin_set_tester")) {
     redirect("/admin?missing=016");
+  }
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+/** Triage a bug report: status, and a note if one was typed. */
+export async function setBugReport(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  if (!id || !isBugStatus(status)) return;
+  const noteRaw = formData.get("note");
+  const note = typeof noteRaw === "string" ? noteRaw.trim().slice(0, 2000) : null;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_bug_report", {
+    p_id: id,
+    p_status: status,
+    p_note: note,
+  });
+  if (error?.message?.includes("admin_set_bug_report")) {
+    redirect("/admin?missing=017&tab=bugs");
   }
   if (error) throw new Error(error.message);
   revalidatePath("/admin");

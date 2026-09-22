@@ -7,6 +7,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useFormStatus } from "react-dom";
 import { logout } from "@/lib/auth/actions";
 import { CHANGELOG, LATEST, formatEntryDate } from "@/lib/changelog";
+import { submitBugReport } from "@/app/actions/bug-report";
+import { BUG_CATEGORIES, BUG_SEVERITIES, isBugCategory, isBugSeverity } from "@/lib/bug-reports";
 import { preparedWatchUrl, WATCH_SERVICES } from "@/lib/sim/menu-state";
 import type { ServiceCode } from "@/lib/sim/types";
 import type { ShiftIntensity } from "@/lib/sim/shift";
@@ -20,7 +22,6 @@ const titles: Record<MenuView, string> = { overview: "Watch overview", shift: "N
 const serviceName = (service: ServiceCode) => service === "Fire" ? "Fire & rescue" : service;
 const intensityName = (intensity: string) => intensity === "normal" ? "Standard" : intensity === "quiet" ? "Quiet" : "Busy";
 const community = "https://discord.gg/YBN3sbphs3";
-const supportEmail = "thewtchroom@gmail.com";
 const viewHref = (view: MenuView) => view === "overview" ? "/menu" : `/menu?view=${view}`;
 
 function LogoutButton() {
@@ -31,11 +32,12 @@ function LogoutButton() {
 function Feedback({ userId }: { userId: string }) {
   const key = `twr:feedback-draft:${userId}`;
   const form = useRef<HTMLFormElement>(null);
-  const [message, setMessage] = useState("Drafts stay on this browser until you choose to share them.");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("Drafts stay on this browser until you file them.");
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "null");
-      if (saved && form.current) for (const name of ["category", "summary", "details"]) {
+      if (saved && form.current) for (const name of ["category", "severity", "summary", "details"]) {
         const field = form.current.elements.namedItem(name) as HTMLInputElement | null;
         if (field && typeof saved[name] === "string") field.value = saved[name];
       }
@@ -43,31 +45,48 @@ function Feedback({ userId }: { userId: string }) {
   }, [key]);
   function draft() {
     const values = new FormData(form.current!);
-    return { category: String(values.get("category")), summary: String(values.get("summary") || "").trim(), details: String(values.get("details") || "").trim() };
+    return { category: String(values.get("category")), severity: String(values.get("severity")), summary: String(values.get("summary") || "").trim(), details: String(values.get("details") || "").trim() };
   }
   function saveDraft() {
-    try { localStorage.setItem(key, JSON.stringify(draft())); setMessage("Draft saved on this browser. Nothing has been sent."); }
-    catch { setMessage("Browser storage is unavailable. Copy your feedback before leaving."); }
+    try { localStorage.setItem(key, JSON.stringify(draft())); }
+    catch { /* No storage: the draft lives in the form until it is filed. */ }
   }
   function valid() { const data = draft(); return !!data.summary && !!data.details && form.current!.reportValidity(); }
   function content() { const data = draft(); return `The Watch Room — ${data.category}\n\n${data.summary}\n\n${data.details}\n\nVersion: ${LATEST.version}`; }
-  function email(event: FormEvent) {
+  async function file(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!valid()) { setMessage("Add a summary and details first."); return; }
-    window.location.href = `mailto:${supportEmail}?subject=${encodeURIComponent(`[Watch Room feedback] ${draft().summary}`)}&body=${encodeURIComponent(content())}`;
-    setMessage("Your email app can send the draft. If it did not open, use Copy feedback and share it in Discord.");
+    const data = draft();
+    setBusy(true);
+    const r = await submitBugReport({
+      category: isBugCategory(data.category) ? data.category : "broken",
+      severity: isBugSeverity(data.severity) ? data.severity : "minor",
+      summary: data.summary,
+      detail: data.details,
+      context: { page: "/menu", version: LATEST.version, viewport: `${window.innerWidth}×${window.innerHeight}`, userAgent: navigator.userAgent },
+    });
+    setBusy(false);
+    if (r.ok) {
+      form.current?.reset();
+      try { localStorage.removeItem(key); } catch { /* nothing to clear */ }
+      setMessage("Filed. Thank you — it is on the team's list.");
+    } else {
+      setMessage(r.error);
+    }
   }
   async function copy() {
     if (!valid()) { setMessage("Add a summary and details first."); return; }
-    try { await navigator.clipboard.writeText(content()); setMessage("Copied. Paste your feedback into an email or Discord message."); }
-    catch { setMessage("Clipboard unavailable. Select and copy your text, or open an email draft."); }
+    try { await navigator.clipboard.writeText(content()); setMessage("Copied. Paste it into a Discord message if you would rather talk it through."); }
+    catch { setMessage("Clipboard unavailable. Select and copy your text."); }
   }
-  return <section className={styles.panel}><p className={styles.eyebrow}>Your feedback</p><h2>What did you notice?</h2><p>Send a suggestion or report an issue to the team.</p>
-    <form ref={form} className={styles.feedback} onInput={saveDraft} onSubmit={email}>
-      <label htmlFor="feedback-category">Feedback type</label><select id="feedback-category" name="category"><option>Suggestion</option><option>Something is broken</option><option>Gameplay & realism</option><option>Accessibility</option></select>
-      <label htmlFor="feedback-summary">Short summary</label><input id="feedback-summary" name="summary" required maxLength={100} placeholder="What should we look at?" />
-      <label htmlFor="feedback-details">Details</label><textarea id="feedback-details" name="details" required maxLength={1500} placeholder="What happened, what you expected, and how to reproduce it…" />
-      <button className={styles.primary} type="submit">Open email draft →</button><button className={styles.button} type="button" onClick={copy}>Copy feedback</button>
+  return <section className={styles.panel}><p className={styles.eyebrow}>Your feedback</p><h2>What did you notice?</h2><p>Report a problem or send a suggestion. It goes straight to the team with the version you are on.</p>
+    <form ref={form} className={styles.feedback} onInput={saveDraft} onSubmit={file}>
+      <label htmlFor="feedback-category">Feedback type</label><select id="feedback-category" name="category">{BUG_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select>
+      <label htmlFor="feedback-severity">How bad</label><select id="feedback-severity" name="severity" defaultValue="minor">{BUG_SEVERITIES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select>
+      <label htmlFor="feedback-summary">Short summary</label><input id="feedback-summary" name="summary" required maxLength={140} placeholder="What should we look at?" />
+      <label htmlFor="feedback-details">Details</label><textarea id="feedback-details" name="details" required maxLength={4000} placeholder="What happened, what you expected, and how to reproduce it…" />
+      <button className={styles.primary} type="submit" disabled={busy}>{busy ? "Filing…" : "File report →"}</button><button className={styles.button} type="button" onClick={copy}>Copy text</button>
       <p role="status">{message}</p><a href={community} target="_blank" rel="noreferrer">Open the Watch Room Discord ↗</a>
     </form>
   </section>;

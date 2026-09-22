@@ -234,6 +234,8 @@ import { LogTile } from "./vector/log-tile";
 import { Poppable } from "./vector/popout";
 import type { Menu, VectorScreen } from "./vector/chrome";
 import { shortAddress, incidentRef } from "./vector/model";
+import { BugReportDialog } from "./components/bug-report-dialog";
+import { LATEST as LATEST_RELEASE } from "@/lib/changelog";
 import "./vector/vector.css";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
@@ -275,6 +277,9 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
   }, []);
   // Glossary / training overlay — toggled with `?`, shown as a modal.
   const [glossaryOpen, setGlossaryOpen] = useState(false);
+  // "Report a problem" — the pre-alpha's bug report, filed with what the
+  // desk knows about the moment.
+  const [bugOpen, setBugOpen] = useState(false);
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       // Avoid firing while the user is typing in an input / textarea.
@@ -6252,6 +6257,7 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
       label: "Help",
       items: [
         { label: "Glossary · shortcuts", hint: "?", act: () => setGlossaryOpen(true) },
+        { label: "Report a problem", act: () => setBugOpen(true), title: "File a bug or a suggestion with the team" },
         { label: "About VECTOR", act: () => setStatusMsg("VECTOR — The Watch Room's command and control desk. Simulation only.") },
       ],
     },
@@ -6989,6 +6995,17 @@ export function DashboardClient({ userEmail, stationsByArea }: Props) {
             open={glossaryOpen}
             onClose={() => setGlossaryOpen(false)}
             stations={PATCH_AREAS.flatMap((a) => stationsByArea[a])}
+          />
+          <BugReportDialog
+            open={bugOpen}
+            onClose={() => setBugOpen(false)}
+            context={{
+              scenario: activeIncident?.scenario.title,
+              incidentRef: activeIncident ? incidentRef(activeIncident) : undefined,
+              screen: vecScreen,
+              version: LATEST_RELEASE.version,
+              logTail: log.slice(-25).map((e) => `${new Date(e.timestamp).toISOString().slice(11, 19)} ${e.kind} ${e.message}`),
+            }}
           />
           {/* Scored jobs wait in a card until the operator wants the debrief. */}
           {!shiftDebriefOpen && !reviewJobId && (() => {

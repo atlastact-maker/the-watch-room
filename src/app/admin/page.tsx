@@ -6,6 +6,7 @@ import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
 import {
   setRole,
   setTester,
+  setBugReport,
   deleteRole,
   setBan,
   deleteUser,
@@ -100,7 +101,23 @@ const inputCls =
 const btnCls =
   "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
 
-type AdminTab = "applications" | "users" | "advisors";
+type AdminTab = "applications" | "users" | "advisors" | "bugs";
+
+type BugRow = {
+  id: string;
+  user_id: string;
+  email: string;
+  callsign: string;
+  category: string;
+  severity: string;
+  summary: string;
+  detail: string;
+  context: Record<string, unknown> | null;
+  status: string;
+  admin_note: string;
+  created_at: string;
+  updated_at: string;
+};
 
 function AdminTabLink({
   tab,
@@ -175,10 +192,11 @@ export default async function AdminPage({
   const { missing, tab: tabParam } = await searchParams;
   const missing015 = missing === "015";
   const missing016 = missing === "016";
+  const missing017 = missing === "017";
   // Which of the three lists is on screen. Applications first: it is the
   // one with decisions waiting in it.
   const tab: AdminTab =
-    tabParam === "users" || tabParam === "advisors" ? tabParam : "applications";
+    tabParam === "users" || tabParam === "advisors" || tabParam === "bugs" ? tabParam : "applications";
   const supabase = await createClient();
   const {
     data: { user },
@@ -186,7 +204,7 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
@@ -194,7 +212,13 @@ export default async function AdminPage({
     // first were dropping off the bottom. 200 is the function's ceiling.
     supabase.rpc("admin_list_users", { p_limit: 200 }),
     supabase.rpc("admin_notes_all"),
+    supabase.rpc("admin_list_bug_reports", { p_limit: 200 }),
   ]);
+  // Reports are the newest table; before migration 017 the function is
+  // missing, which is a banner on its tab rather than an error page.
+  const missingBugs = bugsRes.error?.message?.includes("admin_list_bug_reports") === true;
+  const bugs = (bugsRes.data ?? []) as BugRow[];
+  const openBugs = bugs.filter((b) => b.status === "open" || b.status === "looking").length;
 
   const firstError =
     advisorsRes.error ?? rolesRes.error ?? overviewRes.error ?? usersRes.error ?? notesRes.error;
@@ -298,6 +322,7 @@ export default async function AdminPage({
             countTone={pending.length > 0 ? "amber" : undefined}
           />
           <AdminTabLink tab="users" current={tab} label="Registered users" count={users.length} />
+          <AdminTabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} countTone={openBugs > 0 ? "amber" : undefined} />
           <AdminTabLink
             tab="advisors"
             current={tab}
@@ -466,6 +491,84 @@ export default async function AdminPage({
 
         {/* Current advisors — the access-roles table: everyone who has
             been granted something, with the Discord tick. */}
+        {tab === "bugs" && (
+          <section className="space-y-3">
+            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+              Bug reports
+              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
+                {openBugs} open · {bugs.length} in all
+              </span>
+            </h2>
+            {(missing017 || missingBugs) && (
+              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
+                Migration 017 (bug reports) has not reached the app yet — run supabase/migrations/017_bug_reports.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, &apos;reload schema&apos;;  and reload this page.
+              </div>
+            )}
+            {!missingBugs && bugs.length === 0 && (
+              <p className="text-[12px] text-(--color-text-dim)">Nothing filed yet. Testers file from Help → Report a problem on the desk, or from the feedback view on the ops centre.</p>
+            )}
+            <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
+              {bugs.map((b) => {
+                const ctx = (b.context ?? {}) as Record<string, unknown>;
+                const logTail = Array.isArray(ctx.logTail) ? (ctx.logTail as unknown[]).filter((l): l is string => typeof l === "string") : [];
+                const known = [
+                  ["scenario", ctx.scenario],
+                  ["incident", ctx.incidentRef],
+                  ["screen", ctx.screen],
+                  ["page", ctx.page],
+                  ["version", ctx.version],
+                  ["viewport", ctx.viewport],
+                ].filter((row): row is [string, string] => typeof row[1] === "string" && row[1].length > 0);
+                const sevTone =
+                  b.severity === "blocker" ? "border-(--color-critical)/60 text-(--color-critical)"
+                  : b.severity === "major" ? "border-(--color-amber)/60 text-(--color-amber)"
+                  : "border-(--color-border) text-(--color-text-dim)";
+                const statusTone =
+                  b.status === "open" ? "text-(--color-amber)"
+                  : b.status === "looking" ? "text-(--color-info)"
+                  : b.status === "fixed" ? "text-(--color-ok)"
+                  : "text-(--color-text-dim)";
+                return (
+                  <div key={b.id} className="px-3 py-2.5 text-[12px]">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className={`rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ${sevTone}`}>{b.severity}</span>
+                      <span className="font-semibold text-(--color-text)">{b.summary}</span>
+                      <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{b.category}</span>
+                      <span className={`ml-auto font-mono text-[10px] uppercase tracking-widest ${statusTone}`}>{b.status}</span>
+                      <span className="font-mono text-[10px] text-(--color-text-dim)">{fmtDate(b.created_at)}</span>
+                    </div>
+                    <p className="mt-1.5 whitespace-pre-wrap text-(--color-text-muted)">{b.detail}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] text-(--color-text-dim)">
+                      <span>{b.callsign ? `${b.callsign} · ` : ""}{b.email}</span>
+                      {known.map(([k, v]) => <span key={k}><span className="uppercase tracking-widest">{k}</span> {v}</span>)}
+                    </div>
+                    {typeof ctx.userAgent === "string" && (
+                      <p className="mt-0.5 truncate font-mono text-[10px] text-(--color-text-dim)" title={ctx.userAgent}>{ctx.userAgent}</p>
+                    )}
+                    {logTail.length > 0 && (
+                      <details className="mt-1.5">
+                        <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-text)">Log tail · {logTail.length} lines</summary>
+                        <pre className="mt-1 max-h-64 overflow-auto rounded-sm border border-(--color-border-subtle) bg-(--color-bg) p-2 font-mono text-[10px] leading-relaxed text-(--color-text-muted)">{logTail.join("\n")}</pre>
+                      </details>
+                    )}
+                    <form action={setBugReport} className="mt-2 flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="id" value={b.id} />
+                      <select name="status" defaultValue={b.status} className={`${inputCls} py-1 text-[11px]`}>
+                        <option value="open">open</option>
+                        <option value="looking">looking</option>
+                        <option value="fixed">fixed</option>
+                        <option value="closed">closed</option>
+                      </select>
+                      <input name="note" defaultValue={b.admin_note} placeholder="Triage note" className={`${inputCls} min-w-56 flex-1 py-1 text-[11px]`} />
+                      <button type="submit" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}>Save</button>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {tab === "advisors" && (
         <section className="space-y-3">
           <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
