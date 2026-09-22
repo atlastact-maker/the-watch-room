@@ -57,7 +57,7 @@ export const scenario47: Scenario = {
       "Public concourse — any struggle in the mall draws a crowd and phones",
     ],
     access:
-      "Staff entrance off the service road at the rear of the unit; store security will meet the car there and take officers through the stockroom. Not through the mall — the office is not reached from the shop floor and a marked car's worth of noise on the concourse helps nobody",
+      "Staff entrance off the service road at the rear of the unit; the store manager will meet the car at the staff door and take officers through the stockroom — both security officers stay with him. Not through the mall — the office is not reached from the shop floor and a marked car's worth of noise on the concourse helps nobody",
     knownHazards: [
       "Detained male — compliant now; the name he gave carries a history of violence when challenged",
       "Windowless office, one door",
@@ -80,7 +80,7 @@ export const scenario47: Scenario = {
     E: "Pendle & Marsh department store, The Trafford Centre, Trafford Park, M17 8AA — back office off the stockroom, staff entrance on the service road",
     T: "Theft from shop — one male detained by store security on an any-person arrest, compliant at present",
     H: "Confined office with one door; history of violence when challenged; the public concourse if he is brought out the wrong way",
-    A: "Service road at the rear of the unit — staff entrance, met by store security. Not through the mall",
+    A: "Service road at the rear of the unit — staff entrance, met by the store manager. Not through the mall",
     N: "None injured. One male detained; two security officers with him",
     emergencyServices: "Police only — one response car. No ambulance, no fire",
   },
@@ -102,7 +102,7 @@ export const scenario47: Scenario = {
     targets: [
       {
         metric: "First attendance",
-        target: "< 60 minutes — GMP's published Grade 2 standard, and the store's patience runs out at the same mark",
+        target: "< 60 minutes — GMP's published Grade 2 standard, which is what the debrief scores, and the store's patience runs out at the same mark",
       },
       {
         metric: "PNC check",
@@ -119,7 +119,7 @@ export const scenario47: Scenario = {
       },
     ],
     lesson:
-      "A shoplifter in a back office is the quietest job on the stack and the one with the hardest deadline. Nothing about him is a Grade 1 and nothing about him ever will be; the clock is the store's, not his. Two security officers are holding a man on an any-person arrest that ends the second they decide he is not worth it, and the manager who rings back at five minutes, fifteen and forty is telling you exactly when that is. Search him early, because the name he gave makes him wanted, and that is your reason to take the next car that clears rather than the one after. Send one car and send it properly. Do not strip a Grade 1 for him, and do not let him sit until the hour either, because the release at sixty minutes is not the store being difficult. It is you having lost the job.",
+      "A shoplifter in a back office is the quietest job on the stack and the one with the hardest deadline. Nothing about him as he sits is a Grade 1 — contained, two staff with him, nobody hurt — and the clock is the store's, not his. Two security officers are holding a man on an any-person arrest that ends the second they decide he is not worth it, and the manager who rings back at five minutes, fifteen and forty is telling you exactly when that is. Search him early, because the name he gave makes him wanted, and that is your reason to take the next car that clears rather than the one after. Send one car and send it properly. Do not strip a Grade 1 for him, and do not let him sit until the hour either, because the release at sixty minutes is not the store being difficult. It is you having lost the job.",
   },
 
   // Schematic only. A run of mall units either side of a public
@@ -202,9 +202,11 @@ export const scenario47: Scenario = {
   // a run where the operator has let him sit.
   informantScript: [
     {
+      // A continuation, not an introduction — the desk has just had the
+      // whole call from him and told him a car is coming.
       id: "security-first",
       atSec: 5,
-      text: "Security at Pendle and Marsh, the Trafford Centre. We've got a male detained for theft — about two hundred pounds of fragrance, straight past the tills. He's in the back office, he's sat down, he's not fighting us. There's two of us with him. How long are you going to be?",
+      text: "Still on, yeah. He's sat, he's not giving us any bother, two of us in with him. Just give me a rough time when you've got one and I'll pass it to the manager.",
       tone: "info",
     },
     {
@@ -218,16 +220,19 @@ export const scenario47: Scenario = {
       // The manager's first call. Certain — this is the mechanic.
       id: "manager-first",
       atSec: 300,
-      text: "It's the store manager at Pendle and Marsh. I've got two of my security staff sat in an office with this lad and a shop floor with nobody on it. I'm not being funny, but are you actually coming?",
+      text: "[Store line — Claire Rathbone, manager] It's the store manager at Pendle and Marsh. I've got two of my security staff sat in an office with this lad and a shop floor with nobody on it. I'm not being funny, but are you actually coming?",
       tone: "urgent",
     },
     // --- The roll. Roughly half of runs he kicks off. ------------------
+    // Kept short of violence used or threatened — he tries the door once,
+    // is talked back to the chair and stays a Grade 2. The desk cannot
+    // regrade after the call, so the beat must not demand it.
     {
       id: "aggressive",
       atSec: 480,
       probability: 0.55,
       suppressesIds: ["quiet"],
-      text: "He's kicked off. He's up, he's had a go at the door, he's telling my lad he'll put him through the wall. We've had to get hold of him again. He's not going anywhere but this is getting out of hand — you need to get somebody here.",
+      text: "He's started. He's up off the chair, he's had a go at the door handle and he's giving my lad a load of mouth. I've talked him back down and he's sat again, nobody's touched anybody. He's not going anywhere but he's not happy — I'd rather your lot were here sooner than later.",
       tone: "urgent",
       effect: { pulseCritical: true },
     },
@@ -237,7 +242,7 @@ export const scenario47: Scenario = {
       // hear neither and the office goes silent for no reason.
       id: "quiet",
       atSec: 540,
-      text: "Nothing's changed here. He's sat on the chair with his head down, he's not said a word for ten minutes. Compliant as anything. Just tell me roughly when, so I can tell my manager something.",
+      text: "Nothing's changed here. He's gone quiet on us — sat on the chair with his head down, not said anything since he give us his name. Compliant as anything. Just tell me roughly when, so I can tell my manager something.",
       tone: "info",
     },
     {
@@ -245,7 +250,7 @@ export const scenario47: Scenario = {
       atSec: 660,
       probability: 0.7,
       requiresFiredIds: ["aggressive"],
-      text: "He's sat back down. Still gobbing off, but he's not tried the door again. Nobody's hurt. My lad's shaken up, that's all. I'd still like you here sooner rather than later.",
+      text: "He's settled a bit. Still gobbing off, but he's not been near the door again. Nobody's hurt. My lad's a bit rattled, that's all. I'd still like you here sooner rather than later.",
       tone: "info",
     },
     // --- The store's patience, on a slow response only. ----------------
@@ -253,14 +258,14 @@ export const scenario47: Scenario = {
       id: "manager-second",
       atSec: 900,
       delayThresholdSec: 900,
-      text: "Store manager again. That's a quarter of an hour. I've got a member of staff who should have gone home by now sat in that office, and my area manager on the other line asking why we bother detaining anybody if this is what happens. What do I tell her?",
+      text: "[Store line — Claire Rathbone, manager] Store manager again. That's a quarter of an hour. I've got a member of staff who should have gone home by now sat in that office, and my area manager on the other line asking why we bother detaining anybody if this is what happens. What do I tell her?",
       tone: "urgent",
     },
     {
       id: "release-warning",
       atSec: 2400,
       delayThresholdSec: 2400,
-      text: "I'm giving you fair warning. If nobody is here by the top of the hour I'm letting him go. Our policy is an hour and I'm not having my staff assaulted over some perfume. I'll send you the CCTV and the name he gave and you can do what you like with it.",
+      text: "[Store line — Claire Rathbone, manager] I'm giving you fair warning. If nobody is here by the top of the hour I'm letting him go. Our policy is an hour and I'm not having my staff assaulted over some perfume. I'll send you the CCTV and the name he gave and you can do what you like with it.",
       tone: "urgent",
       effect: { pulseCritical: true },
     },
@@ -271,7 +276,7 @@ export const scenario47: Scenario = {
       atSec: 3600,
       delayThresholdSec: 3600,
       requiresFiredIds: ["release-warning"],
-      text: "That's it, he's gone. We've walked him out the staff door and he's away across the staff car park. We've got his face on camera and the name he gave, and that's all we've got. You can cancel your officers.",
+      text: "[Store line — Claire Rathbone, manager] That's it, he's gone. We've walked him out the staff door and he's away across the staff car park. We've got his face on camera and the name he gave, and that's all we've got. You can cancel your officers.",
       tone: "critical",
       effect: { pulseCritical: true },
     },
@@ -324,7 +329,7 @@ export const scenario47: Scenario = {
             id: "p_who_name",
             text: "Has he given you a name?",
             answer: {
-              text: "Not yet — we're getting his details off him now. He's talking, he's not refusing. I'll give you whatever he gives me when I've got it.",
+              text: "He's just given us one — Callum Deakin, D-E-A-K-I-N, date of birth fourth of the third, ninety-five. No ID on him, so that's his word. He's talking, he's not refusing. Can you run him?",
             },
           },
         ],
@@ -351,7 +356,7 @@ export const scenario47: Scenario = {
             id: "p_where_meet",
             text: "Who is meeting them, and where exactly?",
             answer: {
-              text: "My manager, Claire — she'll go down when they're close. Ring this number when they're a minute off and she'll be stood at the staff door on the service road. Grey door, 'Pendle and Marsh — deliveries' on it. Not the mall doors. Not across the concourse. I'm not sending Arjun down and sat in here with him on my own.",
+              text: "My manager, Claire — she'll go down and stand at the staff door on the service road the minute you tell me they've set off. Grey door, 'Pendle and Marsh — deliveries' on it. Not the mall doors. Not across the concourse. I'm not sending Arjun down and sat in here with him on my own.",
             },
           },
         ],

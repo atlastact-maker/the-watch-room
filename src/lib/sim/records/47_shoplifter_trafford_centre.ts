@@ -33,7 +33,6 @@ export const records47: RecordSet = {
         "VIOLENT — assaulted a security officer who challenged him at a retail park in Altrincham, November 2024. Community order.",
         "Six previous for theft from shop across Trafford and Salford, all fragrance or spirits. Gives his real name when detained; has used the alias 'Callum DEAN' on street stops.",
         "Store security say he is on the centre's exclusion list — their record, not ours.",
-        "Detained by store security at Pendle & Marsh, the Trafford Centre, on an any-person arrest. Compliant at the time of the call.",
       ],
       scenarioId: "47",
     },
