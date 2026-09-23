@@ -41,6 +41,7 @@ import type { StationWithAppliances } from "../page";
 import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitDivIcon } from "./map-markers";
 import { HoseLine } from "./hose-line";
+import { CrewFigureLayer, type CrewFigure, type LatLng as CrewLatLng } from "./crew-figures";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
 import {
@@ -754,6 +755,29 @@ function crewIcon(callsign: string): L.DivIcon {
   return icon;
 }
 
+/** A casualty on the ground: a triage-coloured square with their label. */
+const CAS_ICONS = new Map<string, L.DivIcon>();
+function casualtyPinIcon(label: string, severity: string, stage: string, showLabel: boolean): L.DivIcon {
+  const key = `${label}|${severity}|${stage}|${showLabel ? 1 : 0}`;
+  const hit = CAS_ICONS.get(key);
+  if (hit) return hit;
+  const colour = severity === "critical" ? "#dc2626" : severity === "serious" ? "#f59e0b" : severity === "expectant" ? "#6b7280" : "#16a34a";
+  const priority = severity === "critical" ? "P1" : severity === "serious" ? "P2" : severity === "expectant" ? "P4" : "P3";
+  const inside = stage === "located";
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [160, 30],
+    iconAnchor: [80, 8],
+    html: `
+      <div style="position:relative;width:160px;height:30px;pointer-events:none;opacity:${inside ? 0.6 : 1};">
+        <div style="position:absolute;left:80px;top:8px;transform:translate(-50%,-50%);width:12px;height:12px;background:${colour};border:2px solid #0a0a0c;box-shadow:0 0 0 1.5px rgba(255,255,255,0.9);"></div>
+        ${showLabel ? `<div style="position:absolute;left:90px;top:1px;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:#fff;white-space:nowrap;"><b style="color:${colour}">${priority}</b> ${label.toUpperCase()}${inside ? " · INSIDE" : ""}</div>` : ""}
+      </div>`,
+  });
+  CAS_ICONS.set(key, icon);
+  return icon;
+}
+
 /** The HEMS crew walking the LZ → casualty leg in real time. Self-ticks
  *  at 4 Hz so the walk is smooth while the surrounding map stays on the
  *  1 Hz clock — it only exists for the duration of the walk. */
@@ -1329,6 +1353,150 @@ export function LeafletGroundMap({
     }
   }
   const footRoutes = useFootRoutes(hoseSpecs);
+
+  // ---- People out of the vehicle ---------------------------------------
+  // Every rider assigned to a live task walks from the cab to the work and
+  // back; treating crews stand at their patient. Where the work is depends
+  // on the task: the hydrant, the branch, the entry point, the hazard, the
+  // casualty, or the kerb beside the vehicle.
+  const sceneHazards = incident.scenario.scene?.hazards ?? [];
+  const casualtyStage = (id: string) => sim.casualtyProgression?.[id]?.stage ?? "located";
+  const towards = (from: CrewLatLng, to: CrewLatLng, metres: number): CrewLatLng => {
+    const d = Math.max(1, haversineMetres(from, to));
+    const f = Math.min(1, metres / d);
+    return { lat: from.lat + (to.lat - from.lat) * f, lng: from.lng + (to.lng - from.lng) * f };
+  };
+  /** Where a casualty is on the ground right now. Inside the building
+   *  until carried out; then beside whichever ambulance has them, or the
+   *  pump whose crew brought them out. */
+  const casualtyGround = (id: string): CrewLatLng | null => {
+    const c = sim.foundCasualties.find((x) => x.id === id);
+    if (!c) return null;
+    const stage = casualtyStage(id);
+    if (stage === "undiscovered" || stage === "conveying" || stage === "at_hospital") return null;
+    const carriedOut = stage === "extricated" || stage === "in_treatment";
+    if (carriedOut) {
+      const treating = onSceneMarkers.find((m) => m.deployment.treatingCasualtyId === id);
+      if (treating) return towards(treating.pos, fireCentre, 5);
+      const carrier = tasks.find((t) => t.kind === "extract_casualty" && t.casualtyId === id && t.state === "completed");
+      const pump = carrier ? onSceneMarkers.find((m) => m.appliance.id === carrier.applianceId) : undefined;
+      if (pump) return towards(pump.pos, fireCentre, 6);
+    }
+    return metresToLatLng(fireCentre, c.pos);
+  };
+  const crewFigures: CrewFigure[] = [];
+  for (const t of tasks) {
+    const endAt = t.state === "active" ? undefined : t.endedAt ?? t.completesAt;
+    if (endAt !== undefined && now > endAt + 5 * 60_000) continue; // long gone
+    const m = onSceneMarkers.find((x) => x.appliance.id === t.applianceId);
+    if (!m) continue;
+    const ids = t.assignedCrewIds.length ? t.assignedCrewIds : t.baCrewIds ?? [];
+    if (ids.length === 0) continue;
+    const entry = buildingEntryFrom(m.pos);
+    let to: CrewLatLng | null = null;
+    let path: [number, number][] | undefined;
+    let badge: string | undefined;
+    let inside = false;
+    switch (t.kind) {
+      case "connect_hydrant": {
+        const h = renderedHydrants.find((x) => x.label === t.hydrantId);
+        if (!h) break;
+        to = { lat: h.lat, lng: h.lng };
+        const run = t.hosePath ?? footRoutes[hoseKey(t.id, to, m.pos)];
+        if (run && run.length >= 2) path = run.slice().reverse() as [number, number][];
+        badge = "HYDRANT";
+        break;
+      }
+      case "relay_hose": {
+        const src = onSceneMarkers.find((x) => x.appliance.id === t.sourceApplianceId);
+        if (!src) break;
+        to = towards(m.pos, src.pos, Math.max(2, haversineMetres(m.pos, src.pos) / 2));
+        badge = "RELAY";
+        break;
+      }
+      case "hose_attack": {
+        const g = jetGeometry(m.pos, fireCentre, sim.fireRadiusM, t.attackMode === "interior_attack", entry);
+        to = g.approachTo;
+        const run = footRoutes[hoseKey(t.id, m.pos, g.approachTo)];
+        if (run && run.length >= 2) path = run as [number, number][];
+        inside = t.attackMode === "interior_attack";
+        badge = inside ? "BA · INT" : "BRANCH";
+        break;
+      }
+      case "ba_sar":
+        to = entry ?? towards(m.pos, fireCentre, Math.max(3, haversineMetres(m.pos, fireCentre) - 3));
+        inside = true;
+        badge = t.baMode === "firefighting" ? "BA · FF" : "BA · SAR";
+        break;
+      case "extract_casualty":
+        to = entry ?? (t.casualtyId ? metresToLatLng(fireCentre, sim.foundCasualties.find((c) => c.id === t.casualtyId)?.pos ?? { x: 0, y: 0 }) : fireCentre);
+        inside = !!entry;
+        badge = "CARRY";
+        break;
+      case "survey":
+      case "gain_entry":
+        to = entry ?? towards(m.pos, fireCentre, Math.max(3, haversineMetres(m.pos, fireCentre) - 4));
+        badge = t.kind === "survey" ? "360" : "ENTRY";
+        break;
+      case "mitigate_hazard": {
+        const hz = sceneHazards.find((h) => h.id === t.hazardId);
+        to = hz ? metresToLatLng(fireCentre, hz.pos) : towards(m.pos, fireCentre, 6);
+        badge = "HAZARD";
+        break;
+      }
+      case "rtc_extrication":
+      case "rope_rescue":
+      case "water_rescue":
+      case "scene_preservation":
+      case "firebreak":
+      case "wildfire_beating":
+      case "wildfire_knapsack":
+        to = t.casualtyId ? casualtyGround(t.casualtyId) ?? fireCentre : towards(fireCentre, m.pos, Math.min(4, haversineMetres(fireCentre, m.pos)));
+        badge = t.kind === "rtc_extrication" ? "CUTTING" : t.kind.startsWith("wildfire") ? "FRONT" : undefined;
+        break;
+      case "cordon":
+        to = towards(fireCentre, m.pos, Math.min(25, Math.max(8, haversineMetres(fireCentre, m.pos) - 4)));
+        badge = "CORDON";
+        break;
+      case "request_details":
+      case "take_account":
+      case "stop_search":
+      case "arrest":
+      case "welfare_check":
+        to = t.casualtyId ? casualtyGround(t.casualtyId) ?? towards(m.pos, fireCentre, 5) : towards(m.pos, fireCentre, 5);
+        break;
+      case "commander":
+        to = towards(m.pos, fireCentre, 4);
+        badge = "IC";
+        break;
+      default:
+        // Kit grabs, aerial setup, traffic and vehicle tasks: at the vehicle.
+        to = towards(m.pos, fireCentre, 2.5);
+        break;
+    }
+    if (!to) continue;
+    ids.forEach((crewId, i) => {
+      const cm = m.appliance.crewMembers.find((c) => c.id === crewId);
+      if (!cm) return;
+      crewFigures.push({ id: `${t.id}:${crewId}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: to!, path, startAt: t.startedAt, endAt, badge, inside, spreadIndex: i });
+    });
+  }
+  // Treating crews: the whole crew at the patient from the moment the
+  // pairing is made (the deployment carries no timestamp, so they step
+  // out at arrival or now, whichever is later).
+  for (const m of onSceneMarkers) {
+    const cid = m.deployment.treatingCasualtyId;
+    if (!cid || m.deployment.hospitalLegStartedAt) continue;
+    const at = casualtyGround(cid);
+    if (!at) continue;
+    const busy = new Set(tasks.filter((t) => t.state === "active" && t.applianceId === m.appliance.id).flatMap((t) => t.assignedCrewIds));
+    m.appliance.crewMembers.filter((c) => !busy.has(c.id)).slice(0, 2).forEach((cm, i) => {
+      crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: "PATIENT", spreadIndex: i + 2 });
+    });
+  }
+  const casualtyPins = sim.foundCasualties
+    .map((c) => ({ c, at: casualtyGround(c.id), stage: casualtyStage(c.id), severity: sim.casualtyProgression?.[c.id]?.severity ?? c.severity }))
+    .filter((x): x is typeof x & { at: CrewLatLng } => !!x.at);
 
   const hydrantConnections = (() => {
     const m = new Map<string, string>(); // hydrantLabel → callsign
@@ -2018,6 +2186,12 @@ export function LeafletGroundMap({
             />
           );
         })}
+
+      {/* Casualties on the ground, and the people with them */}
+      {casualtyPins.map((x) => (
+        <Marker key={`cas-${x.c.id}`} position={[x.at.lat, x.at.lng]} icon={casualtyPinIcon(x.c.label ?? x.c.id, x.severity, x.stage, mapZoom >= 19)} interactive={false} zIndexOffset={640} />
+      ))}
+      <CrewFigureLayer figures={crewFigures} showLabels={mapZoom >= 19} />
 
       {/* En-route ghost placements (parking previewed) */}
       {ghostMarkers.map((m) => (

@@ -1050,6 +1050,9 @@ export type Deployment = {
    *  leg so the casualty arrives with the crew that treated them.
    *  One pairing per ambulance (1:1). */
   treatingCasualtyId?: string | null;
+  /** When the current pairing was made — the crew step out to the
+   *  patient from then. */
+  treatingSince?: number;
 
   /** HEMS flight leg — set only when the NWAA airframe was dispatched
    *  (daylight, weather permitting). The aircraft flies a straight line
@@ -1487,6 +1490,9 @@ export type Task = {
   durationSec?: number;   // for timed tasks
   completesAt?: number;   // startedAt + durationSec*1000 (timed only)
   state: "active" | "completed" | "aborted";
+  /** When an aborted task stopped — the crew start walking back from it
+   *  then. A completed task's end is its completesAt. */
+  endedAt?: number;
   /** Crew members (from the appliance's crewMembers) assigned to this task.
    *  For ba_sar, these are also the BA wearers (their air ticks down). */
   assignedCrewIds: string[];

@@ -2216,7 +2216,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   function setTreatingCasualty(applianceId: string, casualtyId: string | null) {
     setDeployments((prev) =>
       prev.map((d) =>
-        d.applianceId === applianceId ? { ...d, treatingCasualtyId: casualtyId } : d,
+        d.applianceId === applianceId ? { ...d, treatingCasualtyId: casualtyId, treatingSince: Date.now() } : d,
       ),
     );
     if (casualtyId) {
@@ -2629,6 +2629,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
               etaSeconds: d.etaSeconds + turnoutSec,
               arrivesAt: d.arrivesAt + turnoutSec * 1000,
               treatingCasualtyId: casualtyId,
+              treatingSince: Date.now(),
             }
           : d,
       ),
@@ -2826,7 +2827,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         setDeployments((prev) =>
           prev.map((d) =>
             d.applianceId === car.id
-              ? { ...d, treatingCasualtyId: casualtyId, hemsNightCar: true }
+              ? { ...d, treatingCasualtyId: casualtyId, treatingSince: Date.now(), hemsNightCar: true }
               : d,
           ),
         );
@@ -2884,6 +2885,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           return {
             ...d,
             treatingCasualtyId: casualtyId,
+            treatingSince: Date.now(),
             // Block "in attendance" until the operator confirms an LZ —
             // the aircraft holds overhead from overheadAt onwards.
             arrivesAt: overheadAt + 6 * 3600 * 1000,
@@ -3025,7 +3027,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setDeployments((prev) =>
       prev.map((d) =>
         d.applianceId === picked.appliance.id
-          ? { ...d, treatingCasualtyId: casualtyId }
+          ? { ...d, treatingCasualtyId: casualtyId, treatingSince: Date.now() }
           : d,
       ),
     );
@@ -3274,6 +3276,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             rehabSeconds,
             rehabUntil: returnArrivesAt + rehabSeconds * 1000,
             treatingCasualtyId: casualtyId,
+            treatingSince: Date.now(),
           };
         }
         // Other deployments paired to this casualty — patient is gone from
@@ -5251,6 +5254,34 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           : d,
       ),
     );
+    // A unit placed while it is still driving goes to the spot it was
+    // given, not to the address and then a jump: re-route it from where
+    // it is now to the parking position, on the blues.
+    if (dep && !dep.hemsFlight && !dep.searchTarget && !dep.hospitalLegStartedAt && Date.now() < dep.arrivesAt) {
+      const from = unitPosAt(dep, Date.now());
+      if (from) {
+        void (async () => {
+          const r = blueLight(await routeEta(from, { lat, lng }));
+          const at = Date.now();
+          const secs = Math.max(15, Math.round(r.seconds));
+          setDeployments((prev) =>
+            prev.map((x) =>
+              x.applianceId === applianceId && x.parkingPos && x.parkingPos.lat === lat && x.parkingPos.lng === lng && at < x.arrivesAt + 60_000
+                ? { ...x, mobilisedAt: at, etaSeconds: secs, arrivesAt: at + secs * 1000, routeCoords: r.coords ?? x.routeCoords, routeMeters: r.meters }
+                : x,
+            ),
+          );
+          if (!r.coords) {
+            void routeEtaRouted(from, { lat, lng }).then((rr) => {
+              if (!rr.coords || rr.coords.length < 2) return;
+              setDeployments((prev) =>
+                prev.map((x) => (x.applianceId === applianceId && x.mobilisedAt === at ? { ...x, routeCoords: rr.coords!, routeMeters: rr.meters } : x)),
+              );
+            });
+          }
+        })();
+      }
+    }
   }
 
   /** Set a rider's whole loadout in one write — used by the riding-
@@ -5752,7 +5783,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }
 
   function abortTask(taskId: string) {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, state: "aborted" } : t)));
+    const endedAt = Date.now();
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, state: "aborted", endedAt } : t)));
     const t = tasks.find((x) => x.id === taskId);
     if (t?.kind === "ba_sar") {
       setLog((prev) => [
