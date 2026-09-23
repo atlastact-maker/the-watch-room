@@ -1,0 +1,56 @@
+# Loads Greater Manchester's roads and hydrants from OpenStreetMap into
+# Supabase, on GitHub's own runner, so nobody needs a local checkout.
+#
+# Needs two repository secrets (Settings → Secrets and variables →
+# Actions): SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Run it by hand
+# from the Actions tab, or let the monthly schedule refresh the data.
+name: Import map data
+
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: What to load
+        type: choice
+        default: both
+        options: [both, roads, hydrants]
+  schedule:
+    # First Sunday-ish of the month, 03:00 UTC — OSM changes slowly.
+    - cron: "0 3 1 * *"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the secrets are set
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as repository secrets (Settings → Secrets and variables → Actions) and run again."
+            exit 1
+          fi
+
+      - name: Install
+        working-directory: tools/osm-import
+        run: npm ci --no-audit --no-fund
+
+      - name: Import
+        working-directory: tools/osm-import
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          case "${{ github.event.inputs.what || 'both' }}" in
+            roads)    node import-gm.mjs --roads-only ;;
+            hydrants) node import-gm.mjs --hydrants-only ;;
+            *)        node import-gm.mjs ;;
+          esac

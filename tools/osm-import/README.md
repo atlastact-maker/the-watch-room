@@ -8,7 +8,16 @@ of players, nothing external that can say no.
 The source is the Geofabrik county extract, which is already clipped to
 Greater Manchester. Nothing outside the county is loaded.
 
-## One-time setup
+## Easiest: let GitHub run it
+
+The workflow `.github/workflows/import-map-data.yml` runs the import on a
+GitHub runner, so no local checkout is needed. Once, in the repository on
+GitHub: Settings → Secrets and variables → Actions → New repository
+secret, add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Then Actions
+→ Import map data → Run workflow. It also refreshes itself monthly.
+Migration 019 must have been run first.
+
+## Running it yourself instead
 
 1. Run `supabase/migrations/019_osm_map_data.sql` in the Supabase SQL editor
    (it enables PostGIS and creates the tables and functions).
