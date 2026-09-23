@@ -67,7 +67,9 @@ if (SUPABASE_URL) {
   if (!/^https?:\/\//.test(SUPABASE_URL)) SUPABASE_URL = `https://${SUPABASE_URL}`;
   if (!/\./.test(SUPABASE_URL.replace(/^https?:\/\//, ""))) SUPABASE_URL = `${SUPABASE_URL}.supabase.co`;
   try {
-    new URL(SUPABASE_URL);
+    // Only the origin matters; the API page also offers the REST and Auth
+    // endpoint addresses, which carry a path we must not double up.
+    SUPABASE_URL = new URL(SUPABASE_URL).origin;
   } catch {
     console.error(`SUPABASE_URL is not a usable address (${SUPABASE_URL.length} chars). It should look like https://abcdefghijkl.supabase.co — the Project URL on Supabase → Project Settings → API.`);
     process.exit(2);
