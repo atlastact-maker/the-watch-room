@@ -143,6 +143,19 @@ export const scenario09: Scenario = {
   scene: {
     viewBox: { x: -80, y: -45, width: 160, height: 90 },
     compassNorth: "up",
+    // Moderate flow, westward towards Mode Wheel: 400 m in about twelve
+    // minutes. The Water Incident Unit reaches the edge, launches in a
+    // minute and a half, and the boat does three metres a second; a
+    // casualty within fifteen metres of the quay gets a throwline instead.
+    water: {
+      driftMps: 0.55,
+      driftBearingDeg: 270,
+      weirDistanceM: 400,
+      weirLabel: "Mode Wheel Locks weir",
+      launchSec: 90,
+      boatMps: 3,
+      bankRescueRangeM: 15,
+    },
     // Bank to the vehicle, over railings and moorings.
     egressExtraSeconds: 180,
     buildings: [
@@ -208,6 +221,7 @@ export const scenario09: Scenario = {
       {
         id: "cas-water",
         pos: { x: -10, y: -2 },
+        inWater: true,
         severity: "critical",
         discoverAfterMinBa: 0,
         label: "Adult male (~30s) — in the water, cold shock, drifting toward the weir",

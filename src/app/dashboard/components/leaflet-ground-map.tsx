@@ -26,6 +26,7 @@ import {
   type OsmRoadWay,
 } from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
+import { boatPosition, casualtyWaterPosition, landedBy } from "@/lib/sim/water_rescue";
 import { routeEta } from "@/lib/sim/eta";
 import type {
   Deployment,
@@ -764,6 +765,7 @@ function casualtyPinIcon(label: string, severity: string, stage: string, showLab
   const colour = severity === "critical" ? "#dc2626" : severity === "serious" ? "#f59e0b" : severity === "expectant" ? "#6b7280" : "#16a34a";
   const priority = severity === "critical" ? "P1" : severity === "serious" ? "P2" : severity === "expectant" ? "P4" : "P3";
   const inside = stage === "located";
+  const suffix = inside ? " · INSIDE" : stage === "water" ? " · IN WATER" : stage === "aboard" ? " · ABOARD" : stage === "bank" ? " · ON THE BANK" : stage === "lost" ? " · LOST" : "";
   const icon = L.divIcon({
     className: "",
     iconSize: [160, 30],
@@ -771,11 +773,46 @@ function casualtyPinIcon(label: string, severity: string, stage: string, showLab
     html: `
       <div style="position:relative;width:160px;height:30px;pointer-events:none;opacity:${inside ? 0.6 : 1};">
         <div style="position:absolute;left:80px;top:8px;transform:translate(-50%,-50%);width:12px;height:12px;background:${colour};border:2px solid #0a0a0c;box-shadow:0 0 0 1.5px rgba(255,255,255,0.9);"></div>
-        ${showLabel ? `<div style="position:absolute;left:90px;top:1px;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:#fff;white-space:nowrap;"><b style="color:${colour}">${priority}</b> ${label.toUpperCase()}${inside ? " · INSIDE" : ""}</div>` : ""}
+        ${showLabel ? `<div style="position:absolute;left:90px;top:1px;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:#fff;white-space:nowrap;"><b style="color:${colour}">${priority}</b> ${label.toUpperCase()}${suffix}</div>` : ""}
       </div>`,
   });
   CAS_ICONS.set(key, icon);
   return icon;
+}
+
+/** The rescue boat: an orange hull that self-ticks so it moves smoothly
+ *  along the chase and back to the bank. */
+const BOAT_ICONS = new Map<string, L.DivIcon>();
+function boatIcon(callsign: string, headingDeg: number): L.DivIcon {
+  const key = `${callsign}|${Math.round(headingDeg / 10) * 10}`;
+  const hit = BOAT_ICONS.get(key);
+  if (hit) return hit;
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [140, 40],
+    iconAnchor: [70, 12],
+    html: `
+      <div style="position:relative;width:140px;height:40px;pointer-events:none;">
+        <div style="position:absolute;left:70px;top:12px;width:22px;height:11px;transform:translate(-50%,-50%) rotate(${Math.round(headingDeg / 10) * 10 - 90}deg);background:#f97316;border:2px solid #0a0a0c;border-radius:55% 55% 30% 30% / 60% 60% 40% 40%;box-shadow:0 0 0 1.5px rgba(255,255,255,0.9);"></div>
+        <div style="position:absolute;left:70px;top:22px;transform:translateX(-50%);padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid #f97316;border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.08em;color:#fdba74;white-space:nowrap;">${callsign} BOAT</div>
+      </div>`,
+  });
+  BOAT_ICONS.set(key, icon);
+  return icon;
+}
+
+function BoatMarker({ tl, callsign, centre }: { tl: NonNullable<Task["waterRescue"]>; callsign: string; centre: { lat: number; lng: number } }) {
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const p = boatPosition(tl, tick);
+  if (!p) return null;
+  const q = boatPosition(tl, tick + 2000) ?? p;
+  const heading = (Math.atan2(q.x - p.x, -(q.y - p.y)) * 180) / Math.PI;
+  const at = metresToLatLng(centre, p);
+  return <Marker position={[at.lat, at.lng]} icon={boatIcon(callsign, Number.isFinite(heading) ? heading : 0)} interactive={false} zIndexOffset={645} />;
 }
 
 /** The HEMS crew walking the LZ → casualty leg in real time. Self-ticks
@@ -1369,11 +1406,23 @@ export function LeafletGroundMap({
   /** Where a casualty is on the ground right now. Inside the building
    *  until carried out; then beside whichever ambulance has them, or the
    *  pump whose crew brought them out. */
+  const waterModel = scene?.water;
+  const waterRescueFor = (casualtyId: string) =>
+    tasks.find((t) => t.kind === "water_rescue" && t.waterRescue && t.casualtyId === casualtyId && t.state !== "aborted");
   const casualtyGround = (id: string): CrewLatLng | null => {
     const c = sim.foundCasualties.find((x) => x.id === id);
     if (!c) return null;
     const stage = casualtyStage(id);
     if (stage === "undiscovered" || stage === "conveying" || stage === "at_hospital") return null;
+    // In the water: drifting until a crew reaches them, then in the boat,
+    // then on the bank where they were landed.
+    if (c.inWater && waterModel) {
+      const tl = waterRescueFor(id)?.waterRescue;
+      const landed = landedBy(tl, now);
+      const treating = landed ? onSceneMarkers.find((m) => m.deployment.treatingCasualtyId === id) : undefined;
+      if (treating && stage === "in_treatment") return towards(treating.pos, metresToLatLng(fireCentre, tl!.landPos!), Math.min(5, haversineMetres(treating.pos, metresToLatLng(fireCentre, tl!.landPos!))));
+      return metresToLatLng(fireCentre, casualtyWaterPosition(c, waterModel, incident.receivedAt, tl, now));
+    }
     const carriedOut = stage === "extricated" || stage === "in_treatment";
     if (carriedOut) {
       const treating = onSceneMarkers.find((m) => m.deployment.treatingCasualtyId === id);
@@ -1444,9 +1493,19 @@ export function LeafletGroundMap({
         badge = "HAZARD";
         break;
       }
+      case "water_rescue": {
+        const tl = t.waterRescue;
+        if (tl) {
+          to = metresToLatLng(fireCentre, tl.edge);
+          badge = tl.mode === "boat" ? "BOAT" : "THROWLINE";
+          break;
+        }
+        to = towards(fireCentre, m.pos, Math.min(4, haversineMetres(fireCentre, m.pos)));
+        badge = "WATER";
+        break;
+      }
       case "rtc_extrication":
       case "rope_rescue":
-      case "water_rescue":
       case "scene_preservation":
       case "firebreak":
       case "wildfire_beating":
@@ -1475,10 +1534,17 @@ export function LeafletGroundMap({
         break;
     }
     if (!to) continue;
+    const tl = t.kind === "water_rescue" ? t.waterRescue : undefined;
+    const carriedBy = tl && tl.mode === "boat"
+      ? (at: number) => {
+          const b = boatPosition(tl, at);
+          return b ? metresToLatLng(fireCentre, b) : null;
+        }
+      : undefined;
     ids.forEach((crewId, i) => {
       const cm = m.appliance.crewMembers.find((c) => c.id === crewId);
       if (!cm) return;
-      crewFigures.push({ id: `${t.id}:${crewId}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: to!, path, startAt: t.startedAt, endAt, badge, inside, spreadIndex: i });
+      crewFigures.push({ id: `${t.id}:${crewId}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: to!, path, startAt: t.startedAt, endAt, badge, inside, spreadIndex: i, carriedBy });
     });
   }
   // Treating crews: the whole crew at the patient from the moment the
@@ -1494,6 +1560,9 @@ export function LeafletGroundMap({
       crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: "PATIENT", spreadIndex: i + 2 });
     });
   }
+  const boats = tasks
+    .filter((t) => t.kind === "water_rescue" && t.waterRescue?.mode === "boat" && t.state !== "aborted")
+    .map((t) => ({ id: t.id, tl: t.waterRescue!, callsign: resolved.find((r) => r.appliance.id === t.applianceId)?.appliance.callsign ?? "" }));
   const casualtyPins = sim.foundCasualties
     .map((c) => ({ c, at: casualtyGround(c.id), stage: casualtyStage(c.id), severity: sim.casualtyProgression?.[c.id]?.severity ?? c.severity }))
     .filter((x): x is typeof x & { at: CrewLatLng } => !!x.at);
@@ -2189,7 +2258,26 @@ export function LeafletGroundMap({
 
       {/* Casualties on the ground, and the people with them */}
       {casualtyPins.map((x) => (
-        <Marker key={`cas-${x.c.id}`} position={[x.at.lat, x.at.lng]} icon={casualtyPinIcon(x.c.label ?? x.c.id, x.severity, x.stage, mapZoom >= 19)} interactive={false} zIndexOffset={640} />
+        <Marker
+          key={`cas-${x.c.id}`}
+          position={[x.at.lat, x.at.lng]}
+          icon={casualtyPinIcon(
+            x.c.label ?? x.c.id,
+            x.severity,
+            x.c.inWater && waterModel
+              ? (() => {
+                  const tl = waterRescueFor(x.c.id)?.waterRescue;
+                  return landedBy(tl, now) ? "bank" : tl?.interceptAt !== undefined && now >= tl.interceptAt && !tl.lost ? "aboard" : x.stage === "expectant" ? "lost" : "water";
+                })()
+              : x.stage,
+            mapZoom >= 19,
+          )}
+          interactive={false}
+          zIndexOffset={640}
+        />
+      ))}
+      {boats.map((b) => (
+        <BoatMarker key={`boat-${b.id}`} tl={b.tl} callsign={b.callsign} centre={fireCentre} />
       ))}
       <CrewFigureLayer figures={crewFigures} showLabels={mapZoom >= 19} />
 

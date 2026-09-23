@@ -186,7 +186,8 @@ import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import type { CallSummary } from "./vector/call-screen";
 import { SCENARIOS } from "@/lib/sim/scenarios";
-import { rollVariant, applyVariant, variantAllows } from "@/lib/sim/scene";
+import { rollVariant, applyVariant, variantAllows, latLngToMetres } from "@/lib/sim/scene";
+import { planWaterRescue } from "@/lib/sim/water_rescue";
 import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
@@ -4543,6 +4544,33 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     return () => ctrl.abort();
   }, [activeIncident, allDeployableStations, weather.hourOfDay, weather.precip]);
 
+  // Water rescue milestones: the boat in, the casualty reached, the
+  // landing, or the weir. Each is logged once as the clock passes it.
+  const waterMilestonesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const lines: { id: string; at: number; kind: LogEntry["kind"]; message: string }[] = [];
+    for (const t of tasks) {
+      const tl = t.waterRescue;
+      if (!tl || t.state === "aborted") continue;
+      const who = applianceLabel(t.applianceId);
+      const push = (key: string, at: number | undefined, kind: LogEntry["kind"], message: string) => {
+        if (at === undefined || now < at) return;
+        const id = `${t.id}:${key}`;
+        if (waterMilestonesRef.current.has(id)) return;
+        waterMilestonesRef.current.add(id);
+        lines.push({ id: `water:${id}`, at, kind, message });
+      };
+      push("edge", tl.atEdgeAt, "task_started", `${who} at the water's edge`);
+      if (tl.mode === "boat") push("launch", tl.launchAt, "task_started", `${who} — boat in the water, making for the casualty`);
+      else push("line", tl.launchAt, "task_started", `${who} — throwline out to the casualty`);
+      push("reach", tl.interceptAt, "task_completed", tl.mode === "boat" ? `${who} — casualty reached, bringing them aboard` : `${who} — casualty has the line, hauling them in`);
+      push("land", tl.landAt, "task_completed", `${who} — casualty on the bank. Ambulance crew to the water's edge for handover.`);
+      if (tl.lost) push("lost", tl.lostAt, "setback", `${who} — casualty carried over the ${activeIncident?.scenario.scene?.water?.weirLabel ?? "weir"} before the crew could reach them`);
+    }
+    if (!lines.length) return;
+    setLog((prev) => [...prev, ...lines.map((l) => ({ id: l.id, timestamp: l.at, kind: l.kind, message: l.message }))]);
+  }, [now, tasks, activeIncident]);
+
   // Complete tasks across the county, using each incident's own scenario.
   useEffect(() => {
     const completed = dueTasks(runtimes, incidents, now);
@@ -5501,6 +5529,35 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         crsOutstanding = [...new Set(outstanding.map(({ a }) => a.label))];
       }
     }
+    // Water rescue: the whole job is planned now — walk to the edge, boat
+    // or throwline, the chase, the landing — and stored on the task, so
+    // the map, the sim and the log read one timeline.
+    let waterRescue: Task["waterRescue"];
+    let waterCasualtyId: string | undefined;
+    if (args.kind === "water_rescue" && activeIncident?.scenario.scene?.water) {
+      const scene = activeIncident.scenario.scene;
+      const cas = scene.casualties?.find((c) => c.inWater);
+      const dep = deployments.find((d) => d.applianceId === args.applianceId);
+      const inc = activeIncident.scenario.location.coords;
+      const crewStart = dep?.parkingPos ? latLngToMetres(inc, dep.parkingPos) : { x: 0, y: 0 };
+      if (cas) {
+        const tl = planWaterRescue(scene, cas, activeIncident.receivedAt, startedAt, crewStart);
+        if (tl) {
+          waterRescue = tl;
+          waterCasualtyId = cas.id;
+          const endAt = tl.landAt ?? (tl.lostAt ?? startedAt) + 60_000;
+          durationSec = Math.max(30, Math.round((endAt - startedAt) / 1000));
+          const out = tl.interceptPos && tl.landPos ? Math.round(Math.hypot(tl.interceptPos.x - tl.landPos.x, tl.interceptPos.y - tl.landPos.y)) : null;
+          logAnnotation(
+            tl.mode === "bank"
+              ? `${applianceLabel(args.applianceId)} — crew to the water's edge with the throwline, casualty within reach of the bank`
+              : `${applianceLabel(args.applianceId)} — crew to the water's edge, boat launching in ~${Math.round((tl.launchAt - startedAt) / 60_000) || 1} min${out !== null ? `, casualty ~${out} m out and drifting` : ""}`,
+            "annotation",
+            "water-rescue",
+          );
+        }
+      }
+    }
     const task: Task = {
       id: `${args.applianceId}:${args.kind}:${startedAt}`,
       applianceId: args.applianceId,
@@ -5508,6 +5565,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       startedAt,
       durationSec,
       completesAt: durationSec ? startedAt + durationSec * 1000 : undefined,
+      waterRescue,
       state: "active",
       assignedCrewIds: args.assignedCrewIds,
       hydrantId: args.hydrantId,
@@ -5520,7 +5578,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       attackMode: args.attackMode,
       hretTurret: args.hretTurret,
       baMode: args.baMode,
-      casualtyId: args.casualtyId,
+      casualtyId: args.casualtyId ?? waterCasualtyId,
       personId: args.personId,
       personLabel: args.personLabel,
       vehicleVrm: args.vehicleVrm,

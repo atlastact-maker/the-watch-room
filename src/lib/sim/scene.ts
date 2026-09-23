@@ -182,8 +182,12 @@ export type CriticalIntervention =
 
 export type SceneCasualty = {
   id: string;
-  /** Position on the scene (metres). */
+  /** Position on the scene (metres). For a casualty in the water this is
+   *  where they were when the call came in; the drift moves them. */
   pos: ScenePoint;
+  /** In moving water — drifts per the scene's water model, and only a
+   *  water_rescue task gets them out. */
+  inWater?: boolean;
   severity: "critical" | "serious" | "walking";
   /** Authored clinical presentation. When omitted the sim generates
    *  sensible defaults from severity. */
@@ -319,8 +323,29 @@ export type FireOriginVariant = {
   maxRadiusM?: number;
 };
 
+/** Moving water on a scene: how fast and which way a person in it
+ *  drifts, and how far downstream the thing that kills them is. The
+ *  water body itself is the scene road of kind "water". */
+export type WaterModel = {
+  /** Drift speed, metres per second. */
+  driftMps: number;
+  /** Compass bearing the drift carries towards (270 = west). */
+  driftBearingDeg: number;
+  /** Distance to the weir / lock / outfall; past it the casualty is lost. */
+  weirDistanceM?: number;
+  weirLabel?: string;
+  /** Seconds from reaching the edge to a boat in the water. Default 90. */
+  launchSec?: number;
+  /** Boat speed, metres per second. Default 3. */
+  boatMps?: number;
+  /** Within this many metres of the bank a throwline does the job. Default 15. */
+  bankRescueRangeM?: number;
+};
+
 export type Scene = {
   viewBox: { x: number; y: number; width: number; height: number };
+  /** Moving water, for scenes with someone in it. */
+  water?: WaterModel;
   compassNorth: "up" | "down" | "left" | "right";
   /** Ways out this scene will not allow. A terraced hallway will not take
    *  a carry chair round the stair foot; a fourth floor with the lift out
@@ -374,6 +399,16 @@ export type Scene = {
  * Uses a small-area flat-Earth approximation — accurate to sub-metre at the
  * 100m scale we care about.
  */
+/** The inverse of metresToLatLng: a real-world point as a scene offset. */
+export function latLngToMetres(
+  anchor: { lat: number; lng: number },
+  p: { lat: number; lng: number },
+): ScenePoint {
+  const LAT_DEG_PER_METRE = 1 / 111000;
+  const lngDegPerMetre = 1 / (111000 * Math.cos((anchor.lat * Math.PI) / 180));
+  return { x: (p.lng - anchor.lng) / lngDegPerMetre, y: -(p.lat - anchor.lat) / LAT_DEG_PER_METRE };
+}
+
 export function metresToLatLng(
   anchor: { lat: number; lng: number },
   offset: ScenePoint,

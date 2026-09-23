@@ -10,6 +10,7 @@ import {
   type PatientTreatmentState,
   type Task,
 } from "./incident_types";
+import { landedBy, weirReachedAt } from "./water_rescue";
 import type {
   FireMaterial,
   PatientRedFlag,
@@ -496,7 +497,14 @@ export function simulateIncident(
         paired.hospitalArrivesAt !== undefined &&
         now >= paired.hospitalArrivesAt;
 
-      const treated = inTreatmentOnScene || conveying || atHospital;
+      // A casualty in the water is out of anyone's reach until the boat
+      // or the line gets to them; from then the crew have them and the
+      // clock stops the way it does for a paired ambulance.
+      const rescue = c.inWater && scene.water
+        ? tasks.find((t) => t.kind === "water_rescue" && t.waterRescue && t.casualtyId === c.id && t.state !== "aborted")?.waterRescue
+        : undefined;
+      const reachedInWater = rescue?.interceptAt !== undefined && !rescue.lost && now >= rescue.interceptAt;
+      const treated = inTreatmentOnScene || conveying || atHospital || reachedInWater;
 
       // Compute effective severity by deteriorating the authored severity
       // one grade per CASUALTY_DETERIORATION_SEC the incident has been
@@ -530,6 +538,14 @@ export function simulateIncident(
       else if (inTreatmentOnScene) stage = "in_treatment";
       else if (!located) stage = "undiscovered";
       else stage = "located";
+
+      // In the water: the drift takes them over the weir unless a crew
+      // reaches them first; once landed they are out of it on the bank.
+      if (c.inWater && scene?.water) {
+        const lostAt = weirReachedAt(scene.water, incident.receivedAt);
+        if (!reachedInWater && lostAt !== null && now >= lostAt && (stage === "located" || stage === "undiscovered")) stage = "expectant";
+        else if (landedBy(rescue, now) && stage === "located") stage = "extricated";
+      }
 
       // Flashover eats any casualty still inside.
       if (

@@ -42,6 +42,9 @@ export type CrewFigure = {
   inside?: boolean;
   /** Small offset at the work position so several riders do not stack. */
   spreadIndex?: number;
+  /** Somewhere else entirely for a while — aboard a boat, say. When it
+   *  returns a point, that is where the rider is. */
+  carriedBy?: (now: number) => LatLng | null;
 };
 
 const WALK_MPS = 1.3;
@@ -121,6 +124,8 @@ export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase
   ][spread % 8];
   const work = offsetMetres(f.to, ring[0], ring[1]);
   if (now < f.startAt) return null;
+  const carried = f.carriedBy?.(now);
+  if (carried) return { pos: offsetMetres(carried, ring[0] * 0.6, ring[1] * 0.6), phase: "working" };
   if (f.endAt !== undefined && now >= f.endAt) {
     // Walking back from wherever the rider was when the task ended.
     const reachedBy = f.startAt + walkMs;

@@ -1523,6 +1523,9 @@ export type Task = {
   baMode?: "search" | "firefighting";
   /** For extract_casualty: which casualty this crew is moving out. */
   casualtyId?: string;
+  /** For water_rescue: the whole rescue, planned when the task started —
+   *  see water_rescue.ts. */
+  waterRescue?: import("./water_rescue").WaterRescueTimeline;
   /** For the police person tasks: the record the officer is dealing
    *  with, and how the tablet labelled them at the time (Person 01,
    *  or the name once details were given). */
