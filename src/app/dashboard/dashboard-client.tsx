@@ -1915,7 +1915,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, queueCall]);
 
 
-  function triggerScenario(scenario: Scenario) {
+  function triggerScenario(scenario: Scenario): string | null {
     // A scenario can only be live once at a time. Casualty ids are
     // authored per scenario ('cas-player'), and the treatment and resus
     // records are keyed by casualty id — running the same job twice
@@ -1924,7 +1924,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       setSelectedIncidentId(
         incidents.find((i) => i.scenarioId === scenario.id)!.id,
       );
-      return;
+      return null;
     }
     bumpStats((s) => {
       s.callsAnswered += 1;
@@ -2014,7 +2014,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // Caller stays on the line from the moment we answer the call until
     // the first crew lands on scene. Scenarios with no authored script
     // still get the banner briefly, since informantOnCall drives the UI.
+    return newId;
   }
+
 
   function refuel(applianceId: string) {
     setVehicleGauges((prev) => ({
@@ -5798,6 +5800,28 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     commandOptionsFor,
     extraSlots: Object.fromEntries(Object.entries(runtimes).map(([id, r]) => [id, r?.extraSlots ?? []])),
   });
+
+  // "Send" from the call screen promises the attendance is mobilising.
+  // The incident does not exist until the next render, so the send marks
+  // it here and the effect below fills its PDA the moment the desk model
+  // has its rows.
+  const autoMobiliseRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = autoMobiliseRef.current;
+    if (!id || selectedIncidentId !== id || !incidents.some((i) => i.id === id)) return;
+    autoMobiliseRef.current = null;
+    const scenario = incidents.find((i) => i.id === id)?.scenario;
+    const picks = proposeFill(desk, scenario);
+    const timer = window.setTimeout(() => {
+      if (picks.length === 0) {
+        setStatusMsg("Sent — nothing suitable is free for the attendance; allocate by hand");
+        return;
+      }
+      for (const p of picks) mobiliseTo(p.applianceId, p.stationId, id, p.slotId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incidents, selectedIncidentId, desk]);
   const groundAvailable = !!activeIncident && !outcome && !handover && !!incidentSim;
 
   /** PNC or ANPR from the Systems menu: on the tablet when a job is live,
@@ -5956,7 +5980,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   /** Send on what is known and keep the caller talking. */
   function preAlertFromCall(call: PendingCall, note: string) {
     if (activeCall?.opened) return;
-    triggerScenario(call.scenario);
+    autoMobiliseRef.current = triggerScenario(call.scenario);
     setActiveCall((prev) => (prev && prev.id === call.id ? { ...prev, opened: true } : prev));
     logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}; caller kept on the line`, "annotation", "call-sent");
     setStatusMsg(`${call.scenario.title} sent — caller still on the line`);
@@ -5989,7 +6013,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   function createFromCall(call: PendingCall, note: string, summary: CallSummary) {
     setActiveCall(null);
     if (!activeCall?.opened) {
-      triggerScenario(call.scenario);
+      autoMobiliseRef.current = triggerScenario(call.scenario);
       logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}`, "annotation", "call-sent");
     }
     logCallSummary(call, summary);
