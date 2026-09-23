@@ -9,7 +9,8 @@
     "support-desk": "node support-desk.mjs .env",
     "advisor-access": "node advisor-tags-access.mjs .env",
     "ticket-prep": "node ticket-tool-prep.mjs .env",
-    "advisor-split": "node advisor-service-split.mjs .env"
+    "advisor-split": "node advisor-service-split.mjs .env",
+    "suggestions": "node suggestions-read.mjs .env --out suggestions.md"
   },
   "dependencies": {
     "discord.js": "^14.16.3"
