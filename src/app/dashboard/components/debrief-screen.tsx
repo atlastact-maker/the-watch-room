@@ -26,9 +26,12 @@ export function DebriefScreen({
   tasks,
   onDismiss,
   dismissLabel = "Back to the desk",
+  variantId,
 }: {
   incident: Incident;
   outcome: IncidentOutcome;
+  /** Tonight's run, when the scenario varies. */
+  variantId?: string;
   deployments: Deployment[];
   sim: IncidentSimState | null;
   treatmentByCasualtyId: Record<string, PatientTreatmentState>;
@@ -232,6 +235,17 @@ export function DebriefScreen({
             </ul>
           </section>
         )}
+
+        {/* Tonight's run, when the scenario varies */}
+        {(() => {
+          const v = incident.scenario.scene?.variants?.find((x) => x.id === variantId);
+          return v ? (
+            <section className="rounded-sm border border-(--color-border-subtle) p-4">
+              <SectionHeader>Tonight&apos;s run</SectionHeader>
+              <p className="text-[13px] text-(--color-text-muted)">{v.label}</p>
+            </section>
+          ) : null;
+        })()}
 
         {/* Evaluation targets (authored per scenario) */}
         {incident.scenario.evaluation.targets.length > 0 && (

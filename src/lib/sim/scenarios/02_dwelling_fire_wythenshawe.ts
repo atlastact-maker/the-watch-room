@@ -298,7 +298,8 @@ export const scenario02: Scenario = {
         severity: "serious",
         discoverAfterMinBa: 7,
         // Only exists when the "second-casualty" beat fires — the father
-        // going back in for his son on a slow response.
+        // going back in for his son on a slow response — or from the call
+        // on the "back-in" run, which forces him present.
         presentProbability: 0,
         label: "Adult (38) — hall",
         clinical: {
@@ -312,6 +313,45 @@ export const scenario02: Scenario = {
           preferredDestination: "nearest_a_e",
           criticalInterventions: ["oxygen", "iv_access"],
         },
+      },
+      {
+        // Ella, in the loft conversion — only on the "loft" run. Up the
+        // single stair, above the smoke; found later than the boy would be.
+        id: "cas-3",
+        pos: { x: 1, y: -1 },
+        severity: "serious",
+        discoverAfterMinBa: 5,
+        presentProbability: 0,
+        label: "Child (8) — loft bedroom",
+        clinical: {
+          vitals: {
+            rr: 28, spo2: 90, hr: 124, bpSys: 98, bpDia: 60,
+            gcs: 13, temp: 37.0, bm: 5.2,
+          },
+          ageYears: 8,
+          presumedCondition: "Smoke-inhalation · no burns · paediatric",
+          redFlags: ["airway_compromise"],
+          preferredDestination: "paed_ed",
+          criticalInterventions: ["oxygen", "iv_access"],
+        },
+      },
+    ],
+    // Tonight's run — drawn once at call time. The base is the roll above:
+    // everyone out, or Theo in the back bedroom, with Dan only going back
+    // in on a slow attendance. The fire-origin roll plays in every run.
+    variants: [
+      {
+        id: "loft",
+        label: "Ella (8) in the loft — Kelly got Theo out, nobody can get up the single stair",
+        probability: 0.25,
+        present: ["cas-3"],
+        absent: ["cas-1"],
+      },
+      {
+        id: "back-in",
+        label: "Dan back in for Theo — two in the house before the first pump is on the road",
+        probability: 0.25,
+        present: ["cas-1", "cas-2"],
       },
     ],
     sectors: [
@@ -340,13 +380,34 @@ export const scenario02: Scenario = {
       tone: "critical",
     },
     {
+      // The "loft" run: Kelly went for the boy who would not hear the
+      // alarm and got him; the girl up the single stair did not come down.
+      id: "ella-loft",
+      atSec: 25,
+      requiresVariantIds: ["loft"],
+      text: "Kelly's here with Theo, and Dan's out — but Ella's not with them. She sleeps up in the loft, and nobody can get up the stair to her, it's black. She's eight.",
+      tone: "critical",
+    },
+    {
       // The other side of the persons-reality roll — everyone's out.
       // The house is still going like a train; only the pressure changes.
+      // Never on the loft run, where Theo is out but Ella is not.
       id: "all-out",
       atSec: 30,
       requiresAbsentCasualtyIds: ["cas-1"],
+      excludesVariantIds: ["loft"],
       text: "Wait — they're out! They're ALL out — Kelly's got both kids with her, here on my step, and Dan's out. Everyone's accounted for. The house has properly gone up though, the whole back of it.",
       tone: "urgent",
+    },
+    {
+      // The "back-in" run: Dan goes for his son straight away, before the
+      // first pump is on the road. cas-2 is present from the call.
+      id: "dan-back-in",
+      atSec: 60,
+      requiresVariantIds: ["back-in"],
+      text: "Dan's gone back in — Kelly's screaming at him — he's gone in the front door after Theo and he hasn't come out. They're both in there now.",
+      tone: "critical",
+      effect: { pulseCritical: true },
     },
     {
       // Graham is Pauline's husband, next door at 287. Someone at the back
@@ -378,14 +439,27 @@ export const scenario02: Scenario = {
       effect: { accelerateGrowthSec: 60, pulseCritical: true },
     },
     {
+      // The loft run's escalation: smoke at the roof, where she is.
+      id: "smoke-loft",
+      atSec: 90,
+      delayThresholdSec: 270,
+      probability: 0.8,
+      requiresVariantIds: ["loft"],
+      text: "There's smoke coming out of the roof now — the loft window, the skylight — that's where Ella is.",
+      tone: "critical",
+      effect: { accelerateGrowthSec: 60, pulseCritical: true },
+    },
+    {
       // Slow response consequence: the father goes back in after his son.
       // This beat CREATES the second casualty (cas-2 is absent until it
-      // fires) — fast attendances never generate him.
+      // fires) — fast attendances never generate him. On the back-in run
+      // he has already gone (dan-back-in), so it never plays there.
       id: "second-casualty",
       atSec: 140,
       delayThresholdSec: 330,
       probability: 0.45,
       requiresCasualtyIds: ["cas-1"],
+      excludesVariantIds: ["back-in"],
       text: "Dan's gone back in for Theo — he hasn't come out. They're both in there.",
       tone: "critical",
       effect: { pulseCritical: true, revealCasualty: "cas-2" },
@@ -464,6 +538,9 @@ export const scenario02: Scenario = {
             text: "Can you see anyone at a window?",
             answer: {
               text: "No. Nobody. I banged on the door and nobody came.",
+              byVariant: {
+                loft: "No. Nobody. And you can't see into the loft, it's only a skylight in the roof. I banged on the door and nobody came.",
+              },
               tone: "urgent",
             },
           },
@@ -476,6 +553,10 @@ export const scenario02: Scenario = {
       },
       f_vulnerable: {
         text: "Theo, the little one — he's five, and his hearing. And Ella's in the loft, there's only the one stair up to it.",
+        byVariant: {
+          loft: "Theo, the little one — he's five, and his hearing. And Ella — she's up in the loft, and there's only the one stair up to it, a steep one. If that's full of smoke she's stuck up there.",
+          "back-in": "Theo, the little one — he's five, and his hearing. And Dan — he'll go in for him, I know he will, he won't wait.",
+        },
       },
       f_hazards: {
         text: "There's a gas meter, same as mine, in the cupboard under the stairs. No cylinders or anything like that — Dan doesn't even barbecue.",

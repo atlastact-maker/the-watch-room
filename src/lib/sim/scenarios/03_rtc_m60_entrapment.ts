@@ -385,8 +385,24 @@ export const scenario03: Scenario = {
     {
       id: "second-car",
       atSec: 45,
+      excludesVariantIds: ["kia-trapped", "quiet"],
       text: "The Astra fella's shouting back — the woman in the Kia's bleeding from her head, her passenger's holding her up.",
       tone: "urgent",
+    },
+    {
+      id: "second-car-trapped",
+      atSec: 45,
+      requiresVariantIds: ["kia-trapped"],
+      text: "The Astra fella's shouting back — the woman in the Kia's stuck, her legs are under the dash and she's going white. Her passenger's holding her head.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "second-car-quiet",
+      atSec: 45,
+      requiresVariantIds: ["quiet"],
+      text: "The two from the Kia are out on the shoulder with the Astra fella. The woman's cut her head but she's walking.",
+      tone: "info",
     },
     {
       id: "traffic-squeeze",
@@ -400,9 +416,28 @@ export const scenario03: Scenario = {
       atSec: 150,
       delayThresholdSec: 360,
       probability: 0.5,
+      excludesVariantIds: ["van-fire"],
       text: "The van's starting to smoke — I think it's from the engine, not a proper fire yet, but it's getting worse.",
       tone: "critical",
       effect: { igniteFire: { radiusM: 0.5, growthRateMpm: 0.3 }, pulseCritical: true },
+    },
+    // The van-fire run: the smoke goes to flame whatever the response
+    // time, and the pool under the van is bigger.
+    {
+      id: "van-flames",
+      atSec: 90,
+      requiresVariantIds: ["van-fire"],
+      text: "That's not steam — there's flames now, under the bonnet, I can see orange from here. He's still in there.",
+      tone: "critical",
+      effect: { igniteFire: { radiusM: 1, growthRateMpm: 0.5 }, pulseCritical: true },
+    },
+    {
+      id: "van-fire-astra-back",
+      atSec: 240,
+      delayThresholdSec: 300,
+      requiresVariantIds: ["van-fire"],
+      text: "The Astra fella's had to come away from the van, it's too hot — the driver's still in it. He's still in it!",
+      tone: "critical",
     },
     {
       id: "driver-deteriorating",
@@ -410,6 +445,16 @@ export const scenario03: Scenario = {
       delayThresholdSec: 420,
       probability: 0.6,
       text: "The van driver's gone quiet, he was groaning before, now he's not responding when we shout.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "kia-driver-quiet",
+      atSec: 270,
+      delayThresholdSec: 480,
+      probability: 0.6,
+      requiresVariantIds: ["kia-trapped"],
+      text: "They've stopped getting an answer out of the woman in the Kia — the fella with her's screaming for someone to come.",
       tone: "critical",
       effect: { pulseCritical: true },
     },
@@ -613,6 +658,97 @@ export const scenario03: Scenario = {
       { id: 3, label: "Sector 3 · Offload / CCS", face: "rear", bearingDeg: 180 },
       { id: 4, label: "Sector 4 · Fuel / Hazmat", face: "left", bearingDeg: 0 },
     ],
+    // Tonight's run. The base is the authored story above; the rest of
+    // the mass is split between a second entrapment, a van that goes up,
+    // and a quieter night where only the van driver needs cutting out.
+    variants: [
+      {
+        id: "kia-trapped",
+        label: "Two trapped — the Kia driver is pinned under the dash as well as the van driver",
+        probability: 0.25,
+        casualty: {
+          "cas-2": {
+            severity: "critical",
+            trappedUntilExtricated: true,
+            label: "Kia driver (F, ~34) — trapped, legs under the dash, scalp laceration, ?C-spine",
+          },
+        },
+        clinical: {
+          "cas-2": {
+            vitals: {
+              rr: 26,
+              spo2: 92,
+              hr: 118,
+              bpSys: 98,
+              bpDia: 60,
+              gcs: 13,
+              temp: 36.4,
+              bm: 5.8,
+            },
+            presumedCondition: "Bilateral lower-leg crush under the dash, scalp lac, ?C-spine — compensating",
+            redFlags: ["major_haemorrhage", "spinal_injury_suspected"],
+            preferredDestination: "mtc",
+            criticalInterventions: ["oxygen", "iv_access", "tXA", "spine_board"],
+          },
+        },
+      },
+      {
+        id: "van-fire",
+        label: "The Transit goes up — engine-bay smoke to flame with the driver still in the cab",
+        probability: 0.25,
+        fireSeat: { maxRadiusM: 6 },
+        hazards: {
+          add: [
+            {
+              id: "fuel-spill-wide",
+              pos: { x: 12, y: -6 },
+              kind: "chemical",
+              label: "Diesel running back across lanes 2–3 towards the Kia",
+              knownFromPri: false,
+              discoverAfterMinOnScene: 1,
+            },
+          ],
+        },
+      },
+      {
+        id: "quiet",
+        label: "A quieter night — the Kia passenger and the Polo lad walk away; one entrapment",
+        probability: 0.2,
+        casualty: {
+          "cas-2": { pos: { x: -8, y: -10 } },
+          "cas-3": {
+            severity: "walking",
+            pos: { x: -6, y: -10 },
+            label: "Kia front-seat passenger (M, ~32) — walking wounded, seatbelt bruising",
+          },
+          "cas-4": {
+            label: "VW Polo driver (M, ~22) — uninjured, shaken",
+          },
+        },
+        clinical: {
+          "cas-3": {
+            vitals: {
+              rr: 18,
+              spo2: 98,
+              hr: 96,
+              bpSys: 130,
+              bpDia: 82,
+              gcs: 15,
+              temp: 36.6,
+              bm: 5.4,
+            },
+            presumedCondition: "Seatbelt bruising, no chest signs",
+            redFlags: [],
+            criticalInterventions: [],
+          },
+          "cas-4": {
+            presumedCondition: "Uninjured, shaken up",
+            preferredDestination: "non_convey",
+            criticalInterventions: [],
+          },
+        },
+      },
+    ],
   },
   // The call as Darren has it: stood by the cab of a forty-four-tonner
   // on the hard shoulder, fifty yards back from the wreck, beacons going,
@@ -629,6 +765,14 @@ export const scenario03: Scenario = {
     },
     opening:
       "There's been a crash on the M60 — eastbound, clockwise, between seventeen and eighteen, just before the bridge. Three of them, a van and two cars, all gone into each other. There's smoke coming off the van and the driver's still in it, he's not moving. You need to get everyone — fire, ambulance, the lot.",
+    openingByVariant: {
+      "kia-trapped":
+        "There's been a crash on the M60 — eastbound, clockwise, between seventeen and eighteen, just before the bridge. Three of them, a van and two cars, all gone into each other. The van driver's still in it, he's not moving, and they're shouting the woman in the car behind's stuck as well. You need to get everyone — fire, ambulance, the lot.",
+      "van-fire":
+        "There's been a crash on the M60 — eastbound, clockwise, between seventeen and eighteen, just before the bridge. Three of them, a van and two cars, all gone into each other. The van's smoking, proper smoking, and the driver's still in it, he's not moving. Get the fire brigade here — fire, ambulance, the lot.",
+      quiet:
+        "There's been a crash on the M60 — eastbound, clockwise, between seventeen and eighteen, just before the bridge. Three of them, a van and two cars. The car people are out, but there's smoke coming off the van and the driver's still in it, he's not moving. You need fire, ambulance, the lot.",
+    },
     deflection: "I've told you — there's a bloke trapped in a van on the M60! What else d'you need to know?",
     reassurance: {
       text: "Darren, they're on their way — fire, ambulance and police. I need you to stay behind your barrier and keep telling me what you can see. Can you do that?",
@@ -644,6 +788,10 @@ export const scenario03: Scenario = {
       },
       f_spread: {
         text: "The smoke off the van's not got any worse that I can see — it's whitish, I think it's the radiator. There's a smell of diesel, though. Strong. I'll tell you if it changes.",
+        byVariant: {
+          "van-fire":
+            "It's getting worse. It's not white any more, it's going grey and there's more of it, coming up from under the bonnet. And there's diesel all over the road under it — if that catches he's had it.",
+        },
       },
       f_started: {
         text: "Two, three minutes. It happened right in front of me — I was two back from the Polo. I've got the wagon on the hard shoulder and rung you straight off.",
@@ -653,6 +801,12 @@ export const scenario03: Scenario = {
       },
       f_inside: {
         text: "The van driver — he's still in his cab and he's not moving. His door's pushed right in on him. The two in the Kia are still sat in it, a woman driving and a fella next to her. The Polo lad's out, he's stood here with me.",
+        byVariant: {
+          "kia-trapped":
+            "The van driver — he's still in his cab and he's not moving. His door's pushed right in on him. The two in the Kia are still sat in it, a woman driving and a fella next to her — the Astra bloke's shouting she can't get her legs out, the front's all pushed in on her. The Polo lad's out, he's stood here with me.",
+          quiet:
+            "The van driver — he's still in his cab and he's not moving. His door's pushed right in on him. The two from the Kia are out — the fella's got the woman sat on the barrier, she's holding her head. The Polo lad's stood here with me, not a mark on him.",
+        },
         tone: "critical",
         followUps: [
           {
@@ -668,16 +822,32 @@ export const scenario03: Scenario = {
             text: "The two in the Kia — can they get themselves out?",
             answer: {
               text: "The fella in the passenger seat's moving, he's turned round to the woman. I can't see her properly from here. The Astra bloke's gone over to them.",
+              byVariant: {
+                "kia-trapped":
+                  "The fella in the passenger seat's moving, he's turned round to her. The Astra bloke's shouting she's stuck — her legs are under the dash and she can't move them. He can't get her door open.",
+                quiet:
+                  "They're out. The fella's got her sat on the barrier on the shoulder, she's holding her head. He walked her over himself.",
+              },
             },
           },
         ],
       },
       f_hurt: {
         text: "The van driver, for definite — he's not moved since. The woman in the Kia, the fella with her's shouting for help, so I'd say yes. The lad from the Polo's cut his hands and he's shaking, but he's on his feet.",
+        byVariant: {
+          "kia-trapped":
+            "The van driver, for definite — he's not moved since. The woman in the Kia — she's stuck in it and the fella with her's screaming for help, so yes, badly. The lad from the Polo's cut his hands and he's shaking, but he's on his feet.",
+          quiet:
+            "The van driver, for definite — he's not moved since. The woman in the Kia's cut her head, she's sat on the barrier with her fella. The Polo lad's fine, just shook up.",
+        },
         tone: "urgent",
       },
       f_vulnerable: {
         text: "The van driver, if he's trapped — he's not getting himself out of that. The rest are grown-ups — no kids that I've seen or heard, and nobody's shouting about any.",
+        byVariant: {
+          "kia-trapped":
+            "The van driver, if he's trapped — and the woman in the Kia, they're saying she's stuck too. Neither of them's getting themselves out. The rest are grown-ups — no kids that I've seen or heard, and nobody's shouting about any.",
+        },
       },
       f_hazards: {
         text: "Diesel — I can smell it from here, and that Transit'll have a good tank on it. The cars'll be petrol. No load on the van that I know of, it's a courier van, parcels.",

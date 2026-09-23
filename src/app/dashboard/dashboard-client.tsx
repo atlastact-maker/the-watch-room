@@ -185,6 +185,7 @@ import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import type { CallSummary } from "./vector/call-screen";
 import { SCENARIOS } from "@/lib/sim/scenarios";
+import { rollVariant, applyVariant, variantAllows } from "@/lib/sim/scene";
 import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
@@ -407,6 +408,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     injuredCrewIds: string[];
     /** Casualties the desk has seen go expectant — final once seen. */
     expectantIds?: string[];
+    /** Tonight's run — see ScenarioVariant. "base" when nothing varied. */
+    variantId?: string;
     /** A grade moved by an informant beat: what the caller said made it a
      *  different call. */
     gradeOverride?: { grade: string; basis: string; atMs: number } | null;
@@ -1825,6 +1828,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
    *  operator answers it — which is the point: an unanswered call is a
    *  decision being deferred, and the stack keeps score. */
   const queueCall = useCallback((scenario: Scenario) => {
+    // Tonight's run is drawn as the call comes in, so the caller's own
+    // words already match what the crews will find.
+    const variantId = rollVariant(scenario.scene?.variants);
     setPendingCalls((prev) => {
       if (prev.some((c) => c.scenario.id === scenario.id)) return prev;
       return [
@@ -1833,6 +1839,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           id: `CALL-${scenario.id}-${Date.now()}`,
           scenario,
           receivedAt: Date.now(),
+          variantId,
         },
       ];
     });
@@ -1915,7 +1922,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, queueCall]);
 
 
-  function triggerScenario(scenario: Scenario): string | null {
+  function triggerScenario(scenario: Scenario, variantId?: string): string | null {
     // A scenario can only be live once at a time. Casualty ids are
     // authored per scenario ('cas-player'), and the treatment and resus
     // records are keyed by casualty id — running the same job twice
@@ -1943,11 +1950,26 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         },
       ]);
     }
+    // Tonight's run: drawn with the call when there was one, drawn here
+    // for a job placed straight on the board. Baked into this incident's
+    // own scenario copy, like the fire origin below.
+    const runId = variantId ?? rollVariant(scenario.scene?.variants);
+    const applied = scenario.scene ? applyVariant(scenario.scene, runId) : null;
+    let liveScenario: Scenario = applied && applied.variant
+      ? {
+          ...scenario,
+          scene: applied.scene,
+          subject: scenario.subject && applied.variant.subject ? { ...scenario.subject, ...applied.variant.subject } : scenario.subject,
+        }
+      : scenario;
     // Persons-reality roll — decided once, at call time. Casualties with
     // presentProbability < 1 may simply not be there tonight; a beat with
-    // effect.revealCasualty can still put one back mid-call.
+    // effect.revealCasualty can still put one back mid-call. The variant
+    // has the last word on anyone it names.
     const absentRoll: string[] = [];
-    for (const c of scenario.scene?.casualties ?? []) {
+    for (const c of liveScenario.scene?.casualties ?? []) {
+      if (applied?.forcePresent.includes(c.id)) continue;
+      if (applied?.forceAbsent.includes(c.id)) { absentRoll.push(c.id); continue; }
       if (c.presentProbability === undefined) continue;
       if (!rollPresent(c.presentProbability)) absentRoll.push(c.id);
     }
@@ -1955,27 +1977,27 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // winner is baked into this incident's own scenario copy so the sim,
     // scene canvas, maps and the 360 material reveal all see the rolled
     // seat without any extra plumbing. The remainder probability keeps
-    // the authored default seat.
-    let liveScenario = scenario;
-    const variants = scenario.scene?.fireOriginVariants;
-    if (scenario.scene?.fireSeat && variants && variants.length > 0) {
+    // the authored default seat. A run variant that set the seat has
+    // already decided it.
+    const variants = applied?.variant?.fireSeat ? undefined : liveScenario.scene?.fireOriginVariants;
+    if (liveScenario.scene?.fireSeat && variants && variants.length > 0) {
       const draw = Math.random();
       let acc = 0;
       for (const v of variants) {
         acc += v.probability;
         if (draw < acc) {
           liveScenario = {
-            ...scenario,
+            ...liveScenario,
             scene: {
-              ...scenario.scene,
+              ...liveScenario.scene!,
               fireSeat: {
-                ...scenario.scene.fireSeat,
+                ...liveScenario.scene!.fireSeat!,
                 pos: v.pos,
-                material: v.material ?? scenario.scene.fireSeat.material,
-                radiusM: v.radiusM ?? scenario.scene.fireSeat.radiusM,
+                material: v.material ?? liveScenario.scene!.fireSeat!.material,
+                radiusM: v.radiusM ?? liveScenario.scene!.fireSeat!.radiusM,
                 growthRateMpm:
-                  v.growthRateMpm ?? scenario.scene.fireSeat.growthRateMpm,
-                maxRadiusM: v.maxRadiusM ?? scenario.scene.fireSeat.maxRadiusM,
+                  v.growthRateMpm ?? liveScenario.scene!.fireSeat!.growthRateMpm,
+                maxRadiusM: v.maxRadiusM ?? liveScenario.scene!.fireSeat!.maxRadiusM,
               },
             },
           };
@@ -1993,6 +2015,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       [newId]: {
         ...emptyRuntime(),
         absentCasualtyIds: absentRoll,
+        variantId: runId,
         // The caller stays on the line from answering until the first
         // crew lands. Seeded here rather than through the shadowed setter
         // below, which would still be writing to the previous selection.
@@ -4759,12 +4782,27 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       for (const update of live) {
         if (firedIds.has(update.id)) continue;
         if (sinceOpenSec < update.atSec) continue;
-        // Delay-gated beats: only fire if the response is actually slow.
-        if (
-          update.delayThresholdSec !== undefined &&
-          sinceOpenSec < update.delayThresholdSec
-        ) {
+        // Not this run's beat: retire it silently so nothing waits on it.
+        if (!variantAllows(update, rt.variantId)) {
+          setInformantLog((prev) => [
+            ...prev,
+            { id: update.id, text: "", tone: "info", firedAt: Date.now() },
+          ]);
           continue;
+        }
+        // Delay-gated beats: only fire if the response is actually slow.
+        // Once a crew is on scene the response is no longer slow, so a
+        // beat that survived the caller clearing the line retires here
+        // rather than complaining about a car that is already outside.
+        if (update.delayThresholdSec !== undefined) {
+          if (firstOnScene) {
+            setInformantLog((prev) => [
+              ...prev,
+              { id: update.id, text: "", tone: "info", firedAt: Date.now() },
+            ]);
+            continue;
+          }
+          if (sinceOpenSec < update.delayThresholdSec) continue;
         }
         // Persons-reality gates: beats about a casualty only play when that
         // casualty is actually in the building this run — and the relief
@@ -5980,7 +6018,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   /** Send on what is known and keep the caller talking. */
   function preAlertFromCall(call: PendingCall, note: string) {
     if (activeCall?.opened) return;
-    autoMobiliseRef.current = triggerScenario(call.scenario);
+    autoMobiliseRef.current = triggerScenario(call.scenario, call.variantId);
     setActiveCall((prev) => (prev && prev.id === call.id ? { ...prev, opened: true } : prev));
     logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}; caller kept on the line`, "annotation", "call-sent");
     setStatusMsg(`${call.scenario.title} sent — caller still on the line`);
@@ -6013,7 +6051,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   function createFromCall(call: PendingCall, note: string, summary: CallSummary) {
     setActiveCall(null);
     if (!activeCall?.opened) {
-      autoMobiliseRef.current = triggerScenario(call.scenario);
+      autoMobiliseRef.current = triggerScenario(call.scenario, call.variantId);
       logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}`, "annotation", "call-sent");
     }
     logCallSummary(call, summary);
@@ -7148,6 +7186,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                   treatmentByCasualtyId={treatmentByCasualtyId}
                   log={log}
                   tasks={rt.tasks}
+                  variantId={rt.variantId}
                   onDismiss={() => setReviewJobId(null)}
                   dismissLabel={shiftDebriefOpen ? "Back to the shift debrief" : "Back to the desk"}
                 />

@@ -5,7 +5,7 @@ import type { Scenario } from "../incident_types";
 // The quietest job on the stack and the one with the hardest deadline.
 // Store security have a man in a back office for two hundred pounds of
 // fragrance. He is sat down. Nobody is hurt. On THRIVE he is a Grade 2
-// and he will never be anything else — but the store's clock is not his:
+// for as long as he sits there — but the store's clock is not his:
 // two security officers are holding him on an any-person arrest that
 // ends the moment they decide he is not worth the risk, and the manager
 // who rings back at five minutes, fifteen and forty is telling the
@@ -18,10 +18,14 @@ import type { Scenario } from "../incident_types";
 // The name he gives, searched, makes him wanted on warrant with a
 // history of violence when challenged — which is the operator's reason
 // to take the next car that clears rather than the one after. And, on
-// roughly half of runs, he kicks off in the office.
+// three runs in ten, he kicks off in the office — and that is a Grade 1,
+// and the desk is told so.
 //
-// The failure beat is the store releasing him at the hour. Not the
-// manager being difficult: the job, lost.
+// Tonight's run is drawn once, when the call comes in (scene.variants):
+// "kicks-off", "walks" — the store means its hour and lets him go — or
+// the base, where he sits, the manager rings, the car arrives, an
+// arrest. The failure beat is the store releasing him at the hour. Not
+// the manager being difficult: the job, lost.
 //
 // FICTIONAL: everyone involved, and the store — Pendle & Marsh does not
 // exist. The Trafford Centre is real and is a public place; nothing here
@@ -123,7 +127,7 @@ export const scenario47: Scenario = {
       { kind: "pnc_before_arrival", surname: "DEAKIN", label: "PNC on the detained male before the car arrived" },
     ],
     lesson:
-      "A shoplifter in a back office is the quietest job on the stack and the one with the hardest deadline. Nothing about him as he sits is a Grade 1 — contained, two staff with him, nobody hurt — and the clock is the store's, not his. Two security officers are holding a man on an any-person arrest that ends the second they decide he is not worth it, and the manager who rings back at five minutes, fifteen and forty is telling you exactly when that is. Search him early, because the name he gave makes him wanted, and that is your reason to take the next car that clears rather than the one after. Send one car and send it properly. Do not strip a Grade 1 for him, and do not let him sit until the hour either, because the release at sixty minutes is not the store being difficult. It is you having lost the job.",
+      "A shoplifter in a back office is the quietest job on the stack and the one with the hardest deadline. Nothing about him as he sits is a Grade 1 — contained, two staff with him, nobody hurt — and the clock is the store's, not his. If he kicks off in that room it becomes one, and the regrade is your reason to take the next car that clears, not to strip a second. Two security officers are holding a man on an any-person arrest that ends the second they decide he is not worth it, and the manager who rings back at five minutes, fifteen and forty is telling you exactly when that is. Search him early, because the name he gave makes him wanted, and that is your reason to take the next car that clears rather than the one after. Send one car and send it properly. Do not strip a Grade 1 for him, and do not let him sit until the hour either, because the release at sixty minutes is not the store being difficult. It is you having lost the job.",
   },
 
   // Schematic only. A run of mall units either side of a public
@@ -192,6 +196,20 @@ export const scenario47: Scenario = {
     ],
     // Nobody is hurt. No patient, so no casualty.
     casualties: [],
+    // Tonight's run, drawn once when the call comes in. The remainder is
+    // the base: he sits, the manager rings, the car arrives, an arrest.
+    variants: [
+      {
+        id: "kicks-off",
+        label: "He kicks off in the office — violence towards staff, and a Grade 1 from eight minutes in",
+        probability: 0.3,
+      },
+      {
+        id: "walks",
+        label: "The store means its hour tonight — security let him go at sixty minutes if nobody is there",
+        probability: 0.3,
+      },
+    ],
     sectors: [
       { id: 1, label: "Sector 1 · Mall concourse / shop floor", face: "front", bearingDeg: 180 },
       { id: 2, label: "Sector 2 · Service road / staff entrance", face: "rear", bearingDeg: 0 },
@@ -203,7 +221,8 @@ export const scenario47: Scenario = {
   // The caller is store security, and then the manager. The script runs
   // until the car arrives; every beat after the first five minutes is
   // the store's patience being spent, and the last two only ever play on
-  // a run where the operator has let him sit.
+  // a run where the operator has let him sit. Beats that belong to one
+  // run are gated on it, so no run contradicts itself.
   informantScript: [
     {
       // A continuation, not an introduction — the desk has just had the
@@ -228,42 +247,43 @@ export const scenario47: Scenario = {
       text: "[Store line — Claire Rathbone, manager] It's the store manager at Pendle and Marsh. I've got two of my security staff sat in an office with this lad and a shop floor with nobody on it. I'm not being funny, but are you actually coming?",
       tone: "urgent",
     },
-    // --- The roll. Roughly half of runs he kicks off. ------------------
-    // Kept short of violence used or threatened — he tries the door once,
-    // is talked back to the chair and stays a Grade 2. The desk cannot
-    // regrade after the call, so the beat must not demand it.
+    // --- The kicks-off run. ---------------------------------------------
+    // Violence towards staff in a confined room is a Grade 1 on THRIVE,
+    // and the beat says so on the desk.
     {
       id: "aggressive",
       atSec: 480,
-      probability: 0.55,
-      suppressesIds: ["quiet"],
-      text: "He's started. He's up off the chair, he's had a go at the door handle and he's giving my lad a load of mouth. I've talked him back down and he's sat again, nobody's touched anybody. He's not going anywhere but he's not happy — I'd rather your lot were here sooner than later.",
+      requiresVariantIds: ["kicks-off"],
+      text: "He's kicked off. He's up, he's had a go at the door, he's telling my lad he'll put him through the wall. We've had to get hold of him again. He's not going anywhere but this is getting out of hand — you need to get somebody here.",
       tone: "urgent",
-      effect: { pulseCritical: true },
+      effect: { regrade: "GRADE 1", basis: "Violence towards staff in a confined room", pulseCritical: true },
     },
     {
-      // No probability, deliberately. aggressive has taken its 55%; this
-      // is the other 45% and it has to be certain, or a share of runs
-      // hear neither and the office goes silent for no reason.
+      // It does not settle. That is what the regrade bought.
+      id: "held-down",
+      atSec: 660,
+      requiresVariantIds: ["kicks-off"],
+      requiresFiredIds: ["aggressive"],
+      text: "He's gone for Arjun. We've got him on the floor, two of us on him, and Arjun's got a split lip. He's still shouting. I can't hold him like this for long — where are they?",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    // --- Every run he does not kick off. Certain, or the office goes
+    // silent for no reason. -----------------------------------------------
+    {
       id: "quiet",
       atSec: 540,
+      excludesVariantIds: ["kicks-off"],
       text: "Nothing's changed here. He's gone quiet on us — sat on the chair with his head down, not said anything since he give us his name. Compliant as anything. Just tell me roughly when, so I can tell my manager something.",
       tone: "info",
     },
-    {
-      id: "calmer",
-      atSec: 660,
-      probability: 0.7,
-      requiresFiredIds: ["aggressive"],
-      text: "He's settled a bit. Still gobbing off, but he's not been near the door again. Nobody's hurt. My lad's a bit rattled, that's all. I'd still like you here sooner rather than later.",
-      tone: "info",
-    },
     // --- The store's patience, on a slow response only. ----------------
+    // Not survivesArrival: these are "no car yet" beats, and the delay
+    // gate is wall time, so after arrival they would still fire.
     {
       id: "manager-second",
       atSec: 900,
       delayThresholdSec: 900,
-      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] Store manager again. That's a quarter of an hour. I've got a member of staff who should have gone home by now sat in that office, and my area manager on the other line asking why we bother detaining anybody if this is what happens. What do I tell her?",
       tone: "urgent",
     },
@@ -271,19 +291,19 @@ export const scenario47: Scenario = {
       id: "release-warning",
       atSec: 2400,
       delayThresholdSec: 2400,
-      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] I'm giving you fair warning. If nobody is here by the top of the hour I'm letting him go. Our policy is an hour and I'm not having my staff assaulted over some perfume. I'll send you the CCTV and the name he gave and you can do what you like with it.",
       tone: "urgent",
       effect: { pulseCritical: true },
     },
     {
-      // The failure beat. Only ever plays on a run where the car has not
-      // arrived inside the hour.
+      // The failure beat. The walks run only, and only when the car has
+      // not arrived inside the hour. In the base the manager threatens
+      // and does not follow through.
       id: "released",
       atSec: 3600,
       delayThresholdSec: 3600,
+      requiresVariantIds: ["walks"],
       requiresFiredIds: ["release-warning"],
-      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] That's it, he's gone. We've walked him out the staff door and he's away across the staff car park. We've got his face on camera and the name he gave, and that's all we've got. You can cancel your officers.",
       tone: "critical",
       effect: { pulseCritical: true },
@@ -323,6 +343,10 @@ export const scenario47: Scenario = {
       },
       p_ongoing: {
         text: "It's done — he's detained, he's sat down. He's not going anywhere while there's two of us in here. But we can't sit on him all day, so whenever you can.",
+        // The walks run's tell: the store means its hour tonight.
+        byVariant: {
+          walks: "It's done — he's detained, he's sat down. He's not going anywhere while there's two of us in here. But the manager's already said she's not keeping him past the hour, and she means it. So whenever you can, but not all day.",
+        },
       },
       p_weapons: {
         text: "Nothing in his hands. He had a carrier bag with the perfume in and we've had that off him. I've not searched him — I'm not allowed to and I'm not going to — so I can't tell you what's in his pockets.",
@@ -350,6 +374,10 @@ export const scenario47: Scenario = {
       },
       p_drink: {
         text: "Doesn't smell of drink. He's a bit vacant, if I'm honest. Could be something, could be he's just been nicked. I wouldn't put money on it either way.",
+        // The kicks-off run's tell: he is not vacant, he is wired.
+        byVariant: {
+          "kicks-off": "Doesn't smell of drink. He's wired, if I'm honest — keeps looking at the door, keeps looking at Arjun. Could be something. I wouldn't turn my back on him.",
+        },
       },
       p_known: {
         text: "I've seen the face, I think. We get a lot through. I couldn't put a name to him off my own bat.",

@@ -24,6 +24,8 @@ export type PendingCall = {
   id: string;
   scenario: Scenario;
   receivedAt: number;
+  /** Tonight's run, drawn when the call came in — see ScenarioVariant. */
+  variantId?: string;
 };
 
 export const DRAG_MIME = "application/x-twr-appliance";

@@ -23,14 +23,19 @@ import type { Scenario } from "../incident_types";
 //     is the risk signal, not the all-clear, and the grade does not
 //     move. Nothing on the desk needs pressing — the test is what the
 //     operator does NOT do.
-//   - Ambulance only if injury is reported. On about a third of nights
-//     she comes to the door with a tea towel round her hand; the PDA
+//   - Tonight's run (scene.variants), drawn once when the call comes
+//     in, so the branches agree with each other instead of rolling
+//     separate dice: BASE is the story above; WEAPON, the neighbour
+//     hears "put the knife down" and a knife is in the house; LEAVES,
+//     he is gone in the van before the first car turns in; INJURED, she
+//     comes to the door with a tea towel round her hand. The cancel
+//     call comes in every one of them.
+//   - Ambulance only if injury is reported. On the injured run the PDA
 //     stays at two and the ambulance is added when the injury appears.
 //     The debrief's discipline row reads +1 on those nights, and that
 //     is the correct answer, not a mark against it.
-//   - A slow response has a cost that is not medical: he leaves in the
-//     van before anyone arrives, and an arrest at the door becomes a
-//     plate to find.
+//   - The leaves run has a cost that is not medical: an arrest at the
+//     door becomes a plate to find.
 //
 // GEOGRAPHY. Prosperity Street is real: a short street of modern
 // three-storey terraced townhouses whose west end is about twenty
@@ -210,8 +215,9 @@ export const scenario39: Scenario = {
       },
     ],
     casualties: [
-      // Present only on the nights the injured beat fires — revealCasualty
-      // flips her from absent to present at that moment. Walking wounded:
+      // Present only on the injured run, and only from the moment the
+      // injured beat fires — revealCasualty flips her from absent to
+      // present when she comes to the door. Walking wounded:
       // glass cuts and a bruised face, not a trauma job. The ambulance is
       // for the wound and for the record of it.
       {
@@ -241,6 +247,38 @@ export const scenario39: Scenario = {
       { id: 3, label: "Sector 3 · Rear gardens", face: "rear", bearingDeg: 0 },
       { id: 4, label: "Sector 4 · Rochdale Road end", face: "left", bearingDeg: 270 },
     ],
+    // Tonight's run. The remainder (0.3) is the base story: no knife
+    // heard, nobody hurt that anyone sees, and he is still in the house
+    // when the door goes.
+    variants: [
+      {
+        id: "weapon",
+        label: "Tonight the neighbour heard 'put the knife down' — a knife in the house",
+        probability: 0.2,
+        hazards: {
+          add: [
+            {
+              id: "knife",
+              pos: { x: 0, y: -8 },
+              kind: "structural",
+              label: "Knife — the caller heard the victim scream 'put the knife down'; not seen, not ruled out",
+              discoverAfterMinOnScene: 0,
+            },
+          ],
+        },
+      },
+      {
+        id: "leaves",
+        label: "Tonight he left in the van before the first car turned in",
+        probability: 0.25,
+        absent: ["cas-39-victim"],
+      },
+      {
+        id: "injured",
+        label: "Tonight she came to the door with a tea towel round her hand — ambulance needed",
+        probability: 0.25,
+      },
+    ],
   },
 
   // These run from the moment the job is sent, in the neighbour's
@@ -260,8 +298,21 @@ export const scenario39: Scenario = {
       // crew are looking at.
       id: "weapon",
       atSec: 80,
+      excludesVariantIds: ["weapon"],
       text: "I still can't tell you if he's got anything in his hand, I can't see in. Last time your lot came he'd put his fist through the kitchen door. He's a big lad, shaved head, grey trackie bottoms — he'd not need a knife.",
       tone: "urgent",
+    },
+    {
+      // The weapon run: she has heard the word twice now. Still not
+      // seen — she is through a wall — and that is what the crew are
+      // told. The job is already a Grade 1; the knife changes the
+      // approach, not the grade.
+      id: "knife",
+      atSec: 80,
+      requiresVariantIds: ["weapon"],
+      text: "She's screamed it again — 'put the knife down, Liam, put it down'. That's twice. I can't see it, I'm through the wall, but I know what I heard. He's got a knife in there with her and them kids. Tell them that before they knock.",
+      tone: "critical",
+      effect: { pulseCritical: true },
     },
     {
       // Threat to kill plus a threat tied to leaving: the two heaviest
@@ -284,11 +335,11 @@ export const scenario39: Scenario = {
       effect: { pulseCritical: true },
     },
     {
-      // Roughly one night in three, there is an injury to see, and the
-      // ambulance the PDA deliberately left off is added now.
+      // The injured run: there is an injury to see, and the ambulance
+      // the PDA deliberately left off is added now.
       id: "injured",
       atSec: 250,
-      probability: 0.35,
+      requiresVariantIds: ["injured"],
       text: "She's just come to the front door with the little one on her hip — she's got a tea towel round her hand and there's blood down her top, and her face is swelling up. He's pulled her back in and shut it. She's hurt. You need an ambulance as well now.",
       tone: "critical",
       effect: { pulseCritical: true, revealCasualty: "cas-39-victim" },
@@ -300,19 +351,20 @@ export const scenario39: Scenario = {
       id: "slow",
       atSec: 420,
       delayThresholdSec: 420,
+      // Not on the leaves run — he is not in the house to start again.
+      excludesVariantIds: ["leaves"],
       text: "It's kicked off again. She's screaming again and now the little girl's screaming as well. Where are you? It's been ages.",
       tone: "critical",
       effect: { pulseCritical: true },
     },
     {
-      // The cost of a slow response on a domestic is not medical. He
-      // leaves, and an arrest at the door becomes a white Transit
-      // somewhere on Rochdale Road.
+      // The leaves run. Forty seconds after the cancel, before the first
+      // car has turned in, he goes — and an arrest at the door becomes a
+      // white Transit somewhere on Rochdale Road. If a unit is there
+      // first, the caller has cleared the line and he never gets out.
       id: "leaving",
-      atSec: 600,
-      delayThresholdSec: 600,
-      probability: 0.5,
-      requiresFiredIds: ["slow"],
+      atSec: 240,
+      requiresVariantIds: ["leaves"],
       text: "He's out. He's got his keys — he's getting in the van, the white Transit with the ladders on. He's gone — down to Rochdale Road, turned left, towards town. You'll want that plate. She's still inside with the kids.",
       tone: "urgent",
     },
@@ -366,6 +418,10 @@ export const scenario39: Scenario = {
       },
       p_weapons: {
         text: "I don't know. I can't see in, love, I'm through the wall. I've never seen him with a knife. He's not a man who'd need one — he's twice her size.",
+        byVariant: {
+          // Heard, not seen — she is through a wall, and says so.
+          weapon: "I can't see in, love, I'm through the wall — but she's just screamed 'put it down, put the knife down'. I heard the word. I've never seen him with one, but she's just said it.",
+        },
         tone: "urgent",
         followUps: [
           {

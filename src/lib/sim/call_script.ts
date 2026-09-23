@@ -11,6 +11,7 @@
 // job with no script still takes a call.
 
 import type { Scenario } from "./incident_types";
+import { BASE_VARIANT } from "./scene";
 import type { ServiceCode } from "./types";
 
 export type CallerState = "calm" | "anxious" | "panicking" | "hostile" | "confused";
@@ -32,6 +33,9 @@ export type CallEffect = {
 
 export type CallAnswer = {
   text: string;
+  /** What they say instead in a given run, by variant id. Everything
+   *  else about the answer is shared. */
+  byVariant?: Record<string, string>;
   tone?: CallTone;
   effect?: CallEffect;
   /** Withheld while the caller is panicking or hostile: they deflect until
@@ -57,6 +61,9 @@ export type CallInterjection = {
   unlessAsked?: string[];
   /** Only once the operator has sent (true) or while they have not (false). */
   requiresOpened?: boolean;
+  /** Only in these runs (variant ids; "base" is the un-varied run). */
+  requiresVariantIds?: string[];
+  excludesVariantIds?: string[];
 };
 
 export type CallScript = {
@@ -73,6 +80,8 @@ export type CallScript = {
   };
   /** Their first words once the operator has answered. */
   opening: string;
+  /** Their first words in a given run, by variant id. */
+  openingByVariant?: Record<string, string>;
   /** What a panicking or hostile caller says instead of answering. */
   deflection?: string;
   /** What the operator says to bring them down, and their reply. */
@@ -227,5 +236,40 @@ export function validateCallScript(s: Scenario, service: ServiceCode): string[] 
     for (const q of [...(i.requiresAsked ?? []), ...(i.unlessAsked ?? [])]) if (!bankIds.has(q) && !seen.has(q)) out.push(`interjection at ${i.atSec}s refers to unknown question "${q}"`);
   }
   if (c.drops && c.drops.atSec < 30) out.push(`caller drops at ${c.drops.atSec}s — too soon to take a call`);
+  // Variant ids: a typo in a gate silently retires a beat (or an answer
+  // override) on every run, so every id referenced anywhere in the
+  // scenario must be declared under scene.variants (or be "base").
+  const declared = new Set<string>([BASE_VARIANT, ...(s.scene?.variants ?? []).map((v) => v.id)]);
+  const checkIds = (ids: string[] | undefined, where: string) => {
+    for (const id of ids ?? []) if (!declared.has(id)) out.push(`${where} refers to undeclared variant "${id}"`);
+  };
+  const checkMap = (m: Record<string, string> | undefined, where: string) => {
+    for (const [id, text] of Object.entries(m ?? {})) {
+      if (!declared.has(id)) out.push(`${where} has text for undeclared variant "${id}"`);
+      if (!text.trim()) out.push(`${where} has empty text for variant "${id}"`);
+    }
+  };
+  checkMap(c.openingByVariant, "opening");
+  const walkVariants = (a: CallAnswer, path: string) => {
+    checkMap(a.byVariant, `answer ${path}`);
+    for (const f of a.followUps ?? []) walkVariants(f.answer, `${path} > ${f.id}`);
+  };
+  for (const [id, a] of Object.entries(c.answers)) if (a) walkVariants(a, id);
+  for (const i of c.interjections ?? []) {
+    checkIds(i.requiresVariantIds, `interjection at ${i.atSec}s`);
+    checkIds(i.excludesVariantIds, `interjection at ${i.atSec}s`);
+  }
+  for (const u of s.informantScript ?? []) {
+    checkIds(u.requiresVariantIds, `informant beat "${u.id}"`);
+    checkIds(u.excludesVariantIds, `informant beat "${u.id}"`);
+  }
+  const probSum = (s.scene?.variants ?? []).reduce((acc, v) => acc + v.probability, 0);
+  if (probSum > 1) out.push(`variant probabilities sum to ${probSum.toFixed(2)} — nothing left for the base run`);
+  const vseen = new Set<string>();
+  for (const v of s.scene?.variants ?? []) {
+    if (v.id === BASE_VARIANT) out.push(`variant id "${BASE_VARIANT}" is reserved for the authored run`);
+    if (vseen.has(v.id)) out.push(`variant id "${v.id}" declared twice`);
+    vseen.add(v.id);
+  }
   return out;
 }

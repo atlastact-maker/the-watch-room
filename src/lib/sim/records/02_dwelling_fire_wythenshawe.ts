@@ -115,9 +115,10 @@ export const records02: RecordSet = {
       roles: ["occupant"],
       markers: ["CHILD"],
       notes: [
-        "Daughter of the family at no. 285. Out of the property and with her mother at no. 287 per the informant.",
+        "Daughter of the family at no. 285. Sleeps in the loft conversion (single stair); whereabouts being confirmed on the pavement.",
       ],
       scenarioId: "02",
+      casualtyId: "cas-3",
     },
     {
       id: "p02-patient-marsh-theo",

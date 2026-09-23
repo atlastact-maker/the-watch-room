@@ -17,6 +17,7 @@
 // ON THE LINE opens the job and keeps the caller talking; CREATE INCIDENT
 // opens it and goes to Mobilising.
 
+import { variantAllows } from "@/lib/sim/scene";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ServiceCode } from "@/lib/sim/types";
@@ -88,7 +89,7 @@ export function CallScreen({
   const [lines, setLines] = useState<Line[]>(() => [
     { at: answeredAt, who: "BT", text: `999 operator — connecting you to ${service.toLowerCase()}.` },
     { at: answeredAt, who: "OP", text: `${service === "Fire" ? "Fire service" : service === "Ambulance" ? "Ambulance service" : "Police"}, what is the address of the emergency?` },
-    { at: answeredAt, who: "CALR", text: script?.opening ?? s.trigger, tone: script?.caller.state === "panicking" ? "urgent" : undefined },
+    { at: answeredAt, who: "CALR", text: script?.openingByVariant?.[call.variantId ?? "base"] ?? script?.opening ?? s.trigger, tone: script?.caller.state === "panicking" ? "urgent" : undefined },
   ]);
   const [confirmed, setConfirmed] = useState(false);
   const [access, setAccess] = useState("");
@@ -122,17 +123,21 @@ export function CallScreen({
     const walk = (parentId: string, group: string, a: CallAnswer) => {
       for (const f of a.followUps ?? []) {
         if (!asked[parentId]) continue;
-        out.push({ id: f.id, group, text: f.text, key: false, follow: true, answer: f.answer });
+        out.push({ id: f.id, group, text: f.text, key: false, follow: true, answer: forRun(f.answer) });
         walk(f.id, group, f.answer);
       }
     };
+    const forRun = (a: CallAnswer): CallAnswer => {
+      const t = a.byVariant?.[call.variantId ?? "base"];
+      return t ? { ...a, text: t } : a;
+    };
     for (const q of bank) {
-      const a: CallAnswer = script?.answers[q.id] ?? { text: q.fallback(s) };
+      const a: CallAnswer = forRun(script?.answers[q.id] ?? { text: q.fallback(s) });
       out.push({ id: q.id, group: q.group, text: q.text, key: !!q.key, follow: false, answer: a });
       walk(q.id, q.group, a);
     }
     return out;
-  }, [bank, script, s, asked]);
+  }, [bank, script, s, asked, call.variantId]);
   const groups = Array.from(new Set(bank.map((q) => q.group)));
   const keyIds = script?.keyQuestions ?? keyQuestionsFor(service);
   const askedCount = Object.keys(asked).length;
@@ -183,7 +188,7 @@ export function CallScreen({
   // ---- The caller talks on their own, and sometimes goes.
   useEffect(() => {
     if (!script || ended) return;
-    const due = (script.interjections ?? []).filter((i, idx) => !firedRef.current.has(idx) && i.atSec <= elapsedSec && (!i.requiresAsked || i.requiresAsked.every((q) => asked[q])) && (!i.unlessAsked || !i.unlessAsked.some((q) => asked[q])) && (i.requiresOpened === undefined || i.requiresOpened === !!opened)).map((i) => ({ i, idx: (script.interjections ?? []).indexOf(i) }));
+    const due = (script.interjections ?? []).filter((i, idx) => !firedRef.current.has(idx) && variantAllows(i, call.variantId) && i.atSec <= elapsedSec && (!i.requiresAsked || i.requiresAsked.every((q) => asked[q])) && (!i.unlessAsked || !i.unlessAsked.some((q) => asked[q])) && (i.requiresOpened === undefined || i.requiresOpened === !!opened)).map((i) => ({ i, idx: (script.interjections ?? []).indexOf(i) }));
     const drop = script.drops && !droppedRef.current && script.drops.atSec <= elapsedSec ? script.drops : null;
     if (due.length === 0 && !drop) return;
     for (const { idx } of due) firedRef.current.add(idx);
@@ -276,7 +281,7 @@ export function CallScreen({
               {callerName ?? (script ? "Name not yet taken" : "Member of the public")}
               {script && <span className={`vec-caller-state ${STATE_TONE[callerState]}`}>{STATE_LABEL[callerState]}</span>}
               {" "}
-              <CopyButton text={script?.opening ?? s.trigger} label="caller's words" />
+              <CopyButton text={script?.openingByVariant?.[call.variantId ?? "base"] ?? script?.opening ?? s.trigger} label="caller's words" />
             </div>
             <div className="vec-small">
               {script ? `${script.caller.relation} · ${script.caller.where}` : "Caller details not yet recorded"}
@@ -287,7 +292,7 @@ export function CallScreen({
           <div>
             <div className="vec-k">Nature as given</div>
             <div className="vec-v">{s.title}</div>
-            <div className="vec-small">{script?.opening ?? s.trigger}</div>
+            <div className="vec-small">{script?.openingByVariant?.[call.variantId ?? "base"] ?? script?.opening ?? s.trigger}</div>
           </div>
           <div>
             <div className="vec-k">Call timer</div>

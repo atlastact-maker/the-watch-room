@@ -24,6 +24,14 @@ import type { Scenario } from "../incident_types";
  *     patient goes there pre-alerted as a PPCI patient, not booked in as
  *     a generic resus call.
  *
+ * Tonight's run (scene.variants): the base is the witnessed VF arrest
+ * above. Three in ten it is a non-shockable job — nobody saw him go
+ * down, he was found ten minutes later behind the goal. Fifteen in a
+ * hundred nobody will do compressions until a nurse from the next
+ * pitch takes over four minutes in. Fifteen in a hundred the community
+ * defib shocks him back before the first crew arrive and the job is a
+ * post-ROSC PPCI conveyance from the moment the RRV books in.
+ *
  * Venue is real (Hough End, Manchester's biggest Sunday league site;
  * the Hough End Centre pavilion fronts Mauldeth Road West). Incident
  * coords are OSM-verified: a mapped grass football pitch at the centre
@@ -158,18 +166,36 @@ export const scenario12: Scenario = {
   },
 
   informantScript: [
+    // --- Compressions: on the operator's word in every run but one. ----
     {
       id: "agonal",
       atSec: 20,
+      excludesVariantIds: ["no-cpr"],
       text: "Right — Jordan, hands on his chest, middle, like they're telling me. Push. Push. Count it out loud. Go.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "no-cpr-refuse",
+      atSec: 20,
+      requiresVariantIds: ["no-cpr"],
+      text: "They won't. I'm telling them what you're telling me and they won't — Jordan's crying, Sam's walked off. Nobody wants to break his ribs. And I can't get down there, my back's — I can't.",
       tone: "critical",
       effect: { pulseCritical: true },
     },
     {
       id: "cpr-going",
       atSec: 55,
+      excludesVariantIds: ["no-cpr"],
       text: "We're on his chest — two of the lads swapping, counting out loud like you said. Hard and fast.",
       tone: "urgent",
+    },
+    {
+      id: "no-cpr-standing",
+      atSec: 55,
+      requiresVariantIds: ["no-cpr"],
+      text: "He's just lying there. They're all stood in a ring round him and nobody's touching him. I keep saying it. I keep saying.",
+      tone: "critical",
     },
     {
       id: "defib-run",
@@ -183,11 +209,21 @@ export const scenario12: Scenario = {
       text: "The two lads are at the car park gate now, on Mauldeth Road West — they'll wave you through. It's a long run down the path from there, tell them to bring everything.",
       tone: "info",
     },
-    // --- Roll 1: is the community defib actually there for them? -------
+    // --- Roll 1: is the community defib actually there for them? In the
+    // ROSC run it has to be — that run IS the defib. -------------------
     {
       id: "defib-found",
       atSec: 150,
       probability: 0.6,
+      excludesVariantIds: ["rosc-before-arrival"],
+      suppressesIds: ["defib-missing"],
+      text: "They've got it — the defib's here! Ripping his shirt off, pads going on like the picture shows.",
+      tone: "urgent",
+    },
+    {
+      id: "defib-found-rosc",
+      atSec: 150,
+      requiresVariantIds: ["rosc-before-arrival"],
       suppressesIds: ["defib-missing"],
       text: "They've got it — the defib's here! Ripping his shirt off, pads going on like the picture shows.",
       tone: "urgent",
@@ -198,13 +234,14 @@ export const scenario12: Scenario = {
       text: "The cabinet's open but it's empty — there's a card in it saying the unit's away for servicing. Forget it, we're staying on his chest until you get here.",
       tone: "urgent",
     },
-    // --- Roll 2: shockable or not — only if the pads went on. ----------
+    // --- What the AED says follows the rhythm the run was dealt: VF in
+    // the base, nothing shockable after ten minutes down or four minutes
+    // untouched, and in the ROSC run the one shock that works. --------
     {
       id: "shock-advised",
       atSec: 210,
-      probability: 0.55,
       requiresFiredIds: ["defib-found"],
-      suppressesIds: ["no-shock"],
+      excludesVariantIds: ["non-shockable", "no-cpr"],
       text: "It's analysing — stand clear — SHOCK ADVISED, pressing the button... it's shocked him. It says carry on with compressions.",
       tone: "critical",
       effect: { pulseCritical: true },
@@ -213,20 +250,62 @@ export const scenario12: Scenario = {
       id: "no-shock",
       atSec: 220,
       requiresFiredIds: ["defib-found"],
+      requiresVariantIds: ["non-shockable", "no-cpr"],
       text: "It says no shock advised, continue CPR. Does that mean it's not working? We're carrying on regardless.",
       tone: "critical",
     },
     {
+      id: "shock-rosc",
+      atSec: 210,
+      requiresFiredIds: ["defib-found-rosc"],
+      requiresVariantIds: ["rosc-before-arrival"],
+      text: "It's analysing — stand clear — SHOCK ADVISED, pressing it... it's shocked him. Carry on, it says — wait. Wait. He's — he just took a breath. A proper one. He's breathing! Jordan, stop — he's breathing!",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "no-cpr-nurse",
+      atSec: 240,
+      requiresVariantIds: ["no-cpr"],
+      text: "There's a woman off the next pitch — says she's a nurse — she's on his chest now, she's counting. Four minutes he's been lying there. Four minutes.",
+      tone: "urgent",
+    },
+    {
       id: "tiring",
       atSec: 300,
+      excludesVariantIds: ["rosc-before-arrival", "no-cpr"],
       text: "The lads doing compressions are blowing — we're swapping every couple of minutes like you said. He's gone grey. How far away are they?",
+      tone: "urgent",
+    },
+    {
+      id: "rosc-holding",
+      atSec: 300,
+      requiresVariantIds: ["rosc-before-arrival"],
+      text: "He's breathing on his own — snoring, sort of, and he's not awake, he's not answering me. We've got him on his side like you said. His colour's coming back a bit. Please tell them to hurry.",
+      tone: "urgent",
+    },
+    {
+      id: "no-cpr-tiring",
+      atSec: 330,
+      requiresVariantIds: ["no-cpr"],
+      text: "The nurse is on her own on his chest, nobody'll swap with her. She's shouting at them. He's gone grey. How far away are they?",
       tone: "urgent",
     },
     {
       id: "slow-response",
       atSec: 420,
       delayThresholdSec: 420,
+      excludesVariantIds: ["rosc-before-arrival"],
       text: "It's been seven minutes on his chest. His mum's just got to the pitch — someone's holding her back. PLEASE.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "slow-response-rosc",
+      atSec: 420,
+      delayThresholdSec: 420,
+      requiresVariantIds: ["rosc-before-arrival"],
+      text: "He's still breathing. Still not awake. His mum's just got to the pitch — where ARE they?",
       tone: "critical",
       effect: { pulseCritical: true },
     },
@@ -246,6 +325,57 @@ export const scenario12: Scenario = {
     egressBlocked: [
       { action: "trolley", reason: "450 m of soft grass — the trolley sinks; scoop or manual carry to the car park" },
       { action: "wheelchair", reason: "Open ground — no wheels to the car park" },
+    ],
+    // Tonight's run. The remainder (0.4) is the base: witnessed VF
+    // arrest, bystander CPR from the first minute.
+    variants: [
+      {
+        id: "non-shockable",
+        label: "Tonight nobody saw him go down — found ten minutes later behind the far goal, and the AED says no shock",
+        probability: 0.3,
+        casualty: {
+          "cas-player": { label: "Player (M, 23) — found collapsed behind the goal, in cardiac arrest" },
+        },
+        clinical: {
+          "cas-player": {
+            vitals: { rr: 0, spo2: 52, hr: 0, bpSys: 0, bpDia: 0, gcs: 3, temp: 36.1, bm: 6.1 },
+            presumedCondition:
+              "Unwitnessed collapse behind the goal — found after ten minutes or more down, no CPR until found. Cardiac arrest, presumed primary cardiac; long no-flow time",
+            arrestRhythmHint: "non_shockable",
+          },
+        },
+      },
+      {
+        id: "no-cpr",
+        label: "Tonight the lads will not go near him — a nurse from the next pitch takes over four minutes in",
+        probability: 0.15,
+        clinical: {
+          "cas-player": {
+            vitals: { rr: 0, spo2: 55, hr: 0, bpSys: 0, bpDia: 0, gcs: 3, temp: 36.7, bm: 6.4 },
+            presumedCondition:
+              "Witnessed non-contact collapse — cardiac arrest, presumed primary cardiac. No bystander CPR for the first four minutes; a nurse from the next pitch took over late, single-handed",
+            arrestRhythmHint: "non_shockable",
+          },
+        },
+      },
+      {
+        id: "rosc-before-arrival",
+        label: "Tonight the community defib shocks him back before the first crew arrive — a post-ROSC PPCI conveyance",
+        probability: 0.15,
+        casualty: {
+          "cas-player": { label: "Player (M, 23) — collapsed mid-match, shocked by the community defib, breathing again" },
+        },
+        clinical: {
+          "cas-player": {
+            vitals: { rr: 9, spo2: 88, hr: 118, bpSys: 88, bpDia: 54, gcs: 3, temp: 36.4, bm: 7.8 },
+            presumedCondition:
+              "Witnessed VF arrest — one shock from the community defib, ROSC before the crew arrived. GCS 3, snoring respirations, output present. Post-ROSC: airway, oxygen to 94–98%, 12-lead, and PPCI pre-alerted",
+            redFlags: ["airway_compromise"],
+            criticalInterventions: ["oxygen", "iv_access"],
+            arrestRhythmHint: "shockable",
+          },
+        },
+      },
     ],
     buildings: [],
     roads: [
@@ -339,6 +469,10 @@ export const scenario12: Scenario = {
     },
     opening:
       "Ambulance — I need an ambulance, Hough End playing fields in Chorlton, the football pitches off Mauldeth Road West. One of my players has just collapsed. He's just dropped, nobody near him, and he's not waking up. He's twenty-three. Please — quick as you can.",
+    openingByVariant: {
+      "non-shockable":
+        "Ambulance — Hough End playing fields in Chorlton, the football pitches off Mauldeth Road West. One of my players — he'd gone off, he went to sit behind the goal, and we've just found him on the ground. He's not waking up. He's twenty-three. Please.",
+    },
     deflection: "I don't — I'm doing what you said, I'm doing it, just get them here! He's twenty-three!",
     reassurance: {
       text: "Daniel, the fastest thing we've got is already moving. You and the lads on his chest are what's keeping him alive right now. Keep counting, and stay with me.",
@@ -351,11 +485,18 @@ export const scenario12: Scenario = {
       },
       a_breathing: {
         text: "No — no, it's not right. He's doing this — like a snore, a gasp, every few seconds, and then nothing in between. That's not breathing, is it? That's not proper breathing.",
+        byVariant: {
+          "non-shockable": "No. Nothing. I've got my hand on his chest and it's not moving, there's nothing. He's cold. He's — no.",
+        },
         tone: "critical",
         effect: { regrade: "CAT 1", basis: "Unresponsive with agonal breathing — cardiac arrest, bystanders on scene" },
       },
       a_happened: {
         text: "We're mid-match, second half. Callum — he's one of ours, centre-mid — he was jogging back for a corner and he just went down. Nobody near him, no tackle, no contact, nothing. Just dropped like someone had switched him off. He's not got up and he's not answering.",
+        byVariant: {
+          "non-shockable":
+            "He came off, twenty minutes into the second half — said he felt dizzy, felt sick. Went to sit down behind the far goal on his own. We carried on, we were watching the game. Sam's just gone to check on him and he's face down in the grass and he won't wake up. Nobody saw him go down.",
+        },
         tone: "urgent",
         followUps: [
           {
@@ -363,15 +504,24 @@ export const scenario12: Scenario = {
             text: "Was there any contact — a collision, a clash of heads?",
             answer: {
               text: "None. I've said. Nobody within five yards of him. The ref's stood here, he saw it, same as me. It was nothing to do with the game.",
+              byVariant: {
+                "non-shockable": "No — he walked off himself, on his own two feet, nobody touched him. He was on his own back there.",
+              },
             },
           },
         ],
       },
       a_when: {
         text: "Just now — two minutes? Less. He went down and I was on the phone to you straight away. The ref hadn't even blown up.",
+        byVariant: {
+          "non-shockable": "I don't know. That's the thing, I don't know. He went off ten minutes ago, maybe more — could be fifteen. Sam only just found him.",
+        },
       },
       a_now: {
         text: "He's white. White as a sheet, and there's a bit of blue coming round his mouth. He's not sweating, he's not anything. He's not talking, he's not moving, he's just — lying there. He's not right.",
+        byVariant: {
+          "non-shockable": "He's grey. Grey, and his lips are blue, properly blue, and he's cold to touch. He's not doing anything. Nothing.",
+        },
         tone: "critical",
         followUps: [
           {
@@ -379,6 +529,9 @@ export const scenario12: Scenario = {
             text: "Did he hit his head when he went down?",
             answer: {
               text: "No — well, he went down flat, face-first sort of, but it's grass, it's soft. It wasn't a knock. We've rolled him onto his back.",
+              byVariant: {
+                "non-shockable": "I don't know — he was face down when Sam found him. It's grass. There's no blood, not a mark on him. We've rolled him onto his back.",
+              },
             },
           },
         ],
@@ -422,9 +575,15 @@ export const scenario12: Scenario = {
       },
       a_with: {
         text: "Yes — I'm knelt right next to him, his head's by my knee. I've got two of the lads here with me, Jordan and Sam.",
+        byVariant: {
+          "no-cpr": "I'm stood right by him. I can't get down — I did my back in last month, I can't kneel. Jordan and Sam are here but they've backed off.",
+        },
       },
       a_instructions: {
         text: "Yes. Yes. Tell me. Whatever you need — the lads'll do it, I'll tell them what you tell me.",
+        byVariant: {
+          "no-cpr": "I can't — I can't kneel, my back's gone. And they won't. I've told them, I'm telling them what you're saying, and they're just stood there. Jordan's in bits. Nobody'll touch him.",
+        },
         tone: "urgent",
       },
       a_details: {
@@ -436,6 +595,12 @@ export const scenario12: Scenario = {
         atSec: 45,
         text: "The ref's abandoned it — everyone's coming over. GET BACK — sorry, sorry, not you. Give him some room! — Sorry. I'm here.",
         tone: "urgent",
+      },
+      {
+        atSec: 60,
+        text: "JORDAN. Jordan, get down there — he won't. He's just shaking his head at me. Sorry — sorry. Nobody will.",
+        tone: "critical",
+        requiresVariantIds: ["no-cpr"],
       },
       {
         atSec: 95,

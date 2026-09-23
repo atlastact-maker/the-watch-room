@@ -20,6 +20,13 @@ import type { Scenario } from "../incident_types";
 // up who has to come down flat. The crew plan the carry; the pump is the
 // hands and the working-at-height kit.
 //
+// Tonight's run is drawn when the call comes in. The base is the pelvis.
+// Some nights he landed on his head and the job is the airway and a
+// doctor for the RSI — and the Pathfinder sends that to Salford, not the
+// MRI. Some nights it is the right chest, tensioning while the crew
+// watch. And some nights he got lucky, and the job is not turning a sore
+// pelvis into a trauma call it does not need.
+//
 // FICTIONAL: the site, the firm and the casualty. Ordsall Lane is a real
 // Salford road; the development is not.
 
@@ -109,7 +116,7 @@ export const scenario34: Scenario = {
       { metric: "Time-to-mobilise", target: "< 90 seconds" },
       {
         metric: "Trauma triage",
-        target: "major trauma centre chosen as soon as the survey is in, and the ATMIST pre-alert sent — the Pathfinder puts this pelvis and chest at the MRI",
+        target: "major trauma centre chosen as soon as the survey is in, and the ATMIST pre-alert sent — the Pathfinder decides which site from the injuries found",
       },
       {
         metric: "HEMS",
@@ -121,7 +128,7 @@ export const scenario34: Scenario = {
       },
     ],
     lesson:
-      "Major trauma is usually a bypass decision. Not here: from Ordsall Lane the nearest emergency department is the MRI, and the MRI is a major trauma centre. So the decision is which trauma centre, and the Pathfinder answers it — a pelvis and a right chest wall are thoraco-abdominal, and thoraco-abdominal goes to the MRI, not the kilometre further to Salford. Choose it as soon as the survey is in, send the pre-alert so the team is stood in resus, and ask for HEMS early — not for the speed but for the doctor.",
+      "Major trauma is usually a bypass decision. Not here: from Ordsall Lane the nearest emergency department is the MRI, and the MRI is a major trauma centre. So the decision is which trauma centre, and the Pathfinder answers it — a pelvis and a right chest wall are thoraco-abdominal, and thoraco-abdominal goes to the MRI, not the kilometre further to Salford; a head with a GCS under 12 goes the other way, to Salford. Read the injuries, choose as soon as the survey is in, send the pre-alert so the team is stood in resus, and ask for HEMS early — not for the speed but for the doctor.",
   },
 
   scene: {
@@ -197,6 +204,64 @@ export const scenario34: Scenario = {
       { id: 3, label: "Sector 3 · Frame rear", face: "rear", bearingDeg: 0 },
       { id: 4, label: "Sector 4 · Scaffold west", face: "left", bearingDeg: 270 },
     ],
+    // Tonight's run. The remainder of the mass is the base: the pelvis.
+    variants: [
+      {
+        id: "head",
+        label: "Tonight he landed on his head — GCS falling, airway at risk, and the Pathfinder says Salford",
+        probability: 0.25,
+        clinical: {
+          "cas-34-worker": {
+            // Not the pelvis: the hat came off. Cushing's on the monitor,
+            // snoring on the boards. The airway is the whole job and the
+            // RSI is a doctor's — which is what HEMS or the car are for.
+            vitals: { rr: 10, spo2: 88, hr: 62, bpSys: 158, bpDia: 92, gcs: 9, temp: 36.1, bm: 6.0 },
+            presumedCondition: "Fall from height approximately 6 m — head injury, reduced GCS, noisy airway, lower limb deformity",
+            redFlags: ["head_injury_severe", "airway_compromise", "spinal_injury_suspected"],
+            // Cranial, not thoraco-abdominal: GCS under 12 goes to Salford.
+            injuryPattern: [],
+          },
+        },
+        casualty: {
+          "cas-34-worker": { label: "Male, 30s — fall approximately 6 m, head injury, reduced GCS" },
+        },
+      },
+      {
+        id: "chest",
+        label: "Tonight the right chest is the problem — a tension developing on the boards",
+        probability: 0.2,
+        clinical: {
+          "cas-34-worker": {
+            // The side he landed on. Getting worse by the minute, and the
+            // needle is in a DCA's bag.
+            vitals: { rr: 34, spo2: 86, hr: 132, bpSys: 88, bpDia: 60, gcs: 14, temp: 36.1, bm: 6.0 },
+            presumedCondition: "Fall from height approximately 6 m — right-sided chest injury, increasing breathlessness, lower limb deformity, pelvic pain",
+            redFlags: ["tension_pneumothorax", "spinal_injury_suspected", "hypovolaemic_shock"],
+          },
+        },
+        casualty: {
+          "cas-34-worker": { label: "Male, 30s — fall approximately 6 m, right chest, struggling to breathe" },
+        },
+      },
+      {
+        id: "walked",
+        label: "Tonight he got lucky — a broken leg and a sore pelvis, and not much else",
+        probability: 0.15,
+        clinical: {
+          "cas-34-worker": {
+            // Same mechanism, same trauma centre. Nothing to bleed, nothing
+            // to decompress: the job is not over-treating a stable man.
+            vitals: { rr: 20, spo2: 97, hr: 98, bpSys: 128, bpDia: 78, gcs: 15, temp: 36.3, bm: 5.8 },
+            presumedCondition: "Fall from height approximately 6 m — closed lower limb deformity, pelvic pain, haemodynamically stable",
+            redFlags: ["spinal_injury_suspected"],
+            criticalInterventions: ["spine_board"],
+          },
+        },
+        casualty: {
+          "cas-34-worker": { severity: "serious", label: "Male, 30s — fall approximately 6 m, lower limb deformity, stable" },
+        },
+      },
+    ],
   },
 
   informantScript: [
@@ -205,6 +270,14 @@ export const scenario34: Scenario = {
       atSec: 5,
       text: "Site manager, Ordsall Lane. One of the lads has come off the top of the scaffold — twenty foot, near enough, onto the slab. He's awake and talking but his leg's the wrong shape. They've carried him up onto the first-lift boards, I know they shouldn't have.",
       tone: "critical",
+      excludesVariantIds: ["head"],
+    },
+    {
+      id: "manager-first-head",
+      atSec: 5,
+      text: "Site manager, Ordsall Lane. One of the lads has come off the top of the scaffold — twenty foot, near enough, onto the slab, and he's gone down on his head. He's breathing but he's not making sense. They've carried him up onto the first-lift boards, I know they shouldn't have.",
+      tone: "critical",
+      requiresVariantIds: ["head"],
     },
     {
       id: "access",
@@ -219,6 +292,30 @@ export const scenario34: Scenario = {
       text: "He's gone very pale and he's not talking as much now. He was chatting away five minutes ago.",
       tone: "critical",
       effect: { pulseCritical: true },
+      excludesVariantIds: ["head", "walked"],
+    },
+    {
+      id: "not-making-sense",
+      atSec: 200,
+      text: "He's stopped answering Kev. He was saying words a minute ago — his wife's name, swearing — and now it's just noise, and he's snoring like he's asleep. Kev's tipped his head back and it's better, but it keeps going again.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+      requiresVariantIds: ["head"],
+    },
+    {
+      id: "going-blue",
+      atSec: 240,
+      text: "He can't get his breath — he's going blue round the lips and he's grabbing at his right side. Kev says the veins in his neck are standing out. Whatever you're sending, it needs to be quick.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+      requiresVariantIds: ["chest"],
+    },
+    {
+      id: "wants-to-know",
+      atSec: 240,
+      text: "He's asking if he actually needs an ambulance. He does — he can't put any weight on it and he goes grey when he tries. But he's alright in himself, he's giving the lads grief.",
+      tone: "info",
+      requiresVariantIds: ["walked"],
     },
     {
       id: "carry",
@@ -245,6 +342,11 @@ export const scenario34: Scenario = {
     },
     opening:
       "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the top of the scaffold onto the concrete — six metres, near enough. He's awake and he's talking to us, but his leg's badly broken, it's bent the wrong way, and he's saying his hip. And he's up on the first-lift boards now — the lads carried him up there before I got to him. I need you here quick.",
+    openingByVariant: {
+      head: "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the top of the scaffold onto the concrete — six metres, near enough — and he's gone down on his head. He's breathing, he's making noises, but he's not making sense, and his leg's bent the wrong way. He's up on the first-lift boards — the lads carried him up there before I got to him. I need you here quick.",
+      chest: "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the top of the scaffold onto the concrete — six metres, near enough. He's awake but he can't get his breath — he's landed on his side and he's fighting for every one. His leg's bent the wrong way as well. He's up on the first-lift boards — the lads carried him up there before I got to him. I need you here quick.",
+      walked: "Ambulance. Ordsall Lane, Salford — the building site, Pendleton Frame, just down from the Regent Road lights. I'm the site manager. One of my bricklayers has come off the top of the scaffold onto the concrete — six metres, near enough. He's alright in himself, he's talking to us, but his leg's broken, it's bent the wrong way, and he can't put any weight on his hip. He's up on the first-lift boards — the lads carried him up there before I got to him.",
+    },
     deflection: "Hang on. — Kev, keep him flat, don't let him — sorry. Go on.",
     reassurance: {
       text: "Dean, you've got this well in hand. Help is coming. Keep everyone off him and keep talking to me.",
@@ -253,16 +355,30 @@ export const scenario34: Scenario = {
     answers: {
       a_conscious: {
         text: "Yes. He's awake, he's talking to me — he knows where he is, he knows what's happened. He's in a lot of pain, he's shouting when anyone goes near the leg. But he's with us.",
+        byVariant: {
+          head: "Sort of. His eyes are open some of the time and he'll grab your hand if you talk to him, but he's not talking back — it's noises, not words. Kev says he said his wife's name once. He's not with us, not properly.",
+          walked: "Yes. Wide awake, talking, knows exactly what's happened — he's more embarrassed than anything. It's the leg and the hip. He's not going anywhere on them.",
+        },
         tone: "urgent",
       },
       a_breathing: {
         text: "Breathing's alright. Fast, but he's talking in sentences. He's not short of breath — he's swearing at the lads that moved him, so there's nothing wrong with his lungs.",
+        byVariant: {
+          head: "He's breathing, but it's noisy — a snore, like he's asleep on his back. Kev's tipped his chin up and it goes quiet for a bit, then it starts again. It's slow. Slower than I'd like.",
+          chest: "No. He can't get a sentence out — two words and he's gasping. Really fast, shallow, and he's holding his right side. It's getting worse while I'm stood here, not better.",
+          walked: "Fine. Talking my ear off. A bit fast when the leg gets moved, but he's not short of breath.",
+        },
         followUps: [
           {
             id: "a_breathing_chest",
             text: "Any pain in his chest, or trouble getting a breath in?",
             answer: {
               text: "He says his side hurts when he breathes in — the right side, low down. That's the side he landed on, the lads say. He's not gasping. It's the hip and the leg he's shouting about.",
+              byVariant: {
+                head: "He can't tell me. He's not answering. The breathing's the noisy thing, not the chest — Kev can't see anything wrong with the chest.",
+                chest: "Yes — the right side, that's what he's grabbing at. He can't get a breath in, he says it's like something's sat on it. Kev says one side of his chest isn't moving like the other.",
+                walked: "He says his side's a bit sore where he landed, but he's breathing fine. It's the hip he's on about.",
+              },
               tone: "urgent",
             },
           },
@@ -270,6 +386,9 @@ export const scenario34: Scenario = {
       },
       a_happened: {
         text: "He was on the top lift of the scaffold, the third, laying blocks. The lads reckon a board went under him — I've not been up to look. He's come down about six metres onto the ground slab, and that's concrete. He's landed on his right side with his leg under him. Before I got there two of the lads had carried him up the ladder onto the first-lift boards, out of the way of the plant, God knows why, they panicked. So he's on the first lift now, a couple of metres up, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
+        byVariant: {
+          head: "He was on the top lift of the scaffold, the third, laying blocks. The lads reckon a board went under him — I've not been up to look. He's come down about six metres onto the ground slab, and that's concrete, and he's gone down head first — the hat came off, it's still lying there. His leg's under him as well. Before I got there two of the lads had carried him up the ladder onto the first-lift boards, out of the way of the plant, God knows why, they panicked. So he's on the first lift now, a couple of metres up, flat on his back on the boards, and I've told everyone he doesn't move again till you say.",
+        },
         tone: "urgent",
       },
       a_when: {
@@ -277,9 +396,18 @@ export const scenario34: Scenario = {
       },
       a_now: {
         text: "A bit pale, and he's sweating, but he's with it — chatting away, giving the lads grief. He says his hip's killing him, more than the leg. He can't move the leg at all. He's asked for his missus twice.",
+        byVariant: {
+          head: "Grey. Not sweating — clammy, cold. His eyes open when Kev shouts him and then they shut again. He's not talking to us. There's a lump coming up on the side of his head you can see from here.",
+          chest: "He's a bad colour — grey, going blue round the mouth — and he's sweating through his shirt. He can talk but only a word or two. He's not bothered about the leg, it's the breathing he's frightened of.",
+          walked: "Fine colour, bit of a sweat on from the pain. Chatting away, giving the lads grief. Says his hip's sore and he can't move the leg. He's asked for his missus twice.",
+        },
       },
       a_bleeding: {
         text: "There's blood on his trouser leg, the right shin — the trousers are torn and it's wet through, and I think the bone's come through. It's soaking, not spurting. Nothing from his head that I can see, and he had his hat on.",
+        byVariant: {
+          head: "From his head — there's a cut in his scalp on the right where the hat came off, and there's blood coming out of his ear, the right one. It's a lot but it's not spurting. Kev's got a towel on the scalp. The leg's bent but the trousers aren't wet.",
+          walked: "A graze on the shin where the trousers are torn — a bit of blood, it's stopped. Nothing from his head, he had his hat on.",
+        },
         tone: "urgent",
         followUps: [
           {
@@ -340,6 +468,13 @@ export const scenario34: Scenario = {
         atSec: 45,
         text: "Hang on — Kev, keep him FLAT. Don't let him — sorry. He keeps trying to sit himself up to look at the leg. Kev's got him.",
         tone: "urgent",
+        excludesVariantIds: ["head"],
+      },
+      {
+        atSec: 45,
+        text: "Hang on — Kev, is he breathing? Is he — sorry. He'd gone quiet. He's snoring again, Kev's got his chin up. Sorry. Go on.",
+        tone: "critical",
+        requiresVariantIds: ["head"],
       },
       {
         atSec: 100,

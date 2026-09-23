@@ -224,6 +224,91 @@ export type SceneSector = {
 
 /** One alternative seat of fire for the per-run origin roll. Unset
  *  override fields keep the authored default seat's values. */
+/** One way tonight's run can differ from the authored base. A scene
+ *  lists several with probabilities; one is drawn when the call comes in
+ *  (the remainder of the probability mass is the base, id "base") and
+ *  everything that reads the scenario — casualties, the clinical
+ *  picture, the fire seat, hazards, the subject vehicle, the informant
+ *  beats, the caller's own answers — can key off it. So a tester never
+ *  plays the same job twice, and the story stays consistent with the
+ *  dice. */
+export type ScenarioVariant = {
+  id: string;
+  /** For the debrief: "Tonight the fire started in the kitchen and the
+   *  cellar tenant was in." */
+  label: string;
+  probability: number;
+  /** Casualty ids forced present / absent this run, over their
+   *  presentProbability. */
+  present?: string[];
+  absent?: string[];
+  /** Per-casualty overrides merged over the authored casualty. */
+  casualty?: Record<string, Partial<Pick<SceneCasualty, "severity" | "label" | "discoverAfterMinBa" | "trappedUntilExtricated" | "pos">>>;
+  /** Per-casualty clinical overrides merged over the authored clinical. */
+  clinical?: Record<string, Partial<PatientClinical>>;
+  /** Overrides the seat and, when set, replaces the fire-origin roll. */
+  fireSeat?: Partial<SceneFire>;
+  hazards?: { add?: SceneHazard[]; remove?: string[] };
+  /** Overrides on the subject vehicle spec, when the scenario has one. */
+  subject?: { start?: { lat: number; lng: number }; destination?: { lat: number; lng: number }; speedKph?: number; compliance?: number; headStartSec?: number };
+};
+
+export const BASE_VARIANT = "base";
+
+/** Draw tonight's variant: each variant's probability is its own slice,
+ *  the remainder is the base. */
+export function rollVariant(variants: ScenarioVariant[] | undefined, draw: number = Math.random()): string {
+  if (!variants || variants.length === 0) return BASE_VARIANT;
+  let acc = 0;
+  for (const v of variants) {
+    acc += v.probability;
+    if (draw < acc) return v.id;
+  }
+  return BASE_VARIANT;
+}
+
+/** Whether a thing gated on variants plays this run. Missing gates mean
+ *  always. */
+export function variantAllows(
+  gate: { requiresVariantIds?: string[]; excludesVariantIds?: string[] } | undefined,
+  variantId: string | undefined,
+): boolean {
+  const id = variantId ?? BASE_VARIANT;
+  if (gate?.requiresVariantIds && gate.requiresVariantIds.length > 0 && !gate.requiresVariantIds.includes(id)) return false;
+  if (gate?.excludesVariantIds && gate.excludesVariantIds.includes(id)) return false;
+  return true;
+}
+
+/** The scene as tonight's variant has it. The base id returns the scene
+ *  untouched. Casualties the variant names as present or absent are
+ *  handed back so the persons roll can honour them. */
+export function applyVariant(
+  scene: Scene,
+  variantId: string,
+): { scene: Scene; variant: ScenarioVariant | null; forcePresent: string[]; forceAbsent: string[] } {
+  const variant = scene.variants?.find((v) => v.id === variantId) ?? null;
+  if (!variant) return { scene, variant: null, forcePresent: [], forceAbsent: [] };
+  const casualties = (scene.casualties ?? []).map((c) => {
+    const over = variant.casualty?.[c.id];
+    const clin = variant.clinical?.[c.id];
+    if (!over && !clin) return c;
+    return {
+      ...c,
+      ...(over ?? {}),
+      clinical: clin ? { ...(c.clinical ?? {}), ...clin } as PatientClinical : c.clinical,
+    };
+  });
+  const removed = new Set(variant.hazards?.remove ?? []);
+  const hazards = [...scene.hazards.filter((h) => !removed.has(h.id)), ...(variant.hazards?.add ?? [])];
+  const fireSeat = variant.fireSeat && scene.fireSeat ? { ...scene.fireSeat, ...variant.fireSeat } : scene.fireSeat;
+  return {
+    scene: { ...scene, casualties, hazards, fireSeat },
+    variant,
+    forcePresent: variant.present ?? [],
+    forceAbsent: variant.absent ?? [],
+  };
+}
+
 export type FireOriginVariant = {
   probability: number;
   label: string;          // e.g. "Lounge — electrical fault"
@@ -258,6 +343,9 @@ export type Scene = {
    *  incident's fireSeat, so every consumer (sim, canvas, maps, 360
    *  survey reveal) sees the rolled origin with no extra plumbing. */
   fireOriginVariants?: FireOriginVariant[];
+  /** Tonight's run, drawn once when the call comes in — see
+   *  ScenarioVariant. */
+  variants?: ScenarioVariant[];
   /** Exposure risk — when the fire radius reaches `atRadiusM`, the fire
    *  is into the named exposure (attached neighbour, adjacent unit). The
    *  breach is logged once and scored as a failed target at debrief. */

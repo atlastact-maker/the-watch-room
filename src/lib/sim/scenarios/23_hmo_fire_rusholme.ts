@@ -25,7 +25,7 @@ export const scenario23: Scenario = {
   patch: "Southern",
   severity: "high",
   trigger:
-    "Fire in a shared house. Tenants out on the street but nobody can say how many were in. Smoke from a first-floor window",
+    "Fire in a shared house. Tenants out on the street but nobody can say how many were in. Smoke showing",
 
   location: {
     address: "212 Dickenson Road, Rusholme, Manchester",
@@ -255,6 +255,43 @@ export const scenario23: Scenario = {
       { id: 3, label: "Sector 3 · Rear yard", face: "rear", bearingDeg: 0 },
       { id: 4, label: "Sector 4 · 210 side", face: "left", bearingDeg: 270 },
     ],
+    // Tonight's run. The base is the first-floor front room with the
+    // persons roll as authored. The others move the seat, and with it
+    // where the search starts — or take the people out of the house and
+    // leave the search to prove it.
+    variants: [
+      {
+        id: "kitchen",
+        label: "The fire started in the ground-floor kitchen at the back — the stair is between the crews and every bedroom",
+        probability: 0.25,
+        fireSeat: { pos: { x: 0, y: -10 } },
+      },
+      {
+        id: "cellar-fire",
+        label: "The seat is the cellar room itself, and the tenant is in it — the crews go straight down",
+        probability: 0.15,
+        present: ["cas-23-cellar"],
+        fireSeat: { pos: { x: -1, y: -1 } },
+        casualty: {
+          "cas-23-cellar": {
+            label: "Occupant — cellar room, the room of origin",
+            severity: "serious",
+            discoverAfterMinBa: 2,
+          },
+        },
+        clinical: {
+          "cas-23-cellar": {
+            presumedCondition: "Smoke inhalation and burns to the hands and forearms — was in the room the fire started in, one stair out",
+          },
+        },
+      },
+      {
+        id: "everyone-out",
+        label: "Everyone was out — the landlord's list proved it, but only after every door had been opened",
+        probability: 0.2,
+        absent: ["cas-23-top-floor", "cas-23-cellar"],
+      },
+    ],
   },
 
   informantScript: [
@@ -274,7 +311,17 @@ export const scenario23: Scenario = {
       id: "cellar-lad",
       atSec: 140,
       probability: 0.5,
+      // When the cellar is the fire, the caller already knows about him.
+      excludesVariantIds: ["cellar-fire"],
       text: "Somebody's just said there's a lad in the cellar room. I've never met him. I don't know if he's in or not — his light was on earlier.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "cellar-fire-lad",
+      atSec: 140,
+      requiresVariantIds: ["cellar-fire"],
+      text: "Sam's been on his knees at the cellar grate shouting down it — nothing. That lad's not come out, and the door at the bottom of the cellar stairs is shut.",
       tone: "critical",
       effect: { pulseCritical: true },
     },
@@ -282,8 +329,23 @@ export const scenario23: Scenario = {
       id: "landlord",
       atSec: 260,
       probability: 0.7,
+      excludesVariantIds: ["everyone-out"],
       text: "I've rung the landlord. He says he'll come down but he's in Chester. He reckons there's nine rooms let, not eight.",
       tone: "urgent",
+    },
+    {
+      id: "landlord-count",
+      atSec: 260,
+      requiresVariantIds: ["everyone-out"],
+      text: "I've got the landlord on the other phone. He's gone through his list with me — eight rooms let, and the two I don't know are both away, he's spoken to them. He reckons the house is empty. He reckons.",
+      tone: "urgent",
+    },
+    {
+      id: "top-floor-rang-back",
+      atSec: 320,
+      requiresVariantIds: ["everyone-out"],
+      text: "The girl off the top floor's just rung Chloe back — she's at her mum's in Bury. She's fine. That's one.",
+      tone: "info",
     },
   ],
   // The call as Tomasz has it: on his mobile on the pavement opposite, in
@@ -301,6 +363,12 @@ export const scenario23: Scenario = {
     },
     opening:
       "Fire brigade — our house is on fire. 212 Dickenson Road, Rusholme, it's a shared house. There's smoke coming out of the window on the first floor. There's four of us out on the street, but there's more people live here and I don't know who's in. I don't know who's in.",
+    openingByVariant: {
+      kitchen:
+        "Fire brigade — our house is on fire. 212 Dickenson Road, Rusholme, it's a shared house. It's the kitchen, the back downstairs — the smoke's coming through the whole house. There's four of us out on the street, but there's more people live here and I don't know who's in. I don't know who's in.",
+      "cellar-fire":
+        "Fire brigade — our house is on fire. 212 Dickenson Road, Rusholme, it's a shared house. It's coming up from the cellar — there's smoke out the grate at the front and up through the hall. There's a lad lives down there and he's not come out. There's four of us out, I don't know who else is in.",
+    },
     deflection: "I don't know — I don't know who's in, that's what I'm telling you. Just come.",
     reassurance: {
       text: "Tomasz, help is coming. You don't have to know everything — just tell me what you can see and who you've got with you.",
@@ -309,16 +377,34 @@ export const scenario23: Scenario = {
     answers: {
       f_seen: {
         text: "Smoke — loads of it, coming out of the first-floor window at the front, the middle one. Grey, going black. I couldn't see flames a minute ago, just smoke, but the room's gone dark behind the glass and the alarm's going off inside, you can hear it from here.",
+        byVariant: {
+          kitchen:
+            "Smoke — it's coming out the front door and the fanlight over it, grey, going black. Sam went round the entry and it's pouring out the kitchen window into the yard. The alarm's going off inside, you can hear it from here.",
+          "cellar-fire":
+            "Smoke — it's coming out the cellar grate at the front, under my window, and out the front door. Thick, brown, it's rolling along the pavement. I can't see flames. The alarm's going off inside, you can hear it from here.",
+        },
         tone: "urgent",
       },
       f_where: {
         text: "First floor, the front. That's the room above mine. I don't know whose it is — somebody new moved in there a month back, I've seen him twice.",
+        byVariant: {
+          kitchen:
+            "Downstairs, the back — the kitchen. Sam saw it when the alarm went, the hob was going, somebody's left a pan. He couldn't get near it.",
+          "cellar-fire":
+            "The cellar. It's under my room — my floor was warm, I thought it was the heating. The door down to it's in the hall, by the meters.",
+        },
         followUps: [
           {
             id: "f_where_stairs",
             text: "Is the smoke on the stairs?",
             answer: {
               text: "Yes — Sam went up when the alarm went and it was all along the first-floor landing, coming under that door and down the stairs at him. He couldn't see up to the top. He came straight back down.",
+              byVariant: {
+                kitchen:
+                  "Yes — it's coming up the hall from the kitchen and straight up the stairs, the stairs are at the back. Sam went up two steps and came back down. He couldn't see the first-floor landing.",
+                "cellar-fire":
+                  "It's in the hall. It's coming up through the floorboards and round the cellar door, and the hall's where the stairs are. You can't see the bottom of the stairs from the front door.",
+              },
               tone: "urgent",
             },
           },
@@ -326,10 +412,22 @@ export const scenario23: Scenario = {
       },
       f_spread: {
         text: "It's coming out faster than it was. I can see it in the landing window now, the little one on the stairs between the floors. It's not out the top windows yet.",
+        byVariant: {
+          kitchen:
+            "It's coming out faster than it was. It's in the landing window now, the little one on the stairs between the floors — it's gone up the stairs. It's not out the front windows yet.",
+          "cellar-fire":
+            "It's coming out faster than it was. It's in my room now — the ground-floor front, I can see it behind my curtains. Not upstairs yet, not that I can see.",
+        },
         tone: "urgent",
       },
       f_started: {
         text: "Ten minutes? The alarm went off and we thought it was somebody's cooking again, it does that. Then Sam went up to look and smelt it on the landing, and he started banging on doors. We came straight out.",
+        byVariant: {
+          kitchen:
+            "Ten minutes? The alarm went off and we thought it was somebody's cooking again, it does that. It was. Sam went through to the kitchen and it was the hob, the wall behind it was going, and he started banging on doors. We came straight out.",
+          "cellar-fire":
+            "Ten minutes? The alarm went off and we thought it was somebody's cooking again, it does that. Then I saw the smoke coming round the cellar door in the hall, and Sam started banging on doors. We came straight out.",
+        },
       },
       f_building: {
         text: "Big old terrace, three floors, split into rooms — it's an HMO, we all rent a room off the same landlord. Eight rooms, I think, I've never counted. There's a cellar under it and all, I've never been down. Everyone's got their own lock.",
@@ -352,6 +450,10 @@ export const scenario23: Scenario = {
             text: "Did anyone knock on the other doors on the way out?",
             answer: {
               text: "Sam banged on the first-floor doors when he went up — Chloe came out, nobody else answered. He couldn't get up to the top, the smoke was on the stairs, you couldn't see. I banged on the cellar door from the hall — I don't even know if anyone's living down there at the minute. Nothing.",
+              byVariant: {
+                "cellar-fire":
+                  "Sam banged on the first-floor doors — Chloe came out, nobody else answered, and he couldn't get up to the top. I banged on the cellar door from the hall — it was hot, the door, and the smoke was coming round it. Nothing. I couldn't open it, I'm sorry, I couldn't.",
+              },
               tone: "urgent",
             },
           },
@@ -393,7 +495,22 @@ export const scenario23: Scenario = {
       },
       {
         atSec: 100,
+        excludesVariantIds: ["kitchen", "cellar-fire"],
         text: "There's flames now — the first floor, I can see them, orange in the room. The window's gone — the glass has gone. The smoke's black.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 100,
+        requiresVariantIds: ["kitchen"],
+        text: "Sam's back from the entry — he says the kitchen window's gone and it's flames now, not smoke, the whole back of the house is black. It's going up the stairs.",
+        tone: "critical",
+        effect: { state: "panicking" },
+      },
+      {
+        atSec: 100,
+        requiresVariantIds: ["cellar-fire"],
+        text: "There's flames in the grate now — orange, under my window. And the hall's gone, you can't see the stairs from the front door. He's down there. He's under that.",
         tone: "critical",
         effect: { state: "panicking" },
       },

@@ -903,6 +903,10 @@ export type InformantUpdate = {
    *  store manager on the shop line, a site manager at the gate, a unit
    *  on the radio — and fires after arrival too. */
   survivesArrival?: boolean;
+  /** Only in these runs (variant ids; "base" is the un-varied run). */
+  requiresVariantIds?: string[];
+  /** Never in these runs. */
+  excludesVariantIds?: string[];
   /** Optional hard sim effects to apply when the update fires. */
   effect?: {
     /** Move the job's grade: what the caller has just said makes it a
