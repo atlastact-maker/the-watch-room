@@ -127,6 +127,20 @@ export const scenario27: Scenario = {
   scene: {
     viewBox: { x: -60, y: -50, width: 120, height: 100 },
     compassNorth: "up",
+    // The face: twelve metres from the top edge to the ledge. The team
+    // walk in from the car park along the footpath — drawn as forty
+    // metres, eight hundred on the ground — rig for eight minutes, lower
+    // a rescuer, package him for six, and haul him up in five.
+    rope: {
+      top: { x: 4, y: -27 },
+      dropM: 12,
+      approach: [{ x: -24, y: 34 }, { x: -24, y: -10 }, { x: 4, y: -27 }],
+      approachM: 800,
+      rigSec: 480,
+      packageSec: 360,
+      haulSec: 300,
+      recovery: "raise",
+    },
     // Twelve metres of quarry face, then eight hundred of wet path.
     egressExtraSeconds: 1200,
     // What this building will not take. Prose above; a locked option
@@ -176,7 +190,12 @@ export const scenario27: Scenario = {
         label: "Male — on a ledge approximately 12 m down",
         pos: { x: 4, y: -20 },
         severity: "serious",
-        discoverAfterMinBa: 4,
+        atHeight: true,
+        // Nobody is searching in BA here: the first crew find him by
+        // walking the path and looking over the edge, twelve minutes
+        // after they arrive at the car park.
+        discoverAfterMinBa: 999,
+        discoverAfterMinOnScene: 12,
         clinical: {
           // A twelve-metre fall onto a ledge, then a long wait in the cold
           // and wet under tree cover. The hypothermia is the part that

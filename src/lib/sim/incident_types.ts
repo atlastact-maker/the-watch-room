@@ -1526,6 +1526,9 @@ export type Task = {
   /** For water_rescue: the whole rescue, planned when the task started —
    *  see water_rescue.ts. */
   waterRescue?: import("./water_rescue").WaterRescueTimeline;
+  /** For rope_rescue: the whole rescue, planned when the task started —
+   *  see rope_rescue.ts. */
+  ropeRescue?: import("./rope_rescue").RopeRescueTimeline;
   /** For the police person tasks: the record the officer is dealing
    *  with, and how the tablet labelled them at the time (Person 01,
    *  or the name once details were given). */

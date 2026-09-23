@@ -188,6 +188,12 @@ export type SceneCasualty = {
   /** In moving water — drifts per the scene's water model, and only a
    *  water_rescue task gets them out. */
   inWater?: boolean;
+  /** Down a face or up a structure — only a rope_rescue task gets them
+   *  to safe ground; see the scene's rope model. */
+  atHeight?: boolean;
+  /** Found once the first crew has been on scene this long — for the
+   *  open-ground jobs where finding them is a walk, not a BA search. */
+  discoverAfterMinOnScene?: number;
   severity: "critical" | "serious" | "walking";
   /** Authored clinical presentation. When omitted the sim generates
    *  sensible defaults from severity. */
@@ -342,10 +348,37 @@ export type WaterModel = {
   bankRescueRangeM?: number;
 };
 
+/** A face or a drop on a scene: where the rope team work from, how far
+ *  down the casualty is, and how long each part of the rescue takes. */
+export type RopeModel = {
+  /** Top of the face — the team rig and lower from here. */
+  top: ScenePoint;
+  /** Height to the casualty, metres. */
+  dropM: number;
+  /** The path the team walk in, scene points from the vehicle end to the
+   *  top. Absent: a straight line from the vehicle. */
+  approach?: ScenePoint[];
+  /** The real walking distance in metres, where the scene draws it
+   *  shorter than it is. */
+  approachM?: number;
+  /** Anchors, edge protection, lines in. Default 480 s. */
+  rigSec?: number;
+  /** Casualty into the stretcher on the ledge. Default 360 s. */
+  packageSec?: number;
+  /** The haul. Default 300 s for a raise, 120 s for a lower. */
+  haulSec?: number;
+  /** Which way out. Default raise. */
+  recovery?: "raise" | "lower";
+  /** Where a lower lands. */
+  floor?: ScenePoint;
+};
+
 export type Scene = {
   viewBox: { x: number; y: number; width: number; height: number };
   /** Moving water, for scenes with someone in it. */
   water?: WaterModel;
+  /** A face or a drop, for scenes with someone down (or up) it. */
+  rope?: RopeModel;
   compassNorth: "up" | "down" | "left" | "right";
   /** Ways out this scene will not allow. A terraced hallway will not take
    *  a carry chair round the stair foot; a fourth floor with the lift out

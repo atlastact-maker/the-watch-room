@@ -45,6 +45,9 @@ export type CrewFigure = {
   /** Somewhere else entirely for a while — aboard a boat, say. When it
    *  returns a point, that is where the rider is. */
   carriedBy?: (now: number) => LatLng | null;
+  /** How long the walk in takes, when the drawn path is shorter than the
+   *  real one (eight hundred metres of footpath drawn as forty). */
+  walkMs?: number;
 };
 
 const WALK_MPS = 1.3;
@@ -116,7 +119,7 @@ function offsetMetres(p: LatLng, dxM: number, dyM: number): LatLng {
 export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase: "out" | "working" | "back" } | null {
   const walkable = f.path && f.path.length >= 2 ? f.path : null;
   const metres = walkable ? pathMetres(walkable) : haversine(f.from, f.to);
-  const walkMs = Math.max(3000, (metres / WALK_MPS) * 1000);
+  const walkMs = f.walkMs ?? Math.max(3000, (metres / WALK_MPS) * 1000);
   const at = (k: number): LatLng => (walkable ? alongPath(walkable, k) : { lat: f.from.lat + (f.to.lat - f.from.lat) * k, lng: f.from.lng + (f.to.lng - f.from.lng) * k });
   const spread = f.spreadIndex ?? 0;
   const ring = [

@@ -188,6 +188,7 @@ import type { CallSummary } from "./vector/call-screen";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { rollVariant, applyVariant, variantAllows, latLngToMetres } from "@/lib/sim/scene";
 import { planWaterRescue } from "@/lib/sim/water_rescue";
+import { planRopeRescue } from "@/lib/sim/rope_rescue";
 import { scenarioCovered } from "@/lib/sim/coverage";
 import { DraggableVehiclePanel } from "./components/vehicle-panel";
 import { PreArrivalPanel } from "./components/pre-arrival-panel";
@@ -4567,6 +4568,23 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       push("land", tl.landAt, "task_completed", `${who} — casualty on the bank. Ambulance crew to the water's edge for handover.`);
       if (tl.lost) push("lost", tl.lostAt, "setback", `${who} — casualty carried over the ${activeIncident?.scenario.scene?.water?.weirLabel ?? "weir"} before the crew could reach them`);
     }
+    for (const t of tasks) {
+      const tl = t.ropeRescue;
+      if (!tl || t.state === "aborted") continue;
+      const who = applianceLabel(t.applianceId);
+      const push = (key: string, at: number | undefined, kind: LogEntry["kind"], message: string) => {
+        if (at === undefined || now < at) return;
+        const id = `${t.id}:${key}`;
+        if (waterMilestonesRef.current.has(id)) return;
+        waterMilestonesRef.current.add(id);
+        lines.push({ id: `rope:${id}`, at, kind, message });
+      };
+      push("top", tl.atTopAt, "task_started", `${who} at the top of the face — casualty in sight, rigging`);
+      push("rigged", tl.riggedAt, "task_started", `${who} — anchors and lines in, rescuer going over the edge`);
+      push("with", tl.atCasualtyAt, "task_completed", `${who} — rescuer with the casualty on the ledge, packaging`);
+      push("packaged", tl.packagedAt, "task_started", `${who} — casualty in the stretcher, ${tl.recovery === "raise" ? "hauling" : "lowering"}`);
+      push("up", tl.recoveredAt, "task_completed", `${who} — casualty ${tl.recovery === "raise" ? "at the top" : "on the floor"} and off the face. Long carry to the ambulance from here.`);
+    }
     if (!lines.length) return;
     setLog((prev) => [...prev, ...lines.map((l) => ({ id: l.id, timestamp: l.at, kind: l.kind, message: l.message }))]);
   }, [now, tasks, activeIncident]);
@@ -5558,6 +5576,29 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         }
       }
     }
+    // Rope rescue: the same idea — walk in, rig, lower, package, haul —
+    // planned now from the scene's rope model and the vehicle's position.
+    let ropeRescue: Task["ropeRescue"];
+    if (args.kind === "rope_rescue" && activeIncident?.scenario.scene?.rope) {
+      const scene = activeIncident.scenario.scene;
+      const cas = scene.casualties?.find((c) => c.atHeight);
+      const dep = deployments.find((d) => d.applianceId === args.applianceId);
+      const inc = activeIncident.scenario.location.coords;
+      const crewStart = dep?.parkingPos ? latLngToMetres(inc, dep.parkingPos) : { x: 0, y: 0 };
+      if (cas) {
+        const tl = planRopeRescue(scene, cas, startedAt, crewStart);
+        if (tl) {
+          ropeRescue = tl;
+          waterCasualtyId = cas.id;
+          durationSec = Math.max(30, Math.round((tl.recoveredAt - startedAt) / 1000));
+          logAnnotation(
+            `${applianceLabel(args.applianceId)} — line rescue team walking in with the kit, ~${Math.max(1, Math.round(tl.approachMs / 60_000))} min to the top of the face`,
+            "annotation",
+            "rope-rescue",
+          );
+        }
+      }
+    }
     const task: Task = {
       id: `${args.applianceId}:${args.kind}:${startedAt}`,
       applianceId: args.applianceId,
@@ -5566,6 +5607,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       durationSec,
       completesAt: durationSec ? startedAt + durationSec * 1000 : undefined,
       waterRescue,
+      ropeRescue,
       state: "active",
       assignedCrewIds: args.assignedCrewIds,
       hydrantId: args.hydrantId,

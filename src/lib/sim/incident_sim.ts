@@ -11,6 +11,7 @@ import {
   type Task,
 } from "./incident_types";
 import { landedBy, weirReachedAt } from "./water_rescue";
+import { reachedBy as ropeReachedBy, recoveredBy as ropeRecoveredBy } from "./rope_rescue";
 import type {
   FireMaterial,
   PatientRedFlag,
@@ -479,7 +480,16 @@ export function simulateIncident(
       // and the deterioration clock runs at 60% of its window.
       const fromSeat = scene.fireSeat ? Math.hypot(c.pos.x - scene.fireSeat.pos.x, c.pos.y - scene.fireSeat.pos.y) : Infinity;
       const inSmoke = fromSeat <= smokeRadiusM;
-      const located = baSarMinutes >= c.discoverAfterMinBa * (1 + 0.5 * involvement.floor);
+      // Found by the BA search, or — on open ground — by the first crew
+      // having been there long enough to walk to them, or by the rope
+      // team reaching the edge and looking down.
+      const rope = c.atHeight && scene.rope
+        ? tasks.find((t) => t.kind === "rope_rescue" && t.ropeRescue && t.casualtyId === c.id && t.state !== "aborted")?.ropeRescue
+        : undefined;
+      const located =
+        baSarMinutes >= c.discoverAfterMinBa * (1 + 0.5 * involvement.floor) ||
+        (c.discoverAfterMinOnScene !== undefined && firstArrival !== null && (now - firstArrival) / 60_000 >= c.discoverAfterMinOnScene) ||
+        (!!rope && now >= rope.atTopAt);
       const paired = pairingByCasualtyId[c.id];
       // Treatment is paused while paired with an on-scene ambulance OR
       // while conveying. Once delivered to hospital, the casualty stays
@@ -504,7 +514,8 @@ export function simulateIncident(
         ? tasks.find((t) => t.kind === "water_rescue" && t.waterRescue && t.casualtyId === c.id && t.state !== "aborted")?.waterRescue
         : undefined;
       const reachedInWater = rescue?.interceptAt !== undefined && !rescue.lost && now >= rescue.interceptAt;
-      const treated = inTreatmentOnScene || conveying || atHospital || reachedInWater;
+      const reachedOnRope = ropeReachedBy(rope, now);
+      const treated = inTreatmentOnScene || conveying || atHospital || reachedInWater || reachedOnRope;
 
       // Compute effective severity by deteriorating the authored severity
       // one grade per CASUALTY_DETERIORATION_SEC the incident has been
@@ -546,6 +557,7 @@ export function simulateIncident(
         if (!reachedInWater && lostAt !== null && now >= lostAt && (stage === "located" || stage === "undiscovered")) stage = "expectant";
         else if (landedBy(rescue, now) && stage === "located") stage = "extricated";
       }
+      if (c.atHeight && ropeRecoveredBy(rope, now) && stage === "located") stage = "extricated";
 
       // Flashover eats any casualty still inside.
       if (

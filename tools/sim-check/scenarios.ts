@@ -262,6 +262,15 @@ for (const s of SCENARIOS) {
     const inc = { id: "i", scenarioId: s.id, scenario: s, receivedAt: 0 } as Incident;
     const clearMin = clearSeconds(inc, [], slots, 1) / 60;
     for (const cas of sc.casualties ?? []) {
+      // Found by a walk-in or a rope team looking over the edge rather than
+      // a BA search: those gates have their own timing.
+      const foundAnotherWay = cas.discoverAfterMinOnScene !== undefined || (cas.atHeight && !!sc.rope) || (cas.inWater && !!sc.water);
+      if (foundAnotherWay) {
+        if (cas.discoverAfterMinOnScene !== undefined && cas.discoverAfterMinOnScene > clearMin) {
+          note(s, "CASUALTY FOUND TOO LATE", `${cas.id} is found ${cas.discoverAfterMinOnScene} min after the first arrival but the job clears in ${clearMin.toFixed(0)}`);
+        }
+        continue;
+      }
       if (cas.discoverAfterMinBa > clearMin) {
         note(
           s,

@@ -27,6 +27,7 @@ import {
 } from "@/lib/sim/osm_roads";
 import { metresToLatLng } from "@/lib/sim/scene";
 import { boatPosition, casualtyWaterPosition, landedBy } from "@/lib/sim/water_rescue";
+import { casualtyRopePosition, recoveredBy, rescuerPosition } from "@/lib/sim/rope_rescue";
 import { routeEta } from "@/lib/sim/eta";
 import type {
   Deployment,
@@ -765,7 +766,8 @@ function casualtyPinIcon(label: string, severity: string, stage: string, showLab
   const colour = severity === "critical" ? "#dc2626" : severity === "serious" ? "#f59e0b" : severity === "expectant" ? "#6b7280" : "#16a34a";
   const priority = severity === "critical" ? "P1" : severity === "serious" ? "P2" : severity === "expectant" ? "P4" : "P3";
   const inside = stage === "located";
-  const suffix = inside ? " · INSIDE" : stage === "water" ? " · IN WATER" : stage === "aboard" ? " · ABOARD" : stage === "bank" ? " · ON THE BANK" : stage === "lost" ? " · LOST" : "";
+  const suffix = inside ? " · INSIDE" : stage === "water" ? " · IN WATER" : stage === "aboard" ? " · ABOARD" : stage === "bank" ? " · ON THE BANK" : stage === "lost" ? " · LOST"
+    : stage === "ledge" ? " · ON THE LEDGE" : stage === "withrescuer" ? " · RESCUER WITH THEM" : stage === "stretcher" ? " · IN THE STRETCHER" : stage === "top" ? " · OFF THE FACE" : "";
   const icon = L.divIcon({
     className: "",
     iconSize: [160, 30],
@@ -1407,6 +1409,9 @@ export function LeafletGroundMap({
    *  until carried out; then beside whichever ambulance has them, or the
    *  pump whose crew brought them out. */
   const waterModel = scene?.water;
+  const ropeModel = scene?.rope;
+  const ropeRescueFor = (casualtyId: string) =>
+    tasks.find((t) => t.kind === "rope_rescue" && t.ropeRescue && t.casualtyId === casualtyId && t.state !== "aborted");
   const waterRescueFor = (casualtyId: string) =>
     tasks.find((t) => t.kind === "water_rescue" && t.waterRescue && t.casualtyId === casualtyId && t.state !== "aborted");
   const casualtyGround = (id: string): CrewLatLng | null => {
@@ -1422,6 +1427,17 @@ export function LeafletGroundMap({
       const treating = landed ? onSceneMarkers.find((m) => m.deployment.treatingCasualtyId === id) : undefined;
       if (treating && stage === "in_treatment") return towards(treating.pos, metresToLatLng(fireCentre, tl!.landPos!), Math.min(5, haversineMetres(treating.pos, metresToLatLng(fireCentre, tl!.landPos!))));
       return metresToLatLng(fireCentre, casualtyWaterPosition(c, waterModel, incident.receivedAt, tl, now));
+    }
+    // Down the face: on the ledge until packaged, then up with the haul,
+    // then at the top where the team landed them.
+    if (c.atHeight && ropeModel) {
+      const tl = ropeRescueFor(id)?.ropeRescue;
+      if (recoveredBy(tl, now)) {
+        const treating = onSceneMarkers.find((m) => m.deployment.treatingCasualtyId === id);
+        const top = metresToLatLng(fireCentre, tl!.recoveryPos);
+        if (treating && stage === "in_treatment") return towards(treating.pos, top, Math.min(5, haversineMetres(treating.pos, top)));
+      }
+      return metresToLatLng(fireCentre, casualtyRopePosition(c, tl, now));
     }
     const carriedOut = stage === "extricated" || stage === "in_treatment";
     if (carriedOut) {
@@ -1504,8 +1520,22 @@ export function LeafletGroundMap({
         badge = "WATER";
         break;
       }
+      case "rope_rescue": {
+        const tl = t.ropeRescue;
+        if (tl) {
+          to = metresToLatLng(fireCentre, tl.top);
+          path = tl.approach.map((p) => {
+            const q = metresToLatLng(fireCentre, p);
+            return [q.lat, q.lng] as [number, number];
+          });
+          badge = "ROPE";
+          break;
+        }
+        to = towards(fireCentre, m.pos, Math.min(4, haversineMetres(fireCentre, m.pos)));
+        badge = "ROPE";
+        break;
+      }
       case "rtc_extrication":
-      case "rope_rescue":
       case "scene_preservation":
       case "firebreak":
       case "wildfire_beating":
@@ -1541,10 +1571,22 @@ export function LeafletGroundMap({
           return b ? metresToLatLng(fireCentre, b) : null;
         }
       : undefined;
+    const rope = t.kind === "rope_rescue" ? t.ropeRescue : undefined;
     ids.forEach((crewId, i) => {
       const cm = m.appliance.crewMembers.find((c) => c.id === crewId);
       if (!cm) return;
-      crewFigures.push({ id: `${t.id}:${crewId}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: to!, path, startAt: t.startedAt, endAt, badge, inside, spreadIndex: i, carriedBy });
+      // The first rider on a rope job is the one who goes over the edge.
+      const onTheLine = rope && i === 0
+        ? (at: number) => {
+            const p = rescuerPosition(rope, at);
+            return p ? metresToLatLng(fireCentre, p) : null;
+          }
+        : undefined;
+      crewFigures.push({
+        id: `${t.id}:${crewId}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: to!, path, startAt: t.startedAt, endAt,
+        badge: rope && i === 0 ? "ON THE LINE" : rope ? "RIGGING" : badge,
+        inside, spreadIndex: i, carriedBy: carriedBy ?? onTheLine, walkMs: rope?.approachMs,
+      });
     });
   }
   // Treating crews: the whole crew at the patient from the moment the
@@ -1560,6 +1602,14 @@ export function LeafletGroundMap({
       crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: "PATIENT", spreadIndex: i + 2 });
     });
   }
+  const ropes = tasks
+    .filter((t) => t.kind === "rope_rescue" && t.ropeRescue && t.state !== "aborted" && now >= t.ropeRescue.riggedAt && now < t.ropeRescue.recoveredAt + 10 * 60_000)
+    .map((t) => {
+      const tl = t.ropeRescue!;
+      const a = metresToLatLng(fireCentre, tl.top);
+      const b = metresToLatLng(fireCentre, now >= tl.recoveredAt ? tl.top : tl.casualtyPos);
+      return { id: t.id, positions: [[a.lat, a.lng], [b.lat, b.lng]] as [number, number][] };
+    });
   const boats = tasks
     .filter((t) => t.kind === "water_rescue" && t.waterRescue?.mode === "boat" && t.state !== "aborted")
     .map((t) => ({ id: t.id, tl: t.waterRescue!, callsign: resolved.find((r) => r.appliance.id === t.applianceId)?.appliance.callsign ?? "" }));
@@ -2264,7 +2314,12 @@ export function LeafletGroundMap({
           icon={casualtyPinIcon(
             x.c.label ?? x.c.id,
             x.severity,
-            x.c.inWater && waterModel
+            x.c.atHeight && ropeModel
+              ? (() => {
+                  const tl = ropeRescueFor(x.c.id)?.ropeRescue;
+                  return recoveredBy(tl, now) ? "top" : tl && now >= tl.packagedAt ? "stretcher" : tl && now >= tl.atCasualtyAt ? "withrescuer" : "ledge";
+                })()
+              : x.c.inWater && waterModel
               ? (() => {
                   const tl = waterRescueFor(x.c.id)?.waterRescue;
                   return landedBy(tl, now) ? "bank" : tl?.interceptAt !== undefined && now >= tl.interceptAt && !tl.lost ? "aboard" : x.stage === "expectant" ? "lost" : "water";
@@ -2278,6 +2333,9 @@ export function LeafletGroundMap({
       ))}
       {boats.map((b) => (
         <BoatMarker key={`boat-${b.id}`} tl={b.tl} callsign={b.callsign} centre={fireCentre} />
+      ))}
+      {ropes.map((r) => (
+        <Polyline key={`rope-${r.id}`} positions={r.positions} pathOptions={{ color: "#f97316", weight: 3, opacity: 0.9, dashArray: "2 6" }} interactive={false} />
       ))}
       <CrewFigureLayer figures={crewFigures} showLabels={mapZoom >= 19} />
 
