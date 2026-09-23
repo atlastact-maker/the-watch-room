@@ -333,184 +333,249 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     { k: "E", label: "Exposure", tab: "immobilise", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `${vitals.temp.toFixed(1)} °C${flags.includes("major_haemorrhage") ? " · haemorrhage" : ""}`, tone: flags.includes("major_haemorrhage") ? "stop" : "go" }) },
   ];
 
-  function actionTile(label: string, hint: string | undefined, done: number | undefined, allowed: boolean, requires: ClinicianScope | undefined, onClick: () => void, key: string, outOfRegion = false) {
+  // ---- Intervention rows ---------------------------------------------------
+  // Every intervention on the care pane is one row of the same shape: what
+  // it is, where it stands (done at a time, needs a higher clinician, blocked
+  // for a reason, or ready), and one button. Tiles of uneven height are what
+  // made the old pane look untidy; rows in a fixed grid read like a record.
+  type IvState =
+    | { kind: "done"; at: number }
+    | { kind: "locked"; requires: ClinicianScope }
+    | { kind: "blocked"; reason: string }
+    | { kind: "off"; reason: string }
+    | { kind: "ready" };
+
+  function ivState(done: number | undefined, allowed: boolean, requires?: ClinicianScope, reason?: string): IvState {
+    if (done !== undefined) return { kind: "done", at: done };
+    if (!surveyDone) return { kind: "off", reason: "Primary survey first" };
+    if (reason) return { kind: "blocked", reason };
+    if (!allowed) return requires ? { kind: "locked", requires } : { kind: "blocked", reason: "Not available" };
+    return { kind: "ready" };
+  }
+
+  function statusOf(state: IvState): { text: string; tone: string } {
+    switch (state.kind) {
+      case "done": return { text: `Done · ${wall(state.at)}`, tone: "go" };
+      case "locked": return { text: `Requires ${SCOPE_LABEL[state.requires]}`, tone: "muted" };
+      case "blocked": return { text: state.reason, tone: "warn" };
+      case "off": return { text: state.reason, tone: "muted" };
+      default: return { text: "Not done", tone: "ready" };
+    }
+  }
+
+  function ivRow(key: string, label: string, hint: string | undefined, state: IvState, onClick: () => void, opts: { verb?: string; dim?: boolean; gate?: boolean } = {}) {
+    const s = statusOf(state);
+    const disabled = state.kind !== "ready" || (opts.gate !== false && !canAct);
     return (
-      <button
-        key={key}
-        type="button"
-        className={`cc-action${done !== undefined ? " done" : ""}${outOfRegion ? " dim" : ""}`}
-        disabled={!allowed || !canAct || done !== undefined}
-        title={hint}
-        onClick={onClick}
-      >
-        <strong>{label}</strong>
-        <small>{done !== undefined ? `Done · ${wall(done)}` : !allowed && requires ? `Requires ${SCOPE_LABEL[requires]}` : hint}</small>
-      </button>
+      <div key={key} className={`cc-iv ${state.kind}${opts.dim ? " dim" : ""}`}>
+        <div className="cc-iv-name"><strong>{label}</strong>{hint && <small title={hint}>{hint}</small>}</div>
+        <div className={`cc-iv-status ${s.tone}`} title={s.text}><i />{s.text}</div>
+        <button type="button" className="cc-iv-do" disabled={disabled} onClick={onClick} aria-label={state.kind === "done" ? `${label} done` : `${opts.verb ?? "Apply"} ${label}`}>
+          {state.kind === "done" ? "✓" : opts.verb ?? "Apply"}
+        </button>
+      </div>
     );
   }
 
-  const gateCard = extractionRequired ? (
-    <Card title="Awaiting extraction" icon="!" tone="stop">
-      <p>Casualty is still inside the hazard zone. Treatment starts once a BA crew has carried them to the RVP. Task a crew with Extract casualty on the MDT.</p>
-    </Card>
+  /** A choice row — clinician requests, destinations, convey — same grid,
+   *  its own status text and verb. */
+  function choiceRow(key: string, title: string, desc: string | undefined, status: { text: string; tone: string }, verb: string, disabled: boolean, onClick: () => void, cls = "") {
+    return (
+      <div key={key} className={`cc-iv ${cls}`}>
+        <div className="cc-iv-name"><strong>{title}</strong>{desc && <small title={desc}>{desc}</small>}</div>
+        <div className={`cc-iv-status ${status.tone}`} title={status.text}><i />{status.text}</div>
+        <button type="button" className="cc-iv-do" disabled={disabled} onClick={onClick}>{verb}</button>
+      </div>
+    );
+  }
+
+  const ivList = (rows: ReactNode[], cols = true) => (
+    <div className="cc-iv-list">
+      {cols && <div className="cc-iv-cols"><span>Intervention</span><span>Status</span><span /></div>}
+      {rows}
+    </div>
+  );
+
+  // ---- What each section holds -----------------------------------------------
+  const airwayActions = Object.keys(AIRWAY_LABEL) as AirwayAction[];
+  const breathingActions = (Object.keys(BREATHING_LABEL) as BreathingAction[]).filter((a) => (a !== "needle_decomp" && a !== "finger_thoracostomy") || revealedFlags.includes("tension_pneumothorax"));
+  const circActions = (Object.keys(CIRC_LABEL) as CirculationAction[]).filter((a) => (a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest")));
+  const packagingActions = Object.keys(PACKAGING_LABEL) as PackagingAction[];
+  const egressActions = Object.keys(EGRESS_LABEL) as EgressAction[];
+  const doneOf = <K extends string>(rec: Partial<Record<K, number>> | undefined, keys: K[]) => keys.filter((k) => rec?.[k] !== undefined).length;
+  const toneOf = (k: string) => surveyRows.find((r) => r.k === k)?.tone ?? "off";
+
+  const sections: Record<CareTab, { count?: string; tone: "go" | "warn" | "stop" | "off"; subtitle: string }> = {
+    assess: { count: surveyDone ? "✓" : undefined, tone: surveyDone ? "go" : surveyRunning ? "warn" : "off", subtitle: surveyDone ? "Primary survey complete · oxygen and medication" : surveyRunning ? "Primary survey in progress" : "Start with the primary survey" },
+    airway: { count: `${doneOf(treatment?.airway, airwayActions)}/${airwayActions.length}`, tone: toneOf("A"), subtitle: surveyRows[0].status },
+    breathing: { count: `${doneOf(treatment?.breathing, breathingActions)}/${breathingActions.length}`, tone: toneOf("B"), subtitle: surveyRows[1].status },
+    circulation: { count: `${doneOf(treatment?.circulation, circActions)}/${circActions.length}`, tone: inArrest ? "stop" : toneOf("C"), subtitle: surveyRows[2].status },
+    immobilise: { count: `${doneOf(treatment?.packaging, packagingActions) + doneOf(treatment?.egress, egressActions)}/${packagingActions.length + egressActions.length}`, tone: toneOf("E"), subtitle: move ? `${EGRESS_LABEL[move[0]]} · ${moveLeft > 0 ? `${clock(moveLeft).slice(3)} to the vehicle` : "at the vehicle"}` : surveyRows[4].status },
+    handover: { count: treatment?.chosenDestination ? (treatment.atmistSentAt ? "✓" : "H") : undefined, tone: conveying ? "go" : treatment?.chosenDestination ? "warn" : "off", subtitle: conveying ? (atHospital ? "At hospital" : "Conveying") : treatment?.chosenDestination ? `${treatment.chosenDestination.name}${treatment.atmistSentAt ? " · ATMIST sent" : " · ATMIST not sent"}` : "Clinician, destination, convey" },
+  };
+
+  // ---- Banners ----------------------------------------------------------------
+  const gateBanner = extractionRequired ? (
+    <div className="cc-banner stop">
+      <b>!</b>
+      <div><strong>Awaiting extraction</strong><p>Casualty is still inside the hazard zone. Treatment starts once a BA crew has carried them to the RVP — task a crew with Extract casualty on the MDT.</p></div>
+    </div>
   ) : conveying ? (
-    <Card title={atHospital ? "At hospital" : "Conveying"} icon="→" tone="go">
-      <p>
-        {convoy!.appliance.callsign} · {convoy!.deployment.hospitalName ?? treatment?.chosenDestination?.name ?? "hospital"}
-        {!atHospital && convoy!.deployment.hospitalArrivesAt ? ` · ETA ${clock(convoy!.deployment.hospitalArrivesAt - now)}` : atHospital ? " · handing over" : ""}
-      </p>
-    </Card>
+    <div className="cc-banner go">
+      <b>→</b>
+      <div>
+        <strong>{atHospital ? "At hospital" : "Conveying"}</strong>
+        <p>{convoy!.appliance.callsign} · {convoy!.deployment.hospitalName ?? treatment?.chosenDestination?.name ?? "hospital"}{!atHospital && convoy!.deployment.hospitalArrivesAt ? ` · ETA ${clock(convoy!.deployment.hospitalArrivesAt - now)}` : atHospital ? " · handing over" : ""}</p>
+      </div>
+    </div>
   ) : paired.length === 0 ? (
-    <Card title="Assign crew" icon="+" tone="warn">
-      {inbound.length > 0 && (
-        <p>{inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ")}</p>
-      )}
-      {onSceneMedical.length === 0 ? (
-        <p>No clinician on scene yet. A vehicle carrying a defib is not a clinician — it takes an ambulance resource in attendance.</p>
-      ) : (
-        <div className="cc-list">
-          {onSceneMedical.map((r) => {
-            const onOther = !!r.deployment.treatingCasualtyId && r.deployment.treatingCasualtyId !== casualtyId;
-            return (
-              <button key={r.appliance.id} type="button" className="cc-row" disabled={!props.onSetTreatingCasualty} onClick={() => props.onSetTreatingCasualty?.(r.appliance.id, casualtyId)}>
-                <strong>{r.appliance.callsign}</strong>
-                <span>{SCOPE_LABEL[scopeOfApplianceType(r.appliance.type)]}{onOther ? " · with another patient" : ""}</span>
-                <em>Assign</em>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </Card>
+    <div className="cc-banner warn">
+      <b>+</b>
+      <div>
+        <strong>No crew with this patient</strong>
+        <p>{inbound.length > 0 ? inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ") : onSceneMedical.length === 0 ? "No clinician on scene yet. A vehicle carrying a defib is not a clinician — it takes an ambulance resource in attendance." : "Assign a clinician on scene to start treatment."}</p>
+        {onSceneMedical.length > 0 && ivList(onSceneMedical.map((r) => {
+          const onOther = !!r.deployment.treatingCasualtyId && r.deployment.treatingCasualtyId !== casualtyId;
+          return choiceRow(r.appliance.id, r.appliance.callsign, SCOPE_LABEL[scopeOfApplianceType(r.appliance.type)], onOther ? { text: "With another patient", tone: "warn" } : { text: "On scene", tone: "ready" }, "Assign", !props.onSetTreatingCasualty, () => props.onSetTreatingCasualty?.(r.appliance.id, casualtyId));
+        }), false)}
+      </div>
+    </div>
   ) : null;
 
-  const oxygenCard = (
-    <Card title="Oxygen" icon="O₂">
-      <label className="cc-field">
-        <span>Device</span>
-        <select value={device} onChange={(e) => { setDevice(e.target.value as OxygenDevice | ""); setFlowIx(0); }} disabled={!canAct}>
-          <option value="">Select device</option>
-          {(Object.keys(OXYGEN_DEVICE_LABEL) as OxygenDevice[]).map((d) => (
-            <option key={d} value={d}>{OXYGEN_DEVICE_LABEL[d]}</option>
-          ))}
-        </select>
-      </label>
-      <div className="cc-field cc-inline">
-        <span>Flow rate</span>
-        <div className="cc-stepper">
-          <button type="button" aria-label="Lower flow" disabled={!device || flowIx <= 0} onClick={() => setFlowIx((i) => Math.max(0, i - 1))}>−</button>
-          <output>{device ? flow : ""}</output>
-          <button type="button" aria-label="Raise flow" disabled={!device || flowIx >= flows.length - 1} onClick={() => setFlowIx((i) => Math.min(flows.length - 1, i + 1))}>+</button>
-        </div>
-        <span className="unit">L/min</span>
+  // ---- Order strips: oxygen and medication ----------------------------------
+  const o2On = !!currentO2 && currentO2.device !== "none";
+  const oxygenGroup = (
+    <Group title="Oxygen" extra={<span className={`cc-pill ${o2On ? "go" : ""}`}>{o2On ? `Delivering · ${oxygenLabel(currentO2!)}` : "Not delivering"}</span>}>
+      <div className="cc-order">
+        <label>
+          <span>Device</span>
+          <select value={device} onChange={(e) => { setDevice(e.target.value as OxygenDevice | ""); setFlowIx(0); }} disabled={!canAct}>
+            <option value="">Select device</option>
+            {(Object.keys(OXYGEN_DEVICE_LABEL) as OxygenDevice[]).map((d) => (
+              <option key={d} value={d}>{OXYGEN_DEVICE_LABEL[d]}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Flow · L/min</span>
+          <div className="cc-stepper">
+            <button type="button" aria-label="Lower flow" disabled={!device || flowIx <= 0} onClick={() => setFlowIx((i) => Math.max(0, i - 1))}>−</button>
+            <output>{device ? flow : "—"}</output>
+            <button type="button" aria-label="Raise flow" disabled={!device || flowIx >= flows.length - 1} onClick={() => setFlowIx((i) => Math.min(flows.length - 1, i + 1))}>+</button>
+          </div>
+        </label>
+        <button type="button" className="cc-primary" disabled={!canAct || !device || !props.onSetOxygen} onClick={() => device && props.onSetOxygen?.(casualtyId, device, flow, by)}>
+          {device === "none" ? "Remove" : "Apply"}
+        </button>
       </div>
-      <div className="cc-field cc-inline">
-        <span>Status</span>
-        <span className={`cc-status ${currentO2 && currentO2.device !== "none" ? "on" : ""}`}>
-          <i />{currentO2 && currentO2.device !== "none" ? `Delivering · ${oxygenLabel(currentO2)}` : "Not delivering"}
-        </span>
-      </div>
-      {surveyDone && <small className={`cc-verdict ${o2Verdict.tone}`}>{o2Verdict.text}</small>}
-      {device && <small className="cc-hint">{OXYGEN_HINT[device]}</small>}
-      <button type="button" className="cc-primary" disabled={!canAct || !device || !props.onSetOxygen} onClick={() => device && props.onSetOxygen?.(casualtyId, device, flow, by)}>
-        <Icon d="M12 4v8m0 0c-2 0-3 2-3 4s-1 4-3 4-3-2-3-4 1-4 3-4m6 0c2 0 3 2 3 4s1 4 3 4 3-2 3-4-1-4-3-4" /> {device === "none" ? "Remove oxygen" : "Apply oxygen"}
-      </button>
-    </Card>
+      {surveyDone && <p className={`cc-line ${o2Verdict.tone}`}>{o2Verdict.text}</p>}
+      {device && <p className="cc-line">{OXYGEN_HINT[device]}</p>}
+    </Group>
   );
 
-  const medicationCard = (
-    <Card title="Medication" icon="⌇">
-      <label className="cc-field">
-        <span>Drug</span>
-        <select value={drug} onChange={(e) => setDrug(e.target.value as DrugName | "")} disabled={!canAct || !surveyDone}>
-          <option value="">Select medication</option>
-          {drugs.map((d) => (
-            <option key={d} value={d} disabled={!drugAllowed(d)}>
-              {DRUG_LABEL[d]}{treatment?.drugs[d] !== undefined ? " · given" : !drugAllowed(d) ? ` · ${SCOPE_LABEL[DRUG_MIN_SCOPE[d]]}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="cc-field cc-inline">
-        <span>Dose</span>
-        <input readOnly value={dose?.dose ?? ""} aria-label="Dose" />
-        <input readOnly value={dose?.unit ?? "Select unit"} aria-label="Unit" className="wide" />
-      </div>
-      <div className="cc-field cc-inline">
-        <span>Route</span>
-        <input readOnly value={dose?.route ?? "Select route"} aria-label="Route" className="wide" />
+  const givenDoses = (treatment?.doses ?? []).slice().sort((a, b) => b.at - a.at);
+  const allergyPill = treatment?.allergiesConfirmedAt
+    ? <span className={`cc-pill ${profile && profile.allergies.length ? "stop" : "go"}`}>{profile && profile.allergies.length ? `Allergy · ${profile.allergies.map((a) => a.agent).join(", ")}` : "NKDA"}</span>
+    : <span className="cc-pill warn">Allergies not confirmed</span>;
+  const medicationGroup = (
+    <Group title="Medication" extra={allergyPill}>
+      <div className="cc-order">
+        <label>
+          <span>Drug</span>
+          <select value={drug} onChange={(e) => setDrug(e.target.value as DrugName | "")} disabled={!canAct || !surveyDone}>
+            <option value="">Select medication</option>
+            {drugs.map((d) => (
+              <option key={d} value={d} disabled={!drugAllowed(d)}>
+                {DRUG_LABEL[d]}{treatment?.drugs[d] !== undefined ? " · given" : !drugAllowed(d) ? ` · ${SCOPE_LABEL[DRUG_MIN_SCOPE[d]]}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label><span>Dose</span><output>{dose ? `${dose.dose} ${dose.unit}` : "—"}</output></label>
+        <label><span>Route</span><output>{dose?.route ?? "—"}</output></label>
+        <button
+          type="button"
+          className="cc-primary"
+          disabled={!canAct || !drug || !surveyDone || !props.onAdministerDrug || (check !== null && !check.ok)}
+          onClick={() => { if (drug) { props.onAdministerDrug?.(casualtyId, drug, by); setDrug(""); } }}
+        >
+          {givenCount > 0 ? `Repeat · ${givenCount + 1}` : "Give"}
+        </button>
       </div>
       {spec && (
-        <small className="cc-hint">
+        <p className="cc-line">
           {spec.indication} · onset ~{spec.onsetSec >= 60 ? `${Math.round(spec.onsetSec / 60)} min` : `${spec.onsetSec} s`} · lasts ~{Math.round(spec.durationSec / 60)} min
           {givenCount > 0 ? ` · dose ${givenCount} of ${spec.maxDoses} given` : spec.maxDoses > 1 ? ` · up to ${spec.maxDoses} doses, ${Math.round(spec.repeatSec / 60)} min apart` : ""}
-        </small>
+        </p>
       )}
-      {drug && DRUG_HINT[drug] && <small className="cc-hint">{DRUG_HINT[drug]}</small>}
-      {check && !check.ok && <small className="cc-verdict bad">{check.reason}</small>}
-      {check?.ok && check.warning && <small className="cc-verdict warn">{check.warning}</small>}
+      {drug && DRUG_HINT[drug] && <p className="cc-line">{DRUG_HINT[drug]}</p>}
+      {check && !check.ok && <p className="cc-line stop">{check.reason}</p>}
+      {check?.ok && check.warning && <p className="cc-line warn">{check.warning}</p>}
       {allergyToDrug ? (
-        <div className="cc-warn stop">
-          <b>!</b>
-          <div><strong>ALLERGY: {allergyToDrug.agent}</strong><span>Patient reports {allergyToDrug.reaction === "rash" ? "a rash" : "anaphylaxis"} to this. Do not give.</span></div>
+        <div className="cc-banner stop"><b>!</b><div><strong>ALLERGY · {allergyToDrug.agent}</strong><p>Patient reports {allergyToDrug.reaction === "rash" ? "a rash" : "anaphylaxis"} to this. Do not give.</p></div></div>
+      ) : !treatment?.allergiesConfirmedAt ? (
+        <div className="cc-banner warn">
+          <b>?</b>
+          <div>
+            <strong>Allergies not confirmed</strong>
+            <p>Check allergy status before administering any medication.</p>
+            <button type="button" className="cc-mini" disabled={!canAct || !props.onConfirmAllergies} onClick={() => props.onConfirmAllergies?.(casualtyId, by)}>Ask now</button>
+          </div>
         </div>
-      ) : treatment?.allergiesConfirmedAt ? (
-        <div className="cc-warn ok">
-          <b>✓</b>
-          <div><strong>Allergies: {profile && profile.allergies.length ? profile.allergies.map((a) => a.agent).join(", ") : "NKDA"}</strong><span>Confirmed at {wall(treatment.allergiesConfirmedAt)}.</span></div>
+      ) : null}
+      {givenDoses.length > 0 && ivList(givenDoses.map((d, i) => (
+        <div key={`${d.drug}-${d.at}-${i}`} className="cc-iv done">
+          <div className="cc-iv-name"><strong>{DRUG_LABEL[d.drug]}</strong><small>{DRUG_DOSE[d.drug].dose} {DRUG_DOSE[d.drug].unit} {DRUG_DOSE[d.drug].route} · {d.by}</small></div>
+          <div className="cc-iv-status go"><i />Given · {wall(d.at)}</div>
+          <span />
         </div>
-      ) : (
-        <div className="cc-warn">
-          <b>!</b>
-          <div><strong>Allergies: not confirmed</strong><span>Check allergy status before administering any medication.</span></div>
-        </div>
-      )}
-      <button
-        type="button"
-        className="cc-primary"
-        disabled={!canAct || !drug || !surveyDone || !props.onAdministerDrug || (check !== null && !check.ok)}
-        onClick={() => { if (drug) { props.onAdministerDrug?.(casualtyId, drug, by); setDrug(""); } }}
-      >
-        <Icon d="M4 20l4-4m2-6 8-8m-6 6 6 6m-8-4-3 3 4 4 3-3" /> {givenCount > 0 ? `Administer · repeat dose ${givenCount + 1}` : "Administer"}
-      </button>
-    </Card>
+      )), false)}
+    </Group>
   );
 
-  function rightColumn(): ReactNode {
-    if (gateCard && tab !== "handover") return <>{gateCard}{tab === "assess" && oxygenCard}</>;
+  // ---- The pane for the open section -----------------------------------------
+  function paneBody(): ReactNode {
+    if (gateBanner && tab !== "handover") return <>{gateBanner}{tab === "assess" && oxygenGroup}</>;
     switch (tab) {
       case "assess":
-        return <>{oxygenCard}{medicationCard}</>;
+        return (
+          <>
+            {!surveyDone && (
+              <div className={`cc-banner ${surveyRunning ? "warn" : "info"}`}>
+                <b>✓</b>
+                <div>
+                  <strong>{surveyRunning ? `Primary survey · ${Math.round(surveySec)} s of 60` : "Primary survey not started"}</strong>
+                  <p>{surveyRunning ? "A, B, C, D and E fill in as the crew works through them." : "Sixty seconds at the patient's side. Interventions unlock once it is complete."}</p>
+                  {surveyRunning ? <div className="cc-bar"><i style={{ width: `${(surveySec / 60) * 100}%` }} /></div> : (
+                    <button type="button" className="cc-mini" disabled={!canAct || !props.onStartPatientSurvey} onClick={() => props.onStartPatientSurvey?.(casualtyId)}>Start primary survey</button>
+                  )}
+                </div>
+              </div>
+            )}
+            {oxygenGroup}
+            {medicationGroup}
+          </>
+        );
       case "airway":
         return (
-          <Card title="Airway" icon="A" fill>
-            {!surveyDone && <p className="cc-note">Complete the primary survey to unlock interventions.</p>}
-            <div className="cc-actions">
-              {(Object.keys(AIRWAY_LABEL) as AirwayAction[]).map((a) =>
-                actionTile(AIRWAY_LABEL[a], AIRWAY_HINT[a], treatment?.airway[a], surveyDone && scopeLvl >= SCOPE_LEVEL[AIRWAY_MIN_SCOPE[a]], AIRWAY_MIN_SCOPE[a], () => props.onApplyAirway?.(casualtyId, a, by), a, region !== null && region !== "head" && region !== "neck"),
-              )}
-            </div>
-          </Card>
+          <Group title="Airway interventions">
+            {ivList(airwayActions.map((a) => ivRow(a, AIRWAY_LABEL[a], AIRWAY_HINT[a], ivState(treatment?.airway[a], scopeLvl >= SCOPE_LEVEL[AIRWAY_MIN_SCOPE[a]], AIRWAY_MIN_SCOPE[a]), () => props.onApplyAirway?.(casualtyId, a, by), { dim: region !== null && region !== "head" && region !== "neck" })))}
+          </Group>
         );
       case "breathing":
         return (
           <>
-            <Card title="Breathing" icon="B">
-              {!surveyDone && <p className="cc-note">Complete the primary survey to unlock interventions.</p>}
-              <div className="cc-actions">
-                {(Object.keys(BREATHING_LABEL) as BreathingAction[])
-                  .filter((a) => (a !== "needle_decomp" && a !== "finger_thoracostomy") || revealedFlags.includes("tension_pneumothorax"))
-                  .map((a) => actionTile(BREATHING_LABEL[a], BREATHING_HINT[a], treatment?.breathing[a], surveyDone && scopeLvl >= SCOPE_LEVEL[BREATHING_MIN_SCOPE[a]], BREATHING_MIN_SCOPE[a], () => props.onApplyBreathing?.(casualtyId, a, by), a, region !== null && region !== "chest" && region !== "head"))}
-              </div>
-            </Card>
-            {oxygenCard}
+            <Group title="Breathing interventions">
+              {ivList(breathingActions.map((a) => ivRow(a, BREATHING_LABEL[a], BREATHING_HINT[a], ivState(treatment?.breathing[a], scopeLvl >= SCOPE_LEVEL[BREATHING_MIN_SCOPE[a]], BREATHING_MIN_SCOPE[a]), () => props.onApplyBreathing?.(casualtyId, a, by), { dim: region !== null && region !== "chest" && region !== "head" })))}
+            </Group>
+            {oxygenGroup}
           </>
         );
       case "circulation":
         return (
           <>
             {resus && (
-              <Card title={inArrest ? "Resuscitation · ALS" : resus.roscAt ? "Post-ROSC" : "Resuscitation ended"} icon="♥" tone={inArrest ? "stop" : "go"} fill>
+              <Group title={inArrest ? "Resuscitation · ALS" : resus.roscAt ? "Post-ROSC" : "Resuscitation ended"} extra={<span className={`cc-pill ${inArrest ? "stop" : "go"}`}>{inArrest ? "In arrest" : resus.roscAt ? "ROSC" : "Ended"}</span>}>
                 <div className="cc-legacy">
                   <ResusPanel
                     state={resus}
@@ -535,122 +600,105 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                     onStopResus={() => props.onStopResus?.(casualtyId)}
                   />
                 </div>
-              </Card>
+              </Group>
             )}
-            <Card title="Circulation" icon="C">
-              {!surveyDone && <p className="cc-note">Complete the primary survey to unlock interventions.</p>}
-              <div className="cc-actions">
-                {(Object.keys(CIRC_LABEL) as CirculationAction[])
-                  .filter((a) => (a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest")))
-                  .map((a) => actionTile(CIRC_LABEL[a], CIRC_HINT[a], treatment?.circulation[a], surveyDone, undefined, () => props.onApplyCirculation?.(casualtyId, a, by), a))}
-              </div>
-            </Card>
-            {medicationCard}
+            <Group title="Circulation interventions">
+              {ivList(circActions.map((a) => ivRow(a, CIRC_LABEL[a], CIRC_HINT[a], ivState(treatment?.circulation[a], true), () => props.onApplyCirculation?.(casualtyId, a, by))))}
+            </Group>
+            {medicationGroup}
           </>
         );
       case "immobilise":
         return (
           <>
-            <Card title="Packaging" icon="⊟">
-              {!surveyDone && <p className="cc-note">Complete the primary survey to unlock packaging.</p>}
-              <div className="cc-actions">
-                {(Object.keys(PACKAGING_LABEL) as PackagingAction[]).map((a) =>
-                  actionTile(PACKAGING_LABEL[a], PACKAGING_HINT[a], treatment?.packaging[a], surveyDone, undefined, () => props.onApplyPackaging?.(casualtyId, a, by), a),
-                )}
-              </div>
-            </Card>
-            <Card title="Egress · to the vehicle" icon="↘">
-              <div className="cc-actions">
-                {(Object.keys(EGRESS_LABEL) as EgressAction[]).map((a) => {
-                  const block = props.egressBlocked?.find((b) => b.action === a);
-                  const clinical = EGRESS_CLINICAL_BLOCKS.find((r) => r.actions.includes(a) && flags.includes(r.flag));
-                  const reason = block?.reason ?? clinical?.reason;
-                  return actionTile(EGRESS_LABEL[a], reason ?? EGRESS_HINT[a], treatment?.egress?.[a], surveyDone && !reason, undefined, () => props.onApplyEgress?.(casualtyId, a, by), a);
-                })}
-              </div>
-              {move && (
-                <p className={`cc-note ${moveLeft > 0 ? "warn" : "go"}`}>
-                  {EGRESS_LABEL[move[0]]} · {moveLeft > 0 ? `${clock(moveLeft).slice(3)} to the vehicle` : "at the vehicle"}
-                </p>
-              )}
-            </Card>
+            <Group title="Packaging">
+              {ivList(packagingActions.map((a) => ivRow(a, PACKAGING_LABEL[a], PACKAGING_HINT[a], ivState(treatment?.packaging[a], true), () => props.onApplyPackaging?.(casualtyId, a, by))))}
+            </Group>
+            <Group title="Egress · to the vehicle" extra={move ? <span className={`cc-pill ${moveLeft > 0 ? "warn" : "go"}`}>{EGRESS_LABEL[move[0]]} · {moveLeft > 0 ? `${clock(moveLeft).slice(3)} to go` : "at the vehicle"}</span> : undefined}>
+              {ivList(egressActions.map((a) => {
+                const block = props.egressBlocked?.find((b) => b.action === a);
+                const clinical = EGRESS_CLINICAL_BLOCKS.find((r) => r.actions.includes(a) && flags.includes(r.flag));
+                return ivRow(a, EGRESS_LABEL[a], EGRESS_HINT[a], ivState(treatment?.egress?.[a], true, undefined, block?.reason ?? clinical?.reason), () => props.onApplyEgress?.(casualtyId, a, by), { verb: "Move" });
+              }))}
+            </Group>
           </>
         );
       case "handover":
         return (
           <>
-            {gateCard}
-            <Card title="Additional clinician" icon="+">
-              <div className="cc-list">
-                {(["ap", "ccc", "basics", "hems"] as const).map((s) => {
-                  const alreadyOn = scopeLvl >= SCOPE_LEVEL[s];
-                  const br = s === "basics" ? treatment?.basicsRequest : undefined;
-                  const pending = !!br && (br.stage === "cih" || br.stage === "broadcast");
-                  const left = br ? Math.max(0, Math.ceil((br.nextAt - now) / 1000)) : 0;
-                  const description = s === "hems"
-                    ? props.hemsFlyable === false ? "Aircraft grounded — NWAA car responds by road" : "Helicopter + doctor team — pick a landing zone on the ground"
-                    : br
-                      ? br.stage === "cih" ? `With the Complex Incident Hub · ${left} s`
-                        : br.stage === "broadcast" ? `Alert to ${br.alerted} handset${br.alerted === 1 ? "" : "s"} · ${left} s to answer`
-                        : br.stage === "answered" ? `${br.winnerCallsign ?? "Responder"} answered · mobilising`
-                        : br.stage === "declined" ? "Hub declined — NWAA asset instead"
-                        : "No response · request again or use NWAA"
-                      : CLINICIAN_DESCRIPTION[s];
-                  return (
-                    <button key={s} type="button" className="cc-row" disabled={alreadyOn || pending || !props.onRequestClinician || extractionRequired} onClick={() => props.onRequestClinician?.(s, casualtyId)}>
-                      <strong>{SCOPE_LABEL[s]}{s === "hems" && props.hemsFlyable === false ? " · Night car" : ""}</strong>
-                      <span>{description}</span>
-                      <em>{alreadyOn ? "On scene" : pending ? "Requested" : br?.stage === "answered" ? "Coming" : "Request"}</em>
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-            <Card title="Destination" icon="H">
-              <div className="cc-list">
-                {(Object.keys(DESTINATION_LABEL) as HospitalDestinationType[]).map((t) => {
-                  const preferred = treatment?.preferredDestination === t;
-                  const chosen = treatment?.chosenDestination?.type === t;
-                  return (
-                    <button key={t} type="button" className={`cc-row${chosen ? " chosen" : preferred ? " preferred" : ""}`} title={DESTINATION_HINT[t]} disabled={!canAct || !surveyDone} onClick={() => props.onSetTreatmentDestination?.(casualtyId, t, DESTINATION_LABEL[t])}>
-                      <strong>{DESTINATION_LABEL[t]}</strong>
-                      <em>{chosen ? "Chosen" : preferred ? "Recommended" : "Select"}</em>
-                    </button>
-                  );
-                })}
-              </div>
+            {gateBanner}
+            <Group title="Additional clinician">
+              {ivList((["ap", "ccc", "basics", "hems"] as const).map((s) => {
+                const alreadyOn = scopeLvl >= SCOPE_LEVEL[s];
+                const br = s === "basics" ? treatment?.basicsRequest : undefined;
+                const pending = !!br && (br.stage === "cih" || br.stage === "broadcast");
+                const left = br ? Math.max(0, Math.ceil((br.nextAt - now) / 1000)) : 0;
+                const description = s === "hems"
+                  ? props.hemsFlyable === false ? "Aircraft grounded — NWAA car responds by road" : "Helicopter and doctor team — pick a landing zone on the ground"
+                  : CLINICIAN_DESCRIPTION[s];
+                const status = alreadyOn
+                  ? { text: "On scene", tone: "go" }
+                  : br
+                    ? br.stage === "cih" ? { text: `With the Hub · ${left} s`, tone: "warn" }
+                      : br.stage === "broadcast" ? { text: `Alerting ${br.alerted} · ${left} s`, tone: "warn" }
+                      : br.stage === "answered" ? { text: `${br.winnerCallsign ?? "Responder"} coming`, tone: "go" }
+                      : br.stage === "declined" ? { text: "Hub declined", tone: "stop" }
+                      : { text: "No response", tone: "stop" }
+                    : { text: "Not requested", tone: "ready" };
+                return choiceRow(s, `${SCOPE_LABEL[s]}${s === "hems" && props.hemsFlyable === false ? " · Night car" : ""}`, description, status, alreadyOn ? "—" : pending ? "Wait" : "Request", alreadyOn || pending || !props.onRequestClinician || extractionRequired, () => props.onRequestClinician?.(s, casualtyId));
+              }), false)}
+            </Group>
+            <Group title="Destination" extra={treatment?.atmistSentAt ? <span className="cc-pill go">ATMIST sent · {wall(treatment.atmistSentAt)}</span> : treatment?.chosenDestination ? <span className="cc-pill warn">ATMIST not sent</span> : undefined}>
+              {ivList((Object.keys(DESTINATION_LABEL) as HospitalDestinationType[]).map((t) => {
+                const preferred = treatment?.preferredDestination === t;
+                const chosen = treatment?.chosenDestination?.type === t;
+                return choiceRow(t, DESTINATION_LABEL[t], DESTINATION_HINT[t], chosen ? { text: "Chosen", tone: "go" } : preferred ? { text: "Recommended", tone: "warn" } : { text: "—", tone: "muted" }, chosen ? "✓" : "Select", chosen || !canAct || !surveyDone, () => props.onSetTreatmentDestination?.(casualtyId, t, DESTINATION_LABEL[t]), chosen ? "done" : preferred ? "preferred" : "");
+              }), false)}
               {treatment?.chosenDestination && !treatment.atmistSentAt && (
                 <button type="button" className="cc-primary" disabled={!canAct} onClick={() => props.onSendAtmistPrealert?.(casualtyId)}>Send ATMIST pre-alert · {treatment.chosenDestination.name}</button>
               )}
-              {treatment?.atmistSentAt && <p className="cc-note go">✓ ATMIST pre-alert sent · {wall(treatment.atmistSentAt)}</p>}
-            </Card>
+            </Group>
             {surveyDone && treatment?.atmistSentAt && !conveying && (
-              <Card title="Convey via" icon="→">
-                <div className="cc-list">
-                  {paired.map((p) => {
-                    const canConvey = p.appliance.type === "DCA" || (p.appliance.type === "HEMS" && props.hemsFlyable !== false);
-                    // Nothing leaves until the patient is at the vehicle:
-                    // a way out chosen, and the carry finished.
-                    const atVehicle = !!move && moveLeft <= 0;
-                    const ready = canConvey && atVehicle && !!props.onConveyCasualtyVia;
-                    return (
-                      <button key={p.appliance.id} type="button" className="cc-row" disabled={!ready} onClick={() => props.onConveyCasualtyVia?.(p.appliance.id, casualtyId)}>
-                        <strong>{p.appliance.callsign}</strong>
-                        <span>{SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)]}</span>
-                        <em>{!canConvey ? "No stretcher" : !move ? "Patient not moved" : moveLeft > 0 ? `At vehicle in ${clock(moveLeft)}` : "Convey"}</em>
-                      </button>
-                    );
-                  })}
-                  {paired.every((p) => p.appliance.type !== "DCA" && p.appliance.type !== "HEMS") && <p className="cc-note">Only a DCA or the air ambulance can convey. Pair one to carry this patient.</p>}
-                  {!move && paired.some((p) => p.appliance.type === "DCA" || p.appliance.type === "HEMS") && <p className="cc-note">Pick how the patient comes out under Egress first — nothing leaves until they are at the vehicle.</p>}
-                  {!!move && moveLeft > 0 && <p className="cc-note">{EGRESS_LABEL[move[0]]} under way · at the vehicle in {clock(moveLeft)}.</p>}
-                </div>
-              </Card>
+              <Group title="Convey via">
+                {ivList(paired.map((p) => {
+                  const canConvey = p.appliance.type === "DCA" || (p.appliance.type === "HEMS" && props.hemsFlyable !== false);
+                  // Nothing leaves until the patient is at the vehicle: a way
+                  // out chosen, and the carry finished.
+                  const atVehicle = !!move && moveLeft <= 0;
+                  const ready = canConvey && atVehicle && !!props.onConveyCasualtyVia;
+                  const status = !canConvey ? { text: "No stretcher", tone: "muted" } : !move ? { text: "Patient not moved", tone: "warn" } : moveLeft > 0 ? { text: `At vehicle in ${clock(moveLeft)}`, tone: "warn" } : { text: "At the vehicle", tone: "go" };
+                  return choiceRow(p.appliance.id, p.appliance.callsign, SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)], status, "Convey", !ready, () => props.onConveyCasualtyVia?.(p.appliance.id, casualtyId));
+                }), false)}
+                {paired.every((p) => p.appliance.type !== "DCA" && p.appliance.type !== "HEMS") && <p className="cc-line">Only a DCA or the air ambulance can convey. Pair one to carry this patient.</p>}
+                {!move && paired.some((p) => p.appliance.type === "DCA" || p.appliance.type === "HEMS") && <p className="cc-line">Pick how the patient comes out under Immobilise → Egress first — nothing leaves until they are at the vehicle.</p>}
+              </Group>
             )}
           </>
         );
     }
   }
+
+  const carePane = (
+    <div className="cc-care">
+      <nav className="cc-nav" aria-label="Care sections">
+        {TABS.map((t) => {
+          const m = sections[t.key];
+          return (
+            <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => { setTab(t.key); setView("care"); }}>
+              {t.icon}<span>{t.label}</span><small className={m.tone}>{m.count ?? ""}<i /></small>
+            </button>
+          );
+        })}
+      </nav>
+      <section className="cc-pane">
+        <header className="cc-pane-head">
+          <h2>{TABS.find((t) => t.key === tab)?.label.toUpperCase()}</h2>
+          <span>{sections[tab].subtitle}</span>
+        </header>
+        <div className="cc-pane-body">{paneBody()}</div>
+      </section>
+    </div>
+  );
 
   const headerButtons = (
     <>
@@ -747,10 +795,11 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </Card>
   );
 
+  // The tablet keeps a bottom bar — the sections sit under the thumb there.
   const footer = (
     <footer className="cc-foot">
       {TABS.map((t) => (
-        <button key={t.key} type="button" aria-pressed={tab === t.key && (!tablet || view === "care")} onClick={() => { setTab(t.key); setView("care"); }}>
+        <button key={t.key} type="button" aria-pressed={tab === t.key && view === "care"} onClick={() => { setTab(t.key); setView("care"); }}>
           {t.icon}<span>{t.label}</span>
         </button>
       ))}
@@ -783,7 +832,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </nav>
         <main className="cc-main tablet">
           {view === "patient" && (<>{patientCard}{surveyCard}</>)}
-          {view === "care" && <div className="cc-col cc-right">{rightColumn()}</div>}
+          {view === "care" && <div className="cc-col cc-right">{carePane}</div>}
         </main>
         {footer}
       </div>
@@ -791,7 +840,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   }
 
   return (
-    <div className={`cc-screen${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
+    <div className={`cc-screen cc-desk${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
       <header className="cc-head">
         <div className="cc-brand">
           <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
@@ -803,6 +852,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </div>
         <div className="cc-head-right">
           <div className="cc-who"><Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" /> <span>{(casualty.label ?? casualty.id).toUpperCase()}</span></div>
+          <div className="cc-stage-pill">{stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · {SCOPE_LABEL[scope] ?? "No clinician"}{lead ? ` · ${lead.appliance.callsign}` : ""}</div>
           <div className="cc-time"><Icon d="M12 8v5l3 2m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /><div><small>SCENARIO TIME</small><strong>{scenarioTime}</strong></div></div>
           {headerButtons}
         </div>
@@ -816,10 +866,8 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         <div className="cc-col cc-centre">
           {monitorCard}
         </div>
-        <div className="cc-col cc-right">{rightColumn()}</div>
+        <div className="cc-col cc-right">{carePane}</div>
       </main>
-      {footer}
-      <div className="cc-stage">{stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · {SCOPE_LABEL[scope] ?? "No clinician"}{lead ? ` · ${lead.appliance.callsign}` : ""}</div>
     </div>
   );
 }
@@ -833,6 +881,16 @@ function Card({ title, icon, children, tone, fill, headerExtra }: { title: strin
     <section className={`cc-card${fill ? " fill" : ""}${tone ? ` ${tone}` : ""}`}>
       <header><b>{icon}</b><span>{title.toUpperCase()}</span>{headerExtra}</header>
       <div className="cc-card-body">{children}</div>
+    </section>
+  );
+}
+
+/** A titled block inside the care pane. */
+function Group({ title, extra, children }: { title: string; extra?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="cc-group">
+      <header><span>{title}</span>{extra}</header>
+      <div className="cc-group-body">{children}</div>
     </section>
   );
 }
