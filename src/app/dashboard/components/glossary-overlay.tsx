@@ -88,6 +88,16 @@ const GLOSSARY: Section[] = [
     ],
   },
   {
+    title: "Opening codes",
+    entries: [
+      { term: "Opening code", def: "What the call handler keys the job as when it is created. Every downstream system files the job under it, so the debrief flags one that does not fit the nature given" },
+      { term: "NICL", def: "National Incident Category List — the police opening categories from the National Standard for Incident Recording (NSIR). Five headings: Crime, Anti-social behaviour, Public safety and welfare, Transport, Administration. The desk's codes (C01, P05, T02…) sit under those headings" },
+      { term: "NSIR", def: "National Standard for Incident Recording — the Home Office standard every police incident is opened and closed against; NICL is its category list" },
+      { term: "IRS", def: "Incident Recording System — the fire service's national incident headings: primary fire, secondary fire, chimney fire, false alarm (AFA, good intent, malicious) and special service (RTC, effecting entry, lift release, flooding, water rescue, hazmat…)" },
+      { term: "AMPDS", def: "Advanced Medical Priority Dispatch System — the ambulance triage protocol; a call opens on a chief-complaint card (9 cardiac arrest, 10 chest pain, 17 falls, 29 traffic incident…) and the card drives the ARP category" },
+    ],
+  },
+  {
     title: "Procedural / tactical terms",
     entries: [
       { term: "PDA", def: "Pre-determined Attendance — the scenario's required resources" },

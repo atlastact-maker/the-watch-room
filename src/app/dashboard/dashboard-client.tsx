@@ -41,7 +41,8 @@ import {
   type Handover,
   type MakeUpRequest,
 } from "@/lib/sim/handover";
-import { STANDARD_PDA } from "@/lib/sim/pda";
+import { STANDARD_PDA, labelForType } from "@/lib/sim/pda";
+import { expectedOpeningCodes, openingCodeLabel } from "@/lib/sim/opening_codes";
 import { getStationAppliances } from "@/lib/sim/data";
 import { shiftForHour, inHandover, hoursToRelief, nextShift } from "@/lib/sim/police-callsigns";
 import {
@@ -234,7 +235,7 @@ import { useVectorTheme } from "./vector/theme";
 import { LogTile } from "./vector/log-tile";
 import { Poppable } from "./vector/popout";
 import type { Menu, VectorScreen } from "./vector/chrome";
-import { shortAddress, incidentRef } from "./vector/model";
+import { shortAddress, incidentRef, scenarioService } from "./vector/model";
 import { BugReportDialog } from "./components/bug-report-dialog";
 import { setViewAs } from "@/app/actions/view-as";
 import { LATEST as LATEST_RELEASE } from "@/lib/changelog";
@@ -6011,7 +6012,14 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   function logCallSummary(call: PendingCall, summary: CallSummary) {
     const t = call.scenario.title;
     const dur = `${Math.floor(summary.durationSec / 60)}:${String(summary.durationSec % 60).padStart(2, "0")}`;
-    logAnnotation(`${t} — call handled: ${summary.asked.length} of ${summary.askedTotal} questions in ${dur}, caller ${summary.callerState}${summary.dropped ? ", line lost" : ""}${summary.preAlerted ? ", sent and kept on the line" : ""}, graded ${summary.grade}`, "annotation", "call-handling");
+    logAnnotation(`${t} — call handled: ${summary.asked.length} of ${summary.askedTotal} questions in ${dur}, caller ${summary.callerState}${summary.dropped ? ", line lost" : ""}${summary.preAlerted ? ", sent and kept on the line" : ""}, graded ${summary.grade}${summary.openingCode ? `, opened ${openingCodeLabel(scenarioService(call.scenario), summary.openingCode)}` : ""}`, "annotation", "call-handling");
+    // The opening code is what every downstream system files the job
+    // under. One that does not fit the nature given is a setback the
+    // debrief should see; none at all is the same.
+    if (summary.openingCode && !summary.openingCodeFits) {
+      const svc = scenarioService(call.scenario);
+      logAnnotation(`${t} — opened as ${openingCodeLabel(svc, summary.openingCode)}; the nature given was ${labelForType(call.scenario.type)} (${expectedOpeningCodes(call.scenario.type).map((c) => openingCodeLabel(svc, c)).join(" or ")})`, "setback", "call-opening-code");
+    }
     for (const k of summary.missedKey) logAnnotation(`${t} — never asked: "${k.text}"`, "setback", "call-key-missed");
   }
 

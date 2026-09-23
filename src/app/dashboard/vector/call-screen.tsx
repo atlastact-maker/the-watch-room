@@ -22,6 +22,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ServiceCode } from "@/lib/sim/types";
 import { labelForType } from "@/lib/sim/pda";
+import { OPENING_CODES, OPENING_SCHEME, openingCodeFits, openingCodeLabel, quickPickOpeningCodes } from "@/lib/sim/opening_codes";
 import { scenarioServices } from "@/lib/sim/coverage";
 import { CALL_QUESTIONS, GRADE_LABELS, deflectionFor, keyQuestionsFor, reassuranceFor, type CallAnswer, type CallEffect, type CallerState } from "@/lib/sim/call_script";
 import type { PendingCall } from "../components/call-stack";
@@ -46,6 +47,10 @@ export type CallSummary = {
   callerState: CallerState;
   dropped: boolean;
   grade: string;
+  /** The opening code keyed (NICL / IRS / AMPDS), or null if none was. */
+  openingCode: string | null;
+  /** Whether that code fits the nature the scenario was built on. */
+  openingCodeFits: boolean;
 };
 
 const STATE_LABEL: Record<CallerState, string> = { calm: "Calm", anxious: "Anxious", panicking: "Panicking", hostile: "Hostile", confused: "Confused" };
@@ -109,13 +114,22 @@ export function CallScreen({
   const services = scenarioServices(s);
   const others = (["Fire", "Ambulance", "Police"] as ServiceCode[]).filter((x) => x !== service);
   const typeLabel = labelForType(s.type);
-  const typeOptions = useMemo(() => {
-    const base = [typeLabel];
-    if (service === "Fire") base.push("Automatic fire alarm", "Special service call", "Vehicle fire");
-    if (service === "Ambulance") base.push("Cardiac arrest", "Breathing difficulty", "Chest pain", "Fall, no injury");
-    if (service === "Police") base.push("Assault in progress", "Domestic incident", "Road traffic collision", "Concern for welfare");
-    return Array.from(new Set(base));
-  }, [typeLabel, service]);
+  // Opening codes: the service's own list (NICL for police, IRS incident
+  // type for fire, the AMPDS card for ambulance). The quick picks are the
+  // right code and a few neighbours; the select holds the lot.
+  const scheme = OPENING_SCHEME[service];
+  const codeList = OPENING_CODES[service];
+  const quickPicks = useMemo(() => quickPickOpeningCodes(service, s.type, `${s.id}:${call.id}`), [service, s.type, s.id, call.id]);
+  const codeGroups = useMemo(() => {
+    const groups: { name: string; codes: typeof codeList }[] = [];
+    for (const c of codeList) {
+      const g = groups.find((x) => x.name === c.group);
+      if (g) g.codes.push(c);
+      else groups.push({ name: c.group, codes: [c] });
+    }
+    return groups;
+  }, [codeList]);
+  const typeText = type ? openingCodeLabel(service, type) : null;
 
   // ---- The questions: the bank, plus whatever the answers so far have opened.
   const askables = useMemo<Askable[]>(() => {
@@ -216,12 +230,12 @@ export function CallScreen({
     { ok: !ended, text: ended ? "Caller has gone — send on what you have" : "Active caller connected", soft: true },
     { ok: confirmed, text: confirmed ? "Address confirmed with the caller" : "Address not confirmed with the caller" },
     { ok: true, text: script?.caller.line === "mobile" ? "Location fix in use — AML handset" : "Location fix in use — EISEC" },
-    { ok: !!type, text: type ? `Incident type · ${type}` : "No incident type chosen" },
+    { ok: !!type, text: type ? `Opening code · ${typeText}` : `No opening code keyed (${scheme.short})` },
     { ok: keyAsked === keyIds.length, text: `Key questions asked · ${keyAsked} of ${keyIds.length}`, soft: true },
   ];
   const outstanding = readiness.filter((r) => !r.ok && !r.soft).length;
   const notCovered = services.filter((x) => !covered.includes(x));
-  const note = () => [type ?? typeLabel, access.trim() ? `access: ${access.trim()}` : null, escalation && !escalation.open ? `regraded ${escalation.grade}` : suggested ? `graded ${suggested.grade}` : null].filter(Boolean).join(" · ");
+  const note = () => [type ? `opened ${typeText}` : typeLabel, access.trim() ? `access: ${access.trim()}` : null, escalation && !escalation.open ? `regraded ${escalation.grade}` : suggested ? `graded ${suggested.grade}` : null].filter(Boolean).join(" · ");
   const summary = (): CallSummary => ({
     asked: Object.keys(asked),
     askedTotal: bank.length,
@@ -231,6 +245,8 @@ export function CallScreen({
     callerState,
     dropped: ended,
     grade: shownGrade,
+    openingCode: type,
+    openingCodeFits: openingCodeFits(s.type, type),
   });
 
   function send() {
@@ -484,17 +500,36 @@ export function CallScreen({
         <div style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 0, overflow: "auto" }}>
           <div className="vec-box" style={{ flex: "0 0 auto" }}>
             <header>
-              <span>Incident type</span>
-              <span className={`mono ${type ? "go" : ""}`}>{type ? "Set" : "Not set"}</span>
+              <span>Opening code · {scheme.short}</span>
+              <span className={`mono ${type ? "go" : ""}`}>{type ?? "Not set"}</span>
             </header>
-            <div className="vec-typechips">
-              {typeOptions.map((t) => (
-                <button key={t} type="button" aria-pressed={type === t} disabled={!!opened} onClick={() => setType(t)}>
-                  {t}
+            <div className="vec-typechips" title={scheme.name}>
+              {quickPicks.map((c) => (
+                <button key={c.code} type="button" aria-pressed={type === c.code} disabled={!!opened} onClick={() => setType(c.code)} title={c.group}>
+                  <span className="mono">{c.code}</span> {c.label}
                 </button>
               ))}
             </div>
-            <div className="vec-sect"><span>This type sends</span></div>
+            <div style={{ padding: "0 10px 8px" }}>
+              <select
+                className="vec-btn"
+                style={{ width: "100%" }}
+                value={type ?? ""}
+                disabled={!!opened}
+                aria-label={`Opening code (${scheme.name})`}
+                onChange={(e) => setType(e.target.value || null)}
+              >
+                <option value="">All {scheme.short} codes…</option>
+                {codeGroups.map((g) => (
+                  <optgroup key={g.name} label={g.name}>
+                    {g.codes.map((c) => (
+                      <option key={c.code} value={c.code}>{c.code} · {c.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div className="vec-sect"><span>This code sends</span></div>
             <div style={{ padding: "6px 10px", fontSize: 11 }}>
               {type ? (
                 <>
@@ -504,14 +539,14 @@ export function CallScreen({
                       <span className={`vec-svc-pill ${p.service}`}>{SERVICE_SHORT[p.service]}</span>
                     </div>
                   ))}
-                  {type !== typeLabel && (
+                  {!openingCodeFits(s.type, type) && (
                     <div className="vec-small" style={{ color: "var(--vec-warn)" }}>
-                      Typed as “{type}” — the attendance still follows the nature given: {typeLabel}.
+                      Opened as {typeText} — the attendance still follows the nature given: {typeLabel}.
                     </div>
                   )}
                 </>
               ) : (
-                <span className="vec-small">Choose a type to see the attendance it sends.</span>
+                <span className="vec-small">Key an opening code to see the attendance it sends.</span>
               )}
             </div>
           </div>
