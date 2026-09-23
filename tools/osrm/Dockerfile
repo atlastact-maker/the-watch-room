@@ -16,7 +16,7 @@ ARG EXTRACT_URL
 WORKDIR /home/curl_user
 RUN curl -fsSL -o gm.osm.pbf "$EXTRACT_URL"
 
-FROM osrm/osrm-backend:v5.27.1
+FROM ghcr.io/project-osrm/osrm-backend:v5.27.1
 
 COPY --from=caddy:2 /usr/bin/caddy /usr/local/bin/caddy
 COPY --from=curlimages/curl:latest /usr/bin/curl /usr/local/bin/curl
