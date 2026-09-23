@@ -1,0 +1,21 @@
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080} {
+	handle /health {
+		respond "ok" 200
+	}
+
+	# Foot profile: hose runs and crews on foot.
+	@foot path_regexp ^/(route|nearest|table)/v1/foot/
+	handle @foot {
+		reverse_proxy 127.0.0.1:5001
+	}
+
+	# Everything else (driving) goes to the car graph.
+	handle {
+		reverse_proxy 127.0.0.1:5000
+	}
+}

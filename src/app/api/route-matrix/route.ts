@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shiftGate } from "@/lib/auth/api-guard";
+import { ownOsrmBase } from "@/lib/map/osrm";
 
 // One request prices a whole station sweep: every origin to one
 // destination, road distance and driving time, no geometry. The sweep used
@@ -8,13 +9,14 @@ import { shiftGate } from "@/lib/auth/api-guard";
 // on a straight line. The road line for the unit actually sent comes from
 // /api/route-eta when it is mobilised.
 //
-// Primary: OpenRouteService matrix (keyed). Fallback: the public OSRM demo
-// server's table service. Either answers null for a pair it cannot route;
-// the client prices those by crow-fly.
+// First: our own OSRM router's table service (tools/osrm) when OSRM_URL
+// is set. Then OpenRouteService matrix (keyed). Last: the public OSRM demo
+// server's table service. Any of them answers null for a pair it cannot
+// route; the client prices those by crow-fly.
 
 type Coords = { lat: number; lng: number };
 type Row = { meters: number; seconds: number } | null;
-type Success = { rows: Row[]; source: "ors" | "osrm" };
+type Success = { rows: Row[]; source: "own" | "ors" | "osrm" };
 type Failure = { error: string; source: "ors" };
 
 const MAX_ORIGINS = 100;
@@ -42,12 +44,17 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "invalid coordinates", source: "ors" } satisfies Failure, { status: 400 });
   }
 
+  const own = ownOsrmBase();
+  if (own) {
+    const hit = await fetchOsrmTable(own, from, to, true);
+    if (hit) return NextResponse.json(hit);
+  }
   const key = process.env.ORS_API_KEY;
   if (key) {
     const ors = await fetchOrsMatrix(key, from, to);
     if (ors) return NextResponse.json(ors);
   }
-  const osrm = await fetchOsrmTable(from, to);
+  const osrm = await fetchOsrmTable("https://router.project-osrm.org", from, to, false);
   if (osrm) return NextResponse.json(osrm);
 
   return NextResponse.json(
@@ -92,23 +99,23 @@ async function fetchOrsMatrix(key: string, from: Coords[], to: Coords): Promise<
   }
 }
 
-async function fetchOsrmTable(from: Coords[], to: Coords): Promise<Success | null> {
+async function fetchOsrmTable(base: string, from: Coords[], to: Coords, own: boolean): Promise<Success | null> {
   const coords = [...from, to].map((c) => `${c.lng},${c.lat}`).join(";");
   const sources = from.map((_, i) => i).join(";");
   const url =
-    `https://router.project-osrm.org/table/v1/driving/${coords}` +
+    `${base}/table/v1/driving/${coords}` +
     `?sources=${sources}&destinations=${from.length}&annotations=duration,distance`;
   try {
     const res = await fetch(url, {
       next: { revalidate: 600 },
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(own ? 6_000 : 10_000),
       headers: { "User-Agent": "TheWatchRoom-sim/0.1 (UK ops-room game)" },
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { code?: string; durations?: unknown; distances?: unknown };
     if (body.code !== "Ok") return null;
     const rows = rowsFrom(body.durations, body.distances, from.length);
-    return rows ? { rows, source: "osrm" } : null;
+    return rows ? { rows, source: own ? "own" : "osrm" } : null;
   } catch {
     return null;
   }

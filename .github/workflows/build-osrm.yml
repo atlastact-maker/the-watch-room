@@ -1,0 +1,51 @@
+# Builds the Greater Manchester OSRM router image (tools/osrm) and pushes
+# it to GitHub's container registry, so a host can run it without ever
+# building anything itself. Manual, and monthly so the roads stay fresh.
+name: Build OSRM image
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 1 * *"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: tools/osrm
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/twr-osrm:latest
+            ghcr.io/${{ github.repository_owner }}/twr-osrm:${{ github.run_number }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=OSRM router with Greater Manchester loaded, car and foot profiles
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name osrm -p 8080:8080 ghcr.io/${{ github.repository_owner }}/twr-osrm:latest
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:8080/route/v1/driving/-2.2426,53.4808;-2.2100,53.4700?overview=false" | grep -q '"code":"Ok"'
+          curl -fsS "http://127.0.0.1:8080/route/v1/foot/-2.2426,53.4808;-2.2400,53.4800?overview=false" | grep -q '"code":"Ok"'
+          curl -fsS "http://127.0.0.1:8080/table/v1/driving/-2.2426,53.4808;-2.2100,53.4700;-2.25,53.49?sources=0;1&destinations=2" | grep -q '"code":"Ok"'
+          docker rm -f osrm

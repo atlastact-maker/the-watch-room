@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ownOsrmStatus } from "@/lib/map/osrm";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
 import {
@@ -209,7 +210,7 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes, routing] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
@@ -222,6 +223,7 @@ export default async function AdminPage({
     // Map data (migration 019): what tools/osm-import has loaded, so the
     // Scenarios tab can say whether the desk is on its own roads yet.
     supabase.rpc("osm_map_status"),
+    ownOsrmStatus(),
   ]);
   const mapStatus = (mapRes.data ?? []) as { kind: string; row_count: number; source: string; imported_at: string }[];
   const missingMap = mapRes.error?.message?.includes("osm_map_status") === true;
@@ -537,6 +539,16 @@ export default async function AdminPage({
                     </li>
                   ))}
                 </ul>
+              )}
+              <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Routing</div>
+              {routing.configured ? (
+                <p className={`mt-1 ${routing.reachable ? "text-(--color-text)" : "text-(--color-critical)"}`}>
+                  Own OSRM at {routing.host} · {routing.reachable ? "reachable" : "not answering — ETAs are falling back to OpenRouteService and the public demo server"}
+                </p>
+              ) : (
+                <p className="mt-1 text-(--color-text-dim)">
+                  No OSRM_URL set — ETAs come from OpenRouteService and the public OSRM demo server, which are quota-limited. See tools/osrm/README.md.
+                </p>
               )}
             </div>
             {(["Fire", "Ambulance", "Police"] as const).map((service) => {

@@ -1,16 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shiftGate } from "@/lib/auth/api-guard";
+import { ownOsrmBase } from "@/lib/map/osrm";
 
-// Server-side routing proxy. Primary: OpenRouteService (keyed, 40 req/min
-// free tier). Fallback: the public OSRM demo server — keyless, so a burst
-// of station-ETA requests that blows the ORS rate limit still comes back
-// with real road geometry instead of degrading to straight lines.
+// Server-side routing proxy. First: our own OSRM router (tools/osrm) when
+// OSRM_URL is set — no quota, car and foot profiles. Then OpenRouteService
+// (keyed, 40 req/min free tier). Last: the public OSRM demo server —
+// keyless, so a burst of station-ETA requests that blows the ORS rate
+// limit still comes back with real road geometry instead of degrading to
+// straight lines.
 
 type Success = {
   meters: number;
   seconds: number;
   coords: [number, number][]; // [lat, lng] pairs for Leaflet
-  source: "ors" | "osrm";
+  source: "own" | "ors" | "osrm";
 };
 
 type Failure = { error: string; source: "ors" };
@@ -48,7 +51,14 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 
-  // Primary: ORS (when keyed and under quota).
+  // First: our own router, when the deployment has one.
+  const own = ownOsrmBase();
+  if (own) {
+    const hit = await fetchOsrm(own, fromLat, fromLng, toLat, toLng, mode, true);
+    if (hit) return NextResponse.json(hit);
+  }
+
+  // Then ORS (when keyed and under quota).
   const key = process.env.ORS_API_KEY;
   if (key) {
     const ors = await fetchOrs(key, profile, fromLat, fromLng, toLat, toLng);
@@ -58,7 +68,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   // Fallback: public OSRM demo server (driving only — its foot profile
   // isn't hosted, so foot requests estimate duration from the driving
   // geometry at walking pace).
-  const osrm = await fetchOsrm(fromLat, fromLng, toLat, toLng, mode);
+  const osrm = await fetchOsrm("https://router.project-osrm.org", fromLat, fromLng, toLat, toLng, mode, false);
   if (osrm) return NextResponse.json(osrm);
 
   return NextResponse.json(
@@ -121,21 +131,27 @@ async function fetchOrs(
 
 const WALKING_MPS = 1.4;
 
+/** OSRM's route service. Our own server has a real foot profile; the
+ *  public demo server hosts driving only, so foot requests there take
+ *  the driving geometry at walking pace. */
 async function fetchOsrm(
+  base: string,
   fromLat: number,
   fromLng: number,
   toLat: number,
   toLng: number,
   mode: "driving" | "foot",
+  own: boolean,
 ): Promise<Success | null> {
+  const profile = own ? mode : "driving";
   const url =
-    `https://router.project-osrm.org/route/v1/driving/` +
+    `${base}/route/v1/${profile}/` +
     `${fromLng},${fromLat};${toLng},${toLat}` +
     `?overview=full&geometries=geojson&alternatives=false&steps=false`;
   try {
     const res = await fetch(url, {
       next: { revalidate: 600 },
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(own ? 5_000 : 8_000),
       headers: { "User-Agent": "TheWatchRoom-sim/0.1 (UK ops-room game)" },
     });
     if (!res.ok) return null;
@@ -162,9 +178,9 @@ async function fetchOsrm(
     }
     return {
       meters,
-      seconds: mode === "foot" ? meters / WALKING_MPS : seconds,
+      seconds: mode === "foot" && !own ? meters / WALKING_MPS : seconds,
       coords: raw.map(([lng, lat]) => [lat, lng] as [number, number]),
-      source: "osrm",
+      source: own ? "own" : "osrm",
     };
   } catch {
     return null;
