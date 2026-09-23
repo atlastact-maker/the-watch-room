@@ -92,10 +92,24 @@ async function checkConnection() {
     const cause = e.cause?.code ? ` (${e.cause.code})` : "";
     throw new Error(`Cannot reach ${host}${cause}. The host part is ${shape}. SUPABASE_URL must be the Project URL from Supabase → Project Settings → API, like https://abcdefghijklmnopqrst.supabase.co`);
   }
+  const host = new URL(SUPABASE_URL).hostname;
+  const text = res.ok ? "" : await res.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+  const isPostgrest = body && typeof body === "object" && (typeof body.code === "string" || typeof body.message === "string");
   if (res.status === 401 || res.status === 403) throw new Error("Supabase refused the key — check SUPABASE_SERVICE_ROLE_KEY is the service_role secret, not the anon key.");
-  if (res.status === 404) throw new Error("Table osm_import_meta is missing — run supabase/migrations/019_osm_map_data.sql in the SQL editor first.");
-  if (!res.ok) throw new Error(`Supabase answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  console.log(`Connected to ${SUPABASE_URL}`);
+  if (res.status === 404 && isPostgrest) {
+    throw new Error(`Supabase says: ${body.message ?? body.code}. The tables from supabase/migrations/019_osm_map_data.sql are not there — run it in the SQL editor (it must end with "Success"), then run this again. If it was run, run  notify pgrst, 'reload schema';  in the SQL editor and try once more.`);
+  }
+  if (res.status === 404) {
+    throw new Error(`${host} answered 404 without a Supabase error body, so this is not the project's API address. SUPABASE_URL must be the Project URL from Supabase → Project Settings → API (https://<20-letter-ref>.supabase.co), not the dashboard page.`);
+  }
+  if (!res.ok) throw new Error(`${host} answered ${res.status}: ${text.slice(0, 200)}`);
+  console.log(`Connected to ${host}`);
 }
 
 // ---- The extract ----------------------------------------------------------
