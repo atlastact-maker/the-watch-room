@@ -86,7 +86,11 @@ async function checkConnection() {
   try {
     res = await fetch(`${SUPABASE_URL}/rest/v1/osm_import_meta?select=kind&limit=1`, { headers: headers() });
   } catch (e) {
-    throw new Error(`Cannot reach ${SUPABASE_URL}: ${e.message}`);
+    const host = new URL(SUPABASE_URL).hostname;
+    const ref = host.split(".")[0];
+    const shape = /^[a-z]{20}$/.test(ref) ? "a 20-letter project ref, which is the right shape" : `"${ref.length} characters, ${/^[a-z0-9]+$/.test(ref) ? "letters and digits" : "with characters a project ref never has"}", which is not the shape of a project ref`;
+    const cause = e.cause?.code ? ` (${e.cause.code})` : "";
+    throw new Error(`Cannot reach ${host}${cause}. The host part is ${shape}. SUPABASE_URL must be the Project URL from Supabase → Project Settings → API, like https://abcdefghijklmnopqrst.supabase.co`);
   }
   if (res.status === 401 || res.status === 403) throw new Error("Supabase refused the key — check SUPABASE_SERVICE_ROLE_KEY is the service_role secret, not the anon key.");
   if (res.status === 404) throw new Error("Table osm_import_meta is missing — run supabase/migrations/019_osm_map_data.sql in the SQL editor first.");
