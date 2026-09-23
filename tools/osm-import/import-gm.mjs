@@ -60,7 +60,39 @@ if (!dryRun && (!SUPABASE_URL || !SERVICE_KEY)) {
   console.error("Need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (in .env or the environment). Use --dry-run to parse only.");
   process.exit(2);
 }
-SUPABASE_URL = SUPABASE_URL?.replace(/\/+$/, "");
+// Accept the project URL however it was pasted: with or without the
+// scheme, or just the project ref from the dashboard.
+if (SUPABASE_URL) {
+  SUPABASE_URL = SUPABASE_URL.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//.test(SUPABASE_URL)) SUPABASE_URL = `https://${SUPABASE_URL}`;
+  if (!/\./.test(SUPABASE_URL.replace(/^https?:\/\//, ""))) SUPABASE_URL = `${SUPABASE_URL}.supabase.co`;
+  try {
+    new URL(SUPABASE_URL);
+  } catch {
+    console.error(`SUPABASE_URL is not a usable address (${SUPABASE_URL.length} chars). It should look like https://abcdefghijkl.supabase.co — the Project URL on Supabase → Project Settings → API.`);
+    process.exit(2);
+  }
+}
+if (SERVICE_KEY && !/^[A-Za-z0-9._-]{40,}$/.test(SERVICE_KEY.trim())) {
+  console.error(`SUPABASE_SERVICE_ROLE_KEY does not look like a key (${SERVICE_KEY.length} chars). It is the long service_role secret on Supabase → Project Settings → API.`);
+  process.exit(2);
+}
+SERVICE_KEY = SERVICE_KEY?.trim();
+
+/** A cheap round trip before the download and the parse, so a wrong key
+ *  or URL is reported in a second rather than after two minutes. */
+async function checkConnection() {
+  let res;
+  try {
+    res = await fetch(`${SUPABASE_URL}/rest/v1/osm_import_meta?select=kind&limit=1`, { headers: headers() });
+  } catch (e) {
+    throw new Error(`Cannot reach ${SUPABASE_URL}: ${e.message}`);
+  }
+  if (res.status === 401 || res.status === 403) throw new Error("Supabase refused the key — check SUPABASE_SERVICE_ROLE_KEY is the service_role secret, not the anon key.");
+  if (res.status === 404) throw new Error("Table osm_import_meta is missing — run supabase/migrations/019_osm_map_data.sql in the SQL editor first.");
+  if (!res.ok) throw new Error(`Supabase answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  console.log(`Connected to ${SUPABASE_URL}`);
+}
 
 // ---- The extract ----------------------------------------------------------
 
@@ -222,6 +254,7 @@ async function recordMeta(kind, rowCount, source) {
 // ---- Main -----------------------------------------------------------------
 
 const t0 = Date.now();
+if (!dryRun) await checkConnection();
 const file = await extractPath();
 const sourceLabel = `${path.basename(file)} · ${fs.statSync(file).mtime.toISOString().slice(0, 10)}`;
 
