@@ -145,6 +145,7 @@ export const scenario39: Scenario = {
         target: "advice, not a score — requested on a report of injury and not before; the discipline row reads +1 on those nights and that is correct",
       },
     ],
+    scored: [{ kind: "hold_after_beat", beatId: "cancel", label: "Units held on the victim's cancel call" }],
     lesson:
       "This is the job the shift is made of, and the one where the desk goes wrong most quietly. Two cars, not one — not because he is big, but because one officer alone in that house is a second victim and two officers cannot hold him, talk to her and see to two children at the same time. The answers you draw out of the caller are the risk assessment before anyone arrives: children in the house, a threat to kill, a weapon you cannot rule out. And then she rings to cancel — the neighbour hears her do it, calm, with him stood over her. That call is not the all-clear. It is the clearest sign yet of what is happening in the room, and the grade stays where it is: nothing on the desk needs pressing, the test is what you do not do. Ambulance only when somebody is actually hurt; the moment the tea towel appears, it goes, and the +1 on the discipline row that night is the right answer.",
   },

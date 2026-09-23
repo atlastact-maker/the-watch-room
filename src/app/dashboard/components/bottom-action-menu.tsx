@@ -2451,7 +2451,7 @@ function ActionsTab({
                   {h.id} · {h.label}
                 </div>
                 <div className="mt-1 grid grid-cols-1 gap-1">
-                  {mitigationOptionsFor(h.kind).map((opt) => (
+                  {mitigationOptionsFor(h.kind, incident.scenario.scene?.hazards.find((x) => x.id === h.id)).map((opt) => (
                     <Chip
                       key={opt.method}
                       label={opt.method}

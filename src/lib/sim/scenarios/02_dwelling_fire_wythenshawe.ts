@@ -230,6 +230,10 @@ export const scenario02: Scenario = {
         // On the property record and in the caller's own words — the
         // desk knows it before anyone is on scene.
         id: "loft-conversion",
+        mitigation: [
+          { method: "One BA team on the loft, no more — single stair", durationSec: 30 },
+          { method: "Ladder to the loft hatch as a second way down", durationSec: 120 },
+        ],
         pos: { x: 0, y: -4 },
         kind: "structural",
         label: "Non-conforming loft conversion — single staircase",
@@ -237,6 +241,10 @@ export const scenario02: Scenario = {
       },
       {
         id: "utility-paint",
+        mitigation: [
+          { method: "Carry it out to the garden", durationSec: 60 },
+          { method: "Note it and keep the jet off the cupboard", durationSec: 20 },
+        ],
         pos: { x: -3, y: 0 },
         kind: "chemical",
         label: "Paint / solvent storage (utility cupboard)",

@@ -35,6 +35,10 @@ export const MITIGATION_OPTIONS: Record<string, MitigationOption[]> = {
   ],
 };
 
-export function mitigationOptionsFor(kind: string): MitigationOption[] {
+export function mitigationOptionsFor(
+  kind: string,
+  hazard?: { mitigation?: MitigationOption[] } | null,
+): MitigationOption[] {
+  if (hazard?.mitigation && hazard.mitigation.length > 0) return hazard.mitigation;
   return MITIGATION_OPTIONS[kind] ?? [{ method: "Mitigate", durationSec: 180 }];
 }

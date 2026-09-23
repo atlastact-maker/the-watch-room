@@ -405,6 +405,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     committedWithoutMode: boolean;
     /** Firefighters hurt — caught in a collapse or lost past a whistle. */
     injuredCrewIds: string[];
+    /** Casualties the desk has seen go expectant — final once seen. */
+    expectantIds?: string[];
+    /** A grade moved by an informant beat: what the caller said made it a
+     *  different call. */
+    gradeOverride?: { grade: string; basis: string; atMs: number } | null;
   };
   const emptyRuntime = (): IncidentRuntime => ({
     tasks: [],
@@ -1489,7 +1494,13 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     for (const [cid, tx] of Object.entries(treatmentByCasualtyId)) {
       const flags = tx.activeRedFlags ?? tx.revealedRedFlags ?? [];
       if (flags.includes("cardiac_arrest") && !resusByCasualtyId[cid]) {
-        ensureResus(cid);
+        // An arrest the scenario authored started before the call came
+        // in, not when the crew got a monitor on: the downtime clock,
+        // and with it the odds of getting him back, run from the send.
+        const authoredArrest = incidents.find((i) =>
+          i.scenario.scene?.casualties?.some((c) => c.id === cid && c.clinical?.redFlags?.includes("cardiac_arrest")),
+        );
+        ensureResus(cid, authoredArrest?.receivedAt);
       }
     }
   }, [treatmentByCasualtyId, resusByCasualtyId]);
@@ -2343,7 +2354,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
 
   /** Open a resus record for a casualty in arrest. The underlying rhythm
    *  is rolled once, here, and stays hidden until a monitor goes on. */
-  function ensureResus(casualtyId: string) {
+  function ensureResus(casualtyId: string, startedAt?: number) {
     setResusByCasualtyId((prev) => {
       if (prev[casualtyId]) return prev;
       // Roughly 40% of out-of-hospital arrests present shockable when a
@@ -2358,7 +2369,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         : Math.random() < 0.6
           ? "asystole"
           : "pea";
-      return { ...prev, [casualtyId]: newResusState(casualtyId, Date.now(), rhythm) };
+      return { ...prev, [casualtyId]: newResusState(casualtyId, startedAt ?? Date.now(), rhythm) };
     });
   }
 
@@ -3060,6 +3071,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // Which method was used decides how long that took, and the scene
     // adds its own penalty — eight flights is eight flights.
     const tx = treatmentByCasualtyId[casualtyId];
+    // Trapped is trapped: no hospital leg until fire have released them.
+    const authoredCas = activeIncident.scenario.scene?.casualties?.find((c) => c.id === casualtyId);
+    if (authoredCas?.trappedUntilExtricated && !tasks.some((t) => t.kind === "rtc_extrication" && t.state === "completed")) {
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `notrapped:${Date.now()}`,
+          timestamp: Date.now(),
+          kind: "setback",
+          message: `${applianceLabel(applianceId)} — the patient is still trapped. Fire release them before the hospital leg.`,
+        },
+      ]);
+      setStatusMsg("Patient still trapped — fire release them first");
+      return;
+    }
     const moves = Object.entries(tx?.egress ?? {}) as [EgressAction, number][];
     if (moves.length === 0) {
       setLog((prev) => [
@@ -3713,7 +3739,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
     const incidentSim = simulateIncident(activeIncident, deps, baById, tasks, Date.now(),
       treatmentByCasualtyId, fireGrowthWindMultiplier(weather.windMph), rt?.fireIgnition,
-      new Set(rt?.absentCasualtyIds ?? []), weather.windDir);
+      new Set(rt?.absentCasualtyIds ?? []), weather.windDir, new Set(rt?.expectantIds ?? []));
     const resolvedAt = Date.now();
     const incidentCoords = activeIncident.scenario.location.coords;
     const stations = patch ? shiftedStations : [];
@@ -3936,6 +3962,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         const all = [...(handover?.requests ?? []), ...mine];
         return all.length ? { asked: all.length, met: all.filter((r) => r.metAtMs !== undefined).length } : null;
       })(),
+      { informantLog: runtimes[incidentId]?.informantLog, ledsChecks },
     );
     updateRuntime(incidentId, (r) => (r.outcome ? r : { ...r, outcome: scored }));
     resolvingRef.current.delete(incidentId);
@@ -4349,6 +4376,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       rt.fireIgnition,
       new Set(rt.absentCasualtyIds),
       weather.windDir,
+      new Set(rt.expectantIds ?? []),
       )] as const;
     }));
   }, [incidents, runtimes, deployments, allDeployableStations, now, treatmentByCasualtyId, weather.windMph, weather.windDir]);
@@ -4703,21 +4731,22 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       const firstOnScene = sceneDeployments.some((d) => now >= d.arrivesAt);
       const sinceOpenSec = (now - activeIncident.receivedAt) / 1000;
 
-      if (firstOnScene) {
-        if (informantOnCall) {
-          setInformantOnCall(false);
-          setLog((prev) => [
-            ...prev,
-            {
-              id: `inf:end:${Date.now()}`,
-              timestamp: Date.now(),
-              kind: "annotation",
-              message: "Caller cleared the line — first crew on scene",
-            },
-          ]);
-        }
-        continue;
+      if (firstOnScene && informantOnCall) {
+        setInformantOnCall(false);
+        setLog((prev) => [
+          ...prev,
+          {
+            id: `inf:end:${Date.now()}`,
+            timestamp: Date.now(),
+            kind: "annotation",
+            message: "Caller cleared the line — first crew on scene",
+          },
+        ]);
       }
+      // The caller has hung up; only beats from someone still there can
+      // fire now.
+      const live = firstOnScene ? script.filter((u) => u.survivesArrival) : script;
+      if (live.length === 0) continue;
 
       // Find any update whose atSec has passed and that hasn't fired yet.
       // Walk in order so earlier beats fire before later ones.
@@ -4725,7 +4754,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       const committedIds = new Set(
         informantLog.filter((e) => e.text.length > 0).map((e) => e.id),
       );
-      for (const update of script) {
+      for (const update of live) {
         if (firedIds.has(update.id)) continue;
         if (sinceOpenSec < update.atSec) continue;
         // Delay-gated beats: only fire if the response is actually slow.
@@ -4823,6 +4852,20 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         if (update.effect?.revealCasualty) {
           const revealed = update.effect.revealCasualty;
           setAbsentCasualtyIds((prev) => prev.filter((id) => id !== revealed));
+        }
+        if (update.effect?.regrade) {
+          const grade = update.effect.regrade;
+          const basis = update.effect.basis ?? "From what the caller has just said";
+          updateRuntime(activeIncident.id, (r) => ({ ...r, gradeOverride: { grade, basis, atMs: Date.now() } }));
+          setLog((prev) => [
+            ...prev,
+            {
+              id: `regrade:${activeIncident.id}:${update.id}`,
+              timestamp: Date.now(),
+              kind: "setback",
+              message: `Grade moved to ${grade} — ${basis}`,
+            },
+          ]);
         }
         setLog((prev) => [
           ...prev,
@@ -4981,6 +5024,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           kind: "casualty_expectant",
           message: `Casualty ${cid} · expectant · progression halted`,
         });
+        // Final. A pairing that comes later does not bring them back.
+        if (activeIncident) {
+          updateRuntime(activeIncident.id, (r) =>
+            r.expectantIds?.includes(cid) ? r : { ...r, expectantIds: [...(r.expectantIds ?? []), cid] },
+          );
+        }
       } else if (prev && SEVERITY_WORSE[prog.severity] > (SEVERITY_WORSE[prev] ?? -1)) {
         newEntries.push({
           id: `cdt:${cid}:${prog.severity}`,
@@ -5353,7 +5402,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     let durationSec =
       args.kind === "gain_entry" && args.entryTool && activeIncident
         ? ENTRY_TABLE[args.entryTool][doorTypeForScenario(activeIncident.scenario)].sec
-        : taskDurationSecFor(args);
+        : taskDurationSecFor(args, activeIncident?.scenario.scene?.hazards);
     // CRS payoff: an extrication on vehicles that have been made safe
     // (every critical CRS action complete) runs controlled and faster;
     // cutting with safety actions outstanding stays at the full duration
@@ -7362,12 +7411,16 @@ function anprScenarioFor(hit: AnprHit): Scenario | null {
   };
 }
 
-function taskDurationSecFor(args: {
-  kind: TaskKind;
-  hazardId?: string;
-  mitigationMethod?: string;
-  crsDurationSec?: number;
-}): number | undefined {
+function taskDurationSecFor(
+  args: {
+    kind: TaskKind;
+    hazardId?: string;
+    mitigationMethod?: string;
+    crsDurationSec?: number;
+  },
+  /** The scene's hazards, for a method authored on the hazard itself. */
+  hazards?: { id: string; mitigation?: { method: string; durationSec: number }[] }[],
+): number | undefined {
   switch (args.kind) {
     case "survey":
       return 60;
@@ -7382,6 +7435,10 @@ function taskDurationSecFor(args: {
     case "mitigate_hazard": {
       // Prefer the duration from the explicitly chosen mitigation method.
       if (args.mitigationMethod) {
+        const own = hazards
+          ?.find((h) => h.id === args.hazardId)?.mitigation
+          ?.find((o) => o.method === args.mitigationMethod);
+        if (own) return own.durationSec;
         for (const opts of Object.values(MITIGATION_OPTIONS)) {
           const match = opts.find((o) => o.method === args.mitigationMethod);
           if (match) return match.durationSec;

@@ -34,6 +34,12 @@ export function scoreIncident(
   /** Assistance messages the commander sent, and how many were answered.
    *  Finding resources is control's job whoever has command. */
   assistance?: { asked: number; met: number } | null,
+  /** What the run recorded that only a scenario's own checks read: the
+   *  beats that fired and the PNC checks run. */
+  runtime?: {
+    informantLog?: { id: string; text: string; firedAt: number }[];
+    ledsChecks?: { kind: string; query: string; atMs: number }[];
+  } | null,
 ): IncidentOutcome {
   const metrics: OutcomeMetric[] = [];
 
@@ -93,6 +99,36 @@ export function scoreIncident(
     actual: `${deployments.length}${over > 0 ? ` (+${over})` : ""}`,
     passed: over <= 0 ? true : "partial",
   });
+
+  // 4b. The scenario's own checks — the cancel call held, the PNC run
+  // before the car got there.
+  for (const check of incident.scenario.evaluation.scored ?? []) {
+    if (check.kind === "hold_after_beat") {
+      const beat = runtime?.informantLog?.find((e) => e.id === check.beatId && e.text.length > 0);
+      if (!beat) continue; // never fired this run — nothing to hold against
+      const stoodDown = deployments.filter(
+        (d) => d.returnStartedAt !== undefined && d.returnStartedAt >= beat.firedAt && d.returnStartedAt < d.arrivesAt,
+      );
+      metrics.push({
+        label: check.label,
+        target: "no unit stood down before arrival",
+        actual: stoodDown.length === 0 ? "held" : `${stoodDown.length} stood down`,
+        passed: stoodDown.length === 0,
+      });
+    } else if (check.kind === "pnc_before_arrival") {
+      const want = check.surname.toUpperCase();
+      const ran = (runtime?.ledsChecks ?? []).find(
+        (c) => c.kind === "person" && c.query.toUpperCase().includes(want) && (firstArrival === null || c.atMs < firstArrival),
+      );
+      const late = (runtime?.ledsChecks ?? []).some((c) => c.kind === "person" && c.query.toUpperCase().includes(want));
+      metrics.push({
+        label: check.label,
+        target: `${check.surname} checked before the first unit arrived`,
+        actual: ran ? "checked in time" : late ? "checked after arrival" : "not checked",
+        passed: ran ? true : late ? "partial" : false,
+      });
+    }
+  }
 
   // Command was handed over: the mobilising is scored, the ground is
   // the commander's, and the debrief says so rather than marking a row

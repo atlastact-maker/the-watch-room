@@ -305,6 +305,9 @@ export type Scenario = {
   evaluation: {
     targets: { metric: string; target: string }[];
     lesson: string;
+    /** Checks the debrief scores that only this scenario can define —
+     *  see ScoredCheck. Targets are prose; these are rows. */
+    scored?: ScoredCheck[];
   };
 
   /** Civilian vehicles on the ground at real coordinates — a stopped car
@@ -851,6 +854,16 @@ export type PatientTreatmentState = {
 /** A single scripted update the informant gives while waiting for crews
  *  to arrive. Authored per scenario and triggered by the dashboard
  *  informant tick. */
+/** A scenario-specific row on the debrief.
+ *  - hold_after_beat: fails when any unit was stood down before it
+ *    arrived, after the named beat fired (the victim's cancel call, the
+ *    security guard letting him go). Not scored if the beat never fired.
+ *  - pnc_before_arrival: passes when a person check naming the surname
+ *    was run before the first unit arrived. */
+export type ScoredCheck =
+  | { kind: "hold_after_beat"; beatId: string; label: string }
+  | { kind: "pnc_before_arrival"; surname: string; label: string };
+
 export type InformantUpdate = {
   id: string;
   /** Seconds from incident-opened (call answered) when this update would
@@ -885,8 +898,18 @@ export type InformantUpdate = {
   /** Only fires when every listed casualty is ABSENT this run — the
    *  relief beat ("they're all out!") on the other side of the roll. */
   requiresAbsentCasualtyIds?: string[];
+  /** Most beats are the 999 caller, who clears the line when the first
+   *  crew arrives. A beat marked here comes from someone still there — a
+   *  store manager on the shop line, a site manager at the gate, a unit
+   *  on the radio — and fires after arrival too. */
+  survivesArrival?: boolean;
   /** Optional hard sim effects to apply when the update fires. */
   effect?: {
+    /** Move the job's grade: what the caller has just said makes it a
+     *  different call. Shown on the desk against the incident and logged
+     *  with its basis. Use the service's own labels ("GRADE 1", "CAT 1"). */
+    regrade?: string;
+    basis?: string;
     /** Push the incident receivedAt back by this many seconds so the fire
      *  growth integration adds an immediate radius chunk — models a
      *  "fire has spread to another room" escalation. */

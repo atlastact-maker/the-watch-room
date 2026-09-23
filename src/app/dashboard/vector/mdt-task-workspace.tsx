@@ -862,7 +862,7 @@ export function MdtTaskWorkspace({
   const hazardDone = new Set(tasks.filter((t) => t.kind === "mitigate_hazard" && t.state !== "aborted").map((t) => t.hazardId));
   const casualtyDone = new Set(tasks.filter((t) => t.kind === "extract_casualty" && t.state !== "aborted").map((t) => t.casualtyId));
   const targetHazard = hazards.find((h) => h.id === form?.target);
-  const mitigations = targetHazard ? mitigationOptionsFor(targetHazard.kind) : [];
+  const mitigations = targetHazard ? mitigationOptionsFor(targetHazard.kind, incident.scenario.scene?.hazards.find((x) => x.id === targetHazard.id)) : [];
   const targetNeeded =
     kind === "connect_hydrant" ? "Select a supply point." :
     kind === "relay_hose" ? "Select the source appliance." :

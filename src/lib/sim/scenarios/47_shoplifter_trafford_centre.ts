@@ -118,6 +118,10 @@ export const scenario47: Scenario = {
         target: "male still detained when officers walk into the office — released at the hour is the failure",
       },
     ],
+    scored: [
+      { kind: "hold_after_beat", beatId: "released", label: "Held after security let him go" },
+      { kind: "pnc_before_arrival", surname: "DEAKIN", label: "PNC on the detained male before the car arrived" },
+    ],
     lesson:
       "A shoplifter in a back office is the quietest job on the stack and the one with the hardest deadline. Nothing about him as he sits is a Grade 1 — contained, two staff with him, nobody hurt — and the clock is the store's, not his. Two security officers are holding a man on an any-person arrest that ends the second they decide he is not worth it, and the manager who rings back at five minutes, fifteen and forty is telling you exactly when that is. Search him early, because the name he gave makes him wanted, and that is your reason to take the next car that clears rather than the one after. Send one car and send it properly. Do not strip a Grade 1 for him, and do not let him sit until the hour either, because the release at sixty minutes is not the store being difficult. It is you having lost the job.",
   },
@@ -220,6 +224,7 @@ export const scenario47: Scenario = {
       // The manager's first call. Certain — this is the mechanic.
       id: "manager-first",
       atSec: 300,
+      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] It's the store manager at Pendle and Marsh. I've got two of my security staff sat in an office with this lad and a shop floor with nobody on it. I'm not being funny, but are you actually coming?",
       tone: "urgent",
     },
@@ -258,6 +263,7 @@ export const scenario47: Scenario = {
       id: "manager-second",
       atSec: 900,
       delayThresholdSec: 900,
+      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] Store manager again. That's a quarter of an hour. I've got a member of staff who should have gone home by now sat in that office, and my area manager on the other line asking why we bother detaining anybody if this is what happens. What do I tell her?",
       tone: "urgent",
     },
@@ -265,6 +271,7 @@ export const scenario47: Scenario = {
       id: "release-warning",
       atSec: 2400,
       delayThresholdSec: 2400,
+      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] I'm giving you fair warning. If nobody is here by the top of the hour I'm letting him go. Our policy is an hour and I'm not having my staff assaulted over some perfume. I'll send you the CCTV and the name he gave and you can do what you like with it.",
       tone: "urgent",
       effect: { pulseCritical: true },
@@ -276,6 +283,7 @@ export const scenario47: Scenario = {
       atSec: 3600,
       delayThresholdSec: 3600,
       requiresFiredIds: ["release-warning"],
+      survivesArrival: true,
       text: "[Store line — Claire Rathbone, manager] That's it, he's gone. We've walked him out the staff door and he's away across the staff car park. We've got his face on camera and the name he gave, and that's all we've got. You can cancel your officers.",
       tone: "critical",
       effect: { pulseCritical: true },

@@ -49,6 +49,7 @@ export const ANPR_SITES: AnprSite[] = [
   { id: "A10", name: "A580 East Lancs, Leigh", road: "A580", coords: { lat: 53.479861, lng: -2.538989 }, flowPerMin: 20 },
   { id: "A11", name: "A34 Kingsway, Cheadle", road: "A34", coords: { lat: 53.394294, lng: -2.352671 }, flowPerMin: 15 },
   { id: "A12", name: "A627(M) Chadderton", road: "A627(M)", coords: { lat: 53.624104, lng: -2.143277 }, flowPerMin: 17 },
+  { id: "A13", name: "A57 Hyde Road, Belle Vue", road: "A57", coords: { lat: 53.4619, lng: -2.1735 }, flowPerMin: 12 },
 ];
 
 export type AnprRead = {

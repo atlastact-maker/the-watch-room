@@ -207,10 +207,14 @@ export function simulateIncident(
   /** Compass direction the wind is coming from — a wildfire's head runs
    *  the other way. */
   windFrom?: string,
+  /** Casualties the desk has already seen go expectant. Expectant is
+   *  final: a pairing that comes later must not bring them back. */
+  latchedExpectant?: Set<string> | null,
 ): IncidentSimState {
   // Callers may pass the county fleet; another incident cannot provide attendance here.
   deployments = deployments.filter((d) => d.incidentId === incident.id);
   const absent = absentCasualtyIds ?? new Set<string>();
+  const latched = latchedExpectant ?? new Set<string>();
   const scene = incident.scenario.scene;
 
   let firstArrival: number | null = null;
@@ -518,7 +522,7 @@ export function simulateIncident(
         const worsening = Math.max(0, worseningRaw - savedGrades);
         effectiveIdx = Math.min(SEVERITY_ORDER.length - 1, effectiveIdx + worsening);
       }
-      const severity = SEVERITY_ORDER[effectiveIdx];
+      const severity: CasualtyProgression["severity"] = latched.has(c.id) ? "expectant" : SEVERITY_ORDER[effectiveIdx];
 
       let stage: CasualtyStage;
       if (atHospital) stage = "at_hospital";

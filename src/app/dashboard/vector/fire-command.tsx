@@ -582,7 +582,7 @@ export function FireCommandScreen(props: FireCommandProps) {
   const eligible = baNeeded ? baCrew(freeCrew) : freeCrew;
   const crewFor = (crewPick ? crewPick.filter((id) => eligible.some((c) => c.id === id)) : eligible.slice(0, minCrew).map((c) => c.id));
   const targetHazard = hazards.find((h) => h.id === hazardPick) ?? (action.target === "hazard" ? hazards.find((h) => !isolated(h.id)) : undefined);
-  const mitigations = targetHazard ? mitigationOptionsFor(targetHazard.kind) : [];
+  const mitigations = targetHazard ? mitigationOptionsFor(targetHazard.kind, targetHazard) : [];
   const mitigation = mitigations.find((m) => m.method === mitigationPick) ?? mitigations[0];
   const casualtyDone = new Set(tasks.filter((t) => t.kind === "extract_casualty" && t.state !== "aborted").map((t) => t.casualtyId));
   const targetCasualty = located.find((c) => c.id === casualtyPick) ?? located.find((c) => !casualtyDone.has(c.id));

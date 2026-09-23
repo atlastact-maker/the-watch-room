@@ -366,6 +366,7 @@ export const scenario42: Scenario = {
     },
     {
       id: "decamp-sighting",
+      survivesArrival: true,
       atSec: 120,
       probability: 0.6,
       requiresFiredIds: ["decamp"],
@@ -376,6 +377,7 @@ export const scenario42: Scenario = {
     // minutes; branch-neutral because either branch may have played. ----
     {
       id: "slow",
+      survivesArrival: true,
       atSec: 300,
       delayThresholdSec: 300,
       text: "Five minutes and nothing of yours has arrived. One officer, on his own, with whatever the last message left him — a stolen car, an estate that's out on its doorsteps, and no RPU, no dog and no aircraft. He's asking where they are. So is the TacAd.",

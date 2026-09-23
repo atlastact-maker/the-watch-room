@@ -45,6 +45,9 @@ export type SceneHazard = {
   /** Minutes of any crew on-scene before this hazard is revealed (identified
    *  by searching crews). Ignored if knownFromPri is true. */
   discoverAfterMinOnScene?: number;
+  /** What a crew can do about THIS hazard, when the kind's standard list
+   *  would be absurd — a tin of paint is not shored. Replaces the list. */
+  mitigation?: { method: string; durationSec: number; needsBA?: boolean }[];
 };
 
 /**
@@ -188,6 +191,10 @@ export type SceneCasualty = {
   /** Minutes of BA committed on scene before this casualty is located.
    *  First casualty should typically be 3–5 min, further ones later. */
   discoverAfterMinBa: number;
+  /** Physically trapped: no hospital leg until an rtc_extrication task
+   *  has completed on the job. The scoop-and-run the RTC lesson warns
+   *  against is refused rather than merely discouraged. */
+  trappedUntilExtricated?: boolean;
   label?: string;
   /** Chance (0–1) this casualty is actually present, rolled ONCE when the
    *  incident opens — the "persons reality" roll. Omit for always-present.

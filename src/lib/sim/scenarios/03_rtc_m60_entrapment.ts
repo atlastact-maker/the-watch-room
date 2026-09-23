@@ -513,6 +513,7 @@ export const scenario03: Scenario = {
         pos: { x: 18, y: -4 },
         severity: "critical",
         discoverAfterMinBa: 0,
+        trappedUntilExtricated: true,
         label: "LGV driver (M, ~55) — trapped, steering column impingement",
         clinical: {
           vitals: {

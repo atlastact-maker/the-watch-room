@@ -222,6 +222,7 @@ export const scenario34: Scenario = {
     },
     {
       id: "carry",
+      survivesArrival: true,
       atSec: 300,
       probability: 0.7,
       text: "Kev's had a look at the ladder. There's no way he's coming down that flat on his back — it's a hatch and a ladder, that's all there is on this side. Whoever comes is going to have to work that out.",

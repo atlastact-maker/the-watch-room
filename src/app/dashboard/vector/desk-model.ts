@@ -25,6 +25,7 @@ export type RuntimeLike = {
   handover: Handover | null;
   informantLog: { id: string; text: string; tone: "info" | "urgent" | "critical"; firedAt: number }[];
   informantOnCall: boolean;
+  gradeOverride?: { grade: string; basis: string; atMs: number } | null;
 };
 
 export type DeskInput = {
@@ -133,7 +134,7 @@ export function useDeskModel(input: DeskInput) {
       command: h ? { callsign: h.callsign, label: now < h.effectiveAtMs ? "designated — takes command on arrival" : "has command · desk clear" } : null,
       commandOptions: rt?.outcome || h ? [] : commandOptionsFor(i.id),
       selected: i.id === selectedIncidentId,
-      grade: gradeShort(impliedGrade(i.scenario)),
+      grade: rt?.gradeOverride?.grade ?? gradeShort(impliedGrade(i.scenario)),
     };
   });
 

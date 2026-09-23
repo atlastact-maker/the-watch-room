@@ -135,7 +135,8 @@ export const scenario38: Scenario = {
         label: "Male, 24 — severe asthma, fourth floor",
         pos: { x: 0, y: -24 },
         severity: "critical",
-        discoverAfterMinBa: 2,
+        // Found from the open: an ambulance job has no BA search to run.
+        discoverAfterMinBa: 0,
         clinical: {
           // Exhausted rather than wheezing: the respiratory rate has come
           // DOWN and the saturations with it, which is the bad direction.
