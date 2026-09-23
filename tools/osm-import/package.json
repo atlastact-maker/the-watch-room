@@ -1,0 +1,15 @@
+{
+  "name": "twr-osm-import",
+  "private": true,
+  "type": "module",
+  "description": "Loads Greater Manchester roads and hydrants from OpenStreetMap into Supabase",
+  "scripts": {
+    "import": "node import-gm.mjs .env",
+    "import:dry": "node import-gm.mjs .env --dry-run",
+    "import:roads": "node import-gm.mjs .env --roads-only",
+    "import:hydrants": "node import-gm.mjs .env --hydrants-only"
+  },
+  "dependencies": {
+    "osm-pbf-parser": "^2.3.0"
+  }
+}

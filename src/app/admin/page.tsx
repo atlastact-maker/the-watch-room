@@ -209,7 +209,7 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
@@ -219,7 +219,12 @@ export default async function AdminPage({
     supabase.rpc("admin_notes_all"),
     supabase.rpc("admin_list_bug_reports", { p_limit: 200 }),
     supabase.from("released_scenarios").select("scenario_id, note"),
+    // Map data (migration 019): what tools/osm-import has loaded, so the
+    // Scenarios tab can say whether the desk is on its own roads yet.
+    supabase.rpc("osm_map_status"),
   ]);
+  const mapStatus = (mapRes.data ?? []) as { kind: string; row_count: number; source: string; imported_at: string }[];
+  const missingMap = mapRes.error?.message?.includes("osm_map_status") === true;
   const missingReleased = releasedRes.error?.message?.includes("released_scenarios") === true;
   const released = new Set(((releasedRes.data ?? []) as { scenario_id: string }[]).map((r) => r.scenario_id));
   // Reports are the newest table; before migration 017 the function is
@@ -513,6 +518,27 @@ export default async function AdminPage({
                 Migration 018 (scenario release) has not reached the app yet — run supabase/migrations/018_released_scenarios.sql in the Supabase SQL editor, then reload. Until it has, testers get no calls at all.
               </div>
             )}
+            <div className="rounded-sm border border-(--color-border-subtle) px-4 py-3 text-[12px]">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Map data</div>
+              {missingMap ? (
+                <p className="mt-1 text-(--color-text-dim)">
+                  Migration 019 (map data) has not been run — the desk is asking the public Overpass mirrors for roads and hydrants on every job. Run supabase/migrations/019_osm_map_data.sql in the SQL editor, then load the tables with tools/osm-import.
+                </p>
+              ) : mapStatus.length === 0 ? (
+                <p className="mt-1 text-(--color-text-dim)">
+                  Tables ready, nothing loaded yet — run tools/osm-import (npm run import) to load Greater Manchester&apos;s roads and hydrants. Until then the desk falls back to the public Overpass mirrors.
+                </p>
+              ) : (
+                <ul className="mt-1 space-y-0.5 text-(--color-text)">
+                  {mapStatus.map((m) => (
+                    <li key={m.kind}>
+                      <span className="capitalize">{m.kind}</span> · {m.row_count.toLocaleString("en-GB")} rows · loaded {new Date(m.imported_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      <span className="text-(--color-text-dim)"> · {m.source}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {(["Fire", "Ambulance", "Police"] as const).map((service) => {
               const rows = SCENARIOS.filter((sc) => (sc.pda[0]?.service ?? "Fire") === service);
               return (

@@ -1,14 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shiftGate } from "@/lib/auth/api-guard";
+import { createClient } from "@/lib/supabase/server";
+import { hydrantsNearFromDb, roadsNearFromDb, synthesiseHydrantsOnWays, type DbHydrant, type DbWay } from "@/lib/map/osm-db";
 
-// Server-side proxy that fetches fire hydrants from OSM via Overpass.
-// Returns a list of { id, lat, lng } within the requested radius.
-// Cached in-memory for the server process lifetime so a given incident
-// only resolves once.
+// Fire hydrants around an incident, as { id, lat, lng, ref? } within the
+// requested radius. Our own copy of the county's hydrants (migration
+// 019, tools/osm-import) answers first; the public Overpass mirrors are
+// only asked while that copy is empty or unreachable. Cached in-memory
+// for the server process lifetime so a given incident only resolves once.
 
-type Hydrant = { id: string; lat: number; lng: number; ref?: string };
-type Success = { hydrants: Hydrant[]; source: "overpass" };
-type Failure = { error: string; source: "overpass" };
+type Hydrant = DbHydrant;
+type Source = "supabase" | "overpass";
+type Success = { hydrants: Hydrant[]; source: Source };
+type Failure = { error: string; source: Source };
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass.openstreetmap.fr/api/interpreter",
@@ -18,7 +22,7 @@ const OVERPASS_ENDPOINTS = [
 
 // A found set is kept for the process; an empty answer for a minute, so a
 // mirror that timed out does not cost the incident its hydrants.
-const cache = new Map<string, { at: number; hydrants: Hydrant[] }>();
+const cache = new Map<string, { at: number; hydrants: Hydrant[]; source: Source }>();
 const EMPTY_TTL_MS = 60_000;
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -47,28 +51,41 @@ export async function GET(request: NextRequest): Promise<Response> {
   const key = `${lat.toFixed(6)},${lng.toFixed(6)}@${radius}`;
   const hit = cache.get(key);
   if (hit && (hit.hydrants.length > 0 || Date.now() - hit.at < EMPTY_TTL_MS)) {
-    return NextResponse.json({ hydrants: hit.hydrants, source: "overpass" } satisfies Success);
+    return NextResponse.json({ hydrants: hit.hydrants, source: hit.source } satisfies Success);
   }
 
-  let hydrants = await fetchHydrants({ lat, lng }, radius);
-  // OSM hydrant coverage is patchy in the UK \u2014 if none are mapped in the
-  // vicinity, fall back to synthesising 3 plausible kerbside hydrants from
-  // road nodes so the operator has something meaningful to connect to.
-  if (hydrants.length === 0) {
-    hydrants = await synthesiseRoadHydrants({ lat, lng }, radius);
+  const supabase = await createClient();
+  const fromDb = await hydrantsNearFromDb(supabase, { lat, lng }, radius);
+  if (fromDb && fromDb.length > 0) {
+    cache.set(key, { at: Date.now(), hydrants: fromDb, source: "supabase" });
+    return NextResponse.json({ hydrants: fromDb, source: "supabase" } satisfies Success);
   }
-  cache.set(key, { at: Date.now(), hydrants });
-  return NextResponse.json({ hydrants, source: "overpass" } satisfies Success);
+
+  let source: Source = "overpass";
+  let hydrants = await fetchHydrants({ lat, lng }, radius);
+  // OSM hydrant coverage is patchy in the UK — if none are mapped in the
+  // vicinity, fall back to synthesising a few plausible kerbside hydrants
+  // from road nodes so the operator has something meaningful to connect
+  // to. Our own roads first, the mirrors only if those are missing too.
+  if (hydrants.length === 0) {
+    const dbRoads = await roadsNearFromDb(supabase, { lat, lng }, radius);
+    if (dbRoads && dbRoads.length > 0) {
+      hydrants = synthesiseHydrantsOnWays(dbRoads, { lat, lng });
+      source = "supabase";
+    } else {
+      hydrants = synthesiseHydrantsOnWays(await fetchOverpassRoads({ lat, lng }, radius), { lat, lng });
+    }
+  }
+  cache.set(key, { at: Date.now(), hydrants, source });
+  return NextResponse.json({ hydrants, source } satisfies Success);
 }
 
-/** Synthesise "kerbside" hydrants from road nodes around the incident.
- *  We pick a handful of well-spread nodes on drivable roads so the hydrants
- *  always sit on an actual road on the OSM tile. Used only when no real
- *  hydrant tags exist nearby. */
-async function synthesiseRoadHydrants(
+/** Drivable roads from the Overpass mirrors, for synthesising hydrants
+ *  when neither our own tables nor OSM's hydrant nodes have anything. */
+async function fetchOverpassRoads(
   coords: { lat: number; lng: number },
   radiusM: number,
-): Promise<Hydrant[]> {
+): Promise<DbWay[]> {
   const query = `
     [out:json][timeout:15];
     way(around:${radiusM},${coords.lat},${coords.lng})[highway~"^(primary|secondary|tertiary|unclassified|residential|service|living_street)$"];
@@ -85,35 +102,14 @@ async function synthesiseRoadHydrants(
       });
       if (!res.ok) continue;
       const json = (await res.json()) as {
-        elements?: { type: string; id: number; geometry?: { lat: number; lon: number }[] }[];
+        elements?: { type: string; id: number; tags?: Record<string, string>; geometry?: { lat: number; lon: number }[] }[];
       };
-      const nodes: { lat: number; lng: number; dist: number }[] = [];
+      const ways: DbWay[] = [];
       for (const el of json.elements ?? []) {
-        if (el.type !== "way" || !el.geometry) continue;
-        for (const g of el.geometry) {
-          const d = Math.hypot(g.lat - coords.lat, g.lon - coords.lng);
-          nodes.push({ lat: g.lat, lng: g.lon, dist: d });
-        }
+        if (el.type !== "way" || !el.geometry || el.geometry.length < 2) continue;
+        ways.push({ id: `osm-${el.id}`, coords: el.geometry.map((g) => [g.lat, g.lon] as [number, number]), highway: el.tags?.highway, name: el.tags?.name });
       }
-      if (nodes.length === 0) return [];
-      nodes.sort((a, b) => a.dist - b.dist);
-      // Greedy spread: pick the closest, then keep picking nodes that are at
-      // least ~40m away from every previously picked one, up to 4 hydrants.
-      const picked: Hydrant[] = [];
-      const minGapMetres = 40;
-      const metresToLat = 1 / 111_000;
-      const minGapLat = minGapMetres * metresToLat;
-      for (const n of nodes) {
-        const farEnough = picked.every((p) => Math.hypot(p.lat - n.lat, p.lng - n.lng) >= minGapLat);
-        if (!farEnough) continue;
-        picked.push({
-          id: `synth-${picked.length + 1}-${n.lat.toFixed(5)}-${n.lng.toFixed(5)}`,
-          lat: n.lat,
-          lng: n.lng,
-        });
-        if (picked.length >= 4) break;
-      }
-      return picked;
+      return ways;
     } catch {
       // try next mirror
     }

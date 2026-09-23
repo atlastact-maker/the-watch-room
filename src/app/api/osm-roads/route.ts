@@ -1,15 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shiftGate } from "@/lib/auth/api-guard";
+import { createClient } from "@/lib/supabase/server";
+import { roadsNearFromDb, type DbWay } from "@/lib/map/osm-db";
 
-// Server-side proxy for OSM road polylines around an incident. Used by
-// the ground map to snap operator parking clicks onto the nearest road.
-// Returns a list of ways with their geometry (lat/lng pairs). Cached
-// per-(coords, radius) for the lifetime of the server process so a
-// given incident only resolves once.
+// OSM road polylines around an incident. Used by the ground map to snap
+// operator parking clicks onto the nearest road, put hydrants on the
+// kerb and keep hoses on the street. Returns a list of ways with their
+// geometry (lat/lng pairs).
+//
+// Our own copy of the county's roads (migration 019, tools/osm-import)
+// answers first; the public Overpass mirrors are only asked while that
+// copy is empty or unreachable. Cached per-(coords, radius) for the
+// lifetime of the server process so a given incident only resolves once.
 
-type Way = { id: string; coords: [number, number][]; highway?: string; name?: string };
-type Success = { ways: Way[]; source: "overpass" };
-type Failure = { error: string; source: "overpass" };
+type Way = DbWay;
+type Source = "supabase" | "overpass";
+type Success = { ways: Way[]; source: Source };
+type Failure = { error: string; source: Source };
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass.openstreetmap.fr/api/interpreter",
@@ -19,7 +26,7 @@ const OVERPASS_ENDPOINTS = [
 
 // A found set is kept for the process; an empty answer for a minute, so a
 // mirror that timed out does not cost the incident its roads.
-const cache = new Map<string, { at: number; ways: Way[] }>();
+const cache = new Map<string, { at: number; ways: Way[]; source: Source }>();
 const EMPTY_TTL_MS = 60_000;
 
 export async function GET(request: NextRequest): Promise<Response> {
@@ -48,11 +55,18 @@ export async function GET(request: NextRequest): Promise<Response> {
   const key = `${lat.toFixed(6)},${lng.toFixed(6)}@${radius}`;
   const hit = cache.get(key);
   if (hit && (hit.ways.length > 0 || Date.now() - hit.at < EMPTY_TTL_MS)) {
-    return NextResponse.json({ ways: hit.ways, source: "overpass" } satisfies Success);
+    return NextResponse.json({ ways: hit.ways, source: hit.source } satisfies Success);
+  }
+
+  const supabase = await createClient();
+  const fromDb = await roadsNearFromDb(supabase, { lat, lng }, radius);
+  if (fromDb && fromDb.length > 0) {
+    cache.set(key, { at: Date.now(), ways: fromDb, source: "supabase" });
+    return NextResponse.json({ ways: fromDb, source: "supabase" } satisfies Success);
   }
 
   const ways = await fetchRoads({ lat, lng }, radius);
-  cache.set(key, { at: Date.now(), ways });
+  cache.set(key, { at: Date.now(), ways, source: "overpass" });
   return NextResponse.json({ ways, source: "overpass" } satisfies Success);
 }
 
