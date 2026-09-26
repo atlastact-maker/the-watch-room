@@ -19,6 +19,7 @@ import type { PendingCall } from "../components/call-stack";
 import type { CallRow, CoverRow, HospitalRow, IncidentDetail, IncidentRow, PdaRow, ResourceCard, SceneUnitRow, StandbyRow } from "./dispatch-tiles";
 import type { BayRow, MobHead, TurnoutRow } from "./mob-screen";
 import { gradeShort, impliedGrade, incidentRef, scenarioService, shortAddress, typeChip, waitState } from "./model";
+import { openingCodeLabel } from "@/lib/sim/opening_codes";
 
 export type RuntimeLike = {
   outcome: IncidentOutcome | null;
@@ -135,6 +136,8 @@ export function useDeskModel(input: DeskInput) {
       commandOptions: rt?.outcome || h ? [] : commandOptionsFor(i.id),
       selected: i.id === selectedIncidentId,
       grade: rt?.gradeOverride?.grade ?? gradeShort(impliedGrade(i.scenario)),
+      code: i.openingCode ?? null,
+      codeLabel: i.openingCode ? openingCodeLabel(scenarioService(i.scenario), i.openingCode) : null,
     };
   });
 

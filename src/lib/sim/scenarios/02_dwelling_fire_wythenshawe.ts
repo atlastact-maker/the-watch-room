@@ -599,5 +599,46 @@ export const scenario02: Scenario = {
       },
     ],
     onDispatch: "Thank you. Oh, thank you. Tell them to hurry.",
+    preArrival: [
+      {
+        id: "nobody-in",
+        text: "Pauline, nobody goes into that house — not you, and not Dan if he gets out. The crews have the kit for it and you don't. Stay on your step.",
+        key: true,
+        reply: "I'm not going in. I couldn't. I'll stop Dan if I see him — I'll try.",
+        replyByVariant: {
+          "back-in": "I'm not going in. But if Dan comes out and Theo's not with him, he'll go straight back in, and I can't hold him.",
+        },
+      },
+      {
+        id: "shout-up",
+        text: "Shout up at the windows — the front, the back, the skylight. Tell them: shut the bedroom door, get to the window, stay by it, the fire brigade are coming.",
+        key: true,
+        reply: "KELLY! DAN! Shut the door — get to the window! They're coming! — I'm shouting, they're not answering. I'll keep shouting.",
+        replyByVariant: {
+          loft: "ELLA! Shut the door — get up to the skylight! They're coming! — I'm shouting, there's nothing at the skylight. I'll keep shouting.",
+        },
+      },
+      {
+        id: "keep-out",
+        text: "If any of them come out, keep them with you on your step and keep them out. Pull the front door to behind them if you can reach it without going in.",
+        reply: "Yes. I'll keep them here. I'll keep hold of the kids.",
+      },
+      {
+        id: "gate",
+        text: "The side gate that's bolted from inside — is there any way round to the back without going through the house? The crews will want the back as well as the front.",
+        reply: "Through my garden — there's a fence panel between us that's loose, Dan's been meaning to fix it. I'll tell them. I'll show them.",
+      },
+      {
+        id: "road",
+        text: "Keep the road clear in front of both houses. If anyone comes out to look, get them onto the pavement and away from the front.",
+        reply: "There's a few out now. I'll shout at them. GET BACK — get on the path, let them get in!",
+      },
+      {
+        id: "flag",
+        text: "When you hear them, stand where they can see you and wave them in to 285. Tell them who's out and who's still in, and where.",
+        reply: "I will. Four in — Kelly and Dan at the front, Theo at the back, Ella in the loft. I'll tell them. I'll be stood right here.",
+        effect: { state: "anxious" },
+      },
+    ],
   },
 };

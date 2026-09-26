@@ -35,6 +35,33 @@ export type SubjectSpec = {
   /** Seconds after the job opens before the car moves off — it was read
    *  at the camera a moment ago and is already past it. */
   headStartSec?: number;
+  /** The job opens mid-pursuit: a car has already failed to stop and a
+   *  unit is behind it asking the control room for authority. */
+  pursuitFromStart?: boolean;
+  /** The callsign of that following unit, when it is part of the story
+   *  rather than a resource on the board. It holds the track until a
+   *  real unit takes over or the desk calls it off. */
+  initialUnitCallsign?: string;
+};
+
+/** The pursuit as the control room sees it. Authority sits with the
+ *  pursuit commander on the desk: nothing is authorised until they say
+ *  so, and once discontinued every authority is withdrawn — a fresh
+ *  fail-to-stop needs a fresh decision. Tactics need the tactical phase,
+ *  which starts when a TPAC-trained car in a suitable vehicle is on the
+ *  track and takes primary. */
+export type PursuitState = {
+  phase: "initial" | "tactical";
+  authority: "sought" | "authorised" | "refused" | "discontinued";
+  soughtAt: number;
+  decidedAt?: number;
+  reason?: string;
+  /** The tactical-phase car with primary. */
+  primary?: string;
+  /** The story's following unit — see SubjectSpec.initialUnitCallsign. */
+  narrativeHolder?: string;
+  /** Set once the desk has been told it is sitting on the decision. */
+  nagAt?: number;
 };
 
 export type SubjectState = "moving" | "pursuit" | "stopped" | "contained" | "gone";
@@ -49,7 +76,7 @@ export type SubjectPing = {
   direction: "NB" | "SB" | "EB" | "WB";
 };
 
-export type SubjectEvent = { at: number; kind: "ping" | "sighted" | "lost" | "stopped" | "failed_to_stop" | "contained" | "gone" | "stinger"; text: string };
+export type SubjectEvent = { at: number; kind: "ping" | "sighted" | "lost" | "stopped" | "failed_to_stop" | "contained" | "gone" | "stinger" | "authority" | "no_decision" | "no_authority"; text: string };
 
 export type SubjectVehicle = {
   id: string;
@@ -85,7 +112,11 @@ export type SubjectVehicle = {
   outcome?: string;
   /** A stinger deflated the tyres: rolling to a stop. */
   stingerAt?: number;
+  /** Present from the first fail-to-stop onwards. */
+  pursuit?: PursuitState;
 };
+
+const NO_DECISION_MS = 60_000;
 
 const PURSUIT_FACTOR = 1.45;
 const SITE_READ_M = 220;
@@ -155,13 +186,37 @@ export function createSubject(incidentId: string, spec: SubjectSpec, vehicle: Ve
     baseSpeedKph: spec.speedKph ?? 46,
     movesAt: now + (spec.headStartSec ?? 0) * 1000,
     lastTickAt: now,
-    state: "moving",
-    trackLive: false,
-    trackHeldBy: [],
+    state: spec.pursuitFromStart ? "pursuit" : "moving",
+    trackLive: !!spec.pursuitFromStart && !!spec.initialUnitCallsign,
+    trackHeldBy: spec.pursuitFromStart && spec.initialUnitCallsign ? [spec.initialUnitCallsign] : [],
+    sightedAt: spec.pursuitFromStart ? now : undefined,
+    lastSeenAt: spec.pursuitFromStart ? now : undefined,
+    lastSeenPos: spec.pursuitFromStart ? spec.start : undefined,
     pings: [],
     events: [],
     recentSites: {},
+    pursuit: spec.pursuitFromStart ? { phase: "initial", authority: "sought", soughtAt: now, narrativeHolder: spec.initialUnitCallsign } : undefined,
   };
+}
+
+/** The desk's decision on the pursuit. Refusing or discontinuing calls
+ *  every unit off: the track goes cold and the car is back to cameras;
+ *  they may still sight it, but nobody is chasing. */
+export function decidePursuit(prev: SubjectVehicle, now: number, decision: "authorise" | "refuse" | "discontinue", reason?: string): { subject: SubjectVehicle; event: SubjectEvent } {
+  const p = prev.pursuit ?? { phase: "initial" as const, authority: "sought" as const, soughtAt: now };
+  if (decision === "authorise") {
+    const s: SubjectVehicle = { ...prev, pursuit: { ...p, authority: "authorised", decidedAt: now, reason } };
+    return { subject: s, event: { at: now, kind: "authority", text: `PURSUIT AUTHORISED by the control room — ${p.phase === "tactical" ? `${p.primary ?? "the tactical-phase car"} has primary, tactics on the TacAd's advice` : "initial phase: follow and commentate, no tactics until a tactical-phase car is behind it"}` } };
+  }
+  const label = decision === "refuse" ? "REFUSED" : "DISCONTINUED";
+  const s: SubjectVehicle = {
+    ...prev,
+    state: prev.state === "pursuit" ? "moving" : prev.state,
+    trackLive: false,
+    trackHeldBy: [],
+    pursuit: { ...p, authority: decision === "refuse" ? "refused" : "discontinued", decidedAt: now, reason, primary: undefined, narrativeHolder: undefined },
+  };
+  return { subject: s, event: { at: now, kind: "authority", text: `PURSUIT ${label} by the control room${reason ? ` — ${reason}` : ""}. All units drop back, lights off; ${prev.vrm} last seen making off — back to the cameras${decision === "discontinue" ? ". Every authority withdrawn; a fresh fail-to-stop needs a fresh decision" : ""}` } };
 }
 
 /** The router answered: swap the straight line for the road, keeping
@@ -271,6 +326,12 @@ export function tickSubject(prev: SubjectVehicle, now: number, sensors: Sensor[]
     }
     if (d < TRACK_HOLD_M && s.trackLive && !holders.includes(u.callsign)) holders.push(u.callsign);
   }
+  // The story's following unit holds the track while the decision is
+  // open or the follow is authorised and no real unit has taken over.
+  const p = s.pursuit;
+  if (holders.length === 0 && !done && p?.narrativeHolder && (p.authority === "sought" || p.authority === "authorised") && s.state === "pursuit") {
+    holders.push(p.narrativeHolder);
+  }
   if (holders.length > 0 && !done) {
     if (!s.trackLive) {
       events.push({ at: now, kind: "sighted", text: `${s.vrm} SIGHTED by ${sightedBy?.callsign ?? holders[0]} — ${sightedBy?.npas ? "NPAS overhead, " : ""}track live` });
@@ -290,6 +351,24 @@ export function tickSubject(prev: SubjectVehicle, now: number, sensors: Sensor[]
   }
   if (s.trackLive) { s.lastSeenPos = pos; s.lastSeenHeading = heading; }
 
+  // ---- The pursuit itself -----------------------------------------------------
+  if (s.state === "pursuit" && s.pursuit && !done) {
+    const pp = { ...s.pursuit };
+    // A TPAC-trained car on the track takes primary: tactical phase.
+    const tactical = sensors.find((u) => u.tpac && u.police && (u.attached || (s.trackLive && haversineMeters(pos, u.pos) < TRACK_HOLD_M)));
+    if (pp.phase === "initial" && tactical) {
+      pp.phase = "tactical";
+      pp.primary = tactical.callsign;
+      events.push({ at: now, kind: "sighted", text: `${tactical.callsign} behind ${s.vrm} and taking primary — TACTICAL PHASE. ${pp.authority === "authorised" ? "Tactics available on the TacAd's advice" : "Still no authority from the control room"}` });
+    }
+    // The desk sitting on the decision is itself a failure.
+    if (pp.authority === "sought" && now - pp.soughtAt > NO_DECISION_MS && !pp.nagAt) {
+      pp.nagAt = now;
+      events.push({ at: now, kind: "no_decision", text: `${s.vrm} — pursuit running ${Math.round((now - pp.soughtAt) / 1000)} s with NO DECISION from the control room. Authorise it or call it off.` });
+    }
+    s.pursuit = pp;
+  }
+
   // ---- Tactics that finished this tick ----------------------------------------------
   for (const t of tasks) {
     if (t.state !== "completed" || !t.completesAt || t.completesAt <= prev.lastTickAt || t.completesAt > now) continue;
@@ -304,9 +383,13 @@ export function tickSubject(prev: SubjectVehicle, now: number, sensors: Sensor[]
         s = { ...s, state: "stopped", stoppedAt: now, stoppedPos: pos, outcome: `Compliant stop by ${cs}` };
         events.push({ at: now, kind: "stopped", text: `${s.vrm} STOPPED for ${cs} — compliant, occupants spoken to` });
       } else {
-        s = { ...s, state: "pursuit" };
+        s = { ...s, state: "pursuit", pursuit: { phase: "initial", authority: "sought", soughtAt: now } };
         events.push({ at: now, kind: "failed_to_stop", text: `${s.vrm} FAILED TO STOP for ${cs} — making off ${dir}, pursuit authority with the control room` });
       }
+    } else if ((t.kind === "tpac_box" || t.kind === "stinger" || t.kind === "tactical_contact") && s.state === "pursuit" && s.pursuit?.authority !== "authorised") {
+      events.push({ at: now, kind: "no_authority", text: `${cs} — ${t.kind.replace(/_/g, " ")} attempted with NO PURSUIT AUTHORITY from the control room. Nothing done; ${s.vrm} still running ${dir}` });
+    } else if ((t.kind === "tpac_box" || t.kind === "tactical_contact") && s.state === "pursuit" && s.pursuit?.phase !== "tactical") {
+      events.push({ at: now, kind: "no_authority", text: `${cs} — ${t.kind.replace(/_/g, " ")} needs the tactical phase: a TPAC car on the track with primary. Nothing done; ${s.vrm} still running ${dir}` });
     } else if (t.kind === "tpac_box") {
       const tpacCars = sensors.filter((u) => u.tpac && (u.attached || haversineMeters(pos, u.pos) < TRACK_HOLD_M)).length;
       if (tpacCars >= 2) {

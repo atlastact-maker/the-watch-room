@@ -28,6 +28,7 @@ import { dobDisplay, dobOf, type PersonRecord, type RecordIndex, type VehicleRec
 import { personQueryFor, type LedsCheck } from "@/lib/sim/leds";
 import { generateVehicle } from "@/lib/sim/leds-db";
 import type { SubjectVehicle } from "@/lib/sim/subject";
+import { openingCodeLabel } from "@/lib/sim/opening_codes";
 import type { ResolvedDeployment } from "../components/incident-view";
 import { competencyFor, type TaskWorkspaceProps } from "./mdt-task-workspace";
 import { PncPage } from "./pnc-page";
@@ -324,6 +325,8 @@ export type PoliceControlsProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAb
   onSelectionChange?: (sel: PoliceSelection | null) => void;
   /** The car the job is chasing — the tactics act on its live track. */
   subject?: SubjectVehicle | null;
+  /** The pursuit commander's decision, taken on this desk. */
+  onPursuitDecision?: (incidentId: string, decision: "authorise" | "refuse" | "discontinue", reason?: string) => void;
 };
 
 export type PoliceSelection = {
@@ -641,10 +644,53 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   );
   const infoLine = (text: string, tone?: "warn" | "go") => <p className={`pc-info${tone ? ` ${tone}` : ""}`}>{I.info}<span>{text}</span></p>;
 
+  // ---- Pursuit — the control room's decision ------------------------------
+  // Authority sits here, not in the car. The panel shows the phase, who
+  // holds the track, how long the decision has been open, and the three
+  // levers: authorise, refuse, discontinue.
+  const pursuit = props.subject?.pursuit;
+  const pursuitLive = !!props.subject && props.subject.state === "pursuit";
+  const pursuitCard = pursuit && props.subject ? (() => {
+    const sub = props.subject!;
+    const openSec = Math.max(0, Math.round((now - pursuit.soughtAt) / 1000));
+    const decided = pursuit.authority !== "sought";
+    const tone = pursuit.authority === "sought" ? (openSec > 60 ? "stop" : "warn") : pursuit.authority === "authorised" ? "go" : "off";
+    const status = pursuit.authority === "sought" ? `AUTHORITY SOUGHT · ${openSec} s` : pursuit.authority === "authorised" ? "AUTHORISED" : pursuit.authority === "refused" ? "REFUSED — units stood down" : "DISCONTINUED — units stood down";
+    const tpacOnTrack = pursuit.phase === "tactical";
+    return (
+      <section className={`pc-card pc-pursuit ${tone}`}>
+        <header><b>P</b>PURSUIT · {sub.vrm}<span className="pc-meta">{pursuitLive ? (sub.trackLive ? `held by ${sub.trackHeldBy.join(", ")}` : "track lost") : sub.state === "moving" ? "no longer pursued" : sub.state}</span></header>
+        <div className="pc-card-body">
+          <dl className="pc-facts">
+            <dt>Authority</dt><dd className={tone}>{status}</dd>
+            <dt>Phase</dt><dd>{tpacOnTrack ? `Tactical · ${pursuit.primary ?? "TPAC car"} has primary` : "Initial · follow and commentate only"}</dd>
+            {pursuit.reason && (<><dt>Reason</dt><dd>{pursuit.reason}</dd></>)}
+          </dl>
+          {pursuit.authority === "sought" && infoLine("The driver is asking. Authorise on the TacAd's advice — the reason for the pursuit against the risk to the public — or call it off. Sitting on it is a decision too.", openSec > 60 ? "warn" : undefined)}
+          {pursuit.authority === "authorised" && !tpacOnTrack && infoLine("Initial phase: no tactics exist until a TPAC-trained car in a suitable vehicle is on the track and takes primary.")}
+          {pursuit.authority === "authorised" && tpacOnTrack && infoLine("Tactical phase: TPAC box, stinger ahead of it, tactical contact — each on the TacAd's advice, each proportionate to why it is being pursued.", "go")}
+          {(pursuit.authority === "refused" || pursuit.authority === "discontinued") && infoLine("Every authority is withdrawn. Units may keep obs from a distance; nobody follows. A fresh fail-to-stop needs a fresh decision.")}
+          <div className="pc-btnrow">
+            {!decided && (
+              <>
+                <button type="button" className="pc-mini go" disabled={!props.onPursuitDecision} onClick={() => props.onPursuitDecision?.(incident.id, "authorise")}>Authorise pursuit</button>
+                <button type="button" className="pc-mini stop" disabled={!props.onPursuitDecision} onClick={() => { const r = window.prompt("Refuse — why? (risk to the public, offence too minor, conditions…)") ?? ""; props.onPursuitDecision?.(incident.id, "refuse", r.trim() || undefined); }}>Refuse — drop back</button>
+              </>
+            )}
+            {pursuit.authority === "authorised" && pursuitLive && (
+              <button type="button" className="pc-mini stop" disabled={!props.onPursuitDecision} onClick={() => { const r = window.prompt("Discontinue — why? (risk now outweighs the reason, speeds, pedestrians, lost the track…)") ?? ""; props.onPursuitDecision?.(incident.id, "discontinue", r.trim() || undefined); }}>Discontinue</button>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  })() : null;
+
   const summaryCard = (
     <Card title="Incident summary" icon="▤">
       <dl className="pc-facts">
         <dt>Incident type</dt><dd>{typeLabel(sc.type)}</dd>
+        {incident.openingCode && (<><dt>Opening code</dt><dd>{openingCodeLabel("Police", incident.openingCode)}</dd></>)}
         <dt>Location</dt><dd>{sc.location.address}</dd>
         <dt>Incident reference</dt><dd>{incidentRef}</dd>
         <dt>Status</dt><dd className={resolvedIncident ? "" : "hi"}>{status}</dd>
@@ -1093,6 +1139,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           <>
             <div className="pc-col">
               {summaryCard}
+              {pursuitCard}
               {tab === "general" ? <>{resourceCard}{personCard}</> : tab === "vehicles" ? resourceVehicleCard : resourcePersonCard}
             </div>
             <div className="pc-col">{actionsCard}{tab === "general" && <>{activityCard}{logCard}</>}</div>

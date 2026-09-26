@@ -512,5 +512,37 @@ export const scenario39: Scenario = {
       },
     ],
     onDispatch: "Good. Thank you. Tell them to stop short of the house — and tell them there's kids in there. I'll leave my door on the latch for her; she knows she can come to me.",
+    preArrival: [
+      {
+        id: "stay",
+        text: "Marie, you stay in your own house with the door locked. You don't go round, you don't knock, and you don't open your door to him if he comes to it. Only to her, or to the police.",
+        key: true,
+        reply: "I'm not going round. I've said. Door's locked — I'll open it for her and nobody else.",
+      },
+      {
+        id: "listen",
+        text: "Keep listening through the wall, and tell me the second anything changes — if it goes quiet, if you hear the front door, if you hear anything about a knife or him going for the kids.",
+        key: true,
+        reply: "I'm listening. I've got my hand on the wall. It's still going. If it stops, you'll know.",
+        replyByVariant: {
+          weapon: "I'm listening. She said knife, I've told you that — I've not heard it again. If I do, you'll know the same second.",
+        },
+      },
+      {
+        id: "leaves",
+        text: "If he leaves, don't follow him and don't go out. Tell me which way he goes and whether he takes the van.",
+        reply: "I'll watch from behind the nets. If the van moves, I'll tell you which way. I'm not going out there.",
+      },
+      {
+        id: "no-ring",
+        text: "Don't ring her or text her. If her phone goes off, he'll know someone's called.",
+        reply: "I wasn't going to. He took her phone off her last time. I'm not giving him a reason.",
+      },
+      {
+        id: "meet",
+        text: "When the officers arrive they'll want to speak to you — everything you heard tonight, and about February. Stay in until they knock.",
+        reply: "I'll tell them the lot. February and tonight. I'll be here.",
+      },
+    ],
   },
 };

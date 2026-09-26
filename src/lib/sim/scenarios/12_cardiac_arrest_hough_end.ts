@@ -621,5 +621,49 @@ export const scenario12: Scenario = {
       },
     ],
     onDispatch: "Thank you. Tell them pitch eleven — tell them to run. Please, tell them to run.",
+    preArrival: [
+      {
+        id: "flat",
+        text: "Daniel, get him flat on his back on the grass, nothing under his head, and tilt his head back with his chin up.",
+        reply: "He's on his back. Jordan's got his head. Chin up — yeah. He's flat.",
+        replyByVariant: {
+          "no-cpr": "He's on his back. I've shouted it — Jordan's tipped his head back and backed off again.",
+        },
+      },
+      {
+        id: "cpr",
+        text: "Now — someone kneels beside him, heel of the hand in the centre of his chest, other hand on top, arms straight, and pushes hard and fast. Twice a second. Count it out loud and do not stop.",
+        key: true,
+        reply: "Jordan's on him. One, two, three, four — harder, Jordan, harder — one, two, three, four. He's doing it. He's doing it.",
+        replyByVariant: {
+          "no-cpr": "I'm telling them. Jordan — JORDAN — he won't. He's shaking his head. I'm trying to get down, my back — I'm trying. Sam! Sam, get on him — somebody!",
+        },
+        effect: { state: "anxious" },
+      },
+      {
+        id: "aed",
+        text: "Send someone running to the pavilion, the Hough End Centre, for a defibrillator — there'll be one on the wall or at the desk. Bring it back, open it, and do exactly what it says. It won't shock him if he doesn't need it.",
+        key: true,
+        reply: "SAM — the pavilion, the defib, the green box by reception, RUN! — He's gone. He's quick, he'll be two minutes.",
+      },
+      {
+        id: "swap",
+        text: "Whoever's pushing swaps out every couple of minutes so it stays hard and fast — straight swap, no gap. Keep counting.",
+        reply: "Right. Two minutes then Kyle's on. I'll count them. One, two, three, four —",
+        replyByVariant: {
+          "no-cpr": "If I can get anyone on him at all. Kyle — Kyle, come here, listen to me —",
+        },
+      },
+      {
+        id: "gate",
+        text: "Get someone up to the car park gate to wave the crew through and run them down the path to pitch eleven. They'll have bags — someone to carry.",
+        reply: "The ref's going. He knows the way. He'll bring them down.",
+      },
+      {
+        id: "crowd",
+        text: "Keep everyone else back off him — a clear space round him, room for the crew to work.",
+        reply: "GET BACK. Everyone, back to the touchline. — They're going. They're going back.",
+      },
+    ],
   },
 };

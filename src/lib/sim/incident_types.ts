@@ -950,6 +950,8 @@ export type Incident = {
   scenario: Scenario;
   receivedAt: number;  // epoch ms
   resolvedAt?: number; // set when the operator resolves (stop message)
+  /** What the call handler keyed the job as — NICL / IRS / AMPDS code. */
+  openingCode?: string;
 };
 
 // Deployment of a single appliance to an incident.

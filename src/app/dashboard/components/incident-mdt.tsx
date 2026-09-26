@@ -162,6 +162,7 @@ type Props = {
   commanderApplianceId?: string | null;
   /** The car the job is chasing, when there is one. */
   subject?: SubjectVehicle | null;
+  onPursuitDecision?: (incidentId: string, decision: "authorise" | "refuse" | "discontinue", reason?: string) => void;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -426,6 +427,7 @@ export function DraggableIncidentMdt(props: Props) {
         onArmPlacement={props.onArmPlacement}
         requestedPage={props.policePage}
         subject={props.subject}
+        onPursuitDecision={props.onPursuitDecision}
         onSelectionChange={setPoliceSel}
       />
     );

@@ -429,5 +429,45 @@ export const scenario47: Scenario = {
       },
     ],
     onDispatch: "Cheers. I'll get the manager down to the staff door. Tell them round the back — not through the mall.",
+    preArrival: [
+      {
+        id: "calm",
+        text: "Dean, keep him sat down and keep talking to him, calm and level. No hands on him unless he goes for the door or for one of you.",
+        key: true,
+        reply: "He's sat. I'm not touching him. Arjun's just chatting to him about nothing. He's alright.",
+        replyByVariant: {
+          "kicks-off": "He's sat. I'm not touching him — but he's up on the edge of the chair and he keeps looking at the door. I'll keep talking.",
+        },
+      },
+      {
+        id: "search",
+        text: "Don't search him and don't go through the bag or his pockets. Whatever's in them stays there for the officers.",
+        reply: "I know the rules. Bag's on the desk, nobody's touched it since we took it off him.",
+      },
+      {
+        id: "door",
+        text: "Keep the one door, but give him room — don't stand over him and don't box him in the corner. If he stands up, let him stand.",
+        reply: "I'm in the doorway, he's on the chair, there's a desk between him and Arjun. He's got room.",
+      },
+      {
+        id: "leaves",
+        text: "If he does go, let him go. Nobody chases him down the service road. Tell me which way he went and what he's wearing.",
+        key: true,
+        reply: "Fair enough. Black puffer, black cap, grey bottoms. If he goes, I'll tell you which way and that's all I'll do.",
+        replyByVariant: {
+          walks: "Fair enough — and I'll tell you now, the manager'll have him out that door herself at the hour. If he goes, I'll tell you which way.",
+        },
+      },
+      {
+        id: "evidence",
+        text: "Keep the fragrance and the bag as they are, and get the manager to save the CCTV of him on the floor and at the tills.",
+        reply: "Claire's already burning the CCTV off. The boxes are in the bag on the desk, nobody's had them out.",
+      },
+      {
+        id: "meet",
+        text: "When I tell you they're close, the manager goes to the grey staff door on the service road and stays there till they're in. Not the mall doors.",
+        reply: "Service road, grey door, 'deliveries' on it. She'll be stood in it. Not the mall.",
+      },
+    ],
   },
 };

@@ -454,5 +454,50 @@ export const scenario32: Scenario = {
       },
     ],
     onDispatch: "Thank you — thank you. Hannah, they're coming, babe, they're coming. Please tell them to run.",
+    preArrival: [
+      {
+        id: "pen",
+        text: "Leanne — does Hannah carry a second pen? Most people are given two. If there is one in her bag, and it's been five minutes since the first, use it now: outer thigh, straight through the jeans, hold it there for ten seconds.",
+        key: true,
+        reply: "There is — there's two in the pouch. Hannah, babe, I'm doing the other one. Through the jeans — okay. It's in. I'm holding it. Ten. Okay. It's done.",
+        replyByVariant: {
+          "no-pen": "There isn't one. There's nothing — it's at home, both of them. I've asked the whole restaurant. Nobody's got one. What do I do?",
+          biphasic: "There's a second one in the pouch. She's saying she doesn't need it, she's fine — do I still do it? — Okay. Okay. Hannah, sit still. It's in. I'm holding it.",
+        },
+      },
+      {
+        id: "position",
+        text: "Keep her sat up as she is while she's struggling to breathe. If she goes faint or grey, or she stops answering you, lie her flat with her legs up and tell me straight away.",
+        key: true,
+        reply: "She's sat up against the wall, I've got her. If she goes — flat, legs up, and I tell you. Okay.",
+      },
+      {
+        id: "nothing",
+        text: "Nothing by mouth — no water, no Piriton, nothing to swallow. Her throat's swelling and it could go the wrong way.",
+        reply: "Okay. No — put it away, she can't have it. Nothing. Okay.",
+      },
+      {
+        id: "stay",
+        text: "Even if she picks up, she stays sat with you until the crew have seen her. This can come back an hour later, worse. She doesn't go home.",
+        reply: "She's not going anywhere. Hannah, you're not — no. You're staying here. I've told her.",
+        replyByVariant: {
+          biphasic: "That's what I've been telling her. Hannah — you heard that, you're not going home. She's rolling her eyes at me but she's staying sat.",
+        },
+      },
+      {
+        id: "keep-pen",
+        text: "Keep the used pen and the food on the table — the crew will want both.",
+        reply: "The pen's here, the orange end's out, I've got it. The manager's put her plate to one side.",
+        replyByVariant: {
+          "no-pen": "There's no pen to keep. The manager's put her plate to one side.",
+        },
+      },
+      {
+        id: "runner",
+        text: "Send someone to the top of Goose Green, on Stamford New Road, to meet the ambulance and run them down — they can't get past the bollards.",
+        reply: "The manager's going — he's gone. He'll stand at the top and wave them in.",
+        effect: { state: "anxious" },
+      },
+    ],
   },
 };

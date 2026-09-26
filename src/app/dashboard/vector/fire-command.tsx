@@ -30,6 +30,7 @@ import { SceneCanvas } from "../components/scene-canvas";
 import { BaControlBoard } from "../components/ba-control-board";
 import { TASK_LABEL, catalogueKinds, competencyFor, useSceneHydrants, type TaskWorkspaceProps } from "./mdt-task-workspace";
 import { updatePlan, useCommandPlan, type CommandPlan } from "./command-store";
+import { openingCodeLabel } from "@/lib/sim/opening_codes";
 
 type Page = "actions" | "command" | "ba" | "rtc" | "log";
 type ActionTab = "general" | "fire" | "rescue" | "water" | "scene";
@@ -719,6 +720,7 @@ export function FireCommandScreen(props: FireCommandProps) {
     <Card title="Incident summary" icon="▤">
       <dl className="pc-facts">
         <dt>Incident type</dt><dd>{typeLabel(sc.type)}</dd>
+        {incident.openingCode && (<><dt>Opening code</dt><dd>{openingCodeLabel("Fire", incident.openingCode)}</dd></>)}
         <dt>Location</dt><dd>{sc.location.address}</dd>
         <dt>Incident reference</dt><dd>{incidentRef}</dd>
         <dt>Status</dt><dd className={resolvedIncident ? "" : stageTone || "hi"}>{statusText}</dd>

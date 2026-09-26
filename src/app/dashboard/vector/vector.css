@@ -305,6 +305,8 @@ html[data-cad-theme="dark"] .cad-application {
 .vec-mob-picker .body { display: grid; gap: 1px; min-width: 0; }
 .vec-mob-picker .l1 { display: flex; align-items: baseline; gap: 8px; font: 700 12px var(--vec-mono); }
 .vec-mob-picker .l1 em { font: 700 9px var(--vec-mono); letter-spacing: 0.08em; color: var(--vec-text-dim); font-style: normal; }
+.vec-mob-picker .l1 .code, .vec-row .line1 .code { font: 700 9px var(--vec-mono); letter-spacing: 0.08em; color: var(--vec-work, #0875bb); }
+.vec-mob-picker .l1 .code { margin-left: 6px; padding: 0 4px; border: 1px solid var(--vec-work, #0875bb); border-radius: 2px; }
 .vec-mob-picker .l1 i { font: 700 9px var(--vec-mono); letter-spacing: 0.08em; color: var(--vec-work); font-style: normal; }
 .vec-mob-picker .l2 { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vec-mob-picker .l3 { font-size: 11px; color: var(--vec-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4248,6 +4250,16 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pc-meta { margin-left: auto; font: 400 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.04em; text-transform: none; color: var(--fc-muted); }
 .pc-card-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; overflow: auto; }
 .pc-note { margin: 0; font-size: 11px; color: var(--fc-dim); }
+/* The pursuit card: the desk's decision, coloured by its state */
+.pc-pursuit.warn > header { color: var(--fc-warn); }
+.pc-pursuit.stop > header { color: var(--fc-stop, #b3261e); background: var(--vec-stop-tint, #f6dcdc); }
+.pc-pursuit.go > header { color: var(--fc-go); background: var(--vec-go-tint, #dcefe1); }
+.pc-pursuit dd.warn { color: var(--fc-warn); font-weight: 700; }
+.pc-pursuit dd.stop { color: var(--fc-stop, #b3261e); font-weight: 700; }
+.pc-pursuit dd.go { color: var(--fc-go); font-weight: 700; }
+.pc-btnrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-mini.go { border-color: var(--fc-go); color: var(--fc-go); }
+.pc-mini.stop { border-color: var(--fc-stop, #b3261e); color: var(--fc-stop, #b3261e); }
 .pc-note.warn { color: var(--fc-warn); }
 .pc-sub { font: 700 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fc-dim); margin-top: 2px; }
 .pc-brief { margin: 0; padding: 8px 10px; border: 1px solid var(--fc-line); border-radius: 2px; background: var(--fc-card-h); font-size: 12px; white-space: pre-wrap; }
@@ -4923,6 +4935,14 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-dialogue .txt.critical { color: var(--vec-stop); font-weight: 700; }
 .vec-btn.mini.reassure { margin-right: 8px; border-color: var(--vec-work); color: var(--vec-work); }
 .vec-checks i.warn { background: var(--vec-warn); }
+/* Pre-arrival advice: the same rows as the questions, numbered, read once. */
+.vec-advice .vec-qrow { align-items: flex-start; line-height: 1.35; }
+.vec-advice .vec-qrow > div { min-width: 0; }
+.vec-advice .vec-qrow .num { display: inline-block; min-width: 16px; margin-right: 4px; font: 700 10px var(--vec-mono, Consolas, monospace); color: var(--vec-text-dim); }
+.vec-advice .vec-qrow.asked .num { color: var(--vec-go); }
+.vec-advice .vec-qrow button { margin-top: 1px; }
+.vec-advice header .mono.stop { color: var(--vec-stop); }
+.vec-advice header .mono.go { color: var(--vec-go); }
 .vec-screen-head .mono.go { color: var(--vec-go); }
 .vec-screen-head .mono.stop { color: var(--vec-stop); }
 

@@ -913,5 +913,42 @@ export const scenario03: Scenario = {
       },
     ],
     onDispatch: "Right. Good. Tell them to come up the hard shoulder — I'll keep my beacons on so they can see where we are.",
+    preArrival: [
+      {
+        id: "barrier",
+        text: "Darren, you and the Polo lad stay behind that barrier. Nobody crosses a live lane — not for anything. Shout the Astra man back to you if he's out on the carriageway.",
+        key: true,
+        reply: "We're behind it. OI — mate, get off the road, come back here! — He's coming back. He's heard me.",
+      },
+      {
+        id: "still",
+        text: "Nobody tries to move the van driver, or the woman in the Kia. If anyone can shout to them, tell them to keep dead still and that help is coming.",
+        key: true,
+        reply: "Nobody's touching them. The Astra bloke's shouting it to the van — 'don't move, mate, they're coming'.",
+        replyByVariant: {
+          "kia-trapped": "Nobody's touching them. The fella in the Kia's got hold of her hand, he's telling her not to move. The Astra bloke's shouting it to the van.",
+          quiet: "The van, yeah — nobody's near him. The Kia woman's sat on the barrier with her fella, she's not going anywhere.",
+        },
+      },
+      {
+        id: "fuel",
+        text: "There's diesel on that road. No smoking anywhere near it — nobody lights up. And if the smoke off the van changes colour or you see flame, everyone back further and tell me straight away.",
+        reply: "Nobody's smoking, I've told them. I'm watching the van. It's still white. I'll tell you.",
+        replyByVariant: {
+          "van-fire": "Nobody's smoking. But it's not white any more, I've told you that — if it goes up, that Astra bloke needs to be back here, not stood at the window.",
+        },
+      },
+      {
+        id: "beacons",
+        text: "Keep your beacons on and stay by your wagon where the crews can see you. Don't go putting anything else out on the carriageway.",
+        reply: "Beacons are on, triangle's out. I'm stood by the cab. I'm not going out there again.",
+      },
+      {
+        id: "polo",
+        text: "The Polo lad — sit him down behind the barrier and keep an eye on him. If he goes pale or starts feeling faint, tell me.",
+        reply: "He's sat on the kerb by my wheel. He's shaking but he's talking. I'll keep him here.",
+        effect: { state: "anxious" },
+      },
+    ],
   },
 };

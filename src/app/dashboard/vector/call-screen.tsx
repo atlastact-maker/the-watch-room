@@ -24,7 +24,7 @@ import type { ServiceCode } from "@/lib/sim/types";
 import { labelForType } from "@/lib/sim/pda";
 import { OPENING_CODES, OPENING_SCHEME, openingCodeFits, openingCodeLabel, quickPickOpeningCodes } from "@/lib/sim/opening_codes";
 import { scenarioServices } from "@/lib/sim/coverage";
-import { CALL_QUESTIONS, GRADE_LABELS, deflectionFor, keyQuestionsFor, reassuranceFor, type CallAnswer, type CallEffect, type CallerState } from "@/lib/sim/call_script";
+import { CALL_QUESTIONS, GRADE_LABELS, adviceAckFor, deflectionFor, keyQuestionsFor, preArrivalFor, reassuranceFor, type CallAnswer, type CallEffect, type CallerState, type PreArrivalStep } from "@/lib/sim/call_script";
 import type { PendingCall } from "../components/call-stack";
 import { SERVICE_SHORT, gradeMeaning, gradeShort, hhmmss, impliedGrade, mmss, scenarioService, shortAddress } from "./model";
 import { CopyButton } from "./copy-button";
@@ -51,6 +51,10 @@ export type CallSummary = {
   openingCode: string | null;
   /** Whether that code fits the nature the scenario was built on. */
   openingCodeFits: boolean;
+  /** Pre-arrival advice read to the caller before the phone went down. */
+  adviceGiven?: string[];
+  /** Key advice that went unread. */
+  adviceMissed?: { id: string; text: string }[];
 };
 
 const STATE_LABEL: Record<CallerState, string> = { calm: "Calm", anxious: "Anxious", panicking: "Panicking", hostile: "Hostile", confused: "Confused" };
@@ -77,7 +81,7 @@ export function CallScreen({
   /** Open the incident from this call and go to Mobilising. */
   onCreate: (call: PendingCall, note: string, summary: CallSummary) => void;
   /** Open the incident and keep the caller on the line. */
-  onPreAlert: (call: PendingCall, note: string) => void;
+  onPreAlert: (call: PendingCall, note: string, openingCode?: string | null) => void;
   /** Put the phone down on a job already sent, and go to Mobilising. */
   onFinish: (call: PendingCall, summary: CallSummary) => void;
   /** Put the phone down with nobody sent. */
@@ -104,6 +108,7 @@ export function CallScreen({
   const [ended, setEnded] = useState(false);
   const [callerState, setCallerState] = useState<CallerState>(script?.caller.state ?? "anxious");
   const [suggested, setSuggested] = useState<{ grade: string; basis: string } | null>(null);
+  const [advised, setAdvised] = useState<Record<string, true>>({});
   const firedRef = useRef<Set<number>>(new Set());
   const droppedRef = useRef(false);
 
@@ -160,6 +165,13 @@ export function CallScreen({
   const callerName = script ? (detailsAsked ? script.caller.name : null) : null;
   const canReassure = callerState !== "calm" && !ended;
   const blockedByState = callerState === "panicking" || callerState === "hostile";
+  // ---- Pre-arrival advice: the script's own steps, or the service's
+  // defaults for the job type. Read once the job is sent and the caller
+  // is still on.
+  const advice = useMemo(() => preArrivalFor(s, service), [s, service]);
+  const advisedCount = advice.filter((p) => advised[p.id]).length;
+  const adviceKeys = advice.filter((p) => p.key);
+  const adviceKeysRead = adviceKeys.filter((p) => advised[p.id]).length;
 
   // Lines are stamped with the desk's clock, which ticks once a second —
   // the dialogue reads to the second, like the recording does.
@@ -190,6 +202,14 @@ export function CallScreen({
     setAsked((p) => ({ ...p, [q.id]: q.answer.text }));
     pushLines({ who: "OP", text: q.text }, { who: "CALR", text: q.answer.text, tone: q.answer.tone ?? (/trapped|inside|not breathing|weapon|unconscious|knife|gun|can't get out/i.test(q.answer.text) ? "urgent" : undefined) });
     applyEffect(q.answer.effect);
+  }
+
+  function readAdvice(p: PreArrivalStep) {
+    if (advised[p.id] || ended || !opened) return;
+    setAdvised((prev) => ({ ...prev, [p.id]: true }));
+    pushLines({ who: "OP", text: p.text }, { who: "CALR", text: adviceAckFor(callerState, p, call.variantId) });
+    applyEffect(p.effect);
+    onNote(`${s.title} — advice given: ${p.text}`);
   }
 
   function reassure() {
@@ -232,6 +252,7 @@ export function CallScreen({
     { ok: true, text: script?.caller.line === "mobile" ? "Location fix in use — AML handset" : "Location fix in use — EISEC" },
     { ok: !!type, text: type ? `Opening code · ${typeText}` : `No opening code keyed (${scheme.short})` },
     { ok: keyAsked === keyIds.length, text: `Key questions asked · ${keyAsked} of ${keyIds.length}`, soft: true },
+    ...(opened ? [{ ok: advisedCount === advice.length, text: `Pre-arrival advice · ${advisedCount} of ${advice.length}`, soft: true }] : []),
   ];
   const outstanding = readiness.filter((r) => !r.ok && !r.soft).length;
   const notCovered = services.filter((x) => !covered.includes(x));
@@ -247,10 +268,12 @@ export function CallScreen({
     grade: shownGrade,
     openingCode: type,
     openingCodeFits: openingCodeFits(s.type, type),
+    adviceGiven: advice.filter((p) => advised[p.id]).map((p) => p.text),
+    adviceMissed: adviceKeys.filter((p) => !advised[p.id]).map((p) => ({ id: p.id, text: p.text })),
   });
 
   function send() {
-    onPreAlert(call, note());
+    onPreAlert(call, note(), type);
     pushLines({ who: "SYS", text: `Sent — ${s.pda.length} on the attendance, mobilising now.` }, { who: "OP", text: "Help is on its way to you. Stay on the line with me." });
     if (script?.onDispatch) pushLines({ who: "CALR", text: script.onDispatch });
   }
@@ -587,6 +610,41 @@ export function CallScreen({
               );
             })}
           </div>
+          {opened && (
+            <div className="vec-box vec-advice" style={{ flex: "0 0 auto" }}>
+              <header>
+                <span>Pre-arrival advice</span>
+                <span className={`mono ${advisedCount === advice.length ? "go" : adviceKeysRead < adviceKeys.length ? "stop" : ""}`}>
+                  {advisedCount} of {advice.length} · key {adviceKeysRead}/{adviceKeys.length}
+                </span>
+              </header>
+              <div className="vec-sect">
+                <span>{script?.preArrival ? "In the caller's situation" : `${service} · ${typeLabel}`}</span>
+                <span>{ended ? "Line lost" : "Read in order"}</span>
+              </div>
+              {advice.map((p, n) => (
+                <div key={p.id} className={`vec-qrow${advised[p.id] ? " asked" : ""}${p.key && !advised[p.id] ? " key" : ""}`}>
+                  <div>
+                    <div>
+                      <span className="num">{n + 1}</span>
+                      {p.text}
+                      {p.key && <span className="vec-key-tag">KEY</span>}
+                    </div>
+                  </div>
+                  <button type="button" disabled={!!advised[p.id] || ended} onClick={() => readAdvice(p)}>
+                    {advised[p.id] ? "GIVEN" : "READ"}
+                  </button>
+                </div>
+              ))}
+              <div className="vec-small" style={{ padding: "6px 10px 8px" }}>
+                {ended
+                  ? "The caller has gone — nothing more can be read to them."
+                  : adviceKeysRead < adviceKeys.length
+                    ? `${adviceKeys.length - adviceKeysRead} key instruction${adviceKeys.length - adviceKeysRead === 1 ? "" : "s"} not yet read — the debrief counts them.`
+                    : "Every key instruction read. Each one goes on the log."}
+              </div>
+            </div>
+          )}
           <div className="vec-box" style={{ flex: "0 0 auto" }}>
             <header>
               <span>{opened ? "Sent" : "Ready to send"}</span>

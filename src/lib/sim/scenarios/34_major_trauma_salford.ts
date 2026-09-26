@@ -493,5 +493,49 @@ export const scenario34: Scenario = {
       },
     ],
     onDispatch: "Right. Good. Gates are open — I'll be in them. Tell them to come straight in onto the hard standing, and tell them he's up on the boards, not on the ground. They'll want to think about how they're getting him down flat.",
+    preArrival: [
+      {
+        id: "still",
+        text: "Dean, he doesn't move again — not an inch, and nobody carries him anywhere. Flat on his back on the boards, and nobody touches that leg. Nobody straightens it.",
+        key: true,
+        reply: "Kev's got him. KEV — he stays flat, nobody moves him, nobody touches the leg. — He's heard. Nobody's moving him.",
+      },
+      {
+        id: "head",
+        text: "Someone kneels at the top of his head and holds it still — hands flat either side, in line with his body. No pillow, no jacket under it. If he tries to sit up, they hold it.",
+        key: true,
+        reply: "Ryan's on his head, hands either side. I've told him — he doesn't let go, whatever Tomek says.",
+        replyByVariant: {
+          head: "Ryan's on his head, hands either side. Kev says if he does that the breathing goes noisy again — he's tilting the chin up and holding it there. That alright?",
+        },
+      },
+      {
+        id: "bleed",
+        text: "Kev keeps pressing on the shin with that towel, firm, and doesn't lift it to look. If it soaks through, another towel on top — not instead.",
+        reply: "He's leaning on it. There's more towels coming from the cabin. On top, not instead — I'll tell him.",
+        replyByVariant: {
+          head: "It's the scalp Kev's on, not the shin — he's holding the towel on it. There's blood from the ear as well. He's leaving that alone.",
+        },
+      },
+      {
+        id: "warm",
+        text: "Get coats or a blanket over him — over, not under. Nothing to eat or drink, not even a sip.",
+        reply: "Jackets are going on him now. Nothing to drink — I've already told the lad with the water bottle to put it down.",
+      },
+      {
+        id: "watch",
+        text: "Someone keeps talking to him. If he stops answering, goes quiet, or his breathing changes, you tell me that second.",
+        reply: "Kev's talking to him. He's still swearing at us, so he's with us. If that changes you'll hear it from me.",
+        replyByVariant: {
+          head: "Kev's talking to him. He's not answering back — he grunts. If the breathing goes again or he stops grunting, I'll tell you.",
+          chest: "Kev's talking to him. He's two words at a time and it's not getting any better. If it changes I'll tell you.",
+        },
+      },
+      {
+        id: "site",
+        text: "Keep the site stopped, keep the gates open, and have hats ready for the crew. They'll want to know the way up and the hatch with no cover.",
+        reply: "Site's stopped, keys are in my pocket, hats are on the cabin step. I'll walk them to the ladder myself.",
+      },
+    ],
   },
 };

@@ -184,6 +184,9 @@ export type IncidentRow = {
   commandOptions: { applianceId: string; callsign: string; typeName: string; advice?: string; comfortable?: boolean }[];
   selected: boolean;
   grade: string;
+  /** The opening code the handler keyed, and its full label. */
+  code?: string | null;
+  codeLabel?: string | null;
 };
 
 export function LiveIncidentsTile({
@@ -250,7 +253,7 @@ export function LiveIncidentsTile({
                 <span className="bar" style={r.command ? { background: "var(--vec-go)" } : undefined} />
                 <span className="body">
                   <span className="line1">
-                    <span>{r.ref}</span>
+                    <span>{r.ref}{r.code && <span className="code" title={r.codeLabel ?? undefined}> · {r.code}</span>}</span>
                     <span className="time">{fmtElapsed(r.elapsedMs)}</span>
                   </span>
                   <span className="ttl">{r.title}</span>
@@ -686,7 +689,7 @@ function MobilisePicker({ x, y, callsign, incidents, onPick, onClose }: { x: num
           <button key={i.id} type="button" role="menuitem" className={i.selected ? "sel" : ""} onClick={() => onPick(i.id)}>
             <span className={`vec-sev ${i.severity}`} />
             <span className="body">
-              <span className="l1"><b>{i.ref}</b><em>{i.grade}</em>{i.selected && <i>selected</i>}</span>
+              <span className="l1"><b>{i.ref}</b>{i.code && <span className="code" title={i.codeLabel ?? undefined}>{i.code}</span>}<em>{i.grade}</em>{i.selected && <i>selected</i>}</span>
               <span className="l2">{i.title}</span>
               <span className="l3">{i.address}</span>
             </span>

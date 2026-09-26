@@ -527,5 +527,38 @@ export const scenario23: Scenario = {
       },
     ],
     onDispatch: "Okay. Okay. Tell them there might be people in. Tell them we don't know — tell them to go in every room.",
+    preArrival: [
+      {
+        id: "nobody-in",
+        text: "Tomasz, nobody goes back in that house. Not for anyone, not for anything — not Sam, not you. The crews will go in every room; that's their job.",
+        key: true,
+        reply: "Nobody's going in. Sam — SAM, stay here. He's not going in. Nobody's going in.",
+        replyByVariant: {
+          "cellar-fire": "Nobody's going in. Sam wants to go for the cellar lad — I've got hold of him. He's not going in.",
+        },
+      },
+      {
+        id: "count",
+        text: "Go round the four of you now and work out every room — who lives in it, who's seen them tonight, whose bike or car is outside. I want a list of who's out and who nobody can account for, room by room. The first crew will ask you for it before they do anything else.",
+        key: true,
+        reply: "Okay. Okay. Sam — who's in the top back? Chloe, who's next to you? — We're doing it. Ground front and back, that's me and Sam. First back, Chloe. First front's the fire, nobody's seen him. Top — the lad here's off the top, and the girl with the bike. There's two more up there we don't know.",
+      },
+      {
+        id: "windows",
+        text: "If anyone comes to a window, shout up to them: shut the door of the room, stay at the window, the fire brigade are coming. Don't tell them to come down the stairs.",
+        reply: "I'm watching the windows. There's nobody at them. If there is — shut the door, stay at the window. Got it.",
+      },
+      {
+        id: "door",
+        text: "Leave the front door as it is. Don't open it and don't let anyone else — opening it feeds the fire and fills the hall.",
+        reply: "It's shut, it swung to. Nobody's touching it.",
+      },
+      {
+        id: "meet",
+        text: "Stay across the road where you are, keep the pavement and the road clear, and when you see them, wave them in and give them that list. You're the one who knows the house.",
+        reply: "I'll be here. I'll get the neighbours back on their step. I'll give them the rooms.",
+        effect: { state: "anxious" },
+      },
+    ],
   },
 };

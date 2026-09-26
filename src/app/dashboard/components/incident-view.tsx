@@ -1,6 +1,8 @@
 "use client";
 
 import { PASS_SEC } from "@/lib/sim/flight";
+import { openingCodeLabel } from "@/lib/sim/opening_codes";
+import { scenarioService } from "../vector/model";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Appliance } from "@/lib/sim/types";
@@ -1084,6 +1086,11 @@ export function CallInformationBody({
             {personsReported && (
               <span className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/15 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-critical)">
                 Persons reported
+              </span>
+            )}
+            {incident.openingCode && (
+              <span className="rounded-sm border border-(--color-border) px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-(--color-text)" title={openingCodeLabel(scenarioService(sc), incident.openingCode)}>
+                {openingCodeLabel(scenarioService(sc), incident.openingCode)}
               </span>
             )}
             <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-muted)">

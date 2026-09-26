@@ -167,7 +167,7 @@ import {
 import { LedsTerminal } from "./components/leds-terminal";
 import { AnprConsole } from "./components/anpr-console";
 import { hitsBetween, siteById, type AnprHit } from "@/lib/sim/anpr";
-import { createSubject, cumulative, destinationFor, subjectPosition, tickSubject, withRoute, type Sensor, type SubjectSpec, type SubjectVehicle } from "@/lib/sim/subject";
+import { createSubject, cumulative, decidePursuit as decidePursuitOn, destinationFor, subjectPosition, tickSubject, withRoute, type Sensor, type SubjectSpec, type SubjectVehicle } from "@/lib/sim/subject";
 import type { SubjectView, HoldingUnit } from "./components/subject-layer";
 import { SubjectTile } from "./vector/subject-tile";
 import { generateVehicle } from "@/lib/sim/leds-db";
@@ -1215,7 +1215,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         newLog.push({
           id: `subj:${id}:${e.at}:${e.kind}:${newLog.length}`,
           timestamp: e.at,
-          kind: e.kind === "stopped" || e.kind === "contained" ? "task_completed" : e.kind === "failed_to_stop" || e.kind === "lost" || e.kind === "gone" ? "setback" : "annotation",
+          kind: e.kind === "stopped" || e.kind === "contained" ? "task_completed" : e.kind === "failed_to_stop" || e.kind === "lost" || e.kind === "gone" || e.kind === "no_decision" || e.kind === "no_authority" ? "setback" : "annotation",
           message: e.text,
         });
       }
@@ -6153,12 +6153,24 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       logAnnotation(`${t} — opened as ${openingCodeLabel(svc, summary.openingCode)}; the nature given was ${labelForType(call.scenario.type)} (${expectedOpeningCodes(call.scenario.type).map((c) => openingCodeLabel(svc, c)).join(" or ")})`, "setback", "call-opening-code");
     }
     for (const k of summary.missedKey) logAnnotation(`${t} — never asked: "${k.text}"`, "setback", "call-key-missed");
+    // Pre-arrival advice: the key instructions a handler reads once help
+    // is on its way. Each one not given is its own line for the debrief.
+    for (const a of summary.adviceMissed ?? []) logAnnotation(`${t} — pre-arrival advice not given: "${a.text}"`, "setback", "call-advice-missed");
+    if (summary.adviceGiven && summary.adviceGiven.length > 0) logAnnotation(`${t} — pre-arrival advice given: ${summary.adviceGiven.length} step${summary.adviceGiven.length === 1 ? "" : "s"}`, "annotation", "call-advice");
   }
 
   /** Send on what is known and keep the caller talking. */
-  function preAlertFromCall(call: PendingCall, note: string) {
+  /** The opening code the handler keyed goes on the incident, where every
+   *  tile and header can read it. */
+  function stampOpeningCode(incidentId: string | null, code: string | null | undefined) {
+    if (!incidentId || !code) return;
+    setIncidents((prev) => prev.map((i) => (i.id === incidentId ? { ...i, openingCode: code } : i)));
+  }
+
+  function preAlertFromCall(call: PendingCall, note: string, openingCode?: string | null) {
     if (activeCall?.opened) return;
     autoMobiliseRef.current = triggerScenario(call.scenario, call.variantId);
+    stampOpeningCode(autoMobiliseRef.current, openingCode);
     setActiveCall((prev) => (prev && prev.id === call.id ? { ...prev, opened: true } : prev));
     logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}; caller kept on the line`, "annotation", "call-sent");
     setStatusMsg(`${call.scenario.title} sent — caller still on the line`);
@@ -6193,6 +6205,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     if (!activeCall?.opened) {
       autoMobiliseRef.current = triggerScenario(call.scenario, call.variantId);
       logAnnotation(`${call.scenario.title} — sent on ${note || "the nature given"}`, "annotation", "call-sent");
+      stampOpeningCode(autoMobiliseRef.current, summary.openingCode);
+    } else if (summary.openingCode) {
+      const live = incidents.find((i) => i.scenarioId === call.scenario.id && !i.resolvedAt);
+      stampOpeningCode(live?.id ?? null, summary.openingCode);
     }
     logCallSummary(call, summary);
     setStatusMsg(`${call.scenario.title} created — allocate the attendance`);
@@ -6252,6 +6268,31 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     const from = d.origin ?? st?.coords;
     if (!from || !to) return to;
     return { lat: from.lat + (to.lat - from.lat) * t, lng: from.lng + (to.lng - from.lng) * t };
+  }
+
+  /** The pursuit commander's decision. Refusing or discontinuing stands
+   *  every following unit down: their follow and box tasks end, the
+   *  track goes cold, and the log records who decided what and when. */
+  function decidePursuit(incidentId: string, decision: "authorise" | "refuse" | "discontinue", reason?: string) {
+    const s = subjectsRef.current[incidentId];
+    if (!s) return;
+    const at = Date.now();
+    const { subject, event } = decidePursuitOn(s, at, decision, reason);
+    setSubjects((prev) => ({ ...prev, [incidentId]: subject }));
+    const openSec = Math.round((at - (s.pursuit?.soughtAt ?? at)) / 1000);
+    const late = decision !== "discontinue" && openSec > 60;
+    setLog((prev) => [
+      ...prev,
+      { id: `pursuit:${incidentId}:${at}`, timestamp: at, kind: late ? "setback" : "annotation", message: `${event.text}${late ? ` — decision took ${openSec} s` : ""}` },
+    ]);
+    if (decision !== "authorise") {
+      for (const t of tasks) {
+        if (t.state !== "active") continue;
+        if (!deployments.some((d) => d.applianceId === t.applianceId && d.incidentId === incidentId)) continue;
+        if (t.kind === "follow_contain" || t.kind === "tpac_box" || t.kind === "stinger" || t.kind === "tactical_contact") abortTask(t.id);
+      }
+    }
+    setStatusMsg(decision === "authorise" ? "Pursuit authorised" : decision === "refuse" ? "Pursuit refused — units dropping back" : "Pursuit discontinued — units dropping back");
   }
 
   /** Send a committed unit to hold a point on the patch — a camera site
@@ -7249,6 +7290,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                 policePage={mdtPolicePage}
                 commanderApplianceId={handover?.applianceId ?? null}
                 subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
+                onPursuitDecision={decidePursuit}
                 onDeclareTacticalMode={declareTacticalMode}
                 structural={activeIncident ? { integrity: 100 - (runtimes[activeIncident.id]?.structuralDamage ?? 0), collapsedAt: runtimes[activeIncident.id]?.collapsedAt ?? null, evacuatedAt: runtimes[activeIncident.id]?.evacuatedAt ?? null, injured: runtimes[activeIncident.id]?.injuredCrewIds.length ?? 0 } : undefined}
                 onEvacuate={evacuateFireground}

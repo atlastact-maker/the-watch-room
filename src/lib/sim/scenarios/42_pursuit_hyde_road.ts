@@ -214,6 +214,9 @@ export const scenario42: Scenario = {
     speedKph: 55,
     compliance: 0,
     headStartSec: 0,
+    // AP214 is already behind it, commentating, asking for authority.
+    pursuitFromStart: true,
+    initialUnitCallsign: "AP214",
   },
 
   // Top-down — 160 m of Hyde Road just east of Belle Vue station, the
@@ -628,5 +631,40 @@ export const scenario42: Scenario = {
       text: "Going to the radio — control will relay from here.",
     },
     onDispatch: "Received. AP214 says tell RPU he's the marked response car with the blues on — he'll drop back the second they're past him and hand it over.",
+    preArrival: [
+      {
+        id: "hold-back",
+        text: "Relay to AP214: hold back, do not close, do not push it. Initial phase only — he follows and commentates, nothing more, until a tactical unit is behind him.",
+        key: true,
+        reply: "Passed. AP214 acknowledges — holding two hundred back, not closing.",
+        replyByVariant: {
+          stops: "Passed. AP214 acknowledges — he's stopped, it's stopped, he's not gone near it.",
+        },
+      },
+      {
+        id: "commentary",
+        text: "Keep the commentary coming — location, direction, speed, traffic, every thirty seconds, and the instant it turns off the main road.",
+        reply: "He's on it. Location, direction, speed, thirty seconds. Anything off the A57 comes straight to you.",
+      },
+      {
+        id: "stop",
+        text: "If it stops or crashes, he stays in his car and stays back — one officer does not approach a fail-to-stop on his own. He waits for the second unit.",
+        key: true,
+        reply: "Passed. AP214 acknowledges — stays in the car, waits for the second unit.",
+        replyByVariant: {
+          stops: "Passed. He's out with him already — the driver's stood by the Golf with his hands where AP214 can see them. He says he's not putting hands on till the second unit's there.",
+        },
+      },
+      {
+        id: "abort",
+        text: "If the risk to the public goes up — pedestrians, the estate, a school — he tells us and he's ready to be stood down. That call is ours, not his.",
+        reply: "He knows. He says if it goes into the estate he'll be the one asking.",
+      },
+      {
+        id: "handover",
+        text: "When RPU are with him, he drops back and hands over on the channel. He doesn't stay on it.",
+        reply: "Received. He'll drop back the second they're past.",
+      },
+    ],
   },
 };
