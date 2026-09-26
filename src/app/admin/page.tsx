@@ -17,6 +17,7 @@ import {
   addAdminNote,
   deleteAdminNote,
   setDiscordGranted,
+  acceptAllPendingTesterApplications,
   decideTesterApplication,
 } from "./actions";
 import type { TesterApplication } from "@/lib/prealpha";
@@ -603,12 +604,21 @@ export default async function AdminPage({
 
         {tab === "prealpha" && (
           <section className="space-y-3">
-            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Pre-alpha applications
-              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                {pendingTesterApps} awaiting review · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} in all
-              </span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+                Pre-alpha access requests
+                <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
+                  {pendingTesterApps} waiting · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} in all
+                </span>
+              </h2>
+              {pendingTesterApps > 0 && (
+                <form action={acceptAllPendingTesterApplications}>
+                  <button type="submit" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>
+                    Accept all {pendingTesterApps} waiting
+                  </button>
+                </form>
+              )}
+            </div>
             {(missing020 || missingTesterApps) && (
               <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
                 Migration 020 (pre-alpha applications) has not reached the app yet — run supabase/migrations/020_prealpha_applications.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, &apos;reload schema&apos;;  and reload this page.
@@ -616,7 +626,7 @@ export default async function AdminPage({
             )}
             {testerApps.length === 0 && !missingTesterApps ? (
               <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
-                No applications yet. They land here when someone applies at /prealpha.
+                No requests yet. They land here when someone ticks &ldquo;Join the pre-alpha&rdquo; at signup or presses Request pre-alpha access on their standby page.
               </p>
             ) : (
               <div className="space-y-3">
@@ -632,9 +642,12 @@ export default async function AdminPage({
                             {a.discord && <span className="text-[11px] text-(--color-info)">@{a.discord}</span>}
                             <span className={`font-mono text-[10px] uppercase tracking-widest ${tone}`}>{a.status}{a.tester ? " · tester" : ""}</span>
                           </div>
-                          <p className="text-[11px] text-(--color-text-dim)">Applied {fmtDate(a.created_at)}{a.decided_at ? ` · decided ${fmtDate(a.decided_at)}` : ""} · {a.hours} · {a.platform}</p>
+                          <p className="text-[11px] text-(--color-text-dim)">
+                            Requested {fmtDate(a.created_at)}{a.decided_at ? ` · decided ${fmtDate(a.decided_at)}` : ""}
+                            {[a.hours, a.platform].filter(Boolean).length > 0 ? ` · ${[a.hours, a.platform].filter(Boolean).join(" · ")}` : ""}
+                          </p>
                           {a.background && <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Background · </span>{a.background}</p>}
-                          <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Why · </span>{a.why}</p>
+                          {a.why && <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Why · </span>{a.why}</p>}
                           {a.note && <p className="text-[12px] text-(--color-amber)"><span className="font-mono text-[10px] uppercase tracking-widest">Note · </span>{a.note}</p>}
                         </div>
                         <form action={decideTesterApplication} className="flex shrink-0 flex-col gap-2 sm:w-56">

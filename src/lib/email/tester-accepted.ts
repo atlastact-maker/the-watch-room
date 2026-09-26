@@ -1,4 +1,4 @@
-// The email an applicant gets when their pre-alpha application has been
+// The email an operator gets when their pre-alpha access request has been
 // accepted: the doors are open to them, and where to start.
 //
 // Same shape as the auth templates in supabase/templates: dark, the

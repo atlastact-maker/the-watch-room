@@ -46,9 +46,9 @@ export type TesterApplication = {
   decided_at: string | null;
 };
 
-/** This account's own application, which RLS lets it read. Any failure
- *  reads as "none": the worst case is being invited to apply again, and
- *  the insert then says the row already exists. */
+/** This account's own request, which RLS lets it read. Any failure
+ *  reads as "none": the worst case is being invited to request again, and
+ *  the upsert then finds the row already there. */
 export async function preAlphaApplication(
   supabase: SupabaseClient,
   userId: string | undefined | null,
@@ -70,6 +70,60 @@ export async function preAlphaApplication(
   } catch {
     return { standing: "none", application: null, tableMissing: false };
   }
+}
+
+/** Whether the account asked to join the pre-alpha when it signed up.
+ *  The tick rides in user_metadata across the email-confirmation gap
+ *  (there is no session to write a row with until the link is clicked);
+ *  ensurePreAlphaRequest turns it into the row on the first signed-in
+ *  visit. */
+export function prealphaRequested(meta: unknown): boolean {
+  return !!meta && typeof meta === "object" && (meta as { prealpha_requested?: unknown }).prealpha_requested === true;
+}
+
+type MinimalUser = { id: string; email?: string | null; user_metadata?: unknown };
+
+/** File the account's request for pre-alpha access: one pending row,
+ *  from the account's own details. Nothing to fill in. */
+export async function filePreAlphaRequest(
+  supabase: SupabaseClient,
+  user: MinimalUser,
+): Promise<{ ok: true } | { ok: false; message: string; tableMissing?: boolean }> {
+  if (!prealphaOpen()) return { ok: false, message: "Applications are not open yet." };
+  if (!user.email) return { ok: false, message: "Log in first." };
+  const meta = (user.user_metadata ?? {}) as { callsign?: unknown; advisor_discord?: unknown };
+  const row = {
+    user_id: user.id,
+    email: user.email,
+    callsign: typeof meta.callsign === "string" ? meta.callsign : "",
+    discord: typeof meta.advisor_discord === "string" ? meta.advisor_discord : "",
+    agreed: true,
+    status: "pending" as const,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabase.from("tester_applications").upsert(row, { onConflict: "user_id", ignoreDuplicates: true });
+  if (error) {
+    if (/tester_applications/.test(error.message) || error.code === "42P01") {
+      return { ok: false, message: "Pre-alpha access is not set up on the server yet — try again later.", tableMissing: true };
+    }
+    return { ok: false, message: error.message };
+  }
+  return { ok: true };
+}
+
+/** The account's standing, after honouring a request made at signup
+ *  that has not been filed yet. */
+export async function ensurePreAlphaRequest(
+  supabase: SupabaseClient,
+  user: MinimalUser | null | undefined,
+): Promise<{ standing: PreAlphaStanding; application: TesterApplication | null; tableMissing: boolean }> {
+  const current = await preAlphaApplication(supabase, user?.id);
+  if (!user || current.standing !== "none" || current.tableMissing || !prealphaRequested(user.user_metadata) || !prealphaOpen()) {
+    return current;
+  }
+  const filed = await filePreAlphaRequest(supabase, user);
+  if (!filed.ok) return { ...current, tableMissing: filed.tableMissing === true };
+  return preAlphaApplication(supabase, user.id);
 }
 
 /** What a tester gets and what we ask — the briefing, in one place so

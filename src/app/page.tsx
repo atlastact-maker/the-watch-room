@@ -120,7 +120,7 @@ export default async function LandingPage({
               <Link href="/login" className={btnGhost}>Log in</Link>
             </div>
             <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
-              {testing ? "Closed pre-alpha · applications open · reviewed by hand" : `Closed pre-alpha · applications open ${prealphaOpensLabel()}`}
+              {testing ? "Closed pre-alpha · access open · granted by hand" : `Closed pre-alpha · access opens ${prealphaOpensLabel()}`}
             </p>
           </div>
 
@@ -193,7 +193,7 @@ export default async function LandingPage({
                 Three fire, three ambulance, three police, each playing out differently from shift to shift. Testers get the desk from the call to the debrief, a bug report one click away, and a private room on the Discord with the developer and the advisors.
               </p>
               <p className="mt-3 text-[15px] leading-relaxed text-(--color-text-muted)">
-                Create an account, then apply from it. Applications are read by hand and you get an email when yours has been.
+                Tick &ldquo;Join the pre-alpha&rdquo; when you sign up, or request access from your account if you already have one. Access is granted by hand and you get an email when the desk is open to you.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
                 {open && <Link href="/signup?prealpha=1" className={btnPrimary}>Create an account</Link>}

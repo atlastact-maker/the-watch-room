@@ -8,7 +8,8 @@ import {
   type AdvisorStanding,
 } from "@/lib/auth/advisor-standing";
 import { signupOpen } from "@/lib/auth/signup-window";
-import { preAlphaApplication, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { ensurePreAlphaRequest, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { RequestPreAlphaButton } from "@/app/prealpha/request-button";
 import { ServiceBadge } from "@/app/components/service-insignia";
 import { AdvisorSync } from "@/app/components/advisor-sync";
 
@@ -58,7 +59,7 @@ export default async function StandbyPage() {
   const { role, icon: assignedIcon } = await accessProfile(supabase, user.email);
   const standing = await advisorStanding(supabase, user, role);
   const accepted = standing === "accepted";
-  const prealpha = await preAlphaApplication(supabase, user.id);
+  const prealpha = await ensurePreAlphaRequest(supabase, user);
   const testingOpen = prealphaOpen();
   const heading = HEADINGS[standing];
   // Accepted advisors wear the insignia of the service off their
@@ -120,8 +121,8 @@ export default async function StandbyPage() {
               </p>
               <p className="text-(--color-text-dim)">
                 {testingOpen
-                  ? "Pre-alpha testing applications are open to registered operators now; see below."
-                  : `Shifts aren't open yet. Pre-alpha testing applications open to registered operators on ${prealphaOpensLabel()}.`}
+                  ? "Pre-alpha access is open to registered operators now; request it below."
+                  : `Shifts aren't open yet. Pre-alpha access opens to registered operators on ${prealphaOpensLabel()}.`}
               </p>
             </div>
           ) : (
@@ -199,20 +200,33 @@ export default async function StandbyPage() {
         {/* The pre-alpha: where this account stands with it, and the door. */}
         <div className="rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 px-4 py-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-(--color-amber)">Closed pre-alpha</p>
-          <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
-            {prealpha.standing === "pending"
-              ? "Your application is in review. You will get an email when it has been looked at."
-              : prealpha.standing === "declined"
-                ? "Reviewed, and not this time. There will be a wider test after the pre-alpha."
-                : testingOpen
-                  ? "Applications are open. Nine live jobs, the whole desk, and a tester room on the Discord."
-                  : `Applications open ${prealphaOpensLabel()}.`}
-          </p>
+          {prealpha.standing === "pending" ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
+              Your request for access is in. Access is granted by hand; you will get an email when the desk is open to you.
+            </p>
+          ) : prealpha.standing === "declined" ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
+              Reviewed, and not this time. There will be a wider test after the pre-alpha.
+            </p>
+          ) : !testingOpen ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Access opens {prealphaOpensLabel()}.</p>
+          ) : prealpha.tableMissing ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Pre-alpha access is being set up. Try again shortly.</p>
+          ) : (
+            <>
+              <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
+                Nine live jobs, the whole desk, and a tester room on the Discord. One press to ask for access.
+              </p>
+              <div className="mt-3">
+                <RequestPreAlphaButton compact />
+              </div>
+            </>
+          )}
           <Link
             href="/prealpha"
             className="mt-3 inline-flex border border-(--color-amber)/60 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) transition-colors hover:bg-(--color-amber)/10"
           >
-            {prealpha.standing === "pending" ? "Your application" : testingOpen ? "Apply for the pre-alpha" : "About the pre-alpha"}
+            {prealpha.standing === "pending" ? "Your standing" : "About the pre-alpha"}
           </Link>
         </div>
 

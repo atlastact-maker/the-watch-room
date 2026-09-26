@@ -53,12 +53,12 @@ export default async function SignupPage({
           </div>
           {open && prealpha === "1" && (
             <p className="text-xs leading-relaxed text-(--color-text-muted)">
-              Applying for the <span className="text-(--color-amber)">pre-alpha</span>: create the account, confirm your email, then log in and the application is at{" "}
+              Joining the <span className="text-(--color-amber)">pre-alpha</span>: the box below is ticked for you. Create the account, confirm your email, and your request is in. The briefing is at{" "}
               <Link href="/prealpha" className="text-(--color-info) underline hover:text-(--color-text)">/prealpha</Link>.
             </p>
           )}
           {open ? (
-            <SignupForm defaultAdvisorOpen={advisor === "1"} />
+            <SignupForm defaultAdvisorOpen={advisor === "1"} defaultPrealpha={prealpha === "1"} />
           ) : (
             <div className="space-y-3">
               <p className="text-xs leading-relaxed text-(--color-text-muted)">

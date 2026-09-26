@@ -207,6 +207,35 @@ export async function decideTesterApplication(formData: FormData): Promise<void>
   revalidatePath("/prealpha");
 }
 
+/** Grant every pending pre-alpha request in one go: the same decision
+ *  RPC per row, so the tester rows and the emails behave exactly as a
+ *  single Accept would. */
+export async function acceptAllPendingTesterApplications(): Promise<void> {
+  const supabase = await adminClient();
+  const { data, error } = await supabase.rpc("admin_list_tester_applications", { p_limit: 500 });
+  if (error?.message?.includes("admin_list_tester_applications")) {
+    redirect("/admin?missing=020&tab=prealpha");
+  }
+  if (error) throw new Error(error.message);
+  const pending = ((data ?? []) as { user_id: string; email: string; status: string }[]).filter((a) => a.status === "pending");
+  for (const a of pending) {
+    const { data: changed, error: decideError } = await supabase.rpc("admin_decide_tester_application", {
+      p_user_id: a.user_id,
+      p_status: "accepted",
+      p_note: null,
+    });
+    if (decideError) throw new Error(decideError.message);
+    if (changed === true && a.email) {
+      const { subject, html } = testerAcceptedEmail();
+      const result = await sendEmail({ to: a.email, subject, html });
+      if (!result.sent) console.error(`tester acceptance email not sent to ${a.email}: ${result.reason}`);
+    }
+  }
+  revalidatePath("/admin");
+  revalidatePath("/prealpha");
+  revalidatePath("/standby");
+}
+
 /** Triage a bug report: status, and a note if one was typed. */
 export async function setBugReport(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "").trim();

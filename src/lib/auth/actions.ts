@@ -4,6 +4,7 @@ import { signupOpen } from "./signup-window";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { filePreAlphaRequest } from "@/lib/prealpha";
 import {
   AdvisorSchema,
   ForgotPasswordSchema,
@@ -59,6 +60,12 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
     advisor = adv.data;
   }
 
+  // "Join the pre-alpha": a tick, not a form. It rides in user_metadata
+  // like the advisor answers, and becomes the request row on the first
+  // signed-in visit (lib/prealpha ensurePreAlphaRequest), or right away
+  // below when a session exists.
+  const wantsPrealpha = formData.get("prealpha") === "on";
+
   const supabase = await createClient();
   const origin = await siteOrigin();
   const { data, error } = await supabase.auth.signUp({
@@ -76,6 +83,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
       data: {
         callsign: parsed.data.callsign,
         newsletter_opt_in: parsed.data.newsletter,
+        ...(wantsPrealpha ? { prealpha_requested: true } : {}),
         ...(advisor ? advisorMetadata(advisor) : {}),
       },
     },
@@ -90,6 +98,9 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
       callsign: parsed.data.callsign,
       ...advisorRow(advisor),
     });
+  }
+  if (wantsPrealpha && data.session && data.user) {
+    await filePreAlphaRequest(supabase, data.user);
   }
   // Email confirmation enabled → no session yet. Tell the operator to
   // check their inbox instead of bouncing them off the login wall.

@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
-import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, preAlphaApplication, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
-import { PreAlphaForm } from "./prealpha-form";
+import { RequestPreAlphaButton } from "./request-button";
 
 // The pre-alpha, explained once for everyone: what it is, what a tester
 // gets, what we ask, and what is not there yet. The bottom of the page
 // depends on who is reading:
 //
-//   visitor      — create an account, or log in, then apply.
-//   signed in    — the application form.
-//   pending      — received; the form again, in case they want to add to it.
+//   visitor      — create an account (ticking "join the pre-alpha"), or
+//                  log in and press the button.
+//   signed in    — the one button: request pre-alpha access.
+//   pending      — request received.
 //   declined     — reviewed and not this time.
 //   accepted     — the tester briefing: which jobs are open, how to start,
 //                  how to report, and the door to the Ops Centre.
@@ -19,7 +20,7 @@ import { PreAlphaForm } from "./prealpha-form";
 export const metadata = {
   title: "Pre-alpha — The Watch Room",
   description:
-    "The Watch Room's closed pre-alpha: nine live jobs across Fire, Ambulance and Police, one operator, one county. Apply to test it.",
+    "The Watch Room's closed pre-alpha: nine live jobs across Fire, Ambulance and Police, one operator, one county. Request access to test it.",
 };
 
 const h2Cls = "font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]";
@@ -34,7 +35,7 @@ export default async function PreAlphaPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const open = prealphaOpen();
-  const { standing, application, tableMissing } = await preAlphaApplication(supabase, user?.id);
+  const { standing, application, tableMissing } = await ensurePreAlphaRequest(supabase, user);
   const inAlready = user ? await hasShiftAccess(supabase, user.email) : false;
   const admin = user ? await hasAdminAccess(supabase, user.email) : false;
   const accepted = standing === "accepted" || (inAlready && !admin) || admin;
@@ -164,17 +165,17 @@ export default async function PreAlphaPage() {
 
         {!accepted && (
           <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
-            <h2 className={h2Cls}>{standing === "pending" ? "Your application" : standing === "declined" ? "Your application" : "Apply"}</h2>
+            <h2 className={h2Cls}>{standing === "none" ? "Get in" : "Your request"}</h2>
             {!open ? (
               <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
-                Applications open on <span className="text-(--color-amber)">{prealphaOpensLabel()}</span>. Create an account now and you can apply the moment they do.
+                Access opens on <span className="text-(--color-amber)">{prealphaOpensLabel()}</span>. Create an account now and you can request it the moment it does.
               </p>
             ) : tableMissing ? (
-              <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">Applications are being set up. Try again shortly.</p>
+              <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">Pre-alpha access is being set up. Try again shortly.</p>
             ) : !user ? (
               <>
                 <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
-                  Applying takes a couple of minutes: an account, then five questions. Applications are reviewed by hand; you will see your standing here and get an email when yours has been looked at.
+                  Create an account and tick <span className="text-(--color-amber)">Join the pre-alpha</span> on the way in. Already have one? Log in and press the button. Access is granted by hand; you will see your standing here and get an email when the desk is open to you.
                 </p>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Link href="/signup?prealpha=1" className={btnPrimary}>Create an account</Link>
@@ -185,20 +186,17 @@ export default async function PreAlphaPage() {
               <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
                 Reviewed, and not this time. Thank you for offering. The pre-alpha is deliberately small; there will be a wider test after it, and your account is ready for that.
               </p>
+            ) : standing === "pending" ? (
+              <div className="mt-3 rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-4 py-3">
+                <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">Request received</p>
+                <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
+                  Sent {application ? new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}. Access is granted by hand, so there is a short wait. You will get an email when the desk is open to you.
+                </p>
+              </div>
             ) : (
-              <>
-                {standing === "pending" && (
-                  <div className="mt-3 rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-4 py-3">
-                    <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">In review</p>
-                    <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
-                      Received {application ? new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}. Applications are reviewed by hand; you will get an email when yours has been. You can add to your answers below.
-                    </p>
-                  </div>
-                )}
-                <div className="mt-5">
-                  <PreAlphaForm existing={application} />
-                </div>
-              </>
+              <div className="mt-4">
+                <RequestPreAlphaButton />
+              </div>
             )}
           </section>
         )}
