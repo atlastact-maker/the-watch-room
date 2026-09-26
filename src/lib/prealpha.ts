@@ -182,6 +182,41 @@ export const PREALPHA_ACCESS = [
   { title: "Your name on the record", body: "The service record keeps every shift; pre-alpha testers keep theirs when the doors open, with the tester mark against the callsign." },
 ] as const;
 
+/** What is in the pre-alpha, by part of the desk, and what we most want
+ *  tested in each. The briefing lists it; the trailer says the same. */
+export const PREALPHA_FOCUS = [
+  {
+    title: "The 999 call",
+    body: "Scripted callers who answer what you ask, opening codes (NICL, IRS and AMPDS), grading, and pre-arrival advice read while the crews run.",
+    test: "Does the call feel like a call? Are the right questions there, and does the grade land where it should?",
+  },
+  {
+    title: "Fire ground control",
+    body: "Sectors, BA board and entry control, water from hydrants and relays, jets, tactical mode, informative and stop messages, casualties found and brought out.",
+    test: "Does the fireground behave like one? Timings for BA, water and rescue; whether the messages read as they would on the radio.",
+  },
+  {
+    title: "Casualty care",
+    body: "Vitals monitor, triage sieve, airway and breathing, oxygen and medication orders, packaging, hospital pre-alert and conveyance.",
+    test: "Does the patient respond like a patient? Is the care pathway clear, and do the vitals move the way a clinician would expect?",
+  },
+  {
+    title: "Police ground control",
+    body: "Containment and cordons, arrest, search, PNC and LEDS checks on people and vehicles, domestic risk, custody and transport.",
+    test: "Does the job run like a job? Are the checks and the options the ones an officer would want, in the order they would want them?",
+  },
+  {
+    title: "Mobilising and the map",
+    body: "The county board with real stations and appliances, routing on real roads, park spots, crews on foot at the scene.",
+    test: "Are the attendances right for the call? Do the drive times feel right for Greater Manchester?",
+  },
+  {
+    title: "The debrief and the record",
+    body: "Every shift scored against the standard: mobilise time, attendance, advice given, decisions on the ground. A service record that keeps every shift.",
+    test: "Is the score fair? Does it tell you why?",
+  },
+] as const;
+
 export const PREALPHA_ASKS = [
   "A couple of shifts a week if you can, one if you can't — a shift is twenty minutes to an hour.",
   "Report what breaks through the in-game form, and say what you expected instead.",

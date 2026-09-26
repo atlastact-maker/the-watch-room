@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
-import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaClosed, prealphaClosesLabel, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaClosed, prealphaClosesLabel, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { RequestPreAlphaButton } from "./request-button";
 import { Notice } from "@/app/components/notice";
@@ -163,6 +163,21 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
             </ol>
           </section>
         )}
+
+        <section className="mt-9 border-t border-(--color-border-subtle) pt-6">
+          <h2 className={h2Cls}>What is in it, and what we want tested</h2>
+          <div className="mt-3 divide-y divide-(--color-border-subtle)/60 rounded-sm border border-(--color-border-subtle)">
+            {PREALPHA_FOCUS.map((f) => (
+              <div key={f.title} className="grid gap-1 px-4 py-3 sm:grid-cols-[160px_1fr] sm:gap-4">
+                <p className="text-sm font-medium text-(--color-text)">{f.title}</p>
+                <div>
+                  <p className="text-[13px] leading-relaxed text-(--color-text-muted)">{f.body}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-(--color-amber-dim)">{f.test}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-9 border-t border-(--color-border-subtle) pt-6">
           <h2 className={h2Cls}>What we ask</h2>
