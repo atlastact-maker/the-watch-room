@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { requestPreAlphaAccess, type PreAlphaFormState } from "@/app/actions/prealpha";
+import { Notice } from "@/app/components/notice";
 
 // The one button. Pressing it is the agreement: bugs through the in-game
 // form, talk on the Discord, nothing public until the doors open.
@@ -11,12 +12,9 @@ export function RequestPreAlphaButton({ compact = false }: { compact?: boolean }
 
   if (state?.ok) {
     return (
-      <div className="rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-3">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">✓ Request received</p>
-        <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
-          Access is granted by hand, so there is a short wait. You will get an email when the desk is open to you.
-        </p>
-      </div>
+      <Notice tone="ok" title="Request received">
+        <p>Access is granted by hand, so there is a short wait. You will get an email when you are on the list, and another when the doors open.</p>
+      </Notice>
     );
   }
 

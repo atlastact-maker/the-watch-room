@@ -353,9 +353,7 @@ export default function SettingsPage() {
                 <p key={msg} className="text-sm text-(--color-critical)">{msg}</p>
               ))}
               {advState?.ok && advState.message && (
-                <p className="font-mono text-[10px] uppercase tracking-widest text-(--color-ok)">
-                  ✓ {advState.message}
-                </p>
+                <p className="text-sm text-(--color-ok)">{advState.message}</p>
               )}
               <button
                 type="submit"

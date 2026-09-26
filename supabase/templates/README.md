@@ -1,8 +1,10 @@
 # Auth email templates
 
-The two emails an applicant ever receives. Kept here so they are version
-controlled and reviewable; Supabase does not read this directory — the
-markup has to be pasted into the dashboard.
+The two auth emails. Generated from the same shell as every other email
+the site sends (`src/lib/email/layout.ts`) by `npm run email:templates`,
+so the inbox sees one sender; edit the shell or the copy in
+`tools/gen-auth-templates.ts`, regenerate, and paste. Supabase does not
+read this directory — the markup has to be pasted into the dashboard.
 
 ## Installing a template
 

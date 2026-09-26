@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoginForm } from "./login-form";
+import { Notice } from "@/app/components/notice";
 
 export default async function LoginPage({
   searchParams,
@@ -27,21 +28,14 @@ export default async function LoginPage({
           </p>
 
           {error === "verify_failed" && (
-            <p className="mt-6 rounded-sm border border-(--color-critical)/50 bg-(--color-critical)/10 px-3 py-2.5 text-[13px] leading-relaxed text-(--color-critical)">
-              That link didn&apos;t work — it may have expired or already
-              been used. Log in below, or get a fresh one by{" "}
-              <Link href="/signup" className="underline underline-offset-2">
-                registering
-              </Link>{" "}
-              or{" "}
-              <Link
-                href="/forgot-password"
-                className="underline underline-offset-2"
-              >
-                resetting your password
-              </Link>
-              .
-            </p>
+            <Notice tone="critical" title="That link didn't work" className="mt-6">
+              <p>
+                It may have expired or already been used. Log in below, or get a fresh one by{" "}
+                <Link href="/signup" className="text-(--color-text) underline underline-offset-2">registering</Link>{" "}
+                or{" "}
+                <Link href="/forgot-password" className="text-(--color-text) underline underline-offset-2">resetting your password</Link>.
+              </p>
+            </Notice>
           )}
 
           <div className="mt-8">

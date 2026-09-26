@@ -2,18 +2,16 @@
 
 import { useActionState } from "react";
 import { requestPasswordReset } from "@/lib/auth/actions";
+import { Notice } from "@/app/components/notice";
 
 export function ForgotPasswordForm() {
   const [state, action, pending] = useActionState(requestPasswordReset, undefined);
 
   if (state?.ok && state.message) {
     return (
-      <div className="rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-3">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">
-          ✓ Link sent
-        </p>
-        <p className="mt-1.5 text-sm text-(--color-text-muted)">{state.message}</p>
-      </div>
+      <Notice tone="ok" title="Check your inbox">
+        <p>{state.message}</p>
+      </Notice>
     );
   }
 

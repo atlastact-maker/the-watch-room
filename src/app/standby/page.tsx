@@ -93,8 +93,8 @@ export default async function StandbyPage() {
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-(--color-amber)">Closed pre-alpha</p>
           {listed ? (
             <>
-              <p className="mt-1.5 font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">✓ You&apos;re on the pre-alpha</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
+              <p className="mt-1.5 text-sm font-semibold text-(--color-ok)">You&apos;re on the pre-alpha</p>
+              <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
                 {doors.open
                   ? "The desk is open to you. If the Ops Centre does not open, log out and back in."
                   : "The doors aren't open yet. They open to every tester at once, and you will get an email the moment they do. The briefing says what is coming and how a shift will run."}
@@ -102,8 +102,8 @@ export default async function StandbyPage() {
             </>
           ) : prealpha.standing === "pending" ? (
             <>
-              <p className="mt-1.5 font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">Request received</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
+              <p className="mt-1.5 text-sm font-semibold text-(--color-text)">Request received</p>
+              <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
                 Access is granted by hand; you will get an email when you are on the list, and another when the doors open.
               </p>
             </>

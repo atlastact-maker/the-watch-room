@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { signup } from "@/lib/auth/actions";
 import { AdvisorQuestions } from "@/app/components/advisor-questions";
+import { Notice } from "@/app/components/notice";
 
 export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false }: { defaultAdvisorOpen?: boolean; defaultPrealpha?: boolean }) {
   const [state, action, pending] = useActionState(signup, undefined);
@@ -12,16 +13,12 @@ export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false
   // the inbox link before login works.
   if (state?.needsConfirmation) {
     return (
-      <div className="rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">
-          ✓ Account created — confirm your email
+      <Notice tone="ok" title="Check your inbox">
+        <p>
+          We have sent a confirmation link to the address you gave. Click it and your account is live; then log in.
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-(--color-text-muted)">
-          We&apos;ve sent a confirmation link to your inbox. Click it, then log
-          in and take the chair. Nothing arrived after a couple of minutes?
-          Check spam.
-        </p>
-      </div>
+        <p>Nothing after a couple of minutes? Check your spam folder.</p>
+      </Notice>
     );
   }
 

@@ -4,6 +4,7 @@ import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-ac
 import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { RequestPreAlphaButton } from "./request-button";
+import { Notice } from "@/app/components/notice";
 
 // The pre-alpha, explained once for everyone: what it is, what a tester
 // gets, what we ask, and what is not there yet. The bottom of the page
@@ -97,20 +98,14 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
         </div>
 
         {accepted && invited === "1" && (
-          <div className="mt-6 rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-3">
-            <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">✓ Invitation accepted</p>
-            <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
-              {waiting ? "You are on the tester list. Read the briefing below; the desk opens when the doors do." : "The desk is open to you. Read the briefing below, then open the Ops Centre."}
-            </p>
-          </div>
+          <Notice tone="ok" title="Invitation accepted" className="mt-6">
+            <p>{waiting ? "You are on the tester list. Read the briefing below; the desk opens when the doors do." : "The desk is open to you. Read the briefing below, then open the Ops Centre."}</p>
+          </Notice>
         )}
         {waiting && (
-          <div className="mt-6 rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-4 py-3">
-            <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">Doors not open yet</p>
-            <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
-              You are on the pre-alpha. The doors open to every tester at once, and you will get an email the moment they do. Until then, this page is the briefing.
-            </p>
-          </div>
+          <Notice tone="amber" title="The doors are not open yet" className="mt-6">
+            <p>You are on the pre-alpha. The doors open to every tester at once, and you will get an email the moment they do. Until then, this page is the briefing.</p>
+          </Notice>
         )}
         {accepted && (
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -209,12 +204,11 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
                 Reviewed, and not this time. Thank you for offering. The pre-alpha is deliberately small; there will be a wider test after it, and your account is ready for that.
               </p>
             ) : standing === "pending" ? (
-              <div className="mt-3 rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-4 py-3">
-                <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">Request received</p>
-                <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
-                  Sent {application ? new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}. Access is granted by hand, so there is a short wait. You will get an email when the desk is open to you.
+              <Notice tone="amber" title="Request received" className="mt-3">
+                <p>
+                  Sent {application ? new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""}. Access is granted by hand, so there is a short wait. You will get an email when you are on the list, and another when the doors open.
                 </p>
-              </div>
+              </Notice>
             ) : (
               <div className="mt-4">
                 <RequestPreAlphaButton />
