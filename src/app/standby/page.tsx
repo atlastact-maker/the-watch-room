@@ -119,9 +119,9 @@ export default async function StandbyPage() {
                 closed room.
               </p>
               <p className="text-(--color-text-dim)">
-                Shifts aren&apos;t open yet. Pre-Alpha testing
-                applications open to registered operators in October
-                2026.
+                {testingOpen
+                  ? "Pre-alpha testing applications are open to registered operators now; see below."
+                  : `Shifts aren't open yet. Pre-alpha testing applications open to registered operators on ${prealphaOpensLabel()}.`}
               </p>
             </div>
           ) : (
@@ -156,8 +156,7 @@ export default async function StandbyPage() {
                   has been reviewed, and we&apos;re not
                   taking it forward onto the programme at this stage —
                   thank you for offering. Your account is unaffected, and
-                  Pre-Alpha testing opens to registered operators in
-                  October 2026.
+                  pre-alpha testing {testingOpen ? "is open to registered operators now" : `opens to registered operators on ${prealphaOpensLabel()}`}.
                 </p>
               )}
               {standing === "unfiled" && (

@@ -43,7 +43,7 @@ export function advisorDeclinedEmail(): { subject: string; html: string } {
               That is a decision about how many advisors the programme can work with properly while it is small, and which areas it needs covered right now &mdash; not a judgement on your experience. We keep applications on file, and the picture changes as development moves on.
             </p>
             <p style="margin:0 0 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
-              Your account stays exactly as it is, and Pre-Alpha testing opens to registered operators in October 2026.
+              Your account stays exactly as it is, and pre-alpha testing is open to registered operators now &mdash; <a href="${SITE}/prealpha" style="color:#fbbf24;">read the briefing and apply</a>.
             </p>
           </td>
         </tr>

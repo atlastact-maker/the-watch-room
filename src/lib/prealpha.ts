@@ -4,11 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // account stands with it. One place, so the front door, the standby
 // page, the application page and the admin tab all agree.
 //
-// Applications open on 1st October 2026, as announced; PREALPHA_OPENS_AT
-// in the environment moves the date without a deploy of copy (an ISO
-// timestamp, or "now" to open immediately).
+// Applications are open. PREALPHA_OPENS_AT in the environment can close
+// them again until a date without a deploy of copy (an ISO timestamp,
+// or "now" to open immediately).
 
-export const PREALPHA_DEFAULT_OPENS_AT = Date.parse("2026-10-01T00:00:00+01:00");
+export const PREALPHA_DEFAULT_OPENS_AT = 0;
 
 export function prealphaOpensAt(): number {
   const raw = process.env.PREALPHA_OPENS_AT?.trim();
