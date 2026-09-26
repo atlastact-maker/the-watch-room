@@ -119,3 +119,9 @@ export const SCENARIOS: Scenario[] = [
 export function getScenarioById(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);
 }
+
+// The on-demand face: the desk imports these from "./load" and "./meta"
+// directly so the static list above stays out of the client bundle.
+// Re-exported here for anything that already has the full registry.
+export { loadScenario, scenarioMeta, SCENARIO_LOADERS } from "./load";
+export { SCENARIO_META } from "./meta";

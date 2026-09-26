@@ -180,12 +180,15 @@ import { PatchPicker } from "./components/patch-picker";
 import type { MapFocus } from "./components/leaflet-map";
 import { CallLogPanel } from "./components/call-log-panel";
 import { SearchPanel } from "./components/search-panel";
-import { buildRecordIndex } from "@/lib/sim/records";
-import { SCENARIO_RECORDS } from "@/lib/sim/records/index";
+import { buildRecordIndex, type RecordSet } from "@/lib/sim/records";
 import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import type { CallSummary } from "./vector/call-screen";
-import { SCENARIOS } from "@/lib/sim/scenarios";
+// The light index and the on-demand loader — never the static registry,
+// which would put every call script, scene and record set in the first
+// download. A body is fetched when its call is queued.
+import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
+import { loadScenario } from "@/lib/sim/scenarios/load";
 import { rollVariant, applyVariant, variantAllows, latLngToMetres } from "@/lib/sim/scene";
 import { planWaterRescue } from "@/lib/sim/water_rescue";
 import { planRopeRescue } from "@/lib/sim/rope_rescue";
@@ -282,7 +285,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // The jobs on offer to this desk. Fixed for the page's life, so the
   // call generator can close over it safely.
   const openScenarios = useMemo(
-    () => (releasedScenarioIds ? SCENARIOS.filter((s) => releasedScenarioIds.includes(s.id)) : SCENARIOS),
+    () => (releasedScenarioIds ? SCENARIO_META.filter((s) => releasedScenarioIds.includes(s.id)) : SCENARIO_META),
     [releasedScenarioIds],
   );
   const [patch, setPatch] = useState<Patch | null | undefined>(null);
@@ -1849,6 +1852,23 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     incomingCall();
   }, []);
 
+  /** Queue a call for a scenario the desk only holds the meta of: fetch
+   *  the body (its own chunk, cached after the first time) and then put
+   *  it on the stack. The call generator and the Scenarios menu come
+   *  through here; the ANPR desk builds its own scenario and calls
+   *  queueCall directly. */
+  const queueCallById = useCallback(
+    (id: string) => {
+      loadScenario(id)
+        .then(queueCall)
+        .catch((err: unknown) => {
+          console.error(`Could not load scenario ${id}`, err);
+          setStatusMsg("Could not fetch that job — check the connection and try again");
+        });
+    },
+    [queueCall],
+  );
+
   // Calls arrive on their own during a shift. The gap tightens as the
   // shift runs — a control room gets busier, it does not stay level — and
   // a call is never generated for a scenario already live or already
@@ -1913,7 +1933,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         return;
       }
       const pick = candidates[Math.floor(Math.random() * candidates.length)];
-      queueCall(pick);
+      queueCallById(pick.id);
       // Busier as it goes: the window narrows with each job already run.
       const pressure = Math.min(0.6, incidents.length * 0.12);
       const scale = CALL_GAP_SCALE[intensity];
@@ -1922,7 +1942,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       nextCallAtRef.current = nowMs + (lo + Math.random() * (hi - lo)) * 1000;
     }, 5000);
     return () => clearInterval(id);
-  }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, queueCall]);
+  }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, queueCallById]);
 
 
   function triggerScenario(scenario: Scenario, variantId?: string): string | null {
@@ -4268,6 +4288,23 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     };
   }
 
+  // The authored people, vehicles and places of every scenario are their
+  // own chunk, fetched once the desk is up rather than before it: the
+  // index below is rebuilt the moment they land, and until then a search
+  // or a PNC check sees the fleet, the stations and the premises only.
+  const [recordSets, setRecordSets] = useState<RecordSet[]>([]);
+  useEffect(() => {
+    let live = true;
+    import("@/lib/sim/records/index")
+      .then((m) => {
+        if (live) setRecordSets(m.SCENARIO_RECORDS);
+      })
+      .catch((err: unknown) => console.error("Could not load the scenario records", err));
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const recordIndex = useMemo(() => {
     const crews: Parameters<typeof buildRecordIndex>[0]["crews"] = [];
     const fleet: Parameters<typeof buildRecordIndex>[0]["fleet"] = [];
@@ -4291,15 +4328,15 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       }
     }
     return buildRecordIndex({
-      sets: SCENARIO_RECORDS,
+      sets: recordSets,
       stations: staticStations,
       hospitals: HOSPITALS,
-      scenarios: SCENARIOS,
+      scenarios: SCENARIO_META,
       incidents,
       crews,
       fleet,
     });
-  }, [stationsByArea, incidents]);
+  }, [stationsByArea, incidents, recordSets]);
 
   /** Flat appliance lookup — the call stack needs callsign and type for
    *  every committed unit across every job, not just the selected one. */
@@ -6387,7 +6424,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       setStatusMsg("Every covered scenario is already on the board");
       return;
     }
-    queueCall(pool[Math.floor(Math.random() * pool.length)]);
+    queueCallById(pool[Math.floor(Math.random() * pool.length)].id);
     setStatusMsg("Test call placed on the stack");
   }
 
@@ -6401,7 +6438,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       label: s.title,
       hint: `#${s.id} · ${s.severity.toUpperCase()}`,
       act: () => {
-        queueCall(s);
+        queueCallById(s.id);
         setStatusMsg(`${s.title} placed on the stack`);
       },
     })),

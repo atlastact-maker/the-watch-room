@@ -15,8 +15,8 @@
 // the proposals one at a time.
 
 import type { ApplianceTypeCode } from "./types";
-import type { Deployment, Incident, IncidentTypeCode, PdaSlot, Scenario } from "./incident_types";
-import { SCENARIOS } from "./scenarios";
+import type { Deployment, Incident, IncidentTypeCode, PdaSlot } from "./incident_types";
+import { SCENARIO_META } from "./scenarios/meta";
 import type { StationWithAppliances } from "@/app/dashboard/page";
 import { STANDARD_PDA_TEMPLATES, type PdaSource, type PdaTemplate } from "./pda-standard";
 
@@ -24,10 +24,13 @@ export type { PdaSource, PdaTemplate };
 
 /** The standard attendance per incident type: the transcribed, sourced
  *  template from data/research/fire/pda.md where there is one, and the
- *  scenario's own authored slots as a fallback for any type without. */
+ *  scenario's own authored slots as a fallback for any type without.
+ *  Seeded from the generated meta, not the scenario modules, so this
+ *  file (which the desk imports) never pulls every scenario body into
+ *  the client bundle. */
 export const STANDARD_PDA: Partial<Record<IncidentTypeCode, PdaTemplate>> = (() => {
   const out: Partial<Record<IncidentTypeCode, PdaTemplate>> = { ...STANDARD_PDA_TEMPLATES };
-  for (const sc of SCENARIOS as Scenario[]) {
+  for (const sc of SCENARIO_META) {
     if (out[sc.type]) continue;
     out[sc.type] = {
       type: sc.type,
