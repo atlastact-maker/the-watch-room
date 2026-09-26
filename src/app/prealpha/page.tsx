@@ -20,7 +20,7 @@ import { RequestPreAlphaButton } from "./request-button";
 export const metadata = {
   title: "Pre-alpha — The Watch Room",
   description:
-    "The Watch Room's closed pre-alpha: nine live jobs across Fire, Ambulance and Police, one operator, one county. Request access to test it.",
+    "The Watch Room's closed pre-alpha: live jobs across Fire, Ambulance and Police, one operator, one county. Request access to test it.",
 };
 
 const h2Cls = "font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-info) sm:tracking-[0.25em]";

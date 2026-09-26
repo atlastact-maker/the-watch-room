@@ -52,7 +52,7 @@ export function testerInvitedEmail(token: string): { subject: string; html: stri
           <td style="padding:24px 32px 8px;">
             <p style="margin:0 0 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#a8a8b3;">What happens next</p>
             <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
-              Press the button below while logged in to your Watch Room account and the desk opens to you: nine live jobs, the whole desk from the 999 call to the debrief, and the tester room on the Discord. The link works for thirty days.
+              Press the button below while logged in to your Watch Room account and the desk opens to you: the live jobs, the whole desk from the 999 call to the debrief, and the tester room on the Discord. The link works for thirty days.
             </p>
             <p style="margin:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
               Not in the Discord yet? <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;text-decoration:underline;">Join here</a> and we will add you to the tester room.

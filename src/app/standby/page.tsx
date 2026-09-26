@@ -215,7 +215,7 @@ export default async function StandbyPage() {
           ) : (
             <>
               <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
-                Nine live jobs, the whole desk, and a tester room on the Discord. One press to ask for access.
+                Live jobs across Fire, Ambulance and Police, the whole desk, and a tester room on the Discord. One press to ask for access.
               </p>
               <div className="mt-3">
                 <RequestPreAlphaButton compact />

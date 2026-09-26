@@ -188,9 +188,9 @@ export default async function LandingPage({
           <div className={`${wrap} grid gap-10 py-12 lg:grid-cols-2 lg:gap-14 lg:py-16`}>
             <div>
               <p className={`${label} text-(--color-amber)`}>Closed pre-alpha</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Nine live jobs. The whole desk. Tell us what&apos;s wrong with it.</h2>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Live jobs. The whole desk. Tell us what&apos;s wrong with it.</h2>
               <p className="mt-4 text-[15px] leading-relaxed text-(--color-text-muted)">
-                Three fire, three ambulance, three police, each playing out differently from shift to shift. Testers get the desk from the call to the debrief, a bug report one click away, and a private room on the Discord with the developer and the advisors.
+                Fire, ambulance and police jobs, each playing out differently from shift to shift. Testers get the desk from the call to the debrief, a bug report one click away, and a private room on the Discord with the developer and the advisors.
               </p>
               <p className="mt-3 text-[15px] leading-relaxed text-(--color-text-muted)">
                 Tick &ldquo;Join the pre-alpha&rdquo; when you sign up, or request access from your account if you already have one. Access is granted by hand and you get an email when the desk is open to you.

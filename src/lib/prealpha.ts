@@ -129,7 +129,7 @@ export async function ensurePreAlphaRequest(
 /** What a tester gets and what we ask — the briefing, in one place so
  *  the public page, the accepted view and the email tell the same story. */
 export const PREALPHA_ACCESS = [
-  { title: "Nine live jobs", body: "Three fire, three ambulance, three police, each with several ways it can play out, so no two shifts are the same. More open as they are signed off." },
+  { title: "Live jobs across all three services", body: "Fire, ambulance and police jobs, each with several ways it can play out, so no two shifts are the same. The briefing lists what is open; more open as they are signed off." },
   { title: "The whole desk", body: "The 999 call, opening codes and grading, the county board and mobilising, the ground map with crews on foot, the mobile data terminal, casualty care, and the debrief." },
   { title: "A bug report a click away", body: "Help → Report a problem on the desk files straight to the team with the screen, the job and the last minute of the log attached." },
   { title: "The tester room on Discord", body: "A private channel with the developer and the advisors, where the builds are announced and the suggestions get argued over." },
@@ -144,7 +144,7 @@ export const PREALPHA_ASKS = [
 ] as const;
 
 export const PREALPHA_NOT_YET = [
-  "Every scenario. Nine are open; the other forty-six are being reviewed one at a time.",
+  "Every scenario. A small set is open; the rest are being reviewed one at a time.",
   "Multiplayer. One operator, one county, for now.",
   "Mobile. The desk needs a laptop or a desktop screen; the tablet views are for a second screen, not a phone.",
   "Balance. Timings and grades will move as the advisors weigh in. That is the point of you being here.",
