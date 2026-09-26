@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signupOpen } from "@/lib/auth/signup-window";
+import { prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { ADVISOR_SERVICES, ADVISOR_TOPICS } from "@/lib/auth/schemas";
 
 // The front door. While the site is closed, the advisor programme is the
@@ -50,6 +51,7 @@ export default async function LandingPage({
   if (user) redirect("/menu");
 
   const open = signupOpen();
+  const testing = prealphaOpen();
 
   return (
     <div className="relative z-10 flex flex-1 flex-col">
@@ -83,11 +85,27 @@ export default async function LandingPage({
             from a single seat, across real stations with real resources.
           </p>
           <p>
-            It is currently in closed development, opportunities to test
-            will be available in the Pre-Alpha testing phase in October
-            2026.
+            It is in closed development. The pre-alpha, the first time
+            anyone outside the team takes the seat, {testing ? "is open to applications now" : `opens to applications on ${prealphaOpensLabel()}`}.
           </p>
         </div>
+
+        {/* The pre-alpha: what it is and where to apply. */}
+        <section className="mt-8 rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 px-5 py-5">
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-(--color-amber)">Closed pre-alpha</p>
+          <p className="mt-2 text-sm leading-relaxed text-(--color-text-muted)">
+            Nine live jobs across Fire, Ambulance and Police, the whole desk from the 999 call to the debrief, a bug report one click away, and a tester room with the developer and the advisors. Small on purpose; honest feedback wanted.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Link
+              href="/prealpha"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
+            >
+              {testing ? "Apply for the pre-alpha" : "About the pre-alpha"}
+            </Link>
+            <span className="text-[13px] text-(--color-text-dim)">{testing ? "Applications reviewed by hand." : `Applications open ${prealphaOpensLabel()}.`}</span>
+          </div>
+        </section>
 
         {/* Primary action, high on the page — most visitors arrive
             already knowing whether this is them. */}
@@ -95,9 +113,9 @@ export default async function LandingPage({
           {open ? (
             <Link
               href="/signup?advisor=1"
-              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--color-amber) px-6 py-3 text-center font-mono text-sm font-medium uppercase tracking-[0.15em] text-black transition-colors hover:bg-amber-400"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--color-info)/60 px-6 py-3 text-center font-mono text-sm uppercase tracking-[0.15em] text-(--color-info) transition-colors hover:bg-(--color-info)/10"
             >
-              Apply to the programme
+              Apply to the advisor programme
             </Link>
           ) : (
             <span className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 py-3 text-center font-mono text-sm uppercase tracking-[0.15em] text-(--color-text-dim)">

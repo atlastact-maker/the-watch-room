@@ -1,0 +1,97 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// The closed pre-alpha: when it opens, who is in it, and where an
+// account stands with it. One place, so the front door, the standby
+// page, the application page and the admin tab all agree.
+//
+// Applications open on 1st October 2026, as announced; PREALPHA_OPENS_AT
+// in the environment moves the date without a deploy of copy (an ISO
+// timestamp, or "now" to open immediately).
+
+export const PREALPHA_DEFAULT_OPENS_AT = Date.parse("2026-10-01T00:00:00+01:00");
+
+export function prealphaOpensAt(): number {
+  const raw = process.env.PREALPHA_OPENS_AT?.trim();
+  if (!raw) return PREALPHA_DEFAULT_OPENS_AT;
+  if (raw.toLowerCase() === "now") return 0;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : PREALPHA_DEFAULT_OPENS_AT;
+}
+
+export function prealphaOpen(now = Date.now()): boolean {
+  return now >= prealphaOpensAt();
+}
+
+export function prealphaOpensLabel(): string {
+  const at = prealphaOpensAt();
+  if (at <= 0) return "now";
+  return new Date(at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
+}
+
+export type PreAlphaStanding = "none" | "pending" | "accepted" | "declined";
+
+export type TesterApplication = {
+  user_id: string;
+  email: string;
+  callsign: string;
+  discord: string;
+  platform: string;
+  background: string;
+  why: string;
+  hours: string;
+  agreed: boolean;
+  status: PreAlphaStanding;
+  note: string;
+  created_at: string;
+  decided_at: string | null;
+};
+
+/** This account's own application, which RLS lets it read. Any failure
+ *  reads as "none": the worst case is being invited to apply again, and
+ *  the insert then says the row already exists. */
+export async function preAlphaApplication(
+  supabase: SupabaseClient,
+  userId: string | undefined | null,
+): Promise<{ standing: PreAlphaStanding; application: TesterApplication | null; tableMissing: boolean }> {
+  if (!userId) return { standing: "none", application: null, tableMissing: false };
+  try {
+    const { data, error } = await supabase
+      .from("tester_applications")
+      .select("user_id, email, callsign, discord, platform, background, why, hours, agreed, status, note, created_at, decided_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      const missing = /tester_applications/.test(error.message) || error.code === "42P01";
+      return { standing: "none", application: null, tableMissing: missing };
+    }
+    if (!data) return { standing: "none", application: null, tableMissing: false };
+    const app = data as TesterApplication;
+    return { standing: app.status, application: app, tableMissing: false };
+  } catch {
+    return { standing: "none", application: null, tableMissing: false };
+  }
+}
+
+/** What a tester gets and what we ask — the briefing, in one place so
+ *  the public page, the accepted view and the email tell the same story. */
+export const PREALPHA_ACCESS = [
+  { title: "Nine live jobs", body: "Three fire, three ambulance, three police, each with several ways it can play out, so no two shifts are the same. More open as they are signed off." },
+  { title: "The whole desk", body: "The 999 call, opening codes and grading, the county board and mobilising, the ground map with crews on foot, the mobile data terminal, casualty care, and the debrief." },
+  { title: "A bug report a click away", body: "Help → Report a problem on the desk files straight to the team with the screen, the job and the last minute of the log attached." },
+  { title: "The tester room on Discord", body: "A private channel with the developer and the advisors, where the builds are announced and the suggestions get argued over." },
+  { title: "Your name on the record", body: "The service record keeps every shift; pre-alpha testers keep theirs when the doors open, with the tester mark against the callsign." },
+] as const;
+
+export const PREALPHA_ASKS = [
+  "A couple of shifts a week if you can, one if you can't — a shift is twenty minutes to an hour.",
+  "Report what breaks through the in-game form, and say what you expected instead.",
+  "Keep it in the room: no public footage, screenshots or write-ups until we say the doors are open. Talk about it all you like on the Discord.",
+  "Be honest. \"This felt wrong\" from someone who has done the job is worth more than a bug.",
+] as const;
+
+export const PREALPHA_NOT_YET = [
+  "Every scenario. Nine are open; the other forty-six are being reviewed one at a time.",
+  "Multiplayer. One operator, one county, for now.",
+  "Mobile. The desk needs a laptop or a desktop screen; the tablet views are for a second screen, not a phone.",
+  "Balance. Timings and grades will move as the advisors weigh in. That is the point of you being here.",
+] as const;

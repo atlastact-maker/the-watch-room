@@ -8,6 +8,7 @@ import { isBugStatus } from "@/lib/bug-reports";
 import { sendEmail } from "@/lib/email/send";
 import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
 import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
+import { testerAcceptedEmail } from "@/lib/email/tester-accepted";
 
 // Server actions for the admin area. Every one re-checks admin access
 // app-side AND relies on the database functions checking is_admin()
@@ -176,6 +177,34 @@ export async function setScenarioReleased(formData: FormData): Promise<void> {
   }
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
+}
+
+/** Decide a pre-alpha application. Accepting ticks the tester row in
+ *  the database function and emails the applicant once — the function
+ *  says whether the status actually changed. */
+export async function decideTesterApplication(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!userId || !["pending", "accepted", "declined"].includes(status)) return;
+  const supabase = await adminClient();
+  const { data: changed, error } = await supabase.rpc("admin_decide_tester_application", {
+    p_user_id: userId,
+    p_status: status,
+    p_note: note || null,
+  });
+  if (error?.message?.includes("admin_decide_tester_application")) {
+    redirect("/admin?missing=020&tab=prealpha");
+  }
+  if (error) throw new Error(error.message);
+  if (changed === true && status === "accepted" && email) {
+    const { subject, html } = testerAcceptedEmail();
+    const result = await sendEmail({ to: email, subject, html });
+    if (!result.sent) console.error(`tester acceptance email not sent to ${email}: ${result.reason}`);
+  }
+  revalidatePath("/admin");
+  revalidatePath("/prealpha");
 }
 
 /** Triage a bug report: status, and a note if one was typed. */

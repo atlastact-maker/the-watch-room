@@ -10,9 +10,9 @@ import { UtcClock } from "./utc-clock";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ advisor?: string }>;
+  searchParams: Promise<{ advisor?: string; prealpha?: string }>;
 }) {
-  const { advisor } = await searchParams;
+  const { advisor, prealpha } = await searchParams;
   const open = signupOpen();
   return (
     <div className="relative z-10 flex flex-1 items-center justify-center p-4 font-mono sm:p-6">
@@ -51,6 +51,12 @@ export default async function SignupPage({
           <div className="text-[15px] uppercase tracking-[0.12em] text-(--color-amber)">
             &gt; New operator registration
           </div>
+          {open && prealpha === "1" && (
+            <p className="text-xs leading-relaxed text-(--color-text-muted)">
+              Applying for the <span className="text-(--color-amber)">pre-alpha</span>: create the account, confirm your email, then log in and the application is at{" "}
+              <Link href="/prealpha" className="text-(--color-info) underline hover:text-(--color-text)">/prealpha</Link>.
+            </p>
+          )}
           {open ? (
             <SignupForm defaultAdvisorOpen={advisor === "1"} />
           ) : (

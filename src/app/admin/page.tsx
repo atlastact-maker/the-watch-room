@@ -17,7 +17,9 @@ import {
   addAdminNote,
   deleteAdminNote,
   setDiscordGranted,
+  decideTesterApplication,
 } from "./actions";
+import type { TesterApplication } from "@/lib/prealpha";
 
 // The admin area — overview numbers, advisor applications, access roles
 // and recent registrations, managed from the site instead of the
@@ -104,7 +106,7 @@ const inputCls =
 const btnCls =
   "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
 
-type AdminTab = "applications" | "users" | "advisors" | "bugs" | "scenarios";
+type AdminTab = "applications" | "users" | "advisors" | "bugs" | "scenarios" | "prealpha";
 
 type BugRow = {
   id: string;
@@ -197,10 +199,11 @@ export default async function AdminPage({
   const missing016 = missing === "016";
   const missing017 = missing === "017";
   const missing018 = missing === "018";
+  const missing020 = missing === "020";
   // Which of the three lists is on screen. Applications first: it is the
   // one with decisions waiting in it.
   const tab: AdminTab =
-    tabParam === "users" || tabParam === "advisors" || tabParam === "bugs" || tabParam === "scenarios"
+    tabParam === "users" || tabParam === "advisors" || tabParam === "bugs" || tabParam === "scenarios" || tabParam === "prealpha"
       ? tabParam
       : "applications";
   const supabase = await createClient();
@@ -210,7 +213,7 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes, routing] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes, routing, testerAppsRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
@@ -224,7 +227,11 @@ export default async function AdminPage({
     // Scenarios tab can say whether the desk is on its own roads yet.
     supabase.rpc("osm_map_status"),
     ownOsrmStatus(),
+    supabase.rpc("admin_list_tester_applications", { p_limit: 200 }),
   ]);
+  const missingTesterApps = testerAppsRes.error?.message?.includes("admin_list_tester_applications") === true;
+  const testerApps = (testerAppsRes.data ?? []) as (TesterApplication & { tester: boolean })[];
+  const pendingTesterApps = testerApps.filter((a) => a.status === "pending").length;
   const mapStatus = (mapRes.data ?? []) as { kind: string; row_count: number; source: string; imported_at: string }[];
   const missingMap = mapRes.error?.message?.includes("osm_map_status") === true;
   const missingReleased = releasedRes.error?.message?.includes("released_scenarios") === true;
@@ -339,6 +346,7 @@ export default async function AdminPage({
           <AdminTabLink tab="users" current={tab} label="Registered users" count={users.length} />
           <AdminTabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} countTone={openBugs > 0 ? "amber" : undefined} />
           <AdminTabLink tab="scenarios" current={tab} label="Scenarios" count={released.size} />
+          <AdminTabLink tab="prealpha" current={tab} label="Pre-alpha" count={pendingTesterApps} countTone={pendingTesterApps > 0 ? "amber" : undefined} />
           <AdminTabLink
             tab="advisors"
             current={tab}
@@ -590,6 +598,61 @@ export default async function AdminPage({
                 </div>
               );
             })}
+          </section>
+        )}
+
+        {tab === "prealpha" && (
+          <section className="space-y-3">
+            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+              Pre-alpha applications
+              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
+                {pendingTesterApps} awaiting review · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} in all
+              </span>
+            </h2>
+            {(missing020 || missingTesterApps) && (
+              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
+                Migration 020 (pre-alpha applications) has not reached the app yet — run supabase/migrations/020_prealpha_applications.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, &apos;reload schema&apos;;  and reload this page.
+              </div>
+            )}
+            {testerApps.length === 0 && !missingTesterApps ? (
+              <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
+                No applications yet. They land here when someone applies at /prealpha.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {testerApps.map((a) => {
+                  const tone = a.status === "accepted" ? "text-(--color-ok)" : a.status === "declined" ? "text-(--color-critical)" : "text-(--color-amber)";
+                  return (
+                    <div key={a.user_id} className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className="font-mono text-sm text-(--color-text)">{a.callsign || "(no callsign)"}</span>
+                            <span className="text-[11px] text-(--color-text-dim)">{a.email}</span>
+                            {a.discord && <span className="text-[11px] text-(--color-info)">@{a.discord}</span>}
+                            <span className={`font-mono text-[10px] uppercase tracking-widest ${tone}`}>{a.status}{a.tester ? " · tester" : ""}</span>
+                          </div>
+                          <p className="text-[11px] text-(--color-text-dim)">Applied {fmtDate(a.created_at)}{a.decided_at ? ` · decided ${fmtDate(a.decided_at)}` : ""} · {a.hours} · {a.platform}</p>
+                          {a.background && <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Background · </span>{a.background}</p>}
+                          <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Why · </span>{a.why}</p>
+                          {a.note && <p className="text-[12px] text-(--color-amber)"><span className="font-mono text-[10px] uppercase tracking-widest">Note · </span>{a.note}</p>}
+                        </div>
+                        <form action={decideTesterApplication} className="flex shrink-0 flex-col gap-2 sm:w-56">
+                          <input type="hidden" name="userId" value={a.user_id} />
+                          <input type="hidden" name="email" value={a.email} />
+                          <input name="note" placeholder="Note (optional)" defaultValue={a.note} className="w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-1.5 text-[12px] text-(--color-text)" />
+                          <div className="flex flex-wrap gap-2">
+                            {a.status !== "accepted" && <button type="submit" name="status" value="accepted" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>Accept</button>}
+                            {a.status !== "declined" && <button type="submit" name="status" value="declined" className={`${btnCls} border-(--color-critical)/60 text-(--color-critical) hover:bg-(--color-critical)/10`}>Decline</button>}
+                            {a.status !== "pending" && <button type="submit" name="status" value="pending" className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:text-(--color-text)`}>Back to pending</button>}
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 

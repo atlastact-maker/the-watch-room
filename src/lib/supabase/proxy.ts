@@ -16,6 +16,7 @@ const PUBLIC_PATHS = [
   "/signup",
   "/auth",
   "/terms",
+  "/prealpha",
   "/forgot-password",
   "/reset-password",
 ];
