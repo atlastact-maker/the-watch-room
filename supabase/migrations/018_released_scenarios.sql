@@ -55,6 +55,7 @@ insert into public.released_scenarios (scenario_id, note) values
   ('34', 'wave 1 · ambulance'),
   ('32', 'wave 1 · ambulance'),
   ('39', 'wave 1 · police'),
+  ('40', 'wave 1 · police'),
   ('47', 'wave 1 · police')
 on conflict (scenario_id) do nothing;
 
