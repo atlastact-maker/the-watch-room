@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
+import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
 import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { RequestPreAlphaButton } from "./request-button";
@@ -39,7 +39,10 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
   const { standing, application, tableMissing } = await ensurePreAlphaRequest(supabase, user);
   const inAlready = user ? await hasShiftAccess(supabase, user.email) : false;
   const admin = user ? await hasAdminAccess(supabase, user.email) : false;
-  const accepted = standing === "accepted" || (inAlready && !admin) || admin;
+  const onList = user ? (await isTester(supabase, user.email)).tester : false;
+  const accepted = standing === "accepted" || onList || inAlready || admin;
+  // On the list, but the doors are closed: the briefing without the door.
+  const waiting = accepted && !admin && !inAlready;
 
   // Which jobs are open right now. Admins see every scenario; testers
   // the released set. The list is the briefing's headline.
@@ -68,7 +71,9 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
           {accepted ? "Tester briefing" : "Closed pre-alpha"}
         </p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
-          {accepted ? (
+          {waiting ? (
+            <>You&apos;re in.<br />The doors open soon.</>
+          ) : accepted ? (
             <>You&apos;re in.<br />Here&apos;s the watch.</>
           ) : (
             <>One county.<br />Your command. Not finished.</>
@@ -94,19 +99,29 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
         {accepted && invited === "1" && (
           <div className="mt-6 rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-3">
             <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">✓ Invitation accepted</p>
-            <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">The desk is open to you. Read the briefing below, then open the Ops Centre.</p>
+            <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
+              {waiting ? "You are on the tester list. Read the briefing below; the desk opens when the doors do." : "The desk is open to you. Read the briefing below, then open the Ops Centre."}
+            </p>
+          </div>
+        )}
+        {waiting && (
+          <div className="mt-6 rounded-sm border border-(--color-amber)/50 bg-(--color-amber)/10 px-4 py-3">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">Doors not open yet</p>
+            <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
+              You are on the pre-alpha. The doors open to every tester at once, and you will get an email the moment they do. Until then, this page is the briefing.
+            </p>
           </div>
         )}
         {accepted && (
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link href="/menu" className={btnPrimary}>Open the Ops Centre</Link>
-            <a href="https://discord.gg/YBN3sbphs3" target="_blank" rel="noreferrer" className={btnGhost}>Tester room on Discord</a>
+            {!waiting && <Link href="/menu" className={btnPrimary}>Open the Ops Centre</Link>}
+            <a href="https://discord.gg/YBN3sbphs3" target="_blank" rel="noreferrer" className={waiting ? btnPrimary : btnGhost}>Tester room on Discord</a>
           </div>
         )}
 
         {accepted && (
           <section className="mt-9 border-t border-(--color-border-subtle) pt-6">
-            <h2 className={h2Cls}>Jobs open to you now</h2>
+            <h2 className={h2Cls}>{waiting ? "Jobs you will have" : "Jobs open to you now"}</h2>
             {openJobs.length === 0 ? (
               <p className="mt-3 text-sm text-(--color-text-muted)">
                 Nothing is released to testers yet. When a job is opened it appears here and in the Scenarios menu on the desk.

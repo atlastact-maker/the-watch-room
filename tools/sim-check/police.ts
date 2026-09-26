@@ -9,6 +9,7 @@
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { SCENARIO_RECORDS } from "@/lib/sim/records/index";
 import type { Scenario } from "@/lib/sim/incident_types";
+import gmpJson from "@/../data/research/police/gmp_stations.json";
 
 type Problem = { id: string; kind: string; detail: string };
 const problems: Problem[] = [];
@@ -18,18 +19,17 @@ const note = (s: { id: string }, kind: string, detail: string) =>
 const police = SCENARIOS.filter((s) => s.type.startsWith("police_"));
 const isStub = (s: Scenario) => s.trigger.startsWith("Placeholder");
 
-// The stations that hold each police type, so a slot can be checked
-// against what is actually there.
-const POLICE_TYPES_AT: Record<string, string[]> = {
-  "MP-TRA": ["Police_Response", "Police_Dog"],
-  "MP-TAC": ["Police_ARV", "Police_Dog"],
-  "MP-RPU": ["Police_RPU"],
-  "MP-RPU-ASH": ["Police_RPU"],
-  "MP-RPU-WHI": ["Police_RPU"],
-  "MP-NPAS": ["Police_NPAS"],
-  "MP-SIO": ["Police_SIO"],
-  "MP-POLSA": ["Police_Search"],
-};
+// The stations that hold each police type, read from the same station
+// file the sim builds its fleet from, so a slot is checked against what
+// is actually there rather than a copy of it.
+const POLICE_TYPES_AT: Record<string, string[]> = {};
+for (const area of (gmpJson as { areas: { stations: { id: string; resources?: string[] }[] }[] }).areas) {
+  for (const st of area.stations) {
+    POLICE_TYPES_AT[st.id] = (st.resources ?? [])
+      .map((r) => r.replace(/^\d+x\s*/, "").trim())
+      .filter(Boolean);
+  }
+}
 
 const DRAMA_MOBILE = /^07700\s?900\d{3}$/;
 const DRAMA_LANDLINE = /^0161\s?496\s?0\d{3}$/;
@@ -91,7 +91,11 @@ for (const s of police) {
   // -- Informant script has the shape a volume job needs ------------------
   const beats = s.informantScript ?? [];
   if (beats.length < 4) note(s, "THIN INFORMANT SCRIPT", `${beats.length} beats`);
-  if (!beats.some((b) => (b.probability ?? 1) < 1)) note(s, "NO PROBABILISTIC BRANCH", "every beat fires every time");
+  // A branch is a rolled beat, or a beat that only plays on some
+  // variants — a scenario with run-to-run variants is not the same job
+  // twice either.
+  const branches = beats.some((b) => (b.probability ?? 1) < 1 || (b.requiresVariantIds?.length ?? 0) > 0 || (b.excludesVariantIds?.length ?? 0) > 0);
+  if (!branches && !(s.scene?.variants?.length)) note(s, "NO PROBABILISTIC BRANCH", "every beat fires every time");
   if (!beats.some((b) => b.delayThresholdSec !== undefined)) note(s, "NO SLOW-RESPONSE ESCALATION", "nothing punishes a late attendance");
 
   // -- Records -------------------------------------------------------------
@@ -114,7 +118,10 @@ for (const s of police) {
     if (!/^[A-Z]{2}\d{2} ?[A-Z]{3}$|^[A-Z]\d{1,3} ?[A-Z]{3}$|^[A-Z]{3} ?\d{1,3}[A-Z]$/.test(v.vrm)) {
       note(s, "VRM NOT A UK FORMAT", v.vrm);
     }
-    if (v.keeperId && !rec.people.some((p) => p.id === v.keeperId)) note(s, "KEEPER NOT ON RECORD", `${v.vrm} → ${v.keeperId}`);
+    // A keeper may be a person another job owns, named in linkedPeopleIds
+    // so the record is shared rather than duplicated.
+    const onRecord = rec.people.some((p) => p.id === v.keeperId) || (rec.linkedPeopleIds ?? []).includes(v.keeperId ?? "");
+    if (v.keeperId && !onRecord) note(s, "KEEPER NOT ON RECORD", `${v.vrm} → ${v.keeperId}`);
   }
   for (const pl of rec.places) {
     if (!pl.id.startsWith(`pl${s.id}-`)) note(s, "PLACE ID NOT PREFIXED", pl.id);

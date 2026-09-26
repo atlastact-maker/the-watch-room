@@ -2,13 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
-import { accessProfile, resolveInsignia } from "@/lib/auth/operator-access";
+import { accessProfile, isTester, resolveInsignia } from "@/lib/auth/operator-access";
 import {
   advisorStanding,
   type AdvisorStanding,
 } from "@/lib/auth/advisor-standing";
 import { signupOpen } from "@/lib/auth/signup-window";
-import { ensurePreAlphaRequest, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { ensurePreAlphaRequest, prealphaDoors, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { RequestPreAlphaButton } from "@/app/prealpha/request-button";
 import { ServiceBadge } from "@/app/components/service-insignia";
 import { AdvisorSync } from "@/app/components/advisor-sync";
@@ -61,6 +61,10 @@ export default async function StandbyPage() {
   const accepted = standing === "accepted";
   const prealpha = await ensurePreAlphaRequest(supabase, user);
   const testingOpen = prealphaOpen();
+  // On the list (accepted, invited or ticked) but on this page: the
+  // doors are closed. Say so, rather than offering the request again.
+  const [{ tester: onList }, doors] = await Promise.all([isTester(supabase, user.email), prealphaDoors(supabase)]);
+  const listed = onList || prealpha.standing === "accepted";
   const heading = HEADINGS[standing];
   // Accepted advisors wear the insignia of the service off their
   // application, unless a different key sits in their user_roles row.
@@ -200,7 +204,16 @@ export default async function StandbyPage() {
         {/* The pre-alpha: where this account stands with it, and the door. */}
         <div className="rounded-sm border border-(--color-amber)/40 bg-(--color-amber)/5 px-4 py-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-(--color-amber)">Closed pre-alpha</p>
-          {prealpha.standing === "pending" ? (
+          {listed ? (
+            <>
+              <p className="mt-1.5 font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">✓ You&apos;re on the pre-alpha</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
+                {doors.open
+                  ? "The desk is open to you. If the Ops Centre does not open, log out and back in."
+                  : "The doors aren't open yet. They open to every tester at once, and you will get an email the moment they do. The briefing says what is coming and how a shift will run."}
+              </p>
+            </>
+          ) : prealpha.standing === "pending" ? (
             <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
               Your request for access is in. Access is granted by hand; you will get an email when the desk is open to you.
             </p>
@@ -226,7 +239,7 @@ export default async function StandbyPage() {
             href="/prealpha"
             className="mt-3 inline-flex border border-(--color-amber)/60 px-4 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-amber) transition-colors hover:bg-(--color-amber)/10"
           >
-            {prealpha.standing === "pending" ? "Your standing" : "About the pre-alpha"}
+            {listed ? "Read the briefing" : prealpha.standing === "pending" ? "Your standing" : "About the pre-alpha"}
           </Link>
         </div>
 

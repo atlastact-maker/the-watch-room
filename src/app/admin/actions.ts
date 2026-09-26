@@ -10,6 +10,8 @@ import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
 import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
 import { testerAcceptedEmail } from "@/lib/email/tester-accepted";
 import { testerInvitedEmail } from "@/lib/email/tester-invited";
+import { doorsOpenEmail } from "@/lib/email/doors-open";
+import { PREALPHA_DOORS_KEY, prealphaDoors } from "@/lib/prealpha";
 
 // Server actions for the admin area. Every one re-checks admin access
 // app-side AND relies on the database functions checking is_admin()
@@ -200,7 +202,7 @@ export async function decideTesterApplication(formData: FormData): Promise<void>
   }
   if (error) throw new Error(error.message);
   if (changed === true && status === "accepted" && email) {
-    const { subject, html } = testerAcceptedEmail();
+    const { subject, html } = testerAcceptedEmail({ doorsOpen: (await prealphaDoors(supabase)).open });
     const result = await sendEmail({ to: email, subject, html });
     if (!result.sent) console.error(`tester acceptance email not sent to ${email}: ${result.reason}`);
   }
@@ -220,7 +222,7 @@ export async function inviteTester(formData: FormData): Promise<void> {
   }
   if (error) throw new Error(error.message);
   if (typeof token !== "string" || !token) throw new Error("no invite token returned");
-  const { subject, html } = testerInvitedEmail(token);
+  const { subject, html } = testerInvitedEmail(token, { doorsOpen: (await prealphaDoors(supabase)).open });
   const result = await sendEmail({ to: email, subject, html });
   if (!result.sent) console.error(`tester invite email not sent to ${email}: ${result.reason}`);
   revalidatePath("/admin");
@@ -238,6 +240,7 @@ export async function acceptAllPendingTesterApplications(): Promise<void> {
   }
   if (error) throw new Error(error.message);
   const pending = ((data ?? []) as { user_id: string; email: string; status: string }[]).filter((a) => a.status === "pending");
+  const doorsOpen = (await prealphaDoors(supabase)).open;
   for (const a of pending) {
     const { data: changed, error: decideError } = await supabase.rpc("admin_decide_tester_application", {
       p_user_id: a.user_id,
@@ -246,7 +249,7 @@ export async function acceptAllPendingTesterApplications(): Promise<void> {
     });
     if (decideError) throw new Error(decideError.message);
     if (changed === true && a.email) {
-      const { subject, html } = testerAcceptedEmail();
+      const { subject, html } = testerAcceptedEmail({ doorsOpen });
       const result = await sendEmail({ to: a.email, subject, html });
       if (!result.sent) console.error(`tester acceptance email not sent to ${a.email}: ${result.reason}`);
     }
@@ -254,6 +257,40 @@ export async function acceptAllPendingTesterApplications(): Promise<void> {
   revalidatePath("/admin");
   revalidatePath("/prealpha");
   revalidatePath("/standby");
+}
+
+/** Open or close the pre-alpha doors (migration 022). Closed: testers
+ *  stay on standby, told they are in. Open: the desk. */
+export async function setPrealphaDoors(formData: FormData): Promise<void> {
+  const value = String(formData.get("doors") ?? "") === "open" ? "open" : "closed";
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_site_setting", { p_key: PREALPHA_DOORS_KEY, p_value: value });
+  if (error?.message?.includes("admin_set_site_setting")) {
+    redirect("/admin?missing=022&tab=prealpha");
+  }
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/prealpha");
+  revalidatePath("/standby");
+  revalidatePath("/menu");
+  redirect("/admin?tab=prealpha");
+}
+
+/** Tell every tester the doors are open: one email each to the accounts
+ *  on the tester list (ticked, accepted or invited alike). */
+export async function notifyTestersDoorsOpen(): Promise<void> {
+  const supabase = await adminClient();
+  const { data, error } = await supabase.rpc("admin_list_users", { p_limit: 200 });
+  if (error) throw new Error(error.message);
+  const testers = ((data ?? []) as { email: string; tester: boolean; assigned_role: string | null }[]).filter((u) => u.tester && u.assigned_role !== "admin");
+  const { subject, html } = doorsOpenEmail();
+  let sent = 0;
+  for (const t of testers) {
+    const result = await sendEmail({ to: t.email, subject, html });
+    if (result.sent) sent += 1;
+    else console.error(`doors-open email not sent to ${t.email}: ${result.reason}`);
+  }
+  redirect(`/admin?tab=prealpha&notified=${sent}&of=${testers.length}`);
 }
 
 /** Triage a bug report: status, and a note if one was typed. */

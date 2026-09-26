@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // The closed pre-alpha: when it opens, who is in it, and where an
@@ -27,6 +28,27 @@ export function prealphaOpensLabel(): string {
   if (at <= 0) return "now";
   return new Date(at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
 }
+
+/** The doors: whether accepts and invites can open the desk yet, or are
+ *  only on the list. Flipped from /admin (migration 022). Read once per
+ *  request. Before the migration the table is missing and the doors
+ *  read as open, which is the behaviour the site had. */
+export const PREALPHA_DOORS_KEY = "prealpha_doors";
+
+export const prealphaDoors = cache(async function prealphaDoors(
+  supabase: SupabaseClient,
+): Promise<{ open: boolean; tableMissing: boolean; lookupFailed: boolean }> {
+  try {
+    const { data, error } = await supabase.from("site_settings").select("value").eq("key", PREALPHA_DOORS_KEY).maybeSingle();
+    if (error) {
+      const missing = /site_settings/.test(error.message) || error.code === "42P01";
+      return { open: missing, tableMissing: missing, lookupFailed: !missing };
+    }
+    return { open: (data?.value ?? "open") !== "closed", tableMissing: false, lookupFailed: false };
+  } catch {
+    return { open: false, tableMissing: false, lookupFailed: true };
+  }
+});
 
 export type PreAlphaStanding = "none" | "pending" | "accepted" | "declined";
 

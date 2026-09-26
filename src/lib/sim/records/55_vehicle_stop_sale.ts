@@ -19,11 +19,11 @@ export const records55: RecordSet = {
   people: [
     {
       id: "p55-passenger-none",
-      name: "WITNESS — shop staff, Washway Road parade",
+      name: "PATEL, Nisha",
       roles: ["witness"],
       scenarioId: "55",
       notes: [
-        "Assistant at the newsagent on the parade. Saw the stop from the doorway; nothing to add beyond the driver being on his own and compliant. Willing to give a name if asked.",
+        "Assistant at the newsagent on the Washway Road parade. Saw the stop from the doorway; nothing to add beyond the driver being on his own and compliant. Gave her name when asked; not required as a witness.",
       ],
     },
   ],

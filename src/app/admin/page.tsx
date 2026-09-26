@@ -20,8 +20,10 @@ import {
   acceptAllPendingTesterApplications,
   decideTesterApplication,
   inviteTester,
+  notifyTestersDoorsOpen,
+  setPrealphaDoors,
 } from "./actions";
-import type { TesterApplication } from "@/lib/prealpha";
+import { prealphaDoors, type TesterApplication } from "@/lib/prealpha";
 
 // The admin area — overview numbers, advisor applications, access roles
 // and recent registrations, managed from the site instead of the
@@ -191,18 +193,20 @@ function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[] }>;
+  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[]; notified?: string | string[]; of?: string | string[] }>;
 }) {
   // A write action that hit a missing database function sends us back
   // here with the migration number, so it can be reported the same way
   // a missing list function is.
-  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam } = await searchParams;
+  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam, notified: notifiedParam, of: ofParam } = await searchParams;
   const missing015 = missing === "015";
   const missing016 = missing === "016";
   const missing017 = missing === "017";
   const missing018 = missing === "018";
   const missing020 = missing === "020";
   const missing021 = missing === "021";
+  const missing022 = missing === "022";
+  const notified = typeof notifiedParam === "string" ? `${notifiedParam} of ${typeof ofParam === "string" ? ofParam : "?"}` : null;
   const justInvited = typeof invitedParam === "string" ? invitedParam : null;
   const inviteMailFailed = mailParam === "0";
   // Which of the three lists is on screen. Applications first: it is the
@@ -235,6 +239,7 @@ export default async function AdminPage({
     supabase.rpc("admin_list_tester_applications", { p_limit: 200 }),
     supabase.rpc("admin_list_tester_invites", { p_limit: 500 }),
   ]);
+  const doors = await prealphaDoors(supabase);
   // Invitations (migration 021), newest first; one per email is enough
   // for the Users tab, and the first seen is the newest.
   const missingInvites = invitesRes.error?.message?.includes("admin_list_tester_invites") === true;
@@ -632,6 +637,49 @@ export default async function AdminPage({
                 </form>
               )}
             </div>
+            {/* The doors. Closed: everyone on the list is told they are
+                in and waits. Open: the desk. */}
+            <div className={`rounded-sm border px-4 py-3 ${doors.open ? "border-(--color-ok)/60 bg-(--color-ok)/10" : "border-(--color-amber)/60 bg-(--color-amber)/10"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className={`font-mono text-[11px] uppercase tracking-[0.25em] ${doors.open ? "text-(--color-ok)" : "text-(--color-amber)"}`}>
+                    Doors {doors.open ? "open" : "closed"}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-(--color-text-muted)">
+                    {doors.tableMissing
+                      ? "Migration 022 (site settings) has not been run, so the doors cannot be closed: every tester can open the desk. Run supabase/migrations/022_site_settings.sql, which starts them closed."
+                      : doors.open
+                        ? "Every account on the tester list can open the Ops Centre and take a shift."
+                        : "Sign-ups, requests, accepts and invites all work and testers see they are in, but nobody on the list can open the desk until you open the doors. Admins and operators are not held."}
+                  </p>
+                </div>
+                {!doors.tableMissing && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <form action={setPrealphaDoors}>
+                      <input type="hidden" name="doors" value={doors.open ? "closed" : "open"} />
+                      <button type="submit" className={`${btnCls} ${doors.open ? "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10" : "border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10"}`}>
+                        {doors.open ? "Close the doors" : "Open the doors"}
+                      </button>
+                    </form>
+                    {doors.open && (
+                      <form action={notifyTestersDoorsOpen}>
+                        <button type="submit" className={`${btnCls} border-(--color-info)/60 text-(--color-info) hover:bg-(--color-info)/10`} title="One email to every account on the tester list">
+                          Email testers: doors open
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
+              {notified && (
+                <p className="mt-2 text-[12px] text-(--color-ok)">Doors-open email sent to {notified} testers.</p>
+              )}
+            </div>
+            {missing022 && (
+              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
+                Migration 022 (site settings) has not reached the app yet — run supabase/migrations/022_site_settings.sql in the Supabase SQL editor, then reload.
+              </div>
+            )}
             {(missing020 || missingTesterApps) && (
               <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
                 Migration 020 (pre-alpha applications) has not reached the app yet — run supabase/migrations/020_prealpha_applications.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, &apos;reload schema&apos;;  and reload this page.

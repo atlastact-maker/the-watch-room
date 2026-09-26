@@ -179,6 +179,15 @@ export const scenario55: Scenario = {
       tone: "info",
     },
     {
+      // Some stops he asks; the answer is the same either way, and it
+      // is the one line on this job where the tone can go either way.
+      id: "girlfriend",
+      atSec: 150,
+      probability: 0.45,
+      text: "He's asking if his girlfriend can come and collect the car rather than us lifting it. We've told him it's going on the back of a truck whatever happens — no policy, no drive-away. He's taken it. Still polite.",
+      tone: "info",
+    },
+    {
       id: "bus",
       atSec: 600,
       delayThresholdSec: 600,

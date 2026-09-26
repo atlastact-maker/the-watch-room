@@ -1,5 +1,6 @@
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { prealphaDoors } from "@/lib/prealpha";
 import {
   serviceKeyFor,
   type ServiceKey,
@@ -157,13 +158,16 @@ export async function shiftAccess(
   email: string | undefined | null,
 ): Promise<{ allowed: boolean; lookupFailed: boolean }> {
   if (isOperator(email)) return { allowed: true, lookupFailed: false };
-  const [{ role, lookupFailed }, tester] = await Promise.all([
+  const [{ role, lookupFailed }, tester, doors] = await Promise.all([
     accessProfile(supabase, email),
     isTester(supabase, email),
+    prealphaDoors(supabase),
   ]);
+  // A tester is admitted only while the pre-alpha doors are open; a
+  // role holder always. See lib/prealpha prealphaDoors.
   return {
-    allowed: role === "admin" || role === "operator" || tester.tester,
-    lookupFailed: lookupFailed === true || tester.lookupFailed,
+    allowed: role === "admin" || role === "operator" || (tester.tester && doors.open),
+    lookupFailed: lookupFailed === true || tester.lookupFailed || (tester.tester && doors.lookupFailed),
   };
 }
 

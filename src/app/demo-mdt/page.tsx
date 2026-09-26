@@ -9,13 +9,14 @@
 import { PATCH } from "@/lib/sim/areas";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DraggableIncidentMdt } from "../dashboard/components/incident-mdt";
-import { SCENARIOS } from "@/lib/sim/scenarios";
+import { loadScenario } from "@/lib/sim/scenarios/load";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import type { StationWithAppliances } from "../dashboard/page";
 import type {
   Deployment,
   Incident,
   LogEntry,
+  Scenario,
   Task,
 } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
@@ -36,7 +37,31 @@ const CAPTIONS: { at: number; text: string }[] = [
   { at: 43_400, text: "EVERY DECISION LOGGED" },
 ];
 
+// The stage needs one scenario body. Fetch that one rather than bundle
+// the registry: the page is a trailer, and 55 scenarios is most of the
+// desk's download for a job it never runs.
 export default function DemoMdtPage() {
+  const [scenario, setScenario] = useState<Scenario | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadScenario("08").then((s) => {
+      if (live) setScenario(s);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!scenario) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#050507] font-mono text-[11px] uppercase tracking-[0.3em] text-zinc-600">
+        loading…
+      </div>
+    );
+  }
+  return <DemoMdtStage scenario={scenario} />;
+}
+
+function DemoMdtStage({ scenario }: { scenario: Scenario }) {
   const [runId, setRunId] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
@@ -48,7 +73,7 @@ export default function DemoMdtPage() {
   );
 
   // Fresh demo world each loop.
-  const world = useMemo(() => buildWorld(), [runId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const world = useMemo(() => buildWorld(scenario), [runId, scenario]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deployments live in state so the ghost operator's Mobilise click
   // really commits a unit on camera.
   const [deployments, setDeployments] = useState<Deployment[]>(world.deployments);
@@ -344,8 +369,7 @@ export default function DemoMdtPage() {
 
 /* ------------------------------ mock world ------------------------------ */
 
-function buildWorld() {
-  const scenario = SCENARIOS.find((s) => s.id === "08") ?? SCENARIOS[0];
+function buildWorld(scenario: Scenario) {
   const nowMs = Date.now();
   const receivedAt = nowMs - 9 * 60_000;
 

@@ -1,5 +1,5 @@
-// The email an operator gets when their pre-alpha access request has been
-// accepted: the doors are open to them, and where to start.
+// The email every tester gets when the pre-alpha doors open: the desk is
+// theirs now, and where to start.
 //
 // Same shape as the auth templates in supabase/templates: dark, the
 // window logo beside the wordmark, bgcolor attributes alongside the
@@ -8,10 +8,9 @@
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://thewtchroom.co.uk";
 
-export function testerAcceptedEmail(opts: { doorsOpen?: boolean } = {}): { subject: string; html: string } {
-  const doorsOpen = opts.doorsOpen !== false;
+export function doorsOpenEmail(): { subject: string; html: string } {
   return {
-    subject: "You are on the pre-alpha — The Watch Room",
+    subject: "The doors are open — The Watch Room",
     html: `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#050507" style="background:#050507;margin:0;padding:32px 12px;">
   <tr>
     <td align="center">
@@ -36,11 +35,11 @@ export function testerAcceptedEmail(opts: { doorsOpen?: boolean } = {}): { subje
 
         <tr>
           <td style="padding:32px 32px 4px;">
-            <h1 style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:21px;line-height:1.35;color:#f4f4f6;font-weight:600;">You are on the pre-alpha</h1>
+            <h1 style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:21px;line-height:1.35;color:#f4f4f6;font-weight:600;">The doors are open</h1>
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td bgcolor="#0e2a20" style="background:#0e2a20;border:1px solid #34d399;border-radius:3px;padding:8px 16px;">
-                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:600;color:#34d399;">Accepted</span>
+                  <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:3px;text-transform:uppercase;font-weight:600;color:#34d399;">Open</span>
                 </td>
               </tr>
             </table>
@@ -51,9 +50,7 @@ export function testerAcceptedEmail(opts: { doorsOpen?: boolean } = {}): { subje
           <td style="padding:24px 32px 8px;">
             <p style="margin:0 0 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#a8a8b3;">What happens next</p>
             <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
-              ${doorsOpen
-                ? "Your account can open the Ops Centre and take a shift now. Start with the briefing — it says what is open, what is not, and how to report what breaks."
-                : "You are on the tester list. The desk is not open yet — it opens to every tester at once, and you will get an email the moment it does. Until then the briefing says what is coming, what is not, and how the shifts will run."}
+              The pre-alpha desk is open to you from now. Log in, read the briefing once, then open the Ops Centre and take a shift. Report what breaks from Help on the desk, and say what you expected instead.
             </p>
             <p style="margin:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#cdcdd4;">
               Not in the Discord yet? <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;text-decoration:underline;">Join here</a> and we will add you to the tester room.
