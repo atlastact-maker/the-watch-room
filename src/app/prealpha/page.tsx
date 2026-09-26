@@ -29,7 +29,8 @@ const btnPrimary =
 const btnGhost =
   "inline-flex min-h-12 items-center justify-center rounded-sm border border-(--color-border) px-6 py-3 text-center font-mono text-sm uppercase tracking-[0.15em] text-(--color-text) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)";
 
-export default async function PreAlphaPage() {
+export default async function PreAlphaPage({ searchParams }: { searchParams: Promise<{ invited?: string }> }) {
+  const { invited } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -90,6 +91,12 @@ export default async function PreAlphaPage() {
           )}
         </div>
 
+        {accepted && invited === "1" && (
+          <div className="mt-6 rounded-sm border border-(--color-ok)/50 bg-(--color-ok)/10 px-4 py-3">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-ok)">✓ Invitation accepted</p>
+            <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">The desk is open to you. Read the briefing below, then open the Ops Centre.</p>
+          </div>
+        )}
         {accepted && (
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/menu" className={btnPrimary}>Open the Ops Centre</Link>

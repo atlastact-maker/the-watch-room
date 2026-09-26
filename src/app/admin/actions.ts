@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email/send";
 import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
 import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
 import { testerAcceptedEmail } from "@/lib/email/tester-accepted";
+import { testerInvitedEmail } from "@/lib/email/tester-invited";
 
 // Server actions for the admin area. Every one re-checks admin access
 // app-side AND relies on the database functions checking is_admin()
@@ -205,6 +206,25 @@ export async function decideTesterApplication(formData: FormData): Promise<void>
   }
   revalidatePath("/admin");
   revalidatePath("/prealpha");
+}
+
+/** Invite an account to the pre-alpha: mint (or re-use) the token and
+ *  email the link. The link is the grant; see migration 021. */
+export async function inviteTester(formData: FormData): Promise<void> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return;
+  const supabase = await adminClient();
+  const { data: token, error } = await supabase.rpc("admin_invite_tester", { p_email: email });
+  if (error?.message?.includes("admin_invite_tester")) {
+    redirect("/admin?missing=021&tab=users");
+  }
+  if (error) throw new Error(error.message);
+  if (typeof token !== "string" || !token) throw new Error("no invite token returned");
+  const { subject, html } = testerInvitedEmail(token);
+  const result = await sendEmail({ to: email, subject, html });
+  if (!result.sent) console.error(`tester invite email not sent to ${email}: ${result.reason}`);
+  revalidatePath("/admin");
+  redirect(`/admin?tab=users&invited=${encodeURIComponent(email)}${result.sent ? "" : "&mail=0"}`);
 }
 
 /** Grant every pending pre-alpha request in one go: the same decision

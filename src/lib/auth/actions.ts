@@ -29,6 +29,12 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
     return { errors: { form: [error.message] } };
   }
 
+  // A link that needed a session first (a pre-alpha invitation, say)
+  // comes back here as ?next=. Only a path on this site is honoured.
+  const next = formData.get("next");
+  if (typeof next === "string" && /^\/(?!\/)[\w\-./?=&%]*$/.test(next)) {
+    redirect(next);
+  }
   redirect("/menu");
 }
 

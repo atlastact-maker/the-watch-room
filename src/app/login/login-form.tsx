@@ -3,11 +3,12 @@
 import { useActionState } from "react";
 import { login } from "@/lib/auth/actions";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(login, undefined);
 
   return (
     <form action={action} className="space-y-4">
+      {next && <input type="hidden" name="next" value={next} />}
       <Field
         label="Email"
         name="email"

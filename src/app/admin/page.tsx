@@ -19,6 +19,7 @@ import {
   setDiscordGranted,
   acceptAllPendingTesterApplications,
   decideTesterApplication,
+  inviteTester,
 } from "./actions";
 import type { TesterApplication } from "@/lib/prealpha";
 
@@ -190,17 +191,20 @@ function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[] }>;
+  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[] }>;
 }) {
   // A write action that hit a missing database function sends us back
   // here with the migration number, so it can be reported the same way
   // a missing list function is.
-  const { missing, tab: tabParam } = await searchParams;
+  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam } = await searchParams;
   const missing015 = missing === "015";
   const missing016 = missing === "016";
   const missing017 = missing === "017";
   const missing018 = missing === "018";
   const missing020 = missing === "020";
+  const missing021 = missing === "021";
+  const justInvited = typeof invitedParam === "string" ? invitedParam : null;
+  const inviteMailFailed = mailParam === "0";
   // Which of the three lists is on screen. Applications first: it is the
   // one with decisions waiting in it.
   const tab: AdminTab =
@@ -214,7 +218,7 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes, routing, testerAppsRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes, routing, testerAppsRes, invitesRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
@@ -229,7 +233,16 @@ export default async function AdminPage({
     supabase.rpc("osm_map_status"),
     ownOsrmStatus(),
     supabase.rpc("admin_list_tester_applications", { p_limit: 200 }),
+    supabase.rpc("admin_list_tester_invites", { p_limit: 500 }),
   ]);
+  // Invitations (migration 021), newest first; one per email is enough
+  // for the Users tab, and the first seen is the newest.
+  const missingInvites = invitesRes.error?.message?.includes("admin_list_tester_invites") === true;
+  const inviteByEmail = new Map<string, { created_at: string; accepted_at: string | null; expires_at: string }>();
+  for (const i of (invitesRes.data ?? []) as { email: string; created_at: string; accepted_at: string | null; expires_at: string }[]) {
+    const key = i.email.toLowerCase();
+    if (!inviteByEmail.has(key)) inviteByEmail.set(key, i);
+  }
   const missingTesterApps = testerAppsRes.error?.message?.includes("admin_list_tester_applications") === true;
   const testerApps = (testerAppsRes.data ?? []) as (TesterApplication & { tester: boolean })[];
   const pendingTesterApps = testerApps.filter((a) => a.status === "pending").length;
@@ -879,6 +892,18 @@ export default async function AdminPage({
                 {users.length}{users.length >= 200 ? " · newest 200 shown" : ""}
               </span>
             </h2>
+            {(missing021 || missingInvites) && (
+              <div className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 py-3 text-[12px] text-(--color-amber)">
+                Migration 021 (pre-alpha invitations) has not reached the app yet — run supabase/migrations/021_tester_invites.sql in the Supabase SQL editor, then reload. Until then &ldquo;Invite&rdquo; below will not work; the Tester tick still does.
+              </div>
+            )}
+            {justInvited && (
+              <div className={`rounded-sm border px-4 py-3 text-[12px] ${inviteMailFailed ? "border-(--color-critical)/60 bg-(--color-critical)/10 text-(--color-critical)" : "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)"}`}>
+                {inviteMailFailed
+                  ? `Invitation recorded for ${justInvited}, but the email did not send (is RESEND_API_KEY set?). Press Invite again once it is.`
+                  : `Invitation sent to ${justInvited}. The desk opens to them when they click the link.`}
+              </div>
+            )}
             <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
               {users.map((u) => (
                 <div key={u.user_id} className="px-3 py-2.5 text-[12px]">
@@ -919,6 +944,11 @@ export default async function AdminPage({
                           Tester
                         </span>
                       )}
+                      {!u.tester && inviteByEmail.has(u.email.toLowerCase()) && (
+                        <span className="rounded-sm border border-(--color-amber-dim)/60 px-1.5 py-0.5 text-(--color-amber-dim)" title={`Invited ${fmtDate(inviteByEmail.get(u.email.toLowerCase())!.created_at)}`}>
+                          Invited
+                        </span>
+                      )}
                       {u.newsletter && (
                         <span className="text-(--color-text-dim)">✉</span>
                       )}
@@ -949,6 +979,21 @@ export default async function AdminPage({
                         </button>
                         <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Tester</span>
                       </form>
+                      {/* The invitation: an email with a link, and the
+                          link is the grant. Re-sends the same link while
+                          it is still open. */}
+                      {!u.tester && (
+                        <form action={inviteTester} className="flex items-center gap-1.5">
+                          <input type="hidden" name="email" value={u.email} />
+                          <button
+                            type="submit"
+                            className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10`}
+                            title={inviteByEmail.has(u.email.toLowerCase()) ? "Send the invitation again" : "Email them a link that opens the pre-alpha to this account"}
+                          >
+                            {inviteByEmail.has(u.email.toLowerCase()) ? "Re-send invite" : "Invite to pre-alpha"}
+                          </button>
+                        </form>
+                      )}
                       {!u.assigned_role && (
                         <form action={setRole} className="flex items-center gap-1.5">
                           <input type="hidden" name="email" value={u.email} />

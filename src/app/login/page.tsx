@@ -4,9 +4,9 @@ import { LoginForm } from "./login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
   return (
     <div className="relative z-10 flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -45,7 +45,7 @@ export default async function LoginPage({
           )}
 
           <div className="mt-8">
-            <LoginForm />
+            <LoginForm next={next} />
           </div>
 
           <p className="mt-6 text-center font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
