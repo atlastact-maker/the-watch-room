@@ -22,6 +22,20 @@ import type { Scenario } from "../incident_types";
 // them. The other four they are still inside when the first unit gets
 // there, and on a slow response the caller hears them on the stairs.
 //
+// Run-to-run variants, drawn once per call:
+//   base        — the pair and the car, as above; the 60/40 roll on
+//                 whether they are gone before the first unit.
+//   gone-early  — they were done in two minutes: out over the fence
+//                 and the Audi away before anyone had turned off the
+//                 A5102. A search from the start, and the dog is the job.
+//   lone        — one man, no car: an opportunist on foot who got in
+//                 through the unlocked patio door, hears her on the
+//                 phone, and walks out of the front towards the main
+//                 road. No plate to run; a description and a direction.
+//   tried-door  — the pair, and one of them comes up the stairs and
+//                 tries the bedroom handle before they run. The operator
+//                 has to hold her still and silent through it.
+//
 // GEOGRAPHY, verified against OpenStreetMap ways and postcodes.io:
 // Ladythorn Road SK7 2ES is a real residential road in Pownall Green,
 // Bramhall, running north-west to south-east from Bramhall Lane South
@@ -239,6 +253,35 @@ export const scenario40: Scenario = {
       { id: 3, label: "Sector 3 · Rear — gardens and Ladythorn Crescent", face: "rear", bearingDeg: 45 },
       { id: 4, label: "Sector 4 · North-west — to the A5102", face: "left", bearingDeg: 315 },
     ],
+    variants: [
+      {
+        id: "gone-early",
+        label: "Tonight they were over the back fence and the car gone inside two minutes — a search from the start",
+        probability: 0.3,
+      },
+      {
+        id: "lone",
+        label: "Tonight it was one man on foot, no car — he heard her on the phone and walked out of the front",
+        probability: 0.2,
+        hazards: {
+          remove: ["offenders", "vehicle"],
+          add: [
+            {
+              id: "offender-lone",
+              pos: { x: 0, y: -11 },
+              kind: "structural",
+              label: "One offender on the ground floor — on foot, no vehicle; came in through the unlocked patio door",
+              knownFromPri: true,
+            },
+          ],
+        },
+      },
+      {
+        id: "tried-door",
+        label: "Tonight one of them came up the stairs and tried the bedroom door before they ran",
+        probability: 0.15,
+      },
+    ],
   },
 
   // The occupier, whispering from the front bedroom. She hangs up when
@@ -262,7 +305,16 @@ export const scenario40: Scenario = {
       // from here: it is on record and it comes back interesting.
       id: "car-waiting",
       atSec: 70,
+      excludesVariantIds: ["lone"],
       text: "There's a car across the road with its engine running and no lights on. A dark one, an Audi I think, and there's somebody sat in the driver's seat. I can read the plate from here — MK68 XWP.",
+      tone: "urgent",
+    },
+    {
+      // Lone run: what she can hear is one set of feet, and no car.
+      id: "lone-one",
+      atSec: 70,
+      requiresVariantIds: ["lone"],
+      text: "I've been listening. It's one. One set of footsteps, one voice — he's talking low, on a phone I think. And there's no car out there, I've looked — the road's empty. He's on his own.",
       tone: "urgent",
     },
     {
@@ -282,11 +334,71 @@ export const scenario40: Scenario = {
       text: "All right. All right. I've locked the bedroom door like you said and I'm sat on the floor by the wardrobe, away from it. I'm not going down. But please hurry.",
       tone: "info",
     },
-    // --- The roll. Most nights they are gone before anyone arrives. ----
+    // --- gone-early: done and gone before the first car is off the A5102.
+    {
+      id: "early-leave",
+      atSec: 110,
+      requiresVariantIds: ["gone-early"],
+      suppressesIds: ["still-inside", "back-leave"],
+      text: "The patio door — that's the patio door going. They're out. I'm at the back window — two of them over the bottom fence, quick, one's got a bag, into the Crescent gardens. They've gone. They've just gone.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "early-car-off",
+      atSec: 130,
+      requiresVariantIds: ["gone-early"],
+      text: "And the car's gone. It pulled off with no lights, down towards the Crescent end where they went over. Dark Audi, MK68 XWP — I'm sure of the plate. There's nobody here now. It's just me and the house.",
+      tone: "urgent",
+    },
+    // --- lone: he hears her, stops, and walks out of the front. ----------
+    {
+      id: "lone-heard",
+      atSec: 170,
+      requiresVariantIds: ["lone"],
+      text: "He's stopped. It's gone quiet — he's stopped moving. I think he's heard me. I think he knows somebody's up here. I'm not saying anything else —",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "lone-front",
+      atSec: 205,
+      requiresVariantIds: ["lone"],
+      suppressesIds: ["still-inside", "back-leave"],
+      text: "The front door. He's gone out the front — I'm at the window — one man, walking fast, not running, up towards the main road. Dark jacket with the hood up, a rucksack. On foot. There's no car, he's just walking.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    // --- tried-door: one of them comes up. ------------------------------
+    {
+      id: "landing",
+      atSec: 190,
+      requiresVariantIds: ["tried-door"],
+      text: "Somebody's on the stairs. On the landing — right outside. I can see the torch under the door. The handle — he's just tried the handle. I'm holding it. I'm not making a sound.",
+      tone: "critical",
+      effect: { pulseCritical: true },
+    },
+    {
+      id: "door-run",
+      atSec: 215,
+      requiresVariantIds: ["tried-door"],
+      suppressesIds: ["still-inside", "back-leave"],
+      text: "He's gone back down. He said something to the other one and they've — that's the patio door. They've run. Out the back, over the fence, both of them. Oh God. Oh God, I thought he was coming through.",
+      tone: "critical",
+    },
+    {
+      id: "door-car-off",
+      atSec: 235,
+      requiresVariantIds: ["tried-door"],
+      text: "The car's pulled off. Down the road, no lights, towards the Crescent end. They've all gone. I'm still holding this door handle and I can't let go of it.",
+      tone: "urgent",
+    },
+    // --- The base roll. Most nights they are gone before anyone arrives. -
     {
       id: "back-leave",
       atSec: 230,
       probability: 0.6,
+      excludesVariantIds: ["gone-early", "lone", "tried-door"],
       suppressesIds: ["still-inside"],
       text: "That's the patio door. They've gone out the back — I'm at the back window now, there's two of them going over the fence at the bottom of the garden, towards the Crescent. One of them's got a bag.",
       tone: "critical",
@@ -306,6 +418,7 @@ export const scenario40: Scenario = {
       // says either and the question of where they are is left open.
       id: "still-inside",
       atSec: 260,
+      excludesVariantIds: ["gone-early", "lone", "tried-door"],
       text: "They're still in. The torch is in the front room now, right below me. I can hear drawers going. There's still nobody out there, is there — I can't see anybody on the road.",
       tone: "urgent",
     },
@@ -346,6 +459,9 @@ export const scenario40: Scenario = {
     },
     opening:
       "Fourteen Ladythorn Road, Bramhall — Stockport. I'm whispering, I have to whisper. There's someone in my house. They're downstairs, right underneath me, I can see a torch going along the hall under the door. I'm in the bedroom with the door locked, on my own. Please — no sirens. Please don't send them with sirens.",
+    openingByVariant: {
+      lone: "Fourteen Ladythorn Road, Bramhall — Stockport. I'm whispering, I have to whisper. There's someone in my house. Downstairs, right underneath me — I can see a torch going along the hall under the door. One person, I think. I'm in the bedroom with the door locked, on my own. Please — no sirens.",
+    },
     deflection: "I can't — I can't talk any louder, they're right under me — just send somebody. Quietly.",
     reassurance: {
       text: "Judith, listen to me. Officers are coming, and they are coming quietly. Stay where you are, stay behind that door, and keep your voice low. I'm not going anywhere.",
@@ -368,10 +484,16 @@ export const scenario40: Scenario = {
       },
       p_ongoing: {
         text: "Yes. They're in the house now. A drawer's just gone — I can hear them. They're still down there.",
+        byVariant: {
+          lone: "Yes. He's in the house now. A drawer's just gone — I can hear him. He's still down there.",
+        },
         tone: "critical",
       },
       p_weapons: {
         text: "I haven't seen them. I've seen a torch under a door, that's all. I don't know what they've got — they got in somehow, they've forced something. I'm not opening this door to find out.",
+        byVariant: {
+          lone: "I haven't seen him. I've seen a torch under a door, that's all. I don't know what he's got. I didn't hear anything break — I think the patio door was on the latch. Michael's always on at me about it.",
+        },
         tone: "urgent",
         followUps: [
           {
@@ -379,6 +501,9 @@ export const scenario40: Scenario = {
             text: "Did you hear anything that sounded like a tool — a bar, glass breaking?",
             answer: {
               text: "One crack, when they came in — like a door being forced, wood going. No glass. Nothing since. They're quiet. They're good at it, that's the thing. This isn't their first.",
+              byVariant: {
+                lone: "No. Nothing. No crack, no glass. I woke up because the boards went in the hall, not because of a noise at the door. I think he just walked in.",
+              },
             },
           },
         ],
@@ -389,9 +514,15 @@ export const scenario40: Scenario = {
       },
       p_who: {
         text: "Two of them, I think. I can hear two voices — men, low, I can't make out what they're saying. I've not seen them. Two.",
+        byVariant: {
+          lone: "One, I think. One set of footsteps — and one voice, low, like he's on a phone. A man. I've not seen him. I think it's just one.",
+        },
       },
       p_description: {
         text: "I can't. I haven't seen them — only the torch. Men, from the voices. Two. That's all I can tell you, and I'm not opening the door to look.",
+        byVariant: {
+          lone: "I can't. I haven't seen him — only the torch. A man, from the voice. One. That's all I can tell you, and I'm not opening the door to look.",
+        },
       },
       p_direction: {
         text: "They've not gone anywhere — they're still down there. I've not heard a door go, they've not gone out. I haven't looked out the front, I daren't move about, the boards creak in this room.",
@@ -401,6 +532,9 @@ export const scenario40: Scenario = {
             text: "Can you get to the window without making a noise, and tell me what is on the road?",
             answer: {
               text: "Hold on. Right — I'm at the window. There's a car across the road with no lights on — I can hear its engine, it's running. There's somebody sat in it. A dark one. I'll try and get the number.",
+              byVariant: {
+                lone: "Hold on. Right — I'm at the window. There's nothing. No car, nobody on the road — just the street lamps. If he came in a car he's not left it out the front.",
+              },
               tone: "urgent",
             },
           },
@@ -431,6 +565,9 @@ export const scenario40: Scenario = {
       },
       p_safe: {
         text: "For now. As long as they stay downstairs. I'm behind a locked door in the front bedroom, on the floor. If they come up the stairs I'm not safe at all.",
+        byVariant: {
+          lone: "For now. As long as he stays downstairs. I'm behind a locked door in the front bedroom, on the floor. If he comes up the stairs I'm not safe at all.",
+        },
         tone: "urgent",
       },
       p_seen: {
@@ -443,12 +580,26 @@ export const scenario40: Scenario = {
     interjections: [
       {
         atSec: 50,
+        excludesVariantIds: ["lone"],
         text: "They're in the back room. The sideboard — I can hear the drawers, the cutlery. That's Michael's mother's silver. They're not rushing. They think nobody's in.",
         tone: "urgent",
       },
       {
+        atSec: 50,
+        requiresVariantIds: ["lone"],
+        text: "He's in the back room. The sideboard — I can hear the drawers, the cutlery. That's Michael's mother's silver. He's not rushing. He thinks nobody's in.",
+        tone: "urgent",
+      },
+      {
         atSec: 90,
+        excludesVariantIds: ["lone"],
         text: "One of them's just laughed. Quiet — they're laughing, in my house. I'm sorry. I'm all right. I'm all right.",
+        tone: "urgent",
+      },
+      {
+        atSec: 90,
+        requiresVariantIds: ["lone"],
+        text: "He's talking again — to somebody on a phone, it must be. Low. Telling them what's here, I expect. In my house. I'm sorry. I'm all right. I'm all right.",
         tone: "urgent",
       },
       {
@@ -464,5 +615,51 @@ export const scenario40: Scenario = {
       },
     ],
     onDispatch: "Thank you. No sirens — you've told them? Tell them I'm upstairs at the front, and I'm not coming down until they say my name.",
+
+    // Read after Send, while the units are silent from the A5102. The
+    // two that matter are the two that keep her out of the stairwell:
+    // stay put, and stay quiet. The window is useful; the name at the
+    // door is what stops her opening it to the wrong person.
+    preArrival: [
+      {
+        id: "stay",
+        text: "Judith, stay exactly where you are — upstairs, behind that locked door, on the floor away from it. Do not go down, whatever you hear. Nothing down there is worth meeting them on the stairs for.",
+        key: true,
+        reply: "I'm not moving. I've got my back to the wardrobe. I'm not going down. I promise you I'm not going down.",
+        replyByVariant: {
+          "tried-door": "I'm not moving. I've got my back to the wardrobe. If they come up — I'm not moving.",
+        },
+        effect: { state: "calm" },
+      },
+      {
+        id: "quiet",
+        text: "Put your phone on silent now and turn the screen right down. Keep whispering. If you have to stop talking, don't hang up — just put the phone down beside you and I'll stay on.",
+        key: true,
+        reply: "It's on silent. Screen's down. I'll put it on the floor if I have to — I won't hang up.",
+      },
+      {
+        id: "no-answer",
+        text: "If anyone comes up the stairs, don't open the door and don't answer them. Stay still and let them think the room is empty. If they come through it, get to the window and shout — then they'll go.",
+        key: true,
+        reply: "Let them think it's empty. All right. And the window if — all right. I've heard you.",
+        replyByVariant: {
+          lone: "Let him think it's empty. All right. And the window if — all right. I've heard you.",
+        },
+      },
+      {
+        id: "window",
+        text: "If you can get to the front window without a sound, keep an eye on the road. Tell me the second the car moves, or if anyone comes out of the house.",
+        reply: "I can see the road from the bed if I kneel up. The car's still there. I'll tell you the second it goes.",
+        replyByVariant: {
+          lone: "I can see the road from the bed if I kneel up. There's still nobody out there. I'll tell you the second anything moves.",
+          "gone-early": "I'm at the window. There's nothing now — car's gone, they've gone. I'll tell you if anybody comes back.",
+        },
+      },
+      {
+        id: "name",
+        text: "The officers will say your name at the bedroom door when they get to you — 'Judith, it's the police'. Don't open it to anyone who doesn't.",
+        reply: "My name. Not till they say my name. I won't open it before that.",
+      },
+    ],
   },
 };
