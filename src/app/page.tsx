@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signupOpen } from "@/lib/auth/signup-window";
-import { prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { prealphaClosed, prealphaClosesLabel, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 
 // The front door. Same face as the trailer and the share card: the
 // wordmark, the strapline, the dispatch feed, sign up / log in. Wide
@@ -66,6 +66,8 @@ export default async function LandingPage({
 
   const open = signupOpen();
   const testing = prealphaOpen();
+  const closed = prealphaClosed();
+  const closes = prealphaClosesLabel();
 
   return (
     <div className="relative z-10 flex flex-1 flex-col">
@@ -120,7 +122,11 @@ export default async function LandingPage({
               <Link href="/login" className={btnGhost}>Log in</Link>
             </div>
             <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.15em] text-(--color-text-dim)">
-              {testing ? "Closed pre-alpha · access open · granted by hand" : `Closed pre-alpha · access opens ${prealphaOpensLabel()}`}
+              {testing
+                ? `Closed pre-alpha · sign-ups open${closes ? ` · close ${closes}` : ""}`
+                : closed
+                  ? "Closed pre-alpha · sign-ups closed"
+                  : `Closed pre-alpha · sign-ups open ${prealphaOpensLabel()}`}
             </p>
           </div>
 
@@ -193,7 +199,9 @@ export default async function LandingPage({
                 Fire, ambulance and police jobs, each playing out differently from shift to shift. Testers get the desk from the call to the debrief, a bug report one click away, and a private room on the Discord with the developer and the advisors.
               </p>
               <p className="mt-3 text-[15px] leading-relaxed text-(--color-text-muted)">
-                Tick &ldquo;Join the pre-alpha&rdquo; when you sign up, or request access from your account if you already have one. Access is granted by hand and you get an email when the desk is open to you.
+                {closed
+                  ? "Sign-ups for this round closed. There will be a wider test after the pre-alpha, and an account made now is ready for it."
+                  : `Tick “Join the pre-alpha” when you sign up, or request access from your account if you already have one. Access is granted by hand and you get an email when the desk is open to you.${closes ? ` Sign-ups close on ${closes}.` : ""}`}
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
                 {open && <Link href="/signup?prealpha=1" className={btnPrimary}>Create an account</Link>}

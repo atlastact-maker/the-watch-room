@@ -8,7 +8,7 @@ import {
   type AdvisorStanding,
 } from "@/lib/auth/advisor-standing";
 import { signupOpen } from "@/lib/auth/signup-window";
-import { ensurePreAlphaRequest, prealphaDoors, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { ensurePreAlphaRequest, prealphaClosed, prealphaClosesLabel, prealphaDoors, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { RequestPreAlphaButton } from "@/app/prealpha/request-button";
 import { ServiceBadge } from "@/app/components/service-insignia";
 import { AdvisorSync } from "@/app/components/advisor-sync";
@@ -57,6 +57,8 @@ export default async function StandbyPage() {
   const accepted = standing === "accepted";
   const prealpha = await ensurePreAlphaRequest(supabase, user);
   const testingOpen = prealphaOpen();
+  const testingClosed = prealphaClosed();
+  const closes = prealphaClosesLabel();
   // On the list (accepted, invited or ticked) but on this page: the
   // doors are closed. Say so, rather than offering the request again.
   const [{ tester: onList }, doors] = await Promise.all([isTester(supabase, user.email), prealphaDoors(supabase)]);
@@ -111,6 +113,8 @@ export default async function StandbyPage() {
             <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
               Reviewed, and not this time. There will be a wider test after the pre-alpha.
             </p>
+          ) : testingClosed ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Sign-ups for this round closed on {closes}. There will be a wider test after the pre-alpha, and your account is ready for it.</p>
           ) : !testingOpen ? (
             <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Access opens {prealphaOpensLabel()}.</p>
           ) : prealpha.tableMissing ? (
@@ -118,7 +122,7 @@ export default async function StandbyPage() {
           ) : (
             <>
               <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">
-                Live jobs across Fire, Ambulance and Police, the whole desk, and a tester room on the Discord. One press to ask for access.
+                Live jobs across Fire, Ambulance and Police, the whole desk, and a tester room on the Discord. One press to ask for access.{closes ? ` Sign-ups close on ${closes}.` : ""}
               </p>
               <div className="mt-3">
                 <RequestPreAlphaButton compact />

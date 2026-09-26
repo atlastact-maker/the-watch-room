@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
-import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaClosed, prealphaClosesLabel, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { RequestPreAlphaButton } from "./request-button";
 import { Notice } from "@/app/components/notice";
@@ -37,6 +37,8 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
     data: { user },
   } = await supabase.auth.getUser();
   const open = prealphaOpen();
+  const closed = prealphaClosed();
+  const closes = prealphaClosesLabel();
   const { standing, application, tableMissing } = await ensurePreAlphaRequest(supabase, user);
   const inAlready = user ? await hasShiftAccess(supabase, user.email) : false;
   const admin = user ? await hasAdminAccess(supabase, user.email) : false;
@@ -183,7 +185,11 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
         {!accepted && (
           <section className="mt-10 border-t border-(--color-border-subtle) pt-8">
             <h2 className={h2Cls}>{standing === "none" ? "Get in" : "Your request"}</h2>
-            {!open ? (
+            {closed ? (
+              <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
+                Sign-ups for the pre-alpha closed on <span className="text-(--color-amber)">{closes}</span>. There will be a wider test after it, and an account made now is ready for that.
+              </p>
+            ) : !open ? (
               <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
                 Access opens on <span className="text-(--color-amber)">{prealphaOpensLabel()}</span>. Create an account now and you can request it the moment it does.
               </p>
@@ -194,6 +200,11 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
                 <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
                   Create an account and tick <span className="text-(--color-amber)">Join the pre-alpha</span> on the way in. Already have one? Log in and press the button. Access is granted by hand; you will see your standing here and get an email when the desk is open to you.
                 </p>
+                {closes && (
+                  <p className="mt-2 text-sm leading-relaxed text-(--color-text-muted)">
+                    Sign-ups close on <span className="text-(--color-amber)">{closes}</span>.
+                  </p>
+                )}
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <Link href="/signup?prealpha=1" className={btnPrimary}>Create an account</Link>
                   <Link href="/login" className={btnGhost}>Log in</Link>
@@ -211,6 +222,11 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
               </Notice>
             ) : (
               <div className="mt-4">
+                {closes && (
+                  <p className="mb-3 text-sm leading-relaxed text-(--color-text-muted)">
+                    Sign-ups close on <span className="text-(--color-amber)">{closes}</span>.
+                  </p>
+                )}
                 <RequestPreAlphaButton />
               </div>
             )}

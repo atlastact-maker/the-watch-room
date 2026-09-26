@@ -5,7 +5,7 @@ import { signup } from "@/lib/auth/actions";
 import { AdvisorQuestions } from "@/app/components/advisor-questions";
 import { Notice } from "@/app/components/notice";
 
-export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false }: { defaultAdvisorOpen?: boolean; defaultPrealpha?: boolean }) {
+export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false, prealphaCloses = "" }: { defaultAdvisorOpen?: boolean; defaultPrealpha?: boolean; prealphaCloses?: string }) {
   const [state, action, pending] = useActionState(signup, undefined);
   const [advisorOpen, setAdvisorOpen] = useState(defaultAdvisorOpen);
 
@@ -84,7 +84,7 @@ export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false
           <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-muted)">
             <span className="text-(--color-amber)">Join the pre-alpha</span>
             <span className="mt-0.5 block normal-case tracking-normal text-(--color-text-dim)">
-              Requests access to the closed test. Granted by hand; you get an email when the desk is open to you. Keep it in the room until the doors open.
+              Requests access to the closed test. Granted by hand; you get an email when the desk is open to you.{prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}
             </span>
           </span>
         </label>

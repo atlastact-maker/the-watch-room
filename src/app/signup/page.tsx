@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignupForm } from "./signup-form";
+import { prealphaClosesLabel, prealphaOpen } from "@/lib/prealpha";
 import { signupOpen } from "@/lib/auth/signup-window";
 import { UtcClock } from "./utc-clock";
 
@@ -59,7 +60,7 @@ export default async function SignupPage({
             </p>
           )}
           {open ? (
-            <SignupForm defaultAdvisorOpen={advisor === "1"} defaultPrealpha={prealpha === "1"} />
+            <SignupForm defaultAdvisorOpen={advisor === "1"} defaultPrealpha={prealpha === "1" && prealphaOpen()} prealphaCloses={prealphaOpen() ? prealphaClosesLabel() : ""} />
           ) : (
             <div className="space-y-3">
               <p className="text-xs leading-relaxed text-(--color-text-muted)">

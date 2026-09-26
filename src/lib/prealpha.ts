@@ -5,11 +5,33 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // account stands with it. One place, so the front door, the standby
 // page, the application page and the admin tab all agree.
 //
-// Applications are open. PREALPHA_OPENS_AT in the environment can close
-// them again until a date without a deploy of copy (an ISO timestamp,
-// or "now" to open immediately).
+// Sign-ups are open now and close at the end of 15th October 2026, as
+// announced. PREALPHA_OPENS_AT and PREALPHA_CLOSES_AT in the environment
+// move either end without a deploy of copy (an ISO timestamp; "now" for
+// the opening, "never" for the close).
 
 export const PREALPHA_DEFAULT_OPENS_AT = 0;
+export const PREALPHA_DEFAULT_CLOSES_AT = Date.parse("2026-10-16T00:00:00+01:00");
+
+export function prealphaClosesAt(): number {
+  const raw = process.env.PREALPHA_CLOSES_AT?.trim();
+  if (!raw) return PREALPHA_DEFAULT_CLOSES_AT;
+  if (raw.toLowerCase() === "never") return Number.POSITIVE_INFINITY;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : PREALPHA_DEFAULT_CLOSES_AT;
+}
+
+/** Sign-ups have closed: the window ended. */
+export function prealphaClosed(now = Date.now()): boolean {
+  return now >= prealphaClosesAt();
+}
+
+/** The last day sign-ups are taken, as printed: "Thursday 15 October". */
+export function prealphaClosesLabel(): string {
+  const at = prealphaClosesAt();
+  if (!Number.isFinite(at)) return "";
+  return new Date(at - 1).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
+}
 
 export function prealphaOpensAt(): number {
   const raw = process.env.PREALPHA_OPENS_AT?.trim();
@@ -19,8 +41,9 @@ export function prealphaOpensAt(): number {
   return Number.isFinite(t) ? t : PREALPHA_DEFAULT_OPENS_AT;
 }
 
+/** Sign-ups are being taken: after the opening, before the close. */
 export function prealphaOpen(now = Date.now()): boolean {
-  return now >= prealphaOpensAt();
+  return now >= prealphaOpensAt() && now < prealphaClosesAt();
 }
 
 export function prealphaOpensLabel(): string {
@@ -111,7 +134,8 @@ export async function filePreAlphaRequest(
   supabase: SupabaseClient,
   user: MinimalUser,
 ): Promise<{ ok: true } | { ok: false; message: string; tableMissing?: boolean }> {
-  if (!prealphaOpen()) return { ok: false, message: "Applications are not open yet." };
+  if (prealphaClosed()) return { ok: false, message: `Sign-ups closed on ${prealphaClosesLabel()}.` };
+  if (!prealphaOpen()) return { ok: false, message: "Sign-ups are not open yet." };
   if (!user.email) return { ok: false, message: "Log in first." };
   const meta = (user.user_metadata ?? {}) as { callsign?: unknown; advisor_discord?: unknown };
   const row = {
