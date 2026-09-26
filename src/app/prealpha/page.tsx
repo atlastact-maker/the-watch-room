@@ -208,7 +208,7 @@ export default async function PreAlphaPage() {
         <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-5 py-4 font-mono text-[10px] uppercase tracking-[0.15em] text-(--color-text-dim) sm:px-6 sm:tracking-[0.2em]">
           <span>The Watch Room · Pre-alpha</span>
           <div className="flex gap-4">
-            <Link href="/" className="-my-2 py-2 hover:text-(--color-text)">Advisor programme</Link>
+            <Link href="/" className="-my-2 py-2 hover:text-(--color-text)">Home</Link>
             <Link href="/terms" className="-my-2 py-2 hover:text-(--color-text)">Terms</Link>
           </div>
         </div>
