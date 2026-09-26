@@ -18,7 +18,7 @@
 // carries warning signals, a vehicle record carries reports — but the
 // wording is ours and nothing here is drawn from any real system.
 
-import type { Incident, Scenario } from "./incident_types";
+import type { Incident, ScenarioMeta } from "./incident_types";
 import type { Station } from "./types";
 import type { Hospital } from "./hospitals";
 
@@ -182,7 +182,8 @@ export function buildRecordIndex(args: {
   sets: RecordSet[];
   stations: Station[];
   hospitals: Hospital[];
-  scenarios: Scenario[];
+  /** Every scenario's light face — a full Scenario does too. */
+  scenarios: ScenarioMeta[];
   incidents: Incident[];
   /** Fleet crews, as (appliance id, callsign, station name, member). */
   crews: { applianceId: string; callsign: string; stationName: string; member: { id: string; name: string; role: string } }[];

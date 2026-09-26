@@ -353,6 +353,21 @@ export type Scenario = {
   disposal?: Disposal;
 };
 
+/** The light face of a scenario: what the menus, the county board, the
+ *  call generator and the records index need to list a job without
+ *  carrying its call script, informant script, scene and records. A
+ *  full Scenario satisfies this type, so anything written for the meta
+ *  takes a body too. Generated into scenarios/meta.ts by
+ *  tools/gen-scenario-meta.cjs — the body itself is fetched on demand
+ *  with loadScenario(id). */
+export type ScenarioMeta = Pick<
+  Scenario,
+  "id" | "slug" | "title" | "type" | "patch" | "severity" | "trigger" | "location" | "pda"
+> & {
+  property: Pick<Scenario["property"], "class" | "firstDueStationId" | "knownHazards" | "vulnerabilities">;
+  pri: Pick<Scenario["pri"], "items">;
+};
+
 export type SceneVehicle = {
   id: string;
   vrm: string;

@@ -11,7 +11,9 @@
     "check:patients": "npx esbuild tools/sim-check/patients.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/patient-check.cjs --log-level=error && node node_modules/.cache/patient-check.cjs",
     "check:hospitals": "npx esbuild tools/sim-check/hospitals.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/hospital-check.cjs --log-level=error && node node_modules/.cache/hospital-check.cjs",
     "check:police": "npx esbuild tools/sim-check/police.ts --bundle --platform=node --format=cjs --alias:@=./src --loader:.json=json --outfile=node_modules/.cache/police-check.cjs --log-level=error && node node_modules/.cache/police-check.cjs",
-    "check:runtime": "node tools/sim-check/run.cjs runtime"
+    "check:runtime": "node tools/sim-check/run.cjs runtime",
+    "check:meta": "node tools/sim-check/run.cjs meta",
+    "scenarios:meta": "node tools/gen-scenario-meta.cjs"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",

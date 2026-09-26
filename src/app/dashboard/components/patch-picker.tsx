@@ -12,7 +12,7 @@ import {
 } from "@/lib/sim/coverage";
 import { INTENSITY_META, type ShiftIntensity } from "@/lib/sim/shift";
 import { timeBandForHour } from "@/lib/sim/weather";
-import { SCENARIOS } from "@/lib/sim/scenarios";
+import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import type { StationWithAppliances } from "../page";
 
 // Leaflet touches window at import time — must be client-only.
@@ -117,7 +117,8 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
 
   // The whole county: every borough bucket plus the force-wide assets.
   const stationsForPatch = PATCH_AREAS.flatMap((a) => stationsByArea[a]);
-  const scenariosForPatch = SCENARIOS;
+  // The light index: the board lists every job without downloading one.
+  const scenariosForPatch = SCENARIO_META;
   const availableForPatch = scenariosForPatch.filter((s) =>
     scenarioCovered(s, covered),
   );
