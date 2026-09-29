@@ -79,6 +79,20 @@ type Overview = {
   incidents_resolved: number;
 };
 
+/** An advisor application in one piece of text: the facts on the first
+ *  line, then what they wrote. Goes onto the record when they are
+ *  accepted (see setRole). */
+function applicationText(a: AdvisorRow): string {
+  const topics = Array.isArray(a.topics) ? (a.topics as string[]).filter((t) => typeof t === "string" && t.trim()) : [];
+  const facts = [a.service, a.status, a.force_area, a.involvement].map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean);
+  const lines = [facts.join(" · ")];
+  if (topics.length) lines.push(`Topics: ${topics.join(", ")}`);
+  if (a.discord?.trim()) lines.push(`Discord: ${a.discord.trim()}`);
+  if (a.background?.trim()) lines.push("", a.background.trim());
+  if (a.notes?.trim()) lines.push("", a.notes.trim());
+  return lines.join("\n").trim();
+}
+
 type NoteRow = {
   id: string;
   subject_user_id: string;
@@ -465,6 +479,8 @@ export default async function AdminPage({
                             <form action={setRole}>
                               <input type="hidden" name="email" value={a.email} />
                               <input type="hidden" name="role" value="advisor" />
+                              <input type="hidden" name="userId" value={a.user_id} />
+                              <input type="hidden" name="application" value={applicationText(a)} />
                               <button
                                 type="submit"
                                 className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}

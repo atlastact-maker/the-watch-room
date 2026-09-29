@@ -37,11 +37,20 @@ export type IconValue = "fire" | "ambulance" | "police" | "control" | "specialis
  *
  *  Granting 'advisor' to someone who did not already hold it is what
  *  "reviewed" means, so that is where the applicant gets told. */
+/** The first line of the note that carries an accepted advisor's
+ *  application, so it is written once and recognisable on the record. */
+const APPLICATION_NOTE_PREFIX = "Advisor application (accepted)";
+
 export async function setRole(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "").trim();
   const role = String(formData.get("role") ?? "") as RoleValue;
   const iconRaw = String(formData.get("icon") ?? "").trim();
-  const note = String(formData.get("note") ?? "").trim();
+  const typedNote = String(formData.get("note") ?? "").trim();
+  // The Accept advisor button carries the application's own words, so
+  // accepting someone puts what they told us on their record rather
+  // than leaving it on the applications tab to be found again later.
+  const userId = String(formData.get("userId") ?? "").trim();
+  const application = String(formData.get("application") ?? "").trim();
   if (!email || !["admin", "operator", "advisor"].includes(role)) return;
   const icon = ["fire", "ambulance", "police", "control", "specialist"].includes(iconRaw)
     ? (iconRaw as IconValue)
@@ -57,6 +66,10 @@ export async function setRole(formData: FormData): Promise<void> {
   );
   const newlyAdvisor = role === "advisor" && previous?.role !== "advisor";
 
+  // The role note: what the admin typed, or, on acceptance, the first
+  // line of the application (service, standing, force area) so the
+  // Current advisors table says who this is without a second look.
+  const note = typedNote || (newlyAdvisor && application ? application.split("\n")[0].slice(0, 200) : "");
   const { error } = await supabase.rpc("admin_upsert_role", {
     p_email: email,
     p_role: role,
@@ -64,6 +77,21 @@ export async function setRole(formData: FormData): Promise<void> {
     p_note: note || null,
   });
   if (error) throw new Error(error.message);
+
+  // The full application, as an admin note on the account, once.
+  if (newlyAdvisor && userId && application) {
+    const { data: existing } = await supabase.rpc("admin_notes_all");
+    const already = ((existing ?? []) as { subject_user_id: string; note: string }[]).some(
+      (n) => n.subject_user_id === userId && n.note.startsWith(APPLICATION_NOTE_PREFIX),
+    );
+    if (!already) {
+      const { error: noteError } = await supabase.rpc("admin_add_note", {
+        p_user_id: userId,
+        p_note: `${APPLICATION_NOTE_PREFIX}\n${application}`.slice(0, 4000),
+      });
+      if (noteError) console.error(`advisor application note not saved for ${email}: ${noteError.message}`);
+    }
+  }
 
   if (newlyAdvisor) {
     // Best-effort by design: sendEmail never throws, and the acceptance
