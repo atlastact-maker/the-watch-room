@@ -481,6 +481,10 @@ export default async function AdminPage({
                               <input type="hidden" name="role" value="advisor" />
                               <input type="hidden" name="userId" value={a.user_id} />
                               <input type="hidden" name="application" value={applicationText(a)} />
+                              {/* The service they said they served in becomes
+                                  the insignia on the role, so an accepted
+                                  advisor wears it everywhere at once. */}
+                              <input type="hidden" name="icon" value={serviceKeyFor(a.service) ?? ""} />
                               <button
                                 type="submit"
                                 className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
