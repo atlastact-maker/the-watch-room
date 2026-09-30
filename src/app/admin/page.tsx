@@ -207,12 +207,16 @@ function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[]; notified?: string | string[]; of?: string | string[] }>;
+  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[]; notified?: string | string[]; of?: string | string[]; q?: string | string[]; page?: string | string[] }>;
 }) {
   // A write action that hit a missing database function sends us back
   // here with the migration number, so it can be reported the same way
   // a missing list function is.
-  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam, notified: notifiedParam, of: ofParam } = await searchParams;
+  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam, notified: notifiedParam, of: ofParam, q: qParam, page: pageParam } = await searchParams;
+  // The Users tab: a search and a page (migration 023).
+  const USERS_PAGE = 100;
+  const userQuery = typeof qParam === "string" ? qParam.trim().slice(0, 80) : "";
+  const userPage = Math.max(1, Number.parseInt(typeof pageParam === "string" ? pageParam : "1", 10) || 1);
   const missing015 = missing === "015";
   const missing016 = missing === "016";
   const missing017 = missing === "017";
@@ -220,6 +224,7 @@ export default async function AdminPage({
   const missing020 = missing === "020";
   const missing021 = missing === "021";
   const missing022 = missing === "022";
+  const missing023 = missing === "023";
   const notified = typeof notifiedParam === "string" ? `${notifiedParam} of ${typeof ofParam === "string" ? ofParam : "?"}` : null;
   const justInvited = typeof invitedParam === "string" ? invitedParam : null;
   const inviteMailFailed = mailParam === "0";
@@ -236,13 +241,13 @@ export default async function AdminPage({
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
 
-  const [advisorsRes, rolesRes, overviewRes, usersRes, notesRes, bugsRes, releasedRes, mapRes, routing, testerAppsRes, invitesRes] = await Promise.all([
+  const [advisorsRes, rolesRes, overviewRes, usersResNew, notesRes, bugsRes, releasedRes, mapRes, routing, testerAppsRes, invitesRes, countRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
     supabase.rpc("admin_list_roles"),
     supabase.rpc("admin_overview"),
     // Every account, not the newest twenty-five: the advisors who signed up
     // first were dropping off the bottom. 200 is the function's ceiling.
-    supabase.rpc("admin_list_users", { p_limit: 200 }),
+    supabase.rpc("admin_list_users", { p_limit: USERS_PAGE, p_offset: (userPage - 1) * USERS_PAGE, p_query: userQuery || null }),
     supabase.rpc("admin_notes_all"),
     supabase.rpc("admin_list_bug_reports", { p_limit: 200 }),
     supabase.from("released_scenarios").select("scenario_id, note"),
@@ -250,10 +255,18 @@ export default async function AdminPage({
     // Scenarios tab can say whether the desk is on its own roads yet.
     supabase.rpc("osm_map_status"),
     ownOsrmStatus(),
-    supabase.rpc("admin_list_tester_applications", { p_limit: 200 }),
-    supabase.rpc("admin_list_tester_invites", { p_limit: 500 }),
+    supabase.rpc("admin_list_tester_applications", { p_limit: 5000 }),
+    supabase.rpc("admin_list_tester_invites", { p_limit: 5000 }),
+    supabase.rpc("admin_count_users", { p_query: userQuery || null }),
   ]);
   const doors = await prealphaDoors(supabase);
+  // Before migration 023 the users function has the old one-argument
+  // shape; fall back to it so the tab keeps working, capped as before.
+  const usersMissing023 = usersResNew.error?.message?.includes("admin_list_users") === true;
+  const usersRes = usersMissing023 ? await supabase.rpc("admin_list_users", { p_limit: 200 }) : usersResNew;
+  const users = (usersRes.data ?? []) as UserRow[];
+  const usersTotal = usersMissing023 ? users.length : Number(countRes.data ?? users.length);
+  const usersPages = Math.max(1, Math.ceil(usersTotal / USERS_PAGE));
   // Invitations (migration 021), newest first; one per email is enough
   // for the Users tab, and the first seen is the newest.
   const missingInvites = invitesRes.error?.message?.includes("admin_list_tester_invites") === true;
@@ -288,7 +301,6 @@ export default async function AdminPage({
   const rolesLackTick =
     roles.length > 0 && roles.every((r) => r.discord_granted === undefined);
   const overview = ((overviewRes.data ?? []) as Overview[])[0];
-  const users = (usersRes.data ?? []) as UserRow[];
   // Same test for the tester tick: rows without the column mean the API
   // is still serving the pre-016 shape of admin_list_users.
   const usersLackTester =
@@ -376,7 +388,7 @@ export default async function AdminPage({
             count={pending.length}
             countTone={pending.length > 0 ? "amber" : undefined}
           />
-          <AdminTabLink tab="users" current={tab} label="Registered users" count={users.length} />
+          <AdminTabLink tab="users" current={tab} label="Registered users" count={usersTotal} />
           <AdminTabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} countTone={openBugs > 0 ? "amber" : undefined} />
           <AdminTabLink tab="scenarios" current={tab} label="Scenarios" count={released.size} />
           <AdminTabLink tab="prealpha" current={tab} label="Pre-alpha" count={pendingTesterApps} countTone={pendingTesterApps > 0 ? "amber" : undefined} />
@@ -952,14 +964,36 @@ export default async function AdminPage({
         )}
 
         {/* Recent registrations */}
-        {tab === "users" && users.length > 0 && (
+        {tab === "users" && (
           <section className="space-y-3">
-            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Registered users
-              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                {users.length}{users.length >= 200 ? " · newest 200 shown" : ""}
-              </span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
+                Registered users
+                <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
+                  {usersMissing023
+                    ? `${users.length}${users.length >= 200 ? " · newest 200 shown" : ""}`
+                    : userQuery
+                      ? `${usersTotal} matching · page ${userPage} of ${usersPages}`
+                      : `${usersTotal} · page ${userPage} of ${usersPages}`}
+                </span>
+              </h2>
+              <form method="get" action="/admin" className="flex items-center gap-2">
+                <input type="hidden" name="tab" value="users" />
+                <input name="q" defaultValue={userQuery} placeholder="Search email, callsign or Discord" className={`${inputCls} w-64`} />
+                <button type="submit" className={btnCls}>Search</button>
+                {userQuery && <Link href="/admin?tab=users" className={`${btnCls} border-(--color-border) text-(--color-text-dim)`}>Clear</Link>}
+              </form>
+            </div>
+            {(usersMissing023 || missing023) && (
+              <div className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 py-3 text-[12px] text-(--color-amber)">
+                Migration 023 (admin lists) has not been run — run supabase/migrations/023_admin_lists_uncapped.sql in the Supabase SQL editor, then reload. Until then this tab shows the newest 200 accounts and search is off.
+              </div>
+            )}
+            {users.length === 0 && (
+              <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
+                {userQuery ? "No accounts match." : "No accounts yet."}
+              </p>
+            )}
             {(missing021 || missingInvites) && (
               <div className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 py-3 text-[12px] text-(--color-amber)">
                 Migration 021 (pre-alpha invitations) has not reached the app yet — run supabase/migrations/021_tester_invites.sql in the Supabase SQL editor, then reload. Until then &ldquo;Invite&rdquo; below will not work; the Tester tick still does.
@@ -1118,6 +1152,13 @@ export default async function AdminPage({
                 </div>
               ))}
             </div>
+            {!usersMissing023 && usersPages > 1 && (
+              <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+                {userPage > 1 ? <Link href={`/admin?tab=users&page=${userPage - 1}${userQuery ? `&q=${encodeURIComponent(userQuery)}` : ""}`} className={btnCls}>← Newer</Link> : <span />}
+                <span>Page {userPage} of {usersPages}</span>
+                {userPage < usersPages ? <Link href={`/admin?tab=users&page=${userPage + 1}${userQuery ? `&q=${encodeURIComponent(userQuery)}` : ""}`} className={btnCls}>Older →</Link> : <span />}
+              </div>
+            )}
           </section>
         )}
       </div>

@@ -262,7 +262,7 @@ export async function inviteTester(formData: FormData): Promise<void> {
  *  single Accept would. */
 export async function acceptAllPendingTesterApplications(): Promise<void> {
   const supabase = await adminClient();
-  const { data, error } = await supabase.rpc("admin_list_tester_applications", { p_limit: 500 });
+  const { data, error } = await supabase.rpc("admin_list_tester_applications", { p_limit: 5000 });
   if (error?.message?.includes("admin_list_tester_applications")) {
     redirect("/admin?missing=020&tab=prealpha");
   }
@@ -308,9 +308,14 @@ export async function setPrealphaDoors(formData: FormData): Promise<void> {
  *  on the tester list (ticked, accepted or invited alike). */
 export async function notifyTestersDoorsOpen(): Promise<void> {
   const supabase = await adminClient();
-  const { data, error } = await supabase.rpc("admin_list_users", { p_limit: 200 });
+  // The tester list itself (migration 023), not the users page: the
+  // page is paged, and a tester past the page would be missed silently.
+  const { data, error } = await supabase.rpc("admin_list_testers");
+  if (error?.message?.includes("admin_list_testers")) {
+    redirect("/admin?missing=023&tab=prealpha");
+  }
   if (error) throw new Error(error.message);
-  const testers = ((data ?? []) as { email: string; tester: boolean; assigned_role: string | null }[]).filter((u) => u.tester && u.assigned_role !== "admin");
+  const testers = ((data ?? []) as { email: string; is_admin: boolean }[]).filter((t) => !t.is_admin);
   const { subject, html } = doorsOpenEmail();
   let sent = 0;
   for (const t of testers) {
