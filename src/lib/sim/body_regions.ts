@@ -79,6 +79,7 @@ export const RED_FLAG_REGIONS: Record<PatientRedFlag, BodyRegion[]> = {
   major_haemorrhage:       ["systemic"],
   overdose_opioid:         ["systemic", "head"],
   bradycardia_unstable:    ["chest", "systemic"],
+  tachycardia_unstable:    ["chest", "systemic"],
 };
 
 // ---------------------------------------------------------------------------
@@ -119,6 +120,8 @@ export const CIRCULATION_ACTION_REGIONS: Record<CirculationAction, BodyRegion[]>
   cpr:        ["chest"],
   defib:      ["chest"],
   pacing:     ["chest"],
+  vagal:      ["systemic"],
+  cardioversion: ["chest"],
 };
 
 export const PACKAGING_ACTION_REGIONS: Record<PackagingAction, BodyRegion[]> = {
@@ -171,6 +174,7 @@ export const DRUG_REGIONS: Record<DrugName, BodyRegion[]> = {
   blood_prbc:                ["systemic"],
   blood_plasma:              ["systemic"],
   atropine:                  ["systemic", "chest"],
+  adenosine:                 ["systemic", "chest"],
 };
 
 /**

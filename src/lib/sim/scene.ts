@@ -146,11 +146,15 @@ export type PatientRedFlag =
   | "overdose_opioid"
   /** A slow rhythm with adverse features — shock, syncope, ischaemia,
    *  failure. The RCUK bradycardia algorithm: atropine, then pacing. */
-  | "bradycardia_unstable";
+  | "bradycardia_unstable"
+  /** A fast rhythm with adverse features — SVT or VT with a pulse. The
+   *  RCUK tachycardia algorithm: vagal, adenosine or amiodarone, or a
+   *  synchronised shock. */
+  | "tachycardia_unstable";
 
 /** How the atria and ventricles are talking to each other, for the trace
  *  and the rate. Sinus unless a scenario says otherwise. */
-export type ConductionRhythm = "sinus" | "af" | "hb1" | "hb2_m1" | "hb2_m2" | "hb3";
+export type ConductionRhythm = "sinus" | "af" | "hb1" | "hb2_m1" | "hb2_m2" | "hb3" | "svt" | "vt_pulse";
 
 export type HospitalDestinationType =
   | "nearest_a_e"

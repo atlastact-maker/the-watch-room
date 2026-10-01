@@ -31,6 +31,7 @@ const RED_FLAG_LABEL: Record<PatientRedFlag, string> = {
   major_haemorrhage: "Major haemorrhage",
   overdose_opioid: "Opioid overdose",
   bradycardia_unstable: "Bradycardia · adverse features",
+  tachycardia_unstable: "Tachycardia · adverse features",
 };
 
 type Props = {

@@ -274,6 +274,7 @@ export const PHARMACOLOGY: Record<DrugName, DrugSpec> = {
   dextrose_iv: { route: "IV", dose: "10 % · 100 mL", onsetSec: 45, peakSec: 180, durationSec: 1800, maxDoses: 3, repeatSec: 300, indication: "Hypoglycaemia", effects: {} },
   naloxone: { route: "IM", dose: "400 µg", onsetSec: 90, peakSec: 300, durationSec: 1800, maxDoses: 5, repeatSec: 180, indication: "Opioid toxicity with respiratory depression", effects: { opioid: -0.7, hr: 15 } },
   ondansetron: { route: "IV", dose: "4 mg", onsetSec: 300, peakSec: 900, durationSec: 7200, maxDoses: 1, repeatSec: 7200, indication: "Nausea and vomiting", effects: {} },
+  adenosine: { route: "IV", dose: "6 mg, then 12 mg", onsetSec: 10, peakSec: 20, durationSec: 60, maxDoses: 3, repeatSec: 60, indication: "Regular narrow-complex tachycardia", effects: {} },
   atropine: { route: "IV", dose: "500 µg", onsetSec: 30, peakSec: 120, durationSec: 1800, maxDoses: 6, repeatSec: 180, indication: "Bradycardia with adverse features — up to 3 mg", effects: {} },
   tXA_iv: { route: "IV", dose: "1 g over 10 min", onsetSec: 300, peakSec: 900, durationSec: 28800, maxDoses: 1, repeatSec: 28800, indication: "Significant haemorrhage within 3 hours", effects: {} },
   ketamine_analgesia: { route: "IV", dose: "10–20 mg titrated", onsetSec: 45, peakSec: 180, durationSec: 900, maxDoses: 4, repeatSec: 180, indication: "Severe pain, especially with hypotension", effects: { pain: -5, hr: 10, map: 6, sedation: 0.25 } },
@@ -573,15 +574,19 @@ export function targetVitals(tx: PatientTreatmentState, s: PhysioState, now: num
   const paced = pacingCapturing(tx, now);
   const atropine = act("atropine");
   switch (s.conduction) {
-    case "hb3": hr = 32 + (s.calib.hr !== undefined ? 0 : 0); break;
+    case "hb3": hr = 32; break;
     case "hb2_m2": hr = Math.round(sinusHr / 2); break;
     case "hb2_m1": hr = Math.round(sinusHr * 0.8); break;
+    case "svt": hr = 172 + s.pain * 1.5; break;
+    case "vt_pulse": hr = 158 + s.ischaemia * 20; break;
     default: break;
   }
   if (atropine > 0 && atropineResponds(s.conduction)) hr += 26 * atropine;
   if (paced && !flags.has("cardiac_arrest")) hr = Math.max(hr, 70);
-  // A slow heart is a slow output: the pressure follows the rate down.
+  // A slow heart is a slow output, and so is one too fast to fill: the
+  // pressure follows the rate down at both ends.
   if (!flags.has("cardiac_arrest") && hr < 50) map *= 0.7 + 0.3 * (hr / 50);
+  if (!flags.has("cardiac_arrest") && hr > 150) map *= Math.max(0.68, 1 - (hr - 150) * 0.006);
 
   // Breathing.
   let rr = (child ? 22 : 14) + (1 - volumeFactor) * 10 + hypoxiaDrive * 0.5 + s.bronchospasm * 12 + s.tensionSeverity * 8 + s.pain * 0.7 + s.anaphylaxis * 8;
@@ -961,10 +966,43 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
       const roll = mulberry32(hashSeed(`${tx.casualtyId}:chb:${Math.floor(nowMs / 1000)}`))();
       if (roll < (0.03 * dt) / 60) { s.conduction = "hb3"; once("chb", "Mobitz II has gone to complete heart block — ventricular escape only, rate falling", "critical"); }
     }
+    // A tachyarrhythmia: what has been tried, and whether it worked. Each
+    // attempt rolls once when its time comes; success is sinus rhythm.
+    if (s.conduction === "svt" || s.conduction === "vt_pulse") {
+      const svt = s.conduction === "svt";
+      const attempts: { key: string; at: number; p: number; ok: string; fail: string }[] = [];
+      for (const d of dosesOf(tx.doses, "adenosine")) {
+        attempts.push({ key: `cv:aden:${d.at}`, at: d.at + 15_000, p: svt ? 0.85 : 0.04, ok: "Adenosine — a few seconds of asystole on the screen, then sinus rhythm", fail: svt ? "Adenosine — a pause, then the SVT comes straight back; repeat at 12 mg" : "Adenosine — no effect on a broad-complex tachycardia; this is ventricular" });
+      }
+      if (tx.circulation.vagal !== undefined) attempts.push({ key: `cv:vagal:${tx.circulation.vagal}`, at: tx.circulation.vagal + 20_000, p: svt ? 0.25 : 0.02, ok: "Vagal manoeuvre — reverted to sinus rhythm", fail: "Vagal manoeuvre — no change" });
+      for (const d of dosesOf(tx.doses, "amiodarone")) {
+        if (!svt) attempts.push({ key: `cv:amio:${d.at}`, at: d.at + 600_000, p: 0.45, ok: "Amiodarone — the VT has broken; sinus rhythm", fail: "Amiodarone running — still in VT; cardiovert if the pressure goes" });
+      }
+      if (tx.circulation.cardioversion !== undefined) {
+        attempts.push({ key: `cv:dc:${tx.circulation.cardioversion}`, at: tx.circulation.cardioversion + 5_000, p: 0.9, ok: "Synchronised shock — sinus rhythm", fail: "Synchronised shock — no change; shock again at a higher energy" });
+        if (!s.fired.includes(`cv:dc:sed:${tx.circulation.cardioversion}`)) {
+          s.fired.push(`cv:dc:sed:${tx.circulation.cardioversion}`);
+          if (s.sedation < 0.3) { s.pain = 9; events.push(ev(nowMs, "Cardioverted awake — no sedation given first. The patient will remember this", "critical", true)); }
+        }
+      }
+      for (const a of attempts.sort((x, y) => x.at - y.at)) {
+        if (nowMs < a.at || s.fired.includes(a.key)) continue;
+        s.fired.push(a.key);
+        const roll = mulberry32(hashSeed(a.key))();
+        if (roll < a.p) { s.conduction = "sinus"; events.push(ev(nowMs, a.ok, "good")); break; }
+        events.push(ev(nowMs, a.fail, "warn"));
+      }
+    }
+    // VT with a pulse does not stay that way: it degenerates into VF.
+    if (s.conduction === "vt_pulse") {
+      const perMin = 0.012 * (map < 70 ? 2.2 : 1);
+      const roll = mulberry32(hashSeed(`${tx.casualtyId}:vt-vf:${Math.floor(nowMs / 1000)}`))();
+      if (roll < (perMin * dt) / 60) { cause = "VT degenerated to VF"; shockable = true; }
+    }
     if (!capturing && s.conduction === "hb3" && next.hr < 40) {
       const perMin = 0.012 * (map < 60 ? 2 : 1);
       const roll = mulberry32(hashSeed(`${tx.casualtyId}:standstill:${Math.floor(nowMs / 1000)}`))();
-      if (roll < (perMin * dt) / 60) cause = "ventricular standstill";
+      if (!cause && roll < (perMin * dt) / 60) cause = "ventricular standstill";
     }
     if (!cause && s.hypoxiaSec > 60) cause = "hypoxic";
     else if (!cause && s.shockSec > 45) cause = "hypovolaemic / obstructive";

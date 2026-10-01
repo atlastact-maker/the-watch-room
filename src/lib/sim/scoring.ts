@@ -613,5 +613,7 @@ function wasHandled(
       return !!tx.chosenDestination && tx.chosenDestination.type === "hasu";
     case "bradycardia_unstable":
       return !!(tx.drugs.atropine || tx.circulation.pacing);
+    case "tachycardia_unstable":
+      return !!(tx.drugs.adenosine || tx.drugs.amiodarone || tx.circulation.vagal || tx.circulation.cardioversion);
   }
 }

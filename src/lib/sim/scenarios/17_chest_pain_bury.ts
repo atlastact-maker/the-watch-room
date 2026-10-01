@@ -162,6 +162,35 @@ export const scenario17: Scenario = {
           },
         },
       },
+      {
+        id: "vt",
+        label: "Tonight the pain brought a broad-complex tachycardia with it — VT with a pulse at 160 on an evolving infarct, and it will not stay that way",
+        probability: 0.15,
+        clinical: {
+          "cas-17-nuttall": {
+            vitals: { rr: 24, spo2: 93, hr: 160, bpSys: 92, bpDia: 60, gcs: 15, temp: 36.6, bm: 6.1 },
+            presumedCondition: "Central chest pain, grey and clammy, pulse fast and regular at 160 — broad-complex tachycardia on an evolving infarct",
+            redFlags: ["stemi", "tachycardia_unstable"],
+            conduction: "vt_pulse",
+            criticalInterventions: ["aspirin", "oxygen", "iv_access"],
+          },
+        },
+      },
+      {
+        id: "svt",
+        label: "Tonight it is not the heart muscle but the wiring — an SVT at 185 that has had him sweating for an hour, and the pressure is going",
+        probability: 0.1,
+        clinical: {
+          "cas-17-nuttall": {
+            vitals: { rr: 22, spo2: 96, hr: 185, bpSys: 86, bpDia: 58, gcs: 15, temp: 36.6, bm: 6.1 },
+            presumedCondition: "Palpitations for an hour with chest tightness and light-headedness — regular narrow-complex tachycardia at 185, SVT suspected",
+            redFlags: ["tachycardia_unstable"],
+            conduction: "svt",
+            preferredDestination: "nearest_a_e",
+            criticalInterventions: ["oxygen", "iv_access"],
+          },
+        },
+      },
     ],
     sectors: [
       { id: 1, label: "Sector 1 · Front / Walmersley Road", face: "front", bearingDeg: 180 },

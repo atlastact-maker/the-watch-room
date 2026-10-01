@@ -494,6 +494,7 @@ export type DrugName =
   | "tXA_iv"
   | "atropine"
   // AP (QR) extended
+  | "adenosine"
   | "ketamine_analgesia"
   | "fentanyl"
   | "amiodarone"
@@ -528,6 +529,7 @@ export const DRUG_MIN_SCOPE: Record<DrugName, ClinicianScope> = {
   ondansetron: "dca",
   tXA_iv: "dca",
   atropine: "dca",
+  adenosine: "ap",
   ketamine_analgesia: "ap",
   fentanyl: "ap",
   amiodarone: "ap",
@@ -564,6 +566,7 @@ export const DRUG_LABEL: Record<DrugName, string> = {
   fentanyl: "Fentanyl IV",
   amiodarone: "Amiodarone",
   atropine: "Atropine 500 µg IV",
+  adenosine: "Adenosine 6 mg IV",
   magnesium_sulfate: "Magnesium sulfate",
   hydrocortisone: "Hydrocortisone",
   chlorphenamine: "Chlorphenamine",
@@ -595,12 +598,13 @@ export type BreathingAction =
   | "bvm"
   | "needle_decomp"
   | "finger_thoracostomy";
-export type CirculationAction = "iv_access" | "io_access" | "fluids_250" | "fluids_500" | "cpr" | "defib" | "pacing";
+export type CirculationAction = "iv_access" | "io_access" | "fluids_250" | "fluids_500" | "cpr" | "defib" | "pacing" | "vagal" | "cardioversion";
 
 /** Circulation interventions with a scope gate. Transcutaneous pacing
  *  sits with the advanced paramedic and above. */
 export const CIRC_MIN_SCOPE: Partial<Record<CirculationAction, ClinicianScope>> = {
   pacing: "ap",
+  cardioversion: "ccc",
 };
 
 /** How the patient reaches the vehicle. Not what is strapped to them —

@@ -17,7 +17,7 @@ import type { ArrestRhythm } from "./resus";
  *  arrest rhythms at all: sinus, AF, the three heart blocks and a paced
  *  rhythm. For the blocks `rate` is the VENTRICULAR rate — what the
  *  patient actually has a pulse at — and the atria are drawn around it. */
-export type TraceRhythm = ArrestRhythm | "sinus" | "af" | "hb1" | "hb2_m1" | "hb2_m2" | "hb3" | "paced";
+export type TraceRhythm = ArrestRhythm | "sinus" | "af" | "hb1" | "hb2_m1" | "hb2_m2" | "hb3" | "paced" | "svt" | "vt_pulse";
 
 /** A P wave on its own, for the beats a block does not conduct. */
 function pWave(tb: number, at = 0.09): number {
@@ -198,6 +198,22 @@ export function ecgSample(
       v = pacedComplex(t % period);
       break;
     }
+    case "svt": {
+      // Regular, narrow, fast, and no P wave to be found: it is buried in
+      // the T of the beat before.
+      const rate = opts.rate ?? 175;
+      const period = 60 / rate;
+      v = qrst(t % period, 0.04, 0, 0.95);
+      break;
+    }
+    case "vt_pulse": {
+      // Broad and regular, the same shape as pulseless VT — the pulse is
+      // the only difference, and it is not on the screen.
+      const rate = opts.rate ?? 160;
+      const phase = (t * rate) / 60;
+      v = vtComplex(phase % 1);
+      break;
+    }
   }
 
   // Compression artefact rides on top of everything.
@@ -264,6 +280,10 @@ export function displayedRate(
       return opts.rate ?? 34;
     case "paced":
       return opts.rate ?? 70;
+    case "svt":
+      return opts.rate ?? 175;
+    case "vt_pulse":
+      return opts.rate ?? 160;
   }
 }
 

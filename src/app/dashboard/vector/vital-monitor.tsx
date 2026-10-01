@@ -121,6 +121,8 @@ export function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState
   const af = conduction === "af" || tx?.profile?.history.some((h) => /atrial fibrillation/i.test(h));
   const pacedOn = !!tx && pacingCapturing(tx, Date.now());
   let rhythm = pacedOn ? `Paced rhythm, ${rate}, capturing`
+    : conduction === "svt" ? `Supraventricular tachycardia, ${rate} — regular narrow complexes, no P waves`
+    : conduction === "vt_pulse" ? `Ventricular tachycardia with a pulse, ${rate} — broad regular complexes`
     : conduction === "hb3" ? `Complete heart block — ventricular escape at ${rate}`
     : conduction === "hb2_m2" ? `Second-degree heart block, Mobitz II, 2:1 — ventricular rate ${rate}`
     : conduction === "hb2_m1" ? `Second-degree heart block, Mobitz I (Wenckebach), ${rate}`
@@ -131,6 +133,8 @@ export function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState
   if (conduction === "hb2_m2" && !pacedOn) findings.push("Fixed PR with dropped beats — can progress to complete block without warning; prepare to pace");
   if (conduction === "hb2_m1" && !pacedOn) findings.push("Progressive PR lengthening then a dropped beat — usually benign; atropine if symptomatic");
   if (pacedOn) findings.push("Pacing spikes with capture — every spike followed by a broad complex");
+  if (conduction === "svt") findings.push("Vagal manoeuvres, then adenosine 6 mg; synchronised cardioversion if adverse features");
+  if (conduction === "vt_pulse") findings.push("Amiodarone if stable; synchronised cardioversion if adverse features", "Can degenerate to VF without warning — pads on");
   if (flags.includes("stemi")) {
     const territory = ["anterior (V1–V4)", "inferior (II, III, aVF)", "lateral (I, aVL, V5–V6)"][hashSeedLocal(tx?.casualtyId ?? "") % 3];
     findings.push(`ST elevation ${territory} with reciprocal depression`);
@@ -139,9 +143,11 @@ export function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState
   if (temp !== undefined && temp < 32) findings.push("Osborn J waves — hypothermia");
   if (tx?.physio && tx.physio.icp > 0.6) findings.push("Deep T-wave inversion — raised intracranial pressure");
   if (flags.includes("overdose_opioid") || (tx?.physio?.sedation ?? 0) > 0.6) findings.push("Sinus rhythm, slow — no ischaemic change");
-  if (rate > 150 && !af) { rhythm = `Narrow-complex tachycardia, ${rate}`; findings.push("Regular narrow complexes — SVT vs sinus tachycardia; look for the cause"); }
+  if (rate > 150 && !af && conduction === "sinus" && !pacedOn) { rhythm = `Narrow-complex tachycardia, ${rate}`; findings.push("Regular narrow complexes — SVT vs sinus tachycardia; look for the cause"); }
   if (findings.length === 0) findings.push("Normal axis, PR 160 ms, QRS 90 ms, QTc 410 ms", "No acute ST change");
-  const impression = (conduction === "hb3" || conduction === "hb2_m2") && !pacedOn
+  const impression = conduction === "vt_pulse" ? `VT with a pulse — cardiovert if adverse features, amiodarone if not${flags.includes("stemi") ? "; STEMI — PPCI centre" : ""}`
+    : conduction === "svt" ? "SVT — vagal, then adenosine; cardiovert if adverse features"
+    : (conduction === "hb3" || conduction === "hb2_m2") && !pacedOn
     ? `${conduction === "hb3" ? "Complete heart block" : "Mobitz II"} — high-risk bradycardia, pace${flags.includes("stemi") ? "; STEMI — PPCI centre" : ""}`
     : flags.includes("stemi") ? "STEMI — PPCI centre, pre-alert" : af ? "AF — rate control is a hospital decision" : rate > 100 ? "Sinus tachycardia — treat the cause" : "No acute abnormality";
   return { rhythm, findings, impression };

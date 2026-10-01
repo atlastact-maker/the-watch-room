@@ -158,6 +158,7 @@ const DRUG_DOSE: Record<DrugName, { dose: string; unit: string; route: string }>
   blood_prbc: { dose: "1", unit: "unit", route: "IV" },
   blood_plasma: { dose: "1", unit: "unit", route: "IV" },
   atropine: { dose: "500", unit: "µg", route: "IV" },
+  adenosine: { dose: "6", unit: "mg", route: "IV" },
 };
 
 const TABS: { key: CareTab; label: string; icon: ReactNode }[] = [
@@ -406,7 +407,68 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   // ---- What each section holds -----------------------------------------------
   const airwayActions = Object.keys(AIRWAY_LABEL) as AirwayAction[];
   const breathingActions = (Object.keys(BREATHING_LABEL) as BreathingAction[]).filter((a) => (a !== "needle_decomp" && a !== "finger_thoracostomy") || revealedFlags.includes("tension_pneumothorax"));
-  const circActions = (Object.keys(CIRC_LABEL) as CirculationAction[]).filter((a) => a !== "pacing" && ((a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest"))));
+  const circActions = (Object.keys(CIRC_LABEL) as CirculationAction[]).filter((a) => a !== "pacing" && a !== "vagal" && a !== "cardioversion" && ((a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest"))));
+  // The RCUK tachycardia algorithm, as a group: adverse features, then
+  // vagal and adenosine for a narrow rhythm, amiodarone for a broad one,
+  // and a synchronised shock when the features are there.
+  const fast = !inArrest && surveyDone && !!vitals && vitals.hr > 150;
+  const tachyGroup = (flags.includes("tachycardia_unstable") || fast) && !inArrest ? (() => {
+    const conduction = treatment?.physio?.conduction ?? "sinus";
+    const svt = conduction === "svt";
+    const vt = conduction === "vt_pulse";
+    const adverse: { label: string; on: boolean }[] = [
+      { label: "Shock · systolic < 90", on: !!vitals && vitals.bpSys < 90 },
+      { label: "Syncope / reduced consciousness", on: !!vitals && vitals.gcs < 15 },
+      { label: "Myocardial ischaemia", on: flags.includes("stemi") },
+      { label: "Heart failure · hypoxia", on: !!vitals && vitals.spo2 < 92 },
+    ];
+    const anyAdverse = adverse.some((a) => a.on);
+    const sedated = (treatment?.physio?.sedation ?? 0) >= 0.3;
+    const adenCheck = treatment ? canGiveDrug(treatment, "adenosine", now) : null;
+    const adenGiven = treatment ? dosesOf(treatment.doses, "adenosine").length : 0;
+    const amioCheck = treatment ? canGiveDrug(treatment, "amiodarone", now) : null;
+    const amioGiven = treatment ? dosesOf(treatment.doses, "amiodarone").length : 0;
+    const cvAllowed = scopeLvl >= SCOPE_LEVEL[CIRC_MIN_SCOPE.cardioversion ?? "ccc"];
+    const adenAllowed = scopeLvl >= SCOPE_LEVEL[DRUG_MIN_SCOPE.adenosine];
+    const amioAllowed = scopeLvl >= SCOPE_LEVEL[DRUG_MIN_SCOPE.amiodarone];
+    const condLabel = svt ? "SVT · narrow regular" : vt ? "VT with a pulse · broad regular" : "Sinus tachycardia";
+    const converted = !svt && !vt;
+    return (
+      <Group title="Tachycardia · RCUK" extra={<span className={`cc-pill ${converted ? "go" : anyAdverse ? "stop" : "warn"}`}>{converted ? `Sinus · ${vitals ? Math.round(vitals.hr) : "--"}` : `${condLabel} · ${vitals ? Math.round(vitals.hr) : "--"}`}</span>}>
+        <div className="cc-iv-list">
+          {adverse.map((a) => (
+            <div key={a.label} className={`cc-iv ${a.on ? "blocked" : "off"}`}>
+              <div className="cc-iv-name"><strong>{a.label}</strong></div>
+              <div className={`cc-iv-status ${a.on ? "stop" : "muted"}`}><i />{a.on ? "Present" : "Absent"}</div>
+              <span />
+            </div>
+          ))}
+        </div>
+        {vt && (
+          <div className="cc-banner stop"><b>!</b><div><strong>Broad-complex, with a pulse</strong><p>Pads on now — it can go to VF without warning. Amiodarone if the pressure holds; a synchronised shock, sedated, if it does not.</p></div></div>
+        )}
+        {converted && <p className="cc-line">Back in sinus rhythm. Keep the monitor on; it can come back.</p>}
+        {ivList([
+          choiceRow("vagal", "Vagal manoeuvres", "Modified Valsalva: strain, then legs up. Narrow regular rhythms only.",
+            treatment?.circulation.vagal !== undefined ? { text: "Done", tone: "go" } : vt ? { text: "Not for VT", tone: "muted" } : svt ? { text: "First line", tone: "ready" } : { text: "—", tone: "muted" },
+            treatment?.circulation.vagal !== undefined ? "✓" : "Do", !canAct || !props.onApplyCirculation || treatment?.circulation.vagal !== undefined || !svt,
+            () => props.onApplyCirculation?.(casualtyId, "vagal", by), treatment?.circulation.vagal !== undefined ? "done" : ""),
+          choiceRow("adenosine", "Adenosine 6 → 12 → 12 mg IV", adenAllowed ? "Rapid push and flush. A pause on the screen is the drug working." : `Needs ${SCOPE_LABEL[DRUG_MIN_SCOPE.adenosine]} on scene`,
+            adenGiven >= 3 ? { text: "Three doses given", tone: "muted" } : !adenAllowed ? { text: "Scope", tone: "muted" } : vt ? { text: "Not for a broad rhythm", tone: "muted" } : adenCheck && !adenCheck.ok ? { text: adenCheck.reason ?? "Not yet", tone: "warn" } : svt ? { text: adenGiven > 0 ? `${adenGiven} given · next 12 mg` : "After vagal", tone: "ready" } : { text: "—", tone: "muted" },
+            "Give", !canAct || !props.onAdministerDrug || !adenAllowed || !svt || !adenCheck?.ok,
+            () => props.onAdministerDrug?.(casualtyId, "adenosine", by)),
+          choiceRow("amiodarone-vt", "Amiodarone 300 mg IV over 20 min", amioAllowed ? "For VT with a pulse and the pressure holding. Slow to work." : `Needs ${SCOPE_LABEL[DRUG_MIN_SCOPE.amiodarone]} on scene`,
+            amioGiven > 0 ? { text: `Running · ${amioGiven} given`, tone: "go" } : !amioAllowed ? { text: "Scope", tone: "muted" } : svt ? { text: "Not for SVT", tone: "muted" } : amioCheck && !amioCheck.ok ? { text: amioCheck.reason ?? "Not yet", tone: "warn" } : vt ? { text: anyAdverse ? "Cardiovert instead" : "Indicated", tone: anyAdverse ? "warn" : "ready" } : { text: "—", tone: "muted" },
+            "Give", !canAct || !props.onAdministerDrug || !amioAllowed || !vt || !amioCheck?.ok,
+            () => props.onAdministerDrug?.(casualtyId, "amiodarone", by)),
+          choiceRow("cardioversion", "Synchronised cardioversion", cvAllowed ? "Sync on, 120–150 J. Sedate first — it is a shock to an awake patient." : `Needs ${SCOPE_LABEL[CIRC_MIN_SCOPE.cardioversion ?? "ccc"]} on scene`,
+            treatment?.circulation.cardioversion !== undefined ? { text: "Shocked", tone: "go" } : !cvAllowed ? { text: "Scope", tone: "muted" } : converted ? { text: "—", tone: "muted" } : anyAdverse ? { text: sedated ? "Indicated · sedated" : "Indicated · sedate first", tone: sedated ? "ready" : "warn" } : { text: "No adverse features — drugs first", tone: "muted" },
+            treatment?.circulation.cardioversion !== undefined ? "✓" : "Shock", !canAct || !props.onApplyCirculation || !cvAllowed || converted || treatment?.circulation.cardioversion !== undefined,
+            () => props.onApplyCirculation?.(casualtyId, "cardioversion", by), treatment?.circulation.cardioversion !== undefined ? "done" : ""),
+        ], false)}
+      </Group>
+    );
+  })() : null;
   // The RCUK bradycardia algorithm, as a group: adverse features, atropine,
   // then pacing. Shown when the flag is up or the rate says so.
   const slow = !inArrest && surveyDone && !!vitals && vitals.hr < 50;
@@ -668,6 +730,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
               </Group>
             )}
             {bradyGroup}
+            {tachyGroup}
             <Group title="Circulation interventions">
               {ivList(circActions.map((a) => ivRow(a, CIRC_LABEL[a], CIRC_HINT[a], ivState(treatment?.circulation[a], true), () => props.onApplyCirculation?.(casualtyId, a, by))))}
             </Group>
