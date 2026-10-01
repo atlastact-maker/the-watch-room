@@ -1631,7 +1631,7 @@ export function LeafletGroundMap({
     if (!at) continue;
     const busy = new Set(tasks.filter((t) => t.state === "active" && t.applianceId === m.appliance.id).flatMap((t) => t.assignedCrewIds));
     m.appliance.crewMembers.filter((c) => !busy.has(c.id)).slice(0, 2).forEach((cm, i) => {
-      crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: "PATIENT", spreadIndex: i + 2 });
+      crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: carriedNow(cid) ? "CARRY" : "PATIENT", spreadIndex: i + 2 });
     });
   }
   const ropes = tasks

@@ -4988,3 +4988,23 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-banner .cc-risks { margin: 6px 0 0; padding-left: 16px; display: grid; gap: 3px; }
 .cc-banner .cc-risks li { font-size: 11px; line-height: 1.35; }
 .cc-banner .cc-risks li em { font-style: normal; color: var(--cc-dim); }
+
+/* ---- Crew figures on the ground map ----------------------------------
+   The marker glides between the layer's quarter-second ticks; the body
+   turns to its heading; the feet step and the shoulders sway while the
+   rider walks. Leaflet's own zoom transition outranks the glide. */
+.crew-fig { transition: transform 260ms linear; }
+.crew-fig .crew-fig-body { transform-origin: 11px 11px; transition: transform 260ms linear; display: block; }
+.crew-fig .crew-fig-torso { transform-origin: 11px 12.2px; }
+.crew-fig .foot { opacity: 0.55; }
+.crew-fig.walking .foot-l { animation: crew-step 0.5s ease-in-out infinite; }
+.crew-fig.walking .foot-r { animation: crew-step 0.5s ease-in-out infinite; animation-delay: 0.25s; }
+.crew-fig.walking .crew-fig-torso { animation: crew-sway 0.5s ease-in-out infinite alternate; }
+@keyframes crew-step {
+  0%, 100% { opacity: 1; transform: translateY(-1.4px); }
+  50% { opacity: 0.3; transform: translateY(1px); }
+}
+@keyframes crew-sway {
+  from { transform: rotate(-7deg); }
+  to { transform: rotate(7deg); }
+}

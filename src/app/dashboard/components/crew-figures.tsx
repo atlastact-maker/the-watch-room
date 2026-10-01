@@ -12,7 +12,7 @@
 // the figure's whereabouts at any moment follow from the task's start,
 // its end, and the walk between the vehicle and the work.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import type { ServiceCode } from "@/lib/sim/types";
@@ -144,49 +144,130 @@ export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase
 }
 
 const ICONS = new Map<string, L.DivIcon>();
+
+/** Compass bearing from a to b, degrees, 0 = north. */
+function bearingDeg(a: LatLng, b: LatLng): number {
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const la1 = (a.lat * Math.PI) / 180;
+  const la2 = (b.lat * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(la2);
+  const x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/** What a rider looks like from above, in the few pixels the map gives
+ *  them: shoulders in the service colour with a hi-vis edge, a head that
+ *  says what they are — a yellow fire helmet, a white one for an officer,
+ *  a cap band for police, a bare head for an ambulance crew — a cylinder
+ *  on the back in BA, and the stretcher handles out front on a carry. The
+ *  body group is rotated to the rider's heading by the marker, and the
+ *  feet and torso animate while they walk. */
+function figureSvg(service: ServiceCode, initials: string, badge: string | undefined): string {
+  const c = SERVICE_COLOUR[service];
+  const officer = service === "Fire" && (initials === "WM" || initials === "CM" || initials === "SM" || badge === "IC");
+  const head = service === "Fire" ? (officer ? "#f8fafc" : "#f5d20c") : "#2b2b30";
+  const headRing = service === "Police" ? "#ffffff" : service === "Ambulance" ? "#86efac" : "#0a0a0c";
+  const ba = !!badge && badge.startsWith("BA");
+  const carry = badge === "CARRY";
+  return `<svg class="crew-fig-body" viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
+    ${carry ? `<rect x="9.4" y="1.2" width="3.2" height="4.4" rx="1" fill="#9ca3af" stroke="#0a0a0c" stroke-width="0.8"/>` : ""}
+    <g class="crew-fig-torso">
+      <ellipse cx="11" cy="12.2" rx="7" ry="4.3" fill="${c.fill}" stroke="#e5e51a" stroke-width="1.2"/>
+      ${ba ? `<rect x="7.6" y="13.2" width="6.8" height="3.1" rx="1.2" fill="#4b5563" stroke="#0a0a0c" stroke-width="0.8"/>` : ""}
+    </g>
+    <circle class="foot foot-l" cx="8" cy="17.4" r="1.4" fill="#0a0a0c"/>
+    <circle class="foot foot-r" cx="14" cy="17.4" r="1.4" fill="#0a0a0c"/>
+    <circle cx="11" cy="9.6" r="3.7" fill="${head}" stroke="${headRing}" stroke-width="1.3"/>
+  </svg>`;
+}
+
 function figureIcon(service: ServiceCode, initials: string, label: string, badge: string | undefined, inside: boolean, showLabel: boolean): L.DivIcon {
   const key = `${service}|${initials}|${label}|${badge ?? ""}|${inside ? 1 : 0}|${showLabel ? 1 : 0}`;
   const hit = ICONS.get(key);
   if (hit) return hit;
   const c = SERVICE_COLOUR[service];
   const icon = L.divIcon({
-    className: "",
-    iconSize: [140, 30],
-    iconAnchor: [70, 7],
+    className: "crew-fig",
+    iconSize: [170, 30],
+    iconAnchor: [15, 15],
     html: `
-      <div style="position:relative;width:140px;height:30px;pointer-events:none;opacity:${inside ? 0.55 : 1};">
-        <div style="position:absolute;left:70px;top:7px;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;background:${c.fill};border:2px solid #0a0a0c;box-shadow:0 0 0 1.5px rgba(255,255,255,0.9);"></div>
-        ${showLabel ? `<div style="position:absolute;left:78px;top:0;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${c.fill};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:${c.text};white-space:nowrap;"><b style="color:#fff">${initials}</b> ${label}${badge ? ` · <b style="color:#fff">${badge}</b>` : ""}</div>` : ""}
+      <div style="position:relative;width:170px;height:30px;pointer-events:none;opacity:${inside ? 0.5 : 1};">
+        <div class="crew-fig-wrap" style="position:absolute;left:4px;top:4px;width:22px;height:22px;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,0.75));">${figureSvg(service, initials, badge)}</div>
+        ${showLabel ? `<div style="position:absolute;left:30px;top:8px;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${c.fill};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:${c.text};white-space:nowrap;"><b style="color:#fff">${initials}</b> ${label}${badge ? ` · <b style="color:#fff">${badge}</b>` : ""}</div>` : ""}
       </div>`,
   });
   ICONS.set(key, icon);
   return icon;
 }
 
-export function CrewFigureLayer({ figures, showLabels }: { figures: CrewFigure[]; showLabels: boolean }) {
-  const [tick, setTick] = useState(() => Date.now());
+/** One rider. The icon is cached by look; heading and gait are applied to
+ *  the live element so a turn or a step never rebuilds the marker, and the
+ *  marker's own transform transition carries it smoothly between ticks. */
+function CrewMarker({ f, pos, phase, heading, moving, showLabel }: { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; heading: number; moving: boolean; showLabel: boolean }) {
+  const ref = useRef<L.Marker | null>(null);
+  const surname = f.name.split(/\s+/).pop() ?? f.name;
+  const inside = !!f.inside && phase === "working";
+  const badge = phase === "working" ? f.badge : phase === "back" ? "RTN" : undefined;
   useEffect(() => {
-    if (figures.length === 0) return;
-    const id = setInterval(() => setTick(Date.now()), 250);
-    return () => clearInterval(id);
-  }, [figures.length]);
+    const el = ref.current?.getElement();
+    if (!el) return;
+    const body = el.querySelector<HTMLElement>(".crew-fig-body");
+    if (body) body.style.transform = `rotate(${Math.round(heading)}deg)`;
+    el.classList.toggle("walking", moving);
+  });
+  return (
+    <Marker
+      ref={ref}
+      position={[pos.lat, pos.lng]}
+      icon={figureIcon(f.service, roleShort(f.role), surname, badge, inside, showLabel)}
+      interactive={false}
+      zIndexOffset={650}
+    />
+  );
+}
+
+type Track = { pos: LatLng; heading: number; moving: boolean };
+type Row = { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; heading: number; moving: boolean };
+
+export function CrewFigureLayer({ figures, showLabels }: { figures: CrewFigure[]; showLabels: boolean }) {
+  // Positions are worked out on the layer's own quarter-second clock, off
+  // the React render: where each rider was last tick gives the direction
+  // they moved, and a rider who did not move stands still facing the way
+  // they were going.
+  const [rows, setRows] = useState<Row[]>([]);
+  const tracks = useRef(new Map<string, Track>());
+  useEffect(() => {
+    const compute = () => {
+      const now = Date.now();
+      const live = new Set<string>();
+      const next: Row[] = [];
+      for (const f of figures) {
+        const p = figurePosition(f, now);
+        if (!p) continue;
+        live.add(f.id);
+        const prev = tracks.current.get(f.id);
+        let heading = prev?.heading ?? bearingDeg(f.from, f.to);
+        const stepped = prev ? haversine(prev.pos, p.pos) : 0;
+        const moving = stepped > 0.12;
+        if (moving && prev) heading = bearingDeg(prev.pos, p.pos);
+        tracks.current.set(f.id, { pos: p.pos, heading, moving });
+        next.push({ f, pos: p.pos, phase: p.phase, heading, moving });
+      }
+      for (const id of Array.from(tracks.current.keys())) if (!live.has(id)) tracks.current.delete(id);
+      setRows(next);
+    };
+    const first = setTimeout(compute, 0);
+    const id = figures.length > 0 ? setInterval(compute, 250) : undefined;
+    return () => {
+      clearTimeout(first);
+      if (id !== undefined) clearInterval(id);
+    };
+  }, [figures]);
   return (
     <>
-      {figures.map((f) => {
-        const p = figurePosition(f, tick);
-        if (!p) return null;
-        const surname = f.name.split(/\s+/).pop() ?? f.name;
-        const inside = !!f.inside && p.phase === "working";
-        return (
-          <Marker
-            key={f.id}
-            position={[p.pos.lat, p.pos.lng]}
-            icon={figureIcon(f.service, roleShort(f.role), surname, p.phase === "working" ? f.badge : p.phase === "back" ? "RTN" : undefined, inside, showLabels)}
-            interactive={false}
-            zIndexOffset={650}
-          />
-        );
-      })}
+      {rows.map((r) => (
+        <CrewMarker key={r.f.id} f={r.f} pos={r.pos} phase={r.phase} heading={r.heading} moving={r.moving} showLabel={showLabels} />
+      ))}
     </>
   );
 }
