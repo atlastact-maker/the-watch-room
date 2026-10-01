@@ -23,6 +23,8 @@ import {
   type MonitorMode,
   type ResusState,
   type ReversibleCause,
+  roleCriteria,
+  downtimeSec,
 } from "@/lib/sim/resus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
@@ -92,7 +94,7 @@ import type {
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
 import { EGRESS_SECONDS } from "@/lib/sim/incident_types";
-import { EGRESS_LABEL } from "./components/treatment-tab";
+import { EGRESS_LABEL, SCOPE_LABEL } from "./components/treatment-tab";
 import { movingCprFactor, movingRisks } from "@/lib/sim/moving";
 import { rollBasicsResponse, type BasicsResponder } from "@/lib/sim/basics";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
@@ -2593,12 +2595,66 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }));
   }
 
-  function stopResus(casualtyId: string) {
-    updateResus(casualtyId, (s) => ({
-      ...s,
-      roleAt: Date.now(),
-      events: resusEvent(s, "Resuscitation discontinued — life recognised extinct", "critical"),
+  /** Terminate the resuscitation. The criteria are judged here, from the
+   *  resus and the patient; the decision is recorded on both, the casualty
+   *  goes expectant on the ground, and a premature stop is a setback. */
+  function stopResus(casualtyId: string, scope: ClinicianScope = "dca") {
+    const at = Date.now();
+    const s = resusRef.current[casualtyId];
+    if (!s || s.roscAt !== undefined || s.roleAt !== undefined) return;
+    const tx = treatmentByCasualtyId[casualtyId];
+    const vitals = tx?.liveVitals ?? tx?.revealedVitals;
+    const verdict = roleCriteria(s, at, { scope, ageYears: tx?.profile?.ageYears, tempC: vitals?.temp });
+    if (verdict.exclusions.length > 0) {
+      setStatusMsg(`Not for ROLE on scene — ${verdict.exclusions[0]}`);
+      return;
+    }
+    const unmet = verdict.criteria.filter((c) => !c.met).map((c) => c.label);
+    const judgement = !verdict.met && verdict.seniorMayDecide;
+    const premature = !verdict.met && !judgement;
+    updateResus(casualtyId, (r) => ({
+      ...r,
+      roleAt: at,
+      roleCriteriaMet: verdict.met,
+      roleUnmet: unmet,
+      roleScope: scope,
+      events: resusEvent(
+        r,
+        verdict.met
+          ? `Resuscitation discontinued — life recognised extinct after ${Math.floor(downtimeSec(r, at) / 60)} min, criteria met`
+          : judgement
+            ? `Resuscitation discontinued on ${SCOPE_LABEL[scope]} judgement after ${Math.floor(downtimeSec(r, at) / 60)} min — unmet: ${unmet.join(", ")}`
+            : `Resuscitation discontinued after ${Math.floor(downtimeSec(r, at) / 60)} min with the criteria NOT met — ${unmet.join(", ")}`,
+        "critical",
+      ),
     }));
+    updateTreatment(casualtyId, (p) => ({
+      ...p,
+      resusEnded: { at, criteriaMet: verdict.met, judgement, byScope: scope, unmet },
+      events: [
+        ...p.events,
+        { kind: "physio", at, text: verdict.met ? "Life recognised extinct — ROLE criteria met. Police to be informed; the scene is theirs now." : judgement ? `Life recognised extinct on ${SCOPE_LABEL[scope]} judgement. Police to be informed.` : `Resuscitation stopped before the ROLE criteria were met — ${unmet.join(", ")}`, tone: "critical", adverse: premature },
+      ],
+    }));
+    // Final on the ground: the casualty is expectant from here.
+    if (activeIncident) {
+      updateRuntime(activeIncident.id, (r) =>
+        r.expectantIds?.includes(casualtyId) ? r : { ...r, expectantIds: [...(r.expectantIds ?? []), casualtyId] },
+      );
+    }
+    if (premature) {
+      const label = activeIncident?.scenario.scene?.casualties?.find((c) => c.id === casualtyId)?.label ?? casualtyId;
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `role-early:${casualtyId}:${at}`,
+          timestamp: at,
+          kind: "setback",
+          message: `${label} — resuscitation stopped before the ROLE criteria were met (${unmet.join("; ")})`,
+        },
+      ]);
+    }
+    setStatusMsg(verdict.met ? "Life recognised extinct — criteria met" : judgement ? "Resuscitation ended on senior clinician judgement" : "Resuscitation ended early — marked for the debrief");
   }
   function administerDrug(casualtyId: string, drug: DrugName, by: string) {
     const at = Date.now();

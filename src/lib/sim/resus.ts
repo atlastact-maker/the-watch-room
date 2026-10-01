@@ -164,6 +164,13 @@ export type ResusState = {
   lastPostRoscCheckAt?: number;
   /** Resus stopped without ROSC — recognition of life extinct. */
   roleAt?: number;
+  /** The decision as it was made: whether the ROLE criteria were met,
+   *  which were not, and the scope of whoever made it (a doctor or
+   *  critical care team may decide on judgement; a paramedic needs the
+   *  criteria). See roleCriteria. */
+  roleCriteriaMet?: boolean;
+  roleUnmet?: string[];
+  roleScope?: string;
   reversibles: Partial<Record<ReversibleCause, "suspected" | "treated">>;
   events: ResusEvent[];
 };
@@ -519,4 +526,88 @@ export function compressorCandidates(
     }
   }
   return out;
+}
+
+
+// --- Termination of resuscitation ---------------------------------------
+//
+// Recognition of life extinct after ALS, as JRCALC frames it for a
+// paramedic in an adult: twenty minutes of advanced life support, the
+// rhythm asystole, no shock in that time, the reversible causes thought
+// about and nothing left to treat, and an end-tidal that says the
+// compressions are moving nothing. Some patients are never ROLE'd on
+// scene whatever the numbers — the hypothermic, the drowned, the poisoned,
+// a child — they are conveyed with CPR running. A doctor or critical care
+// team may stop earlier on clinical judgement; the desk records that it
+// was judgement.
+
+export const ROLE_MIN_ALS_SEC = 20 * 60;
+
+export type RoleCriterion = { id: string; label: string; met: boolean; detail: string };
+
+export type RoleVerdict = {
+  criteria: RoleCriterion[];
+  /** Every criterion met: a paramedic may ROLE. */
+  met: boolean;
+  /** Reasons the patient must not be ROLE'd on scene at all. */
+  exclusions: string[];
+  /** The scope on scene can stop on judgement with criteria unmet. */
+  seniorMayDecide: boolean;
+};
+
+const SENIOR_SCOPES = ["ccc", "hems", "basics"];
+
+export function roleCriteria(
+  s: ResusState,
+  now: number,
+  opts: { scope?: string; ageYears?: number; tempC?: number } = {},
+): RoleVerdict {
+  const down = downtimeSec(s, now);
+  const sinceShock = s.lastShockAt === undefined ? Infinity : (now - s.lastShockAt) / 1000;
+  const untreated = (Object.entries(s.reversibles) as [ReversibleCause, "suspected" | "treated"][])
+    .filter(([, st]) => st === "suspected")
+    .map(([c]) => REVERSIBLE_LABEL[c]);
+  const criteria: RoleCriterion[] = [
+    {
+      id: "als",
+      label: "Twenty minutes of ALS",
+      met: down >= ROLE_MIN_ALS_SEC,
+      detail: down >= ROLE_MIN_ALS_SEC ? `${Math.floor(down / 60)} min of resuscitation` : `${Math.floor(down / 60)} min so far — ${Math.ceil((ROLE_MIN_ALS_SEC - down) / 60)} to go`,
+    },
+    {
+      id: "asystole",
+      label: "Asystole on the monitor",
+      met: s.rhythm === "asystole",
+      detail: s.rhythm === "asystole" ? "Asystole at the last check" : `${RHYTHM_LABEL[s.rhythm]} — not asystole`,
+    },
+    {
+      id: "no-shock",
+      label: "No shock in the last twenty minutes",
+      met: sinceShock >= ROLE_MIN_ALS_SEC,
+      detail: s.lastShockAt === undefined ? "Never shockable" : sinceShock >= ROLE_MIN_ALS_SEC ? `Last shock ${Math.floor(sinceShock / 60)} min ago` : `Shocked ${Math.floor(sinceShock / 60)} min ago — a shockable rhythm was there`,
+    },
+    {
+      id: "reversibles",
+      label: "Reversible causes considered, nothing left to treat",
+      met: untreated.length === 0,
+      detail: untreated.length === 0 ? "No suspected cause untreated" : `Suspected and untreated: ${untreated.join(", ")}`,
+    },
+    {
+      id: "etco2",
+      label: `End-tidal below ${ETCO2_FUTILE_KPA.toFixed(1)} kPa`,
+      met: s.etco2 < ETCO2_FUTILE_KPA,
+      detail: `${s.etco2.toFixed(1)} kPa${s.etco2 < ETCO2_FUTILE_KPA ? " — compressions moving nothing" : " — still perfusing; keep going"}`,
+    },
+  ];
+  const exclusions: string[] = [];
+  if (opts.ageYears !== undefined && opts.ageYears <= 15) exclusions.push("A child is not ROLE'd on scene — convey with CPR running");
+  if (opts.tempC !== undefined && opts.tempC < 32) exclusions.push("Core temperature below 32 °C — not dead until warm and dead; convey");
+  if (s.reversibles.hypothermia === "suspected") exclusions.push("Hypothermia suspected — convey with CPR running");
+  if (s.reversibles.toxins === "suspected") exclusions.push("Poisoning or overdose suspected — convey with CPR running");
+  return {
+    criteria,
+    met: criteria.every((c) => c.met) && exclusions.length === 0,
+    exclusions,
+    seniorMayDecide: SENIOR_SCOPES.includes(opts.scope ?? "") && exclusions.length === 0,
+  };
 }

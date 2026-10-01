@@ -27,6 +27,7 @@ import {
   amiodaroneDue,
   compressionQuality,
   resusMoving,
+  roleCriteria,
   downtimeSec,
   etco2Comment,
   isShockable,
@@ -59,6 +60,7 @@ export function ResusPanel({
   monitorAvailable,
   postRoscIssues,
   vitals,
+  ageYears,
   onSetAirway,
   onAttachMonitor,
   onToggleCapnography,
@@ -80,6 +82,8 @@ export function ResusPanel({
   monitorAvailable: boolean;
   postRoscIssues: PostRoscIssue[];
   vitals?: PatientClinical["vitals"];
+  /** For the ROLE exclusions: a child is conveyed, not ROLE'd. */
+  ageYears?: number;
   onSetAirway: (a: AirwayState) => void;
   onAttachMonitor: (m: MonitorMode) => void;
   onToggleCapnography: () => void;
@@ -565,20 +569,58 @@ export function ResusPanel({
         </Group>
       )}
 
-      {/* ---- Stop ---- */}
-      {!rosc && down > 20 * 60 && (
-        <details className="rounded-sm border border-(--color-border-subtle) px-2 py-1.5">
-          <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-            Discontinue resuscitation
-          </summary>
-          <p className="mt-1 text-[9px] leading-snug text-(--color-text-dim)">
-            Recognition of life extinct. Considered after prolonged asystole
-            with no reversible cause, no ROSC, and an end-tidal that will not
-            rise. This ends the resuscitation.
-          </p>
-          <MiniBtn label="Recognise life extinct" tone="critical" onClick={onStopResus} />
-        </details>
-      )}
+      {/* ---- Termination of resuscitation ---- */}
+      {!rosc && (() => {
+        const verdict = roleCriteria(state, now, { scope, ageYears, tempC: vitals?.temp });
+        const unmet = verdict.criteria.filter((c) => !c.met);
+        const excluded = verdict.exclusions.length > 0;
+        return (
+          <details className={`rounded-sm border px-2 py-1.5 ${verdict.met ? "border-(--color-critical)/50" : "border-(--color-border-subtle)"}`} open={verdict.met}>
+            <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
+              Termination of resuscitation
+              <span className={`ml-2 ${verdict.met ? "text-(--color-critical)" : "text-(--color-text-dim)"}`}>
+                {excluded ? "· not on scene" : verdict.met ? "· criteria met" : `· ${unmet.length} of ${verdict.criteria.length} unmet`}
+              </span>
+            </summary>
+            <p className="mt-1 text-[9px] leading-snug text-(--color-text-dim)">
+              Recognition of life extinct after ALS. A paramedic needs every line below; a doctor or critical care team may stop on judgement, and the record says so.
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {verdict.criteria.map((c) => (
+                <li key={c.id} className="flex gap-2 text-[10px] leading-snug">
+                  <span className={`shrink-0 font-mono ${c.met ? "text-(--color-ok)" : "text-(--color-critical)"}`}>{c.met ? "✓" : "✗"}</span>
+                  <span>
+                    <span className={c.met ? "text-(--color-text)" : "text-(--color-text-muted)"}>{c.label}</span>
+                    <span className="text-(--color-text-dim)"> · {c.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {excluded && (
+              <Note tone="amber">{verdict.exclusions.join(" ")}</Note>
+            )}
+            {!excluded && !verdict.met && !verdict.seniorMayDecide && (
+              <p className="mt-1.5 text-[9px] leading-snug text-(--color-critical)">
+                Stopping now is before the criteria are met. It will end the resuscitation and be marked in the debrief.
+              </p>
+            )}
+            {!excluded && !verdict.met && verdict.seniorMayDecide && (
+              <p className="mt-1.5 text-[9px] leading-snug text-(--color-text-muted)">
+                Senior clinician on scene — may stop on clinical judgement with the criteria unmet. The record will say it was judgement.
+              </p>
+            )}
+            <div className="mt-1.5">
+              <MiniBtn
+                label={verdict.met ? "Recognise life extinct" : verdict.seniorMayDecide ? "Stop on clinical judgement" : "Stop resuscitation — criteria not met"}
+                tone="critical"
+                disabled={excluded}
+                title={excluded ? verdict.exclusions[0] : undefined}
+                onClick={onStopResus}
+              />
+            </div>
+          </details>
+        );
+      })()}
     </div>
   );
 }

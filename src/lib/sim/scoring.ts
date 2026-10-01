@@ -456,6 +456,20 @@ export function scoreIncident(
   // 7b. Medication safety — reactions and harm the crew caused: an
   //     allergy nobody asked about, an opioid titrated into toxicity,
   //     high-flow oxygen on a retainer, fluids that popped the clot.
+  // A resuscitation ended on scene: was it the criteria, judgement, or
+  // early. One row per patient it happened to.
+  if (treatmentByCasualtyId) {
+    for (const tx of Object.values(treatmentByCasualtyId)) {
+      const ended = tx.resusEnded;
+      if (!ended) continue;
+      metrics.push({
+        label: "Resuscitation ended",
+        target: "ROLE criteria met, or a senior clinician's judgement",
+        actual: ended.criteriaMet ? "Criteria met" : ended.judgement ? `${ended.byScope.toUpperCase()} judgement · unmet: ${ended.unmet.join(", ")}` : `Early · unmet: ${ended.unmet.join(", ")}`,
+        passed: ended.criteriaMet ? true : ended.judgement ? "partial" : false,
+      });
+    }
+  }
   if (treatmentByCasualtyId) {
     let adverse = 0;
     let refused = 0;

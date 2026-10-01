@@ -846,6 +846,10 @@ export type PatientTreatmentState = {
    *  lib/sim/moving. Cleared by nothing; the window simply passes. */
   moveEndsAt?: number;
   moveAction?: EgressAction;
+  /** Resuscitation ended without ROSC: when, whether the ROLE criteria
+   *  were met (a premature stop is the debrief's business), the scope
+   *  that decided and what was unmet. */
+  resusEnded?: { at: number; criteriaMet: boolean; judgement: boolean; byScope: string; unmet: string[] };
   /** Chosen destination (the actual receiving hospital). */
   chosenDestination?: {
     type: import("./scene").HospitalDestinationType;

@@ -80,7 +80,7 @@ export type CareCallbacks = {
   onAmiodarone?: (casualtyId: string, by: string) => void;
   onSuspectReversible?: (casualtyId: string, cause: ReversibleCause) => void;
   onTreatReversible?: (casualtyId: string, cause: ReversibleCause) => void;
-  onStopResus?: (casualtyId: string) => void;
+  onStopResus?: (casualtyId: string, scope?: ClinicianScope) => void;
   onAdministerDrug?: (casualtyId: string, drug: DrugName, by: string) => void;
   onApplyPackaging?: (casualtyId: string, action: PackagingAction, by: string) => void;
   onApplyEgress?: (casualtyId: string, action: EgressAction, by: string) => void;
@@ -286,7 +286,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const convoy = pairedAll.find((p) => p.deployment.hospitalLegStartedAt);
   const conveying = !!convoy;
   const atHospital = !!convoy && convoy.deployment.hospitalArrivesAt !== undefined && now >= convoy.deployment.hospitalArrivesAt;
-  const canAct = !extractionRequired && paired.length > 0 && !!treatment && !conveying;
+  const canAct = !extractionRequired && paired.length > 0 && !!treatment && !conveying && !resus?.roleAt;
 
   // ---- Clinical picture ----------------------------------------------
   const surveyRunning = !!treatment?.surveyStartedAt && !treatment.surveyCompletedAt;
@@ -592,6 +592,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                     monitorAvailable={paired.some(({ appliance }) => appliance.kit.some((k) => /cardiac monitor|defib/i.test(k)))}
                     postRoscIssues={postRoscIssues(resus, vitals)}
                     vitals={vitals}
+                    ageYears={treatment?.profile?.ageYears ?? casualty.clinical?.ageYears}
                     onSetAirway={(a: AirwayState) => a !== "none" && props.onSetResusAirway?.(casualtyId, a, by)}
                     onAttachMonitor={(m) => props.onAttachMonitor?.(casualtyId, m)}
                     onToggleCapnography={() => props.onToggleCapnography?.(casualtyId)}
@@ -603,7 +604,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                     onAmiodarone={() => props.onAmiodarone?.(casualtyId, by)}
                     onSuspectReversible={(c) => props.onSuspectReversible?.(casualtyId, c)}
                     onTreatReversible={(c) => props.onTreatReversible?.(casualtyId, c)}
-                    onStopResus={() => props.onStopResus?.(casualtyId)}
+                    onStopResus={() => props.onStopResus?.(casualtyId, scope)}
                   />
                 </div>
               </Group>
@@ -878,7 +879,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </div>
         <div className="cc-head-right">
           <div className="cc-who"><Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" /> <span>{(casualty.label ?? casualty.id).toUpperCase()}</span></div>
-          <div className="cc-stage-pill">{stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · {SCOPE_LABEL[scope] ?? "No clinician"}{lead ? ` · ${lead.appliance.callsign}` : ""}</div>
+          <div className="cc-stage-pill">{resus?.roleAt ? "LIFE EXTINCT" : stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · {SCOPE_LABEL[scope] ?? "No clinician"}{lead ? ` · ${lead.appliance.callsign}` : ""}</div>
           <div className="cc-time"><Icon d="M12 8v5l3 2m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /><div><small>SCENARIO TIME</small><strong>{scenarioTime}</strong></div></div>
           {headerButtons}
         </div>

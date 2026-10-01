@@ -75,13 +75,15 @@ export function monitorPicture(treatment: PatientTreatmentState | null, resus: R
   const vitals = treatment?.liveVitals ?? treatment?.revealedVitals;
   const flags = treatment?.activeRedFlags ?? treatment?.revealedRedFlags ?? [];
   const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
-  const rhythm: TraceRhythm = inArrest ? resus!.rhythm : "sinus";
+  // Life recognised extinct: the trace is flat and the numbers are gone.
+  const ended = !!resus?.roleAt;
+  const rhythm: TraceRhythm = ended ? "asystole" : inArrest ? resus!.rhythm : "sinus";
   const compressions = inArrest && (!!resus!.compressorCrewId || !!resus!.lucasFittedAt);
   // Whole numbers, as a monitor shows them; the model underneath is not.
-  const hrRaw = surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
+  const hrRaw = ended ? 0 : surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
   const hrShown = hrRaw === null ? null : Math.round(hrRaw);
-  const spo2Shown = surveyDone && vitals && !inArrest ? Math.round(vitals.spo2) : null;
-  const rrShown = surveyDone && vitals && !inArrest ? Math.round(vitals.rr) : null;
+  const spo2Shown = surveyDone && vitals && !inArrest && !ended ? Math.round(vitals.spo2) : null;
+  const rrShown = surveyDone && vitals && !inArrest && !ended ? Math.round(vitals.rr) : null;
   const updatedAt = treatment?.liveVitalsLastTickAt ?? treatment?.surveyCompletedAt;
   const nibpShown = state.nibp ?? (surveyDone && treatment?.revealedVitals ? { sys: Math.round(treatment.revealedVitals.bpSys), dia: Math.round(treatment.revealedVitals.bpDia), at: treatment.surveyCompletedAt ?? now } : null);
   const nibpMap = nibpShown ? Math.round((nibpShown.sys + 2 * nibpShown.dia) / 3) : null;
@@ -89,7 +91,7 @@ export function monitorPicture(treatment: PatientTreatmentState | null, resus: R
   const silenced = now < state.silencedUntil;
   const alarmCfg = state.alarmCfg;
   const breaches: string[] = [];
-  if (alarmCfg.on && surveyDone && vitals && !inArrest) {
+  if (alarmCfg.on && surveyDone && vitals && !inArrest && !ended) {
     if (hrShown !== null && hrShown < alarmCfg.hrLow) breaches.push(`HR ${hrShown} low`);
     if (hrShown !== null && hrShown > alarmCfg.hrHigh) breaches.push(`HR ${hrShown} high`);
     if (spo2Shown !== null && spo2Shown < alarmCfg.spo2Low) breaches.push(`SpO₂ ${spo2Shown} low`);
