@@ -105,6 +105,7 @@ export type Props = {
   onSetOxygen?: (casualtyId: string, device: import("@/lib/sim/oxygen").OxygenDevice, flowLpm: number, by: string) => void;
   onSetResusAirway?: (casualtyId: string, airway: "igel" | "ett", by: string) => void;
   onAttachMonitor?: (casualtyId: string, monitor: MonitorMode) => void;
+  onAttachMonitoring?: (casualtyId: string, device: import("@/lib/sim/incident_types").MonitoringDevice, by: string) => void;
   onToggleCapnography?: (casualtyId: string) => void;
   onSetCompressor?: (casualtyId: string, crew: { id: string; name: string; role: string }) => void;
   onFitLucas?: (casualtyId: string) => void;
@@ -206,6 +207,7 @@ export function resolveDeployments(
 
 export function IncidentView({
   incident,
+  treatmentByCasualtyId,
   stations,
   deployments,
   patch,
@@ -330,6 +332,7 @@ export function IncidentView({
             }))}
             sim={sim}
             tasks={tasks}
+            treatmentByCasualtyId={treatmentByCasualtyId}
             sceneCommanderApplianceId={sceneCommanderApplianceId}
             crewAir={crewAir}
             busyCrewIds={busyCrewIds}

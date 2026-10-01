@@ -44,6 +44,7 @@ import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitDivIcon } from "./map-markers";
 import { HoseLine } from "./hose-line";
 import { CrewFigureLayer, type CrewFigure, type LatLng as CrewLatLng } from "./crew-figures";
+import type { PatientTreatmentState } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
 import {
@@ -767,7 +768,7 @@ function casualtyPinIcon(label: string, severity: string, stage: string, showLab
   const priority = severity === "critical" ? "P1" : severity === "serious" ? "P2" : severity === "expectant" ? "P4" : "P3";
   const inside = stage === "located";
   const suffix = inside ? " · INSIDE" : stage === "water" ? " · IN WATER" : stage === "aboard" ? " · ABOARD" : stage === "bank" ? " · ON THE BANK" : stage === "lost" ? " · LOST"
-    : stage === "ledge" ? " · ON THE LEDGE" : stage === "withrescuer" ? " · RESCUER WITH THEM" : stage === "stretcher" ? " · IN THE STRETCHER" : stage === "top" ? " · OFF THE FACE" : "";
+    : stage === "ledge" ? " · ON THE LEDGE" : stage === "withrescuer" ? " · RESCUER WITH THEM" : stage === "stretcher" ? " · IN THE STRETCHER" : stage === "top" ? " · OFF THE FACE" : stage === "carried" ? " · BEING CARRIED" : "";
   const icon = L.divIcon({
     className: "",
     iconSize: [160, 30],
@@ -1113,6 +1114,7 @@ export function LeafletGroundMap({
   deployments,
   patch,
   onOpenStationBays,
+  treatmentByCasualtyId,
 }: {
   incident: Incident;
   resolved: ResolvedDeployment[];
@@ -1120,6 +1122,9 @@ export function LeafletGroundMap({
   enRoute: ResolvedOnSceneDeployment[];
   sim: IncidentSimState;
   tasks: Task[];
+  /** Per-casualty treatment: the egress move window carries a patient
+   *  across the ground from where they lie to the vehicle. */
+  treatmentByCasualtyId?: Record<string, PatientTreatmentState>;
   sceneCommanderApplianceId: string | null;
   crewAir: Record<string, number>;
   busyCrewIds: Set<string>;
@@ -1442,12 +1447,39 @@ export function LeafletGroundMap({
     const carriedOut = stage === "extricated" || stage === "in_treatment";
     if (carriedOut) {
       const treating = onSceneMarkers.find((m) => m.deployment.treatingCasualtyId === id);
-      if (treating) return towards(treating.pos, fireCentre, 5);
       const carrier = tasks.find((t) => t.kind === "extract_casualty" && t.casualtyId === id && t.state === "completed");
+      if (treating) {
+        const vehicle = towards(treating.pos, fireCentre, 5);
+        // Brought out of the building by a BA crew, or extricated: at the
+        // vehicle from the start.
+        if (carrier || stage === "extricated") return vehicle;
+        // On open ground the patient lies where they fell and the crew
+        // work on them there. The egress window is the carry: trolley,
+        // scoop or hands, they cross the ground to the vehicle over the
+        // time the move takes, and the crew figures go with them.
+        const where = metresToLatLng(fireCentre, c.pos);
+        const carry = carryWindow(id);
+        if (!carry) return where;
+        if (now >= carry.endsAt) return vehicle;
+        const k = Math.min(1, Math.max(0, (now - carry.startedAt) / Math.max(1, carry.endsAt - carry.startedAt)));
+        return { lat: where.lat + (vehicle.lat - where.lat) * k, lng: where.lng + (vehicle.lng - where.lng) * k };
+      }
       const pump = carrier ? onSceneMarkers.find((m) => m.appliance.id === carrier.applianceId) : undefined;
       if (pump) return towards(pump.pos, fireCentre, 6);
     }
     return metresToLatLng(fireCentre, c.pos);
+  };
+  /** The move the crew chose for this patient and when it runs, if one has. */
+  function carryWindow(id: string): { startedAt: number; endsAt: number } | null {
+    const tx = treatmentByCasualtyId?.[id];
+    if (!tx?.moveEndsAt || !tx.moveAction) return null;
+    const startedAt = tx.egress?.[tx.moveAction];
+    if (startedAt === undefined) return null;
+    return { startedAt, endsAt: tx.moveEndsAt };
+  }
+  const carriedNow = (id: string): boolean => {
+    const w = carryWindow(id);
+    return !!w && now >= w.startedAt && now < w.endsAt && casualtyStage(id) === "in_treatment";
   };
   const crewFigures: CrewFigure[] = [];
   for (const t of tasks) {
@@ -2324,7 +2356,9 @@ export function LeafletGroundMap({
                   const tl = waterRescueFor(x.c.id)?.waterRescue;
                   return landedBy(tl, now) ? "bank" : tl?.interceptAt !== undefined && now >= tl.interceptAt && !tl.lost ? "aboard" : x.stage === "expectant" ? "lost" : "water";
                 })()
-              : x.stage,
+              : carriedNow(x.c.id)
+                ? "carried"
+                : x.stage,
             mapZoom >= 19,
           )}
           interactive={false}

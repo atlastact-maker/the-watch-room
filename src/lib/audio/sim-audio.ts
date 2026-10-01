@@ -61,6 +61,7 @@ export function unlockAudio() {
 
 export function setMuted(v: boolean) {
   muted = v;
+  if (v) stopFlatTone();
   try {
     window.localStorage.setItem(MUTE_KEY, v ? "1" : "0");
   } catch {
@@ -243,6 +244,91 @@ export function dispatchBeep() {
     o.connect(g).connect(dest);
     o.start(now);
     o.stop(now + 0.23);
+  });
+}
+
+// ---- Patient monitor ------------------------------------------------------
+// The monitor's own voice. A beep on every QRS whose pitch falls with the
+// saturation — a Corpuls or a LIFEPAK does exactly this, and a crew hears
+// the patient desaturate before they look. A flat continuous tone for
+// asystole. A two-tone crisis alarm for VF and for no output. Three short
+// chirps for a limit breach. The vital-monitor panel decides when; this
+// file only makes the noises.
+
+/** One QRS beep. With a probe on, 100 % sits near 880 Hz and every point
+ *  of saturation lost drops the pitch; without one the pitch is fixed. */
+export function monitorQrsBeep(spo2: number | null) {
+  const hz = spo2 === null ? 760 : 880 - Math.max(0, 100 - Math.min(100, spo2)) * 14;
+  play((c, dest, now) => {
+    const o = c.createOscillator();
+    o.type = "sine";
+    o.frequency.value = hz;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.12, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    o.connect(g).connect(dest);
+    o.start(now);
+    o.stop(now + 0.1);
+  });
+}
+
+let flatTone: { o: OscillatorNode; g: GainNode } | null = null;
+
+/** The asystole tone: one continuous note until stopped. Idempotent. */
+export function startFlatTone() {
+  if (flatTone || muted || !ctx || !masterGain) return;
+  try {
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = 620;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 0.05);
+    o.connect(g).connect(masterGain);
+    o.start();
+    flatTone = { o, g };
+  } catch {
+    flatTone = null;
+  }
+}
+
+export function stopFlatTone() {
+  if (!flatTone || !ctx) {
+    flatTone = null;
+    return;
+  }
+  try {
+    const { o, g } = flatTone;
+    const now = ctx.currentTime;
+    g.gain.cancelScheduledValues(now);
+    g.gain.setTargetAtTime(0, now, 0.03);
+    o.stop(now + 0.2);
+  } catch {
+    // already stopped
+  }
+  flatTone = null;
+}
+
+/** An alarm burst. "crisis" is the two-tone VF / no-output alarm; "warn"
+ *  the three chirps of a limit breach. */
+export function monitorAlarm(level: "crisis" | "warn") {
+  play((c, dest, now) => {
+    const notes: [number, number][] = level === "crisis"
+      ? [[990, 0], [740, 0.17], [990, 0.34], [740, 0.51]]
+      : [[880, 0], [880, 0.14], [880, 0.28]];
+    for (const [hz, at] of notes) {
+      const o = c.createOscillator();
+      o.type = "square";
+      o.frequency.value = hz;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, now + at);
+      g.gain.linearRampToValueAtTime(level === "crisis" ? 0.06 : 0.04, now + at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.12);
+      o.connect(g).connect(dest);
+      o.start(now + at);
+      o.stop(now + at + 0.13);
+    }
   });
 }
 

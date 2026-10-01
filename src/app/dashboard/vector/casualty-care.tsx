@@ -18,7 +18,7 @@
 import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
 import type { SceneCasualty, PatientRedFlag, EgressBlock, HospitalDestinationType } from "@/lib/sim/scene";
-import type { Deployment, Incident, Task, PatientTreatmentState, ClinicianScope, AirwayAction, BreathingAction, CirculationAction, DrugName, PackagingAction, EgressAction } from "@/lib/sim/incident_types";
+import type { Deployment, Incident, Task, PatientTreatmentState, ClinicianScope, AirwayAction, BreathingAction, CirculationAction, DrugName, PackagingAction, EgressAction, MonitoringDevice } from "@/lib/sim/incident_types";
 import { CIRC_MIN_SCOPE,
   AIRWAY_MIN_SCOPE,
   BREATHING_MIN_SCOPE,
@@ -71,6 +71,8 @@ export type CareCallbacks = {
   onSetOxygen?: (casualtyId: string, device: OxygenDevice, flowLpm: number, by: string) => void;
   onSetResusAirway?: (casualtyId: string, airway: "igel" | "ett", by: string) => void;
   onAttachMonitor?: (casualtyId: string, monitor: MonitorMode) => void;
+  /** Leads, probe, cuff, pads or capnography on the patient. */
+  onAttachMonitoring?: (casualtyId: string, device: MonitoringDevice, by: string) => void;
   onToggleCapnography?: (casualtyId: string) => void;
   onSetCompressor?: (casualtyId: string, crew: { id: string; name: string; role: string }) => void;
   onFitLucas?: (casualtyId: string) => void;
@@ -259,8 +261,15 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const [tab, setTab] = useState<CareTab>("assess");
   const [view, setView] = useState<CareView>("patient");
   const [region, setRegion] = useState<BodyRegion | null>(null);
-  const [device, setDevice] = useState<OxygenDevice | "">("");
-  const [flowIx, setFlowIx] = useState(0);
+  // The oxygen order opens on what is already being delivered, so the
+  // screen never offers to "apply" the mask the patient is wearing.
+  const [device, setDevice] = useState<OxygenDevice | "">(() => (treatment?.oxygen && treatment.oxygen.device !== "none" ? treatment.oxygen.device : ""));
+  const [flowIx, setFlowIx] = useState(() => {
+    const o = treatment?.oxygen;
+    if (!o || o.device === "none") return 0;
+    const i = OXYGEN_FLOWS[o.device].indexOf(o.flowLpm);
+    return i < 0 ? 0 : i;
+  });
   const [drug, setDrug] = useState<DrugName | "">("");
 
   // ---- Who is with the patient --------------------------------------
@@ -406,7 +415,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
 
   // ---- What each section holds -----------------------------------------------
   const airwayActions = Object.keys(AIRWAY_LABEL) as AirwayAction[];
-  const breathingActions = (Object.keys(BREATHING_LABEL) as BreathingAction[]).filter((a) => (a !== "needle_decomp" && a !== "finger_thoracostomy") || revealedFlags.includes("tension_pneumothorax"));
+  // Oxygen is ordered from the oxygen group (device and flow), not ticked
+  // as an intervention — one place to set it, one record of it.
+  const breathingActions = (Object.keys(BREATHING_LABEL) as BreathingAction[]).filter((a) => a !== "oxygen_15l" && ((a !== "needle_decomp" && a !== "finger_thoracostomy") || revealedFlags.includes("tension_pneumothorax")));
   const circActions = (Object.keys(CIRC_LABEL) as CirculationAction[]).filter((a) => a !== "pacing" && a !== "vagal" && a !== "cardioversion" && ((a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest"))));
   // The RCUK tachycardia algorithm, as a group: adverse features, then
   // vagal and adenosine for a narrow rhythm, amiodarone for a broad one,
@@ -568,8 +579,52 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </div>
   ) : null;
 
+  // ---- Who is on the patient ----------------------------------------------
+  // Every clinical resource with the patient, the most senior as clinical
+  // lead — their formulary and interventions are what the screen unlocks —
+  // and the rest assisting. Anyone else on scene can be added; a senior
+  // arrival takes the lead the moment they are assigned.
+  const crewGroup = paired.length > 0 ? (
+    <Group title="Crew with patient" extra={<span className="cc-pill go">Lead · {by} · {SCOPE_LABEL[scope]}</span>}>
+      {ivList([
+        ...paired.map((p) => {
+          const s = scopeOfApplianceType(p.appliance.type);
+          const isLead = lead?.appliance.id === p.appliance.id;
+          return choiceRow(
+            `crew-${p.appliance.id}`,
+            p.appliance.callsign,
+            isLead ? "Clinical lead — the most senior scope on the patient. Their interventions and drugs are the ones unlocked." : "Assisting — hands for compressions, kit and the carry; their vehicle can convey.",
+            { text: isLead ? `Clinical lead · ${SCOPE_LABEL[s]}` : `Assisting · ${SCOPE_LABEL[s]}`, tone: isLead ? "go" : "ready" },
+            "Release",
+            !props.onSetTreatingCasualty || conveying,
+            () => props.onSetTreatingCasualty?.(p.appliance.id, null),
+            isLead ? "done" : "",
+          );
+        }),
+        ...onSceneMedical
+          .filter((r) => !paired.some((p) => p.appliance.id === r.appliance.id))
+          .map((r) => {
+            const s = scopeOfApplianceType(r.appliance.type);
+            const onOther = !!r.deployment.treatingCasualtyId && r.deployment.treatingCasualtyId !== casualtyId;
+            const senior = SCOPE_LEVEL[s] > scopeLvl;
+            return choiceRow(
+              `join-${r.appliance.id}`,
+              r.appliance.callsign,
+              senior ? `${SCOPE_LABEL[s]} — would take clinical lead and unlock their interventions.` : `${SCOPE_LABEL[s]} — more hands on the patient.`,
+              onOther ? { text: "With another patient", tone: "warn" } : { text: "On scene · not assigned", tone: "muted" },
+              "Assign",
+              !props.onSetTreatingCasualty || conveying,
+              () => props.onSetTreatingCasualty?.(r.appliance.id, casualtyId),
+            );
+          }),
+      ], false)}
+      {inbound.length > 0 && <p className="cc-line">{inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ")}</p>}
+    </Group>
+  ) : null;
+
   // ---- Order strips: oxygen and medication ----------------------------------
   const o2On = !!currentO2 && currentO2.device !== "none";
+  const o2Same = o2On && device === currentO2!.device && flow === currentO2!.flowLpm;
   const oxygenGroup = (
     <Group title="Oxygen" extra={<span className={`cc-pill ${o2On ? "go" : ""}`}>{o2On ? `Delivering · ${oxygenLabel(currentO2!)}` : "Not delivering"}</span>}>
       <div className="cc-order">
@@ -590,8 +645,8 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
             <button type="button" aria-label="Raise flow" disabled={!device || flowIx >= flows.length - 1} onClick={() => setFlowIx((i) => Math.min(flows.length - 1, i + 1))}>+</button>
           </div>
         </label>
-        <button type="button" className="cc-primary" disabled={!canAct || !device || !props.onSetOxygen} onClick={() => device && props.onSetOxygen?.(casualtyId, device, flow, by)}>
-          {device === "none" ? "Remove" : "Apply"}
+        <button type="button" className="cc-primary" disabled={!canAct || !device || !props.onSetOxygen || o2Same} onClick={() => device && props.onSetOxygen?.(casualtyId, device, flow, by)}>
+          {device === "none" ? "Remove" : o2Same ? "Delivering" : o2On ? "Change" : "Apply"}
         </button>
       </div>
       {surveyDone && <p className={`cc-line ${o2Verdict.tone}`}>{o2Verdict.text}</p>}
@@ -678,6 +733,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                 </div>
               </div>
             )}
+            {crewGroup}
             {oxygenGroup}
             {medicationGroup}
           </>
@@ -710,6 +766,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                     candidates={paired.flatMap(({ appliance }) => appliance.crewMembers.map((m): CompressorOption => ({ id: m.id, name: m.name, role: m.role, callsign: appliance.callsign })))}
                     lucasAvailable={paired.some(({ appliance }) => appliance.kit.some((k) => /mechanical cpr/i.test(k)))}
                     monitorAvailable={paired.some(({ appliance }) => appliance.kit.some((k) => /cardiac monitor|defib/i.test(k)))}
+                    padsOn={treatment?.monitoring?.defib_pads !== undefined || resus.monitor === "pads"}
                     postRoscIssues={postRoscIssues(resus, vitals)}
                     vitals={vitals}
                     ageYears={treatment?.profile?.ageYears ?? casualty.clinical?.ageYears}
@@ -877,7 +934,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
             <dd><span className={`cc-conscious ${state.tone}`}><i />{state.text}</span></dd>
             {pain !== undefined && surveyDone && !inArrest && (<><dt>Pain</dt><dd>{Math.round(pain)} / 10</dd></>)}
             <dt>Crew</dt>
-            <dd>{paired.length ? paired.map((p) => `${p.appliance.callsign} · ${SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)]}`).join(", ") : inbound.length ? `${inbound.map((p) => p.appliance.callsign).join(", ")} running` : "No clinician assigned"}</dd>
+            <dd>{paired.length ? paired.map((p) => `${p.appliance.callsign} · ${SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)]}${lead?.appliance.id === p.appliance.id ? " · lead" : ""}`).join(", ") : inbound.length ? `${inbound.map((p) => p.appliance.callsign).join(", ")} running` : "No clinician assigned"}</dd>
             <dt>Allergies</dt>
             <dd>
               {treatment?.allergiesConfirmedAt ? (
@@ -940,6 +997,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         by={by}
         onRecordObservation={props.onRecordObservation}
         onAttachMonitor={props.onAttachMonitor}
+        onAttachMonitoring={props.onAttachMonitoring}
       />
     </Card>
   );

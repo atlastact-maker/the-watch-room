@@ -72,6 +72,7 @@ type Props = {
   onSetOxygen?: IncidentViewProps["onSetOxygen"];
   onSetResusAirway?: IncidentViewProps["onSetResusAirway"];
   onAttachMonitor?: IncidentViewProps["onAttachMonitor"];
+  onAttachMonitoring?: IncidentViewProps["onAttachMonitoring"];
   onToggleCapnography?: IncidentViewProps["onToggleCapnography"];
   onSetCompressor?: IncidentViewProps["onSetCompressor"];
   onFitLucas?: IncidentViewProps["onFitLucas"];
@@ -528,6 +529,7 @@ export function DraggableIncidentMdt(props: Props) {
                 compact
                 onRecordObservation={props.onRecordObservation}
                 onAttachMonitor={props.onAttachMonitor}
+                onAttachMonitoring={props.onAttachMonitoring}
               />
             </>
           ) : (
@@ -572,6 +574,7 @@ export function DraggableIncidentMdt(props: Props) {
             onSetOxygen={props.onSetOxygen}
             onSetResusAirway={props.onSetResusAirway}
             onAttachMonitor={props.onAttachMonitor}
+            onAttachMonitoring={props.onAttachMonitoring}
             onToggleCapnography={props.onToggleCapnography}
             onSetCompressor={props.onSetCompressor}
             onFitLucas={props.onFitLucas}

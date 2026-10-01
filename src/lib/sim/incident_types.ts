@@ -785,7 +785,30 @@ export type TreatmentEvent =
   | { kind: "physio"; at: number; text: string; tone: "info" | "warn" | "critical" | "good"; adverse?: boolean }
   | { kind: "allergies_confirmed"; at: number; by: string; text: string }
   | { kind: "observation"; at: number; by: string; text: string }
-  | { kind: "drug_refused"; at: number; drug: DrugName; reason: string };
+  | { kind: "drug_refused"; at: number; drug: DrugName; reason: string }
+  | { kind: "monitoring"; at: number; by: string; device: MonitoringDevice; off?: boolean };
+
+/** What can be physically attached to a patient to measure them. The
+ *  monitor shows nothing it has no lead for: no probe, no saturation; no
+ *  leads or pads, no trace. One record per patient, shared by every
+ *  screen that draws the monitor and by the arrest board. */
+export type MonitoringDevice = "ecg_leads" | "spo2_probe" | "nibp_cuff" | "defib_pads" | "capnography";
+
+export const MONITORING_LABEL: Record<MonitoringDevice, string> = {
+  ecg_leads: "ECG leads",
+  spo2_probe: "SpO₂ probe",
+  nibp_cuff: "NIBP cuff",
+  defib_pads: "Defib pads",
+  capnography: "Capnography",
+};
+
+export const MONITORING_HINT: Record<MonitoringDevice, string> = {
+  ecg_leads: "Three or four electrodes — a continuous rhythm strip, a heart rate and the respiration trace. Needed for a 12-lead.",
+  spo2_probe: "Finger probe — saturation and a pulse rate from the pleth. Nothing in a cold hand or an arrest.",
+  nibp_cuff: "Cuff on the arm — a pressure each time it cycles, not a live number.",
+  defib_pads: "Pads on the chest — a rhythm through the pads, and the ability to shock, pace or cardiovert.",
+  capnography: "Waveform end-tidal CO₂ on the airway — confirms the tube, grades the compressions, spots ROSC.",
+};
 
 /** Full treatment state for one casualty. Persisted in dashboard-client
  *  state keyed by casualty id; survives ambulance hand-off (if HEMS takes
@@ -845,6 +868,9 @@ export type PatientTreatmentState = {
   /** Chosen oxygen delivery — device and flow. Drives the saturation in
    *  both directions, so titrating down is a real action. */
   oxygen?: import("./oxygen").OxygenState;
+  /** What is on the patient: electrodes, probe, cuff, pads, capnography,
+   *  each with the time it went on. The monitor reads from this. */
+  monitoring?: Partial<Record<MonitoringDevice, number>>;
   /** Interventions applied so far, keyed by action for idempotent lookup. */
   airway: Partial<Record<AirwayAction, number>>;
   breathing: Partial<Record<BreathingAction, number>>;

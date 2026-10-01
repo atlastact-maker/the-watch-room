@@ -134,6 +134,12 @@ export type ResusState = {
   /** Completed 2-minute cycles. */
   cycle: number;
   cycleStartedAt: number;
+  /** The ALS clock only runs while somebody is on the chest. With nobody
+   *  compressing there is no cycle, no rhythm check and no chance of
+   *  ROSC — this is when the clock stopped, if it is stopped. */
+  cyclePausedAt?: number;
+  /** Seconds of the arrest spent with nobody on the chest. */
+  noFlowSec?: number;
   shocks: number;
   lastShockAt?: number;
   /** Rhythm analysis in progress — the monitor is looking at the trace
@@ -281,6 +287,9 @@ export function newResusState(casualtyId: string, at: number, rhythm: ArrestRhyt
     airway: "none",
     cycle: 0,
     cycleStartedAt: at,
+    // Nobody is on the chest yet: the clock waits for a compressor.
+    cyclePausedAt: at,
+    noFlowSec: 0,
     shocks: 0,
     adrenalineDoses: 0,
     amiodaroneDoses: 0,
@@ -292,8 +301,43 @@ export function newResusState(casualtyId: string, at: number, rhythm: ArrestRhyt
   };
 }
 
+/** Somebody, or something, is compressing the chest. */
+export function handsOnChest(s: ResusState): boolean {
+  return s.lucasFittedAt !== undefined || s.compressorCrewId !== undefined;
+}
+
+/** The ALS clock is stopped because nobody is on the chest. */
+export function cyclePaused(s: ResusState): boolean {
+  return s.cyclePausedAt !== undefined;
+}
+
+/** Seconds of no-flow so far, including a pause still running. */
+export function noFlowSec(s: ResusState, now: number): number {
+  const running = s.cyclePausedAt !== undefined && s.roscAt === undefined && s.roleAt === undefined ? (now - s.cyclePausedAt) / 1000 : 0;
+  return Math.max(0, (s.noFlowSec ?? 0) + running);
+}
+
+/** Stop the clock — nobody on the chest. Idempotent. */
+export function pauseCycle(s: ResusState, now: number): ResusState {
+  if (s.cyclePausedAt !== undefined) return s;
+  return { ...s, cyclePausedAt: now };
+}
+
+/** Start the clock again — hands back on the chest. The cycle picks up
+ *  where it left off; the gap is banked as no-flow time. */
+export function resumeCycle(s: ResusState, now: number): ResusState {
+  if (s.cyclePausedAt === undefined) return s;
+  const gap = Math.max(0, now - s.cyclePausedAt);
+  return {
+    ...s,
+    cyclePausedAt: undefined,
+    cycleStartedAt: s.cycleStartedAt + gap,
+    noFlowSec: (s.noFlowSec ?? 0) + gap / 1000,
+  };
+}
+
 export function secondsIntoCycle(s: ResusState, now: number): number {
-  return Math.max(0, (now - s.cycleStartedAt) / 1000);
+  return Math.max(0, ((s.cyclePausedAt ?? now) - s.cycleStartedAt) / 1000);
 }
 
 export function secondsToRhythmCheck(s: ResusState, now: number): number {

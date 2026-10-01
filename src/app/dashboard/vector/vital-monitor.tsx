@@ -8,9 +8,10 @@
 // screen — and the cuff still comes down while the crew is on another
 // module.
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { PatientRedFlag } from "@/lib/sim/scene";
-import type { PatientTreatmentState } from "@/lib/sim/incident_types";
+import { MONITORING_HINT, MONITORING_LABEL, type MonitoringDevice, type PatientTreatmentState } from "@/lib/sim/incident_types";
+import { monitorAlarm, monitorQrsBeep, startFlatTone, stopFlatTone } from "@/lib/audio/sim-audio";
 import { ecgSample, displayedRate, type TraceRhythm } from "@/lib/sim/ecg";
 import { pacingCapturing } from "@/lib/sim/physiology";
 import type { ResusState, MonitorMode } from "@/lib/sim/resus";
@@ -28,9 +29,11 @@ export type MonitorState = {
   alarmCfg: AlarmConfig;
   alarmPanel: boolean;
   silencedUntil: number;
+  /** The monitor's own speaker — QRS beeps and alarms. */
+  audioOn: boolean;
 };
 
-const EMPTY_MONITOR: MonitorState = { nibp: null, measuringSince: null, nibpAuto: 0, ecg12: null, alarmCfg: DEFAULT_ALARMS, alarmPanel: false, silencedUntil: 0 };
+const EMPTY_MONITOR: MonitorState = { nibp: null, measuringSince: null, nibpAuto: 0, ecg12: null, alarmCfg: DEFAULT_ALARMS, alarmPanel: false, silencedUntil: 0, audioOn: true };
 const store = new Map<string, MonitorState>();
 const listeners = new Set<() => void>();
 function subscribe(l: () => void) {
@@ -78,32 +81,127 @@ export function monitorPicture(treatment: PatientTreatmentState | null, resus: R
   const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
   // Life recognised extinct: the trace is flat and the numbers are gone.
   const ended = !!resus?.roleAt;
+  // What is physically on the patient. No lead, no number: the monitor
+  // does not know anything it has not been connected to.
+  const mon = treatment?.monitoring ?? {};
+  const leadsOn = mon.ecg_leads !== undefined;
+  const padsOn = mon.defib_pads !== undefined;
+  const probeOn = mon.spo2_probe !== undefined;
+  const cuffOn = mon.nibp_cuff !== undefined;
+  const capnoOn = mon.capnography !== undefined;
+  const ecgOn = leadsOn || padsOn;
+  const anyOn = ecgOn || probeOn || cuffOn;
   const conduction = treatment?.physio?.conduction ?? "sinus";
   const pacedOn = !!treatment && pacingCapturing(treatment, now);
   const rhythm: TraceRhythm = ended ? "asystole" : inArrest ? resus!.rhythm : pacedOn ? "paced" : conduction;
   const compressions = inArrest && (!!resus!.compressorCrewId || !!resus!.lucasFittedAt);
-  // Whole numbers, as a monitor shows them; the model underneath is not.
-  const hrRaw = ended ? 0 : surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
+  const live = surveyDone && !!vitals;
+  // Heart rate off the ECG when there is one; off the pleth when only a
+  // probe is on — and a pleth needs an output to count anything.
+  const hrRaw = !live ? null : ended ? (ecgOn ? 0 : null) : ecgOn ? displayedRate(rhythm, { rate: vitals!.hr }) : probeOn && !inArrest ? vitals!.hr : null;
   const hrShown = hrRaw === null ? null : Math.round(hrRaw);
-  const spo2Shown = surveyDone && vitals && !inArrest && !ended ? Math.round(vitals.spo2) : null;
-  const rrShown = surveyDone && vitals && !inArrest && !ended ? Math.round(vitals.rr) : null;
+  const spo2Shown = live && probeOn && !inArrest && !ended ? Math.round(vitals!.spo2) : null;
+  // Respiration is impedance across the leads: no leads, no RR.
+  const rrShown = live && leadsOn && !inArrest && !ended ? Math.round(vitals!.rr) : null;
   const updatedAt = treatment?.liveVitalsLastTickAt ?? treatment?.surveyCompletedAt;
-  const nibpShown = state.nibp ?? (surveyDone && treatment?.revealedVitals ? { sys: Math.round(treatment.revealedVitals.bpSys), dia: Math.round(treatment.revealedVitals.bpDia), at: treatment.surveyCompletedAt ?? now } : null);
+  // A pressure comes from the cuff and only the cuff.
+  const nibpShown = state.nibp;
   const nibpMap = nibpShown ? Math.round((nibpShown.sys + 2 * nibpShown.dia) / 3) : null;
   const measuring = state.measuringSince !== null;
   const silenced = now < state.silencedUntil;
   const alarmCfg = state.alarmCfg;
   const breaches: string[] = [];
-  if (alarmCfg.on && surveyDone && vitals && !inArrest && !ended) {
+  if (alarmCfg.on && live && !inArrest && !ended) {
     if (hrShown !== null && hrShown < alarmCfg.hrLow) breaches.push(`HR ${hrShown} low`);
     if (hrShown !== null && hrShown > alarmCfg.hrHigh) breaches.push(`HR ${hrShown} high`);
     if (spo2Shown !== null && spo2Shown < alarmCfg.spo2Low) breaches.push(`SpO₂ ${spo2Shown} low`);
     if (rrShown !== null && rrShown > alarmCfg.rrHigh) breaches.push(`RR ${rrShown} high`);
     if (nibpShown && nibpShown.sys < alarmCfg.sysLow && nibpShown.sys > 0) breaches.push(`Systolic ${nibpShown.sys} low`);
   }
-  if (inArrest && alarmCfg.on) breaches.push("No output");
+  if (inArrest && ecgOn && alarmCfg.on) breaches.push("No output");
+  // A rhythm the monitor itself shouts about: VF, pulseless VT, no output.
+  const crisis = ecgOn && live && !ended && (inArrest || rhythm === "vf" || rhythm === "pvt");
   const alarming = breaches.length > 0 && !silenced;
-  return { surveyDone, vitals, flags, inArrest, rhythm, compressions, hrShown, spo2Shown, rrShown, updatedAt, nibpShown, nibpMap, measuring, silenced, breaches, alarming };
+  return { surveyDone, live, vitals, flags, inArrest, ended, rhythm, compressions, hrShown, spo2Shown, rrShown, updatedAt, nibpShown, nibpMap, measuring, silenced, breaches, alarming, leadsOn, padsOn, probeOn, cuffOn, capnoOn, ecgOn, anyOn, crisis };
+}
+
+export type MonitorPicture = ReturnType<typeof monitorPicture>;
+
+// ---------------------------------------------------------------------------
+// Sound — the monitor's own speaker
+// ---------------------------------------------------------------------------
+// One patient's record may be drawn on the desk screen and the tablet
+// strip at once; whichever panel claims the patient first makes the
+// noises, and the claim passes on when it unmounts.
+
+const SOUND_OWNERS = new Map<string, symbol>();
+
+function useMonitorSound(casualtyId: string, pic: MonitorPicture, audioOn: boolean, paired: boolean) {
+  const [me] = useState(() => Symbol("monitor"));
+  const live = useRef(pic);
+  useEffect(() => {
+    live.current = pic;
+  });
+  useEffect(() => {
+    return () => {
+      if (SOUND_OWNERS.get(casualtyId) === me) SOUND_OWNERS.delete(casualtyId);
+    };
+  }, [casualtyId, me]);
+  const own = () => {
+    const cur = SOUND_OWNERS.get(casualtyId);
+    if (cur === undefined) {
+      SOUND_OWNERS.set(casualtyId, me);
+      return true;
+    }
+    return cur === me;
+  };
+  const on = audioOn && paired && pic.live && pic.ecgOn && !pic.ended;
+  // A beep on every QRS. Not through compressions (the trace is
+  // artefact), not in VF or asystole (there is no QRS to beep on).
+  const beeping = on && !pic.compressions && pic.rhythm !== "vf" && pic.rhythm !== "pvt" && pic.rhythm !== "asystole" && (pic.hrShown ?? 0) > 0;
+  useEffect(() => {
+    if (!beeping) return;
+    let t = 0;
+    const tick = () => {
+      const p = live.current;
+      const hr = p.hrShown ?? 0;
+      if (hr <= 0) {
+        t = window.setTimeout(tick, 1000);
+        return;
+      }
+      if (own()) monitorQrsBeep(p.probeOn ? p.spo2Shown : null);
+      const base = 60000 / hr;
+      // AF is irregularly irregular; the second-degree blocks drop beats.
+      const spread = p.rhythm === "af" ? 0.6 : p.rhythm === "hb2_m1" || p.rhythm === "hb2_m2" ? 0.3 : 0;
+      t = window.setTimeout(tick, Math.max(200, base + (Math.random() - 0.5) * base * spread));
+    };
+    t = window.setTimeout(tick, 300);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beeping]);
+  // Asystole: the flat tone, until silenced or the rhythm changes.
+  const flat = on && !pic.silenced && pic.rhythm === "asystole" && !pic.compressions;
+  useEffect(() => {
+    if (!flat || !own()) return;
+    startFlatTone();
+    return () => stopFlatTone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flat]);
+  // The two-tone crisis alarm for VF, pulseless VT and no output; three
+  // chirps for a limit breach. The silence button quiets both.
+  const crisis = on && !pic.silenced && pic.crisis && pic.rhythm !== "asystole";
+  const warn = audioOn && paired && !pic.silenced && !crisis && pic.breaches.length > 0;
+  useEffect(() => {
+    if (!crisis && !warn) return;
+    const level = crisis ? "crisis" : "warn";
+    const fire = () => {
+      if (own()) monitorAlarm(level);
+    };
+    fire();
+    const id = window.setInterval(fire, crisis ? 2400 : 7000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crisis, warn]);
 }
 
 /** What a 12-lead would show for this patient, read off the physiology
@@ -181,13 +279,13 @@ function plethSample(t: number, hr: number, strength: number): number {
   return rise * strength;
 }
 
-export function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active, compact }: { rhythm: TraceRhythm; hr: number; spo2: number; rr: number; compressions: boolean; active: boolean; compact?: boolean }) {
+export function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active, compact, ecgOn = true, plethOn = true, respOn = true }: { rhythm: TraceRhythm; hr: number; spo2: number; rr: number; compressions: boolean; active: boolean; compact?: boolean; /** Which lanes have a lead on the patient. */ ecgOn?: boolean; plethOn?: boolean; respOn?: boolean }) {
   const lanes = compact ? LANES_COMPACT : LANES;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const live = useRef({ rhythm, hr, spo2, rr, compressions, active });
+  const live = useRef({ rhythm, hr, spo2, rr, compressions, active, ecgOn, plethOn, respOn });
   useEffect(() => {
-    live.current = { rhythm, hr, spo2, rr, compressions, active };
+    live.current = { rhythm, hr, spo2, rr, compressions, active, ecgOn, plethOn, respOn };
   });
 
   useEffect(() => {
@@ -236,10 +334,10 @@ export function VitalsMonitor({ rhythm, hr, spo2, rr, compressions, active, comp
     function sample(i: number, t: number): number {
       const v = live.current;
       if (!v.active) return 0;
-      if (i === 0) return ecgSample(v.rhythm, t, { rate: v.hr, compressions: v.compressions });
-      const output = v.rhythm === "sinus" && v.hr > 0;
-      if (i === 1) return output ? plethSample(t, v.hr, Math.max(0.2, Math.min(1, (v.spo2 - 60) / 38))) : 0;
-      return v.rr > 0 ? Math.sin((t * v.rr / 60) * Math.PI * 2) : 0;
+      if (i === 0) return v.ecgOn ? ecgSample(v.rhythm, t, { rate: v.hr, compressions: v.compressions }) : 0;
+      const output = v.rhythm !== "vf" && v.rhythm !== "pvt" && v.rhythm !== "pea" && v.rhythm !== "asystole" && v.hr > 0;
+      if (i === 1) return v.plethOn && output ? plethSample(t, v.hr, Math.max(0.2, Math.min(1, (v.spo2 - 60) / 38))) : 0;
+      return v.respOn && v.rr > 0 ? Math.sin((t * v.rr / 60) * Math.PI * 2) : 0;
     }
     function frame(nowMs: number) {
       const ctx = canvas?.getContext("2d");
@@ -324,6 +422,8 @@ export type VitalMonitorPanelProps = {
   compact?: boolean;
   onRecordObservation?: (casualtyId: string, text: string, by: string) => void;
   onAttachMonitor?: (casualtyId: string, mode: MonitorMode) => void;
+  /** Put a lead, probe, cuff or pads on the patient. */
+  onAttachMonitoring?: (casualtyId: string, device: MonitoringDevice, by: string) => void;
 };
 
 export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
@@ -336,13 +436,17 @@ export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
   const setNibpAuto = (v: 0 | 2 | 3 | 5) => set((m) => ({ ...m, nibpAuto: v }));
   const setMeasuringSince = (v: number | null) => set((m) => ({ ...m, measuringSince: v }));
   const pic = monitorPicture(treatment, resus, now, state);
-  const { surveyDone, vitals, flags, rhythm, compressions, hrShown, spo2Shown, rrShown, updatedAt, nibpShown, nibpMap, measuring, silenced, breaches, alarming } = pic;
+  const { surveyDone, live, vitals, flags, rhythm, compressions, hrShown, spo2Shown, rrShown, updatedAt, nibpShown, nibpMap, measuring, silenced, breaches, alarming, leadsOn, probeOn, ecgOn, anyOn, cuffOn } = pic;
   const surveyRunning = !!treatment?.surveyStartedAt && !treatment.surveyCompletedAt;
-  const connected = surveyDone && paired > 0;
+  // A clinician with the patient can put kit on them; a reading needs the
+  // survey done as well, which is when the crew have hands on.
+  const connected = paired > 0;
+  const measurable = connected && live;
   const measuringSince = state.measuringSince;
   const vitalsRef = useRef<PatientTreatmentState["liveVitals"]>(undefined);
   const lastAlarmRef = useRef<string>("");
-  const { onRecordObservation, onAttachMonitor } = props;
+  const { onRecordObservation, onAttachMonitor, onAttachMonitoring } = props;
+  useMonitorSound(casualtyId, pic, state.audioOn, paired > 0);
   useEffect(() => {
     vitalsRef.current = treatment?.liveVitals;
   });
@@ -382,6 +486,7 @@ export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alarmKey]);
   const takeEcg = () => {
+    if (!leadsOn) return;
     const r = interpretEcg(treatment, resus, hrShown, flags, vitals?.temp);
     set((m) => ({ ...m, ecg12: { at: now, ...r } }));
     record(`12-lead ECG · ${r.rhythm} · ${r.impression}`);
@@ -393,14 +498,14 @@ export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
   return (
     <>
       <div className={`cc-monitor${alarming ? " alarm" : ""}${compact ? " compact" : ""}`}>
-        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={connected} compact={compact} />
+        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={measurable && anyOn} ecgOn={ecgOn} plethOn={probeOn} respOn={leadsOn} compact={compact} />
         <div className="cc-numbers">
           <div className={`hr${breaches.some((b) => b.startsWith("HR")) && !silenced ? " alarm" : ""}`}><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
           <div className={`spo2${breaches.some((b) => b.startsWith("SpO")) && !silenced ? " alarm" : ""}`}><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
           <div className={`rr${breaches.some((b) => b.startsWith("RR")) && !silenced ? " alarm" : ""}`}><span>RR</span><strong>{rrShown ?? "--"}</strong><small>/min</small></div>
         </div>
-        {!surveyDone && (
-          <div className="cc-mon-overlay">{paired === 0 ? "NO CLINICIAN WITH PATIENT" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY TO CONNECT THE MONITOR"}</div>
+        {(!live || !anyOn || paired === 0) && (
+          <div className="cc-mon-overlay">{paired === 0 ? "NO CLINICIAN WITH PATIENT" : !anyOn ? "NOTHING ATTACHED — LEADS, PROBE OR PADS" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY"}</div>
         )}
         {alarmPanel && (
           <div className="cc-alarm-panel">
@@ -447,9 +552,19 @@ export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
           <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
           <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
         </div>
+        <div className={`cc-mon-equip${compact ? " compact" : ""}`}>
+          {(["ecg_leads", "spo2_probe", "defib_pads", "capnography"] as MonitoringDevice[]).map((d) => {
+            const on = treatment?.monitoring?.[d] !== undefined;
+            return (
+              <button key={d} type="button" aria-pressed={on} disabled={!connected || on || !onAttachMonitoring} title={MONITORING_HINT[d]} onClick={() => onAttachMonitoring?.(casualtyId, d, by)}>
+                {on ? "✓ " : "+ "}{MONITORING_LABEL[d]}
+              </button>
+            );
+          })}
+        </div>
         <div className="cc-mon-buttons">
-          <button type="button" disabled={!connected} onClick={takeEcg}>12-lead ECG</button>
-          <button type="button" disabled={!connected || measuring} onClick={() => setMeasuringSince(now)}>{measuring ? "Measuring…" : "Measure BP"}</button>
+          <button type="button" disabled={!measurable || !leadsOn} title={leadsOn ? "Acquire and read a 12-lead" : "Attach the ECG leads first"} onClick={takeEcg}>12-lead ECG</button>
+          <button type="button" disabled={!measurable || measuring || (!cuffOn && !onAttachMonitoring)} title={cuffOn ? "Cycle the cuff" : "Puts the cuff on and takes a pressure"} onClick={() => { if (!cuffOn) onAttachMonitoring?.(casualtyId, "nibp_cuff", by); setMeasuringSince(now); }}>{measuring ? "Measuring…" : cuffOn ? "Measure BP" : "Cuff on · measure"}</button>
           <button type="button" aria-pressed={alarmPanel} onClick={() => setAlarmPanel(!alarmPanel)}>{alarming ? `Alarm · ${breaches[0]}` : silenced ? "Alarms silenced" : "Alarm settings"}</button>
         </div>
       </div>
@@ -465,6 +580,7 @@ export function MonitorMeta({ casualtyId, now, compact }: { casualtyId: string; 
     <span className="cc-mon-meta">
       {!compact && "Lead II · 25 mm/s · 10 mm/mV"}
       {silenced && <em>silenced {mmss(state.silencedUntil - now)}</em>}
+      <button type="button" title={state.audioOn ? "Monitor speaker on — click to mute" : "Monitor speaker muted — click for sound"} aria-pressed={state.audioOn} onClick={() => updateMonitorState(casualtyId, (m) => ({ ...m, audioOn: !m.audioOn }))}>{state.audioOn ? "🔊" : "🔇"}</button>
       <button type="button" title="Alarm settings" aria-pressed={state.alarmPanel} onClick={() => updateMonitorState(casualtyId, (m) => ({ ...m, alarmPanel: !m.alarmPanel }))}>{state.alarmCfg.on ? "🔔" : "🔕"}</button>
     </span>
   );

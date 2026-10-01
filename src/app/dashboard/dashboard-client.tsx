@@ -25,6 +25,9 @@ import {
   type ReversibleCause,
   roleCriteria,
   downtimeSec,
+  handsOnChest,
+  pauseCycle,
+  resumeCycle,
 } from "@/lib/sim/resus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Appliance, AreaCode, StatusCode } from "@/lib/sim/types";
@@ -93,7 +96,7 @@ import type {
   TaskKind,
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
-import { EGRESS_SECONDS } from "@/lib/sim/incident_types";
+import { EGRESS_SECONDS, MONITORING_LABEL, type MonitoringDevice } from "@/lib/sim/incident_types";
 import { EGRESS_LABEL, SCOPE_LABEL } from "./components/treatment-tab";
 import { movingCprFactor, movingRisks } from "@/lib/sim/moving";
 import { rollBasicsResponse, type BasicsResponder } from "@/lib/sim/basics";
@@ -1365,6 +1368,20 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           s = { ...s, etco2: Math.round(eased * 10) / 10 };
           changed = true;
         }
+        // No compressor, no cycle. The ALS clock stops the moment nobody
+        // is on the chest and starts again when somebody takes it; the
+        // gap is banked as no-flow time. A rhythm check already running
+        // finishes — hands are meant to be off for that.
+        if (!handsOnChest(s) && s.cyclePausedAt === undefined && !isAnalysing(s, nowMs)) {
+          s = {
+            ...pauseCycle(s, nowMs),
+            events: [...s.events, { at: nowMs, text: "Nobody on the chest — compressions stopped, and the clock with them", tone: "critical" }],
+          };
+          changed = true;
+        } else if (handsOnChest(s) && s.cyclePausedAt !== undefined) {
+          s = resumeCycle(s, nowMs);
+          changed = true;
+        }
         // A rhythm check is two phases: the monitor analyses with hands
         // off the chest for 7-10 seconds, and only then does the result
         // come back. Instant results made the most important moment of
@@ -2377,12 +2394,29 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       airway: { ...p.airway, [action]: at },
       events: [...p.events, { kind: "airway", action, at, by }],
     }));
+    // An advanced airway placed from any screen is the arrest board's
+    // airway too — one patient, one record.
+    if (action === "igel" || action === "rsi") {
+      const airway = action === "igel" ? "igel" : "ett";
+      updateResus(casualtyId, (s) =>
+        s.airway === airway
+          ? s
+          : {
+              ...s,
+              airway,
+              events: resusEvent(s, airway === "igel" ? "i-gel inserted — continuous compressions, ventilate at 10/min" : "Intubated — continuous compressions, ventilate at 10/min", "action"),
+            },
+      );
+    }
   }
   function applyBreathing(casualtyId: string, action: BreathingAction, by: string) {
     const at = Date.now();
     updateTreatment(casualtyId, (p) => ({
       ...p,
       breathing: { ...p.breathing, [action]: at },
+      // "Oxygen 15 L NRB" ticked on the old tab is the same thing as the
+      // care screen's oxygen order: set the delivery so both agree.
+      oxygen: action === "oxygen_15l" && (!p.oxygen || p.oxygen.device === "none") ? { device: "nrb", flowLpm: 15, at } : p.oxygen,
       events: [...p.events, { kind: "breathing", action, at, by }],
     }));
   }
@@ -2421,7 +2455,13 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         : Math.random() < 0.6
           ? "asystole"
           : "pea";
-      return { ...prev, [casualtyId]: newResusState(casualtyId, startedAt ?? Date.now(), rhythm) };
+      // Whatever is already on the patient carries over: leads or pads
+      // attached before the arrest mean the board is monitored from the
+      // first second.
+      const mon = treatmentRef.current[casualtyId]?.monitoring;
+      const monitor: MonitorMode = mon?.ecg_leads !== undefined ? "lead_3" : mon?.defib_pads !== undefined ? "pads" : "none";
+      const base = newResusState(casualtyId, startedAt ?? Date.now(), rhythm);
+      return { ...prev, [casualtyId]: { ...base, monitor, capnographyOn: mon?.capnography !== undefined } };
     });
   }
 
@@ -2443,6 +2483,37 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       monitor,
       events: resusEvent(s, `${monitor === "pads" ? "Defib pads" : monitor === "lead_3" ? "3-lead ECG" : "12-lead ECG"} attached`, "action"),
     }));
+    // The same lead on every screen: the care screen's monitor reads the
+    // treatment record, so what the arrest board attached goes there too.
+    const device: MonitoringDevice = monitor === "pads" ? "defib_pads" : "ecg_leads";
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) =>
+      p.monitoring?.[device] !== undefined
+        ? p
+        : { ...p, monitoring: { ...p.monitoring, [device]: at }, events: [...p.events, { kind: "monitoring", at, by: "Crew", device }] },
+    );
+  }
+
+  /** Put a lead, probe, cuff or pads on the patient. One record for every
+   *  screen: the monitor shows nothing it has no lead for, and the arrest
+   *  board's monitor mode follows pads and leads. */
+  function attachMonitoring(casualtyId: string, device: MonitoringDevice, by: string) {
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) => {
+      if (p.monitoring?.[device] !== undefined) return p;
+      return { ...p, monitoring: { ...p.monitoring, [device]: at }, events: [...p.events, { kind: "monitoring", at, by, device }] };
+    });
+    if (device === "defib_pads" || device === "ecg_leads") {
+      updateResus(casualtyId, (s) => {
+        const want: MonitorMode = device === "defib_pads" ? "pads" : "lead_3";
+        // Leads read over pads; a 12-lead is never stepped back from.
+        if (s.monitor === "lead_12" || s.monitor === want || (s.monitor === "lead_3" && want === "pads")) return s;
+        return { ...s, monitor: want, events: resusEvent(s, `${MONITORING_LABEL[device]} attached`, "action") };
+      });
+    }
+    if (device === "capnography") {
+      updateResus(casualtyId, (s) => (s.capnographyOn ? s : { ...s, capnographyOn: true, events: resusEvent(s, "Waveform capnography attached", "action") }));
+    }
   }
 
   /** Set the oxygen delivery. Recorded on the treatment state so the
@@ -2494,6 +2565,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }
 
   function toggleCapnography(casualtyId: string) {
+    const wasOn = resusRef.current[casualtyId]?.capnographyOn ?? false;
     updateResus(casualtyId, (s) => ({
       ...s,
       capnographyOn: !s.capnographyOn,
@@ -2503,6 +2575,13 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         "action",
       ),
     }));
+    const at = Date.now();
+    updateTreatment(casualtyId, (p) => {
+      const monitoring = { ...p.monitoring };
+      if (wasOn) delete monitoring.capnography;
+      else monitoring.capnography = at;
+      return { ...p, monitoring, events: [...p.events, { kind: "monitoring", at, by: "Crew", device: "capnography", off: wasOn || undefined }] };
+    });
   }
 
   function setCompressor(
@@ -2512,16 +2591,18 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     updateResus(casualtyId, (s) => {
       if (s.compressorCrewId === crew.id) return s;
       const swapping = s.compressorCrewId !== undefined;
+      const at = Date.now();
+      const gapSec = s.cyclePausedAt !== undefined ? (at - s.cyclePausedAt) / 1000 : 0;
       return {
-        ...s,
+        ...resumeCycle(s, at),
         compressorCrewId: crew.id,
         compressorName: crew.name,
-        compressorSinceAt: Date.now(),
+        compressorSinceAt: at,
         events: resusEvent(
           s,
           swapping
             ? `Compressor swapped — ${crew.name} (${crew.role}) on the chest`
-            : `${crew.name} (${crew.role}) on the chest`,
+            : `${crew.name} (${crew.role}) on the chest${gapSec >= 5 ? ` — compressions running after ${Math.round(gapSec)} s of no-flow` : ""}`,
           "action",
         ),
       };
@@ -2530,7 +2611,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
 
   function fitLucas(casualtyId: string) {
     updateResus(casualtyId, (s) => ({
-      ...s,
+      ...resumeCycle(s, Date.now()),
       lucasFittedAt: Date.now(),
       events: resusEvent(
         s,
@@ -6896,6 +6977,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           onSetOxygen={setOxygen}
           onSetResusAirway={setResusAirway}
           onAttachMonitor={attachMonitor}
+          onAttachMonitoring={attachMonitoring}
           onToggleCapnography={toggleCapnography}
           onSetCompressor={setCompressor}
           onFitLucas={fitLucas}
@@ -7274,6 +7356,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
               onSetOxygen={setOxygen}
               onSetResusAirway={setResusAirway}
               onAttachMonitor={attachMonitor}
+              onAttachMonitoring={attachMonitoring}
               onToggleCapnography={toggleCapnography}
               onSetCompressor={setCompressor}
               onFitLucas={fitLucas}
@@ -7357,6 +7440,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                 onSetOxygen={setOxygen}
                 onSetResusAirway={setResusAirway}
                 onAttachMonitor={attachMonitor}
+                onAttachMonitoring={attachMonitoring}
                 onToggleCapnography={toggleCapnography}
                 onSetCompressor={setCompressor}
                 onFitLucas={fitLucas}

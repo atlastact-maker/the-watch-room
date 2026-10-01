@@ -26,6 +26,9 @@ import {
   amiodaroneDoseMg,
   amiodaroneDue,
   compressionQuality,
+  cyclePaused,
+  handsOnChest,
+  noFlowSec,
   resusMoving,
   roleCriteria,
   downtimeSec,
@@ -58,6 +61,7 @@ export function ResusPanel({
   candidates,
   lucasAvailable,
   monitorAvailable,
+  padsOn,
   postRoscIssues,
   vitals,
   ageYears,
@@ -80,6 +84,9 @@ export function ResusPanel({
   candidates: CompressorOption[];
   lucasAvailable: boolean;
   monitorAvailable: boolean;
+  /** Defib pads are on the patient. Leads read a rhythm; only pads can
+   *  deliver a shock. Defaults to the monitor mode being "pads". */
+  padsOn?: boolean;
   postRoscIssues: PostRoscIssue[];
   vitals?: PatientClinical["vitals"];
   /** For the ROLE exclusions: a child is conveyed, not ROLE'd. */
@@ -103,6 +110,10 @@ export function ResusPanel({
   const toCheck = secondsToRhythmCheck(state, now);
   const down = downtimeSec(state, now);
   const monitored = state.monitor !== "none";
+  const pads = padsOn ?? state.monitor === "pads";
+  const paused = cyclePaused(state) && !rosc;
+  const nobody = !handsOnChest(state);
+  const noFlow = noFlowSec(state, now);
   const analysing = isAnalysing(state, now);
   const lucasFitting =
     state.lucasFittedAt !== undefined && now < state.lucasFittedAt + LUCAS_FIT_SEC * 1000;
@@ -177,26 +188,30 @@ export function ResusPanel({
       <div className="grid grid-cols-3 gap-1.5">
         <Stat label="Cycle" value={String(state.cycle + 1)} sub="2 min each" />
         <Stat
-          label={analysing ? "Analysing" : "Rhythm check"}
+          label={analysing ? "Analysing" : paused ? "Clock stopped" : "Rhythm check"}
           value={
             rosc
               ? "—"
               : analysing
                 ? `${Math.ceil(analyseRemaining(state, now))}s`
-                : `${Math.ceil(toCheck)}s`
+                : paused
+                  ? "—"
+                  : `${Math.ceil(toCheck)}s`
           }
           sub={
             rosc
               ? ""
               : analysing
                 ? "hands off"
-                : toCheck <= 10
-                  ? "stand clear"
-                  : "continue CPR"
+                : paused
+                  ? "nobody on the chest"
+                  : toCheck <= 10
+                    ? "stand clear"
+                    : "continue CPR"
           }
-          tone={!rosc && (analysing || toCheck <= 10) ? "amber" : undefined}
+          tone={!rosc && (analysing || paused || toCheck <= 10) ? "amber" : undefined}
         />
-        <Stat label="Downtime" value={fmtClock(down)} sub={`${state.shocks} shock${state.shocks === 1 ? "" : "s"}`} />
+        <Stat label="Downtime" value={fmtClock(down)} sub={`${state.shocks} shock${state.shocks === 1 ? "" : "s"} · no-flow ${fmtClock(noFlow)}`} tone={noFlow >= 30 ? "amber" : undefined} />
       </div>
       {!rosc && (
         <div className="h-1 overflow-hidden rounded-sm bg-(--color-bg)">
@@ -385,6 +400,13 @@ export function ResusPanel({
                   guidance says every two minutes for a reason.
                 </Note>
               )}
+              {nobody && (
+                <Note tone="amber">
+                  Nobody is on the chest. No compressions means no cycle, no
+                  rhythm check and no chance of ROSC — the clock is stopped
+                  until somebody takes it. Pick a crew member below.
+                </Note>
+              )}
               {candidates.length === 0 ? (
                 <Note>No crew on scene to take the chest.</Note>
               ) : (
@@ -409,11 +431,21 @@ export function ResusPanel({
                 />
               )}
               {!lucasAvailable && (
-                <Note>
-                  No mechanical CPR device on scene. LUCAS rides on the advanced
-                  paramedic, critical care and HART vehicles — not a standard
-                  DCA.
-                </Note>
+                <>
+                  <Chip
+                    label="Fit LUCAS — mechanical CPR"
+                    sub="None on scene"
+                    disabled
+                    onClick={() => undefined}
+                    title="No mechanical CPR device with this patient. It rides on the advanced paramedic, critical care and HART vehicles — assign one to the patient and the option opens."
+                  />
+                  <Note>
+                    No mechanical CPR device on scene. LUCAS rides on the advanced
+                    paramedic, critical care and HART vehicles — not a standard
+                    DCA. Request an AP or critical care and assign them to this
+                    patient to use it.
+                  </Note>
+                </>
               )}
             </>
           )}
@@ -454,7 +486,12 @@ export function ResusPanel({
       {!rosc && (
         <Group title="Defibrillation">
           {!monitored ? (
-            <Note>Attach pads before you can assess a rhythm or shock.</Note>
+            <Note>Attach pads or leads before you can assess a rhythm — and pads before you can shock.</Note>
+          ) : isShockable(state.rhythm) && !pads ? (
+            <Note tone="amber">
+              {RHYTHM_LABEL[state.rhythm]} on the leads — shockable, but leads
+              cannot deliver energy. Pads on now.
+            </Note>
           ) : isShockable(state.rhythm) ? (
             <>
               <BigAction

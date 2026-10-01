@@ -119,6 +119,8 @@ const GLOSSARY: Section[] = [
       { term: "VT with a pulse", def: "Broad regular tachycardia with output. Amiodarone if stable, synchronised cardioversion if not; pads on, because it can go to VF" },
       { term: "Cardioversion", def: "A synchronised shock timed to the R wave, for a tachycardia with adverse features. Sedate first" },
       { term: "TCP", def: "Transcutaneous pacing — pads on the chest, 70/min, current up until every spike captures. Painful; sedate" },
+      { term: "No-flow time", def: "Time in an arrest with nobody on the chest — no compressions, so the ALS clock stops and the brain gets nothing. Every second of it costs the patient" },
+      { term: "LUCAS", def: "Mechanical chest compression device — holds depth and rate indefinitely, frees a rescuer and keeps CPR going on the move. Carried by advanced paramedic, critical care and HART vehicles, not a standard DCA" },
       { term: "ROLE", def: "Recognition of life extinct — resuscitation ended after the criteria: 20 min of ALS, asystole, no shock, causes considered, end-tidal flat" },
     ],
   },

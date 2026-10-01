@@ -56,6 +56,7 @@ import {
   type OxygenState,
 } from "@/lib/sim/oxygen";
 import type { AirwayState, MonitorMode, ResusState, ReversibleCause } from "@/lib/sim/resus";
+import { MONITORING_LABEL } from "@/lib/sim/incident_types";
 import type {
   HospitalDestinationType,
   PatientClinical,
@@ -1385,6 +1386,8 @@ function describeEvent(e: PatientTreatmentState["events"][number]): string {
       return `${e.text} (${e.by})`;
     case "drug_refused":
       return `${DRUG_LABEL[e.drug]} not given · ${e.reason}`;
+    case "monitoring":
+      return `${MONITORING_LABEL[e.device]} ${e.off ? "removed" : "attached"} (${e.by})`;
   }
 }
 

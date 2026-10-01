@@ -32,6 +32,9 @@ export function GroundSceneMap(props: {
   enRoute: ResolvedOnSceneDeployment[];
   sim: IncidentSimState;
   tasks: Task[];
+  /** Per-casualty treatment — the move window carries a patient across
+   *  the ground to the vehicle. */
+  treatmentByCasualtyId?: Record<string, import("@/lib/sim/incident_types").PatientTreatmentState>;
   sceneCommanderApplianceId: string | null;
   crewAir: Record<string, number>;
   busyCrewIds: Set<string>;

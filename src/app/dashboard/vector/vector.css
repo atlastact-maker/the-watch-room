@@ -3356,6 +3356,13 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-nibp .upd strong { font: 500 12px var(--vec-mono, monospace); }
 .cc-mon-strip { display: flex; flex-direction: column; gap: 8px; }
 .cc-mon-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cc-mon-equip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cc-mon-equip button { min-height: 30px; border: 1px dashed var(--cc-line); border-radius: 2px; background: transparent; font: 700 11px var(--vec-sans, Arial, sans-serif); color: var(--cc-muted); transition: background 0.12s, border-color 0.12s, color 0.12s; }
+.cc-mon-equip button:hover:not(:disabled) { border-color: var(--cc-blue); color: var(--cc-blue); }
+.cc-mon-equip button[aria-pressed="true"] { border-style: solid; border-color: #1f9d55; background: rgba(31, 157, 85, 0.12); color: #1f9d55; }
+.cc-mon-equip button:disabled:not([aria-pressed="true"]) { opacity: 0.5; }
+.cc-mon-equip.compact { display: flex; gap: 6px; }
+.cc-mon-equip.compact button { min-height: 28px; padding: 0 8px; font-size: 10px; white-space: nowrap; }
 /* The tablet's monitor: half-height traces, smaller numbers, and NIBP / MAP /
    TEMP sharing one row with the 12-lead, BP and alarm buttons. */
 .cc-monitor.compact { grid-template-columns: minmax(0, 1fr) 96px; }
@@ -3369,7 +3376,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-monitor.compact .cc-numbers small { font-size: 9px; padding-bottom: 2px; }
 .cc-monitor.compact .cc-alarm-panel, .cc-monitor.compact .cc-ecg12 { top: 4px; left: 44px; right: 100px; max-height: none; padding: 8px; gap: 4px; font-size: 11px; z-index: 2; }
 .cc-monitor.compact .cc-mon-overlay { font-size: 10px; }
-.cc-mon-strip.compact { flex-direction: row; align-items: stretch; }
+.cc-mon-strip.compact { flex-direction: row; align-items: stretch; flex-wrap: wrap; }
 .cc-mon-strip.compact .cc-nibp { flex: 1; min-width: 0; gap: 10px; padding: 4px 8px; grid-template-columns: auto auto minmax(0, 1fr) auto; }
 .cc-mon-strip.compact .cc-nibp strong { font-size: 18px; }
 .cc-mon-strip.compact .cc-nibp .map strong { font-size: 14px; }
@@ -4487,6 +4494,8 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-mdt-vitals .cc-nibp span { color: #9fb3c3; }
 .vec-mdt-vitals .cc-nibp small { color: #7f97a8; }
 .vec-mdt-vitals .cc-mon-buttons button { border-color: #3b5468; background: #142130; color: #e6eef5; }
+.vec-mdt-vitals .cc-mon-equip button { border-color: #3b5468; color: #9fb3c3; }
+.vec-mdt-vitals .cc-mon-equip button[aria-pressed="true"] { border-color: #22c55e; color: #a8f0c4; background: rgba(34, 197, 94, 0.14); }
 .vec-mdt-vitals .cc-mon-buttons button[aria-pressed="true"] { background: var(--cc-blue); border-color: var(--cc-blue); }
 .vec-mdt-vitals .cc-monitor.compact .cc-alarm-panel, .vec-mdt-vitals .cc-monitor.compact .cc-ecg12 { z-index: 5; }
 .vec-mdt-vitals .cc-mon-overlay { font-size: 9px; }

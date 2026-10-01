@@ -271,6 +271,7 @@ function shiftTreatment(
     packaging: shiftActionMap(tx.packaging, offset),
     egress: shiftActionMap(tx.egress ?? {}, offset),
     moveEndsAt: shift(tx.moveEndsAt, offset),
+    monitoring: tx.monitoring ? shiftActionMap(tx.monitoring, offset) : undefined,
     resusEnded: tx.resusEnded ? { ...tx.resusEnded, at: tx.resusEnded.at + offset } : undefined,
     events: tx.events.map((e) => shiftTreatmentEvent(e, offset)),
     allergiesConfirmedAt: shift(tx.allergiesConfirmedAt, offset),
