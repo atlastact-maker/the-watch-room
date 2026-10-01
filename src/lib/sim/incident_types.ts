@@ -841,6 +841,11 @@ export type PatientTreatmentState = {
   packaging: Partial<Record<PackagingAction, number>>;
   /** How the patient was moved to the vehicle, and when. */
   egress: Partial<Record<EgressAction, number>>;
+  /** While the patient is being carried: when the carry ends and how it
+   *  is being done. Care carries on during the move, but it costs — see
+   *  lib/sim/moving. Cleared by nothing; the window simply passes. */
+  moveEndsAt?: number;
+  moveAction?: EgressAction;
   /** Chosen destination (the actual receiving hospital). */
   chosenDestination?: {
     type: import("./scene").HospitalDestinationType;

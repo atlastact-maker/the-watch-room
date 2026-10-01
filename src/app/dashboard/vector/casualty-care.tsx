@@ -34,6 +34,7 @@ import { MonitorMeta, VitalMonitorPanel, monitorPicture, useMonitorState } from 
 import { OXYGEN_DEVICE_LABEL, OXYGEN_FLOWS, OXYGEN_HINT, oxygenLabel, oxygenVerdict, type OxygenDevice } from "@/lib/sim/oxygen";
 import { PHARMACOLOGY, canGiveDrug, dosesOf } from "@/lib/sim/physiology";
 import { postRoscIssues, type ResusState, type ReversibleCause, type MonitorMode, type AirwayState } from "@/lib/sim/resus";
+import { isMoving, movingRisks } from "@/lib/sim/moving";
 import {
   AIRWAY_HINT,
   AIRWAY_LABEL,
@@ -323,6 +324,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const moves = (Object.entries(treatment?.egress ?? {}) as [EgressAction, number][]).sort((a, b) => b[1] - a[1]);
   const move = moves[0];
   const moveLeft = move ? Math.max(0, move[1] + (EGRESS_SECONDS[move[0]] + (props.egressExtraSeconds ?? 0)) * 1000 - now) : 0;
+  // What moving now would cost, and whether it is costing now.
+  const moveRisks = surveyDone ? movingRisks(flags, vitals, resus, now) : [];
+  const movingNow = isMoving(treatment ?? undefined, now);
 
   // ---- Pieces ----------------------------------------------------------------
   const surveyRows: { k: string; label: string; status: string; tone: "go" | "warn" | "stop" | "off"; tab: CareTab }[] = [
@@ -363,8 +367,10 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     }
   }
 
-  function ivRow(key: string, label: string, hint: string | undefined, state: IvState, onClick: () => void, opts: { verb?: string; dim?: boolean; gate?: boolean } = {}) {
-    const s = statusOf(state);
+  function ivRow(key: string, label: string, hint: string | undefined, state: IvState, onClick: () => void, opts: { verb?: string; dim?: boolean; gate?: boolean; warn?: string } = {}) {
+    // A row that can be pressed but will cost: ready, with the warning as
+    // its status (moving an unstable patient, say).
+    const s = state.kind === "ready" && opts.warn ? { text: opts.warn, tone: "warn" } : statusOf(state);
     const disabled = state.kind !== "ready" || (opts.gate !== false && !canAct);
     return (
       <div key={key} className={`cc-iv ${state.kind}${opts.dim ? " dim" : ""}`}>
@@ -614,11 +620,31 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
             <Group title="Packaging">
               {ivList(packagingActions.map((a) => ivRow(a, PACKAGING_LABEL[a], PACKAGING_HINT[a], ivState(treatment?.packaging[a], true), () => props.onApplyPackaging?.(casualtyId, a, by))))}
             </Group>
-            <Group title="Egress · to the vehicle" extra={move ? <span className={`cc-pill ${moveLeft > 0 ? "warn" : "go"}`}>{EGRESS_LABEL[move[0]]} · {moveLeft > 0 ? `${clock(moveLeft).slice(3)} to go` : "at the vehicle"}</span> : undefined}>
+            <Group title="Egress · to the vehicle" extra={move ? <span className={`cc-pill ${moveLeft > 0 ? (movingNow && moveRisks.length ? "stop" : "warn") : "go"}`}>{EGRESS_LABEL[move[0]]} · {moveLeft > 0 ? `${clock(moveLeft).slice(3)} to go${movingNow && moveRisks.length ? " · unstable" : ""}` : "at the vehicle"}</span> : undefined}>
+              {!move && moveRisks.length > 0 && (
+                <div className="cc-banner warn">
+                  <b>!</b>
+                  <div>
+                    <strong>Not stable — moving now costs</strong>
+                    <p>You can move and keep working, but it is not free:</p>
+                    <ul className="cc-risks">
+                      {moveRisks.map((r) => (
+                        <li key={r.flag}><span>{r.cost}.</span> <em>{r.fix}.</em></li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {move && movingNow && moveRisks.length > 0 && (
+                <div className="cc-banner stop">
+                  <b>!</b>
+                  <div><strong>On the move, unstable</strong><p>{moveRisks.map((r) => r.cost).join(". ")}. Treatment carries on; the numbers will show the cost.</p></div>
+                </div>
+              )}
               {ivList(egressActions.map((a) => {
                 const block = props.egressBlocked?.find((b) => b.action === a);
                 const clinical = EGRESS_CLINICAL_BLOCKS.find((r) => r.actions.includes(a) && flags.includes(r.flag));
-                return ivRow(a, EGRESS_LABEL[a], EGRESS_HINT[a], ivState(treatment?.egress?.[a], true, undefined, block?.reason ?? clinical?.reason), () => props.onApplyEgress?.(casualtyId, a, by), { verb: "Move" });
+                return ivRow(a, EGRESS_LABEL[a], EGRESS_HINT[a], ivState(treatment?.egress?.[a], true, undefined, block?.reason ?? clinical?.reason), () => props.onApplyEgress?.(casualtyId, a, by), { verb: "Move", warn: moveRisks.length > 0 ? "Costs — not stable" : undefined });
               }))}
             </Group>
           </>

@@ -152,6 +152,7 @@ export const scenario12: Scenario = {
       { metric: "Crew CPR / defib taken over from bystanders", target: "< 2 minutes from first arrival" },
       { metric: "Backup crew and critical care mobilised", target: "< 15 minutes" },
       { metric: "Egress planned — carry party and route to hard standing", target: "before conveyance, not during" },
+      { metric: "Moving in arrest", target: "ROSC first, or a LUCAS on the chest before the carry — hand compressions on 450 m of grass are half compressions" },
       { metric: "Post-ROSC conveyance, pre-alerted", target: "MRI as the PPCI centre — sent as a post-ROSC PPCI patient, not a generic resus call" },
     ],
     lesson:

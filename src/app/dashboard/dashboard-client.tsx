@@ -92,6 +92,8 @@ import type {
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
 import { EGRESS_SECONDS } from "@/lib/sim/incident_types";
+import { EGRESS_LABEL } from "./components/treatment-tab";
+import { movingCprFactor, movingRisks } from "@/lib/sim/moving";
 import { rollBasicsResponse, type BasicsResponder } from "@/lib/sim/basics";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
 import {
@@ -2767,11 +2769,52 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   /** Record how the patient was moved to the vehicle. */
   function applyEgress(casualtyId: string, action: EgressAction, by: string) {
     const at = Date.now();
+    const extra = activeIncident?.scenario.scene?.egressExtraSeconds ?? 0;
+    const moveEndsAt = at + (EGRESS_SECONDS[action] + extra) * 1000;
+    // Moving an unstable patient is allowed and it costs (lib/sim/moving):
+    // the costs are applied by the physiology and the resus engine while
+    // the move window is open, and the decision goes on the log as a
+    // setback so the debrief can count it.
+    const tx = treatmentByCasualtyId[casualtyId];
+    const resusNow = resusRef.current[casualtyId];
+    const risks = movingRisks(tx?.activeRedFlags ?? tx?.revealedRedFlags ?? [], tx?.liveVitals ?? tx?.revealedVitals, resusNow, at);
     updateTreatment(casualtyId, (p) => ({
       ...p,
       egress: { ...p.egress, [action]: at },
-      events: [...p.events, { kind: "egress", action, at, by }],
+      moveEndsAt,
+      moveAction: action,
+      events: [
+        ...p.events,
+        { kind: "egress", action, at, by },
+        ...risks.map((r) => ({ kind: "physio" as const, at, text: `Moved unstable — ${r.cost}`, tone: "warn" as const, adverse: true })),
+      ],
     }));
+    if (resusNow) {
+      updateResus(casualtyId, (s) => ({
+        ...s,
+        movingUntil: moveEndsAt,
+        movingFactor: movingCprFactor(action),
+        events: resusEvent(
+          s,
+          s.lucasFittedAt !== undefined
+            ? `On the move — ${EGRESS_LABEL[action].toLowerCase()}, LUCAS holding the compressions`
+            : `On the move — ${EGRESS_LABEL[action].toLowerCase()}, compressions by hand at ${Math.round(movingCprFactor(action) * 100)} %`,
+          "action",
+        ),
+      }));
+    }
+    if (risks.length > 0) {
+      const label = activeIncident?.scenario.scene?.casualties?.find((c) => c.id === casualtyId)?.label ?? casualtyId;
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `moved-unstable:${casualtyId}:${at}`,
+          timestamp: at,
+          kind: "setback",
+          message: `${label} moved before stable (${EGRESS_LABEL[action].toLowerCase()}) — ${risks.map((r) => r.cost).join("; ")}`,
+        },
+      ]);
+    }
   }
 
   function setTreatmentDestination(

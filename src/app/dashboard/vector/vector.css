@@ -4974,3 +4974,8 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pc-screen .fc-sectors { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .pc-screen .fc-rtc-action { padding: 4px 8px; }
 .pc-col > .pc-card.fill { min-height: 120px; }
+
+/* The costs of moving an unstable patient, listed under the egress banner. */
+.cc-banner .cc-risks { margin: 6px 0 0; padding-left: 16px; display: grid; gap: 3px; }
+.cc-banner .cc-risks li { font-size: 11px; line-height: 1.35; }
+.cc-banner .cc-risks li em { font-style: normal; color: var(--cc-dim); }

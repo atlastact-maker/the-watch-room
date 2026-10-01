@@ -26,6 +26,7 @@ import {
   amiodaroneDoseMg,
   amiodaroneDue,
   compressionQuality,
+  resusMoving,
   downtimeSec,
   etco2Comment,
   isShockable,
@@ -334,6 +335,11 @@ export function ResusPanel({
             <Note tone="amber">
               Fitting the LUCAS — compressions are paused. Keep the interruption
               short.
+            </Note>
+          ) : resusMoving(state, now) ? (
+            <Note tone="amber">
+              On the move — compressions by hand at {Math.round(quality * 100)} %.
+              Depth and rate do not survive a carry; a LUCAS would.
             </Note>
           ) : (
             <>

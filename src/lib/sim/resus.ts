@@ -150,6 +150,10 @@ export type ResusState = {
   compressorName?: string;
   compressorSinceAt?: number;
   lucasFittedAt?: number;
+  /** While the patient is being carried, compressions by hand are worse
+   *  (lib/sim/moving). Set from the treatment's move window. */
+  movingUntil?: number;
+  movingFactor?: number;
   padPosition: "antero_lateral" | "antero_posterior";
   /** End-tidal CO2 in kPa. */
   etco2: number;
@@ -228,10 +232,18 @@ export function compressionQuality(s: ResusState, now: number): number {
   }
   if (s.compressorCrewId === undefined || s.compressorSinceAt === undefined) return 0;
   const onChestSec = (now - s.compressorSinceAt) / 1000;
-  if (onChestSec <= COMPRESSOR_FRESH_SEC) return 1;
+  // On the move, a hand compressor cannot hold depth or rate; a LUCAS
+  // (above) does not care.
+  const moving = s.movingUntil !== undefined && now < s.movingUntil ? (s.movingFactor ?? 0.6) : 1;
+  if (onChestSec <= COMPRESSOR_FRESH_SEC) return moving;
   const spent =
     (onChestSec - COMPRESSOR_FRESH_SEC) / (COMPRESSOR_SPENT_SEC - COMPRESSOR_FRESH_SEC);
-  return Math.max(0.35, 1 - spent * 0.65);
+  return Math.max(0.35, 1 - spent * 0.65) * moving;
+}
+
+/** Whether the resus state says the patient is being carried now. */
+export function resusMoving(s: ResusState, now: number): boolean {
+  return s.movingUntil !== undefined && now < s.movingUntil;
 }
 
 /** ETCO2 follows compression quality — it is the operator's window onto
@@ -475,6 +487,8 @@ export function reArrestChancePerMin(
   // The first few minutes after ROSC are the most dangerous.
   const sinceRosc = (now - s.roscAt) / 60000;
   if (sinceRosc < 5) p *= 1.5;
+  // Being carried in that window is worse again.
+  if (resusMoving(s, now)) p *= sinceRosc < 10 ? 1.8 : 1.3;
   return Math.max(0, Math.min(0.15, p));
 }
 

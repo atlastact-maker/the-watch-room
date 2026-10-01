@@ -270,6 +270,7 @@ function shiftTreatment(
     drugs: shiftActionMap(tx.drugs, offset),
     packaging: shiftActionMap(tx.packaging, offset),
     egress: shiftActionMap(tx.egress ?? {}, offset),
+    moveEndsAt: shift(tx.moveEndsAt, offset),
     events: tx.events.map((e) => shiftTreatmentEvent(e, offset)),
     allergiesConfirmedAt: shift(tx.allergiesConfirmedAt, offset),
     prevLiveVitalsAt: shift(tx.prevLiveVitalsAt, offset),

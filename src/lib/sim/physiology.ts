@@ -24,6 +24,7 @@
 import type { PatientClinical, PatientRedFlag, SceneCasualty } from "./scene";
 import type { DrugName, PatientTreatmentState, TreatmentEvent } from "./incident_types";
 import { fiO2For } from "./oxygen";
+import { isMoving } from "./moving";
 
 type Vitals = PatientClinical["vitals"];
 
@@ -646,6 +647,9 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
   };
   const act = (d: DrugName) => drugActivity(tx.doses, d, nowMs);
   const within = (at: number | undefined, sec: number) => at !== undefined && nowMs - at < sec * 1000;
+  // Being carried: the handling costs (lib/sim/moving). Applied where the
+  // injury is, so a stable patient moved pays nothing.
+  const moving = isMoving(tx, nowMs);
   const v = tx.liveVitals;
   const p = tx.profile;
   const arrest = flags.has("cardiac_arrest");
@@ -704,6 +708,11 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
     if (tx.airway.magill_forceps !== undefined || tx.airway.back_blows !== undefined || tx.airway.abdominal_thrusts !== undefined) patency += 0.3;
   }
   if (s.aspirationUntil && nowMs < s.aspirationUntil) patency -= 0.15;
+  // On a stretcher an airway held open by positioning alone is not held.
+  if (moving && tx.airway.igel === undefined && tx.airway.rsi === undefined && tx.airway.opa === undefined && tx.airway.npa === undefined && patency < 0.9) {
+    patency -= 0.2;
+    once("moved-airway", "Carried with the airway unsecured — positioning does not survive a stretcher", "warn", true);
+  }
   s.airwayPatency = clamp01(patency);
   if (flags.has("airway_compromise") && s.airwayPatency > 0.85) { flags.delete("airway_compromise"); s.fired = s.fired.filter((k) => k !== "airway-lost"); once("airway-cleared", "Airway secured — saturation should climb", "good"); }
   else if (!flags.has("airway_compromise") && s.airwayPatency < 0.5) { flags.add("airway_compromise"); s.fired = s.fired.filter((k) => k !== "airway-cleared"); once("airway-lost", "Airway obstructing — stridor, saturation falling", "critical"); }
@@ -717,6 +726,10 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
       if (s.tensionSeverity > 0.45) once("reaccumulate", "Tension re-accumulating — the cannula has kinked; consider thoracostomy or a second needle", "critical");
     } else s.tensionSeverity = clamp01(s.tensionSeverity + 0.0012 * dt);
     if (tx.breathing.needle_decomp !== undefined && s.tensionSeverity < 0.2 && !flags.has("tension_pneumothorax")) flags.delete("tension_pneumothorax");
+    if (moving && tx.breathing.finger_thoracostomy === undefined) {
+      s.tensionSeverity = clamp01(s.tensionSeverity + 0.0012 * dt);
+      once("moved-tension", "Carried with the chest undecompressed — the tension is building faster with every step", "critical", true);
+    }
   }
   if (act("entonox") > 0.2 && s.tensionSeverity > 0) { s.tensionSeverity = clamp01(s.tensionSeverity + 0.003 * dt); once("entonox-tension", "Entonox expanding the pneumothorax — patient acutely more breathless", "critical", true); }
   // Bronchospasm: untreated asthma tightens, bronchodilators loosen.
@@ -750,6 +763,7 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
   if (act("tXA_iv") > 0.3) rate *= 0.65;
   if (v.temp < 35) rate *= 1.3;
   if (!s.bleedControlled && liveMap > 82 && s.bleedRatePctPerMin > 0.5) { rate *= 1.6; once("clot-pop", "Pressure pushed above 80 with the bleeding uncontrolled — the clot has gone, bleeding faster", "critical", true); }
+  if (moving && !s.bleedControlled && s.bleedRatePctPerMin > 0.3) { rate *= 1.5; once("moved-bleeding", "Carried with the bleeding uncontrolled — the handling has it going again", "critical", true); }
   if (flags.has("hypovolaemic_shock") && !flags.has("major_haemorrhage")) rate = Math.min(rate, 0.5);
   s.bloodVolumePct = Math.max(20, s.bloodVolumePct - (rate * dt) / 60);
   // Bolus fluids run in over ten minutes; crystalloid leaks out again.
@@ -795,6 +809,7 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
     const wellManaged = v.spo2 >= 94 && liveMap >= 80 && tx.airway.rsi !== undefined;
     const partly = v.spo2 >= 94 && liveMap >= 80;
     s.icp = clamp01(s.icp + (wellManaged ? -0.00005 : partly ? 0.0001 : 0.00035) * dt);
+    if (moving && !wellManaged) { s.icp = clamp01(s.icp + 0.0003 * dt); once("moved-head", "Carried with the head injury unmanaged — the pressure is climbing with the handling", "warn", true); }
     if (s.icp > 0.7) once("cushing", "Cushing's response — hypertension, bradycardia, irregular breathing. Coning imminent", "critical");
   }
   // Glucose.
