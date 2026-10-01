@@ -19,7 +19,7 @@ import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
 import type { SceneCasualty, PatientRedFlag, EgressBlock, HospitalDestinationType } from "@/lib/sim/scene";
 import type { Deployment, Incident, Task, PatientTreatmentState, ClinicianScope, AirwayAction, BreathingAction, CirculationAction, DrugName, PackagingAction, EgressAction } from "@/lib/sim/incident_types";
-import {
+import { CIRC_MIN_SCOPE,
   AIRWAY_MIN_SCOPE,
   BREATHING_MIN_SCOPE,
   DRUG_LABEL,
@@ -32,7 +32,7 @@ import {
 import { BODY_REGIONS, RED_FLAG_REGIONS, type BodyRegion } from "@/lib/sim/body_regions";
 import { MonitorMeta, VitalMonitorPanel, monitorPicture, useMonitorState } from "./vital-monitor";
 import { OXYGEN_DEVICE_LABEL, OXYGEN_FLOWS, OXYGEN_HINT, oxygenLabel, oxygenVerdict, type OxygenDevice } from "@/lib/sim/oxygen";
-import { PHARMACOLOGY, canGiveDrug, dosesOf } from "@/lib/sim/physiology";
+import { PHARMACOLOGY, canGiveDrug, dosesOf, pacingCapturing } from "@/lib/sim/physiology";
 import { postRoscIssues, type ResusState, type ReversibleCause, type MonitorMode, type AirwayState } from "@/lib/sim/resus";
 import { isMoving, movingRisks } from "@/lib/sim/moving";
 import {
@@ -157,6 +157,7 @@ const DRUG_DOSE: Record<DrugName, { dose: string; unit: string; route: string }>
   noradrenaline: { dose: "0.1", unit: "µg/kg/min", route: "IV" },
   blood_prbc: { dose: "1", unit: "unit", route: "IV" },
   blood_plasma: { dose: "1", unit: "unit", route: "IV" },
+  atropine: { dose: "500", unit: "µg", route: "IV" },
 };
 
 const TABS: { key: CareTab; label: string; icon: ReactNode }[] = [
@@ -405,7 +406,64 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   // ---- What each section holds -----------------------------------------------
   const airwayActions = Object.keys(AIRWAY_LABEL) as AirwayAction[];
   const breathingActions = (Object.keys(BREATHING_LABEL) as BreathingAction[]).filter((a) => (a !== "needle_decomp" && a !== "finger_thoracostomy") || revealedFlags.includes("tension_pneumothorax"));
-  const circActions = (Object.keys(CIRC_LABEL) as CirculationAction[]).filter((a) => (a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest")));
+  const circActions = (Object.keys(CIRC_LABEL) as CirculationAction[]).filter((a) => a !== "pacing" && ((a !== "cpr" && a !== "defib") || (!resus && flags.includes("cardiac_arrest"))));
+  // The RCUK bradycardia algorithm, as a group: adverse features, atropine,
+  // then pacing. Shown when the flag is up or the rate says so.
+  const slow = !inArrest && surveyDone && !!vitals && vitals.hr < 50;
+  const bradyGroup = (flags.includes("bradycardia_unstable") || slow) && !inArrest ? (() => {
+    const conduction = treatment?.physio?.conduction ?? "sinus";
+    const capturing = !!treatment && pacingCapturing(treatment, now);
+    const pacingAt = treatment?.circulation.pacing;
+    const adverse: { label: string; on: boolean }[] = [
+      { label: "Shock · systolic < 90", on: !!vitals && vitals.bpSys < 90 },
+      { label: "Syncope / reduced consciousness", on: !!vitals && vitals.gcs < 15 },
+      { label: "Myocardial ischaemia", on: flags.includes("stemi") },
+      { label: "Heart failure · hypoxia", on: !!vitals && vitals.spo2 < 92 },
+    ];
+    const anyAdverse = adverse.some((a) => a.on);
+    const highRisk = conduction === "hb2_m2" || conduction === "hb3";
+    const atropineCheck = treatment ? canGiveDrug(treatment, "atropine", now) : null;
+    const atropineGiven = treatment ? dosesOf(treatment.doses, "atropine").length : 0;
+    const condLabel = conduction === "hb3" ? "Complete heart block" : conduction === "hb2_m2" ? "Mobitz II, 2:1" : conduction === "hb2_m1" ? "Mobitz I" : conduction === "hb1" ? "First-degree block" : conduction === "af" ? "Slow AF" : "Sinus bradycardia";
+    const pacingAllowed = scopeLvl >= SCOPE_LEVEL[CIRC_MIN_SCOPE.pacing ?? "ap"];
+    return (
+      <Group title="Bradycardia · RCUK" extra={<span className={`cc-pill ${capturing ? "go" : anyAdverse ? "stop" : "warn"}`}>{capturing ? "Paced · 70" : `${condLabel} · ${vitals ? Math.round(vitals.hr) : "--"}`}</span>}>
+        <div className="cc-iv-list">
+          {adverse.map((a) => (
+            <div key={a.label} className={`cc-iv ${a.on ? "blocked" : "off"}`}>
+              <div className="cc-iv-name"><strong>{a.label}</strong></div>
+              <div className={`cc-iv-status ${a.on ? "stop" : "muted"}`}><i />{a.on ? "Present" : "Absent"}</div>
+              <span />
+            </div>
+          ))}
+        </div>
+        {highRisk && !capturing && (
+          <div className="cc-banner stop"><b>!</b><div><strong>Risk of asystole</strong><p>{condLabel}: a block below the AV node. Atropine will not lift it; pace, and have the pads on before it stops.</p></div></div>
+        )}
+        {ivList([
+          choiceRow(
+            "atropine",
+            "Atropine 500 µg IV",
+            atropineGiven > 0 ? `${atropineGiven} of 6 given · ${atropineGiven * 0.5} mg` : "First line with adverse features. Repeat every 3–5 min to 3 mg. Works above the node only.",
+            atropineGiven >= 6 ? { text: "3 mg given", tone: "muted" } : atropineCheck && !atropineCheck.ok ? { text: atropineCheck.reason ?? "Not yet", tone: "warn" } : highRisk ? { text: "Won't respond — below the node", tone: "warn" } : { text: anyAdverse ? "Indicated" : "No adverse features", tone: anyAdverse ? "ready" : "muted" },
+            "Give",
+            !canAct || !props.onAdministerDrug || !atropineCheck?.ok,
+            () => props.onAdministerDrug?.(casualtyId, "atropine", by),
+          ),
+          choiceRow(
+            "pacing",
+            "Transcutaneous pacing",
+            pacingAllowed ? "Pads on, 70/min, current up until it captures. It hurts — sedate." : `Needs ${SCOPE_LABEL[CIRC_MIN_SCOPE.pacing ?? "ap"]} on scene`,
+            capturing ? { text: "Capturing · paced at 70", tone: "go" } : pacingAt !== undefined ? { text: `Finding the threshold · ${Math.max(0, Math.ceil((pacingAt + 60_000 - now) / 1000))} s`, tone: "warn" } : !pacingAllowed ? { text: "Scope", tone: "muted" } : highRisk || (anyAdverse && atropineGiven >= 2) ? { text: "Indicated", tone: "ready" } : { text: "After atropine, if it fails", tone: "muted" },
+            pacingAt !== undefined ? "✓" : "Pace",
+            !canAct || !props.onApplyCirculation || pacingAt !== undefined || !pacingAllowed,
+            () => props.onApplyCirculation?.(casualtyId, "pacing", by),
+            pacingAt !== undefined ? "done" : "",
+          ),
+        ], false)}
+      </Group>
+    );
+  })() : null;
   const packagingActions = Object.keys(PACKAGING_LABEL) as PackagingAction[];
   const egressActions = Object.keys(EGRESS_LABEL) as EgressAction[];
   const doneOf = <K extends string>(rec: Partial<Record<K, number>> | undefined, keys: K[]) => keys.filter((k) => rec?.[k] !== undefined).length;
@@ -609,6 +667,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
                 </div>
               </Group>
             )}
+            {bradyGroup}
             <Group title="Circulation interventions">
               {ivList(circActions.map((a) => ivRow(a, CIRC_LABEL[a], CIRC_HINT[a], ivState(treatment?.circulation[a], true), () => props.onApplyCirculation?.(casualtyId, a, by))))}
             </Group>

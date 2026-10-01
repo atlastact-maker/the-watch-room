@@ -145,6 +145,24 @@ export const scenario17: Scenario = {
         },
       },
     ],
+    // Tonight's run. The remainder is the base: an anterior STEMI with the
+    // numbers above.
+    variants: [
+      {
+        id: "heart-block",
+        label: "Tonight it is the inferior wall and the AV node with it — complete heart block at 36, pressure 84, and atropine will not touch it",
+        probability: 0.3,
+        clinical: {
+          "cas-17-nuttall": {
+            vitals: { rr: 20, spo2: 94, hr: 36, bpSys: 84, bpDia: 52, gcs: 14, temp: 36.6, bm: 6.1 },
+            presumedCondition: "Central chest pain, grey and clammy, pulse slow and regular at 36 — inferior STEMI with complete heart block suspected",
+            redFlags: ["stemi", "bradycardia_unstable"],
+            conduction: "hb3",
+            criticalInterventions: ["aspirin", "oxygen", "iv_access"],
+          },
+        },
+      },
+    ],
     sectors: [
       { id: 1, label: "Sector 1 · Front / Walmersley Road", face: "front", bearingDeg: 180 },
       { id: 2, label: "Sector 2 · No. 143 side", face: "right", bearingDeg: 90 },

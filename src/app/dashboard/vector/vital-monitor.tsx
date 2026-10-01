@@ -12,6 +12,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { PatientRedFlag } from "@/lib/sim/scene";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
 import { ecgSample, displayedRate, type TraceRhythm } from "@/lib/sim/ecg";
+import { pacingCapturing } from "@/lib/sim/physiology";
 import type { ResusState, MonitorMode } from "@/lib/sim/resus";
 
 export type AlarmConfig = { on: boolean; hrLow: number; hrHigh: number; spo2Low: number; rrHigh: number; sysLow: number };
@@ -77,7 +78,9 @@ export function monitorPicture(treatment: PatientTreatmentState | null, resus: R
   const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
   // Life recognised extinct: the trace is flat and the numbers are gone.
   const ended = !!resus?.roleAt;
-  const rhythm: TraceRhythm = ended ? "asystole" : inArrest ? resus!.rhythm : "sinus";
+  const conduction = treatment?.physio?.conduction ?? "sinus";
+  const pacedOn = !!treatment && pacingCapturing(treatment, now);
+  const rhythm: TraceRhythm = ended ? "asystole" : inArrest ? resus!.rhythm : pacedOn ? "paced" : conduction;
   const compressions = inArrest && (!!resus!.compressorCrewId || !!resus!.lucasFittedAt);
   // Whole numbers, as a monitor shows them; the model underneath is not.
   const hrRaw = ended ? 0 : surveyDone && vitals ? displayedRate(rhythm, { rate: vitals.hr }) : null;
@@ -114,9 +117,20 @@ export function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState
     return { rhythm, findings: [r === "vf" || r === "pvt" ? "Shockable rhythm — charge and shock" : "Non-shockable — CPR and adrenaline, find the cause"], impression: rhythm };
   }
   const rate = hr ?? 0;
-  const af = tx?.profile?.history.some((h) => /atrial fibrillation/i.test(h));
-  let rhythm = af ? `Atrial fibrillation, ventricular rate ${rate}` : rate > 100 ? `Sinus tachycardia, ${rate}` : rate < 60 ? `Sinus bradycardia, ${rate}` : `Sinus rhythm, ${rate}`;
-  if (af) findings.push("Irregularly irregular, no P waves");
+  const conduction = tx?.physio?.conduction ?? "sinus";
+  const af = conduction === "af" || tx?.profile?.history.some((h) => /atrial fibrillation/i.test(h));
+  const pacedOn = !!tx && pacingCapturing(tx, Date.now());
+  let rhythm = pacedOn ? `Paced rhythm, ${rate}, capturing`
+    : conduction === "hb3" ? `Complete heart block — ventricular escape at ${rate}`
+    : conduction === "hb2_m2" ? `Second-degree heart block, Mobitz II, 2:1 — ventricular rate ${rate}`
+    : conduction === "hb2_m1" ? `Second-degree heart block, Mobitz I (Wenckebach), ${rate}`
+    : conduction === "hb1" ? `Sinus with first-degree heart block, PR 240 ms, ${rate}`
+    : af ? `Atrial fibrillation, ventricular rate ${rate}` : rate > 100 ? `Sinus tachycardia, ${rate}` : rate < 60 ? `Sinus bradycardia, ${rate}` : `Sinus rhythm, ${rate}`;
+  if (af && !pacedOn) findings.push("Irregularly irregular, no P waves");
+  if (conduction === "hb3" && !pacedOn) findings.push("P waves and QRS dissociated — broad escape complexes", "High risk of asystole — pace; atropine will not help");
+  if (conduction === "hb2_m2" && !pacedOn) findings.push("Fixed PR with dropped beats — can progress to complete block without warning; prepare to pace");
+  if (conduction === "hb2_m1" && !pacedOn) findings.push("Progressive PR lengthening then a dropped beat — usually benign; atropine if symptomatic");
+  if (pacedOn) findings.push("Pacing spikes with capture — every spike followed by a broad complex");
   if (flags.includes("stemi")) {
     const territory = ["anterior (V1–V4)", "inferior (II, III, aVF)", "lateral (I, aVL, V5–V6)"][hashSeedLocal(tx?.casualtyId ?? "") % 3];
     findings.push(`ST elevation ${territory} with reciprocal depression`);
@@ -127,7 +141,9 @@ export function interpretEcg(tx: PatientTreatmentState | null, resus: ResusState
   if (flags.includes("overdose_opioid") || (tx?.physio?.sedation ?? 0) > 0.6) findings.push("Sinus rhythm, slow — no ischaemic change");
   if (rate > 150 && !af) { rhythm = `Narrow-complex tachycardia, ${rate}`; findings.push("Regular narrow complexes — SVT vs sinus tachycardia; look for the cause"); }
   if (findings.length === 0) findings.push("Normal axis, PR 160 ms, QRS 90 ms, QTc 410 ms", "No acute ST change");
-  const impression = flags.includes("stemi") ? "STEMI — PPCI centre, pre-alert" : af ? "AF — rate control is a hospital decision" : rate > 100 ? "Sinus tachycardia — treat the cause" : "No acute abnormality";
+  const impression = (conduction === "hb3" || conduction === "hb2_m2") && !pacedOn
+    ? `${conduction === "hb3" ? "Complete heart block" : "Mobitz II"} — high-risk bradycardia, pace${flags.includes("stemi") ? "; STEMI — PPCI centre" : ""}`
+    : flags.includes("stemi") ? "STEMI — PPCI centre, pre-alert" : af ? "AF — rate control is a hospital decision" : rate > 100 ? "Sinus tachycardia — treat the cause" : "No acute abnormality";
   return { rhythm, findings, impression };
 }
 

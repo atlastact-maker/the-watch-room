@@ -30,6 +30,7 @@ const RED_FLAG_LABEL: Record<PatientRedFlag, string> = {
   seizure_active: "Active seizure",
   major_haemorrhage: "Major haemorrhage",
   overdose_opioid: "Opioid overdose",
+  bradycardia_unstable: "Bradycardia · adverse features",
 };
 
 type Props = {

@@ -14,8 +14,32 @@
 import type { ArrestRhythm } from "./resus";
 
 /** A rhythm the monitor can display, including the ones that are not
- *  arrest rhythms at all. */
-export type TraceRhythm = ArrestRhythm | "sinus";
+ *  arrest rhythms at all: sinus, AF, the three heart blocks and a paced
+ *  rhythm. For the blocks `rate` is the VENTRICULAR rate — what the
+ *  patient actually has a pulse at — and the atria are drawn around it. */
+export type TraceRhythm = ArrestRhythm | "sinus" | "af" | "hb1" | "hb2_m1" | "hb2_m2" | "hb3" | "paced";
+
+/** A P wave on its own, for the beats a block does not conduct. */
+function pWave(tb: number, at = 0.09): number {
+  return bump(tb, at, 0.032, 0.13);
+}
+
+/** QRS and T without the P, starting `q` seconds into the beat. */
+function qrst(tb: number, q: number, widen = 0, amp = 1): number {
+  let v = 0;
+  v += bump(tb, q, 0.013 + widen, -0.10 * amp);
+  v += bump(tb, q + 0.025, 0.017 + widen, 1.0 * amp);
+  v += bump(tb, q + 0.057, 0.019 + widen, -0.25 * amp);
+  v += bump(tb, q + 0.20, 0.06, 0.25 * amp);
+  return v;
+}
+
+/** The pacing spike: a very narrow, very tall line just before a broad
+ *  complex. The thing a crew looks for to confirm capture. */
+function pacedComplex(tb: number): number {
+  const spike = Math.abs(tb - 0.16) < 0.004 ? 1.4 : 0;
+  return spike + qrst(tb, 0.175, 0.012, 0.9);
+}
 
 /** Deterministic noise — a cheap hash-based value so a given time always
  *  produces the same sample. Keeps the trace stable if it repaints. */
@@ -119,6 +143,61 @@ export function ecgSample(
       v = sinusComplex(t % period);
       break;
     }
+    case "af": {
+      // Irregularly irregular: each R-R is the mean nudged by a stable
+      // per-beat hash, and the baseline fibrillates where P waves were.
+      const rate = opts.rate ?? 110;
+      const mean = 60 / rate;
+      let beat = Math.floor(t / mean);
+      let start = beat * mean + noise(beat, 4) * mean * 0.28;
+      if (t < start) { beat -= 1; start = beat * mean + noise(beat, 4) * mean * 0.28; }
+      v = qrst(t - start, 0.06) + noise(t * 40, 9) * 0.05 + Math.sin(t * 38) * 0.03;
+      break;
+    }
+    case "hb1": {
+      // Every P conducts, after a long PR (~240 ms).
+      const rate = opts.rate ?? 64;
+      const period = 60 / rate;
+      const tb = t % period;
+      v = pWave(tb, 0.05) + qrst(tb, 0.29);
+      break;
+    }
+    case "hb2_m1": {
+      // Wenckebach 4:3 — the PR stretches beat by beat and the fourth P
+      // is dropped. Three ventricular beats per four atrial.
+      const vRate = opts.rate ?? 52;
+      const aPeriod = 60 / (vRate * 4 / 3);
+      const i = Math.floor(t / aPeriod) % 4;
+      const tb = t % aPeriod;
+      const pr = [0.16, 0.24, 0.32][i] ?? 0;
+      v = pWave(tb, 0.05) + (i < 3 ? qrst(tb, 0.05 + pr) : 0);
+      break;
+    }
+    case "hb2_m2": {
+      // 2:1 — the PR is fixed and every other P goes nowhere. The one
+      // that progresses to complete block without warning.
+      const vRate = opts.rate ?? 38;
+      const aPeriod = 60 / (vRate * 2);
+      const i = Math.floor(t / aPeriod) % 2;
+      const tb = t % aPeriod;
+      v = pWave(tb, 0.05) + (i === 0 ? qrst(tb, 0.21) : 0);
+      break;
+    }
+    case "hb3": {
+      // Complete: the atria at their own rate, the ventricles on a slow
+      // broad escape, nothing to do with each other.
+      const vRate = opts.rate ?? 34;
+      const vPeriod = 60 / vRate;
+      const aPeriod = 60 / 82;
+      v = pWave(t % aPeriod, 0.05) + qrst(t % vPeriod, 0.12, 0.012, 0.85);
+      break;
+    }
+    case "paced": {
+      const rate = opts.rate ?? 70;
+      const period = 60 / rate;
+      v = pacedComplex(t % period);
+      break;
+    }
   }
 
   // Compression artefact rides on top of everything.
@@ -173,6 +252,18 @@ export function displayedRate(
       return opts.rate ?? 38;
     case "sinus":
       return opts.rate ?? 78;
+    case "af":
+      return opts.rate ?? 110;
+    case "hb1":
+      return opts.rate ?? 64;
+    case "hb2_m1":
+      return opts.rate ?? 52;
+    case "hb2_m2":
+      return opts.rate ?? 38;
+    case "hb3":
+      return opts.rate ?? 34;
+    case "paced":
+      return opts.rate ?? 70;
   }
 }
 

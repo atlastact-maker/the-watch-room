@@ -21,7 +21,7 @@
  * React or the clock.
  */
 
-import type { PatientClinical, PatientRedFlag, SceneCasualty } from "./scene";
+import type { ConductionRhythm, PatientClinical, PatientRedFlag, SceneCasualty } from "./scene";
 import type { DrugName, PatientTreatmentState, TreatmentEvent } from "./incident_types";
 import { fiO2For } from "./oxygen";
 import { isMoving } from "./moving";
@@ -274,6 +274,7 @@ export const PHARMACOLOGY: Record<DrugName, DrugSpec> = {
   dextrose_iv: { route: "IV", dose: "10 % · 100 mL", onsetSec: 45, peakSec: 180, durationSec: 1800, maxDoses: 3, repeatSec: 300, indication: "Hypoglycaemia", effects: {} },
   naloxone: { route: "IM", dose: "400 µg", onsetSec: 90, peakSec: 300, durationSec: 1800, maxDoses: 5, repeatSec: 180, indication: "Opioid toxicity with respiratory depression", effects: { opioid: -0.7, hr: 15 } },
   ondansetron: { route: "IV", dose: "4 mg", onsetSec: 300, peakSec: 900, durationSec: 7200, maxDoses: 1, repeatSec: 7200, indication: "Nausea and vomiting", effects: {} },
+  atropine: { route: "IV", dose: "500 µg", onsetSec: 30, peakSec: 120, durationSec: 1800, maxDoses: 6, repeatSec: 180, indication: "Bradycardia with adverse features — up to 3 mg", effects: {} },
   tXA_iv: { route: "IV", dose: "1 g over 10 min", onsetSec: 300, peakSec: 900, durationSec: 28800, maxDoses: 1, repeatSec: 28800, indication: "Significant haemorrhage within 3 hours", effects: {} },
   ketamine_analgesia: { route: "IV", dose: "10–20 mg titrated", onsetSec: 45, peakSec: 180, durationSec: 900, maxDoses: 4, repeatSec: 180, indication: "Severe pain, especially with hypotension", effects: { pain: -5, hr: 10, map: 6, sedation: 0.25 } },
   fentanyl: { route: "IV", dose: "50 µg", onsetSec: 60, peakSec: 300, durationSec: 1800, maxDoses: 4, repeatSec: 300, indication: "Severe pain", effects: { pain: -4, opioid: 0.2 } },
@@ -411,7 +412,22 @@ export type PhysioState = {
    *  crew sees. */
   calib: Partial<Vitals>;
   ambientCold: boolean;
+  /** Atria to ventricles. A block caps the rate and decides what atropine
+   *  can do; Mobitz II can fall into complete block on its own. */
+  conduction: ConductionRhythm;
 };
+
+/** Pacing is capturing: pads on and a minute to find the threshold. */
+export function pacingCapturing(tx: PatientTreatmentState, now: number): boolean {
+  const at = tx.circulation.pacing;
+  return at !== undefined && now >= at + 60_000;
+}
+
+/** Whether atropine works on this conduction — above the AV node it
+ *  does, below it does not. */
+function atropineResponds(c: ConductionRhythm): boolean {
+  return c === "sinus" || c === "af" || c === "hb1" || c === "hb2_m1";
+}
 
 const MIN: Vitals = { rr: 0, spo2: 50, hr: 0, bpSys: 0, bpDia: 0, gcs: 3, temp: 28, bm: 0.5 };
 const MAX: Vitals = { rr: 60, spo2: 100, hr: 220, bpSys: 250, bpDia: 140, gcs: 15, temp: 42, bm: 35 };
@@ -453,6 +469,7 @@ export function initialPhysio(clinical: PatientClinical, profile: PatientProfile
     fired: [],
     calib: {},
     ambientCold: cold,
+    conduction: clinical.conduction ?? (flags.has("bradycardia_unstable") ? (v.hr < 40 ? "hb3" : "hb2_m2") : "sinus"),
   };
   if (flags.has("major_haemorrhage")) {
     s.bloodVolumePct = 78 + rnd() * 6;
@@ -550,6 +567,21 @@ export function targetVitals(tx: PatientTreatmentState, s: PhysioState, now: num
     if (e) hr += e * act(d);
   }
   if (p?.betaBlocked) hr = Math.min(hr, 112);
+  // Conduction: what the sinus node wants is not what the ventricles get.
+  // Atropine lifts a rate above the node; below it only a pacemaker does.
+  const sinusHr = hr;
+  const paced = pacingCapturing(tx, now);
+  const atropine = act("atropine");
+  switch (s.conduction) {
+    case "hb3": hr = 32 + (s.calib.hr !== undefined ? 0 : 0); break;
+    case "hb2_m2": hr = Math.round(sinusHr / 2); break;
+    case "hb2_m1": hr = Math.round(sinusHr * 0.8); break;
+    default: break;
+  }
+  if (atropine > 0 && atropineResponds(s.conduction)) hr += 26 * atropine;
+  if (paced && !flags.has("cardiac_arrest")) hr = Math.max(hr, 70);
+  // A slow heart is a slow output: the pressure follows the rate down.
+  if (!flags.has("cardiac_arrest") && hr < 50) map *= 0.7 + 0.3 * (hr / 50);
 
   // Breathing.
   let rr = (child ? 22 : 14) + (1 - volumeFactor) * 10 + hypoxiaDrive * 0.5 + s.bronchospasm * 12 + s.tensionSeverity * 8 + s.pain * 0.7 + s.anaphylaxis * 8;
@@ -914,10 +946,30 @@ export function advancePhysiology(tx: PatientTreatmentState, dtSec: number, nowM
     if (next.spo2 < 75 && s.hypoxiaSec === 0) once("hypoxia-warn", "Saturation critically low — peri-arrest", "critical");
     let cause: string | null = null;
     let shockable = false;
-    if (s.hypoxiaSec > 60) cause = "hypoxic";
-    else if (s.shockSec > 45) cause = "hypovolaemic / obstructive";
-    else if (s.apnoeaSec > 90) cause = "respiratory";
-    else if (s.ischaemia > 0.35) {
+    // Conduction: Mobitz II falls into complete block without warning;
+    // an unpaced complete block with a failing escape stops altogether.
+    const capturing = pacingCapturing(tx, nowMs);
+    if (tx.circulation.pacing !== undefined && !s.fired.includes("pacing-on")) {
+      once("pacing-on", "Pads on, pacing started — a minute to find the threshold", "info");
+    }
+    if (capturing) {
+      once("pacing-capture", "Pacing capturing — a paced rhythm at 70, pressure recovering", "good");
+      if (s.sedation < 0.25) { s.pain = Math.max(s.pain, 6); once("pacing-pain", "Pacing without sedation — the patient is in pain with every capture; sedate", "warn"); }
+    }
+    if (act("atropine") > 0.2 && !atropineResponds(s.conduction)) once("atropine-block", "Atropine given — no response, as expected below the AV node. Pacing is the treatment", "warn");
+    if (!capturing && s.conduction === "hb2_m2") {
+      const roll = mulberry32(hashSeed(`${tx.casualtyId}:chb:${Math.floor(nowMs / 1000)}`))();
+      if (roll < (0.03 * dt) / 60) { s.conduction = "hb3"; once("chb", "Mobitz II has gone to complete heart block — ventricular escape only, rate falling", "critical"); }
+    }
+    if (!capturing && s.conduction === "hb3" && next.hr < 40) {
+      const perMin = 0.012 * (map < 60 ? 2 : 1);
+      const roll = mulberry32(hashSeed(`${tx.casualtyId}:standstill:${Math.floor(nowMs / 1000)}`))();
+      if (roll < (perMin * dt) / 60) cause = "ventricular standstill";
+    }
+    if (!cause && s.hypoxiaSec > 60) cause = "hypoxic";
+    else if (!cause && s.shockSec > 45) cause = "hypovolaemic / obstructive";
+    else if (!cause && s.apnoeaSec > 90) cause = "respiratory";
+    else if (!cause && s.ischaemia > 0.35) {
       // Ischaemic VF — a per-minute hazard that treatment cuts.
       const perMin = 0.004 * (1 + s.ischaemia) * (act("aspirin_300") > 0.2 ? 0.6 : 1);
       const roll = mulberry32(hashSeed(`${tx.casualtyId}:${Math.floor(nowMs / 1000)}`))();

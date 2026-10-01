@@ -113,6 +113,10 @@ const GLOSSARY: Section[] = [
       { term: "POLSA", def: "Police Search Advisor — specialist search team" },
       { term: "SIO", def: "Senior Investigating Officer — DCI-level; takes scene preservation" },
       { term: "JESIP", def: "Joint Emergency Services Interoperability Principles" },
+      { term: "CHB", def: "Complete (third-degree) heart block — atria and ventricles beating independently; a slow escape rhythm, high risk of asystole; pace" },
+      { term: "Mobitz II", def: "Second-degree heart block with a fixed PR and dropped beats — can become complete block without warning; pads on, pace" },
+      { term: "TCP", def: "Transcutaneous pacing — pads on the chest, 70/min, current up until every spike captures. Painful; sedate" },
+      { term: "ROLE", def: "Recognition of life extinct — resuscitation ended after the criteria: 20 min of ALS, asystole, no shock, causes considered, end-tidal flat" },
     ],
   },
 ];

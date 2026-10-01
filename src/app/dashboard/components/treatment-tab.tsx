@@ -87,6 +87,7 @@ export const RED_FLAG_LABEL: Record<PatientRedFlag, string> = {
   seizure_active: "Active seizure",
   major_haemorrhage: "Major haemorrhage",
   overdose_opioid: "Opioid overdose",
+  bradycardia_unstable: "Bradycardia with adverse features",
 };
 
 export const DESTINATION_LABEL: Record<HospitalDestinationType, string> = {
@@ -125,6 +126,7 @@ export const CIRC_LABEL: Record<CirculationAction, string> = {
   fluids_500: "Crystalloid 500 mL",
   cpr: "CPR cycle",
   defib: "Defibrillate",
+  pacing: "Transcutaneous pacing",
 };
 
 export const PACKAGING_LABEL: Record<PackagingAction, string> = {
@@ -183,6 +185,7 @@ export const CIRC_HINT: Record<CirculationAction, string> = {
   fluids_500: "Larger bolus. Sepsis / burns / non-traumatic hypovolaemia.",
   cpr: "30:2 chest compressions + ventilations. Minimise pauses; rotate every 2 min.",
   defib: "Shock VF / pulseless VT. 200 J biphasic. Resume CPR immediately after.",
+  pacing: "Pads on, 70/min, turn the current up until it captures. It hurts — sedate. AP+.",
 };
 
 export const DRUG_HINT: Partial<Record<DrugName, string>> = {
@@ -191,6 +194,7 @@ export const DRUG_HINT: Partial<Record<DrugName, string>> = {
   morphine: "Opiate analgesia for moderate–severe pain. Watch respiratory depression.",
   ondansetron: "Anti-emetic — nausea / vomiting prophylaxis before opiates.",
   tXA_iv: "Tranexamic acid — give within 3 hrs of traumatic haemorrhage.",
+  atropine: "Symptomatic bradycardia — 500 µg IV, repeat to 3 mg. Works above the AV node; a Mobitz II or complete block needs pacing.",
   fentanyl: "Strong opiate analgesia. AP+. Faster onset than morphine.",
   ketamine_analgesia: "Sub-dissociative pain relief. AP+. Minimal respiratory effect.",
   ketamine_rsi: "Induction agent for RSI. CCC / HEMS only.",
@@ -1318,6 +1322,8 @@ export function drugRelevantFor(drug: DrugName, redFlags: PatientRedFlag[]): boo
       return redFlags.includes("cardiac_arrest");
     case "midazolam_im":
       return redFlags.includes("seizure_active");
+    case "atropine":
+      return redFlags.includes("bradycardia_unstable");
     case "glucagon_im":
     case "dextrose_iv":
       return redFlags.includes("hypoglycaemia");

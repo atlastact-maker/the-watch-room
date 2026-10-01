@@ -8,11 +8,11 @@ import { SCENARIOS } from "@/lib/sim/scenarios";
 
 const AIRWAY = ["position", "opa", "npa", "igel", "suction", "back_blows", "abdominal_thrusts", "magill_forceps", "rsi"];
 const BREATHING = ["oxygen_15l", "bvm", "needle_decomp", "finger_thoracostomy"];
-const CIRCULATION = ["iv_access", "io_access", "fluids_250", "fluids_500", "cpr", "defib"];
+const CIRCULATION = ["iv_access", "io_access", "fluids_250", "fluids_500", "cpr", "defib", "pacing"];
 const PACKAGING = ["warming", "assisted_delivery", "spine_board", "scoop_stretcher", "ked", "pelvic_binder", "tourniquet", "traction_splint", "dressings"];
 const DRUGS = [
   "paracetamol", "entonox", "morphine", "aspirin_300", "gtn_spray", "salbutamol_neb",
-  "ipratropium_neb", "adrenaline_im_anaphylaxis", "adrenaline_cpr", "midazolam_im",
+  "ipratropium_neb", "adrenaline_im_anaphylaxis", "adrenaline_cpr", "midazolam_im", "atropine",
   "glucagon_im", "dextrose_iv", "naloxone", "ondansetron", "tXA_iv",
   "ketamine_analgesia", "fentanyl", "amiodarone", "magnesium_sulfate", "hydrocortisone",
   "chlorphenamine", "calcium_chloride", "ketamine_rsi", "rocuronium", "propofol",
@@ -32,6 +32,7 @@ const NEEDS_BY_PRESENTATION: { match: RegExp; label: string; satisfiedBy: string
   { match: /obstruction|choking|foreign body/i, label: "foreign body removal", satisfiedBy: ["back_blows", "abdominal_thrusts", "magill_forceps"] },
   { match: /seizure|convuls/i, label: "anticonvulsant", satisfiedBy: ["midazolam_im"] },
   { match: /chest infection|sepsis|infection/i, label: "oxygen and fluids", satisfiedBy: ["oxygen_15l", "fluids_250"] },
+  { match: /bradycard|heart block|pulse slow/i, label: "atropine or pacing", satisfiedBy: ["atropine", "pacing"] },
 ];
 
 const PERFORMABLE = new Set([...AIRWAY, ...BREATHING, ...CIRCULATION, ...PACKAGING, ...DRUGS]);

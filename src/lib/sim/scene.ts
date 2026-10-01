@@ -110,6 +110,10 @@ export type PatientClinical = {
   /** Age in years. 15 and under is paediatric for trauma routing (GMMTN
    *  is explicit that 16 is hard); absent is treated as adult. */
   ageYears?: number;
+  /** The conduction the monitor shows and the rate obeys: a heart block
+   *  caps the ventricular rate whatever the sinus node wants. Absent is
+   *  sinus. */
+  conduction?: ConductionRhythm;
   /** How this patient arrested, for the rhythm roll when the crew first
    *  gets a monitor on. A witnessed exertional collapse in a young adult
    *  is VF until proven otherwise; a drowning or an overdose is not.
@@ -139,7 +143,14 @@ export type PatientRedFlag =
   | "hypoglycaemia"
   | "seizure_active"
   | "major_haemorrhage"
-  | "overdose_opioid";
+  | "overdose_opioid"
+  /** A slow rhythm with adverse features — shock, syncope, ischaemia,
+   *  failure. The RCUK bradycardia algorithm: atropine, then pacing. */
+  | "bradycardia_unstable";
+
+/** How the atria and ventricles are talking to each other, for the trace
+ *  and the rate. Sinus unless a scenario says otherwise. */
+export type ConductionRhythm = "sinus" | "af" | "hb1" | "hb2_m1" | "hb2_m2" | "hb3";
 
 export type HospitalDestinationType =
   | "nearest_a_e"

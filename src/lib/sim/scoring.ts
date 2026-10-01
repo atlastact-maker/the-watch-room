@@ -611,5 +611,7 @@ function wasHandled(
       return !!(tx.packaging.spine_board || tx.packaging.scoop_stretcher || tx.packaging.ked);
     case "stroke_fast_positive":
       return !!tx.chosenDestination && tx.chosenDestination.type === "hasu";
+    case "bradycardia_unstable":
+      return !!(tx.drugs.atropine || tx.circulation.pacing);
   }
 }
