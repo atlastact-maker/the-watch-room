@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ServiceCode } from "@/lib/sim/types";
 import type { PendingCall } from "../components/call-stack";
+import type { CallMapUnit } from "./call-location-map";
 import {
   AlertsStrip,
   BrandStrip,
@@ -78,6 +79,8 @@ export function VectorDesk(props: {
   now: number;
   pendingCalls: PendingCall[];
   activeCall: (PendingCall & { answeredAt: number; opened?: boolean }) | null;
+  /** Units on the road to the open call's job, for its location map. */
+  callUnits?: CallMapUnit[];
   callsReady: boolean;
   onToggleReady: () => void;
   onAnswerCall: (id: string) => void;
@@ -317,7 +320,7 @@ export function VectorDesk(props: {
 
       {screen === "call" &&
         (props.activeCall ? (
-          <CallScreen key={props.activeCall.id} call={props.activeCall} answeredAt={props.activeCall.answeredAt} now={props.now} opened={props.activeCall.opened} onCreate={props.onCreateFromCall} onPreAlert={props.onPreAlertFromCall} onFinish={props.onFinishCall} onEndCall={props.onEndCall} onNote={props.onCallNote} covered={props.coveredServices} />
+          <CallScreen key={props.activeCall.id} call={props.activeCall} answeredAt={props.activeCall.answeredAt} now={props.now} opened={props.activeCall.opened} onCreate={props.onCreateFromCall} onPreAlert={props.onPreAlertFromCall} onFinish={props.onFinishCall} onEndCall={props.onEndCall} onNote={props.onCallNote} covered={props.coveredServices} units={props.callUnits} />
         ) : (
           <div className="vec-screen">
             <div className="vec-screen-head">

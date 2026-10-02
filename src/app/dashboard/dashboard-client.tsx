@@ -190,6 +190,7 @@ import { SearchPanel } from "./components/search-panel";
 import { buildRecordIndex, type RecordSet } from "@/lib/sim/records";
 import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
+import type { CallMapUnit } from "./vector/call-location-map";
 import type { CallSummary } from "./vector/call-screen";
 // The light index and the on-demand loader — never the static registry,
 // which would put every call script, scene and record set in the first
@@ -6487,6 +6488,27 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     return { lat: from.lat + (to.lat - from.lat) * t, lng: from.lng + (to.lng - from.lng) * t };
   }
 
+  // Units on the way to the job the open call sent, for the 999 screen's
+  // location map: the operator sees help closing while the caller is kept
+  // on the line. Only the outbound and on-scene ones — a unit clearing to
+  // hospital or home is not this caller's business.
+  const callUnits = useMemo<CallMapUnit[]>(() => {
+    if (!activeCall?.opened) return [];
+    const live = incidents.find((i) => i.scenarioId === activeCall.scenario.id && !i.resolvedAt);
+    if (!live) return [];
+    const out: CallMapUnit[] = [];
+    for (const d of deployments) {
+      if (d.incidentId !== live.id || d.returnStartedAt || d.hospitalLegStartedAt) continue;
+      const a = applianceById.get(d.applianceId);
+      const pos = unitPosAt(d, now);
+      if (!a || !pos) continue;
+      const arrived = now >= d.arrivesAt;
+      out.push({ id: d.applianceId, callsign: a.callsign, service: a.service, type: a.type, pos, route: arrived ? undefined : d.routeCoords, arrived, etaSec: Math.max(0, Math.round((d.arrivesAt - now) / 1000)) });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCall, incidents, deployments, now, applianceById]);
+
   /** The pursuit commander's decision. Refusing or discontinuing stands
    *  every following unit down: their follow and box tasks end, the
    *  track goes cold, and the log records who decided what and when. */
@@ -6879,6 +6901,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       now={now}
       pendingCalls={pendingCalls}
       activeCall={activeCall}
+      callUnits={callUnits}
       callsReady={callsReady}
       onToggleReady={() => setCallsReady((v) => !v)}
       onAnswerCall={answerCallById}

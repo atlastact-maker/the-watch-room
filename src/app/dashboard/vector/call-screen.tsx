@@ -26,6 +26,7 @@ import { OPENING_CODES, OPENING_SCHEME, openingCodeFits, openingCodeLabel, quick
 import { scenarioServices } from "@/lib/sim/coverage";
 import { CALL_QUESTIONS, GRADE_LABELS, adviceAckFor, deflectionFor, keyQuestionsFor, preArrivalFor, reassuranceFor, type CallAnswer, type CallEffect, type CallerState, type PreArrivalStep } from "@/lib/sim/call_script";
 import type { PendingCall } from "../components/call-stack";
+import type { CallMapUnit } from "./call-location-map";
 import { SERVICE_SHORT, gradeMeaning, gradeShort, hhmmss, impliedGrade, mmss, scenarioService, shortAddress } from "./model";
 import { CopyButton } from "./copy-button";
 
@@ -71,6 +72,7 @@ export function CallScreen({
   onEndCall,
   onNote,
   covered,
+  units = [],
 }: {
   call: PendingCall;
   /** When the operator picked the call up — the call timer runs from here. */
@@ -89,6 +91,9 @@ export function CallScreen({
   /** A line for the shift log. */
   onNote: (text: string) => void;
   covered: ServiceCode[];
+  /** Units on the road to the job this call sent, drawn on the location
+   *  map while the caller is still on the line. */
+  units?: CallMapUnit[];
 }) {
   const s = call.scenario;
   const service = scenarioService(s);
@@ -422,10 +427,10 @@ export function CallScreen({
           <div className="vec-box">
             <header>
               <span>Location map</span>
-              <span className="mono">Street · z16</span>
+              <span className={`mono${units.length ? " go" : ""}`}>{units.length ? `${units.length} responding${units.some((u) => !u.arrived) ? ` · first ${mmss(Math.min(...units.filter((u) => !u.arrived).map((u) => u.etaSec)))}` : " · all on scene"}` : "Street · z16"}</span>
             </header>
             <div className="body" style={{ position: "relative" }}>
-              <CallLocationMap lat={s.location.coords.lat} lng={s.location.coords.lng} />
+              <CallLocationMap lat={s.location.coords.lat} lng={s.location.coords.lng} units={units} />
             </div>
           </div>
         </div>
