@@ -15,6 +15,7 @@ import type { ServiceCode, StatusCode } from "@/lib/sim/types";
 import type { PdaRow, ResourceCard, StandbyRow } from "./dispatch-tiles";
 import { SERVICE_SHORT, etaLabel, hhmmss, mmss } from "./model";
 import { CopyButton } from "./copy-button";
+import { DRAG_MIME } from "../components/call-stack";
 
 // The response map is Leaflet, so it only ever renders on the client.
 const CallLocationMap = dynamic(() => import("./call-location-map").then((m) => m.CallLocationMap), {
@@ -90,6 +91,8 @@ export function MobScreen({
   /** Units on the road to this incident, or on scene, for the response map. */
   units?: CallMapUnit[];
 }) {
+  // Drag target state lives above the early return — hooks run in order.
+  const [dropHot, setDropHot] = useState(false);
   const [svc, setSvc] = useState<"All" | ServiceCode>("All");
   const [type, setType] = useState("All");
   const [bayFilter, setBayFilter] = useState<"All" | ServiceCode>("Fire");
@@ -105,6 +108,35 @@ export function MobScreen({
     );
   }
 
+  // Drag a unit from Available (a card or a station chip) into the
+  // attendance slots: the same payload the live-incident rows accept.
+  const dragUnit = (applianceId: string, stationId: string) => (e: React.DragEvent) => {
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ applianceId, stationId }));
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (!dropHot) setDropHot(true);
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropHot(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      setDropHot(false);
+      const raw = e.dataTransfer.getData(DRAG_MIME);
+      if (!raw) return;
+      e.preventDefault();
+      try {
+        const { applianceId, stationId } = JSON.parse(raw) as { applianceId?: string; stationId?: string };
+        if (applianceId && stationId) onMobilise(applianceId, stationId);
+      } catch {
+        /* malformed payload */
+      }
+    },
+  };
   const filled = pda.filter((r) => r.callsign).length;
   const unfilled = pda.length - filled;
   const still = pda.filter((r) => !r.callsign).map((r) => r.slot);
@@ -180,14 +212,14 @@ export function MobScreen({
         {/* Left column — attendance slots, the response map under them
             (the same corner the 999 screen keeps its location map in). */}
         <div style={{ display: "grid", gridTemplateRows: "minmax(0, 1fr) 260px", gap: 6, minHeight: 0 }}>
-        <div className="vec-box">
+        <div className={`vec-box vec-dropzone${dropHot ? " hot" : ""}`} {...dropProps}>
           <header>
             <span>Attendance slots</span>
             <span className={`mono ${unfilled ? "stop" : "go"}`}>{filled} of {pda.length} · {unfilled ? `${unfilled} short` : "complete"}</span>
           </header>
           <div className="body">
             {pda.map((r) => (
-              <div key={r.n} className={`vec-slot ${r.callsign ? "" : "unfilled"}`}>
+              <div key={r.n} className={`vec-slot ${r.callsign ? "" : "unfilled"}${dropHot && !r.callsign ? " drop" : ""}`}>
                 <span className="bar" />
                 <div className="body">
                   <div className="lbl"><span className="n">{r.n}</span>{r.slot}</div>
@@ -211,7 +243,7 @@ export function MobScreen({
             ))}
           </div>
           <div className="vec-tile-foot">
-            <span>Drag a unit from Available onto a live incident, or Mobilise it here</span>
+            <span>{dropHot ? "Drop to allocate and send" : "Drag a unit from Available into the slots, or Allocate & send it below"}</span>
             <button type="button" className="vec-btn mini solid" disabled={unfilled === 0} onClick={onFillRemaining}>
               Fill remaining
             </button>
@@ -259,7 +291,7 @@ export function MobScreen({
             )}
             <div className="vec-cards">
               {shown.map((c) => (
-                <div key={c.applianceId} className={`vec-card ${c.blocked ? "blocked" : ""} ${c.deployed ? "deployed" : ""}`}>
+                <div key={c.applianceId} className={`vec-card ${c.blocked ? "blocked" : ""} ${c.deployed ? "deployed" : ""}`} draggable={!c.blocked && !c.deployed} onDragStart={!c.blocked && !c.deployed ? dragUnit(c.applianceId, c.stationId) : undefined} title={!c.blocked && !c.deployed ? "Drag into the attendance slots to allocate and send" : undefined}>
                   <div className="cs">
                     <button type="button" onClick={() => onPick(c.applianceId)} style={{ background: "transparent", border: 0, padding: 0, font: "inherit", color: "inherit", cursor: "pointer" }}>{c.callsign}</button>
                     <span className={`st ${c.status === 7 || c.status === 6 ? "go" : c.status === 1 || c.status === 2 ? "warn" : ""}`}>{c.deployed ? "On this job" : c.status === 7 ? "Available" : c.status === 6 ? "Mobile · available" : c.status === 1 ? "Mobile" : c.status === 2 ? "In attendance" : c.status === 8 ? "Off the run" : "Busy"}</span>
@@ -302,7 +334,7 @@ export function MobScreen({
                       <div className="hd"><b>{b.id}</b><span>{b.name}</span></div>
                       <div className="units">
                         {b.units.map((u) => (
-                          <button key={u.applianceId} type="button" className={`unit ${u.state === "out" ? "out" : u.state === "off" ? "off" : ""}`} onClick={() => onPick(u.applianceId)}>{u.callsign}</button>
+                          <button key={u.applianceId} type="button" className={`unit ${u.state === "out" ? "out" : u.state === "off" ? "off" : ""}`} draggable={u.state === "in"} onDragStart={u.state === "in" ? dragUnit(u.applianceId, b.stationId) : undefined} onClick={() => onPick(u.applianceId)}>{u.callsign}</button>
                         ))}
                       </div>
                       <div className="note">{empty ? "STATION EMPTY" : `${inBay} of ${b.units.length} in the bay`}</div>

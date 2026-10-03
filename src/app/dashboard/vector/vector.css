@@ -5480,3 +5480,9 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-mdt-job .log .row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--vec-border-subtle); font-size: 11.5px; }
 .vec-mdt-job .log .row time { font: 600 10px var(--vec-mono, Consolas, monospace); color: var(--vec-text-dim); }
 .vec-mdt-job .log .row.muted span { color: var(--vec-text-muted); }
+
+/* Mobilising: units drag into the attendance slots. */
+.vec-card[draggable="true"], .vec-bay .units .unit[draggable="true"] { cursor: grab; }
+.vec-card[draggable="true"]:active, .vec-bay .units .unit[draggable="true"]:active { cursor: grabbing; }
+.vec-dropzone.hot { outline: 2px dashed var(--vec-work, #0875bb); outline-offset: -2px; background: var(--vec-surface-tint, #eaf1fa); }
+.vec-slot.drop { background: var(--vec-surface-tint, #eaf1fa); box-shadow: inset 0 0 0 1px var(--vec-work, #0875bb); }
