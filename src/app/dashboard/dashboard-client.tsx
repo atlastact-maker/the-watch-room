@@ -192,6 +192,7 @@ import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import type { CallMapUnit } from "./vector/call-location-map";
 import { recordFire } from "@/lib/sim/fire_history";
+import { recordVitals } from "@/lib/sim/vitals_history";
 import type { CallSummary } from "./vector/call-screen";
 // The light index and the on-demand loader — never the static registry,
 // which would put every call script, scene and record set in the first
@@ -4636,6 +4637,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   useEffect(() => {
     for (const [id, s] of incidentSims) recordFire(id, now, s.fireRadiusM);
   }, [incidentSims, now]);
+  // And the patient board's trends: every surveyed patient's numbers.
+  useEffect(() => {
+    for (const tx of Object.values(treatmentByCasualtyId)) {
+      if (tx.liveVitals && tx.surveyCompletedAt) recordVitals(tx.casualtyId, now, tx.liveVitals);
+    }
+  }, [treatmentByCasualtyId, now]);
 
   // Auto-resolve a job that is genuinely finished.
   //

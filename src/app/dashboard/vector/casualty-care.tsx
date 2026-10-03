@@ -55,6 +55,7 @@ import {
   drugRelevantFor,
 } from "../components/treatment-tab";
 import { ResusPanel, type CompressorOption } from "../components/resus-panel";
+import { PatientBoard } from "./patient-board";
 import { isExtractionRequired, type ResolvedDeployment } from "../components/incident-view";
 import type { CasualtyStage } from "@/lib/sim/incident_sim";
 
@@ -949,7 +950,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </div>
       </div>
       {surveyDone && profile && (
-        <details className="cc-history" open={tablet}>
+        <details className="cc-history">
           <summary>History &amp; medications</summary>
           <p><b>PMH</b> {profile.history.length ? profile.history.join(" · ") : "Nil of note"}</p>
           <p><b>Meds</b> {profile.medications.length ? profile.medications.join(" · ") : "None"}</p>
@@ -977,6 +978,12 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
           </button>
         ))}
       </div>
+    </Card>
+  );
+
+  const boardCard = (
+    <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{surveyDone ? `${treatment?.revealedCondition ?? ""}` : "primary survey first"}</span>}>
+      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} now={now} lead={lead ? `${lead.appliance.callsign} lead` : undefined} compact={tablet} />
     </Card>
   );
 
@@ -1038,7 +1045,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
           ))}
         </nav>
         <main className="cc-main tablet">
-          {view === "patient" && (<>{patientCard}{surveyCard}</>)}
+          {view === "patient" && (<>{patientCard}{boardCard}{surveyCard}</>)}
           {view === "care" && <div className="cc-col cc-right">{carePane}</div>}
         </main>
         {footer}
@@ -1072,6 +1079,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </div>
         <div className="cc-col cc-centre">
           {monitorCard}
+          {boardCard}
         </div>
         <div className="cc-col cc-right">{carePane}</div>
       </main>

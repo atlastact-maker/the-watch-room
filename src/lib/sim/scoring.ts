@@ -573,7 +573,7 @@ export function scoreIncident(
 }
 
 /** Whether a given red flag had its matching treatment action applied. */
-function wasHandled(
+export function wasHandled(
   flag: import("./scene").PatientRedFlag,
   tx: PatientTreatmentState,
 ): boolean {
