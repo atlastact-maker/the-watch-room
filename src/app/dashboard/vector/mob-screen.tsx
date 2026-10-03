@@ -177,7 +177,9 @@ export function MobScreen({
           </div>
         </div>
 
-        {/* Attendance slots */}
+        {/* Left column — attendance slots, the response map under them
+            (the same corner the 999 screen keeps its location map in). */}
+        <div style={{ display: "grid", gridTemplateRows: "minmax(0, 1fr) 260px", gap: 6, minHeight: 0 }}>
         <div className="vec-box">
           <header>
             <span>Attendance slots</span>
@@ -213,6 +215,17 @@ export function MobScreen({
             <button type="button" className="vec-btn mini solid" disabled={unfilled === 0} onClick={onFillRemaining}>
               Fill remaining
             </button>
+          </div>
+        </div>
+
+          <div className="vec-box" >
+            <header>
+              <span>Response map</span>
+              <span className={`mono${units.length ? " go" : ""}`}>{units.length ? `${units.length} responding${units.some((u) => !u.arrived) ? ` · first ${mmss(Math.min(...units.filter((u) => !u.arrived).map((u) => u.etaSec)) * 1000)}` : " · all on scene"}` : "Nothing sent yet"}</span>
+            </header>
+            <div className="body" style={{ position: "relative", padding: 0 }}>
+              <CallLocationMap lat={head.coords.lat} lng={head.coords.lng} units={units} />
+            </div>
           </div>
         </div>
 
@@ -302,7 +315,7 @@ export function MobScreen({
         </div>
 
         {/* Right column */}
-        <div style={{ display: "grid", gridTemplateRows: "auto minmax(0, 1fr) minmax(0, 1fr) auto", gap: 6, minHeight: 0 }}>
+        <div style={{ display: "grid", gridTemplateRows: "auto minmax(0, 1fr) auto", gap: 6, minHeight: 0 }}>
           <div className="vec-box dark-strip">
             <header style={{ background: "transparent", color: "#dbe6ef", borderColor: "#2b4358" }}>
               <span>Mobilising message</span>
@@ -353,15 +366,6 @@ export function MobScreen({
                   </tbody>
                 </table>
               )}
-            </div>
-          </div>
-          <div className="vec-box" style={{ minHeight: 200 }}>
-            <header>
-              <span>Response map</span>
-              <span className={`mono${units.length ? " go" : ""}`}>{units.length ? `${units.length} responding${units.some((u) => !u.arrived) ? ` · first ${mmss(Math.min(...units.filter((u) => !u.arrived).map((u) => u.etaSec)) * 1000)}` : " · all on scene"}` : "Nothing sent yet"}</span>
-            </header>
-            <div className="body" style={{ position: "relative", padding: 0 }}>
-              <CallLocationMap lat={head.coords.lat} lng={head.coords.lng} units={units} />
             </div>
           </div>
           <div className="vec-box" style={{ maxHeight: 220 }}>
