@@ -1641,7 +1641,6 @@ export function LeafletGroundMap({
         break;
       }
       case "rtc_extrication":
-      case "scene_preservation":
       case "firebreak":
       case "wildfire_beating":
       case "wildfire_knapsack":
@@ -1652,12 +1651,37 @@ export function LeafletGroundMap({
         to = towards(fireCentre, m.pos, Math.min(25, Math.max(8, haversineMetres(fireCentre, m.pos) - 4)));
         badge = "CORDON";
         break;
+      case "close_carriageway":
+      case "close_road":
+        // The officers carry the cones to where the line goes and set it
+        // out there; the closure shows as in force once they have.
+        to = t.closurePos ?? towards(m.pos, fireCentre, 2.5);
+        badge = "CONES";
+        break;
+      case "traffic_mgmt":
+        to = towards(fireCentre, m.pos, Math.min(14, Math.max(4, haversineMetres(fireCentre, m.pos) - 3)));
+        badge = "TRAFFIC";
+        break;
+      case "scene_preservation":
+        // The scene guard stands on the door with the log.
+        to = entry ?? towards(fireCentre, m.pos, Math.min(4, haversineMetres(fireCentre, m.pos)));
+        badge = "SCENE";
+        break;
       case "request_details":
       case "take_account":
       case "stop_search":
       case "arrest":
       case "welfare_check":
         to = t.casualtyId ? casualtyGround(t.casualtyId) ?? towards(m.pos, fireCentre, 5) : towards(m.pos, fireCentre, 5);
+        badge = t.kind === "request_details" ? "DETAILS" : t.kind === "take_account" ? "ACCOUNT" : t.kind === "stop_search" ? "S&S" : t.kind === "arrest" ? "ARREST" : "WELFARE";
+        break;
+      case "vehicle_search":
+        to = towards(m.pos, fireCentre, 6);
+        badge = "VEH SEARCH";
+        break;
+      case "convey_custody":
+        to = towards(m.pos, fireCentre, 2.5);
+        badge = "CUSTODY";
         break;
       case "commander":
         to = towards(m.pos, fireCentre, 4);
@@ -1747,6 +1771,16 @@ export function LeafletGroundMap({
       ))}
     </div>
   );
+  /** The riders on a task and where they are with it: walking out, at
+   *  the work, or walking back. */
+  const officersOn = (t: Task) =>
+    crewFigures
+      .filter((f) => f.taskId === t.id)
+      .flatMap((f) => {
+        const p = figurePosition(f, now);
+        if (!p) return [];
+        return [{ id: f.id, name: f.name, role: f.role, callsign: f.callsign ?? "", where: p.phase === "out" ? "walking out" : p.phase === "back" ? "returning" : "at the line" }];
+      });
   const buildingCentre = osmBuildingPoly && osmBuildingPoly.length >= 3
     ? { lat: osmBuildingPoly.reduce((a, p) => a + p[0], 0) / osmBuildingPoly.length, lng: osmBuildingPoly.reduce((a, p) => a + p[1], 0) / osmBuildingPoly.length }
     : fireCentre;
@@ -2261,6 +2295,21 @@ export function LeafletGroundMap({
                 )}
                 interactive={false}
               />
+              <Circle center={coneAt} radius={5} pathOptions={{ color: colour, weight: 0, fillColor: colour, fillOpacity: 0.01 }} interactive>
+                <Tooltip sticky direction="top" opacity={1} className="gsm-inside-tip">
+                  <div className="gsm-inside">
+                    <div className="hd">{fullRoad ? "Road closure" : "Carriageway closure"} · {inForce ? "in force" : "setting out"}</div>
+                    {officersOn(t).length === 0 ? (
+                      <div className="row"><span className="t">Nobody on the cones</span></div>
+                    ) : officersOn(t).map((o) => (
+                      <div key={o.id} className="row">
+                        <span className="who"><b>{o.callsign}</b> {o.name} <em>{roleShort(o.role)}</em> <i>{o.where}</i></span>
+                        <span className="t">on it {clockMmss(now - t.startedAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Tooltip>
+              </Circle>
             </Fragment>
           );
         })}
