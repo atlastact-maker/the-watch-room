@@ -37,6 +37,9 @@ import type { SubjectVehicle } from "@/lib/sim/subject";
 import type { Eta } from "./deployment-board";
 import type { Patch } from "@/lib/sim/areas";
 
+/** The make on the tablet's shell. Not a real manufacturer's mark. */
+const MDT_BRAND = "VECTOR";
+
 type Props = {
   incident: Incident;
   stations: StationWithAppliances[];
@@ -442,7 +445,7 @@ export function DraggableIncidentMdt(props: Props) {
   const tablet = (
     <section className="vec-mdt vec-mdt--care" aria-label="Mobile data terminal · patient care">
       <header className="vec-mdt-handle" title="Drag to move the tablet">
-        <span className="vec-mdt-brand">VECTOR</span>
+        <span className="vec-mdt-brand">{MDT_BRAND}</span>
         <i className="vec-mdt-cam" aria-hidden="true" />
         <div className="vec-mdt-handle-btns">
           {popped ? (
@@ -629,7 +632,7 @@ export function DraggableIncidentMdt(props: Props) {
       </aside>
       <footer className="vec-mdt-bezel" aria-hidden="true">
         <i className="grille left" />
-        <span className="vec-mdt-wordmark">VECTOR</span>
+        <span className="vec-mdt-wordmark">{MDT_BRAND}</span>
         <i className="grille right" />
       </footer>
       <MdtNotepad key={incident.id} incidentId={incident.id} incidentRef={ref} unitCallsign={unitCallsign} open={notepad} onClose={() => setNotepad(false)} onNote={props.onNote} />
