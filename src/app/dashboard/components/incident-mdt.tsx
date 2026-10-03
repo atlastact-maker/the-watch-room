@@ -40,6 +40,26 @@ import type { Patch } from "@/lib/sim/areas";
 /** The make on the tablet's shell. Not a real manufacturer's mark. */
 const MDT_BRAND = "VECTOR";
 
+type MdtApp = "home" | "care" | "fire" | "police" | "incident";
+/** The apps on the desktop, in icon order. */
+const MDT_APPS: { key: Exclude<MdtApp, "home">; title: string; sub: string }[] = [
+  { key: "care", title: "Casualty care", sub: "Patients, monitor, record" },
+  { key: "incident", title: "Incident", sub: "The job and its log" },
+  { key: "fire", title: "Fire", sub: "Fireground command" },
+  { key: "police", title: "Police", sub: "PNC, ANPR, scene" },
+];
+
+function AppGlyph({ app, size = 22 }: { app: Exclude<MdtApp, "home"> | "notebook"; size?: number }) {
+  const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  switch (app) {
+    case "care": return <svg {...common}><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M12 7v10M7 12h10" /></svg>;
+    case "incident": return <svg {...common}><path d="M9 4h6l1 2h3v14H5V6h3z" /><path d="M8 11h8M8 15h5" /></svg>;
+    case "fire": return <svg {...common}><path d="M12 3c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1.5.6-2.5 1.2-3.3C9.5 9.5 10 11 11 11c0-2.5-.5-5 1-8z" /><path d="M9 19h6" /></svg>;
+    case "police": return <svg {...common}><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z" /><path d="M9 12l2 2 4-4" /></svg>;
+    case "notebook": return <svg {...common}><path d="M4 20l4-1 11-11-3-3L5 16z" /><path d="M13 7l3 3" /></svg>;
+  }
+}
+
 type Props = {
   incident: Incident;
   stations: StationWithAppliances[];
@@ -341,7 +361,11 @@ export function DraggableIncidentMdt(props: Props) {
   const [fireSel, setFireSel] = useState<FireSelection | null>(null);
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
-  const [module, setModule] = useState<"care" | "fire" | "police">(props.policePage ? "police" : "care");
+  // The tablet boots to a desktop; apps open from its icons, the taskbar
+  // or the start menu, and minimise or close back to it.
+  const [module, setModule] = useState<MdtApp>(props.policePage ? "police" : "home");
+  const [startOpen, setStartOpen] = useState(false);
+  const launch = (app: MdtApp) => { setModule(app); setStartOpen(false); };
   const [seenPolicePage, setSeenPolicePage] = useState(props.policePage?.seq ?? 0);
   if (props.policePage && props.policePage.seq !== seenPolicePage) {
     setSeenPolicePage(props.policePage.seq);
@@ -457,6 +481,40 @@ export function DraggableIncidentMdt(props: Props) {
         </div>
       </header>
       <div className="vec-mdt-screen" style={zoom !== 1 ? { zoom } : undefined}>
+      {module === "home" ? (
+        <div className="vec-mdt-desk" onClick={() => setStartOpen(false)}>
+          <div className="vec-mdt-icons">
+            {MDT_APPS.map((a) => (
+              <button key={a.key} type="button" className="vec-mdt-icon" aria-label={a.title} onClick={(e) => { e.stopPropagation(); launch(a.key); }}>
+                <i className={`g ${a.key}`}><AppGlyph app={a.key} size={26} /></i>
+                <span>{a.title}</span>
+                {a.key === "care" && assigned > 0 && <b className="badge">{assigned}</b>}
+              </button>
+            ))}
+            <button type="button" className="vec-mdt-icon" aria-label="Notebook" aria-pressed={notepad} onClick={(e) => { e.stopPropagation(); setNotepad((v) => !v); }}>
+              <i className="g notebook"><AppGlyph app="notebook" size={26} /></i>
+              <span>Notebook</span>
+            </button>
+          </div>
+          <div className="vec-mdt-unitcard" onClick={(e) => e.stopPropagation()}>
+            <div className="link">{unitService.toUpperCase()} · {ref}</div>
+            <div className="vec-mdt-unit">
+              <UnitPicker units={resolvedDeps} value={unitAppliance?.id ?? null} onChange={setUnitId} commanderId={props.commanderApplianceId ?? null} stateOf={phaseLabel} />
+            </div>
+            <small>{unitState}{assigned ? ` · ${assigned} patient${assigned === 1 ? "" : "s"} assigned` : ""}</small>
+            <div className="job"><b>{sc.title}</b><span>{sc.location.address} · {sc.location.postcode}</span></div>
+          </div>
+        </div>
+      ) : (
+      <div className="vec-mdt-app">
+      <div className="vec-mdt-appbar">
+        <span className="ico"><AppGlyph app={module} size={14} /></span>
+        <span className="ttl">{MDT_APPS.find((a) => a.key === module)?.title}{module === "care" && assigned ? ` · ${assigned}` : ""}</span>
+        <div className="btns">
+          <button type="button" title="Minimise to the desktop" aria-label="Minimise" onClick={() => setModule("home")}>–</button>
+          <button type="button" title="Close" aria-label="Close" onClick={() => setModule("home")}>×</button>
+        </div>
+      </div>
       <div className="vec-mdt-identity">
         <div className="vec-mdt-me">
           <div className="link">{unitService.toUpperCase()} · {ref} · {sc.title}</div>
@@ -544,16 +602,29 @@ export function DraggableIncidentMdt(props: Props) {
           )}
         </div>
       </div>
-      <nav className="vec-mdt-modules" aria-label="Modules">
-        <button type="button" aria-pressed={module === "care"} onClick={() => setModule("care")}>Casualty care{assigned ? ` · ${assigned}` : ""}</button>
-        <button type="button" aria-pressed={module === "fire"} onClick={() => setModule("fire")}>Fire</button>
-        <button type="button" aria-pressed={module === "police"} onClick={() => setModule("police")}>Police</button>
-      </nav>
       <div className="vec-mdt-body care">
         {module === "fire" ? (
           serviceModule("Fire")
         ) : module === "police" ? (
           serviceModule("Police")
+        ) : module === "incident" ? (
+          <div className="vec-mdt-job">
+            <div className="facts">
+              <div><span>Reference</span><b>{ref}</b></div>
+              <div><span>Type</span><b>{sc.title}</b></div>
+              <div><span>Address</span><b>{sc.location.address}<br />{sc.location.postcode}</b></div>
+              <div><span>Received</span><b>{new Date(incident.receivedAt).toLocaleTimeString("en-GB", { hour12: false })}</b></div>
+              <div><span>This unit</span><b>{unitCallsign} · {unitState}</b></div>
+              <div><span>Attendance</span><b>{resolvedDeps.map((r) => r.appliance.callsign).join(", ") || "—"}</b></div>
+            </div>
+            <div className="log">
+              <div className="hd">Incident log</div>
+              {props.log.filter((e) => e.timestamp >= incident.receivedAt).slice(-40).reverse().map((e) => (
+                <div key={e.id} className="row"><time>{new Date(e.timestamp).toLocaleTimeString("en-GB", { hour12: false })}</time><span>{e.message}</span></div>
+              ))}
+              {props.log.filter((e) => e.timestamp >= incident.receivedAt).length === 0 && <div className="row muted"><span>Nothing logged yet</span></div>}
+            </div>
+          </div>
         ) : resolved ? (
           <div className="vec-tile-empty">Incident closed — patient records are in the debrief</div>
         ) : !sim ? (
@@ -607,7 +678,46 @@ export function DraggableIncidentMdt(props: Props) {
           />
         )}
       </div>
-      <footer className="vec-mdt-footer">LOCAL SIMULATION · {unitCallsign} · {ref}</footer>
+      </div>
+      )}
+      {startOpen && (
+        <div className="vec-mdt-start" onClick={(e) => e.stopPropagation()}>
+          <div className="list">
+            {MDT_APPS.map((a) => (
+              <button key={a.key} type="button" onClick={() => launch(a.key)}><AppGlyph app={a.key} size={16} /><span>{a.title}</span></button>
+            ))}
+            <button type="button" onClick={() => { setNotepad(true); setStartOpen(false); }}><AppGlyph app="notebook" size={16} /><span>Notebook</span></button>
+            <div className="who"><b>{unitCallsign}</b><span>{unitState}</span></div>
+          </div>
+          <div className="tiles">
+            <button type="button" className="tile care wide" onClick={() => launch("care")}><AppGlyph app="care" size={28} /><b>{assigned ? `${assigned} patient${assigned === 1 ? "" : "s"}` : "No patients"}</b><span>Casualty care</span></button>
+            <button type="button" className="tile incident" onClick={() => launch("incident")}><AppGlyph app="incident" size={24} /><b>{ref}</b><span>Incident</span></button>
+            <button type="button" className="tile fire" onClick={() => launch("fire")}><AppGlyph app="fire" size={24} /><span>Fire</span></button>
+            <button type="button" className="tile police" onClick={() => launch("police")}><AppGlyph app="police" size={24} /><span>Police</span></button>
+            <button type="button" className="tile note" onClick={() => { setNotepad(true); setStartOpen(false); }}><AppGlyph app="notebook" size={24} /><span>Notebook</span></button>
+          </div>
+        </div>
+      )}
+      <div className="vec-mdt-taskbar">
+        <button type="button" className="start" title="Start" aria-pressed={startOpen} onClick={() => setStartOpen((v) => !v)}>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1 2.5l6-.8v5.8H1zM8 1.6L15 .6v6.9H8zM1 8.5h6v5.8l-6-.8zM8 8.5h7v6.9l-7-1z" /></svg>
+        </button>
+        <div className="search"><span>Search</span></div>
+        {MDT_APPS.map((a) => (
+          <button key={a.key} type="button" className={`tb${module === a.key ? " on" : ""}`} title={a.title} onClick={() => launch(a.key)}><AppGlyph app={a.key} size={18} />{a.key === "care" && assigned > 0 && <b className="badge">{assigned}</b>}</button>
+        ))}
+        <button type="button" className={`tb${notepad ? " on" : ""}`} title="Notebook" onClick={() => setNotepad((v) => !v)}><AppGlyph app="notebook" size={18} /></button>
+        <div className="tray">
+          <span className="unit">{unitCallsign}</span>
+          <span className="state">{unitState}</span>
+          <i className="wifi" title="Network" />
+          <i className="bat" title="Battery" />
+          <time>
+            <b>{new Date(nowMs).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit" })}</b>
+            <small>{new Date(nowMs).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}</small>
+          </time>
+        </div>
+      </div>
       {asleep && (
         <button type="button" className="vec-mdt-sleep" onClick={() => setAsleep(false)} title="Wake the screen">
           <b>{now !== undefined ? new Date(now).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "--:--"}</b>

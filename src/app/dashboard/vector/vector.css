@@ -3898,12 +3898,10 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 44px auto 34px minmax(100px, 1fr) 22px;
 }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-identity { grid-column: 1; grid-row: 1; background: var(--vec-bar); color: var(--vec-bar-text, #eaf0f5); }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-identity .link { color: var(--vec-bar-text, #eaf0f5); opacity: 0.75; }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-identity small { color: var(--vec-bar-text, #eaf0f5); opacity: 0.85; }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-modules { grid-column: 1; grid-row: 2; }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-body { grid-column: 1; grid-row: 3; padding: 0; display: flex; flex-direction: column; background: var(--vec-bg); color: var(--vec-text); }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-footer { grid-column: 1; grid-row: 4; }
+.vec-mdt--care .vec-mdt-app > .vec-mdt-identity { grid-column: 1; grid-row: 2; background: var(--vec-bar); color: var(--vec-bar-text, #eaf0f5); }
+.vec-mdt--care .vec-mdt-app > .vec-mdt-identity .link { color: var(--vec-bar-text, #eaf0f5); opacity: 0.75; }
+.vec-mdt--care .vec-mdt-app > .vec-mdt-identity small { color: var(--vec-bar-text, #eaf0f5); opacity: 0.85; }
+.vec-mdt--care .vec-mdt-app > .vec-mdt-body { grid-column: 1; grid-row: 3; padding: 0; display: flex; flex-direction: column; background: var(--vec-bg); color: var(--vec-text); }
 .vec-mdt-modules {
   display: grid;
   grid-auto-flow: column;
@@ -3989,7 +3987,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-mdt-unitpick-menu li[aria-selected="true"] button { background: rgba(255, 255, 255, 0.12); }
 .vec-mdt-unitpick-menu .meta { display: flex; flex-direction: column; gap: 2px; }
 .vec-mdt-unitpick-menu .meta small { opacity: 0.75; font-size: 11px; }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-body.care { overflow: hidden; }
+.vec-mdt--care .vec-mdt-app > .vec-mdt-body.care { overflow: hidden; }
 .vec-mdt-body.care .vec-patients { flex: 1; min-height: 0; }
 .vec-mdt-body.care .vec-tile-empty { padding: 30px 12px; }
 .vec-mdt-body.care .vec-mdt-body.page.vec-tasking { flex: 1; }
@@ -4486,9 +4484,8 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   position: relative;
   grid-column: 1;
   grid-row: 2;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto 34px minmax(100px, 1fr) 22px;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   border-radius: 6px;
@@ -4579,7 +4576,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
   cursor: pointer;
 }
 .vec-mdt-handle-btns button:last-child:hover { background: var(--vec-stop, #b3261e); border-color: var(--vec-stop, #b3261e); color: #fff; }
-.vec-mdt--care .vec-mdt-screen > .vec-mdt-identity {
+.vec-mdt--care .vec-mdt-app > .vec-mdt-identity {
   grid-template-columns: 250px minmax(0, 1fr);
   gap: 8px;
   padding: 6px 8px;
@@ -5398,3 +5395,88 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 
 /* The patient card without its mannequin: facts in two columns. */
 .cc-tablet .cc-facts.two { grid-template-columns: 70px minmax(0, 1fr) 70px minmax(0, 1fr); font-size: 12.5px; }
+
+/* ---- The tablet's operating system: a desktop, a taskbar, a start menu,
+   and apps that open over it with a title bar. ---------------------------- */
+.vec-mdt-app { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 28px auto minmax(100px, 1fr); }
+.vec-mdt-appbar { grid-row: 1; display: flex; align-items: center; gap: 8px; padding: 0 0 0 10px; background: #ffffff; color: #1b2733; border-bottom: 1px solid #d5dde3; font: 600 12px var(--vec-sans, "IBM Plex Sans", system-ui, sans-serif); }
+.vec-mdt-appbar .ico { display: inline-flex; color: var(--vec-work, #0875bb); }
+.vec-mdt-appbar .btns { margin-left: auto; display: flex; height: 100%; }
+.vec-mdt-appbar .btns button { width: 44px; height: 100%; border: 0; background: transparent; color: #1b2733; font: 400 16px/1 var(--vec-sans, system-ui, sans-serif); cursor: pointer; }
+.vec-mdt-appbar .btns button:hover { background: #e6ebef; }
+.vec-mdt-appbar .btns button:last-child:hover { background: #e81123; color: #fff; }
+.vec-mdt-desk {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 300px;
+  gap: 16px;
+  padding: 14px;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(0, 120, 215, 0.55), transparent 55%),
+    radial-gradient(ellipse at 85% 80%, rgba(0, 60, 130, 0.7), transparent 60%),
+    linear-gradient(160deg, #0a2a52, #061a33 55%, #04101f);
+  color: #fff;
+  overflow: hidden;
+}
+.vec-mdt-icons { display: grid; grid-auto-rows: 86px; gap: 6px; align-content: start; }
+.vec-mdt-icon { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 92px; padding: 8px 4px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #fff; cursor: pointer; }
+.vec-mdt-icon:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.18); }
+.vec-mdt-icon:active, .vec-mdt-icon[aria-pressed="true"] { background: rgba(255, 255, 255, 0.2); }
+.vec-mdt-icon .g { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 6px; color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); }
+.vec-mdt-icon .g.care { background: linear-gradient(160deg, #1f9d55, #0f6b3a); }
+.vec-mdt-icon .g.incident { background: linear-gradient(160deg, #0a7cc7, #075a90); }
+.vec-mdt-icon .g.fire { background: linear-gradient(160deg, #e8572a, #a93414); }
+.vec-mdt-icon .g.police { background: linear-gradient(160deg, #3a63c9, #243f8f); }
+.vec-mdt-icon .g.notebook { background: linear-gradient(160deg, #c99a2e, #8a6514); }
+.vec-mdt-icon span { font: 500 11px/1.2 var(--vec-sans, "IBM Plex Sans", system-ui, sans-serif); text-align: center; text-shadow: 0 1px 2px #000, 0 0 4px rgba(0, 0, 0, 0.7); }
+.vec-mdt-icon .badge, .vec-mdt-taskbar .tb .badge { position: absolute; top: 6px; right: 18px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e81123; color: #fff; font: 800 9px/16px var(--vec-mono, Consolas, monospace); text-align: center; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35); }
+.vec-mdt-unitcard { grid-column: 3; align-self: start; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 4px; background: rgba(8, 20, 36, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); backdrop-filter: blur(6px); color: #e3edf5; }
+.vec-mdt-unitcard .link { font: 700 8px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; color: #9fc3e3; }
+.vec-mdt-unitcard small { font-size: 11px; color: #c6d6e4; }
+.vec-mdt-unitcard .job { display: flex; flex-direction: column; gap: 1px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.vec-mdt-unitcard .job b { font-size: 12px; }
+.vec-mdt-unitcard .job span { font-size: 10.5px; color: #9fb6ca; }
+.vec-mdt-taskbar { flex: none; display: flex; align-items: stretch; height: 38px; background: #0f1419; color: #e6eef5; border-top: 1px solid #22303b; }
+.vec-mdt-taskbar .start { width: 46px; border: 0; background: transparent; color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.vec-mdt-taskbar .start:hover, .vec-mdt-taskbar .start[aria-pressed="true"] { background: #1f2a35; color: #4cb3ff; }
+.vec-mdt-taskbar .search { display: flex; align-items: center; width: 190px; margin: 5px 6px 5px 0; padding: 0 10px; background: #fff; color: #5a6a78; font: 400 11px var(--vec-sans, system-ui, sans-serif); border-radius: 2px; }
+.vec-mdt-taskbar .search::before { content: ""; width: 10px; height: 10px; margin-right: 8px; border: 1.6px solid #5a6a78; border-radius: 50%; box-shadow: 4px 4px 0 -2px #5a6a78; }
+.vec-mdt-taskbar .tb { position: relative; width: 46px; border: 0; background: transparent; color: #e6eef5; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.vec-mdt-taskbar .tb:hover { background: #1f2a35; }
+.vec-mdt-taskbar .tb.on { background: #1a242e; box-shadow: inset 0 -2px #4cb3ff; }
+.vec-mdt-taskbar .tb .badge { top: 5px; right: 6px; }
+.vec-mdt-taskbar .tray { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 0 10px; font: 500 10px var(--vec-sans, system-ui, sans-serif); color: #c6d6e4; }
+.vec-mdt-taskbar .tray .unit { font: 700 11px var(--vec-mono, Consolas, monospace); letter-spacing: 0.06em; color: #fff; }
+.vec-mdt-taskbar .tray .state { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vec-mdt-taskbar .tray i { display: block; }
+.vec-mdt-taskbar .tray i.wifi { width: 12px; height: 12px; border-radius: 50% 50% 0 0; border: 2px solid #c6d6e4; border-bottom: 0; transform: rotate(45deg); }
+.vec-mdt-taskbar .tray i.bat { width: 16px; height: 8px; border: 1.5px solid #c6d6e4; border-radius: 2px; background: linear-gradient(90deg, #37d36b 0 86%, transparent 86%); box-shadow: 2px 0 0 -1px #c6d6e4; }
+.vec-mdt-taskbar .tray time { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.vec-mdt-taskbar .tray time b { font-weight: 500; font-size: 11px; }
+.vec-mdt-taskbar .tray time small { font-size: 9px; }
+.vec-mdt-start { position: absolute; left: 0; bottom: 38px; z-index: 4; display: grid; grid-template-columns: 200px 300px; height: 360px; background: rgba(16, 22, 28, 0.96); border: 1px solid #2b3a47; border-left: 0; box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5); color: #e6eef5; }
+.vec-mdt-start .list { display: flex; flex-direction: column; padding: 8px 0; border-right: 1px solid #22303b; }
+.vec-mdt-start .list button { display: flex; align-items: center; gap: 12px; padding: 9px 16px; border: 0; background: transparent; color: #e6eef5; font: 500 12px var(--vec-sans, system-ui, sans-serif); text-align: left; cursor: pointer; }
+.vec-mdt-start .list button:hover { background: #253140; }
+.vec-mdt-start .who { margin-top: auto; padding: 10px 16px; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #22303b; }
+.vec-mdt-start .who b { font: 700 11px var(--vec-mono, Consolas, monospace); letter-spacing: 0.06em; }
+.vec-mdt-start .who span { font-size: 10.5px; color: #9fb6ca; }
+.vec-mdt-start .tiles { display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 100px; gap: 6px; padding: 12px; align-content: start; }
+.vec-mdt-start .tile { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.12); background: #0a7cc7; color: #fff; cursor: pointer; text-align: left; }
+.vec-mdt-start .tile:hover { filter: brightness(1.12); }
+.vec-mdt-start .tile.wide { grid-column: 1 / -1; }
+.vec-mdt-start .tile.care { background: #1f9d55; } .vec-mdt-start .tile.incident { background: #0a7cc7; } .vec-mdt-start .tile.fire { background: #c9431d; } .vec-mdt-start .tile.police { background: #3451a8; } .vec-mdt-start .tile.note { background: #a8801f; }
+.vec-mdt-start .tile b { font: 700 15px var(--vec-sans, system-ui, sans-serif); }
+.vec-mdt-start .tile span { font: 500 11px var(--vec-sans, system-ui, sans-serif); }
+.vec-mdt-job { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 10px; padding: 10px; min-height: 0; overflow: auto; }
+.vec-mdt-job .facts { display: flex; flex-direction: column; gap: 6px; align-content: start; }
+.vec-mdt-job .facts > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); }
+.vec-mdt-job .facts span { font: 700 8px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; text-transform: uppercase; color: var(--vec-text-muted); }
+.vec-mdt-job .facts b { font-size: 12.5px; font-weight: 600; }
+.vec-mdt-job .log { border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); min-height: 0; overflow: auto; }
+.vec-mdt-job .log .hd { position: sticky; top: 0; padding: 6px 10px; background: var(--vec-surface-raised); border-bottom: 1px solid var(--vec-border); font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; text-transform: uppercase; color: var(--vec-text-dim); }
+.vec-mdt-job .log .row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--vec-border-subtle); font-size: 11.5px; }
+.vec-mdt-job .log .row time { font: 600 10px var(--vec-mono, Consolas, monospace); color: var(--vec-text-dim); }
+.vec-mdt-job .log .row.muted span { color: var(--vec-text-muted); }
