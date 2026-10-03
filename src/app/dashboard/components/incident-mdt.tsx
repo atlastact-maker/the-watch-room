@@ -330,6 +330,10 @@ export function DraggableIncidentMdt(props: Props) {
   const [minimised, setMinimised] = useState(false);
   const [popped, setPopped] = useState(false);
   const [notepad, setNotepad] = useState(false);
+  // The hardware keys on the bezel: the power key puts the screen to
+  // sleep, the plus and minus keys scale the screen.
+  const [asleep, setAsleep] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [policeSel, setPoliceSel] = useState<PoliceSelection | null>(null);
   const [fireSel, setFireSel] = useState<FireSelection | null>(null);
   // The tablet's modules. Casualty care is the medical module; Fire and
@@ -438,11 +442,9 @@ export function DraggableIncidentMdt(props: Props) {
   const tablet = (
     <section className="vec-mdt vec-mdt--care" aria-label="Mobile data terminal · patient care">
       <header className="vec-mdt-handle" title="Drag to move the tablet">
-        <span>MOBILE DATA TERMINAL</span>
+        <span className="vec-mdt-brand">VECTOR</span>
+        <i className="vec-mdt-cam" aria-hidden="true" />
         <div className="vec-mdt-handle-btns">
-          <button type="button" className="txt" title="Notebook" aria-pressed={notepad} onClick={() => setNotepad((v) => !v)}>✎ Notebook</button>
-          {!popped && <button type="button" className="txt" title={sizeMode === "compact" ? "Full-size tablet — three columns without scrolling" : "Compact tablet — keeps the ground map in view"} aria-pressed={sizeMode === "full"} onClick={toggleSize}>{sizeMode === "compact" ? "⤢ Full" : "⤡ Compact"}</button>}
-          {!popped && <button type="button" title="Minimise MDT" aria-label="Minimise" onClick={() => setMinimised(true)}>−</button>}
           {popped ? (
             <button type="button" title="Dock the MDT back on the desk" aria-label="Dock" onClick={() => setPopped(false)}>⤶</button>
           ) : (
@@ -451,6 +453,7 @@ export function DraggableIncidentMdt(props: Props) {
           <button type="button" title="Close MDT" aria-label="Close" onClick={onClose}>×</button>
         </div>
       </header>
+      <div className="vec-mdt-screen" style={zoom !== 1 ? { zoom } : undefined}>
       <div className="vec-mdt-identity">
         <div className="vec-mdt-me">
           <div className="link">{unitService.toUpperCase()} · {ref} · {sc.title}</div>
@@ -602,6 +605,33 @@ export function DraggableIncidentMdt(props: Props) {
         )}
       </div>
       <footer className="vec-mdt-footer">LOCAL SIMULATION · {unitCallsign} · {ref}</footer>
+      {asleep && (
+        <button type="button" className="vec-mdt-sleep" onClick={() => setAsleep(false)} title="Wake the screen">
+          <b>{now !== undefined ? new Date(now).toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit" }) : "--:--"}</b>
+          <span>{unitCallsign} · press ⏻ or tap to wake</span>
+        </button>
+      )}
+      </div>
+      <aside className="vec-mdt-rail" aria-label="Tablet keys">
+        <div className="vec-mdt-leds" aria-hidden="true">
+          <i className="on" title="Power" />
+          <i className="wifi" title="Network" />
+          <i className="bt" title="Bluetooth" />
+          <i className="bat" title="Battery" />
+        </div>
+        <button type="button" className="key power" title={asleep ? "Wake the screen" : "Screen off"} aria-pressed={asleep} onClick={() => setAsleep((v) => !v)}>⏻</button>
+        <button type="button" className="key" title="P1 · Notebook" aria-pressed={notepad} onClick={() => setNotepad((v) => !v)}>P1</button>
+        <button type="button" className="key" title={sizeMode === "compact" ? "P2 · Full-size tablet — three columns without scrolling" : "P2 · Compact tablet — keeps the ground map in view"} aria-pressed={sizeMode === "full"} onClick={toggleSize} disabled={popped}>P2</button>
+        <button type="button" className="key" title="Minimise to the desk" aria-label="Minimise" onClick={() => setMinimised(true)} disabled={popped}>⊞</button>
+        <button type="button" className="key" title="Larger" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(1.2, Math.round((z + 0.05) * 100) / 100))}>+</button>
+        <button type="button" className="key" title="Smaller" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.8, Math.round((z - 0.05) * 100) / 100))}>−</button>
+        <i className="vec-mdt-rocker" aria-hidden="true" />
+      </aside>
+      <footer className="vec-mdt-bezel" aria-hidden="true">
+        <i className="grille left" />
+        <span className="vec-mdt-wordmark">VECTOR</span>
+        <i className="grille right" />
+      </footer>
       <MdtNotepad key={incident.id} incidentId={incident.id} incidentRef={ref} unitCallsign={unitCallsign} open={notepad} onClose={() => setNotepad(false)} onNote={props.onNote} />
     </section>
   );
