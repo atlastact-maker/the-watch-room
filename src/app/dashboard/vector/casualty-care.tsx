@@ -56,6 +56,7 @@ import { ResusPanel, type CompressorOption } from "../components/resus-panel";
 import { PatientBoard } from "./patient-board";
 import { isExtractionRequired, type ResolvedDeployment } from "../components/incident-view";
 import type { CasualtyStage } from "@/lib/sim/incident_sim";
+import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -253,7 +254,12 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const convoy = pairedAll.find((p) => p.deployment.hospitalLegStartedAt);
   const conveying = !!convoy;
   const atHospital = !!convoy && convoy.deployment.hospitalArrivesAt !== undefined && now >= convoy.deployment.hospitalArrivesAt;
-  const canAct = !extractionRequired && paired.length > 0 && !!treatment && !conveying && !resus?.roleAt;
+  // The crew are with the patient once the walk from the vehicle is
+  // done — the same clock the ground map draws them by.
+  const withPatientAt = paired.length ? Math.min(...paired.map((p) => crewWithPatientAt(p.deployment, casualty, incident.scenario.location.coords, { atVehicle: patientAtVehicle(casualty, stage, tasks) }))) : null;
+  const crewHere = withPatientAt !== null && now >= withPatientAt;
+  const walkLeftSec = withPatientAt !== null && !crewHere ? Math.ceil((withPatientAt - now) / 1000) : 0;
+  const canAct = !extractionRequired && paired.length > 0 && crewHere && !!treatment && !conveying && !resus?.roleAt;
 
   // ---- Clinical picture ----------------------------------------------
   const surveyRunning = !!treatment?.surveyStartedAt && !treatment.surveyCompletedAt;
@@ -914,7 +920,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     <Card title="Primary survey" icon="✓" fill>
       {!surveyDone && (
         <button type="button" className="cc-primary" disabled={!canAct || surveyRunning || !props.onStartPatientSurvey} onClick={() => props.onStartPatientSurvey?.(casualtyId)}>
-          {surveyRunning ? `Assessing · ${Math.round(surveySec)}s / 60s` : "Start primary survey · ~60s"}
+          {surveyRunning ? `Assessing · ${Math.round(surveySec)}s / 60s` : paired.length && !crewHere ? `Crew making their way to the patient · ${walkLeftSec}s` : "Start primary survey · ~60s"}
         </button>
       )}
       {surveyRunning && <div className="cc-bar"><i style={{ width: `${(surveySec / 60) * 100}%` }} /></div>}

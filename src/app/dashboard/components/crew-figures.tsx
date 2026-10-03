@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import type { ServiceCode } from "@/lib/sim/types";
+import { WALK_MIN_MS, WALK_MPS } from "@/lib/sim/crew_walk";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -59,7 +60,6 @@ export type CrewFigure = {
   walkMs?: number;
 };
 
-const WALK_MPS = 1.3;
 
 const SERVICE_COLOUR: Record<ServiceCode, { fill: string; text: string }> = {
   Fire: { fill: "#d7263d", text: "#ffb3bd" },
@@ -129,14 +129,19 @@ function offsetMetres(p: LatLng, dxM: number, dyM: number): LatLng {
 export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase: "out" | "working" | "back"; k: number } | null {
   const walkable = f.path && f.path.length >= 2 ? f.path : null;
   const metres = walkable ? pathMetres(walkable) : haversine(f.from, f.to);
-  const walkMs = f.walkMs ?? Math.max(3000, (metres / WALK_MPS) * 1000);
+  const walkMs = f.walkMs ?? Math.max(WALK_MIN_MS, (metres / WALK_MPS) * 1000);
   const at = (k: number): LatLng => (walkable ? alongPath(walkable, k) : { lat: f.from.lat + (f.to.lat - f.from.lat) * k, lng: f.from.lng + (f.to.lng - f.from.lng) * k });
   const spread = f.spreadIndex ?? 0;
   const ring = [
     [0, 0], [1.4, 0.6], [-1.4, 0.6], [0.7, -1.4], [-0.7, -1.4], [2.2, -0.4], [-2.2, -0.4], [0, 2],
   ][spread % 8];
   const work = offsetMetres(f.to, ring[0], ring[1]);
-  if (now < f.startAt) return null;
+  // Riders file out of the cab a stride apart and walk a little to one
+  // side of each other; on one line at one instant they would draw as a
+  // single figure.
+  const fileDelay = (spread % 8) * 650;
+  const walking = (k: number): LatLng => offsetMetres(at(k), ring[0] * 0.9, ring[1] * 0.9);
+  if (now < f.startAt + fileDelay) return null;
   const carried = f.carriedBy?.(now);
   if (carried) return { pos: offsetMetres(carried, ring[0] * 0.6, ring[1] * 0.6), phase: "working", k: 1 };
   if (f.endAt !== undefined && now >= f.endAt) {
@@ -146,10 +151,10 @@ export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase
     const backMs = walkMs * fromK;
     const k = backMs > 0 ? (now - f.endAt) / backMs : 1;
     if (k >= 1) return null;
-    return { pos: at(fromK * (1 - k)), phase: "back", k: fromK * (1 - k) };
+    return { pos: walking(fromK * (1 - k)), phase: "back", k: fromK * (1 - k) };
   }
-  const k = (now - f.startAt) / walkMs;
-  if (k < 1) return { pos: at(k), phase: "out", k };
+  const k = (now - f.startAt - fileDelay) / walkMs;
+  if (k < 1) return { pos: walking(k), phase: "out", k };
   return { pos: work, phase: "working", k: 1 };
 }
 

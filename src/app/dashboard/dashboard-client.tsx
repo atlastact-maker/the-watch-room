@@ -200,6 +200,7 @@ import type { CallSummary } from "./vector/call-screen";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { loadScenario } from "@/lib/sim/scenarios/load";
 import { rollVariant, applyVariant, variantAllows, latLngToMetres } from "@/lib/sim/scene";
+import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
 import { planWaterRescue } from "@/lib/sim/water_rescue";
 import { planRopeRescue } from "@/lib/sim/rope_rescue";
 import { scenarioCovered } from "@/lib/sim/coverage";
@@ -2351,6 +2352,17 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
 
   function startPatientSurvey(casualtyId: string) {
     const at = Date.now();
+    // Not before the crew have crossed the ground to the patient — the
+    // screen says so, and the map shows them still walking.
+    if (activeIncident) {
+      const casualty = activeIncident.scenario.scene?.casualties?.find((c) => c.id === casualtyId);
+      const paired = deployments.filter((d) => d.incidentId === activeIncident.id && d.treatingCasualtyId === casualtyId && at >= d.arrivesAt);
+      if (casualty && paired.length) {
+        const atVehicle = patientAtVehicle(casualty, incidentSim?.casualtyProgression?.[casualtyId]?.stage ?? "located", tasks);
+        const here = paired.some((d) => at >= crewWithPatientAt(d, casualty, activeIncident.scenario.location.coords, { atVehicle }));
+        if (!here) return;
+      }
+    }
     updateTreatment(casualtyId, (p) => ({
       ...p,
       surveyStartedAt: at,
