@@ -940,7 +940,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     .map((p) => ({ callsign: p.appliance.callsign, role: SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)], lead: lead?.appliance.id === p.appliance.id }));
   const boardCard = (
     <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{!surveyDone ? "primary survey first" : tablet ? "" : treatment?.revealedCondition ?? ""}</span>}>
-      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} crew={sceneCrew} now={now} compact={tablet} />
+      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} crew={sceneCrew} now={now} compact={tablet} />
     </Card>
   );
 

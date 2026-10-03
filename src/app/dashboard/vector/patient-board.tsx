@@ -19,6 +19,8 @@ import { news2, type News2 } from "@/lib/sim/news2";
 import { recordVitals, vitalsHistory, type VitalsSample } from "@/lib/sim/vitals_history";
 import { wasHandled } from "@/lib/sim/scoring";
 import { patientLook } from "@/lib/sim/patient_look";
+import { sceneSetting, SETTING_WORDS } from "@/lib/sim/scene_setting";
+import type { Scenario } from "@/lib/sim/incident_types";
 import { patientStage, PATIENT_TRACK, type Tone } from "@/lib/sim/patient_stage";
 import { alertTone } from "@/lib/audio/sim-audio";
 import { AIRWAY_LABEL, BREATHING_LABEL, CIRC_LABEL, EGRESS_LABEL, PACKAGING_LABEL, RED_FLAG_LABEL } from "../components/treatment-tab";
@@ -30,6 +32,8 @@ export type PatientBoardProps = {
   resus?: ResusState;
   /** The casualty's progression stage from the incident simulation. */
   progression: CasualtyStage;
+  /** The job, for the setting behind the patient. */
+  scenario?: Pick<Scenario, "title" | "type" | "property">;
   /** Who is with the patient, lead first. */
   crew: SceneCrew[];
   now: number;
@@ -131,10 +135,12 @@ function settingOf(label: string | undefined): string | undefined {
   const bits = tail.split(",").map((s) => s.trim()).filter(Boolean);
   if (bits.length < 2) return undefined;
   const last = bits[bits.length - 1];
-  return /\b(sat|lying|in|on|at|under|trapped|collapsed|found|behind|beside)\b/i.test(last) ? last.charAt(0).toUpperCase() + last.slice(1).toLowerCase() : undefined;
+  // A place, not a state: "sat on the stairs", "in the kitchen", "trapped
+  // in the car" — never "in cardiac arrest" or "in pain".
+  return /\b(sat|sitting|lying|stood|standing|slumped|trapped|collapsed|found|in|on|at|under|behind|beside|by)\s+(the|a|an|his|her|their|front|back|rear)\b/i.test(last) ? last.charAt(0).toUpperCase() + last.slice(1).toLowerCase() : undefined;
 }
 
-export function PatientBoard({ casualty, treatment, resus, progression, crew, now, compact }: PatientBoardProps) {
+export function PatientBoard({ casualty, treatment, resus, progression, scenario, crew, now, compact }: PatientBoardProps) {
   const tx = treatment;
   const vitals = tx?.liveVitals ?? tx?.revealedVitals;
   const surveyDone = !!tx?.surveyCompletedAt;
@@ -220,6 +226,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, crew, no
   // a patient who has gone to the floor is not sat anywhere.
   const settingRaw = settingOf(casualty.label);
   const setting = settingRaw && look.posture === "supine" && /\b(sat|sitting|seated|standing|stood)\b/i.test(settingRaw) ? undefined : settingRaw;
+  const place = sceneSetting(casualty, scenario, look.posture);
   const trackIdx = stage.key === "handed_over" ? PATIENT_TRACK.length : stage.key === "life_extinct" ? PATIENT_TRACK.findIndex((s) => s.key === "arrest") : stage.index;
 
   return (
@@ -246,7 +253,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, crew, no
 
       <div className="pb-main">
         <div className="pb-zone pb-picture">
-          <PatientScene look={look} crew={crew} caption={setting} />
+          <PatientScene look={look} crew={crew} setting={place} caption={setting ?? SETTING_WORDS[place]} />
         </div>
         <div className="pb-trends">
             <Trend label="HR" unit="bpm" hist={hist} pick={(s) => s.hr} lo={30} hi={180} alarmLow={50} alarmHigh={120} now={now} span={span} colour="#2fd17a" />

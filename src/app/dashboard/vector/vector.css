@@ -5486,3 +5486,80 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-card[draggable="true"]:active, .vec-bay .units .unit[draggable="true"]:active { cursor: grabbing; }
 .vec-dropzone.hot { outline: 2px dashed var(--vec-work, #0875bb); outline-offset: -2px; background: var(--vec-surface-tint, #eaf1fa); }
 .vec-slot.drop { background: var(--vec-surface-tint, #eaf1fa); box-shadow: inset 0 0 0 1px var(--vec-work, #0875bb); }
+
+/* ---- Scene dressing per setting ------------------------------------------ */
+.ps-scene.ps-set-home, .ps-scene.ps-set-venue { background: radial-gradient(ellipse at 50% 90%, #2a2622 0%, #171513 70%); }
+.ps-scene.ps-set-kitchen, .ps-scene.ps-set-bathroom, .ps-scene.ps-set-ward { background: radial-gradient(ellipse at 50% 90%, #27323a 0%, #141c22 70%); }
+.ps-scene.ps-set-street, .ps-scene.ps-set-road, .ps-scene.ps-set-platform { background: linear-gradient(180deg, #0f1a26 0%, #1a2530 60%, #2a2f33 100%); }
+.ps-scene.ps-set-grass { background: linear-gradient(180deg, #0f1c2a 0%, #1a2a38 55%, #1f3a24 100%); }
+.ps-scene.ps-set-workplace { background: linear-gradient(180deg, #171b1e 0%, #22282c 70%, #2a2f33 100%); }
+.ps-skirting { stroke: #4d6b82; stroke-width: 3; opacity: 0.6; }
+.ps-frame { fill: #2a3741; stroke: #8a7a5a; stroke-width: 2; }
+.ps-frame-art { fill: none; stroke: #9fb6ca; stroke-width: 1.2; }
+.ps-sofa { fill: #4a4f6a; stroke: #2d3148; stroke-width: 1; }
+.ps-sofa-cushion { fill: #5b6184; }
+.ps-rug { fill: rgba(140, 80, 60, 0.35); }
+.ps-lamp { fill: none; stroke: #8a8f94; stroke-width: 2; }
+.ps-lampshade { fill: #e9d9a8; opacity: 0.85; }
+.ps-tile-line { fill: none; stroke: rgba(159, 182, 202, 0.18); stroke-width: 1; }
+.ps-counter { fill: #3a4a56; stroke: #556b7a; stroke-width: 1; }
+.ps-worktop { fill: #7f8d96; }
+.ps-cupboard { fill: none; stroke: #556b7a; stroke-width: 1.2; }
+.ps-kettle { fill: #b9c2c8; stroke: #6b777e; stroke-width: 1; }
+.ps-tile-floor { fill: none; stroke: rgba(159, 182, 202, 0.25); stroke-width: 1; }
+.ps-bath { fill: #e4ebf0; stroke: #9fb0bb; stroke-width: 1; }
+.ps-bath-rim { fill: #f2f6f8; stroke: #9fb0bb; stroke-width: 1; }
+.ps-tap { fill: none; stroke: #b9c2c8; stroke-width: 2.5; }
+.ps-cistern { fill: #e4ebf0; stroke: #9fb0bb; stroke-width: 1; }
+.ps-mat { fill: #5b7fa6; }
+.ps-banister { fill: none; stroke: #8a6a3a; stroke-width: 2; }
+.ps-rail { fill: none; stroke: #8a9399; stroke-width: 2; }
+.ps-curtain { fill: none; stroke: #6fb0a8; stroke-width: 1.4; }
+.ps-mattress { fill: #e9eef2; stroke: #9fb0bb; stroke-width: 1; }
+.ps-pillow { fill: #ffffff; stroke: #9fb0bb; stroke-width: 0.8; }
+.ps-bedframe { fill: #8a9399; stroke: #5c666c; stroke-width: 1; }
+.ps-drip { fill: none; stroke: #b9c2c8; stroke-width: 1.5; }
+.ps-table { fill: #6b4a2a; }
+.ps-table-leg { fill: none; stroke: #4a331c; stroke-width: 3; }
+.ps-stool { fill: none; stroke: #8a8f94; stroke-width: 2; }
+.ps-chair { fill: none; stroke: #6b4a2a; stroke-width: 3; }
+.ps-window { fill: rgba(120, 170, 210, 0.12); stroke: #7f9bb3; stroke-width: 1.2; }
+.ps-shopfront { fill: #2b3640; stroke: #4d6b82; stroke-width: 1; }
+.ps-awning { fill: #a93a3a; }
+.ps-lamppost { fill: none; stroke: #6b777e; stroke-width: 3; }
+.ps-lamp-glow { fill: #ffe08a; opacity: 0.9; }
+.ps-bin { fill: #3b4a56; stroke: #1e2a33; stroke-width: 1; }
+.ps-kerb { fill: none; stroke: #8a9399; stroke-width: 3; }
+.ps-kerb-line { fill: none; stroke: #c9d0d4; stroke-width: 1; opacity: 0.5; }
+.ps-barrier { fill: none; stroke: #9aa5ac; stroke-width: 4; }
+.ps-barrier-post { fill: none; stroke: #6b777e; stroke-width: 3; }
+.ps-road-line { fill: none; stroke: #e6eef5; stroke-width: 2; opacity: 0.8; }
+.ps-cone { fill: #f06a1e; stroke: #8a3a0a; stroke-width: 0.8; }
+.ps-cone-base { fill: none; stroke: #1e2326; stroke-width: 4; }
+.ps-glass { fill: rgba(140, 190, 230, 0.22); }
+.ps-hub { fill: #8a9399; }
+.ps-turf { fill: none; stroke: #3f8a3f; stroke-width: 3; }
+.ps-tufts path { fill: none; stroke: #5fbf5f; stroke-width: 1.2; }
+.ps-goal { fill: none; stroke: #f0f4f7; stroke-width: 3; }
+.ps-net { fill: none; stroke: rgba(240, 244, 247, 0.35); stroke-width: 0.8; }
+.ps-trunk { fill: none; stroke: #5a3d26; stroke-width: 6; }
+.ps-canopy { fill: #2f7a3a; opacity: 0.9; }
+.ps-yellow-line { fill: none; stroke: #f3d35a; stroke-width: 3; }
+.ps-sleeper { fill: none; stroke: #6b5a46; stroke-width: 4; }
+.ps-signpost { fill: none; stroke: #8a9399; stroke-width: 3; }
+.ps-sign { fill: #1f4f9a; stroke: #e6eef5; stroke-width: 1.5; }
+.ps-bench { fill: #3b4a56; stroke: #6b777e; stroke-width: 1; }
+.ps-canopy-edge { fill: none; stroke: #4d6b82; stroke-width: 4; }
+.ps-roof-truss { fill: none; stroke: rgba(159, 182, 202, 0.25); stroke-width: 1.5; }
+.ps-machine { fill: #45505a; stroke: #6b777e; stroke-width: 1; }
+.ps-machine-panel { fill: #1b2733; stroke: #7fc4ff; stroke-width: 0.8; }
+.ps-machine-wheel { fill: #2b343c; stroke: #8a9399; stroke-width: 2; }
+.ps-hazard { fill: none; stroke: #f3d35a; stroke-width: 4; }
+.ps-pallet { fill: #8a6a3a; stroke: #5a3d26; stroke-width: 1; }
+.ps-crate { fill: #a07a3a; stroke: #5a3d26; stroke-width: 1; }
+.ps-bank { fill: #3f5a3a; }
+.ps-rock { fill: none; stroke: #4d6b82; stroke-width: 1.2; }
+.ps-mouth { fill: #1b2733; }
+.ps-kitbag { fill: #1f8a4c; stroke: #0f4d2a; stroke-width: 1; }
+.ps-kitbag-handle { fill: none; stroke: #0f4d2a; stroke-width: 1.5; }
+.ps-mon-handle { fill: #1b2733; stroke: #7fc4ff; stroke-width: 0.8; }
