@@ -1481,6 +1481,14 @@ export function LeafletGroundMap({
     const w = carryWindow(id);
     return !!w && now >= w.startedAt && now < w.endsAt && casualtyStage(id) === "in_treatment";
   };
+  /** A jet worked off the fast-attack reel rather than a laid line: the
+   *  crew on it took the reel and nobody took a branch. */
+  const reelFor = (t: Task, d: Deployment): boolean => {
+    const carries = (key: string) => t.assignedCrewIds.some((id) => d.crewEquipment?.[id]?.includes(key));
+    return carries("fast_attack_branch") && !carries("branch_45mm") && !carries("branch_70mm");
+  };
+  /** How long a crew takes to run a line out: their walking pace along it. */
+  const laySecondsFor = (metres: number) => Math.max(3, metres / 1.3);
   const crewFigures: CrewFigure[] = [];
   for (const t of tasks) {
     const endAt = t.state === "active" ? undefined : t.endedAt ?? t.completesAt;
@@ -1496,18 +1504,21 @@ export function LeafletGroundMap({
     let inside = false;
     switch (t.kind) {
       case "connect_hydrant": {
+        // The hose goes out from the pump with them: the same run the
+        // line is drawn on, walked pump to hydrant.
         const h = renderedHydrants.find((x) => x.label === t.hydrantId);
         if (!h) break;
         to = { lat: h.lat, lng: h.lng };
-        const run = t.hosePath ?? footRoutes[hoseKey(t.id, to, m.pos)];
-        if (run && run.length >= 2) path = run.slice().reverse() as [number, number][];
+        path = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, to, m.pos)], to, m.pos).reverse() as [number, number][];
         badge = "HYDRANT";
         break;
       }
       case "relay_hose": {
+        // Laid from this pump back to the one feeding it.
         const src = onSceneMarkers.find((x) => x.appliance.id === t.sourceApplianceId);
         if (!src) break;
-        to = towards(m.pos, src.pos, Math.max(2, haversineMetres(m.pos, src.pos) / 2));
+        to = src.pos;
+        path = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, src.pos, m.pos)], src.pos, m.pos).reverse() as [number, number][];
         badge = "RELAY";
         break;
       }
@@ -1517,7 +1528,7 @@ export function LeafletGroundMap({
         const run = footRoutes[hoseKey(t.id, m.pos, g.approachTo)];
         if (run && run.length >= 2) path = run as [number, number][];
         inside = t.attackMode === "interior_attack";
-        badge = inside ? "BA · INT" : "BRANCH";
+        badge = inside ? "BA · INT" : reelFor(t, m.deployment) ? "REEL" : "BRANCH";
         break;
       }
       case "ba_sar":
@@ -2209,7 +2220,9 @@ export function LeafletGroundMap({
           const from = onSceneMarkers.find((m) => m.appliance.id === t.sourceApplianceId);
           const to = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
           if (!from || !to) return null;
-          const positions = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, from.pos, to.pos)], from.pos, to.pos);
+          // Laid by the fed pump's crew, from their appliance back to the
+          // one feeding it; the water then runs the other way.
+          const positions = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, from.pos, to.pos)], from.pos, to.pos).reverse() as [number, number][];
           const metres = runMetres(positions);
           return (
             <HoseLine
@@ -2218,8 +2231,9 @@ export function LeafletGroundMap({
               hoseType={t.hoseType ?? "70mm"}
               kind="relay"
               layStartedAt={t.startedAt}
-              laySeconds={Math.min(t.durationSec ?? 180, 15 + metres / 1.2)}
+              laySeconds={laySecondsFor(metres)}
               charged={t.state === "completed" && from.deployment.pumpRunning === true}
+              flowReverse
               now={now}
             />
           );
@@ -2231,7 +2245,10 @@ export function LeafletGroundMap({
           const hydrant = renderedHydrants.find((h) => h.label === t.hydrantId);
           if (!appliance || !hydrant) return null;
           const hydrantAt = { lat: hydrant.lat, lng: hydrant.lng };
-          const positions = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, hydrantAt, appliance.pos)], hydrantAt, appliance.pos);
+          // The crew take the hose off the pump and run it out to the
+          // hydrant: the line grows from the appliance with them, and the
+          // water comes back down it once the standpipe is on.
+          const positions = hoseRun(t.hosePath ?? footRoutes[hoseKey(t.id, hydrantAt, appliance.pos)], hydrantAt, appliance.pos).reverse() as [number, number][];
           const metres = runMetres(positions);
           return (
             <HoseLine
@@ -2240,8 +2257,9 @@ export function LeafletGroundMap({
               hoseType="70mm"
               kind="supply"
               layStartedAt={t.startedAt}
-              laySeconds={Math.min(t.durationSec ?? 120, 20 + metres / 1.2)}
+              laySeconds={laySecondsFor(metres)}
               charged={t.state === "completed" && appliance.deployment.pumpRunning === true}
+              flowReverse
               now={now}
             />
           );
@@ -2267,14 +2285,15 @@ export function LeafletGroundMap({
             positions = g.viaEntry ? [...approach, [g.target.lat, g.target.lng]] : approach;
           }
           const metres = runMetres(positions);
+          const reel = t.kind === "hose_attack" && reelFor(t, pump.deployment);
           return (
             <HoseLine
               key={`ja-${t.id}`}
               path={positions}
-              hoseType={t.kind === "aerial_monitor" ? "70mm" : t.hoseType ?? "45mm"}
+              hoseType={t.kind === "aerial_monitor" ? "70mm" : reel ? "reel" : t.hoseType ?? "45mm"}
               kind="jet"
               layStartedAt={t.startedAt}
-              laySeconds={t.kind === "aerial_monitor" ? 20 : Math.max(35, 15 + metres / 1.2)}
+              laySeconds={t.kind === "aerial_monitor" ? 20 : laySecondsFor(metres)}
               charged={t.kind === "aerial_monitor" || pump.deployment.pumpRunning === true}
               now={now}
             />

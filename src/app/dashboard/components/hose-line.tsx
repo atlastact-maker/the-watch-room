@@ -1,12 +1,19 @@
 "use client";
 
-// HOSE ON THE GROUND. A run of hose is laid out at a crew's pace from
-// its source to where it is wanted, a coupling every twenty-five metres
-// because that is how long a length is, a standpipe at the hydrant, and
-// once the pump is running the water shows moving through it. A jet ends
-// at the branch with the spray on the fire. The desk's clock ticks once
-// a second; the laying runs between ticks on the frame clock so the hose
-// unrolls rather than jumps.
+// HOSE ON THE GROUND. A run of hose is laid out at a crew's pace, from
+// the appliance outwards with the crew member who is carrying it — to the
+// hydrant, to the pump feeding a relay, to the branch on the fire — a
+// coupling every twenty-five metres because that is how long a length is,
+// a standpipe at the hydrant once they reach it, and once the pump is
+// running the water shows moving through it the way it really flows. A
+// jet ends at the branch with the spray on the fire. The desk's clock
+// ticks once a second; the laying runs between ticks on the frame clock
+// so the hose unrolls rather than jumps.
+//
+// Colours follow the hose, as on a UK appliance: the fast-attack hose
+// reel is yellow, 45 mm delivery is orange, 70 mm delivery and supply is
+// red, 150 mm large-diameter relay is blue. One table, below, if a
+// brigade's lockers differ.
 
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
@@ -16,27 +23,42 @@ import type { HoseType } from "@/lib/sim/incident_types";
 
 export type HoseKind = "supply" | "relay" | "jet";
 
+/** What is on the ground: a laid delivery or supply line by diameter, or
+ *  the pre-connected hose reel pulled off the appliance. */
+export type HoseStyle = HoseType | "reel";
+
 export type HoseLineProps = {
-  /** Source to destination — the hydrant to the pump, the feeding pump to
-   *  the fed one, the pump to the branch. */
+  /** In the order it is laid: from the appliance, with the crew, to where
+   *  it is wanted — the hydrant, the feeding pump, the branch. */
   path: [number, number][];
-  hoseType: HoseType;
+  hoseType: HoseStyle;
   kind: HoseKind;
   /** When the crew started running it out, and how long the run takes. */
   layStartedAt: number;
   laySeconds: number;
   /** Water in it — the pump feeding it is running. */
   charged: boolean;
+  /** The water runs against the lay: a supply is laid from the pump to
+   *  the hydrant and the water comes back down it. */
+  flowReverse?: boolean;
   /** The desk clock, once a second. */
   now: number;
 };
 
 const LENGTH_M = 25;
 
-const CORE: Record<HoseType, { colour: string; weight: number }> = {
-  "45mm": { colour: "#f2b705", weight: 3.5 },
-  "70mm": { colour: "#d62828", weight: 4.5 },
-  LDH_150mm: { colour: "#2f9bd6", weight: 6 },
+export const HOSE_COLOUR: Record<HoseStyle, string> = {
+  reel: "#fde047",
+  "45mm": "#f97316",
+  "70mm": "#d62828",
+  LDH_150mm: "#2f9bd6",
+};
+
+const CORE: Record<HoseStyle, { colour: string; weight: number }> = {
+  reel: { colour: HOSE_COLOUR.reel, weight: 2.5 },
+  "45mm": { colour: HOSE_COLOUR["45mm"], weight: 3.5 },
+  "70mm": { colour: HOSE_COLOUR["70mm"], weight: 4.5 },
+  LDH_150mm: { colour: HOSE_COLOUR.LDH_150mm, weight: 6 },
 };
 
 /** Cumulative distance along the path, in metres. */
@@ -98,7 +120,7 @@ function branchIcon(bearing: number, charged: boolean, colour: string): L.DivIco
   });
 }
 
-export function HoseLine({ path, hoseType, kind, layStartedAt, laySeconds, charged, now }: HoseLineProps) {
+export function HoseLine({ path, hoseType, kind, layStartedAt, laySeconds, charged, flowReverse = false, now }: HoseLineProps) {
   const cum = useMemo(() => cumulative(path), [path]);
   const total = cum[cum.length - 1];
   const layMs = Math.max(1, laySeconds) * 1000;
@@ -131,11 +153,13 @@ export function HoseLine({ path, hoseType, kind, layStartedAt, laySeconds, charg
     return pts;
   }, [path, cum, laidM]);
 
+  // A hose reel is one continuous length — no couplings on it.
   const couplings = useMemo(() => {
     const out: [number, number][] = [];
+    if (hoseType === "reel") return out;
     for (let d = LENGTH_M; d < laidM; d += LENGTH_M) out.push(pointAt(path, cum, d));
     return out;
-  }, [path, cum, laidM]);
+  }, [path, cum, laidM, hoseType]);
 
   const core = CORE[hoseType];
   const end = laid[laid.length - 1];
@@ -149,13 +173,13 @@ export function HoseLine({ path, hoseType, kind, layStartedAt, laySeconds, charg
       <Polyline positions={laid} pathOptions={{ color: "#0b0f14", weight: core.weight + 3, opacity: 0.55, lineCap: "round", lineJoin: "round" }} interactive={false} />
       <Polyline positions={laid} pathOptions={{ color: core.colour, weight: core.weight, opacity: 1, lineCap: "round", lineJoin: "round" }} interactive={false} />
       {charged && frac >= 1 && (
-        <Polyline positions={laid} pathOptions={{ color: "#dbeafe", weight: Math.max(1.5, core.weight - 2), opacity: 0.9, dashArray: "6 16", lineCap: "round", className: "gsm-hose-flow" }} interactive={false} />
+        <Polyline positions={laid} pathOptions={{ color: "#dbeafe", weight: Math.max(1.5, core.weight - 2), opacity: 0.9, dashArray: "6 16", lineCap: "round", className: flowReverse ? "gsm-hose-flow reverse" : "gsm-hose-flow" }} interactive={false} />
       )}
       {couplings.map((c, i) => (
         <CircleMarker key={i} center={c} radius={3} pathOptions={{ color: "#111827", weight: 1.5, fillColor: "#9ca3af", fillOpacity: 1 }} interactive={false} />
       ))}
       {frac < 1 && <CircleMarker center={end} radius={4} pathOptions={{ color: "#111827", weight: 1.5, fillColor: "#e5e7eb", fillOpacity: 1 }} interactive={false} />}
-      {kind === "supply" && frac > 0.02 && <Marker position={path[0]} icon={standpipe} interactive={false} zIndexOffset={650} />}
+      {kind === "supply" && frac >= 1 && <Marker position={path[path.length - 1]} icon={standpipe} interactive={false} zIndexOffset={650} />}
       {kind === "jet" && frac >= 1 && <Marker position={end} icon={branch} interactive={false} zIndexOffset={660} />}
     </>
   );
