@@ -6492,13 +6492,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // location map: the operator sees help closing while the caller is kept
   // on the line. Only the outbound and on-scene ones — a unit clearing to
   // hospital or home is not this caller's business.
-  const callUnits = useMemo<CallMapUnit[]>(() => {
-    if (!activeCall?.opened) return [];
-    const live = incidents.find((i) => i.scenarioId === activeCall.scenario.id && !i.resolvedAt);
-    if (!live) return [];
+  function respondingUnitsFor(incidentId: string): CallMapUnit[] {
     const out: CallMapUnit[] = [];
     for (const d of deployments) {
-      if (d.incidentId !== live.id || d.returnStartedAt || d.hospitalLegStartedAt) continue;
+      if (d.incidentId !== incidentId || d.returnStartedAt || d.hospitalLegStartedAt) continue;
       const a = applianceById.get(d.applianceId);
       const pos = unitPosAt(d, now);
       if (!a || !pos) continue;
@@ -6506,8 +6503,20 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       out.push({ id: d.applianceId, callsign: a.callsign, service: a.service, type: a.type, pos, route: arrived ? undefined : d.routeCoords, arrived, etaSec: Math.max(0, Math.round((d.arrivesAt - now) / 1000)) });
     }
     return out;
+  }
+  const callUnits = useMemo<CallMapUnit[]>(() => {
+    if (!activeCall?.opened) return [];
+    const live = incidents.find((i) => i.scenarioId === activeCall.scenario.id && !i.resolvedAt);
+    return live ? respondingUnitsFor(live.id) : [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCall, incidents, deployments, now, applianceById]);
+  // The same for the mobilising screen's response map: whatever is on the
+  // road to the incident selected there.
+  const mobUnits = useMemo<CallMapUnit[]>(() => {
+    if (!activeIncident || activeIncident.resolvedAt) return [];
+    return respondingUnitsFor(activeIncident.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIncident, deployments, now, applianceById]);
 
   /** The pursuit commander's decision. Refusing or discontinuing stands
    *  every following unit down: their follow and box tasks end, the
@@ -6902,6 +6911,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       pendingCalls={pendingCalls}
       activeCall={activeCall}
       callUnits={callUnits}
+      mobUnits={mobUnits}
       callsReady={callsReady}
       onToggleReady={() => setCallsReady((v) => !v)}
       onAnswerCall={answerCallById}

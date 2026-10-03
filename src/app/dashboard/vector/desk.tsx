@@ -81,6 +81,8 @@ export function VectorDesk(props: {
   activeCall: (PendingCall & { answeredAt: number; opened?: boolean }) | null;
   /** Units on the road to the open call's job, for its location map. */
   callUnits?: CallMapUnit[];
+  /** Units on the road to the selected incident, for the mobilising screen's response map. */
+  mobUnits?: CallMapUnit[];
   callsReady: boolean;
   onToggleReady: () => void;
   onAnswerCall: (id: string) => void;
@@ -372,6 +374,7 @@ export function VectorDesk(props: {
           onSendStandby={props.onSendStandby}
           onOpenBays={props.onOpenBays}
           onTrack={() => props.onScreen("dispatch")}
+          units={props.mobUnits}
         />
       )}
 

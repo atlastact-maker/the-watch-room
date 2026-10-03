@@ -339,6 +339,7 @@ export function useDeskModel(input: DeskInput) {
         postcode: selected.scenario.location.postcode,
         severity: selected.scenario.severity,
         latlng: `${selected.scenario.location.coords.lat.toFixed(5)} N, ${Math.abs(selected.scenario.location.coords.lng).toFixed(5)} W`,
+        coords: { lat: selected.scenario.location.coords.lat, lng: selected.scenario.location.coords.lng },
         risks: selected.scenario.property.knownHazards,
         typeLabel: labelForType(selected.scenario.type),
       }

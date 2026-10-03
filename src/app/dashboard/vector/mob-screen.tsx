@@ -8,11 +8,19 @@
 // call: Mobilise deploys, Stand down releases.
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import type { Severity } from "@/lib/sim/incident_types";
+import type { CallMapUnit } from "./call-location-map";
 import type { ServiceCode, StatusCode } from "@/lib/sim/types";
 import type { PdaRow, ResourceCard, StandbyRow } from "./dispatch-tiles";
 import { SERVICE_SHORT, etaLabel, hhmmss, mmss } from "./model";
 import { CopyButton } from "./copy-button";
+
+// The response map is Leaflet, so it only ever renders on the client.
+const CallLocationMap = dynamic(() => import("./call-location-map").then((m) => m.CallLocationMap), {
+  ssr: false,
+  loading: () => <div className="vec-tile-empty">Loading map…</div>,
+});
 
 export type MobHead = {
   ref: string;
@@ -21,6 +29,7 @@ export type MobHead = {
   postcode: string;
   severity: Severity;
   latlng: string;
+  coords: { lat: number; lng: number };
   risks: string[];
   typeLabel: string;
 };
@@ -61,6 +70,7 @@ export function MobScreen({
   onSendStandby,
   onOpenBays,
   onTrack,
+  units = [],
 }: {
   head: MobHead | null;
   pda: PdaRow[];
@@ -77,6 +87,8 @@ export function MobScreen({
   onSendStandby: (id: string) => void;
   onOpenBays: (stationId: string) => void;
   onTrack: () => void;
+  /** Units on the road to this incident, or on scene, for the response map. */
+  units?: CallMapUnit[];
 }) {
   const [svc, setSvc] = useState<"All" | ServiceCode>("All");
   const [type, setType] = useState("All");
@@ -290,7 +302,7 @@ export function MobScreen({
         </div>
 
         {/* Right column */}
-        <div style={{ display: "grid", gridTemplateRows: "auto minmax(0, 1fr) auto", gap: 6, minHeight: 0 }}>
+        <div style={{ display: "grid", gridTemplateRows: "auto minmax(0, 1fr) minmax(0, 1fr) auto", gap: 6, minHeight: 0 }}>
           <div className="vec-box dark-strip">
             <header style={{ background: "transparent", color: "#dbe6ef", borderColor: "#2b4358" }}>
               <span>Mobilising message</span>
@@ -343,7 +355,16 @@ export function MobScreen({
               )}
             </div>
           </div>
-          <div className="vec-box" style={{ maxHeight: 260 }}>
+          <div className="vec-box" style={{ minHeight: 200 }}>
+            <header>
+              <span>Response map</span>
+              <span className={`mono${units.length ? " go" : ""}`}>{units.length ? `${units.length} responding${units.some((u) => !u.arrived) ? ` · first ${mmss(Math.min(...units.filter((u) => !u.arrived).map((u) => u.etaSec)) * 1000)}` : " · all on scene"}` : "Nothing sent yet"}</span>
+            </header>
+            <div className="body" style={{ position: "relative", padding: 0 }}>
+              <CallLocationMap lat={head.coords.lat} lng={head.coords.lng} units={units} />
+            </div>
+          </div>
+          <div className="vec-box" style={{ maxHeight: 220 }}>
             <header>
               <span>Standby cover</span>
               <span className="mono">{standby.filter((s) => s.sent).length} of {standby.length} sent</span>
