@@ -396,6 +396,7 @@ export function DraggableIncidentMdt(props: Props) {
           onEvacuate={props.onEvacuate}
           waterClock={props.waterClock}
           fatigueByApplianceId={props.fatigueByApplianceId}
+          crewAir={props.crewAir}
           onSelectionChange={setFireSel}
         />
       );

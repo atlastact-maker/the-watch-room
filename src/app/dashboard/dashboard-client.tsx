@@ -191,6 +191,7 @@ import { buildRecordIndex, type RecordSet } from "@/lib/sim/records";
 import { HOSPITALS } from "@/lib/sim/hospitals";
 import { CallStack, type PendingCall } from "./components/call-stack";
 import type { CallMapUnit } from "./vector/call-location-map";
+import { recordFire } from "@/lib/sim/fire_history";
 import type { CallSummary } from "./vector/call-screen";
 // The light index and the on-demand loader — never the static registry,
 // which would put every call script, scene and record set in the first
@@ -4630,6 +4631,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }));
   }, [incidents, runtimes, deployments, allDeployableStations, now, treatmentByCasualtyId, weather.windMph, weather.windDir]);
   const incidentSim = activeIncident ? incidentSims.get(activeIncident.id) ?? null : null;
+  // The fireground board's trace: a sample of every live fire each tick,
+  // kept whether or not the board is on screen.
+  useEffect(() => {
+    for (const [id, s] of incidentSims) recordFire(id, now, s.fireRadiusM);
+  }, [incidentSims, now]);
 
   // Auto-resolve a job that is genuinely finished.
   //

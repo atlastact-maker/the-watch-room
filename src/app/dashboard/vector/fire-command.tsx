@@ -31,6 +31,7 @@ import { BaControlBoard } from "../components/ba-control-board";
 import { TASK_LABEL, catalogueKinds, competencyFor, useSceneHydrants, type TaskWorkspaceProps } from "./mdt-task-workspace";
 import { updatePlan, useCommandPlan, type CommandPlan } from "./command-store";
 import { openingCodeLabel } from "@/lib/sim/opening_codes";
+import { FiregroundBoard } from "./fireground-board";
 
 type Page = "actions" | "command" | "ba" | "rtc" | "log";
 type ActionTab = "general" | "fire" | "rescue" | "water" | "scene";
@@ -347,6 +348,8 @@ export type FireCommandProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbort
   waterClock?: Record<string, number | null>;
   /** Crew fatigue 0–100 by appliance, for the relief picture. */
   fatigueByApplianceId?: Record<string, number>;
+  /** Air remaining per BA wearer, percent, for the fireground board. */
+  crewAir?: Record<string, number>;
   /** What the fireground looks like, for the tablet's top strip. */
   onSelectionChange?: (sel: FireSelection | null) => void;
 };
@@ -821,6 +824,34 @@ export function FireCommandScreen(props: FireCommandProps) {
           )}
         </div>
       </div>
+    </Card>
+  );
+
+  // The fireground in one card: stage, alerts, the plan with the live fire
+  // on it, and the meters. Replaces the fact lists on the action and BA
+  // pages; the brief card above it carries what was in the summary and
+  // resource cards.
+  const firegroundCard = (
+    <Card title="Fireground" icon="🔥" fill headerExtra={<span className={`pc-meta ${stageTone}`}>{STAGE_LABEL[fireStage]}</span>}>
+      <FiregroundBoard incident={incident} sim={sim} tasks={tasks} onScene={onScene} now={now} structural={props.structural} crewAir={props.crewAir} waterClock={props.waterClock} vehicleGauges={props.vehicleGauges} />
+    </Card>
+  );
+  const briefCard = (
+    <Card title={`${appliance.callsign} · ${incidentRef}`} icon="▣" headerExtra={<span className={`pc-meta ${here ? "go" : "warn"}`}>{here ? (mine.length ? "on scene · working" : "on scene") : unit.phase === "mobile" ? "en route" : unit.phase.replace(/_/g, " ")}</span>}>
+      <dl className="pc-facts tight">
+        <dt>Incident</dt><dd>{typeLabel(sc.type)}{incident.openingCode ? <small> · {openingCodeLabel("Fire", incident.openingCode)}</small> : null}</dd>
+        <dt>Address</dt><dd>{sc.location.address}</dd>
+        <dt>Unit</dt><dd className="hi">{appliance.callsign}<small> · {appliance.typeName} · {appliance.crewMembers.length} crew{freeCrew.length < appliance.crewMembers.length ? `, ${appliance.crewMembers.length - freeCrew.length} committed` : ""}</small></dd>
+        {appliance.waterLitres > 0 && (<><dt>Pump</dt><dd className={pumpOn ? "go" : waterTone}>{pumpOn ? `Running · ${pumpOperator?.name ?? "operator"}` : "Not running"}<small> · {waterText.toLowerCase()}</small></dd></>)}
+        <dt>Command</dt><dd className={isCommander ? "go" : commanderUnit ? "" : "warn"}>{isCommander ? `You · ${officer?.name ?? appliance.callsign}` : commanderUnit ? commanderUnit.appliance.callsign : <>Not assigned <button type="button" className="pc-mini" disabled={!canAct || !props.onStartTask} onClick={takeCommand}>Take command</button></>}</dd>
+        <dt>Mode</dt><dd>
+          <div className="pc-tabs mini" role="group" aria-label="Tactical mode">
+            {TACTICAL.map((t) => (
+              <button key={t.mode} type="button" role="tab" aria-selected={mode === t.mode} disabled={!props.onDeclareTacticalMode || (!isCommander && !commanderUnit) || resolvedIncident} title={!isCommander && !commanderUnit ? "Take command first" : t.hint} onClick={() => props.onDeclareTacticalMode?.(t.mode)}>{t.label}</button>
+            ))}
+          </div>
+        </dd>
+      </dl>
     </Card>
   );
 
@@ -1438,10 +1469,9 @@ export function FireCommandScreen(props: FireCommandProps) {
       <main className={`pc-main ${page}`}>
         {page === "actions" && (
           <>
+            <div className="pc-row-full">{firegroundCard}</div>
             <div className="pc-col">
-              {summaryCard}
-              {resourceCard}
-              {fireCardCompact}
+              {briefCard}
             </div>
             <div className="pc-col">{actionsCard}{tab === "general" && activityCard}</div>
             <div className="pc-col">
@@ -1463,7 +1493,8 @@ export function FireCommandScreen(props: FireCommandProps) {
         )}
         {page === "ba" && (
           <>
-            <div className="pc-col">{baCard}{fireCard}</div>
+            <div className="pc-row-full">{firegroundCard}</div>
+            <div className="pc-col">{baCard}</div>
             <div className="pc-col wide2">
               {baByAppliance.length === 0 ? (
                 <Card title="Entry control board" icon="◉" fill>
