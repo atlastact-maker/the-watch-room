@@ -2968,7 +2968,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-patients-filter .lbl {
   font: 700 9px var(--vec-mono);
   letter-spacing: 0.1em;
-  color: var(--vec-text-muted);
+  color: var(--vec-text-dim);
   flex-shrink: 0;
 }
 .vec-patients-filter .vec-segments button {
@@ -3014,33 +3014,33 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-cas.serious .spine { background: var(--vec-warn); }
 .vec-cas.critical .spine { background: var(--vec-stop); }
 .vec-cas .who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
-.vec-cas .who strong { font: 700 12px var(--vec-mono); letter-spacing: 0.05em; color: var(--vec-text); }
-.vec-cas .who em { flex-basis: 100%; font-style: normal; font-size: 11px; color: var(--vec-text-muted); }
+.vec-cas .who strong { font: 700 12.5px var(--vec-mono); letter-spacing: 0.05em; color: var(--vec-text); }
+.vec-cas .who em { flex-basis: 100%; font-style: normal; font-size: 11.5px; color: var(--vec-text-dim); }
 .vec-cas .stage, .vec-cas .sev {
   font: 700 9px var(--vec-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 1px 5px;
   background: var(--vec-surface-raised);
-  color: var(--vec-text-dim);
+  color: var(--vec-text);
 }
 .vec-cas .stage.conveying, .vec-cas .stage.at_hospital { background: var(--vec-go); color: #fff; }
 .vec-cas .stage.expectant { background: var(--vec-stop); color: #fff; }
 .vec-cas .sev.critical { color: var(--vec-stop); }
 .vec-cas .sev.serious { color: var(--vec-warn); }
 .vec-cas .sev.walking { color: var(--vec-go); }
-.vec-cas .obs { display: flex; flex-wrap: wrap; gap: 8px; font: 10px var(--vec-mono); color: var(--vec-text-muted); }
+.vec-cas .obs { display: flex; flex-wrap: wrap; gap: 8px; font: 11px var(--vec-mono); color: var(--vec-text-dim); }
 .vec-cas .obs b { color: var(--vec-text); font-weight: 700; }
-.vec-cas .obs .dim { color: var(--vec-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.vec-cas .obs .dim { color: var(--vec-text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
 .vec-cas .crew { display: flex; flex-wrap: wrap; gap: 4px; }
 .vec-cas .chip {
   font: 700 9px var(--vec-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 2px 6px;
-  border: 1px solid var(--vec-border);
+  border: 1px solid var(--vec-border-strong);
   border-radius: 2px;
-  color: var(--vec-text-dim);
+  color: var(--vec-text);
 }
 .vec-cas .chip.on { border-color: var(--vec-go); color: var(--vec-go); }
 .vec-cas .chip.warn { border-color: var(--vec-warn); color: var(--vec-warn); }
@@ -3366,7 +3366,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-mon-equip button[aria-pressed="true"] { border-style: solid; border-color: #1f9d55; background: rgba(31, 157, 85, 0.12); color: #1f9d55; }
 .cc-mon-equip button:disabled:not([aria-pressed="true"]) { opacity: 0.5; }
 .cc-mon-equip.compact { display: flex; gap: 6px; }
-.cc-mon-equip.compact button { min-height: 28px; padding: 0 8px; font-size: 10px; white-space: nowrap; }
+.cc-mon-equip.compact button { min-height: 28px; padding: 0 7px; font-size: 10px; white-space: nowrap; }
 /* The tablet's monitor: half-height traces, smaller numbers, and NIBP / MAP /
    TEMP sharing one row with the 12-lead, BP and alarm buttons. */
 .cc-monitor.compact { grid-template-columns: minmax(0, 1fr) 96px; }
@@ -3381,13 +3381,14 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cc-monitor.compact .cc-alarm-panel, .cc-monitor.compact .cc-ecg12 { top: 4px; left: 44px; right: 100px; max-height: none; padding: 8px; gap: 4px; font-size: 11px; z-index: 2; }
 .cc-monitor.compact .cc-mon-overlay { font-size: 10px; }
 .cc-mon-strip.compact { flex-direction: row; align-items: stretch; flex-wrap: wrap; }
-.cc-mon-strip.compact .cc-nibp { flex: 1; min-width: 0; gap: 10px; padding: 4px 8px; grid-template-columns: auto auto minmax(0, 1fr) auto; }
-.cc-mon-strip.compact .cc-nibp strong { font-size: 18px; }
+.cc-mon-strip.compact .cc-nibp { flex: 1; min-width: 0; gap: 8px; padding: 4px 8px; grid-template-columns: auto auto minmax(0, 1fr) auto; overflow: hidden; }
+.cc-mon-strip.compact .cc-nibp > div { gap: 6px; }
+.cc-mon-strip.compact .cc-nibp strong { font-size: 17px; }
 .cc-mon-strip.compact .cc-nibp .map strong { font-size: 14px; }
 .cc-mon-strip.compact .cc-nibp .upd strong { font-size: 11px; }
 .cc-mon-strip.compact .cc-nibp small { font-size: 9px; }
-.cc-mon-strip.compact .cc-mon-buttons { flex: none; gap: 6px; }
-.cc-mon-strip.compact .cc-mon-buttons button { min-height: 30px; padding: 0 10px; font-size: 11px; white-space: nowrap; }
+.cc-mon-strip.compact .cc-mon-buttons { flex: none; gap: 6px; grid-template-columns: repeat(3, auto); }
+.cc-mon-strip.compact .cc-mon-buttons button { min-height: 30px; padding: 0 9px; font-size: 11px; white-space: nowrap; }
 .cc-mon-buttons button, .cc-action, .cc-row { transition: background 0.12s, border-color 0.12s; }
 .cc-mon-buttons button { min-height: 34px; border: 1px solid var(--cc-line); border-radius: 2px; background: var(--cc-card-h); font: 700 12px var(--vec-sans, Arial, sans-serif); color: var(--cc-text); }
 .cc-mon-buttons button:hover:not(:disabled) { border-color: var(--cc-blue); color: var(--cc-blue); }
@@ -5179,3 +5180,4 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 @container (max-width: 400px) {
   .pb-board { grid-template-columns: minmax(0, 1fr); }
 }
+.pb-trend .hd em.wait { color: var(--cc-muted); }

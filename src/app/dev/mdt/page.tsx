@@ -184,7 +184,7 @@ export default function MdtHarnessPage() {
   const treatmentByCasualtyId = useMemo(() => (treatment ? { [treatment.casualtyId]: treatment } : {}), [treatment]);
   const sim = useMemo(() => simulateIncident(world.incident, world.deployments, world.baCrews, world.tasks, now, treatmentByCasualtyId), [world, now, treatmentByCasualtyId]);
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
+    <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
       <div style={{ position: "absolute", left: 24, top: 16, width: 1180, height: 820 }}>
         <DraggableIncidentMdt
           incident={world.incident}

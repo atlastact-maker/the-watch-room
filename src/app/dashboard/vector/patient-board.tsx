@@ -7,7 +7,6 @@
 // with the time it was done. Read off the treatment record; nothing here
 // is decorative.
 
-import type { ReactNode } from "react";
 import type { PatientTreatmentState, TreatmentEvent } from "@/lib/sim/incident_types";
 import { DRUG_LABEL, MONITORING_LABEL } from "@/lib/sim/incident_types";
 import type { PatientRedFlag, SceneCasualty } from "@/lib/sim/scene";
@@ -16,7 +15,6 @@ import { downtimeSec } from "@/lib/sim/resus";
 import { news2, type News2 } from "@/lib/sim/news2";
 import { recordVitals, vitalsHistory, type VitalsSample } from "@/lib/sim/vitals_history";
 import { wasHandled } from "@/lib/sim/scoring";
-import { oxygenLabel } from "@/lib/sim/oxygen";
 import { AIRWAY_LABEL, BREATHING_LABEL, CIRC_LABEL, EGRESS_LABEL, PACKAGING_LABEL, RED_FLAG_LABEL } from "../components/treatment-tab";
 
 type Tone = "go" | "warn" | "stop" | "";
@@ -26,8 +24,6 @@ export type PatientBoardProps = {
   treatment: PatientTreatmentState | null;
   resus?: ResusState;
   now: number;
-  /** Who has the patient, for the header. */
-  lead?: string;
   /** Fewer rows — the tablet's patient page. */
   compact?: boolean;
 };
@@ -59,9 +55,13 @@ function Trend({ label, unit, hist, pick, lo, hi, alarmLow, alarmHigh, now, span
   const first = pts[0];
   const delta = last && first ? Math.round(pick(last)) - Math.round(pick(first)) : 0;
   const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)} ${y(pick(p)).toFixed(1)}`).join(" ");
+  const vals = pts.map((p) => Math.round(pick(p)));
+  const lo1 = Math.min(...vals);
+  const hi1 = Math.max(...vals);
+  const range = vals.length > 1 ? (lo1 === hi1 ? `${lo1}` : `${lo1}–${hi1}`) : null;
   return (
     <div className="pb-trend">
-      <div className="hd"><span style={{ color: colour }}>{label}</span><b>{last ? Math.round(pick(last)) : "—"}<small>{unit}</small></b><em className={delta > 0 ? "up" : delta < 0 ? "down" : ""}>{pts.length > 1 ? (delta > 0 ? `▲ ${delta}` : delta < 0 ? `▼ ${-delta}` : "steady") : ""}</em></div>
+      <div className="hd"><span style={{ color: colour }}>{label}</span><b>{range ?? "—"}{range && <small>{unit}</small>}</b><em className={pts.length < 2 ? "wait" : delta > 0 ? "up" : delta < 0 ? "down" : ""}>{pts.length > 1 ? (delta > 0 ? `▲ ${delta}` : delta < 0 ? `▼ ${-delta}` : "steady") : "collecting"}</em></div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
         {alarmLow !== undefined && <line x1="0" x2={W} y1={y(alarmLow)} y2={y(alarmLow)} className="alarm" />}
         {alarmHigh !== undefined && <line x1="0" x2={W} y1={y(alarmHigh)} y2={y(alarmHigh)} className="alarm" />}
@@ -93,7 +93,7 @@ function describe(e: TreatmentEvent): string | null {
   }
 }
 
-export function PatientBoard({ casualty, treatment, resus, now, lead, compact }: PatientBoardProps) {
+export function PatientBoard({ casualty, treatment, resus, now, compact }: PatientBoardProps) {
   const tx = treatment;
   const vitals = tx?.liveVitals ?? tx?.revealedVitals;
   const surveyDone = !!tx?.surveyCompletedAt;
@@ -117,14 +117,7 @@ export function PatientBoard({ casualty, treatment, resus, now, lead, compact }:
   });
   const openFlags = flagRows.filter((r) => r.state === "open").length;
   const events = (tx?.events ?? []).filter((e) => e.kind !== "survey_started").slice().reverse();
-  const shown = events.slice(0, compact ? 6 : 9);
-  const given: ReactNode[] = [];
-  if (onO2 && tx?.oxygen) given.push(<span key="o2" className="go">{oxygenLabel(tx.oxygen)}</span>);
-  for (const d of tx?.doses ?? []) given.push(<span key={`${d.drug}-${d.at}`} className="go">{DRUG_LABEL[d.drug]}</span>);
-  for (const k of Object.keys(tx?.airway ?? {}) as (keyof typeof AIRWAY_LABEL)[]) given.push(<span key={`a-${k}`}>{AIRWAY_LABEL[k]}</span>);
-  for (const k of Object.keys(tx?.circulation ?? {}) as (keyof typeof CIRC_LABEL)[]) given.push(<span key={`c-${k}`}>{CIRC_LABEL[k]}</span>);
-  for (const k of Object.keys(tx?.packaging ?? {}) as (keyof typeof PACKAGING_LABEL)[]) given.push(<span key={`p-${k}`}>{PACKAGING_LABEL[k]}</span>);
-
+  const shown = events.slice(0, compact ? 8 : 12);
   return (
     <div className="pb-wrap">
     <div className={`pb-board${compact ? " compact" : ""}`}>
@@ -135,14 +128,14 @@ export function PatientBoard({ casualty, treatment, resus, now, lead, compact }:
           <small>{inArrest ? `downtime · cycle ${resus!.cycle + 1}` : score ? `${BAND_LABEL[score.band]} · ${score.response}` : surveyDone ? "no observations" : "survey not done"}</small>
           {score && (
             <div className="pb-parts">
-              {score.parts.map((p) => <i key={p.key} className={`s${p.score}`} title={`${p.label} ${p.value} · scores ${p.score}`}><b>{p.short}</b><span>{p.value}</span></i>)}
+              {score.parts.map((p) => <i key={p.key} className={`s${p.score}`} title={`${p.label} ${p.value} · scores ${p.score}`}><b>{p.short}</b><span>{p.score}</span></i>)}
             </div>
           )}
         </div>
         <dl className="pb-facts">
-          <dt>Time in care</dt><dd>{inCare !== null ? mmss(inCare) : "—"}{lead ? <small> · {lead}</small> : null}</dd>
+          <dt>Time in care</dt><dd>{inCare !== null ? mmss(inCare) : "—"}</dd>
           <dt>Red flags</dt><dd className={openFlags ? "stop" : flagRows.length ? "go" : ""}>{flagRows.length ? `${flagRows.length} found · ${openFlags ? `${openFlags} open` : "all dealt with"}` : surveyDone ? "none" : "—"}</dd>
-          <dt>Monitoring</dt><dd>{tx?.monitoring && Object.keys(tx.monitoring).length ? (Object.keys(tx.monitoring) as (keyof typeof MONITORING_LABEL)[]).map((k) => MONITORING_LABEL[k]).join(" · ") : <span className="warn">nothing attached</span>}</dd>
+          <dt>Destination</dt><dd>{tx?.chosenDestination ? tx.chosenDestination.name : surveyDone ? <span className="warn">not yet chosen</span> : "—"}</dd>
         </dl>
         {flagRows.length > 0 && (
           <div className="pb-flags">
@@ -160,7 +153,6 @@ export function PatientBoard({ casualty, treatment, resus, now, lead, compact }:
       </div>
 
       <div className="pb-zone pb-record">
-        <div className="pb-given">{given.length ? given : <span className="muted">Nothing given yet</span>}</div>
         <ol className="pb-timeline">
           {shown.length === 0 && <li className="muted">No care recorded yet</li>}
           {shown.map((e, i) => {

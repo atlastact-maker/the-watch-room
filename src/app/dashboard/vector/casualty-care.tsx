@@ -50,7 +50,6 @@ import {
   EGRESS_LABEL,
   PACKAGING_HINT,
   PACKAGING_LABEL,
-  RED_FLAG_LABEL,
   SCOPE_LABEL,
   drugRelevantFor,
 } from "../components/treatment-tab";
@@ -923,9 +922,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       <div className="cc-patient-grid">
         <BodyFigure flags={flags} selected={region} onSelect={setRegion} />
         <div className="cc-patient-details">
-          <div className="cc-patient">
-            <strong>{(casualty.label ?? casualty.id).toUpperCase()}</strong>
-          </div>
           <dl className="cc-facts">
             <dt>Patient</dt>
             <dd>{profile ? `${profile.ageYears <= 15 ? "Child" : "Adult"} · ${profile.sex === "male" ? "Male" : "Female"} · ${profile.ageYears} y · ${profile.weightKg} kg` : casualty.clinical?.ageYears !== undefined ? `Approx. ${casualty.clinical.ageYears} years` : "Age not recorded"}</dd>
@@ -945,7 +941,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
               )}
             </dd>
           </dl>
-          {flags.length > 0 && <div className="cc-flags">{flags.map((f) => <span key={f}>{RED_FLAG_LABEL[f]}</span>)}</div>}
           {region && <p className="cc-note">{BODY_REGIONS.find((r) => r.code === region)?.label} selected — actions for other regions are dimmed.</p>}
         </div>
       </div>
@@ -982,8 +977,8 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   );
 
   const boardCard = (
-    <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{surveyDone ? `${treatment?.revealedCondition ?? ""}` : "primary survey first"}</span>}>
-      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} now={now} lead={lead ? `${lead.appliance.callsign} lead` : undefined} compact={tablet} />
+    <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{!surveyDone ? "primary survey first" : tablet ? "" : treatment?.revealedCondition ?? ""}</span>}>
+      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} now={now} compact={tablet} />
     </Card>
   );
 
