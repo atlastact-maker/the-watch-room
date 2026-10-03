@@ -11,6 +11,7 @@ import {
   Polyline,
   Rectangle,
   TileLayer,
+  Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -43,7 +44,7 @@ import type { StationWithAppliances } from "../page";
 import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitDivIcon } from "./map-markers";
 import { HoseLine } from "./hose-line";
-import { CrewFigureLayer, type CrewFigure, type LatLng as CrewLatLng } from "./crew-figures";
+import { CrewFigureLayer, figureInside, figurePosition, roleShort, type CrewFigure, type LatLng as CrewLatLng } from "./crew-figures";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
@@ -127,6 +128,28 @@ function formatIncidentTypeShort(code: string): string {
     .replace(/\bhazmat\b/gi, "HAZMAT")
     .replace(/\w+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .replace(/\b(Rtc|Usar|Hazmat)\b/g, (w) => w.toUpperCase());
+}
+
+/** The count over the building while anyone is inside, with the lowest
+ *  air among them. Amber; red when somebody is under a quarter. */
+const INSIDE_ICONS = new Map<string, L.DivIcon>();
+function insideChipIcon(count: number, lowestAir: number | null): L.DivIcon {
+  const air = lowestAir === null ? null : Math.round(lowestAir);
+  const key = `${count}|${air ?? "-"}`;
+  const hit = INSIDE_ICONS.get(key);
+  if (hit) return hit;
+  const low = air !== null && air < 25;
+  const colour = low ? "#ef4444" : "#f59e0b";
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [120, 20],
+    iconAnchor: [60, 10],
+    html: `<div style="position:relative;width:120px;height:20px;pointer-events:none;display:flex;justify-content:center;">
+      <div style="padding:2px 7px;background:rgba(10,10,12,0.92);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:9px;line-height:1.3;letter-spacing:0.1em;color:${colour};white-space:nowrap;${low ? "animation:closure-blink 1s steps(2,start) infinite;" : ""}"><b>${count}</b> INSIDE${air !== null ? ` · AIR ${air}%` : ""}</div>
+    </div>`,
+  });
+  INSIDE_ICONS.set(key, icon);
+  return icon;
 }
 
 function hydrantIcon(
@@ -1394,6 +1417,13 @@ export function LeafletGroundMap({
       if (!pump) continue;
       const g = jetGeometry(pump.pos, fireCentre, sim.fireRadiusM, t.attackMode === "interior_attack", buildingEntryFrom(pump.pos));
       hoseSpecs.push({ key: hoseKey(t.id, pump.pos, g.approachTo), from: pump.pos, to: g.approachTo });
+    } else if (t.kind === "ba_sar" && t.state === "active") {
+      // A BA team walks the road to the door too, with a line if they are
+      // going in to fight it.
+      const pump = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
+      if (!pump) continue;
+      const g = jetGeometry(pump.pos, fireCentre, sim.fireRadiusM, true, buildingEntryFrom(pump.pos));
+      hoseSpecs.push({ key: hoseKey(t.id, pump.pos, g.approachTo), from: pump.pos, to: g.approachTo });
     }
   }
   const footRoutes = useFootRoutes(hoseSpecs);
@@ -1484,7 +1514,8 @@ export function LeafletGroundMap({
   /** A jet worked off the fast-attack reel rather than a laid line: the
    *  crew on it took the reel and nobody took a branch. */
   const reelFor = (t: Task, d: Deployment): boolean => {
-    const carries = (key: string) => t.assignedCrewIds.some((id) => d.crewEquipment?.[id]?.includes(key));
+    const riders = t.assignedCrewIds.length ? t.assignedCrewIds : t.baCrewIds ?? [];
+    const carries = (key: string) => riders.some((id) => d.crewEquipment?.[id]?.includes(key));
     return carries("fast_attack_branch") && !carries("branch_45mm") && !carries("branch_70mm");
   };
   /** How long a crew takes to run a line out: their walking pace along it. */
@@ -1502,6 +1533,13 @@ export function LeafletGroundMap({
     let path: [number, number][] | undefined;
     let badge: string | undefined;
     let inside = false;
+    // Where on the path the building begins — past it the rider is inside.
+    let entryAt: number | undefined;
+    const throughDoor = (approach: [number, number][], target: { lat: number; lng: number }) => {
+      const full: [number, number][] = [...approach, [target.lat, target.lng]];
+      entryAt = runMetres(approach) / Math.max(1, runMetres(full));
+      return full;
+    };
     switch (t.kind) {
       case "connect_hydrant": {
         // The hose goes out from the pump with them: the same run the
@@ -1523,24 +1561,48 @@ export function LeafletGroundMap({
         break;
       }
       case "hose_attack": {
+        // An interior attack goes in through the door to the seat; the
+        // figure walks the whole way and fades once inside.
         const g = jetGeometry(m.pos, fireCentre, sim.fireRadiusM, t.attackMode === "interior_attack", entry);
-        to = g.approachTo;
         const run = footRoutes[hoseKey(t.id, m.pos, g.approachTo)];
-        if (run && run.length >= 2) path = run as [number, number][];
+        const approach = hoseRun(run, m.pos, g.approachTo);
         inside = t.attackMode === "interior_attack";
+        if (inside && g.viaEntry) {
+          path = throughDoor(approach, g.target);
+          to = g.target;
+        } else {
+          to = g.approachTo;
+          if (run && run.length >= 2) path = approach;
+        }
         badge = inside ? "BA · INT" : reelFor(t, m.deployment) ? "REEL" : "BRANCH";
         break;
       }
-      case "ba_sar":
-        to = entry ?? towards(m.pos, fireCentre, Math.max(3, haversineMetres(m.pos, fireCentre) - 3));
+      case "ba_sar": {
+        // In through the door and on: to the seat of the fire for a
+        // firefighting team, ten metres in for a search.
+        const fight = t.baMode === "firefighting";
+        const g = jetGeometry(m.pos, fireCentre, sim.fireRadiusM, true, entry);
+        const target = fight
+          ? g.target
+          : entry
+            ? towards(entry, fireCentre, Math.min(Math.max(2, haversineMetres(entry, fireCentre) - 2), 10))
+            : towards(m.pos, fireCentre, Math.max(3, haversineMetres(m.pos, fireCentre) - 3));
+        if (entry) {
+          path = throughDoor(hoseRun(footRoutes[hoseKey(t.id, m.pos, g.approachTo)], m.pos, entry), target);
+        }
+        to = target;
         inside = true;
-        badge = t.baMode === "firefighting" ? "BA · FF" : "BA · SAR";
+        badge = fight ? "BA · FF" : "BA · SAR";
         break;
-      case "extract_casualty":
-        to = entry ?? (t.casualtyId ? metresToLatLng(fireCentre, sim.foundCasualties.find((c) => c.id === t.casualtyId)?.pos ?? { x: 0, y: 0 }) : fireCentre);
+      }
+      case "extract_casualty": {
+        const casAt = t.casualtyId ? metresToLatLng(fireCentre, sim.foundCasualties.find((c) => c.id === t.casualtyId)?.pos ?? { x: 0, y: 0 }) : fireCentre;
+        if (entry) path = throughDoor(hoseRun(undefined, m.pos, entry), casAt);
+        to = casAt;
         inside = !!entry;
         badge = "CARRY";
         break;
+      }
       case "survey":
       case "gain_entry":
         to = entry ?? towards(m.pos, fireCentre, Math.max(3, haversineMetres(m.pos, fireCentre) - 4));
@@ -1628,7 +1690,8 @@ export function LeafletGroundMap({
       crewFigures.push({
         id: `${t.id}:${crewId}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: to!, path, startAt: t.startedAt, endAt,
         badge: rope && i === 0 ? "ON THE LINE" : rope ? "RIGGING" : badge,
-        inside, spreadIndex: i, carriedBy: carriedBy ?? onTheLine, walkMs: rope?.approachMs,
+        inside, entryAt, spreadIndex: i, carriedBy: carriedBy ?? onTheLine, walkMs: rope?.approachMs,
+        crewId, taskId: t.id, callsign: m.appliance.callsign,
       });
     });
   }
@@ -1645,6 +1708,48 @@ export function LeafletGroundMap({
       crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: carriedNow(cid) ? "CARRY" : "PATIENT", spreadIndex: i + 2 });
     });
   }
+  // Who is inside the building right now: every rider whose figure is
+  // through the door, with their air, cylinder, time in and time of
+  // whistle off the BA board. Shown when the operator hovers the building.
+  const insideCrew = crewFigures.flatMap((f) => {
+    if (!f.inside) return [];
+    const p = figurePosition(f, now);
+    if (!p || !figureInside(f, p)) return [];
+    const t = tasks.find((x) => x.id === f.taskId);
+    const cid = f.crewId ?? "";
+    return [{
+      id: f.id,
+      name: f.name,
+      role: f.role,
+      callsign: f.callsign ?? "",
+      badge: f.badge ?? "",
+      airPct: crewAir[cid],
+      bar: t?.baPressure?.[cid],
+      whistleAt: t?.baWhistleAt?.[cid],
+      enteredAt: t?.baEntryAt?.[cid] ?? f.startAt,
+      entryPoint: t?.entryPoint,
+    }];
+  });
+  const lowestAir = insideCrew.reduce<number | null>((m, c) => (c.airPct === undefined ? m : m === null ? c.airPct : Math.min(m, c.airPct)), null);
+  const clockMmss = (ms: number) => {
+    const sec = Math.max(0, Math.floor(ms / 1000));
+    return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+  };
+  const insideTip = (
+    <div className="gsm-inside">
+      <div className="hd">{insideCrew.length ? `${insideCrew.length} committed inside` : "Nobody inside"}</div>
+      {insideCrew.map((c) => (
+        <div key={c.id} className={`row${c.airPct !== undefined && c.airPct < 25 ? " low" : ""}`}>
+          <span className="who"><b>{c.callsign}</b> {c.name} <em>{roleShort(c.role)}</em> <i>{c.badge}</i>{c.entryPoint ? <i> · {c.entryPoint}</i> : null}</span>
+          <span className="air">{c.airPct !== undefined ? `air ${Math.round(c.airPct)}%` : "no BA board"}{c.bar !== undefined ? ` · ${Math.round(c.bar)} bar` : ""}</span>
+          <span className="t">in {clockMmss(now - c.enteredAt)}{c.whistleAt !== undefined ? ` · whistle ${c.whistleAt > now ? `in ${clockMmss(c.whistleAt - now)}` : "DUE"}` : ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+  const buildingCentre = osmBuildingPoly && osmBuildingPoly.length >= 3
+    ? { lat: osmBuildingPoly.reduce((a, p) => a + p[0], 0) / osmBuildingPoly.length, lng: osmBuildingPoly.reduce((a, p) => a + p[1], 0) / osmBuildingPoly.length }
+    : fireCentre;
   const ropes = tasks
     .filter((t) => t.kind === "rope_rescue" && t.ropeRescue && t.state !== "aborted" && now >= t.ropeRescue.riggedAt && now < t.ropeRescue.recoveredAt + 10 * 60_000)
     .map((t) => {
@@ -2162,19 +2267,30 @@ export function LeafletGroundMap({
 
       {/* Subtle building outline (no fill) \u2014 optional spatial hint when OSM
           has a polygon. The primary address marker is the pin below. */}
-      {osmBuildingPoly && osmBuildingPoly.length >= 3 && (
+      {osmBuildingPoly && osmBuildingPoly.length >= 3 ? (
         <Polygon
           positions={osmBuildingPoly}
           pathOptions={{
-            color: "#ef4444",
-            weight: 1.5,
-            opacity: 0.75,
-            fill: false,
+            color: insideCrew.length ? "#f59e0b" : "#ef4444",
+            weight: insideCrew.length ? 2 : 1.5,
+            opacity: 0.8,
+            fill: true,
+            fillColor: "#f59e0b",
+            fillOpacity: insideCrew.length ? 0.1 : 0.01,
             lineCap: "round",
             lineJoin: "round",
           }}
-          interactive={false}
-        />
+          interactive
+        >
+          <Tooltip sticky direction="top" opacity={1} className="gsm-inside-tip">{insideTip}</Tooltip>
+        </Polygon>
+      ) : insideCrew.length > 0 ? (
+        <Circle center={[incidentLat, incidentLng]} radius={10} pathOptions={{ color: "#f59e0b", weight: 1.5, fillColor: "#f59e0b", fillOpacity: 0.1 }} interactive>
+          <Tooltip sticky direction="top" opacity={1} className="gsm-inside-tip">{insideTip}</Tooltip>
+        </Circle>
+      ) : null}
+      {insideCrew.length > 0 && (
+        <Marker position={[buildingCentre.lat, buildingCentre.lng]} icon={insideChipIcon(insideCrew.length, lowestAir)} interactive={false} zIndexOffset={700} />
       )}
 
       {/* Primary address marker — MDT-style crosshair + callout at the
@@ -2295,6 +2411,31 @@ export function LeafletGroundMap({
               layStartedAt={t.startedAt}
               laySeconds={t.kind === "aerial_monitor" ? 20 : laySecondsFor(metres)}
               charged={t.kind === "aerial_monitor" || pump.deployment.pumpRunning === true}
+              now={now}
+            />
+          );
+        })}
+
+      {/* A BA team going in to fight it takes a line in with them: the
+          same lay as a jet, through the door to the seat. */}
+      {tasks
+        .filter((t) => t.kind === "ba_sar" && t.baMode === "firefighting" && t.state === "active")
+        .map((t) => {
+          const pump = onSceneMarkers.find((m) => m.appliance.id === t.applianceId);
+          if (!pump) return null;
+          const g = jetGeometry(pump.pos, fireCentre, sim.fireRadiusM, true, buildingEntryFrom(pump.pos));
+          const approach = hoseRun(footRoutes[hoseKey(t.id, pump.pos, g.approachTo)], pump.pos, g.approachTo);
+          const positions: [number, number][] = g.viaEntry ? [...approach, [g.target.lat, g.target.lng]] : approach;
+          const metres = runMetres(positions);
+          return (
+            <HoseLine
+              key={`ba-${t.id}`}
+              path={positions}
+              hoseType={reelFor(t, pump.deployment) ? "reel" : "45mm"}
+              kind="jet"
+              layStartedAt={t.startedAt}
+              laySeconds={laySecondsFor(metres)}
+              charged={pump.deployment.pumpRunning === true}
               now={now}
             />
           );

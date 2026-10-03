@@ -38,8 +38,17 @@ export type CrewFigure = {
   endAt?: number;
   /** Shown beside the figure while at the work: "BA", "BRANCH", "IC". */
   badge?: string;
-  /** The work is inside the building — the figure fades at the entry. */
+  /** The work is inside the building — the figure fades once it is
+   *  through the door. */
   inside?: boolean;
+  /** How far along the path (0..1) the door is. Before it the rider is in
+   *  the open; past it they are inside. Absent means inside only at the
+   *  work itself. */
+  entryAt?: number;
+  /** Who this is and what they are on, for the building's roll-call. */
+  crewId?: string;
+  taskId?: string;
+  callsign?: string;
   /** Small offset at the work position so several riders do not stack. */
   spreadIndex?: number;
   /** Somewhere else entirely for a while — aboard a boat, say. When it
@@ -115,8 +124,9 @@ function offsetMetres(p: LatLng, dxM: number, dyM: number): LatLng {
   return { lat: p.lat + dyM / 111000, lng: p.lng + dxM / (111000 * Math.cos((p.lat * Math.PI) / 180)) };
 }
 
-/** Where a figure stands at `now`, or null once it is back in the cab. */
-export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase: "out" | "working" | "back" } | null {
+/** Where a figure stands at `now`, or null once it is back in the cab.
+ *  `k` is how far along the path they are, 0 at the cab and 1 at the work. */
+export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase: "out" | "working" | "back"; k: number } | null {
   const walkable = f.path && f.path.length >= 2 ? f.path : null;
   const metres = walkable ? pathMetres(walkable) : haversine(f.from, f.to);
   const walkMs = f.walkMs ?? Math.max(3000, (metres / WALK_MPS) * 1000);
@@ -128,7 +138,7 @@ export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase
   const work = offsetMetres(f.to, ring[0], ring[1]);
   if (now < f.startAt) return null;
   const carried = f.carriedBy?.(now);
-  if (carried) return { pos: offsetMetres(carried, ring[0] * 0.6, ring[1] * 0.6), phase: "working" };
+  if (carried) return { pos: offsetMetres(carried, ring[0] * 0.6, ring[1] * 0.6), phase: "working", k: 1 };
   if (f.endAt !== undefined && now >= f.endAt) {
     // Walking back from wherever the rider was when the task ended.
     const reachedBy = f.startAt + walkMs;
@@ -136,11 +146,19 @@ export function figurePosition(f: CrewFigure, now: number): { pos: LatLng; phase
     const backMs = walkMs * fromK;
     const k = backMs > 0 ? (now - f.endAt) / backMs : 1;
     if (k >= 1) return null;
-    return { pos: at(fromK * (1 - k)), phase: "back" };
+    return { pos: at(fromK * (1 - k)), phase: "back", k: fromK * (1 - k) };
   }
   const k = (now - f.startAt) / walkMs;
-  if (k < 1) return { pos: at(k), phase: "out" };
-  return { pos: work, phase: "working" };
+  if (k < 1) return { pos: at(k), phase: "out", k };
+  return { pos: work, phase: "working", k: 1 };
+}
+
+/** Through the door: inside work, and past the point on the path where
+ *  the building starts, in either direction. */
+export function figureInside(f: CrewFigure, p: { phase: "out" | "working" | "back"; k: number }): boolean {
+  if (!f.inside) return false;
+  if (p.phase === "working") return true;
+  return p.k >= (f.entryAt ?? 1);
 }
 
 const ICONS = new Map<string, L.DivIcon>();
@@ -203,10 +221,9 @@ function figureIcon(service: ServiceCode, initials: string, label: string, badge
 /** One rider. The icon is cached by look; heading and gait are applied to
  *  the live element so a turn or a step never rebuilds the marker, and the
  *  marker's own transform transition carries it smoothly between ticks. */
-function CrewMarker({ f, pos, phase, heading, moving, showLabel }: { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; heading: number; moving: boolean; showLabel: boolean }) {
+function CrewMarker({ f, pos, phase, inside, heading, moving, showLabel }: { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; inside: boolean; heading: number; moving: boolean; showLabel: boolean }) {
   const ref = useRef<L.Marker | null>(null);
   const surname = f.name.split(/\s+/).pop() ?? f.name;
-  const inside = !!f.inside && phase === "working";
   const badge = phase === "working" ? f.badge : phase === "back" ? "RTN" : undefined;
   useEffect(() => {
     const el = ref.current?.getElement();
@@ -227,7 +244,7 @@ function CrewMarker({ f, pos, phase, heading, moving, showLabel }: { f: CrewFigu
 }
 
 type Track = { pos: LatLng; heading: number; moving: boolean };
-type Row = { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; heading: number; moving: boolean };
+type Row = { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; inside: boolean; heading: number; moving: boolean };
 
 export function CrewFigureLayer({ figures, showLabels }: { figures: CrewFigure[]; showLabels: boolean }) {
   // Positions are worked out on the layer's own quarter-second clock, off
@@ -251,7 +268,7 @@ export function CrewFigureLayer({ figures, showLabels }: { figures: CrewFigure[]
         const moving = stepped > 0.12;
         if (moving && prev) heading = bearingDeg(prev.pos, p.pos);
         tracks.current.set(f.id, { pos: p.pos, heading, moving });
-        next.push({ f, pos: p.pos, phase: p.phase, heading, moving });
+        next.push({ f, pos: p.pos, phase: p.phase, inside: figureInside(f, p), heading, moving });
       }
       for (const id of Array.from(tracks.current.keys())) if (!live.has(id)) tracks.current.delete(id);
       setRows(next);
@@ -266,7 +283,7 @@ export function CrewFigureLayer({ figures, showLabels }: { figures: CrewFigure[]
   return (
     <>
       {rows.map((r) => (
-        <CrewMarker key={r.f.id} f={r.f} pos={r.pos} phase={r.phase} heading={r.heading} moving={r.moving} showLabel={showLabels} />
+        <CrewMarker key={r.f.id} f={r.f} pos={r.pos} phase={r.phase} inside={r.inside} heading={r.heading} moving={r.moving} showLabel={showLabels} />
       ))}
     </>
   );
