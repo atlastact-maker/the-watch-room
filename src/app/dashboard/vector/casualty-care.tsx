@@ -29,7 +29,6 @@ import { CIRC_MIN_SCOPE,
   SCOPE_LEVEL,
   scopeOfApplianceType,
 } from "@/lib/sim/incident_types";
-import { BODY_REGIONS, RED_FLAG_REGIONS, type BodyRegion } from "@/lib/sim/body_regions";
 import { MonitorMeta, VitalMonitorPanel, monitorPicture, useMonitorState } from "./vital-monitor";
 import { OXYGEN_DEVICE_LABEL, OXYGEN_FLOWS, OXYGEN_HINT, oxygenLabel, oxygenVerdict, type OxygenDevice } from "@/lib/sim/oxygen";
 import { PHARMACOLOGY, canGiveDrug, dosesOf, pacingCapturing } from "@/lib/sim/physiology";
@@ -207,48 +206,6 @@ function consciousness(vitals: PatientTreatmentState["liveVitals"], flags: Patie
 // Body figure
 // ---------------------------------------------------------------------------
 
-const REGION_SHAPES: Record<Exclude<BodyRegion, "systemic" | "back">, { d: string }> = {
-  head: { d: "M100 18a24 26 0 1 0 0.01 0z" },
-  neck: { d: "M90 70h20v16H90z" },
-  chest: { d: "M66 86h68v60H66z" },
-  abdomen: { d: "M70 146h60v46H70z" },
-  pelvis: { d: "M68 192h64v40H68z" },
-  left_arm: { d: "M36 92h28l4 118H32z" },
-  right_arm: { d: "M136 92h28l4 118h-36z" },
-  left_leg: { d: "M70 232h30v150H62z" },
-  right_leg: { d: "M100 232h30l8 150h-38z" },
-};
-
-function BodyFigure({ flags, selected, onSelect }: { flags: PatientRedFlag[]; selected: BodyRegion | null; onSelect: (r: BodyRegion | null) => void }) {
-  const hot = new Set<BodyRegion>();
-  for (const f of flags) for (const r of RED_FLAG_REGIONS[f] ?? []) hot.add(r);
-  const meta = selected ? BODY_REGIONS.find((r) => r.code === selected) : null;
-  return (
-    <div className="cc-body">
-      <svg viewBox="0 0 200 390" aria-label="Body diagram">
-        <path className="cc-body-outline" d="M100 -8a26 28 0 0 1 0 56a26 28 0 0 1 0-56zM88 70h24l6 14h34l14 20l6 108h-30l-6-74v96l10 154h-36l-6-140l-4 0l-6 140h-36l10-154v-96l-6 74h-30l6-108l14-20h34z" />
-        {(Object.keys(REGION_SHAPES) as (keyof typeof REGION_SHAPES)[]).map((code) => (
-          <path
-            key={code}
-            d={REGION_SHAPES[code].d}
-            className={`cc-region${hot.has(code) ? " hot" : ""}${selected === code ? " sel" : ""}`}
-            onClick={() => onSelect(selected === code ? null : code)}
-          >
-            <title>{BODY_REGIONS.find((r) => r.code === code)?.label}</title>
-          </path>
-        ))}
-        {meta?.front && (
-          <g className="cc-callout">
-            <line x1={meta.front.x + 18} y1={meta.front.y} x2={182} y2={meta.front.y - 14} />
-            <text x={184} y={meta.front.y - 18} textAnchor="end">{meta.label}</text>
-            <text x={184} y={meta.front.y - 4} textAnchor="end" className="dim">(selected)</text>
-          </g>
-        )}
-      </svg>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // The screen
 // ---------------------------------------------------------------------------
@@ -260,7 +217,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const tablet = props.layout === "tablet";
   const [tab, setTab] = useState<CareTab>("assess");
   const [view, setView] = useState<CareView>("patient");
-  const [region, setRegion] = useState<BodyRegion | null>(null);
   // The oxygen order opens on what is already being delivered, so the
   // screen never offers to "apply" the mask the patient is wearing.
   const [device, setDevice] = useState<OxygenDevice | "">(() => (treatment?.oxygen && treatment.oxygen.device !== "none" ? treatment.oxygen.device : ""));
@@ -741,14 +697,14 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       case "airway":
         return (
           <Group title="Airway interventions">
-            {ivList(airwayActions.map((a) => ivRow(a, AIRWAY_LABEL[a], AIRWAY_HINT[a], ivState(treatment?.airway[a], scopeLvl >= SCOPE_LEVEL[AIRWAY_MIN_SCOPE[a]], AIRWAY_MIN_SCOPE[a]), () => props.onApplyAirway?.(casualtyId, a, by), { dim: region !== null && region !== "head" && region !== "neck" })))}
+            {ivList(airwayActions.map((a) => ivRow(a, AIRWAY_LABEL[a], AIRWAY_HINT[a], ivState(treatment?.airway[a], scopeLvl >= SCOPE_LEVEL[AIRWAY_MIN_SCOPE[a]], AIRWAY_MIN_SCOPE[a]), () => props.onApplyAirway?.(casualtyId, a, by))))}
           </Group>
         );
       case "breathing":
         return (
           <>
             <Group title="Breathing interventions">
-              {ivList(breathingActions.map((a) => ivRow(a, BREATHING_LABEL[a], BREATHING_HINT[a], ivState(treatment?.breathing[a], scopeLvl >= SCOPE_LEVEL[BREATHING_MIN_SCOPE[a]], BREATHING_MIN_SCOPE[a]), () => props.onApplyBreathing?.(casualtyId, a, by), { dim: region !== null && region !== "chest" && region !== "head" })))}
+              {ivList(breathingActions.map((a) => ivRow(a, BREATHING_LABEL[a], BREATHING_HINT[a], ivState(treatment?.breathing[a], scopeLvl >= SCOPE_LEVEL[BREATHING_MIN_SCOPE[a]], BREATHING_MIN_SCOPE[a]), () => props.onApplyBreathing?.(casualtyId, a, by))))}
             </Group>
             {oxygenGroup}
           </>
@@ -918,11 +874,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   );
 
   const patientCard = (
-    <Card title="Patient assessment" icon="≡" fill>
-      <div className="cc-patient-grid">
-        <BodyFigure flags={flags} selected={region} onSelect={setRegion} />
-        <div className="cc-patient-details">
-          <dl className="cc-facts">
+    <Card title="Patient" icon="≡">
+      <div className="cc-patient-details">
+          <dl className="cc-facts two">
             <dt>Patient</dt>
             <dd>{profile ? `${profile.ageYears <= 15 ? "Child" : "Adult"} · ${profile.sex === "male" ? "Male" : "Female"} · ${profile.ageYears} y · ${profile.weightKg} kg` : casualty.clinical?.ageYears !== undefined ? `Approx. ${casualty.clinical.ageYears} years` : "Age not recorded"}</dd>
             <dt>Triage</dt>
@@ -941,8 +895,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
               )}
             </dd>
           </dl>
-          {region && <p className="cc-note">{BODY_REGIONS.find((r) => r.code === region)?.label} selected — actions for other regions are dimmed.</p>}
-        </div>
       </div>
       {surveyDone && profile && (
         <details className="cc-history">
@@ -959,7 +911,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   );
 
   const surveyCard = (
-    <Card title="Primary survey" icon="✓">
+    <Card title="Primary survey" icon="✓" fill>
       {!surveyDone && (
         <button type="button" className="cc-primary" disabled={!canAct || surveyRunning || !props.onStartPatientSurvey} onClick={() => props.onStartPatientSurvey?.(casualtyId)}>
           {surveyRunning ? `Assessing · ${Math.round(surveySec)}s / 60s` : "Start primary survey · ~60s"}
@@ -976,9 +928,13 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </Card>
   );
 
+  const sceneCrew = paired
+    .slice()
+    .sort((a, b) => (a.appliance.id === lead?.appliance.id ? -1 : b.appliance.id === lead?.appliance.id ? 1 : 0))
+    .map((p) => ({ callsign: p.appliance.callsign, role: SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)], lead: lead?.appliance.id === p.appliance.id }));
   const boardCard = (
     <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{!surveyDone ? "primary survey first" : tablet ? "" : treatment?.revealedCondition ?? ""}</span>}>
-      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} now={now} compact={tablet} />
+      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} crew={sceneCrew} now={now} compact={tablet} />
     </Card>
   );
 

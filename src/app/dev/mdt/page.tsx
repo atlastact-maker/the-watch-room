@@ -22,6 +22,7 @@ import { simulateIncident } from "@/lib/sim/incident_sim";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
 import { calibrate, generateProfile, initialPhysio } from "@/lib/sim/physiology";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
+import { newResusState, type ResusState } from "@/lib/sim/resus";
 import type { StationWithAppliances } from "../../dashboard/page";
 import type { Deployment, Incident, LogEntry, Task } from "@/lib/sim/incident_types";
 import type { Eta } from "../../dashboard/components/deployment-board";
@@ -88,6 +89,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const careMode = param("unit") === "dca" && !!dca && !!casualty;
   if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, offset(here, -10, 26), careMode ? { treatingCasualtyId: casualty!.id, treatingSince: nowMs - 5 * 60_000 } : {}));
   let treatment: PatientTreatmentState | null = null;
+  let resus: ResusState | null = null;
   if (careMode && casualty) {
     const clinical = casualty.clinical ?? { vitals: { rr: 20, spo2: 95, hr: 98, bpSys: 128, bpDia: 80, gcs: 15, temp: 36.6, bm: 5.8 }, presumedCondition: "Unwell", redFlags: [], preferredDestination: "nearest_a_e" as const, criticalInterventions: [] };
     const seed = `DEV-1:${casualty.id}`;
@@ -130,6 +132,29 @@ function buildWorld(scenarioId: string, minutesIn: number) {
       ],
     };
     treatment = { ...base, physio: calibrate(base, initialPhysio(clinical, profile, seed), clinical.vitals, nowMs) };
+    // ?look=arrest: the same patient four minutes into a resuscitation —
+    // on the floor, pads and an i-gel on, a crew member on the chest.
+    if (param("look") === "arrest") {
+      const a0 = nowMs - 4 * 60_000;
+      treatment = {
+        ...treatment,
+        liveVitals: { ...clinical.vitals, hr: 0, bpSys: 0, bpDia: 0, spo2: 70, rr: 0, gcs: 3 },
+        activeRedFlags: [...clinical.redFlags, "cardiac_arrest"],
+        revealedRedFlags: [...clinical.redFlags, "cardiac_arrest"],
+        monitoring: { ...base.monitoring, defib_pads: a0 + 30_000 },
+        airway: { igel: a0 + 90_000 },
+        breathing: { bvm: a0 + 40_000 },
+        circulation: { ...base.circulation, cpr: a0 + 10_000, defib: a0 + 60_000 },
+        events: [
+          ...base.events,
+          { kind: "physio", at: a0, text: "CARDIAC ARREST — collapsed, no output · VF. Start compressions, pads on.", tone: "critical", adverse: true },
+          { kind: "monitoring", at: a0 + 30_000, by, device: "defib_pads" },
+          { kind: "circulation", action: "defib", at: a0 + 60_000, by },
+          { kind: "airway", action: "igel", at: a0 + 90_000, by },
+        ],
+      };
+      resus = { ...newResusState(casualty.id, a0, "vf"), monitor: "pads", airway: "igel", shocks: 1, lastShockAt: a0 + 60_000, cycle: 2, cycleStartedAt: nowMs - 70_000, compressorCrewId: `${dca!.id}-1`, compressorName: by, compressorSinceAt: nowMs - 70_000, cyclePausedAt: undefined, adrenalineDoses: 1, lastAdrenalineAt: a0 + 180_000 };
+    }
   }
 
   const started = nowMs - 6 * 60_000;
@@ -164,7 +189,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const etas = Object.fromEntries(stations.map((s, i) => [s.id, { seconds: 240 + ((i * 37) % 400), meters: 3000 + ((i * 911) % 6000), coords: null }])) as unknown as Record<string, Eta>;
   const vehicleGauges = Object.fromEntries([p1, p2, p3, dca].filter(Boolean).map((a) => [a!.id, { fuelPct: 82, waterPct: a!.service === "Fire" ? 58 : 100, conditionPct: 96 }]));
 
-  return { incident, stations, deployments, tasks, crewAir, log, informantLog, etas, vehicleGauges, busyCrewIds: new Set<string>([ba1, ba2, j1, j2]), commanderId: p1.id, unitId: careMode ? dca!.id : p1.id, baCrews: { [p1.id]: 2 }, treatment };
+  return { incident, stations, deployments, tasks, crewAir, log, informantLog, etas, vehicleGauges, busyCrewIds: new Set<string>([ba1, ba2, j1, j2]), commanderId: p1.id, unitId: careMode ? dca!.id : p1.id, baCrews: { [p1.id]: 2 }, treatment, resus };
 }
 
 export default function MdtHarnessPage() {
@@ -203,6 +228,7 @@ export default function MdtHarnessPage() {
           informantLog={world.informantLog}
           informantOnCall={false}
           treatmentByCasualtyId={treatmentByCasualtyId}
+          resusByCasualtyId={world.resus ? { [world.resus.casualtyId]: world.resus } : undefined}
           hemsFlyable
           etas={world.etas}
           patch={PATCH}
