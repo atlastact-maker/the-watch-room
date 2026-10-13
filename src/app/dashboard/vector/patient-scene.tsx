@@ -16,7 +16,7 @@ import type { SceneSetting } from "@/lib/sim/scene_setting";
 import {
   rig, PlanFigure, FigureDefs, anchors, mix, type Rig, type Wear, type Pt, type Pose, type TopKind, type BottomKind, type ShoeKind,
 } from "./scene/plan-figure";
-import { kitLayers, Monitor, KitBag, O2Cylinder, DripBag } from "./scene/plan-kit";
+import { kitLayers, KitDefs, Monitor, KitBag, O2Cylinder, DripBag } from "./scene/plan-kit";
 import { CrewTop, crewWearOf, crewHeadAt, type CrewWear } from "./scene/plan-crew";
 import { GROUNDS, GroundDefs, GroundClips, Weather, WeatherDefs, type Ambient, type GroundCtx } from "./scene/plan-ground";
 
@@ -262,6 +262,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" aria-label="Patient from above">
         <defs>
           <FigureDefs />
+          <KitDefs />
           <GroundDefs />
           <GroundClips />
           <WeatherDefs />
@@ -274,7 +275,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
             <PlanFigure rig={r} w={wear} chestClass={chestClass} chestStyle={chestStyle} onChest={kit.onChest} over={kit.over} shadow={pose !== "floating"} />
           </g>
           {spec.over?.(gctx)}
-          {monitored && <Monitor at={monitorAt} arrest={look.arrest} />}
+          {monitored && <Monitor at={monitorAt} arrest={look.arrest} portSide={monitorAt[0] < 0 ? 1 : -1} />}
           {crew.length > 0 && arrangement !== "water" && <KitBag at={bagAt} />}
           {look.kit.oxygen !== "none" && arrangement !== "water" && <O2Cylinder at={o2At} angle={spec.o2 ? 90 : 78} />}
           {slots.map((sl, i) => (
