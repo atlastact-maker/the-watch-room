@@ -514,6 +514,11 @@ export function FigureDefs() {
         <stop offset="0.7" stopColor="#fff" stopOpacity="0" />
         <stop offset="1" stopColor="#000" stopOpacity="0.25" />
       </radialGradient>
+      {/* Light at the end nearest the camera, dark at the far end: a back sloping away. */}
+      <linearGradient id="ps-slope-r" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.5" /><stop offset="0.7" stopColor="#000" stopOpacity="0.08" /><stop offset="1" stopColor="#fff" stopOpacity="0.12" /></linearGradient>
+      <linearGradient id="ps-slope-l" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.5" /><stop offset="0.7" stopColor="#000" stopOpacity="0.08" /><stop offset="1" stopColor="#fff" stopOpacity="0.12" /></linearGradient>
+      <linearGradient id="ps-slope-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#000" stopOpacity="0.5" /><stop offset="0.7" stopColor="#000" stopOpacity="0.08" /><stop offset="1" stopColor="#fff" stopOpacity="0.12" /></linearGradient>
+      <linearGradient id="ps-slope-u" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.5" /><stop offset="0.7" stopColor="#000" stopOpacity="0.08" /><stop offset="1" stopColor="#fff" stopOpacity="0.12" /></linearGradient>
       <radialGradient id="ps-shadow" cx="0.5" cy="0.5" r="0.5">
         <stop offset="0.6" stopColor="#000" stopOpacity="0.35" />
         <stop offset="1" stopColor="#000" stopOpacity="0" />

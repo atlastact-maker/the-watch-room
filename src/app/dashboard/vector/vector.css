@@ -5518,7 +5518,8 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 @keyframes ps-hurt { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @keyframes ps-probe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes ps-bag { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.86); } }
-@keyframes ps-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5px); } 75% { transform: translateX(1.5px); } }
+/* Inside the metre-scaled group a px is a metre, so the shake is in thousandths. */
+@keyframes ps-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-0.012px); } 75% { transform: translateX(0.012px); } }
 @keyframes ps-strobe { 0% { opacity: 1; } 50% { opacity: 0.25; } 100% { opacity: 1; } }
 @keyframes ps-blue-wash { 0% { opacity: 0; } 50% { opacity: 0.16; } 100% { opacity: 0; } }
 @keyframes ps-trace { 0% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -6; } }

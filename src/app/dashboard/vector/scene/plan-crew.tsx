@@ -50,7 +50,7 @@ function elbow(root: Pt, target: Pt, l1: number, l2: number, bend: 1 | -1): Pt {
 
 /** Where this crew member's head is, for a tag. */
 export function crewHeadAt(at: Pt, facing: Pt): Pt {
-  return add(at, mul(unit(facing), 0.1));
+  return add(at, mul(unit(facing), 0.08));
 }
 
 function Glove({ wrist, dir, colour }: { wrist: Pt; dir: Pt; colour: string }) {
@@ -106,13 +106,14 @@ function Hat({ c, f, hat }: { c: Pt; f: Pt; hat: CrewHat }) {
   return null;
 }
 
-function HeadTop({ c, f, wear }: { c: Pt; f: Pt; wear: CrewWear }) {
+function HeadTop({ c, f, wear, r = 0.13 }: { c: Pt; f: Pt; wear: CrewWear; r?: number }) {
   const [cx, cy] = c;
-  const r = 0.105;
   const ang = deg(f);
   const hair = wear.hairStyle;
+  const s = perp(unit(f));
   return (
     <g>
+      {[-1, 1].map((side) => { const e = add(c, mul(s, side * r * 0.98)); return <ellipse key={side} cx={e[0]} cy={e[1]} rx={r * 0.16} ry={r * 0.24} fill={wear.skin} {...lineSoft} transform={`rotate(${n2(ang)} ${n2(e[0])} ${n2(e[1])})`} />; })}
       <circle cx={cx} cy={cy} r={r} fill={wear.skin} {...line} />
       {hair !== "bald" && (
         <g transform={`rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`}>
@@ -124,7 +125,9 @@ function HeadTop({ c, f, wear }: { c: Pt; f: Pt; wear: CrewWear }) {
       )}
       {hair === "bald" && <circle cx={cx} cy={cy} r={r} fill="url(#ps-face-shade)" />}
       {hair !== "bald" && <circle cx={cx} cy={cy} r={r} fill="url(#ps-hair-shine)" />}
-      <Hat c={c} f={f} hat={wear.hat} />
+      <g transform={`translate(${n2(cx)} ${n2(cy)}) scale(${n2(r / 0.105)}) translate(${n2(-cx)} ${n2(-cy)})`}>
+        <Hat c={c} f={f} hat={wear.hat} />
+      </g>
     </g>
   );
 }
@@ -132,72 +135,59 @@ function HeadTop({ c, f, wear }: { c: Pt; f: Pt; wear: CrewWear }) {
 export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, children }: CrewTopProps) {
   const f = unit(facing);
   const s = perp(f);
-  const sw = 0.175;
-  const shL = add(at, mul(s, -sw));
-  const shR = add(at, mul(s, sw));
   const jacket = wear.hiVis ?? wear.uniform;
   const glove = "#4a78b5";
   const ang = deg(f);
   const head = crewHeadAt(at, f);
   // Points along the body axis: positive is towards the work.
   const axis = (d: number, across = 0): Pt => add(add(at, mul(f, d)), mul(s, across));
-  // The arms point down at the work, so from above they are foreshortened:
-  // the projected lengths are well short of the real 0.3 and 0.27.
+  // From a camera over the patient, someone kneeling and leaning in is a
+  // head, a pair of shoulders and two arms reaching down. The trunk slopes
+  // away under the head and shows as a short back behind the shoulders;
+  // the legs are tucked under it, so only the boot soles peep out behind.
+  const shL = axis(-0.02, -0.2);
+  const shR = axis(-0.02, 0.2);
   const arm = (sh: Pt, target: Pt | undefined, bend: 1 | -1) => {
-    const t = target ?? axis(0.22, bend * 0.26);
-    const el = elbow(sh, t, 0.21, 0.2, bend);
+    const t = target ?? axis(0.24, bend * 0.26);
+    const el = elbow(sh, t, 0.2, 0.19, bend);
     return (
       <g>
-        <path d={capsule(sh, el, 0.043, 0.037)} fill={jacket} {...line} />
-        <path d={capsule(sh, el, 0.043, 0.037)} fill="url(#ps-round)" opacity={0.6} />
-        <path d={capsule(el, t, 0.037, 0.03)} fill={jacket} {...line} />
-        {wear.hiVis && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.035, 0.034)} fill="#d0d4d8" opacity={0.95} />}
+        <path d={capsule(sh, el, 0.052, 0.04)} fill={jacket} {...line} />
+        <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
+        <path d={capsule(el, t, 0.04, 0.03)} fill={jacket} {...line} />
+        {wear.hiVis && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.037, 0.035)} fill="#d0d4d8" opacity={0.95} />}
         <Glove wrist={t} dir={sub(t, el)} colour={glove} />
       </g>
     );
   };
-  // The back recedes from the shoulders: short, because a kneeling person
-  // leaning in has their trunk sloping away from the camera. Behind it the
-  // seat of the trousers, then the two shins lying flat, soles up.
-  const back = smooth([
-    axis(0.02, -0.21), axis(0.02, 0.21), axis(-0.16, 0.19), axis(-0.3, 0.17), axis(-0.3, -0.17), axis(-0.16, -0.19),
-  ], 0.45);
-  const seat = smooth([axis(-0.26, -0.17), axis(-0.26, 0.17), axis(-0.38, 0.18), axis(-0.5, 0.15), axis(-0.5, -0.15), axis(-0.38, -0.18)], 0.45);
+  const back = smooth([axis(-0.04, -0.21), axis(-0.04, 0.21), axis(-0.16, 0.16), axis(-0.22, 0.1), axis(-0.22, -0.1), axis(-0.16, -0.16)], 0.45);
+  const slope = Math.abs(f[0]) > Math.abs(f[1]) ? (f[0] > 0 ? "ps-slope-r" : "ps-slope-l") : f[1] > 0 ? "ps-slope-d" : "ps-slope-u";
   return (
     <g className="ps-crew">
-      <ellipse cx={axis(-0.2)[0] + 0.03} cy={axis(-0.2)[1] + 0.04} rx={0.28} ry={0.3} fill="url(#ps-shadow)" />
+      <ellipse cx={axis(-0.1, 0.08)[0] + 0.05} cy={axis(-0.1, 0.08)[1] + 0.07} rx={0.3} ry={0.24} fill="url(#ps-shadow)" opacity={0.9} />
       {kneeling && [-1, 1].map((side) => {
-        const knee = axis(-0.46, side * 0.11);
-        const ankle = axis(-0.86, side * 0.12);
-        const toe = axis(-1.1, side * 0.125);
+        const heel = axis(-0.26, side * 0.12);
+        const toe = axis(-0.4, side * 0.135);
         return (
-          <g key={side}>
-            <path d={capsule(knee, ankle, 0.062, 0.05)} fill={wear.uniform} {...line} />
-            <path d={capsule(knee, ankle, 0.062, 0.05)} fill="url(#ps-round)" opacity={0.6} />
-            <path d={capsule(ankle, toe, 0.05, 0.046)} fill="#15191c" {...line} />
-            <path d={capsule(lerp(ankle, toe, 0.35), lerp(ankle, toe, 0.9), 0.034, 0.03)} fill="#3a3f45" />
+          <g key={side} opacity={0.9}>
+            <path d={capsule(heel, toe, 0.045, 0.04)} fill="#121518" {...line} />
+            <path d={capsule(lerp(heel, toe, 0.25), lerp(heel, toe, 0.85), 0.028, 0.025)} fill="#30353b" />
           </g>
         );
       })}
-      {kneeling && <path d={seat} fill={wear.uniform} {...line} />}
-      {kneeling && <path d={seat} fill="url(#ps-round)" opacity={0.5} />}
       <path d={back} fill={jacket} {...line} />
-      {wear.hiVis && (
-        <g>
-          <path d={`M${P(axis(-0.12, -0.2))} L${P(axis(-0.12, 0.2))} M${P(axis(-0.24, -0.18))} L${P(axis(-0.24, 0.18))}`} stroke="#d0d4d8" strokeWidth={0.04} />
-          <path d={`M${P(axis(0.0, -0.1))} L${P(axis(-0.28, -0.07))} M${P(axis(0.0, 0.1))} L${P(axis(-0.28, 0.07))}`} stroke="#d0d4d8" strokeWidth={0.035} />
-        </g>
-      )}
-      <path d={back} fill="url(#ps-round)" opacity={0.45} />
+      {wear.hiVis && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke="#d0d4d8" strokeWidth={0.04} />}
+      <path d={back} fill={`url(#${slope})`} />
       {/* Shoulders */}
-      <path d={capsule(shL, shR, 0.08, 0.08)} fill={jacket} {...line} />
-      <path d={capsule(shL, shR, 0.08, 0.08)} fill="url(#ps-round-v)" opacity={0.45} />
-      {[shL, shR].map((sh, i) => <rect key={i} x={sh[0] - 0.038} y={sh[1] - 0.016} width={0.076} height={0.032} rx={0.006} fill={darken(wear.uniform, 0.45)} transform={`rotate(${n2(ang + 90)} ${n2(sh[0])} ${n2(sh[1])})`} />)}
+      <path d={capsule(shL, shR, 0.1, 0.1)} fill={jacket} {...line} />
+      <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-round-v)" opacity={0.4} />
+      {wear.hiVis && <path d={`M${P(axis(-0.02, -0.12))} L${P(axis(-0.02, 0.12))}`} stroke="#d0d4d8" strokeWidth={0.035} opacity={0.9} />}
+      {[shL, shR].map((sh, i) => <rect key={i} x={sh[0] - 0.045} y={sh[1] - 0.018} width={0.09} height={0.036} rx={0.007} fill={darken(wear.uniform, 0.45)} transform={`rotate(${n2(ang + 90)} ${n2(sh[0])} ${n2(sh[1])})`} />)}
       <g className={armsClass}>
         {arm(shL, hands.left, -1)}
         {arm(shR, hands.right, 1)}
       </g>
-      <HeadTop c={head} f={f} wear={wear} />
+      <HeadTop c={head} f={f} wear={wear} r={0.125} />
       {children}
     </g>
   );
