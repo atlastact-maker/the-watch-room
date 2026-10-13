@@ -115,6 +115,26 @@ function wearOf(look: PatientLook, setting: SceneSetting, seed: number, wet: boo
 
 type Slot = { at: Pt; facing: Pt; hands: { left?: Pt; right?: Pt }; kneeling: boolean; armsClass?: string; wear?: Partial<CrewWear> };
 
+/** Where the hi-vis jacket goes on: roads, platforms, sites, the water's edge, anywhere outdoors after dark. */
+const JACKET_SETTINGS = new Set<SceneSetting>(["road_urban", "motorway", "car", "lorry", "pavement", "platform", "site", "yard", "moor", "height", "water", "lakeside", "ambulance_motorway", "ambulance_street", "ambulance_river", "ambulance_field"]);
+
+/** The role slide's word, from what the crew list calls the person. */
+function roleWord(c: SceneCrew | undefined): string {
+  if (!c) return "";
+  const r = c.role.toLowerCase();
+  if (c.service === "Fire") return "";
+  if (c.service === "Police") return /sergeant/.test(r) ? "PS" : "PC";
+  if (/hems/.test(r)) return /\bdr\b/i.test(c.name ?? "") ? "DOCTOR" : "PARAMEDIC";
+  if (/basics|doctor/.test(r)) return "DOCTOR";
+  if (/critical care/.test(r)) return "CRITICAL CARE";
+  if (/advanced/.test(r)) return "ADV PARAMEDIC";
+  if (/paramedic/.test(r)) return "PARAMEDIC";
+  if (/technician|emt/.test(r)) return "TECHNICIAN";
+  if (/eca|care assistant|assistant/.test(r)) return "ECA";
+  if (/pilot/.test(r)) return "PILOT";
+  return c.role.toUpperCase().slice(0, 12);
+}
+
 const hhmm = (hour: number) => `${String(Math.floor(hour) % 24).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")}`;
 
 export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, label, vitals, chrome = "full" }: PatientSceneProps) {
@@ -209,7 +229,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     const behind: Slot = { at: [0.05, -(r.headL + 0.28)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: [-r.headW * 0.25, r.headL * 0.6], right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
     crew.slice(0, 2).forEach((c, i) => slots.push(i === 0 ? door : behind));
   } else if (arrangement === "water") {
-    const dry: Partial<CrewWear> = { uniform: "#c0392b", hiVis: null, hat: "white_helmet" };
+    const dry: Partial<CrewWear> = { uniform: "#c0392b", trousers: "#c0392b", yoke: "#c0392b", hiVis: null, jacket: false, sleeves: "long", role: "", hat: "white_helmet" };
     const right: Slot = { at: [r.chestW + 0.4, r.chestY + 0.05], facing: [-1, 0], kneeling: false, hands: { left: [A.leftUpperChest[0] + 0.08, A.leftUpperChest[1] - 0.06], right: [A.chin[0] + 0.06, A.chin[1] + 0.04] }, wear: dry };
     const left: Slot = { at: [-(r.chestW + 0.4), r.chestY + 0.2], facing: [1, 0], kneeling: false, hands: { right: [A.rightUpperChest[0] - 0.08, A.rightUpperChest[1] - 0.02], left: [A.rightWrist[0] - 0.05, A.rightWrist[1] - 0.1] }, wear: dry };
     crew.slice(0, 2).forEach((c, i) => slots.push(i === 0 ? right : left));
@@ -258,7 +278,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
           {crew.length > 0 && arrangement !== "water" && <KitBag at={bagAt} />}
           {look.kit.oxygen !== "none" && arrangement !== "water" && <O2Cylinder at={o2At} angle={spec.o2 ? 90 : 78} />}
           {slots.map((sl, i) => (
-            <CrewTop key={i} at={sl.at} facing={sl.facing} hands={sl.hands} kneeling={sl.kneeling} armsClass={sl.armsClass} wear={{ ...crewWearOf(crew[i]?.service ?? "Ambulance", crew[i]?.scope, hash(crew[i]?.callsign ?? "x") + i * 977), ...sl.wear }} />
+            <CrewTop key={i} at={sl.at} facing={sl.facing} hands={sl.hands} kneeling={sl.kneeling} armsClass={sl.armsClass} wear={{ ...crewWearOf(crew[i]?.service ?? "Ambulance", crew[i]?.scope, hash(crew[i]?.callsign ?? "x") + i * 977, { jacket: JACKET_SETTINGS.has(setting) || (spec.outdoor && amb.night), role: roleWord(crew[i]) }), ...sl.wear }} />
           ))}
           {look.kit.iv && ivAt && <DripBag at={ivAt} />}
           {kit.lines}

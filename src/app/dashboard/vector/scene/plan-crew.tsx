@@ -2,10 +2,13 @@
 
 // THE CREW FROM ABOVE. Someone kneeling over a patient, seen from where a
 // camera on the ceiling would see them: the top of the head leaning in,
-// the shoulders and the hi-vis back behind it, two arms reaching to the
-// work, blue gloves on the hands, the soles of the boots poking out at
-// the far end. The service shows in the colours and the headgear — a
-// yellow fire helmet, a chequered police cap, the orange of a HEMS team.
+// the shoulders behind it, two arms reaching to the work, blue gloves on
+// the hands, the soles of the boots poking out at the far end. Dressed
+// as they are: the ambulance service's bottle-green shirt and trousers,
+// role slides on the shoulders, a radio on the strap, the hi-vis jacket
+// only where it would be worn — on the road, the platform, the site, out
+// at night — and then with its green yoke uppermost. A yellow fire
+// helmet, a chequered police cap, the orange of a HEMS team.
 
 import type { ReactNode } from "react";
 import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, line, lineSoft } from "./plan-figure";
@@ -16,8 +19,18 @@ const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
 export type CrewHat = "none" | "fire_helmet" | "police_cap" | "white_helmet";
 
 export type CrewWear = {
+  /** The shirt or tunic. */
   uniform: string;
+  trousers: string;
+  /** The hi-vis jacket's colour, if the service has one. */
   hiVis: string | null;
+  /** Wearing the jacket now. */
+  jacket: boolean;
+  /** What the shoulders show: a jacket's yoke, or the shirt. */
+  yoke: string;
+  sleeves: "short" | "long";
+  /** The role slide on each shoulder, in capitals; empty for none. */
+  role: string;
   hat: CrewHat;
   skin: string;
   hair: string;
@@ -135,10 +148,13 @@ function HeadTop({ c, f, wear, r = 0.13 }: { c: Pt; f: Pt; wear: CrewWear; r?: n
 export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, children }: CrewTopProps) {
   const f = unit(facing);
   const s = perp(f);
-  const jacket = wear.hiVis ?? wear.uniform;
   const glove = "#4a78b5";
   const ang = deg(f);
   const head = crewHeadAt(at, f);
+  const jacket = wear.jacket && wear.hiVis ? wear.hiVis : null;
+  const sleeve = jacket ?? wear.uniform;
+  const forearm = jacket ?? (wear.sleeves === "short" ? wear.skin : wear.uniform);
+  const band = "#cfd4d8";
   // Points along the body axis: positive is towards the work.
   const axis = (d: number, across = 0): Pt => add(add(at, mul(f, d)), mul(s, across));
   // From a camera over the patient, someone kneeling and leaning in is a
@@ -152,16 +168,28 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
     const el = elbow(sh, t, 0.2, 0.19, bend);
     return (
       <g>
-        <path d={capsule(sh, el, 0.052, 0.04)} fill={jacket} {...line} />
+        <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...line} />
         <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
-        <path d={capsule(el, t, 0.04, 0.03)} fill={jacket} {...line} />
-        {wear.hiVis && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.037, 0.035)} fill="#d0d4d8" opacity={0.95} />}
+        <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} {...line} />
+        {forearm !== wear.skin && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />}
+        {jacket && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.037, 0.035)} fill={band} opacity={0.95} />}
         <Glove wrist={t} dir={sub(t, el)} colour={glove} />
       </g>
     );
   };
   const back = smooth([axis(-0.04, -0.21), axis(-0.04, 0.21), axis(-0.16, 0.16), axis(-0.22, 0.1), axis(-0.22, -0.1), axis(-0.16, -0.16)], 0.45);
   const slope = Math.abs(f[0]) > Math.abs(f[1]) ? (f[0] > 0 ? "ps-slope-r" : "ps-slope-l") : f[1] > 0 ? "ps-slope-d" : "ps-slope-u";
+  const slide = (sh: Pt, side: 1 | -1) => {
+    const c = add(sh, mul(s, side * 0.01));
+    return (
+      <g key={side} transform={`rotate(${n2(ang + 90)} ${n2(c[0])} ${n2(c[1])})`}>
+        <rect x={c[0] - 0.045} y={c[1] - 0.019} width={0.09} height={0.038} rx={0.006} fill={darken(wear.uniform, 0.35)} {...lineSoft} />
+        <rect x={c[0] - 0.045} y={c[1] - 0.019} width={0.09} height={0.038} rx={0.006} fill="url(#ps-round)" opacity={0.4} />
+        {wear.role && <text x={c[0]} y={c[1] + 0.008} textAnchor="middle" fontSize={0.021} fontWeight={700} fontFamily="Arial, sans-serif" fill="#f4f6f8" textLength={Math.min(0.078, wear.role.length * 0.0125)} lengthAdjust="spacingAndGlyphs" transform={`rotate(${side === -1 ? 180 : 0} ${n2(c[0])} ${n2(c[1])})`}>{wear.role}</text>}
+      </g>
+    );
+  };
+  const radioAt = add(add(shL, mul(f, 0.06)), mul(s, 0.07));
   return (
     <g className="ps-crew">
       <ellipse cx={axis(-0.1, 0.08)[0] + 0.05} cy={axis(-0.1, 0.08)[1] + 0.07} rx={0.3} ry={0.24} fill="url(#ps-shadow)" opacity={0.9} />
@@ -175,14 +203,22 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
           </g>
         );
       })}
-      <path d={back} fill={jacket} {...line} />
-      {wear.hiVis && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke="#d0d4d8" strokeWidth={0.04} />}
+      <path d={back} fill={jacket ?? wear.uniform} {...line} />
+      {jacket && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke={band} strokeWidth={0.04} />}
+      {wear.hat === "fire_helmet" && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke="#d8cf5a" strokeWidth={0.035} />}
       <path d={back} fill={`url(#${slope})`} />
-      {/* Shoulders */}
-      <path d={capsule(shL, shR, 0.1, 0.1)} fill={jacket} {...line} />
+      {/* Shoulders: the jacket's yoke, or the shirt. */}
+      <path d={capsule(shL, shR, 0.1, 0.1)} fill={wear.yoke} {...line} />
       <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-round-v)" opacity={0.4} />
-      {wear.hiVis && <path d={`M${P(axis(-0.02, -0.12))} L${P(axis(-0.02, 0.12))}`} stroke="#d0d4d8" strokeWidth={0.035} opacity={0.9} />}
-      {[shL, shR].map((sh, i) => <rect key={i} x={sh[0] - 0.045} y={sh[1] - 0.018} width={0.09} height={0.036} rx={0.007} fill={darken(wear.uniform, 0.45)} transform={`rotate(${n2(ang + 90)} ${n2(sh[0])} ${n2(sh[1])})`} />)}
+      {jacket && <path d={`M${P(axis(-0.02, -0.11))} L${P(axis(-0.02, 0.11))}`} stroke={band} strokeWidth={0.035} opacity={0.9} />}
+      {wear.hat !== "fire_helmet" && slide(shL, -1)}
+      {wear.hat !== "fire_helmet" && slide(shR, 1)}
+      {/* The radio, clipped to the strap by the left shoulder, aerial back. */}
+      <g transform={`rotate(${n2(ang)} ${n2(radioAt[0])} ${n2(radioAt[1])})`}>
+        <path d={`M${n2(radioAt[0] - 0.02)} ${n2(radioAt[1])} l-0.07 0`} stroke="#15191c" strokeWidth={0.008} />
+        <rect x={radioAt[0] - 0.02} y={radioAt[1] - 0.018} width={0.045} height={0.036} rx={0.005} fill="#15191c" {...lineSoft} />
+        <rect x={radioAt[0] - 0.012} y={radioAt[1] - 0.01} width={0.02} height={0.012} rx={0.002} fill="#4cb3ff" opacity={0.8} />
+      </g>
       <g className={armsClass}>
         {arm(shL, hands.left, -1)}
         {arm(shR, hands.right, 1)}
@@ -194,17 +230,21 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
 }
 
 /** Uniform and headgear by service and clinical scope. */
-export function crewWearOf(service: "Fire" | "Ambulance" | "Police" | undefined, scope: string | undefined, seed: number): CrewWear {
+export function crewWearOf(service: "Fire" | "Ambulance" | "Police" | undefined, scope: string | undefined, seed: number, opts: { jacket?: boolean; role?: string } = {}): CrewWear {
   const skins = ["#f1c9a5", "#e8b894", "#d9a079", "#b67a4e", "#8c5a36"];
   const hairs = ["#2b1d14", "#4a3220", "#1b1b1b", "#8a5a2b", "#6b4a2a"];
   const skin = skins[(seed >>> 2) % skins.length];
   const hair = hairs[(seed >>> 5) % hairs.length];
   const female = (seed >>> 7) % 3 === 0;
   const hairStyle: CrewWear["hairStyle"] = female ? ((seed >>> 9) % 2 ? "bob" : "long") : (seed >>> 11) % 7 === 0 ? "bald" : "short";
-  const common = { skin, hair, hairStyle };
-  if (service === "Fire") return { ...common, uniform: "#2b3a48", hiVis: null, hat: "fire_helmet" };
-  if (service === "Police") return { ...common, uniform: "#15202b", hiVis: "#e3df55", hat: "police_cap" };
-  if (scope === "hems") return { ...common, uniform: "#e8701b", hiVis: null, hat: "none" };
-  if (scope === "basics" || scope === "ccc") return { ...common, uniform: "#1f7a45", hiVis: "#9fe06a", hat: "none" };
-  return { ...common, uniform: "#1f7a45", hiVis: "#e3df55", hat: "none" };
+  const jacket = !!opts.jacket;
+  const role = (opts.role ?? "").toUpperCase();
+  const common = { skin, hair, hairStyle, jacket, role };
+  // The ambulance service's bottle green; the jacket's yellow kept quiet.
+  const green = "#245239", greenDark = "#1b3d2b", hiVis = "#cfc63d";
+  if (service === "Fire") return { ...common, uniform: "#2b3139", trousers: "#2b3139", hiVis: null, jacket: false, yoke: "#2b3139", sleeves: "long", role: "", hat: "fire_helmet" };
+  if (service === "Police") return { ...common, uniform: "#15202b", trousers: "#15202b", hiVis, yoke: jacket ? hiVis : "#15202b", sleeves: "long", hat: "police_cap" };
+  if (scope === "hems") return { ...common, uniform: "#d9641c", trousers: "#d9641c", hiVis: null, jacket: false, yoke: "#d9641c", sleeves: "long", hat: "none" };
+  if (scope === "basics") return { ...common, uniform: green, trousers: greenDark, hiVis: "#7fb86a", yoke: jacket ? "#7fb86a" : green, sleeves: "short", hat: "none" };
+  return { ...common, uniform: green, trousers: greenDark, hiVis, yoke: green, sleeves: "short", hat: "none" };
 }
