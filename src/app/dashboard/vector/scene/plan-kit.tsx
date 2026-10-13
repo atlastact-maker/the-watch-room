@@ -12,7 +12,7 @@
 import type { ReactNode } from "react";
 import type { PatientLook } from "@/lib/sim/patient_look";
 import type { BodyRegion } from "@/lib/sim/body_regions";
-import { type Pt, type Rig, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, anchors, line, lineSoft } from "./plan-figure";
+import { type Pt, type Rig, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, anchors, line, lineSoft, smooth, rot } from "./plan-figure";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
@@ -23,12 +23,19 @@ function slab(c: Pt, along: Pt, length: number, width: number, props: Record<str
   return <rect x={c[0] - length / 2} y={c[1] - width / 2} width={length} height={width} rx={rx} transform={`rotate(${n2(ang)} ${P(c)})`} {...props} />;
 }
 
+/** Where a wire from a to b bows out to, the way a cable lies. */
+function bow(a: Pt, b: Pt, sag: number): Pt {
+  return add(lerp(a, b, 0.5), mul(perp(unit(sub(b, a))), sag));
+}
+
 /** A wire from a to b that sags sideways a little, the way a cable lies. */
 function wire(a: Pt, b: Pt, className: string, sag = 0.12): ReactNode {
-  const m = lerp(a, b, 0.5);
-  const n = perp(unit(sub(b, a)));
-  const c = add(m, mul(n, sag));
-  return <path d={`M${P(a)} Q${P(c)} ${P(b)}`} className={className} fill="none" {...SOFT} />;
+  return <path d={`M${P(a)} Q${P(bow(a, b, sag))} ${P(b)}`} className={className} fill="none" {...SOFT} />;
+}
+
+/** A lead wire in its own colour. */
+function lead(a: Pt, b: Pt, colour: string, sag: number, className: string, key: string): ReactNode {
+  return <path key={key} d={`M${P(a)} Q${P(bow(a, b, sag))} ${P(b)}`} className={className} stroke={colour} fill="none" {...SOFT} />;
 }
 
 export type KitPlacement = {
@@ -74,6 +81,34 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const legSide = legR ? -1 : 1;
   // Where the wires gather before the one cable runs to the monitor.
   const junction: Pt = [port[0] < 0 ? -(r.chestW + 0.1) : r.chestW + 0.1, r.waistY + 0.08 * k];
+  // ECG electrodes where a torso lead set puts them (the positions the
+  // road uses): the limb leads under each collarbone and low on each side
+  // of the belly, the six chest leads of a 12-lead from the right of the
+  // breastbone at the fourth space round the left chest to the side at
+  // the fifth. Coloured as the UK's monitors are wired: R red, L yellow,
+  // F green, N black; C1 to C6 red, yellow, green, brown, black, violet.
+  // With pads on, the limb leads go out to the shoulders to leave the
+  // sternal pad its room, and the apex pad sits below the chest leads.
+  const bk = k * r.bulk;
+  const ra: Pt = kit.pads ? [-r.shoulderW * 0.84, r.shoulderY + 0.015 * k] : [-r.shoulderW * 0.7, r.shoulderY + 0.035 * k];
+  type Lead = { key: string; at: Pt; colour: string; to: Pt; sag: number };
+  const limb: Lead[] = [
+    { key: "ra", at: ra, colour: "#d7322e", to: junction, sag: 0.08 * k },
+    { key: "la", at: [-ra[0], ra[1]], colour: "#f2c230", to: junction, sag: -0.05 * k },
+    { key: "ll", at: [r.waistW * 0.82, r.waistY + 0.06 * k], colour: "#35a24a", to: junction, sag: 0.02 * k },
+    { key: "rl", at: [-r.waistW * 0.82, r.waistY + 0.06 * k], colour: "#262b30", to: junction, sag: 0.06 * k },
+  ];
+  // The chest leads gather at a yoke by the left ribs before the trunk cable.
+  const vYoke: Pt = [r.waistW * 0.35, r.waistY + 0.02 * k];
+  const v4y = r.chestY + 0.065 * k, v2y = r.chestY + 0.015 * k;
+  const chest: Lead[] = kit.ecg12 ? [
+    { key: "v1", at: [-0.032 * bk, v2y], colour: "#d7322e", to: vYoke, sag: 0.05 * k },
+    { key: "v2", at: [0.032 * bk, v2y], colour: "#f2c230", to: vYoke, sag: 0.03 * k },
+    { key: "v3", at: [0.068 * bk, (v2y + v4y) / 2 + 0.004 * k], colour: "#35a24a", to: vYoke, sag: 0.015 * k },
+    { key: "v4", at: [0.105 * bk, v4y], colour: "#8a5a2b", to: vYoke, sag: 0 },
+    { key: "v5", at: [r.chestW * 0.76, v4y - 0.005 * k], colour: "#262b30", to: vYoke, sag: -0.015 * k },
+    { key: "v6", at: [r.chestW * 0.97, v4y - 0.012 * k], colour: "#6f3fa0", to: vYoke, sag: -0.03 * k },
+  ] : [];
 
   // --- Under the patient: a scoop or board, blood on the ground.
   const under = (
@@ -101,7 +136,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
 
   // --- On the chest: moves with the breathing.
   const padR = A.rightUpperChest;
-  const padL = A.leftLateral;
+  const padL: Pt = kit.ecg12 ? [r.chestW * 0.8, r.chestY + 0.165 * k] : A.leftLateral;
   // A defibrillation pad: off-white, with the printed placement picture and its tail of cable.
   const pad = (c: Pt, along: Pt, key: string) => {
     const ang = deg(unit(along));
@@ -140,10 +175,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       )}
       {kit.leads && (
         <g>
-          {electrode([padR[0] - 0.05 * k, padR[1] - 0.01 * k], "#e03a3a", 200, "ra")}
-          {electrode([A.leftUpperChest[0] + 0.03 * k, A.leftUpperChest[1] - 0.01 * k], "#f2c94c", -20, "la")}
-          {electrode(A.leftLower, "#3fae3f", 20, "ll")}
-          {electrode(A.rightLower, "#1b2733", 160, "rl")}
+          {[...limb, ...chest].map((e) => electrode(e.at, e.colour, deg(sub(bow(e.at, e.to, e.sag), e.at)), e.key))}
         </g>
       )}
       {kit.dressing && (
@@ -194,7 +226,48 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const ivHand = A.rightHandBack;
   const ivAlong = sub(r.armR.d, r.armR.c);
   const mouth = A.mouth;
-  const bagAt = place.bvmHand ?? ([r.headW * 0.9, -0.02 * k] as Pt);
+  // A face mask from above: a teardrop over the nose and mouth, the soft
+  // cushion round its rim, the clear dome with its highlight and the 22 mm
+  // connector at the top of the dome, over the bridge of the nose.
+  const hw = r.headW, hl = r.headL;
+  const maskPath = `M0 ${n2(hl * 0.52)} C${n2(hw * 0.2)} ${n2(hl * 0.52)} ${n2(hw * 0.36)} ${n2(hl * 0.68)} ${n2(hw * 0.34)} ${n2(hl * 0.83)} C${n2(hw * 0.33)} ${n2(hl * 0.96)} ${n2(hw * 0.16)} ${n2(hl * 1.01)} 0 ${n2(hl * 1.01)} C${n2(-hw * 0.16)} ${n2(hl * 1.01)} ${n2(-hw * 0.33)} ${n2(hl * 0.96)} ${n2(-hw * 0.34)} ${n2(hl * 0.83)} C${n2(-hw * 0.36)} ${n2(hl * 0.68)} ${n2(-hw * 0.2)} ${n2(hl * 0.52)} 0 ${n2(hl * 0.52)} Z`;
+  const maskTop: Pt = [0, hl * 0.7];
+  const mask = (kind: "bvm" | "simple" | "nrb") => (
+    <g>
+      <path d={maskPath} fill="url(#pk-clear)" opacity={0.42} />
+      <path d={maskPath} fill="none" stroke="rgba(238, 244, 250, 0.92)" strokeWidth={0.02 * k} />
+      <path d={maskPath} fill="none" stroke="#8fa8bc" strokeWidth={0.8} {...SW} />
+      <path d={maskPath} fill="none" stroke="#9fb4c8" strokeWidth={0.5} opacity={0.8} {...SW} transform={`translate(0 ${n2(hl * 0.78)}) scale(0.86) translate(0 ${n2(-hl * 0.78)})`} />
+      <path d={`M${n2(-hw * 0.2)} ${n2(hl * 0.82)} Q${n2(-hw * 0.18)} ${n2(hl * 0.62)} ${n2(-hw * 0.05)} ${n2(hl * 0.57)}`} stroke="#ffffff" strokeWidth={1.4} fill="none" opacity={0.75} {...SOFT} />
+      {kind === "simple" && [-1, 1].map((sd) => <g key={sd}>{[0.84, 0.9].map((t) => <circle key={t} cx={sd * hw * 0.22} cy={hl * t} r={0.005 * k} fill="#3b434b" opacity={0.6} />)}</g>)}
+      {kind === "nrb" && [-1, 1].map((sd) => <circle key={sd} cx={sd * hw * 0.2} cy={hl * 0.86} r={0.012 * k} fill="#dfe8ef" stroke="#8a9399" strokeWidth={0.6} {...SW} />)}
+      <circle cx={0} cy={maskTop[1]} r={0.015 * k} fill="#e3e9ee" stroke="#6f777c" strokeWidth={0.8} {...SW} />
+      <circle cx={0} cy={maskTop[1]} r={0.009 * k} fill={kind === "bvm" ? "#9aa0a6" : "#c9ced3"} stroke="#6f777c" strokeWidth={0.5} {...SW} />
+    </g>
+  );
+  // The bag-valve-mask laid out along a line from the valve to the hand
+  // that squeezes the bag: the patient valve, the self-inflating bag, the
+  // inlet valve with its oxygen nipple, and the reservoir flopping off it.
+  const bvm = (() => {
+    const valve: Pt = kit.airway === "none" ? maskTop : [0, mouth[1] - 0.012 * k];
+    const bagAt = place.bvmHand ?? add(valve, mul(unit([-0.62, -0.78]), 0.19 * k));
+    const u = unit(sub(bagAt, valve)), v = perp(u);
+    const at = (a: number, c = 0): Pt => add(add(valve, mul(u, a * k)), mul(v, c * k));
+    const off = kit.capno ? 0.04 : 0;
+    const bagStart = off + 0.078, bagLen = 0.22, bagEnd = bagStart + bagLen, bagW = 0.062;
+    const N = 12;
+    const edge = (sgn: number, i: number): Pt => { const t = i / N; return at(bagStart + bagLen * t, sgn * (bagW * Math.pow(Math.sin(Math.PI * t), 0.5) + 0.014)); };
+    const pts: Pt[] = [];
+    for (let i = 0; i <= N; i++) pts.push(edge(1, i));
+    for (let i = N; i >= 0; i--) pts.push(edge(-1, i));
+    const u2 = rot(u, 0.22 * (u[0] < 0 ? 1 : -1)), v2 = perp(u2);
+    const resBase = at(bagEnd + 0.034);
+    const resAt = (a: number, c = 0): Pt => add(add(resBase, mul(u2, a * k)), mul(v2, c * k));
+    const rp: Pt[] = [];
+    for (let i = 0; i <= N; i++) { const t = i / N; rp.push(resAt(0.17 * t, 0.012 + 0.03 * Math.pow(Math.sin(Math.PI * t), 0.7))); }
+    for (let i = N; i >= 0; i--) { const t = i / N; rp.push(resAt(0.17 * t, -(0.012 + 0.03 * Math.pow(Math.sin(Math.PI * t), 0.7)))); }
+    return { valve, u, v, at, off, bagStart, bagLen, bagEnd, bag: smooth(pts, 0.35), res: smooth(rp, 0.35), resAt };
+  })();
   const o2Line = (from: Pt) => <path d={`M${P(from)} C${P(add(from, [0.25 * k, -0.05 * k]))} ${P(add(o2, [-0.2 * k, 0.15 * k]))} ${P(o2)}`} className="ps-tube o2" fill="none" {...SOFT} />;
   const maskElastic = (
     <path d={`M${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(-r.headW * 0.56)} ${n2(r.headL * 0.6)} ${n2(-r.headW * 0.5)} ${n2(r.headL * 0.45)} M${n2(r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(r.headW * 0.56)} ${n2(r.headL * 0.6)} ${n2(r.headW * 0.5)} ${n2(r.headL * 0.45)}`} stroke="#e6eef5" strokeWidth={1} fill="none" {...SOFT} />
@@ -275,11 +348,9 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       {(kit.oxygen === "mask" || kit.oxygen === "nrb") && (
         <g>
           {maskElastic}
-          <path d={`M${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(-r.headW * 0.32)} ${n2(r.headL * 0.52)} 0 ${n2(r.headL * 0.5)} Q${n2(r.headW * 0.32)} ${n2(r.headL * 0.52)} ${n2(r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(r.headW * 0.28)} ${n2(r.headL * 0.95)} 0 ${n2(r.headL * 0.98)} Q${n2(-r.headW * 0.28)} ${n2(r.headL * 0.95)} ${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Z`} fill="url(#pk-clear)" stroke="#8fb0c7" strokeWidth={0.9} {...SW} />
-          <path d={`M${n2(-r.headW * 0.1)} ${n2(r.headL * 0.6)} Q0 ${n2(r.headL * 0.56)} ${n2(r.headW * 0.1)} ${n2(r.headL * 0.6)}`} stroke="#ffffff" strokeWidth={1} fill="none" opacity={0.7} {...SOFT} />
-          <circle cx={0} cy={r.headL * 0.76} r={0.012 * k} fill="#dfe8ef" stroke="#8fb0c7" strokeWidth={0.6} {...SW} />
-          {kit.oxygen === "nrb" && <ellipse cx={0} cy={r.headL * 1.12} rx={0.045 * k} ry={0.11 * k} fill="url(#pk-clear)" stroke="#8fb0c7" strokeWidth={0.8} className="ps-bag-nrb" {...SW} />}
-          {o2Line([0, r.headL * (kit.oxygen === "nrb" ? 1.23 : 0.98)])}
+          {mask(kit.oxygen === "nrb" ? "nrb" : "simple")}
+          {kit.oxygen === "nrb" && <ellipse cx={0} cy={hl * 1.14} rx={0.045 * k} ry={0.11 * k} fill="url(#pk-clear)" stroke="#8fb0c7" strokeWidth={0.8} className="ps-bag-nrb" {...SW} />}
+          {o2Line([0, hl * (kit.oxygen === "nrb" ? 1.25 : 1.01)])}
         </g>
       )}
       {kit.airway === "igel" && (
@@ -301,16 +372,28 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       )}
       {kit.oxygen === "bvm" && (
         <g className="ps-bvm">
-          {kit.airway === "none" && (
-            <path d={`M${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(-r.headW * 0.32)} ${n2(r.headL * 0.52)} 0 ${n2(r.headL * 0.5)} Q${n2(r.headW * 0.32)} ${n2(r.headL * 0.52)} ${n2(r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(r.headW * 0.28)} ${n2(r.headL * 0.95)} 0 ${n2(r.headL * 0.98)} Q${n2(-r.headW * 0.28)} ${n2(r.headL * 0.95)} ${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Z`} fill="url(#pk-clear)" stroke="#3aa89a" strokeWidth={1.6} {...SW} />
+          {kit.airway === "none" && mask("bvm")}
+          {kit.capno && (
+            <g>
+              {slab(bvm.at(0.02), bvm.u, 0.036 * k, 0.03 * k, { fill: "#3b434b", stroke: "#15191c", strokeWidth: 0.7, ...SW }, 0.004 * k)}
+              <circle cx={bvm.at(0.02, 0.009)[0]} cy={bvm.at(0.02, 0.009)[1]} r={0.003 * k} fill="#7fc4ff" />
+            </g>
           )}
-          <path d={`M${P(add(mouth, [0, -0.04 * k]))} L${P(lerp(mouth, bagAt, 0.35))}`} stroke="#dfe8ef" fill="none" strokeWidth={0.022 * k} strokeLinecap="round" />
-          {kit.capno && <g>{slab(lerp(mouth, bagAt, 0.2), sub(bagAt, mouth), 0.05 * k, 0.034 * k, { fill: "#5a6470", stroke: "#1b2733", strokeWidth: 0.6, ...SW }, 0.005 * k)}<path d={`M${P(lerp(mouth, bagAt, 0.2))} l${n2(0.05 * k)} ${n2(0.08 * k)}`} stroke="#9fb4c8" strokeWidth={1} fill="none" {...SOFT} /></g>}
-          {slab(lerp(mouth, bagAt, 0.4), sub(bagAt, mouth), 0.045 * k, 0.05 * k, { fill: "#2f6fd6", stroke: "#1b2733", strokeWidth: 0.6, ...SW }, 0.008 * k)}
-          {slab(lerp(mouth, bagAt, 0.68), sub(bagAt, mouth), 0.24 * k, 0.13 * k, { fill: "url(#pk-clear)", stroke: "#9fb4c8", strokeWidth: 0.8, className: "ps-bag-bvm", ...SW }, 0.06 * k)}
-          {[0.56, 0.68, 0.8].map((t) => <g key={t}>{slab(lerp(mouth, bagAt, t), perp(sub(bagAt, mouth)), 0.12 * k, 0.004 * k, { fill: "#9fb4c8", opacity: 0.5 }, 0.001)}</g>)}
-          {slab(lerp(mouth, bagAt, 1.0), sub(bagAt, mouth), 0.16 * k, 0.08 * k, { fill: "#dfe8ef", opacity: 0.55, stroke: "#9fb4c8", strokeWidth: 0.6, ...SW }, 0.04 * k)}
-          {o2Line(lerp(mouth, bagAt, 1.08))}
+          {/* The patient valve: the exhalation ring at the mask, the clear housing, the collar the bag clips into. */}
+          <circle cx={bvm.at(bvm.off + 0.014)[0]} cy={bvm.at(bvm.off + 0.014)[1]} r={0.021 * k} fill="#dfe8ef" stroke="#6f777c" strokeWidth={0.7} {...SW} />
+          {[-1, 1].map((sd) => <path key={sd} d={`M${P(bvm.at(bvm.off + 0.006, sd * 0.012))} L${P(bvm.at(bvm.off + 0.022, sd * 0.012))}`} stroke="#8a9399" strokeWidth={0.6} fill="none" {...SOFT} />)}
+          {slab(bvm.at(bvm.off + 0.045), bvm.u, 0.046 * k, 0.034 * k, { fill: "url(#pk-clear)", stroke: "#7f98ad", strokeWidth: 0.8, ...SW }, 0.006 * k)}
+          {slab(bvm.at(bvm.off + 0.07), bvm.u, 0.014 * k, 0.04 * k, { fill: "#2f6fd6", stroke: "#1b2733", strokeWidth: 0.6, ...SW }, 0.004 * k)}
+          {/* The bag, clear silicone with its gloss and the grip ridges along it. */}
+          <path d={bvm.bag} className="ps-bag-bvm" filter="url(#pk-drop-sm)" />
+          <path d={bvm.bag} fill="url(#pk-gloss)" />
+          {[-0.5, 0, 0.5].map((t) => <path key={t} d={`M${P(bvm.at(bvm.bagStart + 0.035, t * 0.034))} L${P(bvm.at(bvm.bagEnd - 0.035, t * 0.034))}`} stroke="#7f98ad" strokeWidth={0.5} opacity={0.45} fill="none" {...SOFT} />)}
+          {/* The inlet valve, the oxygen nipple on it and the reservoir. */}
+          {slab(bvm.at(bvm.bagEnd + 0.016), bvm.u, 0.032 * k, 0.044 * k, { fill: "#4a5560", stroke: "#1b2733", strokeWidth: 0.7, ...SW }, 0.006 * k)}
+          {slab(bvm.at(bvm.bagEnd + 0.016, 0.028), bvm.v, 0.014 * k, 0.009 * k, { fill: "#8fcf9a", stroke: "#1b2733", strokeWidth: 0.5, ...SW }, 0.003 * k)}
+          <path d={bvm.res} className="ps-bvm-res" />
+          <path d={`M${P(bvm.resAt(0.04, 0.012))} Q${P(bvm.resAt(0.08, -0.01))} ${P(bvm.resAt(0.13, 0.014))}`} stroke="#8fa8bc" strokeWidth={0.5} fill="none" opacity={0.6} {...SOFT} />
+          {o2Line(bvm.at(bvm.bagEnd + 0.016, 0.036))}
         </g>
       )}
     </g>
@@ -329,14 +412,19 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       )}
       {kit.leads && (
         <g>
-          {wire([padR[0] - 0.05 * k, padR[1] - 0.01 * k], junction, "ps-wire", 0.08 * k)}
-          {wire([A.leftUpperChest[0] + 0.03 * k, A.leftUpperChest[1] - 0.01 * k], junction, "ps-wire", -0.05 * k)}
-          {wire(A.leftLower, junction, "ps-wire", 0.02 * k)}
-          {wire(A.rightLower, junction, "ps-wire", 0.06 * k)}
+          {limb.map((e) => lead(e.at, e.to, e.colour, e.sag, "ps-lead", e.key))}
+          {chest.map((e) => lead(e.at, e.to, e.colour, e.sag, "ps-lead-v", e.key))}
+          {chest.length > 0 && (
+            <g>
+              {wire(vYoke, junction, "ps-wire-bundle", 0.03 * k)}
+              <rect x={vYoke[0] - 0.022 * k} y={vYoke[1] - 0.015 * k} width={0.044 * k} height={0.03 * k} rx={0.005 * k} fill="#2b3139" {...lineSoft} />
+            </g>
+          )}
           <circle cx={junction[0]} cy={junction[1]} r={0.022 * k} fill="#2b3139" {...lineSoft} />
           {wire(junction, port, "ps-wire-bundle", 0.1 * k)}
         </g>
       )}
+      {kit.capno && kit.oxygen === "bvm" && wire(bvm.at(0.02, 0.016), port, "ps-wire", 0.1 * k)}
       {kit.cuff && wire(add(cuffArm, [r.armW[0] * 1.3, 0]), port, "ps-cuff-tube", 0.12 * k)}
       {kit.probe && wire([A.leftFinger[0], A.leftFinger[1] + 0.03 * k], port, "ps-wire", 0.08 * k)}
     </g>

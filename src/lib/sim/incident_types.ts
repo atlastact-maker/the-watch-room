@@ -792,10 +792,11 @@ export type TreatmentEvent =
  *  monitor shows nothing it has no lead for: no probe, no saturation; no
  *  leads or pads, no trace. One record per patient, shared by every
  *  screen that draws the monitor and by the arrest board. */
-export type MonitoringDevice = "ecg_leads" | "spo2_probe" | "nibp_cuff" | "defib_pads" | "capnography";
+export type MonitoringDevice = "ecg_leads" | "ecg_12" | "spo2_probe" | "nibp_cuff" | "defib_pads" | "capnography";
 
 export const MONITORING_LABEL: Record<MonitoringDevice, string> = {
   ecg_leads: "ECG leads",
+  ecg_12: "12-lead electrodes",
   spo2_probe: "SpO₂ probe",
   nibp_cuff: "NIBP cuff",
   defib_pads: "Defib pads",
@@ -804,6 +805,7 @@ export const MONITORING_LABEL: Record<MonitoringDevice, string> = {
 
 export const MONITORING_HINT: Record<MonitoringDevice, string> = {
   ecg_leads: "Three or four electrodes — a continuous rhythm strip, a heart rate and the respiration trace. Needed for a 12-lead.",
+  ecg_12: "Six chest electrodes on top of the limb leads — the diagnostic 12-lead. They stay on for a repeat.",
   spo2_probe: "Finger probe — saturation and a pulse rate from the pleth. Nothing in a cold hand or an arrest.",
   nibp_cuff: "Cuff on the arm — a pressure each time it cycles, not a live number.",
   defib_pads: "Pads on the chest — a rhythm through the pads, and the ability to shock, pace or cardiovert.",

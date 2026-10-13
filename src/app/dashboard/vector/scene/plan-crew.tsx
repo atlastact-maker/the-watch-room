@@ -11,7 +11,7 @@
 // helmet, a chequered police cap, the orange of a HEMS team.
 
 import type { ReactNode } from "react";
-import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, line, lineSoft } from "./plan-figure";
+import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, line, lineSoft, handParts, HandShape } from "./plan-figure";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
@@ -66,26 +66,12 @@ export function crewHeadAt(at: Pt, facing: Pt): Pt {
   return add(at, mul(unit(facing), 0.08));
 }
 
-function Glove({ wrist, dir, colour }: { wrist: Pt; dir: Pt; colour: string }) {
-  const d = unit(dir);
-  const n = perp(d);
-  const w = 0.036;
-  const palmEnd = add(wrist, mul(d, 0.075));
-  const fingers = Array.from({ length: 4 }, (_, i) => {
-    const t = (i - 1.5) / 1.5;
-    const base = add(palmEnd, mul(n, t * w * 1.15));
-    const f = unit(add(d, mul(n, t * 0.12)));
-    return capsule(base, add(base, mul(f, 0.065 - Math.abs(t) * 0.012)), w * 0.28, w * 0.22);
-  });
-  const thumbBase = add(lerp(wrist, palmEnd, 0.3), mul(n, -w * 1.35));
-  return (
-    <g>
-      <path d={capsule(add(wrist, mul(d, -0.01)), palmEnd, w * 0.9, w * 1.3)} fill={colour} {...lineSoft} />
-      {fingers.map((f, i) => <path key={i} d={f} fill={colour} {...lineSoft} />)}
-      <path d={capsule(lerp(wrist, palmEnd, 0.35), add(thumbBase, mul(d, 0.02)), w * 0.36, w * 0.26)} fill={colour} {...lineSoft} />
-      <path d={capsule(add(wrist, mul(d, -0.035)), add(wrist, mul(d, -0.005)), w * 0.95, w * 0.95)} fill={darken(colour, 0.35)} opacity={0.9} />
-    </g>
-  );
+function Glove({ wrist, dir, colour, hand }: { wrist: Pt; dir: Pt; colour: string; hand: "left" | "right" }) {
+  // A nitrile glove on a hand pressed flat to the work, fingers a little
+  // apart; the cuff loose at the wrist. Palm down, a right hand's thumb is
+  // on its left as the fingers point away, a left hand's on its right.
+  const parts = handParts({ wrist, dir, L: 0.19, wW: 0.034, thumb: hand === "right" ? -1 : 1, curl: 0.08, splay: 1.1 });
+  return <HandShape parts={parts} fill={colour} detail="glove" ink="#17304f" cuff={darken(colour, 0.16)} />;
 }
 
 function Hat({ c, f, hat }: { c: Pt; f: Pt; hat: CrewHat }) {
@@ -163,7 +149,7 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
   // the legs are tucked under it, so only the boot soles peep out behind.
   const shL = axis(-0.02, -0.2);
   const shR = axis(-0.02, 0.2);
-  const arm = (sh: Pt, target: Pt | undefined, bend: 1 | -1) => {
+  const arm = (sh: Pt, target: Pt | undefined, bend: 1 | -1, hand: "left" | "right") => {
     const t = target ?? axis(0.24, bend * 0.26);
     const el = elbow(sh, t, 0.2, 0.19, bend);
     return (
@@ -173,7 +159,7 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
         <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} {...line} />
         {forearm !== wear.skin && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />}
         {jacket && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.037, 0.035)} fill={band} opacity={0.95} />}
-        <Glove wrist={t} dir={sub(t, el)} colour={glove} />
+        <Glove wrist={t} dir={sub(t, el)} colour={glove} hand={hand} />
       </g>
     );
   };
@@ -220,8 +206,8 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
         <rect x={radioAt[0] - 0.012} y={radioAt[1] - 0.01} width={0.02} height={0.012} rx={0.002} fill="#4cb3ff" opacity={0.8} />
       </g>
       <g className={armsClass}>
-        {arm(shL, hands.left, -1)}
-        {arm(shR, hands.right, 1)}
+        {arm(shL, hands.left, -1, "left")}
+        {arm(shR, hands.right, 1, "right")}
       </g>
       <HeadTop c={head} f={f} wear={wear} r={0.125} />
       {children}

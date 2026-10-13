@@ -307,33 +307,189 @@ export type FigureProps = {
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 
-function Hand({ wrist, tip, w, side, palmUp, flat, skin }: { wrist: Pt; tip: Pt; w: number; side: 1 | -1; palmUp: boolean; flat: boolean; skin: string }) {
-  const d = unit(sub(tip, wrist));
-  const n = perp(d);
-  const L = len(sub(tip, wrist));
-  const palmEnd = add(wrist, mul(d, L * 0.55));
-  const palmW = w * 1.35;
-  const palm = capsule(add(wrist, mul(d, -w * 0.1)), palmEnd, w * 0.95, palmW);
-  const fingers = Array.from({ length: 4 }, (_, i) => {
-    const t = (i - 1.5) / 1.5;
-    const base = add(palmEnd, mul(n, t * palmW * 0.62));
-    const lenF = L * (0.42 - Math.abs(t) * 0.08);
-    const dir = unit(add(d, mul(n, t * 0.14 * (flat ? 1 : 0.4))));
-    return capsule(add(base, mul(dir, -w * 0.05)), add(base, mul(dir, lenF)), w * 0.3, w * 0.24);
+// ---------------------------------------------------------------------------
+// Hands
+// ---------------------------------------------------------------------------
+
+export type HandSpec = {
+  /** The wrist centre and the direction the fingers point. */
+  wrist: Pt; dir: Pt;
+  /** Hand length, wrist to the middle fingertip, in metres. */
+  L: number;
+  /** Half-width at the wrist, in metres. */
+  wW: number;
+  /** Which side of `dir` the thumb lies: 1 the clockwise side on screen, -1 the other. */
+  thumb: 1 | -1;
+  /** How far the fingers are flexed: 0 flat, 1 a loose fist. From above a bent finger is a shorter one. */
+  curl?: number;
+  /** How far the fingers spread, 1 = a hand at rest. */
+  splay?: number;
+};
+
+type Finger = { prox: string; dist: string; base: Pt; pip: Pt; dip: Pt; tip: Pt; dir: Pt; w: number };
+
+export type HandParts = {
+  palm: string;
+  fingers: Finger[];
+  thumb: { meta: string; prox: string; dist: string; cmc: Pt; mcp: Pt; ip: Pt; tip: Pt; dir: Pt; w: number };
+  /** A point in the hand's frame: along the hand and across it, in hand lengths; across is positive on the thumb side. */
+  at: (along: number, across: number) => Pt;
+  L: number;
+  dir: Pt;
+};
+
+export const rot = (v: Pt, a: number): Pt => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
+
+/** The shape of a hand seen from above, in the proportions of a real one:
+ *  the palm just over half the length, widest at the knuckles and
+ *  narrowing to the wrist, the heel of the hand bulging on the little-finger
+ *  side; four fingers of different lengths that spread a little and bend
+ *  at the knuckles; the thumb set off the heel of the hand at an angle,
+ *  reaching about the index finger's first joint. */
+export function handParts(h: HandSpec): HandParts {
+  const d = unit(h.dir), n = perp(d), L = h.L, tS = h.thumb;
+  const curl = Math.max(0, Math.min(1, h.curl ?? 0.15));
+  const splay = h.splay ?? 1;
+  const at = (a: number, c: number): Pt => add(add(h.wrist, mul(d, a * L)), mul(n, c * L * tS));
+  const wW = Math.min(0.2, Math.max(0.14, h.wW / L));
+  // The thumb tucks in towards the fingers as the hand closes.
+  const tuck = 1 - 0.3 * curl - 0.15 * (1 - splay);
+  const palm = smooth([
+    at(0.0, -wW), at(0.18, -(wW + 0.04)), at(0.42, -0.225), at(0.5, -0.19),
+    at(0.53, -0.07), at(0.55, 0.04), at(0.53, 0.15), at(0.49, 0.215),
+    at(0.41, 0.24), at(0.3, 0.3 * tuck), at(0.16, 0.27 * tuck), at(0.05, wW + 0.03), at(-0.01, wW),
+  ], 0.5);
+  const spec = [
+    { c: 0.165, b: 0.52, l: 0.40, s: 8 },
+    { c: 0.055, b: 0.55, l: 0.45, s: 2 },
+    { c: -0.055, b: 0.53, l: 0.42, s: -4 },
+    { c: -0.165, b: 0.48, l: 0.33, s: -11 },
+  ];
+  const fingers: Finger[] = spec.map((f) => {
+    const base = at(f.b, f.c);
+    const ang = ((f.s * splay) * Math.PI) / 180;
+    const fd = rot(d, ang * tS);
+    const fd2 = rot(d, ang * 1.3 * tS);
+    const l = f.l * L * (1 - 0.12 * curl);
+    const pip = add(base, mul(fd, l * 0.5));
+    const distL = l * 0.5 * (1 - 0.45 * curl);
+    const tip = add(pip, mul(fd2, distL));
+    const dip = add(pip, mul(fd2, distL * 0.6));
+    const w = 0.05 * L;
+    return {
+      prox: capsule(add(base, mul(fd, -0.07 * L)), pip, w, w * 0.93),
+      dist: capsule(add(pip, mul(fd2, -w * 0.4)), tip, w * 0.93, w * 0.8),
+      base, pip, dip, tip, dir: fd2, w,
+    };
   });
-  // The thumb: out to the near side of the body when the palm is down.
-  const thumbSide = palmUp ? side : -side;
-  const tb = add(lerp(wrist, palmEnd, 0.3), mul(n, thumbSide * palmW * 0.75));
-  const thumb = capsule(lerp(wrist, palmEnd, 0.35), add(tb, mul(d, w * 0.4)), w * 0.36, w * 0.26);
-  const tone = palmUp ? mix(skin, "#ffffff", 0.08) : skin;
+  const cmc = at(0.1, 0.16);
+  const mcp = at(0.35, 0.33 * tuck);
+  const ip = at(0.5 - 0.03 * curl, 0.42 * tuck);
+  const tip = at(0.62 - 0.08 * curl, 0.47 * tuck);
+  const tw = 0.065 * L;
+  const td = unit(sub(tip, ip));
+  const thumb = {
+    meta: capsule(cmc, mcp, tw * 1.25, tw),
+    prox: capsule(mcp, ip, tw, tw * 0.9),
+    dist: capsule(add(ip, mul(td, -tw * 0.35)), tip, tw * 0.9, tw * 0.78),
+    cmc, mcp, ip, tip, dir: td, w: tw,
+  };
+  return { palm, fingers, thumb, at, L, dir: d };
+}
+
+export type HandShapeProps = {
+  parts: HandParts;
+  fill: string;
+  /** Lines on the back of the hand (knuckles, nails) or on the palm (creases), or none (a glove). */
+  detail: "back" | "palm" | "glove";
+  /** The nail colour, when the back of the hand shows. */
+  nail?: string;
+  /** Outline and crease ink. */
+  ink?: string;
+  /** A band at the wrist: a glove's cuff. */
+  cuff?: string;
+  opacity?: number;
+};
+
+/** A hand drawn as one shape: the parts are outlined first and then
+ *  filled over, so the line runs round the outside only, with the joints
+ *  and the nails on top. */
+export function HandShape({ parts, fill, detail, nail, ink = INK, cuff, opacity }: HandShapeProps) {
+  const { palm, fingers, thumb, at, L } = parts;
+  const all = [palm, ...fingers.flatMap((f) => [f.prox, f.dist]), thumb.meta, thumb.prox, thumb.dist];
+  const outline = { stroke: ink, strokeWidth: 1.8, strokeOpacity: 0.5, vectorEffect: "non-scaling-stroke" as const, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
+  const across = (v: Pt) => (Math.abs(v[0]) > Math.abs(v[1]) ? "url(#ps-round-v)" : "url(#ps-round)");
+  const crease = { stroke: ink, strokeWidth: 0.7, strokeOpacity: 0.28, fill: "none", vectorEffect: "non-scaling-stroke" as const, strokeLinecap: "round" as const };
+  const tick = (c: Pt, dir: Pt, w: number, bow = 0.25) => {
+    const nn = perp(dir);
+    const a = add(c, mul(nn, -w)), b = add(c, mul(nn, w)), m = add(c, mul(dir, w * bow));
+    return `M${P(a)} Q${P(m)} ${P(b)}`;
+  };
   return (
-    <g>
-      <path d={palm} fill={tone} {...lineSoft} />
-      {fingers.map((f, i) => <path key={i} d={f} fill={tone} {...lineSoft} />)}
-      <path d={thumb} fill={tone} {...lineSoft} />
-      {!palmUp && <path d={`M${P(lerp(wrist, palmEnd, 0.9))} m${n2(-w * 0.5)} 0 l${n2(w)} 0`} stroke={darken(skin, 0.3)} strokeWidth={0.7} opacity={0.4} {...SOFT} fill="none" />}
+    <g opacity={opacity}>
+      {all.map((d, i) => <path key={`o${i}`} d={d} fill={fill} {...outline} />)}
+      {all.map((d, i) => <path key={`f${i}`} d={d} fill={fill} />)}
+      {/* Roundness: across each finger, and a soft dome on the back of the hand. */}
+      {fingers.map((f, i) => <g key={`s${i}`}><path d={capsule(f.base, f.pip, f.w, f.w * 0.93)} fill={across(f.dir)} opacity={0.7} /><path d={f.dist} fill={across(f.dir)} opacity={0.7} /></g>)}
+      <path d={thumb.prox} fill={across(thumb.dir)} opacity={0.6} />
+      <path d={thumb.dist} fill={across(thumb.dir)} opacity={0.6} />
+      <path d={palm} fill="url(#ps-face-shade)" opacity={detail === "palm" ? 0.35 : 0.7} />
+      {detail === "back" && (
+        <g>
+          {/* The tendons fanning over the back of the hand, the knuckles, the joints and the nails. */}
+          {fingers.map((f, i) => <path key={`t${i}`} d={`M${P(at(0.12, 0))} L${P(add(f.base, mul(f.dir, -0.04 * L)))}`} {...crease} strokeOpacity={0.1} />)}
+          {fingers.map((f, i) => <path key={`k${i}`} d={tick(add(f.base, mul(f.dir, 0.015 * L)), f.dir, f.w * 0.62, 0.5)} {...crease} />)}
+          {fingers.map((f, i) => <path key={`p${i}`} d={tick(f.pip, f.dir, f.w * 0.55)} {...crease} />)}
+          {fingers.map((f, i) => <path key={`d${i}`} d={tick(f.dip, f.dir, f.w * 0.48)} {...crease} strokeOpacity={0.2} />)}
+          <path d={tick(thumb.mcp, thumb.dir, thumb.w * 0.6, 0.5)} {...crease} />
+          <path d={tick(thumb.ip, thumb.dir, thumb.w * 0.55)} {...crease} />
+          {nail && fingers.map((f, i) => {
+            const c = add(f.tip, mul(f.dir, -0.045 * L));
+            return <rect key={`n${i}`} x={c[0] - 0.032 * L} y={c[1] - 0.028 * L} width={0.064 * L} height={0.056 * L} rx={0.02 * L} fill={nail} stroke={ink} strokeWidth={0.6} strokeOpacity={0.35} vectorEffect="non-scaling-stroke" transform={`rotate(${n2(deg(f.dir))} ${P(c)})`} />;
+          })}
+          {nail && (() => {
+            const c = add(thumb.tip, mul(thumb.dir, -0.05 * L));
+            return <rect x={c[0] - 0.036 * L} y={c[1] - 0.032 * L} width={0.072 * L} height={0.064 * L} rx={0.022 * L} fill={nail} stroke={ink} strokeWidth={0.6} strokeOpacity={0.35} vectorEffect="non-scaling-stroke" transform={`rotate(${n2(deg(thumb.dir))} ${P(c)})`} />;
+          })()}
+        </g>
+      )}
+      {detail === "palm" && (
+        <g>
+          {/* The creases of the palm and the fingers' flexion lines. */}
+          <path d={`M${P(at(0.44, -0.2))} Q${P(at(0.51, -0.02))} ${P(at(0.5, 0.14))}`} {...crease} />
+          <path d={`M${P(at(0.3, -0.19))} Q${P(at(0.39, 0))} ${P(at(0.44, 0.1))}`} {...crease} />
+          <path d={`M${P(at(0.1, 0.1))} Q${P(at(0.3, 0.11))} ${P(at(0.42, 0.23))}`} {...crease} />
+          {fingers.map((f, i) => <path key={`b${i}`} d={tick(add(f.base, mul(f.dir, 0.02 * L)), f.dir, f.w * 0.6, -0.3)} {...crease} />)}
+          {fingers.map((f, i) => <path key={`p${i}`} d={tick(f.pip, f.dir, f.w * 0.58, -0.2)} {...crease} />)}
+          {fingers.map((f, i) => <path key={`d${i}`} d={tick(f.dip, f.dir, f.w * 0.5, -0.2)} {...crease} strokeOpacity={0.2} />)}
+          <path d={tick(thumb.ip, thumb.dir, thumb.w * 0.55, -0.2)} {...crease} />
+        </g>
+      )}
+      {detail === "glove" && (
+        <g>
+          {/* A glove's slack gathers at the knuckles and the joints. */}
+          {fingers.map((f, i) => <path key={`k${i}`} d={tick(add(f.base, mul(f.dir, 0.02 * L)), f.dir, f.w * 0.6, 0.5)} {...crease} strokeOpacity={0.22} />)}
+          {fingers.map((f, i) => <path key={`p${i}`} d={tick(f.pip, f.dir, f.w * 0.55)} {...crease} strokeOpacity={0.22} />)}
+          <path d={tick(thumb.ip, thumb.dir, thumb.w * 0.55)} {...crease} strokeOpacity={0.22} />
+        </g>
+      )}
+      {cuff && <path d={capsule(at(-0.11, 0), at(-0.015, 0), parts.L * 0.175, parts.L * 0.165)} fill={cuff} {...outline} strokeWidth={0.9} strokeOpacity={0.35} />}
     </g>
   );
+}
+
+function Hand({ wrist, tip, w, side, palmUp, flat, skin, k }: { wrist: Pt; tip: Pt; w: number; side: 1 | -1; palmUp: boolean; flat: boolean; skin: string; k: number }) {
+  const L = len(sub(tip, wrist));
+  // Lying palm down, the thumb is on the side nearest the body; palm up it
+  // is on the outside. Seen from above with the fingers pointing away, a
+  // right hand's thumb is on its left and a left hand's on its right.
+  const thumb: 1 | -1 = palmUp ? (side === 1 ? -1 : 1) : side;
+  // A hand reaching to hold something is drawn shorter by the rig: it grips.
+  const gripping = L < k * 0.17;
+  const curl = palmUp && !flat ? 0.5 : gripping ? 0.4 : 0.15;
+  const parts = handParts({ wrist, dir: sub(tip, wrist), L, wW: w, thumb, curl, splay: gripping ? 0.5 : 1 });
+  const tone = palmUp ? mix(skin, "#ffffff", 0.08) : skin;
+  return <HandShape parts={parts} fill={tone} detail={palmUp ? "palm" : "back"} nail={mix(mix(skin, "#ffffff", 0.3), "#f3c6c0", 0.25)} ink={darken(skin, 0.55)} />;
 }
 
 function Shoe({ ankle, toe, kind, colour, w, L, flat, skin, side }: { ankle: Pt; toe: Pt; kind: ShoeKind; colour: string; w: number; L: number; flat: boolean; skin: string; side: 1 | -1 }) {
@@ -564,7 +720,7 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
           : <Seg a={arm.a} b={sleeveEnd} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.14} fill={top} />}
         {!sleeveLong && <Seg a={arm.b} b={arm.c} wa={r.armW[1]} wb={r.armW[2]} fill={skin} />}
         {sleeveLong && <Seg a={lerp(arm.b, arm.c, 0.9)} b={arm.c} wa={r.armW[2] * 1.05} wb={r.armW[2]} fill={skin} outline={false} />}
-        <Hand wrist={arm.c} tip={arm.d} w={r.armW[2]} side={side} palmUp={palmUp} flat={flat} skin={skin} />
+        <Hand wrist={arm.c} tip={arm.d} w={r.armW[2]} side={side} palmUp={palmUp} flat={flat} skin={skin} k={k} />
       </g>
     );
   };

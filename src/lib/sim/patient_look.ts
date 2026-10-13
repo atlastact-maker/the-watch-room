@@ -52,6 +52,8 @@ export type PatientLook = {
   seizing: boolean;
   kit: {
     leads: boolean;
+    /** The six chest electrodes of a 12-lead are on as well. */
+    ecg12: boolean;
     probe: boolean;
     cuff: boolean;
     pads: boolean;
@@ -221,7 +223,8 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
   const airway: PatientLook["kit"]["airway"] = aw.rsi || resus?.airway === "ett" ? "tube" : aw.igel || resus?.airway === "igel" ? "igel" : aw.opa || aw.npa ? "adjunct" : "none";
   const pk = tx?.packaging ?? {};
   const kit: PatientLook["kit"] = {
-    leads: !!mon.ecg_leads || (resus?.monitor === "lead_3" || resus?.monitor === "lead_12"),
+    leads: !!mon.ecg_leads || !!mon.ecg_12 || (resus?.monitor === "lead_3" || resus?.monitor === "lead_12"),
+    ecg12: !!mon.ecg_12 || resus?.monitor === "lead_12",
     probe: !!mon.spo2_probe,
     cuff: !!mon.nibp_cuff,
     pads: !!mon.defib_pads || resus?.monitor === "pads" || (resus?.shocks ?? 0) > 0,

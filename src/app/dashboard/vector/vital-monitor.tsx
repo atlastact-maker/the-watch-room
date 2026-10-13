@@ -490,7 +490,10 @@ export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
     const r = interpretEcg(treatment, resus, hrShown, flags, vitals?.temp);
     set((m) => ({ ...m, ecg12: { at: now, ...r } }));
     record(`12-lead ECG · ${r.rhythm} · ${r.impression}`);
-    if (resus) onAttachMonitor?.(casualtyId, "lead_12");
+    // The chest electrodes go on with the first 12-lead and stay on: the
+    // record and the picture of the patient both show them.
+    if (onAttachMonitoring && treatment?.monitoring?.ecg_12 === undefined) onAttachMonitoring(casualtyId, "ecg_12", by);
+    else if (resus) onAttachMonitor?.(casualtyId, "lead_12");
   };
   const setEcg12 = (v: Ecg12 | null) => set((m) => ({ ...m, ecg12: v }));
   const setSilencedUntil = (v: number) => set((m) => ({ ...m, silencedUntil: v }));

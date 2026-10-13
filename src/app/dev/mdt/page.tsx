@@ -169,6 +169,15 @@ function buildWorld(scenarioId: string, minutesIn: number) {
       };
       resus = { ...newResusState(casualty.id, a0, "vf"), monitor: "pads", airway: "igel", shocks: 1, lastShockAt: a0 + 60_000, cycle: 2, cycleStartedAt: nowMs - 70_000, compressorCrewId: `${dca!.id}-1`, compressorName: by, compressorSinceAt: nowMs - 70_000, cyclePausedAt: undefined, adrenalineDoses: 1, lastAdrenalineAt: a0 + 180_000 };
     }
+    // ?look=twelve: the same patient with a 12-lead taken — the chest
+    // electrodes on top of the limb leads.
+    if (param("look") === "twelve") {
+      treatment = {
+        ...treatment,
+        monitoring: { ...treatment.monitoring, ecg_12: t0 + 200_000 },
+        events: [...treatment.events, { kind: "monitoring", at: t0 + 200_000, by, device: "ecg_12" }, { kind: "observation", at: t0 + 200_000, by, text: "12-lead ECG · Sinus rhythm · ST elevation II, III, aVF — inferior STEMI" }],
+      };
+    }
   }
 
   const started = nowMs - 6 * 60_000;

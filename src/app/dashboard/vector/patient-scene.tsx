@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { PatientLook, Skin } from "@/lib/sim/patient_look";
 import type { SceneSetting } from "@/lib/sim/scene_setting";
 import {
-  rig, PlanFigure, FigureDefs, anchors, mix, type Rig, type Wear, type Pt, type Pose, type TopKind, type BottomKind, type ShoeKind,
+  rig, PlanFigure, FigureDefs, anchors, mix, add, mul, unit, type Rig, type Wear, type Pt, type Pose, type TopKind, type BottomKind, type ShoeKind,
 } from "./scene/plan-figure";
 import { kitLayers, KitDefs, Monitor, KitBag, O2Cylinder, DripBag } from "./scene/plan-kit";
 import { CrewTop, crewWearOf, crewHeadAt, type CrewWear } from "./scene/plan-crew";
@@ -193,12 +193,21 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     ? Math.max(0, crew.findIndex((c) => !!look.compressor && (c.callsign === look.compressor || look.compressor.startsWith(c.callsign) || (!!c.name && look.compressor.includes(c.name)))))
     : -1;
   const slots: Slot[] = [];
-  const bvmHand: Pt = [r.headW * 0.9 + 0.12, -0.06];
+  // The bag-valve-mask: the valve sits on the mask over the nose and mouth
+  // (or on the i-gel or tube at the mouth), the bag runs up and away over
+  // the patient's right temple to the hand that squeezes it; the other hand
+  // holds the mask on, thumb and finger round the connector.
+  const valveAt: Pt = look.kit.airway === "none" ? [0, r.headL * 0.7] : [0, A.mouth[1] - 0.012 * k];
+  const bvmHand: Pt = add(valveAt, mul(unit([-0.62, -0.78]), (0.075 + (look.kit.capno ? 0.04 : 0) + 0.11) * k));
+  const maskHand: Pt = [r.headW * 0.62, r.headL * 0.66];
+  // Compressions: the heel of one hand on the breastbone, the other hand on
+  // top of it at an angle, as hands interlock.
+  const cprHands = { left: [A.sternum[0] - 0.04, A.sternum[1] + 0.03] as Pt, right: [A.sternum[0] - 0.015, A.sternum[1] - 0.005] as Pt };
   const needsAirway = look.kit.oxygen === "bvm";
   const holdHead = (look.kit.collar || look.kit.board) && !needsAirway;
   if (arrangement === "sides" || arrangement === "ledge") {
-    const compressor: Slot = { at: [-(r.chestW + 0.2), r.chestY + 0.04], facing: [1, 0], kneeling: true, hands: { left: [A.sternum[0] - 0.012, A.sternum[1] + 0.012], right: [A.sternum[0] + 0.014, A.sternum[1] - 0.012] }, armsClass: "ps-arms cpr" };
-    const airway: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: [-r.headW * 0.25, r.headL * 0.6], right: bvmHand } };
+    const compressor: Slot = { at: [-(r.chestW + 0.2), r.chestY + 0.04], facing: [1, 0], kneeling: true, hands: cprHands, armsClass: "ps-arms cpr" };
+    const airway: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: maskHand, right: bvmHand } };
     const headHold: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
     const lead: Slot = { at: [side, r.chestY + 0.2], facing: [-1, 0], kneeling: true, hands: { left: [A.leftWrist[0] + 0.01, A.leftWrist[1] + 0.02], right: [A.leftUpperChest[0] + 0.04, A.leftUpperChest[1] - 0.02] } };
     const second: Slot = { at: [-side, r.hipY + 0.15], facing: [1, 0], kneeling: true, hands: { right: [A.rightWrist[0] - 0.01, A.rightWrist[1] + 0.02], left: [A.rightThigh[0] - 0.04, A.rightThigh[1]] } };
@@ -215,8 +224,8 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   } else if (arrangement === "bedside") {
     const leftSide: Slot = { at: [-(r.chestW + 0.38), r.chestY + 0.1], facing: [1, 0], kneeling: false, hands: { right: [A.rightWrist[0] - 0.02, A.rightWrist[1]], left: [A.rightUpperChest[0] - 0.06, A.rightUpperChest[1] - 0.02] } };
     const rightSide: Slot = { at: [r.chestW + 0.38, r.chestY + 0.3], facing: [-1, 0], kneeling: false, hands: { left: [A.leftWrist[0] + 0.02, A.leftWrist[1]], right: [A.leftForearm[0] + 0.04, A.leftForearm[1]] } };
-    const headEnd: Slot = { at: [0, -(r.headL + 0.26)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: [-r.headW * 0.25, r.headL * 0.6], right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
-    const compressor: Slot = { ...leftSide, hands: { left: [A.sternum[0] - 0.012, A.sternum[1] + 0.012], right: [A.sternum[0] + 0.014, A.sternum[1] - 0.012] }, armsClass: "ps-arms cpr" };
+    const headEnd: Slot = { at: [0, -(r.headL + 0.26)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
+    const compressor: Slot = { ...leftSide, hands: cprHands, armsClass: "ps-arms cpr" };
     crew.slice(0, 3).forEach((c, i) => {
       if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
       if (needsAirway && !slots.includes(headEnd)) { slots.push(headEnd); return; }
@@ -226,7 +235,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     });
   } else if (arrangement === "car") {
     const door: Slot = { at: [-(r.chestW + 0.5), r.chestY + 0.15], facing: [1, 0], kneeling: false, hands: { right: [A.rightWrist[0] - 0.02, A.rightWrist[1] - 0.02], left: [A.rightUpperChest[0] - 0.05, A.rightUpperChest[1]] } };
-    const behind: Slot = { at: [0.05, -(r.headL + 0.28)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: [-r.headW * 0.25, r.headL * 0.6], right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
+    const behind: Slot = { at: [0.05, -(r.headL + 0.28)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
     crew.slice(0, 2).forEach((c, i) => slots.push(i === 0 ? door : behind));
   } else if (arrangement === "water") {
     const dry: Partial<CrewWear> = { uniform: "#c0392b", trousers: "#c0392b", yoke: "#c0392b", hiVis: null, jacket: false, sleeves: "long", role: "", hat: "white_helmet" };

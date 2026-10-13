@@ -2507,13 +2507,16 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }));
     // The same lead on every screen: the care screen's monitor reads the
     // treatment record, so what the arrest board attached goes there too.
-    const device: MonitoringDevice = monitor === "pads" ? "defib_pads" : "ecg_leads";
+    const devices: MonitoringDevice[] = monitor === "pads" ? ["defib_pads"] : monitor === "lead_12" ? ["ecg_leads", "ecg_12"] : ["ecg_leads"];
     const at = Date.now();
-    updateTreatment(casualtyId, (p) =>
-      p.monitoring?.[device] !== undefined
-        ? p
-        : { ...p, monitoring: { ...p.monitoring, [device]: at }, events: [...p.events, { kind: "monitoring", at, by: "Crew", device }] },
-    );
+    updateTreatment(casualtyId, (p) => {
+      let next = p;
+      for (const device of devices) {
+        if (next.monitoring?.[device] !== undefined) continue;
+        next = { ...next, monitoring: { ...next.monitoring, [device]: at }, events: [...next.events, { kind: "monitoring", at, by: "Crew", device }] };
+      }
+      return next;
+    });
   }
 
   /** Put a lead, probe, cuff or pads on the patient. One record for every
@@ -2525,13 +2528,17 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       if (p.monitoring?.[device] !== undefined) return p;
       return { ...p, monitoring: { ...p.monitoring, [device]: at }, events: [...p.events, { kind: "monitoring", at, by, device }] };
     });
-    if (device === "defib_pads" || device === "ecg_leads") {
+    if (device === "defib_pads" || device === "ecg_leads" || device === "ecg_12") {
       updateResus(casualtyId, (s) => {
-        const want: MonitorMode = device === "defib_pads" ? "pads" : "lead_3";
+        const want: MonitorMode = device === "defib_pads" ? "pads" : device === "ecg_12" ? "lead_12" : "lead_3";
         // Leads read over pads; a 12-lead is never stepped back from.
         if (s.monitor === "lead_12" || s.monitor === want || (s.monitor === "lead_3" && want === "pads")) return s;
         return { ...s, monitor: want, events: resusEvent(s, `${MONITORING_LABEL[device]} attached`, "action") };
       });
+    }
+    // The chest electrodes need the limb leads under them.
+    if (device === "ecg_12") {
+      updateTreatment(casualtyId, (p) => (p.monitoring?.ecg_leads !== undefined ? p : { ...p, monitoring: { ...p.monitoring, ecg_leads: at }, events: [...p.events, { kind: "monitoring", at, by, device: "ecg_leads" }] }));
     }
     if (device === "capnography") {
       updateResus(casualtyId, (s) => (s.capnographyOn ? s : { ...s, capnographyOn: true, events: resusEvent(s, "Waveform capnography attached", "action") }));
