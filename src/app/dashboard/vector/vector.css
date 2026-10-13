@@ -5348,11 +5348,84 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pb-hero .pb-timeline { max-height: 200px; overflow: hidden; }
 .pb-hero .ps-caption { right: auto; left: 50%; transform: translateX(-50%); bottom: 8px; border-radius: 4px; background: rgba(6, 12, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.12); padding: 4px 10px; white-space: nowrap; }
 .cc-stage-body:has(.cc-stage-panel) .pb-hero-right { display: none; }
-.cc-stage-panel { position: absolute; top: 10px; right: 10px; bottom: 10px; width: min(560px, 52%); display: flex; flex-direction: column; background: var(--cc-bg); color: var(--cc-text); border: 1px solid var(--cc-line); border-radius: 6px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); overflow: hidden; z-index: 4; }
-.cc-stage-panel .cc-pane-head { align-items: center; background: var(--cc-card-h); }
+/* The open section: the same dark glass as the cards floating over the picture,
+   so the whole screen reads as one thing. The care theme's tokens are re-pointed
+   here and everything inside — rows, pills, banners, buttons, the resus panel —
+   follows. */
+.cc-stage-panel {
+  --cc-bg: rgba(8, 16, 24, 0.9);
+  --cc-card: rgba(18, 34, 48, 0.85);
+  --cc-card-h: rgba(10, 22, 33, 0.95);
+  --cc-line: rgba(255, 255, 255, 0.16);
+  --cc-line-soft: rgba(255, 255, 255, 0.09);
+  --cc-text: #e6eef5;
+  --cc-dim: #a4b8c8;
+  --cc-muted: #7f97a8;
+  --cc-blue: #3a9ae6;
+  --cc-blue-h: #4cb3ff;
+  --cc-go: #3ad17f;
+  --cc-warn: #f3c447;
+  --cc-stop: #ff5d5d;
+  --vec-go-tint: rgba(58, 209, 127, 0.14);
+  --vec-warn-tint: rgba(243, 196, 71, 0.14);
+  --vec-stop-tint: rgba(255, 93, 93, 0.16);
+  --vec-off: #5f6e7f;
+  --vec-handle: #223446;
+  --vec-handle-border: rgba(255, 255, 255, 0.2);
+  --vec-handle-text: #e6eef5;
+  --vec-bg: rgba(8, 16, 24, 0.9);
+  --vec-surface: rgba(18, 34, 48, 0.85);
+  --vec-surface-raised: rgba(10, 22, 33, 0.95);
+  --vec-border: rgba(255, 255, 255, 0.16);
+  --vec-border-subtle: rgba(255, 255, 255, 0.09);
+  --vec-text: #e6eef5;
+  --vec-text-dim: #a4b8c8;
+  --vec-text-muted: #7f97a8;
+  --vec-work: #3a9ae6;
+  --vec-go: #3ad17f;
+  --vec-warn: #f3c447;
+  --vec-stop: #ff5d5d;
+  position: absolute; top: 10px; right: 10px; bottom: 10px; width: min(560px, 52%);
+  display: flex; flex-direction: column;
+  background: rgba(6, 12, 18, 0.84); color: var(--cc-text);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); backdrop-filter: blur(6px);
+  overflow: hidden; z-index: 4;
+}
+.cc-stage-panel .cc-pane-head { align-items: center; background: rgba(6, 12, 18, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.cc-stage-panel .cc-pane-head h2 { color: var(--cc-text); }
 .cc-stage-panel .cc-pane-head span { flex: 1; }
 .cc-stage-panel .cc-pane-head .cc-close { min-height: 26px; padding: 0 8px; }
-.cc-stage-panel .cc-pane-body { background: var(--cc-card); }
+.cc-stage-panel .cc-pane-body { background: transparent; }
+.cc-stage-panel .cc-iv, .cc-stage-panel .cc-iv-list { background: rgba(18, 34, 48, 0.55); }
+.cc-stage-panel .cc-iv-cols { background: rgba(6, 12, 18, 0.6); }
+.cc-stage-panel .cc-iv.done { background: rgba(58, 209, 127, 0.1); }
+.cc-stage-panel .cc-primary { background: #2f8fd6; border-color: #2f8fd6; }
+.cc-stage-panel .cc-primary:disabled { background: rgba(255, 255, 255, 0.06); border-color: var(--cc-line); color: var(--cc-muted); }
+.cc-stage-panel .cc-mini { background: rgba(255, 255, 255, 0.06); border-color: var(--cc-line); color: var(--cc-text); }
+.cc-stage-panel .cc-mini[aria-pressed="true"] { background: var(--cc-blue); border-color: var(--cc-blue); color: #fff; }
+.cc-stage-panel select, .cc-stage-panel input { background: rgba(6, 12, 18, 0.7); color: var(--cc-text); border-color: var(--cc-line); color-scheme: dark; }
+.cc-stage-panel .cc-stepper button { background: rgba(255, 255, 255, 0.06); color: var(--cc-text); }
+.cc-stage-panel .cc-stepper output { background: rgba(6, 12, 18, 0.7); color: var(--cc-text); }
+.cc-stage-panel .cc-survey button { background: rgba(18, 34, 48, 0.55); border-color: var(--cc-line-soft); color: var(--cc-text); }
+.cc-stage-panel .cc-history { background: rgba(18, 34, 48, 0.4); }
+.cc-stage-panel .cc-group > header { color: var(--cc-dim); }
+.cc-stage-panel .cc-banner { background: rgba(18, 34, 48, 0.55); }
+.cc-stage-panel .cc-legacy {
+  --color-bg: rgba(8, 16, 24, 0.5);
+  --color-surface: rgba(18, 34, 48, 0.7);
+  --color-surface-raised: rgba(10, 22, 33, 0.9);
+  --color-border: rgba(255, 255, 255, 0.16);
+  --color-border-subtle: rgba(255, 255, 255, 0.09);
+  --color-text: #e6eef5;
+  --color-text-dim: #a4b8c8;
+  --color-text-muted: #7f97a8;
+  --color-amber: #f3c447;
+  --color-amber-dim: #d6a21a;
+  --color-critical: #ff5d5d;
+  --color-ok: #3ad17f;
+  --color-info: #4cb3ff;
+}
 .cc-tablet .cc-stage-panel { width: min(520px, 62%); top: 8px; right: 8px; bottom: 8px; }
 .cc-stage-bar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px 4px; background: linear-gradient(to top, #060c12, rgba(6, 12, 18, 0.94)); border-top: 1px solid rgba(255, 255, 255, 0.1); overflow-x: auto; }
 .cc-stage-bar .grp { display: flex; gap: 6px; }
