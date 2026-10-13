@@ -123,10 +123,9 @@ export type CasualtyCareProps = CareCallbacks & {
   ambient?: { hour: number; precip: string };
 };
 
-type CareView = "patient" | "care";
-
-
 type CareTab = "assess" | "airway" | "breathing" | "circulation" | "immobilise" | "handover";
+/** What the bottom bar can open over the stage. */
+type Panel = CareTab | "patient" | "monitor";
 
 // Standard adult doses shown on the medication card. The sim records the
 // drug and who gave it; the numbers are the JRCALC figures a crew would
@@ -219,7 +218,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const casualtyId = casualty.id;
   const tablet = props.layout === "tablet";
   const [tab, setTab] = useState<CareTab>("assess");
-  const [view, setView] = useState<CareView>("patient");
+  // The panel open over the stage; the bar's buttons toggle them.
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const openTab = (t: CareTab) => { setTab(t); setPanel(t); };
   // The oxygen order opens on what is already being delivered, so the
   // screen never offers to "apply" the mask the patient is wearing.
   const [device, setDevice] = useState<OxygenDevice | "">(() => (treatment?.oxygen && treatment.oxygen.device !== "none" ? treatment.oxygen.device : ""));
@@ -848,28 +849,6 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     }
   }
 
-  const carePane = (
-    <div className="cc-care">
-      <nav className="cc-nav" aria-label="Care sections">
-        {TABS.map((t) => {
-          const m = sections[t.key];
-          return (
-            <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => { setTab(t.key); setView("care"); }}>
-              {t.icon}<span>{t.label}</span><small className={m.tone}>{m.count ?? ""}<i /></small>
-            </button>
-          );
-        })}
-      </nav>
-      <section className="cc-pane">
-        <header className="cc-pane-head">
-          <h2>{TABS.find((t) => t.key === tab)?.label.toUpperCase()}</h2>
-          <span>{sections[tab].subtitle}</span>
-        </header>
-        <div className="cc-pane-body">{paneBody()}</div>
-      </section>
-    </div>
-  );
-
   const headerButtons = (
     <>
       {props.popped ? (
@@ -881,8 +860,8 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </>
   );
 
-  const patientCard = (
-    <Card title="Patient" icon="≡">
+  const patientBody = (
+    <>
       <div className="cc-patient-details">
           <dl className="cc-facts two">
             <dt>Patient</dt>
@@ -905,7 +884,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
           </dl>
       </div>
       {surveyDone && profile && (
-        <details className="cc-history">
+        <details className="cc-history" open>
           <summary>History &amp; medications</summary>
           <p><b>PMH</b> {profile.history.length ? profile.history.join(" · ") : "Nil of note"}</p>
           <p><b>Meds</b> {profile.medications.length ? profile.medications.join(" · ") : "None"}</p>
@@ -915,11 +894,11 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
           {profile.betaBlocked && <p className="warn">Beta-blocked — tachycardia blunted</p>}
         </details>
       )}
-    </Card>
+    </>
   );
 
-  const surveyCard = (
-    <Card title="Primary survey" icon="✓" fill>
+  const surveyBody = (
+    <>
       {!surveyDone && (
         <button type="button" className="cc-primary" disabled={!canAct || surveyRunning || !props.onStartPatientSurvey} onClick={() => props.onStartPatientSurvey?.(casualtyId)}>
           {surveyRunning ? `Assessing · ${Math.round(surveySec)}s / 60s` : paired.length && !crewHere ? `Crew making their way to the patient · ${walkLeftSec}s` : "Start primary survey · ~60s"}
@@ -928,12 +907,12 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       {surveyRunning && <div className="cc-bar"><i style={{ width: `${(surveySec / 60) * 100}%` }} /></div>}
       <div className="cc-survey">
         {surveyRows.map((r) => (
-          <button key={r.k} type="button" onClick={() => { setTab(r.tab); setView("care"); }}>
+          <button key={r.k} type="button" onClick={() => openTab(r.tab)}>
             <b>{r.k}</b><span>{r.label}</span><small className={r.tone}>{r.status}</small><em>›</em>
           </button>
         ))}
       </div>
-    </Card>
+    </>
   );
 
   // Everyone at the patient: a double-crewed ambulance is two people, a
@@ -957,123 +936,87 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   // the car, carried out of the building — the scene moves to the vehicle.
   const landed = stage === "extricated" || stage === "conveying" || stage === "at_hospital"
     || tasks.some((t) => t.state === "completed" && ((t.kind === "extract_casualty" && t.casualtyId === casualtyId) || t.kind === "water_rescue" || t.kind === "rope_rescue" || t.kind === "rtc_extrication"));
-  const boardCard = (
-    <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{!surveyDone ? "primary survey first" : tablet ? "" : treatment?.revealedCondition ?? ""}</span>}>
-      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} landed={landed} ambient={props.ambient} crew={sceneCrew} now={now} compact={tablet} />
-    </Card>
+
+  const monitorBody = (
+    <VitalMonitorPanel
+      casualtyId={casualtyId}
+      treatment={treatment}
+      resus={resus}
+      paired={paired.length}
+      now={now}
+      by={by}
+      onRecordObservation={props.onRecordObservation}
+      onAttachMonitor={props.onAttachMonitor}
+      onAttachMonitoring={props.onAttachMonitoring}
+    />
   );
 
-  const monitorCard = (
-    <Card
-      title="Vital signs monitor"
-      icon="⌁"
-      fill
-      tone={alarming ? "stop" : undefined}
-      headerExtra={<MonitorMeta casualtyId={casualtyId} now={now} />}
-    >
-      <VitalMonitorPanel
-        casualtyId={casualtyId}
-        treatment={treatment}
-        resus={resus}
-        paired={paired.length}
-        now={now}
-        by={by}
-        onRecordObservation={props.onRecordObservation}
-        onAttachMonitor={props.onAttachMonitor}
-        onAttachMonitoring={props.onAttachMonitoring}
-      />
-    </Card>
+  // ---- The stage: the patient fills the screen, the panels float over it ---
+  const panelTitle = panel === "patient" ? "PATIENT" : panel === "monitor" ? "VITAL SIGNS MONITOR" : panel ? TABS.find((t) => t.key === panel)?.label.toUpperCase() : "";
+  const panelSubtitle: ReactNode = panel === "patient" ? (casualty.label ?? "") : panel === "monitor" ? <MonitorMeta casualtyId={casualtyId} now={now} /> : panel ? sections[panel].subtitle : "";
+  const panelBody: ReactNode = panel === "patient"
+    ? patientBody
+    : panel === "monitor"
+      ? monitorBody
+      : panel === "assess"
+        ? <><Group title="Primary survey">{surveyBody}</Group>{paneBody()}</>
+        : panel
+          ? paneBody()
+          : null;
+  const barButton = (key: Panel, label: string, icon: ReactNode, badge?: { count?: string; tone: string }) => (
+    <button key={key} type="button" aria-pressed={panel === key} onClick={() => (panel === key ? setPanel(null) : key === "patient" || key === "monitor" ? setPanel(key) : openTab(key))}>
+      <i className="ic">{icon}{badge?.count && <small className={badge.tone}>{badge.count}</small>}</i>
+      <span>{label}</span>
+    </button>
   );
-
-  // The tablet keeps a bottom bar — the sections sit under the thumb there.
-  const footer = (
-    <footer className="cc-foot">
-      {TABS.map((t) => (
-        <button key={t.key} type="button" aria-pressed={tab === t.key && view === "care"} onClick={() => { setTab(t.key); setView("care"); }}>
-          {t.icon}<span>{t.label}</span>
-        </button>
-      ))}
-    </footer>
-  );
-
-  if (tablet) {
-    const views: { key: CareView; label: string; badge?: string }[] = [
-      { key: "patient", label: "Patient" },
-      { key: "care", label: "Care", badge: TABS.find((t) => t.key === tab)?.label },
-    ];
-    return (
-      <div className={`cc-screen cc-tablet${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
-        <header className="cc-head">
-          <div className="cc-brand">
-            <h1>CASUALTY CARE</h1>
-            <span className="cc-who">{(casualty.label ?? casualty.id).toUpperCase()}</span>
-          </div>
-          <div className="cc-head-right">
-            <div className="cc-time"><small>SCENARIO</small><strong>{scenarioTime}</strong></div>
-            {headerButtons}
-          </div>
-        </header>
-        <nav className="cc-views" aria-label="Pages">
-          {views.map((v) => (
-            <button key={v.key} type="button" aria-pressed={view === v.key} onClick={() => setView(v.key)}>
-              {v.label}{v.badge && <em>{v.badge}</em>}
-            </button>
-          ))}
-        </nav>
-        <main className="cc-main tablet">
-          {view === "patient" && (<>{patientCard}{boardCard}{surveyCard}</>)}
-          {view === "care" && <div className="cc-col cc-right">{carePane}</div>}
-        </main>
-        {footer}
-      </div>
-    );
-  }
+  const stageWords = `${resus?.roleAt ? "LIFE EXTINCT" : stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · ${SCOPE_LABEL[scope] ?? "No clinician"}${lead ? ` · ${lead.appliance.callsign}` : ""}`;
 
   return (
-    <div className={`cc-screen cc-desk${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
+    <div className={`cc-screen cc-stagey ${tablet ? "cc-tablet" : "cc-desk"}${alarming ? " alarming" : ""}`} role="dialog" aria-label={`Casualty care · ${casualty.label ?? casualty.id}`}>
       <header className="cc-head">
         <div className="cc-brand">
-          <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
-            <path d="M20 2l4 6h-8zM20 38l-4-6h8zM4 11l7 1-4 7zM36 11l-3 8-4-7zM4 29l3-8 4 7zM36 29l-7-1 4-7z" fill="currentColor" />
-            <circle cx="20" cy="20" r="9" fill="currentColor" />
-            <path d="M18 14h4v4h4v4h-4v4h-4v-4h-4v-4h4z" fill="var(--vec-bar, #1e303c)" />
-          </svg>
-          <h1>CASUALTY CARE <span>SIMULATION</span></h1>
+          {!tablet && (
+            <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
+              <path d="M20 2l4 6h-8zM20 38l-4-6h8zM4 11l7 1-4 7zM36 11l-3 8-4-7zM4 29l3-8 4 7zM36 29l-7-1 4-7z" fill="currentColor" />
+              <circle cx="20" cy="20" r="9" fill="currentColor" />
+              <path d="M18 14h4v4h4v4h-4v4h-4v-4h-4v-4h4z" fill="var(--vec-bar, #1e303c)" />
+            </svg>
+          )}
+          <h1>CASUALTY CARE{!tablet && <span>SIMULATION</span>}</h1>
+          <span className="cc-who">{(casualty.label ?? casualty.id).toUpperCase()}</span>
         </div>
         <div className="cc-head-right">
-          <div className="cc-who"><Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" /> <span>{(casualty.label ?? casualty.id).toUpperCase()}</span></div>
-          <div className="cc-stage-pill">{resus?.roleAt ? "LIFE EXTINCT" : stage === "expectant" ? "EXPECTANT" : stage.replace(/_/g, " ").toUpperCase()} · {SCOPE_LABEL[scope] ?? "No clinician"}{lead ? ` · ${lead.appliance.callsign}` : ""}</div>
-          <div className="cc-time"><Icon d="M12 8v5l3 2m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /><div><small>SCENARIO TIME</small><strong>{scenarioTime}</strong></div></div>
+          <div className="cc-stage-pill">{stageWords}</div>
+          <div className="cc-time"><small>SCENARIO</small><strong>{scenarioTime}</strong></div>
           {headerButtons}
         </div>
       </header>
-
-      <main className="cc-main">
-        <div className="cc-col">
-          {patientCard}
-          {surveyCard}
-        </div>
-        <div className="cc-col cc-centre">
-          {monitorCard}
-          {boardCard}
-        </div>
-        <div className="cc-col cc-right">{carePane}</div>
-      </main>
+      <div className="cc-stage-body">
+        <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} landed={landed} ambient={props.ambient} crew={sceneCrew} now={now} compact={tablet} hero />
+        {panel && (
+          <aside className="cc-stage-panel" aria-label={panelTitle}>
+            <header className="cc-pane-head">
+              <h2>{panelTitle}</h2>
+              <span>{panelSubtitle}</span>
+              <button type="button" className="cc-close" onClick={() => setPanel(null)} aria-label="Close panel">✕</button>
+            </header>
+            <div className="cc-pane-body">{panelBody}</div>
+          </aside>
+        )}
+      </div>
+      <footer className="cc-stage-bar" aria-label="Care actions">
+        <div className="grp">{barButton("patient", "Patient", <Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" />)}</div>
+        <i className="sep" />
+        <div className="grp">{TABS.map((t) => barButton(t.key, t.label, t.icon, sections[t.key]))}</div>
+        <i className="sep" />
+        <div className="grp">{barButton("monitor", "Monitor", <Icon d="M3 12h4l2-5 3 10 3-7 2 2h4" />)}</div>
+      </footer>
     </div>
   );
 }
 
 function na(running: boolean): { status: string; tone: "go" | "warn" | "stop" | "off" } {
   return running ? { status: "Assessing…", tone: "warn" } : { status: "Not assessed", tone: "off" };
-}
-
-function Card({ title, icon, children, tone, fill, headerExtra }: { title: string; icon: string; children: ReactNode; tone?: "stop" | "warn" | "go"; fill?: boolean; headerExtra?: ReactNode }) {
-  return (
-    <section className={`cc-card${fill ? " fill" : ""}${tone ? ` ${tone}` : ""}`}>
-      <header><b>{icon}</b><span>{title.toUpperCase()}</span>{headerExtra}</header>
-      <div className="cc-card-body">{children}</div>
-    </section>
-  );
 }
 
 /** A titled block inside the care pane. */

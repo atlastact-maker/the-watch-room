@@ -24,7 +24,7 @@ import type { Scenario } from "@/lib/sim/incident_types";
 import { patientStage, PATIENT_TRACK, type Tone } from "@/lib/sim/patient_stage";
 import { alertTone } from "@/lib/audio/sim-audio";
 import { AIRWAY_LABEL, BREATHING_LABEL, CIRC_LABEL, EGRESS_LABEL, PACKAGING_LABEL, RED_FLAG_LABEL } from "../components/treatment-tab";
-import { PatientScene, type SceneCrew } from "./patient-scene";
+import { PatientScene, VitalsCard, type SceneCrew } from "./patient-scene";
 
 export type PatientBoardProps = {
   casualty: SceneCasualty;
@@ -43,6 +43,8 @@ export type PatientBoardProps = {
   now: number;
   /** Fewer rows — the tablet's patient page. */
   compact?: boolean;
+  /** The scene fills the box and the rest floats over it: the stage layout. */
+  hero?: boolean;
 };
 
 // The trend window: five minutes to start, so the first readings are
@@ -144,7 +146,7 @@ function settingOf(label: string | undefined): string | undefined {
   return /\b(sat|sitting|lying|stood|standing|slumped|trapped|collapsed|found|in|on|at|under|behind|beside|by)\s+(the|a|an|his|her|their|front|back|rear)\b/i.test(last) ? last.charAt(0).toUpperCase() + last.slice(1).toLowerCase() : undefined;
 }
 
-export function PatientBoard({ casualty, treatment, resus, progression, scenario, landed, ambient, crew, now, compact }: PatientBoardProps) {
+export function PatientBoard({ casualty, treatment, resus, progression, scenario, landed, ambient, crew, now, compact, hero }: PatientBoardProps) {
   const tx = treatment;
   const vitals = tx?.liveVitals ?? tx?.revealedVitals;
   const surveyDone = !!tx?.surveyCompletedAt;
@@ -233,85 +235,126 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   const place = sceneSetting(casualty, scenario, look.posture, { landed });
   const trackIdx = stage.key === "handed_over" ? PATIENT_TRACK.length : stage.key === "life_extinct" ? PATIENT_TRACK.findIndex((s) => s.key === "arrest") : stage.index;
 
+  const monitored = look.kit.leads || look.kit.pads || look.kit.probe || look.kit.cuff;
+  const sceneVitals = vitals && surveyDone ? { hr: vitals.hr, bpSys: vitals.bpSys, bpDia: vitals.bpDia, rr: vitals.rr, spo2: vitals.spo2 } : undefined;
+  const scene = (
+    <PatientScene
+      look={look}
+      crew={crew}
+      setting={place}
+      caption={setting ?? SETTING_WORDS[place]}
+      hour={ambient?.hour}
+      rain={ambient ? /rain|drizzle|sleet|snow/.test(ambient.precip) : false}
+      ctx={scenario ? { type: scenario.type, title: scenario.title } : undefined}
+      label={casualty.label}
+      vitals={sceneVitals}
+      chrome={hero ? "stage" : "full"}
+    />
+  );
+  const track = (
+    <div className={`pb-track ${stage.tone}`}>
+      {PATIENT_TRACK.map((s, i) => {
+        const state = trackIdx < 0 ? "" : i === trackIdx ? "now" : i < trackIdx ? "past" : "";
+        return <div key={s.key} className={`pb-step ${state}`} title={s.label}><i /><span>{s.short}</span></div>;
+      })}
+    </div>
+  );
+  const headline = (
+    <div className={`pb-headline ${stage.tone}`}>
+      <b>{stage.label}</b>
+      <span>{stage.detail}{inCare !== null ? ` · in care ${mmss(inCare)}` : ""}</span>
+    </div>
+  );
+  const alertsNode = alerts.length > 0 ? (
+    <div className="pb-alerts">
+      {alerts.map((a) => <div key={a.key} className={`pb-alert ${a.tone}${a.fresh ? " pulse" : ""}`}><b>{a.title}</b><span>{a.text}</span></div>)}
+    </div>
+  ) : null;
+  const trends = (
+    <div className="pb-trends">
+      <Trend label="HR" unit="bpm" hist={hist} pick={(s) => s.hr} lo={30} hi={180} alarmLow={50} alarmHigh={120} now={now} span={span} colour="#2fd17a" />
+      <Trend label="SpO₂" unit="%" hist={hist} pick={(s) => s.spo2} lo={70} hi={100} alarmLow={90} now={now} span={span} colour="#3fd0ea" />
+      <Trend label="Sys BP" unit="mmHg" hist={hist} pick={(s) => s.bpSys} lo={50} hi={220} alarmLow={90} now={now} span={span} colour="#ff6b6b" />
+      <Trend label="RR" unit="/min" hist={hist} pick={(s) => s.rr} lo={0} hi={50} alarmHigh={30} now={now} span={span} colour="#f3d35a" />
+      <div className="pb-axis"><span>{spanMin} min ago</span><span>{Math.round(spanMin / 2)}</span><span>now</span></div>
+    </div>
+  );
+  const news = (
+    <div className={`pb-news ${scoreTone}`}>
+      <span className="k">{inArrest ? "Downtime" : "NEWS2"}</span>
+      <strong>{inArrest ? mmss(downtimeSec(resus!, now) * 1000) : score ? score.total : "—"}</strong>
+      <small>{inArrest ? `cycle ${resus!.cycle + 1} · ${resus!.shocks} shock${resus!.shocks === 1 ? "" : "s"}` : score ? `${BAND_LABEL[score.band]} risk${scoreBefore != null && score.total !== scoreBefore ? ` · ${score.total > scoreBefore ? "up" : "down"} from ${scoreBefore}` : ""}` : surveyDone ? "no observations" : "survey not done"}</small>
+      {score && (
+        <div className="pb-parts">
+          {score.parts.map((p) => <i key={p.key} className={`s${p.score}`} title={`${p.label} ${p.value} · scores ${p.score}`}><b>{p.short}</b><span>{p.score}</span></i>)}
+        </div>
+      )}
+    </div>
+  );
+  const facts = (
+    <dl className="pb-facts">
+      <dt>Red flags</dt><dd className={openFlags.length ? "stop" : flagRows.length ? "go" : ""}>{flagRows.length ? `${flagRows.length} found · ${openFlags.length ? `${openFlags.length} open` : "all dealt with"}` : surveyDone ? "none" : "—"}</dd>
+      <dt>Destination</dt><dd>{tx?.chosenDestination ? tx.chosenDestination.name : surveyDone ? <span className="warn">not yet chosen</span> : "—"}</dd>
+      <dt>Pre-alert</dt><dd>{tx?.atmistSentAt ? `ATMIST ${wall(tx.atmistSentAt)}` : tx?.chosenDestination ? <span className="warn">not sent</span> : "—"}</dd>
+    </dl>
+  );
+  const flagsNode = flagRows.length > 0 ? (
+    <div className="pb-flags">
+      {flagRows.map((r) => <span key={r.f} className={r.state}><i />{r.label}<em>{r.state === "cleared" ? "cleared" : r.state === "treated" ? "treated" : "open"}</em></span>)}
+    </div>
+  ) : null;
+  const record = (
+    <div className="pb-zone pb-record">
+      <div className="pb-record-hd">Record</div>
+      <ol className="pb-timeline">
+        {shown.length === 0 && <li className="muted">No care recorded yet</li>}
+        {shown.map((e, i) => {
+          const text = describe(e);
+          if (!text) return null;
+          const tone = e.kind === "physio" ? (e.tone === "critical" ? "stop" : e.tone === "warn" ? "warn" : e.tone === "good" ? "go" : "") : e.kind === "drug_refused" ? "warn" : "";
+          return <li key={`${e.kind}-${e.at}-${i}`} className={tone}><time>{wall(e.at)}</time><span>{text}</span></li>;
+        })}
+      </ol>
+    </div>
+  );
+
+  if (hero) {
+    return (
+      <div className={`pb-hero ${stage.tone}`}>
+        {scene}
+        {alertsNode && <div className="pb-hero-alerts">{alertsNode}</div>}
+        <div className="pb-hero-left">
+          <div className="pb-hero-top">{track}{headline}</div>
+          {monitored && sceneVitals && <VitalsCard look={look} vitals={sceneVitals} className="ps-vitals-card" />}
+          {news}
+          {trends}
+        </div>
+        <div className="pb-hero-right">
+          {facts}
+          {flagsNode}
+          {record}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-wrap">
     <div className={`pb-board${compact ? " compact" : ""} ${stage.tone}`}>
       <div className="pb-top">
-        <div className={`pb-track ${stage.tone}`}>
-          {PATIENT_TRACK.map((s, i) => {
-            const state = trackIdx < 0 ? "" : i === trackIdx ? "now" : i < trackIdx ? "past" : "";
-            return <div key={s.key} className={`pb-step ${state}`} title={s.label}><i /><span>{s.short}</span></div>;
-          })}
-        </div>
-        <div className={`pb-headline ${stage.tone}`}>
-          <b>{stage.label}</b>
-          <span>{stage.detail}{inCare !== null ? ` · in care ${mmss(inCare)}` : ""}</span>
-        </div>
+        {track}
+        {headline}
       </div>
-
-      {alerts.length > 0 && (
-        <div className="pb-alerts">
-          {alerts.map((a) => <div key={a.key} className={`pb-alert ${a.tone}${a.fresh ? " pulse" : ""}`}><b>{a.title}</b><span>{a.text}</span></div>)}
-        </div>
-      )}
-
+      {alertsNode}
       <div className="pb-main">
-        <div className="pb-zone pb-picture">
-          <PatientScene
-            look={look}
-            crew={crew}
-            setting={place}
-            caption={setting ?? SETTING_WORDS[place]}
-            hour={ambient?.hour}
-            rain={ambient ? /rain|drizzle|sleet|snow/.test(ambient.precip) : false}
-            ctx={scenario ? { type: scenario.type, title: scenario.title } : undefined}
-            label={casualty.label}
-            vitals={vitals && surveyDone ? { hr: vitals.hr, bpSys: vitals.bpSys, bpDia: vitals.bpDia, rr: vitals.rr, spo2: vitals.spo2 } : undefined}
-          />
-        </div>
-        <div className="pb-trends">
-            <Trend label="HR" unit="bpm" hist={hist} pick={(s) => s.hr} lo={30} hi={180} alarmLow={50} alarmHigh={120} now={now} span={span} colour="#2fd17a" />
-            <Trend label="SpO₂" unit="%" hist={hist} pick={(s) => s.spo2} lo={70} hi={100} alarmLow={90} now={now} span={span} colour="#3fd0ea" />
-            <Trend label="Sys BP" unit="mmHg" hist={hist} pick={(s) => s.bpSys} lo={50} hi={220} alarmLow={90} now={now} span={span} colour="#ff6b6b" />
-            <Trend label="RR" unit="/min" hist={hist} pick={(s) => s.rr} lo={0} hi={50} alarmHigh={30} now={now} span={span} colour="#f3d35a" />
-            <div className="pb-axis"><span>{spanMin} min ago</span><span>{Math.round(spanMin / 2)}</span><span>now</span></div>
-        </div>
-
+        <div className="pb-zone pb-picture">{scene}</div>
+        {trends}
         <div className="pb-zone pb-state">
-          <div className={`pb-news ${scoreTone}`}>
-            <span className="k">{inArrest ? "Downtime" : "NEWS2"}</span>
-            <strong>{inArrest ? mmss(downtimeSec(resus!, now) * 1000) : score ? score.total : "—"}</strong>
-            <small>{inArrest ? `cycle ${resus!.cycle + 1} · ${resus!.shocks} shock${resus!.shocks === 1 ? "" : "s"}` : score ? `${BAND_LABEL[score.band]} risk${scoreBefore != null && score.total !== scoreBefore ? ` · ${score.total > scoreBefore ? "up" : "down"} from ${scoreBefore}` : ""}` : surveyDone ? "no observations" : "survey not done"}</small>
-            {score && (
-              <div className="pb-parts">
-                {score.parts.map((p) => <i key={p.key} className={`s${p.score}`} title={`${p.label} ${p.value} · scores ${p.score}`}><b>{p.short}</b><span>{p.score}</span></i>)}
-              </div>
-            )}
-          </div>
-          <dl className="pb-facts">
-            <dt>Red flags</dt><dd className={openFlags.length ? "stop" : flagRows.length ? "go" : ""}>{flagRows.length ? `${flagRows.length} found · ${openFlags.length ? `${openFlags.length} open` : "all dealt with"}` : surveyDone ? "none" : "—"}</dd>
-            <dt>Destination</dt><dd>{tx?.chosenDestination ? tx.chosenDestination.name : surveyDone ? <span className="warn">not yet chosen</span> : "—"}</dd>
-            <dt>Pre-alert</dt><dd>{tx?.atmistSentAt ? `ATMIST ${wall(tx.atmistSentAt)}` : tx?.chosenDestination ? <span className="warn">not sent</span> : "—"}</dd>
-          </dl>
-          {flagRows.length > 0 && (
-            <div className="pb-flags">
-              {flagRows.map((r) => <span key={r.f} className={r.state}><i />{r.label}<em>{r.state === "cleared" ? "cleared" : r.state === "treated" ? "treated" : "open"}</em></span>)}
-            </div>
-          )}
+          {news}
+          {facts}
+          {flagsNode}
         </div>
-
-        <div className="pb-zone pb-record">
-          <div className="pb-record-hd">Record</div>
-          <ol className="pb-timeline">
-            {shown.length === 0 && <li className="muted">No care recorded yet</li>}
-            {shown.map((e, i) => {
-              const text = describe(e);
-              if (!text) return null;
-              const tone = e.kind === "physio" ? (e.tone === "critical" ? "stop" : e.tone === "warn" ? "warn" : e.tone === "good" ? "go" : "") : e.kind === "drug_refused" ? "warn" : "";
-              return <li key={`${e.kind}-${e.at}-${i}`} className={tone}><time>{wall(e.at)}</time><span>{text}</span></li>;
-            })}
-          </ol>
-        </div>
+        {record}
       </div>
     </div>
     </div>

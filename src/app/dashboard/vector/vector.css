@@ -5317,6 +5317,70 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pb-timeline li time { font: 700 10px var(--vec-mono, monospace); color: var(--pb-muted); }
 .pb-timeline li.stop span { color: #ffb3b3; } .pb-timeline li.warn span { color: #ffe6a1; } .pb-timeline li.go span { color: var(--pb-go); }
 
+/* The stage: the patient view fills the care screen, the board's pieces float over it,
+   and the actions are a row of round buttons along the bottom. */
+.cc-screen.cc-stagey { grid-template-rows: 46px minmax(0, 1fr) 82px; background: #0b1620; }
+.cc-screen.cc-stagey.cc-tablet { grid-template-rows: 40px minmax(0, 1fr) 70px; overflow: hidden; }
+.cc-stage-body { position: relative; min-height: 0; min-width: 0; overflow: hidden; background: #0d1a26; }
+.pb-hero { position: absolute; inset: 0; --pb-bg: #0b1620; --pb-card: #122230; --pb-line: #233a4c; --pb-text: #e6eef5; --pb-dim: #a4b8c8; --pb-muted: #7f97a8; --pb-go: #3ad17f; --pb-warn: #f3c447; --pb-stop: #ff5d5d; --pb-blue: #4cb3ff; color: var(--pb-text); }
+.pb-hero > .ps-scene.fill { position: absolute; inset: 0; aspect-ratio: auto; border: 0; border-radius: 0; }
+.pb-hero-top { display: flex; flex-direction: column; gap: 6px; }
+.pb-hero-alerts { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: min(440px, 40%); z-index: 3; }
+.pb-hero-left { position: absolute; left: 10px; top: 10px; bottom: 36px; width: 262px; display: flex; flex-direction: column; gap: 8px; z-index: 2; overflow: hidden; }
+.pb-hero-left > * { flex: none; }
+.pb-hero-right { position: absolute; right: 10px; top: 10px; bottom: 36px; width: 262px; display: flex; flex-direction: column; gap: 8px; z-index: 2; overflow: hidden; }
+.pb-hero-right > * { flex: none; }
+.pb-hero .pb-record, .pb-hero .pb-trends, .pb-hero .pb-picture, .pb-hero .pb-state { grid-area: auto; }
+.pb-hero .pb-facts { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 4px 8px; }
+.pb-hero .pb-facts dt, .pb-hero .pb-facts dd { margin: 0; min-width: 0; }
+.pb-hero .pb-flags { display: flex; flex-wrap: wrap; gap: 4px; }
+.pb-hero .pb-alerts { display: grid; gap: 6px; }
+.pb-hero .pb-track, .pb-hero .pb-headline, .pb-hero .pb-news, .pb-hero .pb-trend, .pb-hero .pb-facts, .pb-hero .pb-record, .pb-hero .pb-flags, .pb-hero .ps-vitals-card { background: rgba(6, 12, 18, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 4px; backdrop-filter: blur(3px); }
+.pb-hero .pb-track { padding: 7px 8px 5px; }
+.pb-hero .pb-headline { padding: 6px 10px; }
+.pb-hero .pb-news { border-left-width: 4px; }
+.pb-hero .pb-trends { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; flex: none; }
+.pb-hero .pb-trends .pb-axis { grid-column: 1 / -1; }
+.pb-hero .pb-trend svg { height: 26px; }
+.pb-hero .pb-facts { padding: 8px 10px; margin: 0; }
+.pb-hero .pb-flags { padding: 6px 8px; }
+.pb-hero .pb-record { padding: 8px 10px; gap: 6px; }
+.pb-hero .pb-timeline { max-height: 200px; overflow: hidden; }
+.pb-hero .ps-caption { right: auto; left: 50%; transform: translateX(-50%); bottom: 8px; border-radius: 4px; background: rgba(6, 12, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.12); padding: 4px 10px; white-space: nowrap; }
+.cc-stage-body:has(.cc-stage-panel) .pb-hero-right { display: none; }
+.cc-stage-panel { position: absolute; top: 10px; right: 10px; bottom: 10px; width: min(560px, 52%); display: flex; flex-direction: column; background: var(--cc-bg); color: var(--cc-text); border: 1px solid var(--cc-line); border-radius: 6px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); overflow: hidden; z-index: 4; }
+.cc-stage-panel .cc-pane-head { align-items: center; background: var(--cc-card-h); }
+.cc-stage-panel .cc-pane-head span { flex: 1; }
+.cc-stage-panel .cc-pane-head .cc-close { min-height: 26px; padding: 0 8px; }
+.cc-stage-panel .cc-pane-body { background: var(--cc-card); }
+.cc-tablet .cc-stage-panel { width: min(520px, 62%); top: 8px; right: 8px; bottom: 8px; }
+.cc-stage-bar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px 4px; background: linear-gradient(to top, #060c12, rgba(6, 12, 18, 0.94)); border-top: 1px solid rgba(255, 255, 255, 0.1); overflow-x: auto; }
+.cc-stage-bar .grp { display: flex; gap: 6px; }
+.cc-stage-bar .sep { flex: none; width: 1px; height: 46px; background: rgba(255, 255, 255, 0.2); margin: 0 8px; }
+.cc-stage-bar button { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; padding: 2px 4px; border: 0; background: transparent; color: #e6eef5; font: 700 10px var(--vec-sans, Arial, sans-serif); letter-spacing: 0.02em; white-space: nowrap; }
+.cc-stage-bar button .ic { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #f4f6f8; color: #1e303c; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); transition: transform 0.12s, background 0.12s; }
+.cc-stage-bar button .ic svg { width: 22px; height: 22px; }
+.cc-stage-bar button:hover .ic { transform: translateY(-2px); }
+.cc-stage-bar button[aria-pressed="true"] .ic { background: var(--cc-blue, #2f8fd6); color: #fff; box-shadow: 0 0 0 3px rgba(76, 179, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.45); }
+.cc-stage-bar button[aria-pressed="true"] { color: #9fd4ff; }
+.cc-stage-bar .ic small { position: absolute; top: -4px; right: -7px; min-width: 18px; height: 16px; padding: 0 4px; border-radius: 8px; display: grid; place-items: center; font: 700 9px var(--vec-mono, Consolas, monospace); color: #fff; background: #5f6e7f; border: 1px solid #060c12; }
+.cc-stage-bar .ic small.go { background: var(--cc-go, #1f8a4c); }
+.cc-stage-bar .ic small.warn { background: var(--cc-warn, #d6a21a); color: #1b2733; }
+.cc-stage-bar .ic small.stop { background: var(--cc-stop, #d13b3b); }
+.cc-tablet .cc-stage-bar button .ic { width: 40px; height: 40px; }
+.cc-tablet .cc-stage-bar button .ic svg { width: 19px; height: 19px; }
+.cc-tablet .cc-stage-bar button { min-width: 54px; font-size: 9.5px; }
+.cc-tablet .cc-stage-bar .sep { height: 40px; margin: 0 4px; }
+.cc-stagey .cc-head .cc-who { padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, 0.25); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
+.cc-stagey.cc-tablet .cc-head .cc-stage-pill { display: none; }
+.cc-stagey.cc-tablet .cc-head .cc-time strong { font-size: 14px; }
+.ps-vitals-card { display: grid; gap: 2px; padding: 6px 10px; }
+.ps-vitals-card div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ps-vitals-card b { font: 800 16px/1.1 var(--vec-sans, Arial, sans-serif); color: var(--pb-go); letter-spacing: -0.02em; }
+.ps-vitals-card div.spo2 b { color: var(--pb-blue); } .ps-vitals-card div.bp b { color: #ff9f6b; } .ps-vitals-card div.rr b { color: #e9e4da; }
+.ps-vitals-card span { font: 700 8px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; color: var(--pb-muted); text-transform: uppercase; }
+.pb-hero.stop .ps-vitals-card b { color: var(--pb-stop); }
+
 /* The scene: the patient from above, the ground they are on, the crew and the kit. */
 .ps-scene { position: relative; border: 1px solid var(--pb-line); border-radius: 3px; background: #0d1a26; overflow: hidden; aspect-ratio: 480 / 320; container-type: inline-size; }
 .ps-scene svg { display: block; width: 100%; height: 100%; }

@@ -10,7 +10,7 @@
 // Night darkens it to a torch pool; rain wets it. Overlaid, the numbers
 // the monitor is reading and the time.
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { PatientLook, Skin } from "@/lib/sim/patient_look";
 import type { SceneSetting } from "@/lib/sim/scene_setting";
 import {
@@ -48,9 +48,23 @@ export type PatientSceneProps = {
   label?: string;
   /** What the monitor is reading, for the overlay card. */
   vitals?: SceneVitals;
+  /** "stage": the scene fills its box and carries no vitals card or clock — the board around it does. */
+  chrome?: "full" | "stage";
 };
 
-const W = 480, H = 320;
+/** The numbers the monitor is reading, as a small card. Only what is attached shows. */
+export function VitalsCard({ look, vitals, className = "ps-ovl ps-vitals" }: { look: PatientLook; vitals: SceneVitals; className?: string }) {
+  return (
+    <div className={className}>
+      {(look.kit.leads || look.kit.pads || look.kit.probe) && vitals.hr !== undefined && <div><b>{look.arrest ? "--" : Math.round(vitals.hr)}</b><span>HR</span></div>}
+      {look.kit.probe && vitals.spo2 !== undefined && <div className="spo2"><b>{look.arrest ? "--" : Math.round(vitals.spo2)}</b><span>SpO₂</span></div>}
+      {look.kit.cuff && vitals.bpSys !== undefined && <div className="bp"><b>{look.arrest ? "--/--" : `${Math.round(vitals.bpSys)}/${vitals.bpDia !== undefined ? Math.round(vitals.bpDia) : "--"}`}</b><span>BP</span></div>}
+      {vitals.rr !== undefined && <div className="rr"><b>{look.arrest ? "0" : Math.round(vitals.rr)}</b><span>RR</span></div>}
+    </div>
+  );
+}
+
+const H = 320;
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -103,7 +117,21 @@ type Slot = { at: Pt; facing: Pt; hands: { left?: Pt; right?: Pt }; kneeling: bo
 
 const hhmm = (hour: number) => `${String(Math.floor(hour) % 24).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")}`;
 
-export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, label, vitals }: PatientSceneProps) {
+export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, label, vitals, chrome = "full" }: PatientSceneProps) {
+  // On the stage the picture fills whatever box it is given, so the view
+  // widens with the box rather than cropping the patient's head off.
+  const box = useRef<HTMLDivElement>(null);
+  const [aspect, setAspect] = useState(1.5);
+  useEffect(() => {
+    if (chrome !== "stage" || !box.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r && r.height > 0) setAspect(r.width / r.height);
+    });
+    ro.observe(box.current);
+    return () => ro.disconnect();
+  }, [chrome]);
+  const W = chrome === "stage" ? Math.round(Math.max(480, Math.min(1100, H * aspect))) : 480;
   const spec = GROUNDS[setting];
   const amb: Ambient = { night: hour !== undefined && (hour < 7 || hour >= 18.5), rain: !!rain };
   const a = look.appearance;
@@ -210,7 +238,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   const tagFor = (c: SceneCrew | undefined, i: number) => (c ? (i > 0 && crew[i - 1]?.callsign === c.callsign && c.name ? c.name.toUpperCase() : c.callsign) : "");
 
   return (
-    <div className={`ps-scene ps-set-${setting}${look.arrest ? " arrest" : ""}${amb.night ? " night" : ""}`}>
+    <div ref={box} className={`ps-scene ps-set-${setting}${look.arrest ? " arrest" : ""}${amb.night ? " night" : ""}${chrome === "stage" ? " fill" : ""}`}>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" aria-label="Patient from above">
         <defs>
           <FigureDefs />
@@ -249,15 +277,8 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
         })}
         {crew.length === 0 && <text x={W / 2} y={H - 46} textAnchor="middle" className="ps-empty">NO CREW WITH THE PATIENT</text>}
       </svg>
-      {monitored && vitals && (
-        <div className="ps-ovl ps-vitals">
-          {(look.kit.leads || look.kit.pads || look.kit.probe) && vitals.hr !== undefined && <div><b>{look.arrest ? "--" : Math.round(vitals.hr)}</b><span>HR</span></div>}
-          {look.kit.probe && vitals.spo2 !== undefined && <div className="spo2"><b>{look.arrest ? "--" : Math.round(vitals.spo2)}</b><span>SpO₂</span></div>}
-          {look.kit.cuff && vitals.bpSys !== undefined && <div className="bp"><b>{look.arrest ? "--/--" : `${Math.round(vitals.bpSys)}/${vitals.bpDia !== undefined ? Math.round(vitals.bpDia) : "--"}`}</b><span>BP</span></div>}
-          {vitals.rr !== undefined && <div className="rr"><b>{look.arrest ? "0" : Math.round(vitals.rr)}</b><span>RR</span></div>}
-        </div>
-      )}
-      {hour !== undefined && <div className="ps-ovl ps-clock">{hhmm(hour)}</div>}
+      {chrome === "full" && monitored && vitals && <VitalsCard look={look} vitals={vitals} />}
+      {chrome === "full" && hour !== undefined && <div className="ps-ovl ps-clock">{hhmm(hour)}</div>}
       <div className="ps-caption">
         {caption && <b>{caption}</b>}
         <span>{look.words.join(" · ")}</span>
