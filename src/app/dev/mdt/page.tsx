@@ -40,6 +40,21 @@ function offset(p: { lat: number; lng: number }, dxM: number, dyM: number) {
 
 function buildWorld(scenarioId: string, minutesIn: number) {
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
+  // ?place=kitchen puts the casualty somewhere else by adding it to the
+  // label (the scene reads the label first); ?pose=sitting|supine likewise.
+  const PLACE_WORDS: Record<string, string> = {
+    lounge: "in the living room", hallway: "on the hallway floor", bedroom: "in the bedroom", kitchen: "in the kitchen", bathroom: "in the bathroom",
+    stairs: "sat on the stairs", ward: "on the ward", restaurant: "in the restaurant", changing_room: "in the changing rooms", shop: "in the shop",
+    pavement: "on the pavement", road: "in the road", motorway: "on the hard shoulder of the motorway", pitch: "on the pitch", park: "in the park",
+    moor: "on the moor", lakeside: "by the lake", platform: "on the platform", factory: "on the factory floor", site: "on the building site", yard: "in the yard",
+  };
+  const placeWord = PLACE_WORDS[param("place") ?? ""];
+  const poseWord = param("pose") === "sitting" ? "sat up" : param("pose") === "supine" ? "collapsed on the floor" : "";
+  const first = scenario.scene?.casualties?.[0];
+  const casualty = first && (placeWord || poseWord) ? { ...first, label: `${first.label ?? "Patient"}, ${[poseWord, placeWord].filter(Boolean).join(", ")}` } : first;
+  const scenarioForWorld = casualty && first && casualty !== first && scenario.scene
+    ? { ...scenario, scene: { ...scenario.scene, casualties: scenario.scene.casualties?.map((c) => (c.id === casualty.id ? casualty : c)) } }
+    : scenario;
   const nowMs = Date.now();
   const receivedAt = nowMs - minutesIn * 60_000;
   const stations: StationWithAppliances[] = STATIONS.map((s) => ({ ...s, appliances: getStationAppliances(s.id) }));
@@ -56,7 +71,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const p3 = others.find((a) => a.id !== p2?.id);
   const dca = stations.filter((s) => s.service === "Ambulance").flatMap((s) => s.appliances).find((a) => a.type === "DCA");
 
-  const incident: Incident = { id: "DEV-1", scenarioId: scenario.id, scenario, receivedAt };
+  const incident: Incident = { id: "DEV-1", scenarioId: scenario.id, scenario: scenarioForWorld, receivedAt };
   const here = scenario.location.coords;
   const mk = (applianceId: string, mobilisedAgoSec: number, etaSec: number, park: { lat: number; lng: number } | null, extra: Partial<Deployment> = {}): Deployment =>
     ({
@@ -85,7 +100,6 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   if (p3) deployments.push(mk(p3.id, 3 * 60, 6 * 60, null));
   // The ambulance crew are with the first casualty: survey done, leads and
   // a probe on, oxygen running, aspirin given.
-  const casualty = scenario.scene?.casualties?.[0];
   const careMode = param("unit") === "dca" && !!dca && !!casualty;
   if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, offset(here, -10, 26), careMode ? { treatingCasualtyId: casualty!.id, treatingSince: nowMs - 5 * 60_000 } : {}));
   let treatment: PatientTreatmentState | null = null;
@@ -159,6 +173,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
 
   const started = nowMs - 6 * 60_000;
   const tasks = [
+    ...(careMode && param("rescued") ? [{ id: "t-extract", applianceId: p1.id, kind: "extract_casualty" as const, state: "completed" as const, startedAt: nowMs - 6 * 60_000, endedAt: nowMs - 3 * 60_000, assignedCrewIds: [], casualtyId: casualty!.id }] : []),
     { id: "t-cmd", applianceId: p1.id, kind: "commander", state: "active", startedAt: nowMs - 8 * 60_000, assignedCrewIds: [p1.crewMembers[0].id] },
     { id: "t-survey", applianceId: p1.id, kind: "survey", state: "completed", startedAt: nowMs - 8 * 60_000, durationSec: 90, completesAt: nowMs - 6.5 * 60_000, assignedCrewIds: [p1.crewMembers[0].id] },
     {
@@ -229,6 +244,7 @@ export default function MdtHarnessPage() {
           informantOnCall={false}
           treatmentByCasualtyId={treatmentByCasualtyId}
           resusByCasualtyId={world.resus ? { [world.resus.casualtyId]: world.resus } : undefined}
+          ambient={{ hour: Number(param("hour") ?? 13), precip: param("rain") ? "rain" : "clear" }}
           hemsFlyable
           etas={world.etas}
           patch={PATCH}

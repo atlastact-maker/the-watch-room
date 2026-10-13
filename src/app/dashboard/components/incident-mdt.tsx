@@ -181,6 +181,8 @@ type Props = {
   waterClock?: Record<string, number | null>;
   /** The desk's Systems menu opening PNC or ANPR on the tablet. */
   policePage?: { page: "pnc" | "anpr"; seq: number } | null;
+  /** The hour of the day and the weather, for the patient scene. */
+  ambient?: { hour: number; precip: string };
   /** The unit holding command of the incident — its card carries the
    *  gold plate, as on the map. */
   commanderApplianceId?: string | null;
@@ -644,6 +646,7 @@ export function DraggableIncidentMdt(props: Props) {
             now={nowMs}
             treatmentByCasualtyId={props.treatmentByCasualtyId}
             resusByCasualtyId={props.resusByCasualtyId}
+            ambient={props.ambient}
             onSetTreatingCasualty={props.onSetTreatingCasualty}
             onStartPatientSurvey={props.onStartPatientSurvey}
             onApplyAirway={props.onApplyAirway}

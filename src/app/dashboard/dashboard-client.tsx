@@ -706,6 +706,13 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     return { hour: Math.floor(total / 3600) % 24, minute: Math.floor((total % 3600) / 60) };
   }, [now, shiftStartedAt, shiftStartHour]);
 
+  // What the patient scene needs to know about the world outside: the hour
+  // (for the light) and whether it is raining.
+  const ambient = useMemo(
+    () => ({ hour: clock.hour + clock.minute / 60, precip: weather.precip }),
+    [clock, weather.precip],
+  );
+
   /** Each roads circuit as an actual driven line: the router's geometry
    *  between consecutive waypoints, joined, and closed back to the start.
    *  A circuit that fails to route is left OUT rather than falling back to
@@ -7053,6 +7060,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           egressExtraSeconds={activeIncident?.scenario.scene?.egressExtraSeconds}
           onRequestClinician={requestClinician}
           hemsFlyable={hemsAvailable(weather)}
+          ambient={ambient}
           onSetTreatmentDestination={setTreatmentDestination}
           onSendAtmistPrealert={sendAtmistPrealert}
           onConveyCasualtyVia={conveyCasualtyVia}
@@ -7514,6 +7522,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                 onApplyEgress={applyEgress}
                 onRequestClinician={requestClinician}
                 hemsFlyable={hemsAvailable(weather)}
+                ambient={ambient}
                 onSetTreatmentDestination={setTreatmentDestination}
                 onSendAtmistPrealert={sendAtmistPrealert}
                 onConveyCasualtyVia={conveyCasualtyVia}

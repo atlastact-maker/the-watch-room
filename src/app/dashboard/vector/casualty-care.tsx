@@ -119,6 +119,8 @@ export type CasualtyCareProps = CareCallbacks & {
   onDock?: () => void;
   /** Three columns on a desk; tabbed pages on the tablet. */
   layout?: "full" | "tablet";
+  /** The hour of the day and the weather, for the patient scene. */
+  ambient?: { hour: number; precip: string };
 };
 
 type CareView = "patient" | "care";
@@ -934,13 +936,30 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </Card>
   );
 
+  // Everyone at the patient: a double-crewed ambulance is two people, a
+  // car is one, an air ambulance a doctor and a paramedic.
   const sceneCrew = paired
     .slice()
     .sort((a, b) => (a.appliance.id === lead?.appliance.id ? -1 : b.appliance.id === lead?.appliance.id ? 1 : 0))
-    .map((p) => ({ callsign: p.appliance.callsign, role: SCOPE_LABEL[scopeOfApplianceType(p.appliance.type)], lead: lead?.appliance.id === p.appliance.id }));
+    .flatMap((p) => {
+      const scope = scopeOfApplianceType(p.appliance.type);
+      const members = p.appliance.crewMembers.slice(0, Math.min(2, Math.max(1, p.appliance.crewMembers.length)));
+      return members.map((m, i) => ({
+        callsign: p.appliance.callsign,
+        role: i === 0 ? SCOPE_LABEL[scope] : m.role,
+        lead: lead?.appliance.id === p.appliance.id && i === 0,
+        service: p.appliance.service,
+        scope,
+        name: m.name,
+      }));
+    });
+  // Brought out: landed from the water, recovered off the face, cut out of
+  // the car, carried out of the building — the scene moves to the vehicle.
+  const landed = stage === "extricated" || stage === "conveying" || stage === "at_hospital"
+    || tasks.some((t) => t.state === "completed" && ((t.kind === "extract_casualty" && t.casualtyId === casualtyId) || t.kind === "water_rescue" || t.kind === "rope_rescue" || t.kind === "rtc_extrication"));
   const boardCard = (
     <Card title="Patient board" icon="◔" tone={resus && !resus.roscAt && !resus.roleAt ? "stop" : undefined} headerExtra={<span className="cc-mon-meta">{!surveyDone ? "primary survey first" : tablet ? "" : treatment?.revealedCondition ?? ""}</span>}>
-      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} crew={sceneCrew} now={now} compact={tablet} />
+      <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} landed={landed} ambient={props.ambient} crew={sceneCrew} now={now} compact={tablet} />
     </Card>
   );
 

@@ -34,6 +34,10 @@ export type PatientBoardProps = {
   progression: CasualtyStage;
   /** The job, for the setting behind the patient. */
   scenario?: Pick<Scenario, "title" | "type" | "property">;
+  /** Out of the water, off the face, cut out, carried out: at the vehicle now. */
+  landed?: boolean;
+  /** The world outside: the hour of the day and the weather, for the scene. */
+  ambient?: { hour: number; precip: string };
   /** Who is with the patient, lead first. */
   crew: SceneCrew[];
   now: number;
@@ -140,7 +144,7 @@ function settingOf(label: string | undefined): string | undefined {
   return /\b(sat|sitting|lying|stood|standing|slumped|trapped|collapsed|found|in|on|at|under|behind|beside|by)\s+(the|a|an|his|her|their|front|back|rear)\b/i.test(last) ? last.charAt(0).toUpperCase() + last.slice(1).toLowerCase() : undefined;
 }
 
-export function PatientBoard({ casualty, treatment, resus, progression, scenario, crew, now, compact }: PatientBoardProps) {
+export function PatientBoard({ casualty, treatment, resus, progression, scenario, landed, ambient, crew, now, compact }: PatientBoardProps) {
   const tx = treatment;
   const vitals = tx?.liveVitals ?? tx?.revealedVitals;
   const surveyDone = !!tx?.surveyCompletedAt;
@@ -162,7 +166,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   const scoreTone: Tone = inArrest ? "stop" : score ? BAND_TONE[score.band] : "";
   const inCare = tx?.surveyStartedAt ? now - tx.surveyStartedAt : null;
   const stage = patientStage({ tx, resus, progression, score, scoreBefore, now });
-  const look = patientLook(casualty, tx, resus);
+  const look = patientLook(casualty, tx, resus, { landed });
 
   // Flags: the ones still active, with whether the record shows them dealt
   // with; a flag that has cleared counts as handled.
@@ -226,7 +230,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   // a patient who has gone to the floor is not sat anywhere.
   const settingRaw = settingOf(casualty.label);
   const setting = settingRaw && look.posture === "supine" && /\b(sat|sitting|seated|standing|stood)\b/i.test(settingRaw) ? undefined : settingRaw;
-  const place = sceneSetting(casualty, scenario, look.posture);
+  const place = sceneSetting(casualty, scenario, look.posture, { landed });
   const trackIdx = stage.key === "handed_over" ? PATIENT_TRACK.length : stage.key === "life_extinct" ? PATIENT_TRACK.findIndex((s) => s.key === "arrest") : stage.index;
 
   return (
@@ -253,7 +257,17 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
 
       <div className="pb-main">
         <div className="pb-zone pb-picture">
-          <PatientScene look={look} crew={crew} setting={place} caption={setting ?? SETTING_WORDS[place]} />
+          <PatientScene
+            look={look}
+            crew={crew}
+            setting={place}
+            caption={setting ?? SETTING_WORDS[place]}
+            hour={ambient?.hour}
+            rain={ambient ? /rain|drizzle|sleet|snow/.test(ambient.precip) : false}
+            ctx={scenario ? { type: scenario.type, title: scenario.title } : undefined}
+            label={casualty.label}
+            vitals={vitals && surveyDone ? { hr: vitals.hr, bpSys: vitals.bpSys, bpDia: vitals.bpDia, rr: vitals.rr, spo2: vitals.spo2 } : undefined}
+          />
         </div>
         <div className="pb-trends">
             <Trend label="HR" unit="bpm" hist={hist} pick={(s) => s.hr} lo={30} hi={180} alarmLow={50} alarmHigh={120} now={now} span={span} colour="#2fd17a" />

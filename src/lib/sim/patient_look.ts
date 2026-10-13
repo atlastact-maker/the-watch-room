@@ -1,7 +1,9 @@
 // HOW THE PATIENT LOOKS. The scene draws a person, not a form: where
 // they are, how they are lying, the colour of their skin, how hard they
-// are breathing, what is on them. All of it is read off the treatment
-// record and the casualty, so the picture changes as the crew work.
+// are breathing, what is on them, and who they are — age, sex, build,
+// hair, what they are doing with their hands. All of it is read off the
+// treatment record and the casualty, so the picture changes as the crew
+// work, and a seven-year-old is not drawn as a man of fifty.
 
 import type { PatientTreatmentState } from "./incident_types";
 import type { PatientRedFlag, SceneCasualty } from "./scene";
@@ -14,6 +16,27 @@ export type Skin = "normal" | "pale" | "grey" | "cyanosed" | "flushed";
 export type Breathing = "calm" | "fast" | "laboured" | "slow" | "none";
 export type Eyes = "open" | "half" | "closed";
 export type OxygenDeviceLook = "none" | "nasal" | "mask" | "nrb" | "bvm";
+export type HairStyle = "short" | "long" | "bob" | "bald" | "child";
+/** What the patient is doing with themselves, when conscious. */
+export type Cue = "none" | "hand_on_chest" | "tripod" | "hands_on_throat" | "holding_head" | "holding_arm" | "holding_belly" | "arm_limp";
+
+export type Appearance = {
+  ageYears: number;
+  sex: "male" | "female";
+  /** Standing height in metres. */
+  heightM: number;
+  child: boolean;
+  elderly: boolean;
+  pregnant: boolean;
+  hair: HairStyle;
+  hairColour: string;
+  /** Skin at rest; the scene tints it by state. */
+  skinBase: string;
+  /** Two clothing colours, stable for this patient. */
+  topColour: string;
+  bottomColour: string;
+  cue: Cue;
+};
 
 export type PatientLook = {
   posture: Posture;
@@ -49,23 +72,119 @@ export type PatientLook = {
   /** Whose hands are on the chest, when someone's are. */
   compressor?: string;
   arrest: boolean;
+  appearance: Appearance;
   /** Short words for the caption: "sat on the stairs · pale, sweaty · breathing fast". */
   words: string[];
 };
 
-function postureOf(c: SceneCasualty, gcs: number, arrest: boolean): Posture {
-  if (c.inWater) return "in_water";
-  if (c.atHeight) return "at_height";
-  if (c.trappedUntilExtricated) return "in_vehicle";
+export type LookOpts = {
+  /** Out of the water, off the face, out of the car: at the vehicle now. */
+  landed?: boolean;
+};
+
+function hash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/** Age and sex from a label like "Male, 58", "(F, ~29)", "Child (5)", "Girl, 7", "twenties". */
+function parseWho(label: string): { age?: number; sex?: "male" | "female" } {
+  const l = label.toLowerCase();
+  let age: number | undefined;
+  let sex: "male" | "female" | undefined;
+  const paren = /\((m|f),?\s*~?(\d{1,3})\)/.exec(l);
+  const named = /\b(male|female|girl|boy|man|woman|child|adult)\b[^0-9]{0,12}(\d{1,3})\b/.exec(l);
+  const bare = /\b(\d{1,3})\s*(?:y|yrs|years)?\b/.exec(l.replace(/\d+\s*m\b/g, ""));
+  if (paren) { age = Number(paren[2]); sex = paren[1] === "f" ? "female" : "male"; }
+  else if (named) { age = Number(named[2]); }
+  else if (/\btwenties\b/.test(l)) age = 25;
+  else if (/\b(thirties|30s)\b/.test(l)) age = 35;
+  else if (/\b(forties|40s)\b/.test(l)) age = 45;
+  else if (/\b(fifties|50s)\b/.test(l)) age = 55;
+  else if (/\b(sixties|60s)\b/.test(l)) age = 65;
+  else if (/\b(seventies|70s)\b/.test(l)) age = 75;
+  else if (/\b(eighties|80s)\b/.test(l)) age = 85;
+  else if (/\belderly\b/.test(l)) age = 80;
+  else if (/\b(toddler)\b/.test(l)) age = 2;
+  else if (/\b(baby|infant|newborn)\b/.test(l)) age = 1;
+  else if (/\b(child|girl|boy)\b/.test(l)) age = 7;
+  else if (/\bteen/.test(l)) age = 15;
+  else if (bare && Number(bare[1]) >= 1 && Number(bare[1]) <= 105 && /\b(male|female|girl|boy|resident|patient|driver|walker|worker)\b/.test(l)) age = Number(bare[1]);
+  if (!sex) {
+    if (/\b(female|girl|woman|mother|wife|daughter|lady|pregnan|weeks)\b/.test(l)) sex = "female";
+    else if (/\b(male|boy|man|father|husband|son)\b/.test(l)) sex = "male";
+  }
+  return { age, sex };
+}
+
+function appearanceOf(c: SceneCasualty, tx: PatientTreatmentState | null | undefined, cue: Cue): Appearance {
+  const seed = hash(c.id);
+  const pick = <T,>(xs: T[], n: number) => xs[(seed >>> n) % xs.length];
+  const parsed = parseWho(c.label ?? "");
+  const profile = tx?.profile;
+  const ageYears = profile?.ageYears ?? parsed.age ?? c.clinical?.ageYears ?? 40;
+  const sex = profile?.sex ?? parsed.sex ?? (seed % 2 ? "female" : "male");
+  const child = ageYears <= 12;
+  const elderly = ageYears >= 70;
+  const pregnant = !!profile?.pregnant || /pregnan|weeks|second stage|labour/i.test((c.label ?? "") + (c.clinical?.presumedCondition ?? ""));
+  const heightM = child
+    ? Math.min(1.5, 0.74 + ageYears * 0.06)
+    : ageYears <= 16
+      ? (sex === "male" ? 1.62 : 1.58)
+      : (sex === "male" ? 1.76 : 1.63) - (elderly ? 0.04 : 0);
+  const greys = ["#c9ccd0", "#b7bbc0", "#e6e3dc"];
+  const colours = ["#2b1d14", "#4a3220", "#8a5a2b", "#c48a3f", "#1b1b1b", "#6b4a2a", "#b5452a"];
+  const hairColour = elderly ? pick(greys, 3) : ageYears >= 55 && seed % 3 === 0 ? "#9a9da2" : pick(colours, 5);
+  const hair: HairStyle = child
+    ? (sex === "female" && seed % 3 !== 0 ? "bob" : "child")
+    : sex === "female"
+      ? pick(["long", "bob", "long", "short"] as HairStyle[], 7)
+      : ageYears >= 50 && seed % 4 === 0 ? "bald" : "short";
+  const skins = ["#f1c9a5", "#e8b894", "#d9a079", "#b67a4e", "#8c5a36", "#5f3d25"];
+  const skinBase = pick(skins, 9);
+  const tops = child
+    ? ["#e2473a", "#3b86d8", "#f2b63c", "#5fb55f", "#e86aa3", "#7a5bd6"]
+    : elderly
+      ? ["#8c7b6a", "#6d7f8c", "#a67c7c", "#7c8c6d", "#9c8f6b", "#5f6e7f"]
+      : ["#4d6f9f", "#5b5f6b", "#8a3f3f", "#3f6f5a", "#6b4f8a", "#b06a3a", "#2f4f6f", "#7a7a7a"];
+  const bottoms = child ? ["#3b4a6b", "#5a5a5a", "#2e5c8a", "#7a4f3a"] : ["#3c4653", "#2c3e55", "#555a60", "#6b5a4a", "#1f2a35", "#4a4f57"];
+  return {
+    ageYears, sex, heightM, child, elderly, pregnant, hair, hairColour, skinBase,
+    topColour: pick(tops, 11), bottomColour: pick(bottoms, 13), cue,
+  };
+}
+
+function postureOf(c: SceneCasualty, gcs: number, arrest: boolean, flags: Set<PatientRedFlag>, landed: boolean): Posture {
+  if (c.inWater && !landed) return "in_water";
+  if (c.atHeight && !landed) return "at_height";
+  if (c.trappedUntilExtricated && !landed) return "in_vehicle";
   if (arrest || gcs < 9) return "supine";
   const l = (c.label ?? "").toLowerCase();
-  if (/\b(sat|sitting|seated|chair|sofa|bench|stairs|propped)\b/.test(l)) return "sitting";
-  if (/\b(lying|collapsed|floor|ground|supine|prone|unresponsive|fallen|on the road)\b/.test(l)) return "supine";
-  if (/\b(car|vehicle|driver|passenger|cab)\b/.test(l)) return "in_vehicle";
+  if (/\b(sat|sitting|seated|chair|sofa|bench|stairs|propped|choking|upright)\b/.test(l)) return "sitting";
+  if (/\b(lying|collapsed|floor|ground|supine|prone|unresponsive|fallen|on the road|deformity)\b/.test(l)) return "supine";
+  if (!landed && /\b(car|vehicle|driver|passenger|cab)\b/.test(l)) return "in_vehicle";
+  // Someone fighting for breath sits up; a gunshot or a bad fall does not.
+  if (flags.has("severe_asthma") || flags.has("anaphylaxis") || flags.has("airway_compromise")) return "sitting";
+  if (flags.has("major_haemorrhage") || flags.has("spinal_injury_suspected") || flags.has("hypovolaemic_shock")) return "supine";
   return c.severity === "critical" ? "supine" : "sitting";
 }
 
-export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null | undefined, resus: ResusState | undefined): PatientLook {
+function cueOf(c: SceneCasualty, flags: Set<PatientRedFlag>, eyes: Eyes, posture: Posture, hurt: Set<BodyRegion>, pregnant: boolean, breathing: Breathing): Cue {
+  if (eyes !== "open") return "none";
+  const l = (c.label ?? "").toLowerCase() + " " + (c.clinical?.presumedCondition ?? "").toLowerCase();
+  if (flags.has("airway_compromise") || flags.has("anaphylaxis") || /chok/.test(l)) return "hands_on_throat";
+  if (flags.has("stemi") || /chest pain/.test(l)) return posture === "sitting" ? "hand_on_chest" : "none";
+  if (flags.has("severe_asthma") || (breathing === "laboured" && posture === "sitting")) return "tripod";
+  if (pregnant && /second stage|labour|contraction|birth/.test(l)) return "holding_belly";
+  if (flags.has("stroke_fast_positive")) return "arm_limp";
+  if (flags.has("head_injury_severe") || hurt.has("head")) return "holding_head";
+  if (hurt.has("left_arm") || hurt.has("right_arm") || /forearm|hand\b|wrist|arm\b/.test(l)) return "holding_arm";
+  return "none";
+}
+
+export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null | undefined, resus: ResusState | undefined, opts: LookOpts = {}): PatientLook {
+  const landed = !!opts.landed;
   const arrest = !!resus && resus.roscAt === undefined && resus.roleAt === undefined;
   const v = tx?.liveVitals ?? tx?.revealedVitals ?? c.clinical?.vitals;
   const flags = new Set<PatientRedFlag>(tx?.activeRedFlags ?? tx?.revealedRedFlags ?? c.clinical?.redFlags ?? []);
@@ -88,6 +207,11 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
 
   const hurt = new Set<BodyRegion>();
   for (const f of flags) for (const r of RED_FLAG_REGIONS[f] ?? []) if (r !== "systemic") hurt.add(r);
+  const label = (c.label ?? "").toLowerCase();
+  if (/head injur|head wound|skull/.test(label)) hurt.add("head");
+  if (/lower limb|femur|leg\b|ankle|knee/.test(label)) hurt.add("left_leg");
+  if (/forearm|wrist|hand\b|arm\b|shoulder/.test(label)) hurt.add("left_arm");
+  if (/pelvi/.test(label)) hurt.add("pelvis");
   const bleeding = flags.has("major_haemorrhage") && !(tx?.physio?.bleedControlled ?? false);
 
   const mon = tx?.monitoring ?? {};
@@ -116,7 +240,11 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
   };
   const compressor = arrest && resus?.cyclePausedAt === undefined ? (resus?.lucasFittedAt !== undefined ? "LUCAS" : resus?.compressorName ?? "crew") : undefined;
 
-  const posture = postureOf(c, gcs, arrest);
+  const posture = postureOf(c, gcs, arrest, flags, landed);
+  const pregnant = !!tx?.profile?.pregnant || /pregnan|weeks|second stage|labour/.test(label);
+  const cue = cueOf(c, flags, eyes, posture, hurt, pregnant, breathing);
+  const appearance = appearanceOf(c, tx, cue);
+
   const words: string[] = [];
   words.push(posture === "in_water" ? "in the water" : posture === "at_height" ? "at height" : posture === "in_vehicle" ? "still in the vehicle" : posture === "sitting" ? "sat up" : "lying flat");
   if (arrest) words.push("no output");
@@ -131,5 +259,5 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
   if (bleeding) words.push("bleeding");
   if (tx?.physio?.seizing) words.push("fitting");
 
-  return { posture, skin, sweating, breathing, rr, eyes, hurt: [...hurt], bleeding, seizing: !!tx?.physio?.seizing, kit, compressor, arrest, words };
+  return { posture, skin, sweating, breathing, rr, eyes, hurt: [...hurt], bleeding, seizing: !!tx?.physio?.seizing, kit, compressor, arrest, appearance, words };
 }
