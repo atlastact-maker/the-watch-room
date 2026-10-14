@@ -10,8 +10,8 @@
 // at night — and then with its green yoke uppermost. A yellow fire
 // helmet, a chequered police cap, the orange of a HEMS team.
 
-import type { ReactNode } from "react";
-import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, line, lineSoft, handParts, HandShape } from "./plan-figure";
+import type { CSSProperties, ReactNode } from "react";
+import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, line, lineSoft, handParts, HandShape, limbPath } from "./plan-figure";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
@@ -48,6 +48,10 @@ export type CrewTopProps = {
   kneeling?: boolean;
   /** A class on the arms group, for the compressions animation. */
   armsClass?: string;
+  /** A class on each glove: "squeeze" for the hand working a bag. */
+  handClass?: { left?: string; right?: string };
+  /** On the whole figure: an animation delay, so the crew do not sway in step. */
+  style?: CSSProperties;
   children?: ReactNode;
 };
 
@@ -149,7 +153,7 @@ function HeadTop({ c, f, wear, r = 0.13 }: { c: Pt; f: Pt; wear: CrewWear; r?: n
   );
 }
 
-export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, children }: CrewTopProps) {
+export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, handClass, style, children }: CrewTopProps) {
   const f = unit(facing);
   const s = perp(f);
   const glove = "#4a78b5";
@@ -177,15 +181,27 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
       const a = add(c, mul(n, w)), b = add(c, mul(n, -w));
       return <path d={`M${P(a)} Q${P(add(lerp(a, b, 0.5), mul(dir, bow)))} ${P(b)}`} fill="none" stroke="#000" strokeWidth={1} strokeOpacity={o} {...SOFT} strokeLinecap="round" />;
     };
+    const cls = hand === "left" ? handClass?.left : handClass?.right;
     return (
       <g>
-        <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...line} />
-        <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
-        {/* The sleeve's hem at the elbow on a short sleeve; the cloth bunching at the elbow on a long one. */}
-        {!longSleeve && <path d={capsule(lerp(sh, el, 0.86), el, 0.042, 0.04)} fill={darken(sleeve, 0.18)} opacity={0.85} />}
+        {longSleeve ? (
+          <g>
+            {/* One sleeve from shoulder to wrist, the elbow blended. */}
+            <path d={limbPath(sh, el, t, 0.052, 0.04, 0.03)} fill={sleeve} {...line} />
+            <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
+            <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />
+          </g>
+        ) : (
+          <g>
+            <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...line} />
+            <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
+            {/* The sleeve's hem at the elbow. */}
+            <path d={capsule(lerp(sh, el, 0.86), el, 0.042, 0.04)} fill={darken(sleeve, 0.18)} opacity={0.85} />
+          </g>
+        )}
         {crease(lerp(sh, el, 0.72), up, 0.04, 0.008, 0.12)}
-        <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} {...line} />
-        {longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />}
+        {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} stroke={darken(forearm, 0.5)} strokeWidth={0.8} strokeOpacity={0.65} {...SOFT} strokeLinejoin="round" />}
+        {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-skin)" opacity={0.8} />}
         {longSleeve && crease(lerp(el, t, 0.12), fore, 0.036, -0.007, 0.12)}
         {longSleeve && crease(lerp(el, t, 0.24), fore, 0.034, 0.006, 0.1)}
         {longSleeve && <path d={capsule(lerp(el, t, 0.85), lerp(el, t, 0.98), 0.033, 0.031)} fill={darken(forearm, 0.18)} opacity={0.9} />}
@@ -199,7 +215,9 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
             <circle cx={add(lerp(el, t, 0.91), mul(perp(fore), -0.012))[0]} cy={add(lerp(el, t, 0.91), mul(perp(fore), -0.012))[1]} r={0.013} fill="#2b3139" stroke="#c9ced3" strokeWidth={0.8} {...SOFT} />
           </g>
         )}
-        <Glove wrist={t} dir={sub(t, el)} colour={glove} hand={hand} />
+        <g className={`ps-glove${cls ? ` ${cls}` : ""}`}>
+          <Glove wrist={t} dir={sub(t, el)} colour={glove} hand={hand} />
+        </g>
       </g>
     );
   };
@@ -217,7 +235,7 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
   };
   const radioAt = add(add(shL, mul(f, 0.06)), mul(s, 0.07));
   return (
-    <g className="ps-crew">
+    <g className="ps-crew" style={style}>
       <ellipse cx={axis(-0.1, 0.08)[0] + 0.05} cy={axis(-0.1, 0.08)[1] + 0.07} rx={0.3} ry={0.24} fill="url(#ps-shadow)" opacity={0.9} />
       {kneeling && [-1, 1].map((side) => {
         const heel = axis(-0.26, side * 0.12);
@@ -260,7 +278,9 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
         {arm(shL, hands.left, -1, "left")}
         {arm(shR, hands.right, 1, "right")}
       </g>
-      <HeadTop c={head} f={f} wear={wear} r={0.125} />
+      <g className="ps-crew-head">
+        <HeadTop c={head} f={f} wear={wear} r={0.125} />
+      </g>
       {children}
     </g>
   );

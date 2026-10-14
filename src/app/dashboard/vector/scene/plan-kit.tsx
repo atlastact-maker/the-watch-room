@@ -12,7 +12,7 @@
 import type { ReactNode } from "react";
 import type { PatientLook } from "@/lib/sim/patient_look";
 import type { BodyRegion } from "@/lib/sim/body_regions";
-import { type Pt, type Rig, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, anchors, line, lineSoft, smooth, rot } from "./plan-figure";
+import { type Pt, type Rig, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, anchors, line, lineSoft, smooth, smoothOpen, rot } from "./plan-figure";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
@@ -28,14 +28,40 @@ function bow(a: Pt, b: Pt, sag: number): Pt {
   return add(lerp(a, b, 0.5), mul(perp(unit(sub(b, a))), sag));
 }
 
-/** A wire from a to b that sags sideways a little, the way a cable lies. */
-function wire(a: Pt, b: Pt, className: string, sag = 0.12): ReactNode {
-  return <path d={`M${P(a)} Q${P(bow(a, b, sag))} ${P(b)}`} className={className} fill="none" {...SOFT} />;
+/** How close a cable may run to a hand. */
+const CLEAR = 0.085;
+
+/** A cable's path: a lazy curve through its waypoints, as a cable lies,
+ *  steering round everything in `avoid` (hands, mostly) by `clearance`.
+ *  The ends stay where they are attached. */
+function route(pts: Pt[], avoid: Pt[], clearance = CLEAR): string {
+  const dense: Pt[] = [pts[0]];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const n = Math.max(1, Math.round(len(sub(b, a)) / 0.05));
+    for (let j = 1; j <= n; j++) dense.push(lerp(a, b, j / n));
+  }
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 1; i < dense.length - 1; i++) {
+      for (const o of avoid) {
+        const v = sub(dense[i], o);
+        const d = len(v);
+        if (d < clearance) dense[i] = add(o, mul(d < 1e-6 ? perp(unit(sub(dense[i + 1], dense[i - 1]))) : unit(v), clearance));
+      }
+    }
+  }
+  return smoothOpen(dense, 0.5);
 }
 
-/** A lead wire in its own colour. */
-function lead(a: Pt, b: Pt, colour: string, sag: number, className: string, key: string): ReactNode {
-  return <path key={key} d={`M${P(a)} Q${P(bow(a, b, sag))} ${P(b)}`} className={className} stroke={colour} fill="none" {...SOFT} />;
+/** A cable drawn at its real width (the class sets it, in metres), with
+ *  the shadow it throws on whatever it lies across. */
+function Cable({ d, className, colour }: { d: string; className: string; colour?: string }) {
+  return (
+    <g>
+      <path d={d} className={`${className} ps-cable-shade`} transform="translate(0.003 0.004)" />
+      <path d={d} className={className} stroke={colour} />
+    </g>
+  );
 }
 
 export type KitPlacement = {
@@ -47,6 +73,8 @@ export type KitPlacement = {
   ivAt?: Pt;
   /** The hand squeezing the bag: the bag is drawn from the airway towards it. */
   bvmHand?: Pt;
+  /** Hands (the crew's) that cables must run round, not under. */
+  avoid?: Pt[];
 };
 
 export type KitLayers = { under: ReactNode; onChest: ReactNode; over: ReactNode; lines: ReactNode };
@@ -79,8 +107,15 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const legA = legR ? r.legR.a : r.legL.a, legB = legR ? r.legR.b : r.legL.b, legC = legR ? r.legR.c : r.legL.c;
   const thighA = legR ? A.rightThigh : A.leftThigh;
   const legSide = legR ? -1 : 1;
-  // Where the wires gather before the one cable runs to the monitor.
-  const junction: Pt = [port[0] < 0 ? -(r.chestW + 0.1) : r.chestW + 0.1, r.waistY + 0.08 * k];
+  // Where the wires gather before the one cable runs to the monitor: on
+  // the ground beyond the arm, clear of the hand.
+  const junction: Pt = [port[0] < 0 ? -(r.chestW + 0.24) : r.chestW + 0.24, r.hipY + 0.16 * k];
+  // Cables steer round hands: the crew's, and the patient's own (the back
+  // of the hand and the fingertips), except the hand a cable is attached to.
+  const handR: Pt[] = [A.rightHandBack, A.rightFinger], handL: Pt[] = [A.leftHandBack, A.leftFinger];
+  const avoid: Pt[] = [...(place.avoid ?? []), ...handR, ...handL];
+  const avoidButL: Pt[] = [...(place.avoid ?? []), ...handR];
+  const avoidButR: Pt[] = [...(place.avoid ?? []), ...handL];
   // ECG electrodes where a torso lead set puts them (the positions the
   // road uses): the limb leads under each collarbone and low on each side
   // of the belly, the six chest leads of a 12-lead from the right of the
@@ -268,7 +303,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
     for (let i = N; i >= 0; i--) { const t = i / N; rp.push(resAt(0.17 * t, -(0.012 + 0.03 * Math.pow(Math.sin(Math.PI * t), 0.7)))); }
     return { valve, u, v, at, off, bagStart, bagLen, bagEnd, bag: smooth(pts, 0.35), res: smooth(rp, 0.35), resAt };
   })();
-  const o2Line = (from: Pt) => <path d={`M${P(from)} C${P(add(from, [0.25 * k, -0.05 * k]))} ${P(add(o2, [-0.2 * k, 0.15 * k]))} ${P(o2)}`} className="ps-tube o2" fill="none" {...SOFT} />;
+  const o2Line = (from: Pt) => <Cable d={route([from, add(from, [0.2 * k, -0.04 * k]), add(o2, [-0.16 * k, 0.12 * k]), o2], avoid)} className="ps-tube o2" />;
   const maskElastic = (
     <path d={`M${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(-r.headW * 0.56)} ${n2(r.headL * 0.6)} ${n2(-r.headW * 0.5)} ${n2(r.headL * 0.45)} M${n2(r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(r.headW * 0.56)} ${n2(r.headL * 0.6)} ${n2(r.headW * 0.5)} ${n2(r.headL * 0.45)}`} stroke="#e6eef5" strokeWidth={1} fill="none" {...SOFT} />
   );
@@ -305,7 +340,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
           {slab(ivHand, ivAlong, 0.09 * k, 0.07 * k, { fill: "#ffffff", opacity: 0.5, stroke: "#dfe8ef", strokeWidth: 0.5, ...SW }, 0.008 * k)}
           {slab(add(ivHand, mul(unit(ivAlong), -0.02 * k)), perp(ivAlong), 0.04 * k, 0.014 * k, { fill: "#e07aa0", stroke: "#1b2733", strokeWidth: 0.5, strokeOpacity: 0.6, ...SW }, 0.004 * k)}
           {slab(add(ivHand, mul(unit(ivAlong), -0.02 * k)), ivAlong, 0.03 * k, 0.012 * k, { fill: "#f4f6f8", stroke: "#9aa0a6", strokeWidth: 0.5, ...SW }, 0.004 * k)}
-          <path d={`M${P(ivHand)} C${P(add(ivHand, [-0.15 * k, -0.1 * k]))} ${P(add(place.ivAt ?? [ivHand[0] - 0.42 * k, ivHand[1] + 0.1 * k], [0.05 * k, 0.1 * k]))} ${P(place.ivAt ?? [ivHand[0] - 0.42 * k, ivHand[1] + 0.1 * k])}`} className="ps-line" fill="none" {...SOFT} />
+          <Cable d={route([ivHand, add(ivHand, [-0.12 * k, -0.08 * k]), add(place.ivAt ?? [ivHand[0] - 0.42 * k, ivHand[1] + 0.1 * k], [0.04 * k, 0.08 * k]), place.ivAt ?? [ivHand[0] - 0.42 * k, ivHand[1] + 0.1 * k]], avoidButR)} className="ps-line" />
           {!place.ivAt && <DripBag at={[ivHand[0] - 0.42 * k, ivHand[1] + 0.1 * k]} k={k} lying />}
         </g>
       )}
@@ -340,8 +375,8 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       {/* Airway and oxygen */}
       {kit.oxygen === "nasal" && (
         <g>
-          <path d={`M${n2(-r.headW * 0.1)} ${n2(r.headL * 0.68)} H${n2(r.headW * 0.1)} M${n2(-r.headW * 0.05)} ${n2(r.headL * 0.68)} v${n2(-0.012 * k)} M${n2(r.headW * 0.05)} ${n2(r.headL * 0.68)} v${n2(-0.012 * k)}`} className="ps-tube" fill="none" {...SOFT} />
-          <path d={`M${n2(-r.headW * 0.1)} ${n2(r.headL * 0.68)} Q${n2(-r.headW * 0.5)} ${n2(r.headL * 0.66)} ${n2(-r.headW * 0.52)} ${n2(r.headL * 0.5)} Q${n2(-r.headW * 0.5)} ${n2(r.headL * 0.9)} 0 ${n2(r.headL * 1.08)} M${n2(r.headW * 0.1)} ${n2(r.headL * 0.68)} Q${n2(r.headW * 0.5)} ${n2(r.headL * 0.66)} ${n2(r.headW * 0.52)} ${n2(r.headL * 0.5)} Q${n2(r.headW * 0.5)} ${n2(r.headL * 0.9)} 0 ${n2(r.headL * 1.08)}`} className="ps-tube" fill="none" {...SOFT} />
+          <path d={`M${n2(-r.headW * 0.1)} ${n2(r.headL * 0.68)} H${n2(r.headW * 0.1)} M${n2(-r.headW * 0.05)} ${n2(r.headL * 0.68)} v${n2(-0.012 * k)} M${n2(r.headW * 0.05)} ${n2(r.headL * 0.68)} v${n2(-0.012 * k)}`} className="ps-tube" />
+          <path d={`M${n2(-r.headW * 0.1)} ${n2(r.headL * 0.68)} Q${n2(-r.headW * 0.5)} ${n2(r.headL * 0.66)} ${n2(-r.headW * 0.52)} ${n2(r.headL * 0.5)} Q${n2(-r.headW * 0.5)} ${n2(r.headL * 0.9)} 0 ${n2(r.headL * 1.08)} M${n2(r.headW * 0.1)} ${n2(r.headL * 0.68)} Q${n2(r.headW * 0.5)} ${n2(r.headL * 0.66)} ${n2(r.headW * 0.52)} ${n2(r.headL * 0.5)} Q${n2(r.headW * 0.5)} ${n2(r.headL * 0.9)} 0 ${n2(r.headL * 1.08)}`} className="ps-tube" />
           {o2Line([0, r.headL * 1.08])}
         </g>
       )}
@@ -399,34 +434,38 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
     </g>
   );
 
-  // --- Lines to the monitor, drawn over the crew's hands so they read as on top.
-  const padJunction: Pt = [junction[0], r.chestY + 0.16 * k];
+  // --- Cables to the monitor: each at its own width, lying across the
+  // patient and the ground, steering round hands. Drawn under the crew's
+  // gloves, which rest on them.
+  const padJunction: Pt = [junction[0] * 0.9, r.hipY - 0.04 * k];
+  const leadPath = (e: Lead) => route([e.at, bow(e.at, e.to, e.sag), e.to], avoid);
+  const toPort = (from: Pt, sag: number, keepOut: Pt[] = avoid) => route([from, add(lerp(from, port, 0.35), mul(perp(unit(sub(port, from))), sag)), add(lerp(from, port, 0.7), mul(perp(unit(sub(port, from))), -sag * 0.5)), port], keepOut);
   const lines = (
     <g>
       {kit.pads && (
         <g>
-          {wire(add(padR, [0.02 * k, 0.06 * k]), padJunction, "ps-wire-pad", 0.05 * k)}
-          {wire(add(padL, [0.02 * k, 0.06 * k]), padJunction, "ps-wire-pad", -0.02 * k)}
-          {wire(padJunction, port, "ps-wire-pad", 0.08 * k)}
+          <Cable d={route([add(padR, [0.02 * k, 0.06 * k]), bow(add(padR, [0.02 * k, 0.06 * k]), padJunction, 0.05 * k), padJunction], avoid)} className="ps-wire-pad" />
+          <Cable d={route([add(padL, [0.02 * k, 0.06 * k]), bow(add(padL, [0.02 * k, 0.06 * k]), padJunction, -0.02 * k), padJunction], avoid)} className="ps-wire-pad" />
+          <Cable d={toPort(padJunction, 0.08 * k)} className="ps-wire-pad" />
         </g>
       )}
       {kit.leads && (
         <g>
-          {limb.map((e) => lead(e.at, e.to, e.colour, e.sag, "ps-lead", e.key))}
-          {chest.map((e) => lead(e.at, e.to, e.colour, e.sag, "ps-lead-v", e.key))}
+          {limb.map((e) => <Cable key={e.key} d={leadPath(e)} className="ps-lead" colour={e.colour} />)}
+          {chest.map((e) => <Cable key={e.key} d={leadPath(e)} className="ps-lead-v" colour={e.colour} />)}
           {chest.length > 0 && (
             <g>
-              {wire(vYoke, junction, "ps-wire-bundle", 0.03 * k)}
+              <Cable d={route([vYoke, bow(vYoke, junction, 0.03 * k), junction], avoid)} className="ps-wire-bundle" />
               <rect x={vYoke[0] - 0.022 * k} y={vYoke[1] - 0.015 * k} width={0.044 * k} height={0.03 * k} rx={0.005 * k} fill="#2b3139" {...lineSoft} />
             </g>
           )}
           <circle cx={junction[0]} cy={junction[1]} r={0.022 * k} fill="#2b3139" {...lineSoft} />
-          {wire(junction, port, "ps-wire-bundle", 0.1 * k)}
+          <Cable d={toPort(junction, 0.1 * k)} className="ps-wire-bundle" />
         </g>
       )}
-      {kit.capno && kit.oxygen === "bvm" && wire(bvm.at(0.02, 0.016), port, "ps-wire", 0.1 * k)}
-      {kit.cuff && wire(add(cuffArm, [r.armW[0] * 1.3, 0]), port, "ps-cuff-tube", 0.12 * k)}
-      {kit.probe && wire([A.leftFinger[0], A.leftFinger[1] + 0.03 * k], port, "ps-wire", 0.08 * k)}
+      {kit.cuff && <Cable d={route([add(cuffArm, [r.armW[0] * 1.3, 0]), add(cuffArm, [r.armW[0] * 2.2, 0.06 * k]), add(r.armL.b, [r.armW[1] * 2.4, 0.04 * k]), add(lerp(r.armL.b, port, 0.5), mul(perp(unit(sub(port, r.armL.b))), -0.06 * k)), port], avoid)} className="ps-cuff-tube" />}
+      {kit.probe && <Cable d={toPort([A.leftFinger[0], A.leftFinger[1] + 0.03 * k], 0.08 * k, avoidButL)} className="ps-wire" />}
+      {kit.capno && kit.oxygen === "bvm" && <Cable d={toPort(bvm.at(0.02, 0.016), 0.1 * k)} className="ps-wire" />}
     </g>
   );
   return { under, onChest, over, lines };
@@ -532,7 +571,9 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
   const W = 0.36, H = 0.31, L = x - W / 2, T = y - H / 2;
   const sx = portSide === -1 ? L - 0.02 : L + W - 0.004;
   const sl = L + 0.022, st = T + 0.034, sw = 0.2, sh = 0.15;
-  const tr = traces(sl + 0.008, st + 0.004, sw - 0.062, arrest);
+  const tw = sw - 0.062;
+  const tr = traces(sl + 0.008, st + 0.004, tw, arrest);
+  const clipId = `pk-screen-${Math.round(x * 1000)}-${Math.round(y * 1000)}`;
   const dial: Pt = [L + 0.295, T + 0.08];
   return (
     <g className="ps-monitor" filter="url(#pk-drop)">
@@ -545,9 +586,18 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
       <g stroke="#2a3a2a" strokeWidth={0.4} opacity={0.5}>
         {[0.25, 0.5, 0.75].map((t) => <path key={t} d={`M${n2(sl)} ${n2(st + sh * t)} H${n2(sl + sw)}`} {...SW} />)}
       </g>
-      <path d={tr.ecg} fill="none" stroke={arrest ? "#4ddc7a" : "#3ad17f"} strokeWidth={1.1} {...SW} />
-      <path d={tr.pleth} fill="none" stroke="#39c6ea" strokeWidth={1} {...SW} />
-      <path d={tr.resp} fill="none" stroke="#f3d35a" strokeWidth={1} {...SW} />
+      <clipPath id={clipId}><rect x={sl + 0.008} y={st} width={tw} height={sh} /></clipPath>
+      <g clipPath={`url(#${clipId})`}>
+        <g className="ps-mon-scroll">
+          {[0, 1].map((i) => (
+            <g key={i} transform={`translate(${n2(i * tw)} 0)`}>
+              <path d={tr.ecg} fill="none" stroke={arrest ? "#4ddc7a" : "#3ad17f"} strokeWidth={1.1} {...SW} />
+              <path d={tr.pleth} fill="none" stroke="#39c6ea" strokeWidth={1} {...SW} />
+              <path d={tr.resp} fill="none" stroke="#f3d35a" strokeWidth={1} {...SW} />
+            </g>
+          ))}
+        </g>
+      </g>
       <text x={sl + sw - 0.006} y={st + 0.03} textAnchor="end" fontSize={0.028} fontWeight={800} fill="#3ad17f" fontFamily="Arial, sans-serif">{arrest ? "--" : "96"}</text>
       <text x={sl + sw - 0.006} y={st + 0.066} textAnchor="end" fontSize={0.024} fontWeight={800} fill="#39c6ea" fontFamily="Arial, sans-serif">{arrest ? "--" : "95"}</text>
       <text x={sl + sw - 0.006} y={st + 0.098} textAnchor="end" fontSize={0.016} fontWeight={700} fill="#e6eef5" fontFamily="Arial, sans-serif">--/--</text>

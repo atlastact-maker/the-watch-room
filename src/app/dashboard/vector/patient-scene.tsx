@@ -113,7 +113,7 @@ function wearOf(look: PatientLook, setting: SceneSetting, seed: number, wet: boo
   };
 }
 
-type Slot = { at: Pt; facing: Pt; hands: { left?: Pt; right?: Pt }; kneeling: boolean; armsClass?: string; wear?: Partial<CrewWear> };
+type Slot = { at: Pt; facing: Pt; hands: { left?: Pt; right?: Pt }; kneeling: boolean; armsClass?: string; handClass?: { left?: string; right?: string }; wear?: Partial<CrewWear> };
 
 /** Where the hi-vis jacket goes on: roads, platforms, sites, the water's edge, anywhere outdoors after dark. */
 const JACKET_SETTINGS = new Set<SceneSetting>(["road_urban", "motorway", "car", "lorry", "pavement", "platform", "site", "yard", "moor", "height", "water", "lakeside", "ambulance_motorway", "ambulance_street", "ambulance_river", "ambulance_field"]);
@@ -165,6 +165,8 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     pose,
     kneesUp: pose === "lying" && conscious && !look.kit.board && !look.kit.splint && !look.kit.pelvicBinder,
     cue: conscious ? a.cue : "none",
+    // A resting head rolls a little to one side, unless someone is holding it or an airway is in.
+    headTurn: pose === "lying" && look.kit.oxygen !== "bvm" && !look.kit.collar && !look.kit.board && look.kit.airway === "none" ? (((seed >>> 6) % 3) - 1) * 0.6 : 0,
   });
   const k = r.k;
   const A = anchors(r);
@@ -207,7 +209,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   const holdHead = (look.kit.collar || look.kit.board) && !needsAirway;
   if (arrangement === "sides" || arrangement === "ledge") {
     const compressor: Slot = { at: [-(r.chestW + 0.2), r.chestY + 0.04], facing: [1, 0], kneeling: true, hands: cprHands, armsClass: "ps-arms cpr" };
-    const airway: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: maskHand, right: bvmHand } };
+    const airway: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: maskHand, right: bvmHand }, handClass: { right: "squeeze" } };
     const headHold: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
     const lead: Slot = { at: [side, r.chestY + 0.2], facing: [-1, 0], kneeling: true, hands: { left: [A.leftWrist[0] + 0.01, A.leftWrist[1] + 0.02], right: [A.leftUpperChest[0] + 0.04, A.leftUpperChest[1] - 0.02] } };
     const second: Slot = { at: [-side, r.hipY + 0.15], facing: [1, 0], kneeling: true, hands: { right: [A.rightWrist[0] - 0.01, A.rightWrist[1] + 0.02], left: [A.rightThigh[0] - 0.04, A.rightThigh[1]] } };
@@ -224,7 +226,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   } else if (arrangement === "bedside") {
     const leftSide: Slot = { at: [-(r.chestW + 0.38), r.chestY + 0.1], facing: [1, 0], kneeling: false, hands: { right: [A.rightWrist[0] - 0.02, A.rightWrist[1]], left: [A.rightUpperChest[0] - 0.06, A.rightUpperChest[1] - 0.02] } };
     const rightSide: Slot = { at: [r.chestW + 0.38, r.chestY + 0.3], facing: [-1, 0], kneeling: false, hands: { left: [A.leftWrist[0] + 0.02, A.leftWrist[1]], right: [A.leftForearm[0] + 0.04, A.leftForearm[1]] } };
-    const headEnd: Slot = { at: [0, -(r.headL + 0.26)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
+    const headEnd: Slot = { at: [0, -(r.headL + 0.26)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
     const compressor: Slot = { ...leftSide, hands: cprHands, armsClass: "ps-arms cpr" };
     crew.slice(0, 3).forEach((c, i) => {
       if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
@@ -235,7 +237,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     });
   } else if (arrangement === "car") {
     const door: Slot = { at: [-(r.chestW + 0.5), r.chestY + 0.15], facing: [1, 0], kneeling: false, hands: { right: [A.rightWrist[0] - 0.02, A.rightWrist[1] - 0.02], left: [A.rightUpperChest[0] - 0.05, A.rightUpperChest[1]] } };
-    const behind: Slot = { at: [0.05, -(r.headL + 0.28)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
+    const behind: Slot = { at: [0.05, -(r.headL + 0.28)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
     crew.slice(0, 2).forEach((c, i) => slots.push(i === 0 ? door : behind));
   } else if (arrangement === "water") {
     const dry: Partial<CrewWear> = { uniform: "#c0392b", trousers: "#c0392b", yoke: "#c0392b", hiVis: null, jacket: false, sleeves: "long", role: "", hat: "white_helmet" };
@@ -257,7 +259,9 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
       }
     }
   }
-  const kit = kitLayers(look, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt });
+  // Cables run round the crew's hands, not under them.
+  const avoid: Pt[] = slots.flatMap((sl) => [sl.hands.left, sl.hands.right].filter((h): h is Pt => !!h));
+  const kit = kitLayers(look, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt, avoid });
 
   const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase() };
   const breath = look.breathing === "none" ? 0 : 60 / Math.max(6, look.rr);
@@ -287,11 +291,11 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
           {monitored && <Monitor at={monitorAt} arrest={look.arrest} portSide={monitorAt[0] < 0 ? 1 : -1} />}
           {crew.length > 0 && arrangement !== "water" && <KitBag at={bagAt} />}
           {look.kit.oxygen !== "none" && arrangement !== "water" && <O2Cylinder at={o2At} angle={spec.o2 ? 90 : 78} />}
+          {kit.lines}
           {slots.map((sl, i) => (
-            <CrewTop key={i} at={sl.at} facing={sl.facing} hands={sl.hands} kneeling={sl.kneeling} armsClass={sl.armsClass} wear={{ ...crewWearOf(crew[i]?.service ?? "Ambulance", crew[i]?.scope, hash(crew[i]?.callsign ?? "x") + i * 977, { jacket: JACKET_SETTINGS.has(setting) || (spec.outdoor && amb.night), role: roleWord(crew[i]) }), ...sl.wear }} />
+            <CrewTop key={i} at={sl.at} facing={sl.facing} hands={sl.hands} kneeling={sl.kneeling} armsClass={sl.armsClass} handClass={sl.handClass} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={{ ...crewWearOf(crew[i]?.service ?? "Ambulance", crew[i]?.scope, hash(crew[i]?.callsign ?? "x") + i * 977, { jacket: JACKET_SETTINGS.has(setting) || (spec.outdoor && amb.night), role: roleWord(crew[i]) }), ...sl.wear }} />
           ))}
           {look.kit.iv && ivAt && <DripBag at={ivAt} />}
-          {kit.lines}
           <Weather amb={amb} outdoor={spec.outdoor} centre={[0, r.chestY]} k={k} />
         </g>
         {amb.rain && spec.outdoor && (
