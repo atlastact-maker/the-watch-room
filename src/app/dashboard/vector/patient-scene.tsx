@@ -281,7 +281,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   const avoid: Pt[] = slots.flatMap((sl) => [sl.hands.left, sl.hands.right].filter((h): h is Pt => !!h));
   const kit = kitLayers(look, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt, avoid });
 
-  const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase() };
+  const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase(), lucas: look.kit.lucas };
   const breath = look.breathing === "none" ? 0 : 60 / Math.max(6, look.rr);
   const chestStyle = breath ? ({ "--ps-breath": `${breath.toFixed(2)}s` } as CSSProperties) : undefined;
   const chestClass = `ps-chest${breath ? " breathe" : ""}${look.compressor ? " cpr" : ""}${look.breathing === "laboured" ? " laboured" : ""}`;
