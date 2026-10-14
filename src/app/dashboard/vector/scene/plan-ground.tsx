@@ -30,6 +30,8 @@ export type GroundCtx = {
   label: string;
   /** The LUCAS is on the patient, so its case in the ambulance is open and empty. */
   lucas?: boolean;
+  /** The patient is on the ventilator: its hose is uncoiled and run to them. */
+  vent?: boolean;
 };
 
 export type CrewArrangement = "sides" | "bedside" | "saloon" | "car" | "water" | "ledge";
@@ -54,6 +56,8 @@ export type GroundSpec = {
   extent?: [number, number];
   /** Where the picture is centred across, in metres from the patient's midline (the patient is not always in the middle of the place). */
   centreX?: number;
+  /** Where a ventilator's patient hose leaves it, when the place has one. */
+  vent?: Pt;
 };
 
 // ---------------------------------------------------------------------------
@@ -610,11 +614,12 @@ const LucasCase = ({ x, y, open }: { x: number; y: number; open?: boolean }) => 
 /** The transport ventilator on its shelf: the olive box with its two
  *  dials, the airway pressure gauge and the switch, the oxygen inlet with
  *  its short green hose, and the corrugated patient hose coiled beside it. */
-const Ventilator = ({ x, y }: { x: number; y: number }) => (
+const Ventilator = ({ x, y, connected }: { x: number; y: number; connected?: boolean }) => (
   <g>
-    <ellipse cx={x + 0.19} cy={y + 0.46} rx={0.14} ry={0.11} fill="none" stroke="#9fb4c8" strokeWidth={0.03} />
-    <ellipse cx={x + 0.19} cy={y + 0.46} rx={0.14} ry={0.11} fill="none" stroke="#dfe8ef" strokeWidth={0.012} strokeDasharray="0.012 0.012" />
-    <path d={`M${n2(x + 0.3)} ${n2(y + 0.3)} Q${n2(x + 0.36)} ${n2(y + 0.36)} ${n2(x + 0.33)} ${n2(y + 0.4)}`} stroke="#9fb4c8" strokeWidth={0.03} fill="none" strokeLinecap="round" />
+    {!connected && <ellipse cx={x + 0.19} cy={y + 0.46} rx={0.14} ry={0.11} fill="none" stroke="#9fb4c8" strokeWidth={0.03} />}
+    {!connected && <ellipse cx={x + 0.19} cy={y + 0.46} rx={0.14} ry={0.11} fill="none" stroke="#dfe8ef" strokeWidth={0.012} strokeDasharray="0.012 0.012" />}
+    {!connected && <path d={`M${n2(x + 0.3)} ${n2(y + 0.3)} Q${n2(x + 0.36)} ${n2(y + 0.36)} ${n2(x + 0.33)} ${n2(y + 0.4)}`} stroke="#9fb4c8" strokeWidth={0.03} fill="none" strokeLinecap="round" />}
+    {connected && <circle cx={x + 0.3} cy={y + 0.3} r={0.012} fill="#3ad17f" />}
     <rect x={x} y={y} width={0.38} height={0.3} rx={0.03} fill="#4b5a3e" {...line} />
     <rect x={x} y={y} width={0.38} height={0.3} rx={0.03} fill="url(#ps-round)" opacity={0.5} />
     <rect x={x + 0.03} y={y + 0.03} width={0.32} height={0.24} rx={0.02} fill="#dfe3dc" stroke="#2b3a24" strokeWidth={0.6} {...SOFT} />
@@ -645,7 +650,7 @@ const Suction = ({ x, y }: { x: number; y: number }) => (
   </g>
 );
 
-const AmbulanceSaloon = ({ outside, lucasOut }: { outside: ReactNode; lucasOut?: boolean }) => (
+const AmbulanceSaloon = ({ outside, lucasOut, ventOn }: { outside: ReactNode; lucasOut?: boolean; ventOn?: boolean }) => (
   <g>
     <Base fill="#8f949a" />
     <rect x={-4} y={2.45} width={8} height={4} fill="#5f6468" />
@@ -686,7 +691,7 @@ const AmbulanceSaloon = ({ outside, lucasOut }: { outside: ReactNode; lucasOut?:
     <rect x={1.32} y={-1.4} width={0.38} height={0.42} rx={0.04} fill="#2f7a4f" {...line} />
     <rect x={1.36} y={-1.35} width={0.3} height={0.32} rx={0.03} fill="url(#ps-round)" opacity={0.5} />
     <rect x={1.42} y={-1.14} width={0.18} height={0.04} fill="#cfd4d8" opacity={0.9} />
-    <Ventilator x={1.8} y={-0.4} />
+    <Ventilator x={1.8} y={-0.4} connected={ventOn} />
     <LucasCase x={1.3} y={1.32} open={lucasOut} />
     <Suction x={1.84} y={1.3} />
     <rect x={1.86} y={1.95} width={0.26} height={0.26} rx={0.03} fill="#f3d35a" {...lineSoft} />
@@ -1334,7 +1339,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     crew: "saloon",
     lying: "reclined",
     framing: "full",
-    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-paving")} /><Kerb x={-0.5} side={1} /></g>} />,
+    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-paving")} /><Kerb x={-0.5} side={1} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
@@ -1342,13 +1347,14 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     o2: [1.97, -1.38],
     extent: [-0.42, 1.72],
     centreX: 0.55,
+    vent: [2.1, -0.1],
   },
   ambulance_motorway: {
     outdoor: false,
     crew: "saloon",
     lying: "reclined",
     framing: "full",
-    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-tarmac")} /><rect x={-4} y={3.1} width={8} height={0.14} fill="#f4f4f0" opacity={0.9} /></g>} />,
+    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-tarmac")} /><rect x={-4} y={3.1} width={8} height={0.14} fill="#f4f4f0" opacity={0.9} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
@@ -1356,13 +1362,14 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     o2: [1.97, -1.38],
     extent: [-0.42, 1.72],
     centreX: 0.55,
+    vent: [2.1, -0.1],
   },
   ambulance_river: {
     outdoor: false,
     crew: "saloon",
     lying: "reclined",
     framing: "full",
-    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} /><rect x={-4} y={3.3} width={8} height={2} fill={FILL("pg-water")} /></g>} />,
+    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} /><rect x={-4} y={3.3} width={8} height={2} fill={FILL("pg-water")} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
@@ -1370,13 +1377,14 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     o2: [1.97, -1.38],
     extent: [-0.42, 1.72],
     centreX: 0.55,
+    vent: [2.1, -0.1],
   },
   ambulance_field: {
     outdoor: false,
     crew: "saloon",
     lying: "reclined",
     framing: "full",
-    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} outside={<rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} />} />,
+    ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} />} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
@@ -1384,6 +1392,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     o2: [1.97, -1.38],
     extent: [-0.42, 1.72],
     centreX: 0.55,
+    vent: [2.1, -0.1],
   },
 };
 

@@ -75,6 +75,8 @@ export type KitPlacement = {
   bvmHand?: Pt;
   /** Hands (the crew's) that cables must run round, not under. */
   avoid?: Pt[];
+  /** Where a ventilator's hose leaves it: an intubated patient is on it instead of the bag. */
+  ventAt?: Pt;
 };
 
 export type KitLayers = { under: ReactNode; onChest: ReactNode; over: ReactNode; lines: ReactNode };
@@ -312,6 +314,17 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
     return { valve, u, v, at, off, bagStart, bagLen, bagEnd, bag: smooth(pts, 0.35), res: smooth(rp, 0.35), resAt };
   })();
   const o2Line = (from: Pt) => <Cable d={route([from, add(from, [0.2 * k, -0.04 * k]), add(o2, [-0.16 * k, 0.12 * k]), o2], avoid)} className="ps-tube o2" />;
+  // The ventilator circuit on a tube: the catheter mount off the tube's
+  // connector, the HME filter, then the corrugated hose away to the
+  // ventilator, steering round hands like any cable.
+  const onVent = !!place.ventAt && kit.airway === "tube";
+  const ventAt = place.ventAt ?? ([0, 0] as Pt);
+  const tubeTop: Pt = [0, mouth[1] - 0.05 * k];
+  const ventDir = unit(sub(ventAt, tubeTop));
+  const capnoAt: Pt = add(tubeTop, mul(ventDir, 0.03 * k));
+  const mountEnd: Pt = add(tubeTop, mul(ventDir, (kit.capno ? 0.15 : 0.12) * k));
+  const hmeEnd: Pt = add(mountEnd, mul(ventDir, 0.05 * k));
+  const ventHose = onVent ? route([hmeEnd, add(lerp(hmeEnd, ventAt, 0.35), mul(perp(ventDir), 0.12 * k)), add(lerp(hmeEnd, ventAt, 0.7), mul(perp(ventDir), -0.06 * k)), ventAt], avoid) : "";
   const maskElastic = (
     <path d={`M${n2(-r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(-r.headW * 0.56)} ${n2(r.headL * 0.6)} ${n2(-r.headW * 0.5)} ${n2(r.headL * 0.45)} M${n2(r.headW * 0.3)} ${n2(r.headL * 0.72)} Q${n2(r.headW * 0.56)} ${n2(r.headL * 0.6)} ${n2(r.headW * 0.5)} ${n2(r.headL * 0.45)}`} stroke="#e6eef5" strokeWidth={1} fill="none" {...SOFT} />
   );
@@ -413,7 +426,19 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
           <rect x={-0.016 * k} y={mouth[1] - 0.05 * k} width={0.032 * k} height={0.022 * k} rx={0.004 * k} fill="#2f6fd6" stroke="#1b2733" strokeWidth={0.5} {...SW} />
         </g>
       )}
-      {kit.oxygen === "bvm" && (
+      {onVent && (
+        <g className="ps-vent">
+          {kit.capno && slab(capnoAt, ventDir, 0.036 * k, 0.03 * k, { fill: "#3b434b", stroke: "#15191c", strokeWidth: 0.7, ...SW }, 0.004 * k)}
+          <path d={`M${P(add(tubeTop, mul(ventDir, (kit.capno ? 0.05 : 0.01) * k)))} L${P(mountEnd)}`} className="ps-vent-mount" />
+          <path d={`M${P(add(tubeTop, mul(ventDir, (kit.capno ? 0.05 : 0.01) * k)))} L${P(mountEnd)}`} className="ps-vent-rib" />
+          {slab(lerp(mountEnd, hmeEnd, 0.5), ventDir, 0.05 * k, 0.034 * k, { fill: "url(#pk-clear)", stroke: "#7f98ad", strokeWidth: 0.8, ...SW }, 0.006 * k)}
+          {slab(lerp(mountEnd, hmeEnd, 0.5), perp(ventDir), 0.034 * k, 0.008 * k, { fill: "#2f6fd6", opacity: 0.85 }, 0.002 * k)}
+          <path d={ventHose} className="ps-vent-hose ps-cable-shade" transform="translate(0.004 0.005)" />
+          <path d={ventHose} className="ps-vent-hose" />
+          <path d={ventHose} className="ps-vent-rib" />
+        </g>
+      )}
+      {kit.oxygen === "bvm" && !onVent && (
         <g className="ps-bvm">
           {kit.airway === "none" && mask("bvm")}
           {kit.capno && (
@@ -473,7 +498,8 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       )}
       {kit.cuff && <Cable d={route([add(cuffArm, [r.armW[0] * 1.3, 0]), add(cuffArm, [r.armW[0] * 2.2, 0.06 * k]), add(r.armL.b, [r.armW[1] * 2.4, 0.04 * k]), add(lerp(r.armL.b, port, 0.5), mul(perp(unit(sub(port, r.armL.b))), -0.06 * k)), port], avoid)} className="ps-cuff-tube" />}
       {kit.probe && <Cable d={toPort([A.leftFinger[0], A.leftFinger[1] + 0.03 * k], 0.08 * k, avoidButL)} className="ps-wire" />}
-      {kit.capno && kit.oxygen === "bvm" && <Cable d={toPort(bvm.at(0.02, 0.016), 0.1 * k)} className="ps-wire" />}
+      {kit.capno && onVent && <Cable d={toPort(add(capnoAt, mul(perp(ventDir), 0.018 * k)), 0.1 * k)} className="ps-wire" />}
+      {kit.capno && kit.oxygen === "bvm" && !onVent && <Cable d={toPort(bvm.at(0.02, 0.016), 0.1 * k)} className="ps-wire" />}
     </g>
   );
   return { under, onChest, over, lines };

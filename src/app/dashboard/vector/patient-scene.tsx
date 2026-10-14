@@ -209,7 +209,9 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   // Compressions: the point pressed is the centre of the chest; the crew
   // figure stacks its hands on it.
   const cprHands = { left: [A.sternum[0], A.sternum[1] + 0.01 * k] as Pt, right: [A.sternum[0], A.sternum[1] + 0.01 * k] as Pt };
-  const needsAirway = look.kit.oxygen === "bvm";
+  // Intubated in the back of the ambulance, the patient goes on the ventilator: no bag to squeeze.
+  const onVent = spec.crew === "saloon" && look.kit.airway === "tube" && !!spec.vent;
+  const needsAirway = look.kit.oxygen === "bvm" && !onVent;
   const holdHead = (look.kit.collar || look.kit.board) && !needsAirway;
   if (arrangement === "sides" || arrangement === "ledge") {
     const compressor: Slot = { at: [-(r.chestW + 0.2), r.chestY + 0.04], facing: [1, 0], kneeling: true, hands: cprHands, armsClass: "ps-arms cpr", grip: "cpr" };
@@ -242,13 +244,14 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   } else if (arrangement === "saloon") {
     // In the back of the ambulance the stretcher is against the nearside
     // wall: the crew work from the offside and the head end only.
-    const attendant: Slot = { at: [0.1, -(r.headL + 0.3)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
+    // The attendant squeezes the bag, or secures the tube on the ventilator, or steadies the head.
+    const attendant: Slot = { at: [0.1, -(r.headL + 0.3)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : onVent ? { left: [A.mouth[0] + 0.06, A.mouth[1] - 0.03], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
     const side: Slot = { at: [r.chestW + 0.42, r.chestY + 0.12], facing: [-1, 0], kneeling: false, hands: { left: [A.leftWrist[0] + 0.02, A.leftWrist[1]], right: [A.leftUpperChest[0] + 0.06, A.leftUpperChest[1] - 0.02] } };
     const foot: Slot = { at: [r.chestW + 0.42, r.hipY + 0.5], facing: [-1, 0], kneeling: false, hands: { left: [A.leftKnee[0] + 0.03, A.leftKnee[1] - 0.06], right: [A.leftThigh[0] + 0.05, A.leftThigh[1]] } };
     const compressor: Slot = { ...side, hands: cprHands, armsClass: "ps-arms cpr", grip: "cpr" };
     crew.slice(0, 3).forEach((c, i) => {
       if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
-      if (needsAirway && !slots.includes(attendant)) { slots.push(attendant); return; }
+      if ((needsAirway || onVent) && !slots.includes(attendant)) { slots.push(attendant); return; }
       if (!slots.includes(side) && !slots.includes(compressor)) { slots.push(side); return; }
       if (!slots.includes(foot)) { slots.push(foot); return; }
       slots.push(attendant);
@@ -279,9 +282,9 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   }
   // Cables run round the crew's hands, not under them.
   const avoid: Pt[] = slots.flatMap((sl) => [sl.hands.left, sl.hands.right].filter((h): h is Pt => !!h));
-  const kit = kitLayers(look, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt, avoid });
+  const kit = kitLayers(look, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt, avoid, ventAt: onVent ? spec.vent : undefined });
 
-  const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase(), lucas: look.kit.lucas };
+  const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase(), lucas: look.kit.lucas, vent: onVent };
   const breath = look.breathing === "none" ? 0 : 60 / Math.max(6, look.rr);
   const chestStyle = breath ? ({ "--ps-breath": `${breath.toFixed(2)}s` } as CSSProperties) : undefined;
   const chestClass = `ps-chest${breath ? " breathe" : ""}${look.compressor ? " cpr" : ""}${look.breathing === "laboured" ? " laboured" : ""}`;

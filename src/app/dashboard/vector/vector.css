@@ -5502,6 +5502,9 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .ps-bvm-res { fill: rgba(222, 233, 242, 0.5); stroke: #8fa8bc; stroke-width: 0.7; vector-effect: non-scaling-stroke; }
 .ps-lead { fill: none; stroke-width: 0.0035; stroke-linecap: round; stroke-linejoin: round; }
 .ps-lead-v { fill: none; stroke-width: 0.003; stroke-linecap: round; stroke-linejoin: round; }
+.ps-vent-hose { fill: none; stroke: #c9d6e2; stroke-width: 0.022; stroke-linecap: round; stroke-linejoin: round; }
+.ps-vent-mount { fill: none; stroke: #dfe8ef; stroke-width: 0.016; stroke-linecap: round; }
+.ps-vent-rib { fill: none; stroke: #7f98ad; stroke-width: 0.022; stroke-opacity: 0.45; stroke-dasharray: 0.008 0.01; stroke-linecap: butt; }
 .ps-cable-shade { stroke: #000 !important; stroke-opacity: 0.22; }
 .ps-igel { fill: #f7d04b; stroke: #1b2733; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
 .ps-ett { fill: #e6eef5; stroke: #1b2733; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
