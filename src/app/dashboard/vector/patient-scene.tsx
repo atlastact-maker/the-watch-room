@@ -210,7 +210,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   // figure stacks its hands on it.
   const cprHands = { left: [A.sternum[0], A.sternum[1] + 0.01 * k] as Pt, right: [A.sternum[0], A.sternum[1] + 0.01 * k] as Pt };
   // Intubated in the back of the ambulance, the patient goes on the ventilator: no bag to squeeze.
-  const onVent = spec.crew === "saloon" && look.kit.airway === "tube" && !!spec.vent;
+  const onVent = spec.crew === "saloon" && (look.kit.airway === "tube" || look.kit.airway === "igel") && !!spec.vent;
   const needsAirway = look.kit.oxygen === "bvm" && !onVent;
   const holdHead = (look.kit.collar || look.kit.board) && !needsAirway;
   if (arrangement === "sides" || arrangement === "ledge") {

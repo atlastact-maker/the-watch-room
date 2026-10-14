@@ -317,9 +317,9 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   // The ventilator circuit on a tube: the catheter mount off the tube's
   // connector, the HME filter, then the corrugated hose away to the
   // ventilator, steering round hands like any cable.
-  const onVent = !!place.ventAt && kit.airway === "tube";
+  const onVent = !!place.ventAt && (kit.airway === "tube" || kit.airway === "igel");
   const ventAt = place.ventAt ?? ([0, 0] as Pt);
-  const tubeTop: Pt = [0, mouth[1] - 0.05 * k];
+  const tubeTop: Pt = [0, mouth[1] - (kit.airway === "igel" ? 0.03 : 0.05) * k];
   const ventDir = unit(sub(ventAt, tubeTop));
   const capnoAt: Pt = add(tubeTop, mul(ventDir, 0.03 * k));
   const mountEnd: Pt = add(tubeTop, mul(ventDir, (kit.capno ? 0.15 : 0.12) * k));

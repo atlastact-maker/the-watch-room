@@ -198,11 +198,13 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
             <path d={limbPath(sh, el, t, 0.052, 0.04, 0.03)} fill={sleeve} {...line} />
             <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
             <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />
+            <path d={limbPath(sh, el, t, 0.052, 0.04, 0.03)} fill="url(#ps-grain)" />
           </g>
         ) : (
           <g>
             <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...line} />
             <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
+            <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-grain)" />
             {/* The sleeve's hem at the elbow. */}
             <path d={capsule(lerp(sh, el, 0.86), el, 0.042, 0.04)} fill={darken(sleeve, 0.18)} opacity={0.85} />
           </g>
@@ -210,6 +212,7 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
         {crease(lerp(sh, el, 0.72), up, 0.04, 0.008, 0.12)}
         {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} stroke={darken(forearm, 0.5)} strokeWidth={0.8} strokeOpacity={0.65} {...SOFT} strokeLinejoin="round" />}
         {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-skin)" opacity={0.8} />}
+        {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-grain)" />}
         {longSleeve && crease(lerp(el, t, 0.12), fore, 0.036, -0.007, 0.12)}
         {longSleeve && crease(lerp(el, t, 0.24), fore, 0.034, 0.006, 0.1)}
         {longSleeve && <path d={capsule(lerp(el, t, 0.85), lerp(el, t, 0.98), 0.033, 0.031)} fill={darken(forearm, 0.18)} opacity={0.9} />}
@@ -242,9 +245,24 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
     );
   };
   const radioAt = add(add(shL, mul(f, 0.06)), mul(s, 0.07));
+  // The figure's shadow on the floor: back, shoulders, head and both arms as
+  // one soft dark shape thrown down and to the right.
+  const armShadow = (sh: Pt, target: Pt | undefined, bend: 1 | -1) => {
+    const t = target ?? axis(0.24, bend * 0.26);
+    const el = elbow(sh, t, 0.2, 0.19, bend);
+    const dir = press ? f : unit(sub(t, el));
+    return `${limbPath(sh, el, t, 0.052, 0.04, 0.03)} ${capsule(t, add(t, mul(dir, 0.16)), 0.036, 0.03)}`;
+  };
   return (
     <g className="ps-crew" style={style}>
-      <ellipse cx={axis(-0.1, 0.08)[0] + 0.05} cy={axis(-0.1, 0.08)[1] + 0.07} rx={0.3} ry={0.24} fill="url(#ps-shadow)" opacity={0.9} />
+      <ellipse cx={axis(-0.1, 0.08)[0] + 0.05} cy={axis(-0.1, 0.08)[1] + 0.07} rx={0.3} ry={0.24} fill="url(#ps-shadow)" opacity={0.6} />
+      <g filter="url(#ps-soft-shadow)" opacity={0.42} transform="translate(0.03 0.036)" fill="#000">
+        <path d={back} />
+        <path d={capsule(shL, shR, 0.1, 0.1)} />
+        <circle cx={head[0]} cy={head[1]} r={0.125} />
+        <path d={armShadow(shL, wristL, -1)} />
+        <path d={armShadow(shR, wristR, 1)} />
+      </g>
       {kneeling && [-1, 1].map((side) => {
         const heel = axis(-0.26, side * 0.12);
         const toe = axis(-0.4, side * 0.135);
@@ -268,9 +286,13 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
       {jacket && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke={band} strokeWidth={0.03} />}
       {wear.hat === "fire_helmet" && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke="#d8cf5a" strokeWidth={0.035} />}
       <path d={back} fill={`url(#${slope})`} />
+      <path d={back} fill="url(#ps-grain)" />
       {/* Shoulders: the jacket's yoke, or the shirt; the collar standing behind the head. */}
       <path d={capsule(shL, shR, 0.1, 0.1)} fill={wear.yoke} {...line} />
       <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-round-v)" opacity={0.4} />
+      <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-grain)" />
+      {/* The head's shadow on the shoulders. */}
+      <circle cx={head[0] + 0.02} cy={head[1] + 0.03} r={0.13} fill="#000" opacity={0.3} filter="url(#ps-blur-sm)" />
       <path d={capsule(axis(0.0, -0.085), axis(0.0, 0.085), 0.016, 0.016)} fill={darken(wear.yoke, 0.2)} {...lineSoft} />
       <path d={capsule(axis(-0.004, -0.08), axis(-0.004, 0.08), 0.008, 0.008)} fill={darken(wear.yoke, 0.35)} opacity={0.8} />
       {jacket && <path d={`M${P(axis(-0.02, -0.11))} L${P(axis(-0.02, 0.11))}`} stroke={band} strokeWidth={0.035} opacity={0.9} />}

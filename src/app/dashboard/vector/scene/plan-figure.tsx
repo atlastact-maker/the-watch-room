@@ -181,8 +181,8 @@ export function rig(build: Build, o: RigOpts): Rig {
   const hipW = F(k, build.sex === "female" ? 0.205 : 0.19) * bulk;
   const right: Pt[] = [
     [F(k, 0.07) * bulk, neckBase[1] - F(k, 0.01)],
-    [shoulderW * 0.86, shoulderY - F(k, 0.015)],
-    [shoulderW, shoulderY + F(k, 0.03)],
+    [shoulderW * 0.8, shoulderY - F(k, 0.002)],
+    [shoulderW * 0.98, shoulderY + F(k, 0.035)],
     [chestW * 1.02, ty(0.38)],
     [chestW, chestY],
     [waistW, waistY],
@@ -467,6 +467,7 @@ export function HandShape({ parts, fill, detail, nail, ink = INK, cuff, opacity 
       <path d={thumb.prox} fill={across(thumb.dir)} opacity={0.6} />
       <path d={thumb.dist} fill={across(thumb.dir)} opacity={0.6} />
       <path d={palm} fill="url(#ps-face-shade)" opacity={detail === "palm" ? 0.35 : 0.7} />
+      {all.map((d, i) => <path key={`g${i}`} d={d} fill="url(#ps-grain)" opacity={0.8} />)}
       {detail === "back" && (
         <g>
           {/* The tendons fanning over the back of the hand, the knuckles, the joints and the nails. */}
@@ -677,17 +678,17 @@ function Face({ r, w }: { r: Rig; w: Wear }) {
   const ink = darken(skin, 0.55);
   // Landmarks: a child's features sit lower on a rounder head.
   const eyeY = L * (child ? 0.55 : 0.5), eyeX = W * (child ? 0.21 : 0.2), eyeRx = W * (child ? 0.105 : 0.1), eyeRy = W * (child ? 0.065 : 0.056);
-  const irisR = W * (child ? 0.064 : 0.054), pupilR = irisR * 0.42;
+  const irisR = W * (child ? 0.057 : 0.047), pupilR = irisR * 0.45;
   const browY = eyeY - L * (child ? 0.075 : 0.09);
   const noseTipY = L * (child ? 0.68 : 0.655), noseW = W * (child ? 0.07 : 0.085);
   const mouthY = L * (child ? 0.815 : 0.8), mouthW = W * (child ? 0.12 : 0.15);
   const lip = w.lips === "blue" ? "#5a6f8a" : w.lips === "pale" ? mix(darken(skin, 0.1), "#c9a0a0", 0.3) : mix(darken(skin, 0.22), "#b25a5a", female ? 0.6 : 0.45);
-  const jaw = child ? 0.41 : female ? 0.35 : 0.38;
   const chinW = child ? 0.14 : female ? 0.11 : 0.17;
-  const headPath = smooth([
-    [0, 0], [W * 0.36, L * 0.05], [W * 0.5, L * 0.3], [W * 0.49, L * 0.55], [W * jaw, L * 0.8], [W * chinW, L * 0.975], [0, L],
-    [-W * chinW, L * 0.975], [-W * jaw, L * 0.8], [-W * 0.49, L * 0.55], [-W * 0.5, L * 0.3], [-W * 0.36, L * 0.05],
-  ], 0.6);
+  const headPath = headOutline(r, child);
+  const faceClip = `ps-face-${Math.round(W * 1000)}-${Math.round(L * 1000)}-${child ? 1 : 0}${female ? 1 : 0}`;
+  // Blood in the cheeks, unless the skin has gone grey or blue.
+  const sat = (() => { const v = parseInt(skin.slice(1), 16); const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255]; const mx = Math.max(...c); return mx ? (mx - Math.min(...c)) / mx : 0; })();
+  const blush = sat > 0.2 && w.lips !== "blue";
   const hairColour = w.wet ? darken(w.hair, 0.25) : w.hair;
   const hairDark = darken(hairColour, 0.35), hairLight = mix(hairColour, "#ffffff", 0.3);
   const style = w.hairStyle;
@@ -752,7 +753,7 @@ function Face({ r, w }: { r: Rig; w: Wear }) {
             <circle cx={x} cy={eyeY + eyeRy * 0.05} r={irisR} fill={w.child ? "#4a7fb5" : "#4a3a2a"} />
             <circle cx={x} cy={eyeY + eyeRy * 0.05} r={irisR} fill="url(#ps-iris)" />
             <circle cx={x} cy={eyeY + eyeRy * 0.05} r={pupilR} fill="#0b0d10" />
-            <circle cx={x - irisR * 0.32} cy={eyeY - irisR * 0.3} r={pupilR * 0.5} fill="#ffffff" opacity={0.85} />
+            <circle cx={x - irisR * 0.32} cy={eyeY - irisR * 0.3} r={pupilR * 0.42} fill="#ffffff" opacity={0.75} />
           </g>
           <path d={upper} fill="none" stroke="#000" strokeWidth={3} strokeOpacity={0.16} {...SOFT} />
           <path d={shape} fill={skin} className="ps-lid" style={{ transformBox: "fill-box", transformOrigin: "top", transform: "scaleY(0)" }} />
@@ -792,15 +793,39 @@ function Face({ r, w }: { r: Rig; w: Wear }) {
       {hairBack && style === "long" && strands(8, [0, L * 0.62], W * 0.74, L * 0.68, 15, 165, [0, L * 0.55], 1.1, "hl")}
       {ear(-1)}
       {ear(1)}
-      <path d={headPath} fill={skin} {...edge(skin, 0.5, 0.7, 0.9)} />
+      <path d={headPath} fill={skin} {...edge(skin, 0.55, 0.55, 0.8)} />
       {/* The face is a form: shade under the brows, in the hollows of the cheeks and under the lip; light on the forehead and chin. */}
       <path d={headPath} fill="url(#ps-face-shade)" />
+      <path d={headPath} fill="url(#ps-grain)" opacity={0.8} />
+      <clipPath id={faceClip}><path d={headPath} /></clipPath>
+      <g clipPath={`url(#${faceClip})`}>
+        <g filter="url(#ps-blur-sm)">
+          {/* Soft shadows: the hair's on the forehead, the brow ridge over the eyes, the temples and the hollows of the cheeks (deeper on the side away from the light), the side of the nose, under it, under the lower lip, and the jaw's underside. */}
+          {hairCap && <path d={hairCap} fill="#000" opacity={0.26} transform={`translate(0 ${n2(L * 0.04)})`} />}
+          {hairBack && !hairCap && <ellipse cx={0} cy={L * 0.08} rx={W * 0.5} ry={L * 0.08} fill="#000" opacity={0.2} />}
+          <ellipse cx={-eyeX} cy={browY + L * 0.03} rx={W * 0.2} ry={L * 0.035} fill="#2a1208" opacity={0.2} />
+          <ellipse cx={eyeX} cy={browY + L * 0.03} rx={W * 0.2} ry={L * 0.035} fill="#2a1208" opacity={0.26} />
+          <ellipse cx={-W * 0.42} cy={L * 0.4} rx={W * 0.1} ry={L * 0.12} fill="#2a1208" opacity={0.12} />
+          <ellipse cx={W * 0.42} cy={L * 0.4} rx={W * 0.1} ry={L * 0.12} fill="#2a1208" opacity={0.22} />
+          {!child && <ellipse cx={-W * 0.37} cy={L * 0.67} rx={W * 0.13} ry={L * 0.11} fill="#2a1208" opacity={elderly ? 0.3 : 0.16} />}
+          {!child && <ellipse cx={W * 0.38} cy={L * 0.66} rx={W * 0.14} ry={L * 0.12} fill="#2a1208" opacity={elderly ? 0.4 : 0.28} />}
+          <ellipse cx={W * 0.065} cy={noseTipY - L * 0.05} rx={W * 0.045} ry={L * 0.07} fill="#2a1208" opacity={0.22} />
+          <ellipse cx={0} cy={noseTipY + L * 0.052} rx={W * 0.075} ry={L * 0.016} fill="#2a1208" opacity={0.24} />
+          <ellipse cx={0} cy={mouthY + L * 0.078} rx={W * 0.12} ry={L * 0.02} fill="#2a1208" opacity={0.26} />
+          <path d={`M${n2(-W * chinW * 2.4)} ${n2(L * 0.9)} Q${n2(-W * 0.05)} ${n2(L * 1.04)} ${n2(W * chinW * 2.6)} ${n2(L * 0.9)} Q${n2(W * 0.18)} ${n2(L * 1.0)} 0 ${n2(L * 1.02)} Q${n2(-W * 0.2)} ${n2(L * 1.0)} ${n2(-W * chinW * 2.4)} ${n2(L * 0.9)} Z`} fill="#2a1208" opacity={0.3} />
+          <path d={`M${n2(W * 0.3)} ${n2(L * 0.1)} Q${n2(W * 0.56)} ${n2(L * 0.5)} ${n2(W * 0.2)} ${n2(L * 0.96)} Q${n2(W * 0.5)} ${n2(L * 0.55)} ${n2(W * 0.3)} ${n2(L * 0.1)} Z`} fill="#2a1208" opacity={0.22} />
+          {/* Light: the forehead, the bridge and tip of the nose, the cheekbone nearest the light, the chin. */}
+          <ellipse cx={-W * 0.1} cy={L * 0.27} rx={W * 0.22} ry={L * 0.07} fill="#fff" opacity={0.16} />
+          <ellipse cx={-W * 0.012} cy={L * 0.56} rx={W * 0.03} ry={L * 0.1} fill="#fff" opacity={0.14} />
+          <ellipse cx={-W * 0.3} cy={L * 0.57} rx={W * 0.1} ry={L * 0.035} fill="#fff" opacity={0.12} />
+          <ellipse cx={-W * 0.03} cy={L * 0.9} rx={W * 0.1} ry={L * 0.03} fill="#fff" opacity={0.12} />
+          {blush && <ellipse cx={-W * 0.3} cy={L * 0.61} rx={W * 0.14} ry={L * 0.065} fill="#c8503c" opacity={child ? 0.16 : 0.09} />}
+          {blush && <ellipse cx={W * 0.3} cy={L * 0.61} rx={W * 0.14} ry={L * 0.065} fill="#c8503c" opacity={child ? 0.16 : 0.09} />}
+          {blush && <ellipse cx={0} cy={noseTipY} rx={W * 0.07} ry={L * 0.04} fill="#c8503c" opacity={0.1} />}
+        </g>
+      </g>
       <ellipse cx={-eyeX} cy={eyeY + L * 0.01} rx={W * 0.17} ry={L * 0.085} fill="url(#ps-socket)" opacity={elderly ? 0.8 : 0.5} />
       <ellipse cx={eyeX} cy={eyeY + L * 0.01} rx={W * 0.17} ry={L * 0.085} fill="url(#ps-socket)" opacity={elderly ? 0.8 : 0.5} />
-      {!child && <g opacity={elderly ? 0.7 : 0.45}><ellipse cx={-W * 0.34} cy={L * 0.66} rx={W * 0.16} ry={L * 0.1} fill="url(#ps-socket)" /><ellipse cx={W * 0.34} cy={L * 0.66} rx={W * 0.16} ry={L * 0.1} fill="url(#ps-socket)" /></g>}
-      <ellipse cx={0} cy={L * 0.3} rx={W * 0.26} ry={L * 0.07} fill="#fff" opacity={0.09} />
-      <ellipse cx={0} cy={L * 0.925} rx={W * 0.12} ry={L * 0.028} fill="#fff" opacity={0.1} />
-      <ellipse cx={0} cy={mouthY + L * 0.072} rx={W * 0.1} ry={L * 0.012} fill="#000" opacity={0.1} />
       {w.flushed && <g opacity={0.35}><ellipse cx={-W * 0.27} cy={L * 0.62} rx={W * 0.12} ry={L * 0.06} fill="#e0564d" /><ellipse cx={W * 0.27} cy={L * 0.62} rx={W * 0.12} ry={L * 0.06} fill="#e0564d" /></g>}
       {w.beard && (
         <g>
@@ -880,39 +905,74 @@ function Face({ r, w }: { r: Rig; w: Wear }) {
   );
 }
 
+/** The outline of the head from above: the brow broad, the cheekbones the
+ *  widest, the jaw tapering to the chin. For the face and for its shadow. */
+export function headOutline(r: Rig, child = !!r.build.child): string {
+  const L = r.headL, W = r.headW;
+  const female = r.build.sex === "female";
+  const jaw = child ? 0.41 : female ? 0.35 : 0.38;
+  const chinW = child ? 0.14 : female ? 0.11 : 0.17;
+  return smooth([
+    [0, 0], [W * 0.36, L * 0.05], [W * 0.5, L * 0.3], [W * 0.49, L * 0.55], [W * jaw, L * 0.8], [W * chinW, L * 0.975], [0, L],
+    [-W * chinW, L * 0.975], [-W * jaw, L * 0.8], [-W * 0.49, L * 0.55], [-W * 0.5, L * 0.3], [-W * 0.36, L * 0.05],
+  ], 0.6);
+}
+
+/** Specks for the grain over skin and cloth: fixed pseudo-random positions
+ *  in a 5 cm tile, so every render is the same. */
+const GRAIN: [number, number, number, boolean][] = (() => {
+  let s = 1234567;
+  const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+  return Array.from({ length: 150 }, (_, i) => [rnd() * 0.04, rnd() * 0.04, 0.0004 + rnd() * 0.0007, i % 2 === 0] as [number, number, number, boolean]);
+})();
+
 /** Gradients and patterns the figure paints with; put once in the scene's defs. */
 export function FigureDefs() {
   return (
     <>
+      {/* One light, over the viewer's left shoulder: every rounded form is
+          lit a little left of its middle and falls off into shadow on its
+          right and its lower side. */}
       <linearGradient id="ps-round" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor="#000" stopOpacity="0.28" />
-        <stop offset="0.22" stopColor="#000" stopOpacity="0.05" />
-        <stop offset="0.45" stopColor="#fff" stopOpacity="0.12" />
-        <stop offset="0.7" stopColor="#000" stopOpacity="0.04" />
-        <stop offset="1" stopColor="#000" stopOpacity="0.3" />
+        <stop offset="0" stopColor="#000" stopOpacity="0.2" />
+        <stop offset="0.14" stopColor="#000" stopOpacity="0.03" />
+        <stop offset="0.34" stopColor="#fff" stopOpacity="0.14" />
+        <stop offset="0.6" stopColor="#000" stopOpacity="0.03" />
+        <stop offset="0.86" stopColor="#000" stopOpacity="0.22" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.4" />
       </linearGradient>
       <linearGradient id="ps-round-v" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#000" stopOpacity="0.22" />
-        <stop offset="0.3" stopColor="#fff" stopOpacity="0.1" />
-        <stop offset="1" stopColor="#000" stopOpacity="0.26" />
+        <stop offset="0" stopColor="#000" stopOpacity="0.16" />
+        <stop offset="0.26" stopColor="#fff" stopOpacity="0.12" />
+        <stop offset="0.62" stopColor="#000" stopOpacity="0.04" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.36" />
       </linearGradient>
-      <radialGradient id="ps-face-shade" cx="0.5" cy="0.42" r="0.62">
-        <stop offset="0.5" stopColor="#fff" stopOpacity="0.1" />
-        <stop offset="0.82" stopColor="#5a2e18" stopOpacity="0.07" />
-        <stop offset="1" stopColor="#4a2412" stopOpacity="0.34" />
+      <radialGradient id="ps-face-shade" cx="0.44" cy="0.4" r="0.64">
+        <stop offset="0.45" stopColor="#fff" stopOpacity="0.1" />
+        <stop offset="0.8" stopColor="#5a2e18" stopOpacity="0.08" />
+        <stop offset="1" stopColor="#4a2412" stopOpacity="0.36" />
       </radialGradient>
       {/* Skin rounds off warm, not grey: the shadow side of a limb goes towards brown. */}
       <linearGradient id="ps-skin" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor="#4a2412" stopOpacity="0.3" />
-        <stop offset="0.2" stopColor="#4a2412" stopOpacity="0.07" />
-        <stop offset="0.42" stopColor="#fff" stopOpacity="0.12" />
-        <stop offset="0.7" stopColor="#4a2412" stopOpacity="0.04" />
-        <stop offset="1" stopColor="#4a2412" stopOpacity="0.34" />
+        <stop offset="0" stopColor="#4a2412" stopOpacity="0.22" />
+        <stop offset="0.14" stopColor="#4a2412" stopOpacity="0.04" />
+        <stop offset="0.34" stopColor="#fff" stopOpacity="0.14" />
+        <stop offset="0.6" stopColor="#4a2412" stopOpacity="0.03" />
+        <stop offset="0.86" stopColor="#4a2412" stopOpacity="0.24" />
+        <stop offset="1" stopColor="#4a2412" stopOpacity="0.42" />
       </linearGradient>
       <linearGradient id="ps-skin-v" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#4a2412" stopOpacity="0.24" />
+        <stop offset="0" stopColor="#4a2412" stopOpacity="0.16" />
+        <stop offset="0.26" stopColor="#fff" stopOpacity="0.12" />
+        <stop offset="0.62" stopColor="#4a2412" stopOpacity="0.03" />
+        <stop offset="1" stopColor="#4a2412" stopOpacity="0.38" />
+      </linearGradient>
+      {/* A sheen across synthetic cloth: a band of light, then matte, then shade. */}
+      <linearGradient id="ps-sheen" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#fff" stopOpacity="0" />
         <stop offset="0.3" stopColor="#fff" stopOpacity="0.1" />
-        <stop offset="1" stopColor="#4a2412" stopOpacity="0.3" />
+        <stop offset="0.42" stopColor="#fff" stopOpacity="0" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.12" />
       </linearGradient>
       <radialGradient id="ps-hair-shine" cx="0.5" cy="0.25" r="0.6">
         <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
@@ -930,8 +990,8 @@ export function FigureDefs() {
         <stop offset="1" stopColor="#000" stopOpacity="0" />
       </radialGradient>
       <radialGradient id="ps-sclera" cx="0.5" cy="0.5" r="0.6">
-        <stop offset="0.5" stopColor="#f7f6f2" />
-        <stop offset="1" stopColor="#cfcac6" />
+        <stop offset="0.5" stopColor="#f0eee8" />
+        <stop offset="1" stopColor="#c4bfb9" />
       </radialGradient>
       <radialGradient id="ps-iris" cx="0.4" cy="0.35" r="0.65">
         <stop offset="0" stopColor="#fff" stopOpacity="0.25" />
@@ -953,6 +1013,14 @@ export function FigureDefs() {
       <pattern id="ps-gown" width="0.03" height="0.03" patternUnits="userSpaceOnUse"><path d="M0.015 0.005 L0.025 0.015 L0.015 0.025 L0.005 0.015 Z" fill="none" stroke="#2f6fa8" strokeWidth="0.0015" strokeOpacity="0.45" /></pattern>
       <pattern id="ps-mesh" width="0.006" height="0.006" patternUnits="userSpaceOnUse"><circle cx="0.003" cy="0.003" r="0.0012" fill="#000" fillOpacity="0.14" /></pattern>
       <pattern id="ps-denim" width="0.006" height="0.006" patternUnits="userSpaceOnUse"><path d="M0 0.006 L0.006 0" stroke="#fff" strokeWidth="0.0008" strokeOpacity="0.14" /></pattern>
+      {/* Grain: specks of light and dark over every surface, so nothing is flat vector colour. */}
+      <pattern id="ps-grain" width="0.04" height="0.04" patternUnits="userSpaceOnUse">
+        {GRAIN.map(([x, y, rr, light], i) => <circle key={i} cx={x} cy={y} r={rr} fill={light ? "#fff" : "#000"} fillOpacity={light ? 0.13 : 0.11} />)}
+      </pattern>
+      {/* Soft edges: the blur of a cast shadow, and smaller ones for shading painted onto a form. */}
+      <filter id="ps-soft-shadow" x="-30%" y="-15%" width="160%" height="130%"><feGaussianBlur stdDeviation="0.016" /></filter>
+      <filter id="ps-blur-sm" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="0.006" /></filter>
+      <filter id="ps-blur-md" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="0.012" /></filter>
     </>
   );
 }
@@ -967,8 +1035,9 @@ function Seg({ a, b, wa, wb, fill, outline = true, skin = false, shade = 1 }: { 
   const d = capsule(a, b, wa, wb);
   return (
     <g>
-      <path d={d} fill={fill} {...(outline ? edge(fill, skin ? 0.5 : 0.55, skin ? 0.65 : 0.75) : {})} />
+      <path d={d} fill={fill} {...(outline ? edge(fill, skin ? 0.5 : 0.55, skin ? 0.5 : 0.6) : {})} />
       <path d={d} fill={roundness(sub(b, a), skin)} opacity={shade} />
+      <path d={d} fill="url(#ps-grain)" />
     </g>
   );
 }
@@ -979,10 +1048,11 @@ function Seg({ a, b, wa, wb, fill, outline = true, skin = false, shade = 1 }: { 
 function Limb({ a, b, c, w, fill, skin = false, outline = true }: { a: Pt; b: Pt; c: Pt; w: [number, number, number]; fill: string; skin?: boolean; outline?: boolean }) {
   return (
     <g>
-      <path d={limbPath(a, b, c, w[0], w[1], w[2])} fill={fill} {...(outline ? edge(fill, skin ? 0.5 : 0.55, skin ? 0.65 : 0.75) : {})} />
+      <path d={limbPath(a, b, c, w[0], w[1], w[2])} fill={fill} {...(outline ? edge(fill, skin ? 0.5 : 0.55, skin ? 0.5 : 0.6) : {})} />
       <path d={capsule(a, b, w[0], w[1])} fill={roundness(sub(b, a), skin)} opacity={0.75} />
       <path d={capsule(b, c, w[1], w[2])} fill={roundness(sub(c, b), skin)} opacity={0.75} />
       <ellipse cx={b[0]} cy={b[1]} rx={w[1] * 0.9} ry={w[1] * 0.9} fill="url(#ps-sphere)" opacity={0.3} />
+      <path d={limbPath(a, b, c, w[0], w[1], w[2])} fill="url(#ps-grain)" />
     </g>
   );
 }
@@ -1012,7 +1082,7 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
   const squash = (r.chestY - r.neckBase[1]) / (0.155 * k);
   const ty = (v: number) => r.neckBase[1] + (v * k - 0.285 * k) * squash;
   const right: Pt[] = [
-    [0.07 * k * bulk, r.neckBase[1] - 0.01 * k], [r.shoulderW * 0.86, r.shoulderY - 0.015 * k], [r.shoulderW, r.shoulderY + 0.03 * k],
+    [0.07 * k * bulk, r.neckBase[1] - 0.01 * k], [r.shoulderW * 0.8, r.shoulderY - 0.002 * k], [r.shoulderW * 0.98, r.shoulderY + 0.035 * k],
     [r.chestW * 1.02, ty(0.38)], [r.chestW, r.chestY], [r.waistW, r.waistY], [r.hipW, r.hipY], [r.hipW * 0.7, r.crotchY],
   ];
   const halfAt = (y: number): number => {
@@ -1087,8 +1157,11 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
     );
   };
 
-  const armSeg = (arm: Limb, side: 1 | -1, palmUp: boolean, flat: boolean) => {
+  const armSeg = (arm: Limb, side: 1 | -1, palmUp: boolean, flat: boolean, tucked = false) => {
     const upDir = unit(sub(arm.b, arm.a)), foreDir = unit(sub(arm.c, arm.b));
+    // An arm lying by the side goes under the trunk's edge, so it starts
+    // below the shoulder: the shoulder itself is the trunk's own outline.
+    const a0 = tucked ? add(arm.a, mul(upDir, Math.min(0.075 * k, len(sub(arm.b, arm.a)) * 0.35))) : arm.a;
     const sleeveEnd = lerp(arm.a, arm.b, gown ? 0.45 : tk === "football" ? 0.55 : 0.62);
     const cuffColour = tk === "shirt" || tk === "pyjamas" ? top : darken(top, 0.12);
     const cuffLen = (tk === "shirt" ? 0.05 : 0.035) * k;
@@ -1096,11 +1169,11 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
     const buttonAt = add(add(arm.c, mul(foreDir, -cuffLen * 0.5)), mul(perp(foreDir), -side * r.armW[2] * 0.7));
     return (
       <g>
-        <Limb a={arm.a} b={arm.b} c={arm.c} w={r.armW} fill={skin} skin />
+        <Limb a={a0} b={arm.b} c={arm.c} w={r.armW} fill={skin} skin />
         {sleeveLong ? (
           <g>
-            <Limb a={arm.a} b={arm.b} c={lerp(arm.b, arm.c, 0.93)} w={[r.armW[0] * 1.08, r.armW[1] * 1.1, r.armW[2] * 1.15]} fill={top} />
-            {tk === "jumper" && <path d={capsule(arm.a, lerp(arm.b, arm.c, 0.93), r.armW[0] * 1.08, r.armW[2] * 1.15)} fill="url(#ps-knit)" />}
+            <Limb a={a0} b={arm.b} c={lerp(arm.b, arm.c, 0.93)} w={[r.armW[0] * 1.08, r.armW[1] * 1.1, r.armW[2] * 1.15]} fill={top} />
+            {tk === "jumper" && <path d={capsule(a0, lerp(arm.b, arm.c, 0.93), r.armW[0] * 1.08, r.armW[2] * 1.15)} fill="url(#ps-knit)" />}
             {/* Cloth bunching at the elbow. */}
             {[-0.04, -0.015, 0.012].map((o, i) => <Crease key={i} a={add(add(arm.b, mul(upDir, o * k)), mul(perp(upDir), r.armW[1] * 0.95))} b={add(add(arm.b, mul(upDir, o * k)), mul(perp(upDir), -r.armW[1] * 0.95))} bow={(i % 2 ? -1 : 1) * 0.007 * k} k={k} o={0.12} />)}
             <path d={cuff} fill={cuffColour} {...lineSoft} />
@@ -1110,7 +1183,7 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
           </g>
         ) : (
           <g>
-            <Seg a={arm.a} b={sleeveEnd} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.14} fill={top} shade={0.8} />
+            <Seg a={a0} b={sleeveEnd} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.14} fill={top} shade={0.8} />
             <path d={capsule(add(sleeveEnd, mul(upDir, -0.018 * k)), sleeveEnd, r.armW[1] * 1.14, r.armW[1] * 1.14)} fill={trim ?? darken(top, 0.15)} opacity={trim ? 0.95 : 0.85} />
             {gown && <path d={capsule(add(sleeveEnd, mul(upDir, -0.018 * k)), sleeveEnd, r.armW[1] * 1.14, r.armW[1] * 1.14)} fill="url(#ps-gown)" />}
           </g>
@@ -1124,7 +1197,7 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
             <path d={`M${P(add(lerp(arm.b, arm.c, 0.2), mul(perp(foreDir), -side * r.armW[1] * 0.25)))} L${P(add(lerp(arm.b, arm.c, 0.9), mul(perp(foreDir), -side * r.armW[2] * 0.3)))}`} stroke="#fff" strokeWidth={1.2} strokeOpacity={0.1} fill="none" {...SW} />
           </g>
         )}
-        {!gown && <path d={bowed(add(add(arm.a, mul(upDir, 0.014 * k)), mul(perp(upDir), r.armW[0] * 1.02)), add(add(arm.a, mul(upDir, 0.014 * k)), mul(perp(upDir), -r.armW[0] * 1.02)), 0.012 * k)} fill="none" stroke={topInk} strokeWidth={0.6} strokeOpacity={0.4} {...SW} />}
+        {!gown && <path d={bowed(add(add(a0, mul(upDir, 0.014 * k)), mul(perp(upDir), r.armW[0] * 1.02)), add(add(a0, mul(upDir, 0.014 * k)), mul(perp(upDir), -r.armW[0] * 1.02)), 0.012 * k)} fill="none" stroke={topInk} strokeWidth={0.6} strokeOpacity={0.4} {...SW} />}
         <Hand wrist={arm.c} tip={arm.d} w={r.armW[2]} side={side} palmUp={palmUp} flat={flat} skin={skin} k={k} />
       </g>
     );
@@ -1141,9 +1214,9 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
   const collar = (tk === "shirt" || tk === "pyjamas" || tk === "workwear") && (
     <g>
       {[-1, 1].map((sd) => (
-        <path key={sd} d={`M${n2(sd * r.neckW * 0.78)} ${n2(nb - 0.025 * k)} L${n2(sd * r.neckW * (tk === "workwear" ? 1.35 : 1.6))} ${n2(nb + 0.06 * k)} L${n2(sd * r.neckW * 0.22)} ${n2(nb + 0.065 * k)} Z`} fill={tk === "pyjamas" ? mix(top, "#ffffff", 0.08) : top} {...line} />
+        <path key={sd} d={`M${n2(sd * r.neckW * 0.78)} ${n2(nb - 0.022 * k)} L${n2(sd * r.neckW * (tk === "workwear" ? 1.0 : 1.15))} ${n2(nb + 0.055 * k)} L${n2(sd * r.neckW * 0.24)} ${n2(nb + 0.062 * k)} Z`} fill={tk === "pyjamas" ? mix(top, "#ffffff", 0.08) : top} {...edge(top, 0.5, 0.7)} />
       ))}
-      {tk === "pyjamas" && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 1.6)} ${n2(nb + 0.06 * k)} L${n2(sd * r.neckW * 0.22)} ${n2(nb + 0.065 * k)}`} stroke="#ffffff" strokeWidth={1.4} strokeOpacity={0.7} fill="none" {...SW} />)}
+      {tk === "pyjamas" && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 1.15)} ${n2(nb + 0.055 * k)} L${n2(sd * r.neckW * 0.24)} ${n2(nb + 0.062 * k)}`} stroke="#ffffff" strokeWidth={1.4} strokeOpacity={0.7} fill="none" {...SW} />)}
     </g>
   );
   const placket = (tk === "shirt" || tk === "pyjamas") && (
@@ -1255,17 +1328,36 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
       )}
     </g>
   );
+  const neckClip = `ps-neck-${Math.round(r.neckW * 1000)}-${Math.round(nb * 1000)}`;
+  const neckPath = capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.47, r.neckW * 0.56);
   const neck = (
     <g>
-      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} fill={darken(skin, 0.08)} />
-      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} fill="url(#ps-skin)" />
-      {[-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 0.5)} ${n2(r.neckTop[1] + 0.01 * k)} L${n2(sd * r.neckW * 0.55)} ${n2(nb + 0.01 * k)}`} fill="none" {...edge(skin, 0.5, 0.5)} />)}
-      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} fill="url(#ps-slope-d)" opacity={0.45} />
-      {!child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 0.42)} ${n2(r.neckTop[1] + 0.03 * k)} Q${n2(sd * r.neckW * 0.3)} ${n2(nb - 0.01 * k)} ${n2(sd * r.neckW * 0.12)} ${n2(nb + 0.015 * k)}`} fill="none" stroke="#000" strokeWidth={1} strokeOpacity={0.1} {...SW} />)}
-      <path d={`M${n2(-r.neckW * 0.08)} ${n2(r.neckTop[1] + 0.04 * k)} V${n2(nb)}`} stroke="#fff" strokeWidth={2} strokeOpacity={0.07} fill="none" {...SW} />
+      <path d={neckPath} fill={darken(skin, 0.08)} />
+      <path d={neckPath} fill="url(#ps-skin)" />
+      {[-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 0.47)} ${n2(r.neckTop[1] + 0.01 * k)} L${n2(sd * r.neckW * 0.56)} ${n2(nb + 0.01 * k)}`} fill="none" {...edge(skin, 0.5, 0.45)} />)}
+      <path d={neckPath} fill="url(#ps-grain)" />
+      <clipPath id={neckClip}><path d={neckPath} /></clipPath>
+      <g clipPath={`url(#${neckClip})`}>
+        <g filter="url(#ps-blur-sm)">
+          {/* The chin's shadow across the top of the neck; the hollow of the throat above the collarbones; the sides falling away. */}
+          <path d={capsule([0, r.headL - 0.02 * k], [0, r.headL + 0.035 * k], r.neckW * 0.62, r.neckW * 0.5)} fill="#2a1208" opacity={0.42} />
+          <path d={`M${n2(-r.neckW * 0.3)} ${n2(nb - 0.01 * k)} Q0 ${n2(nb - 0.03 * k)} ${n2(r.neckW * 0.3)} ${n2(nb - 0.01 * k)} L${n2(r.neckW * 0.2)} ${n2(nb + 0.03 * k)} L${n2(-r.neckW * 0.2)} ${n2(nb + 0.03 * k)} Z`} fill="#2a1208" opacity={0.3} />
+          <path d={capsule([r.neckW * 0.5, r.headL], [r.neckW * 0.56, nb + 0.02 * k], r.neckW * 0.12, r.neckW * 0.14)} fill="#2a1208" opacity={0.3} />
+          <path d={capsule([-r.neckW * 0.5, r.headL], [-r.neckW * 0.56, nb + 0.02 * k], r.neckW * 0.1, r.neckW * 0.12)} fill="#2a1208" opacity={0.14} />
+        </g>
+      </g>
+      {/* The two muscles from behind the ears down to the notch. */}
+      {!child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 0.44)} ${n2(r.headL + 0.005 * k)} Q${n2(sd * r.neckW * 0.32)} ${n2(nb - 0.012 * k)} ${n2(sd * r.neckW * 0.13)} ${n2(nb + 0.012 * k)}`} fill="none" stroke="#2a1208" strokeWidth={1.3} strokeOpacity={0.14} {...SW} />)}
+      {!child && !female && <ellipse cx={0} cy={r.headL + 0.025 * k} rx={r.neckW * 0.11} ry={0.014 * k} fill="url(#ps-sphere)" opacity={0.5} />}
+      <path d={`M${n2(-r.neckW * 0.06)} ${n2(r.headL + 0.012 * k)} V${n2(nb - 0.025 * k)}`} stroke="#fff" strokeWidth={2.2} strokeOpacity={0.08} fill="none" {...SW} />
     </g>
   );
-  const clavicles = !child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * 0.1 * k * bulk)} ${n2(nb + 0.03 * k)} Q${n2(sd * 0.05 * k)} ${n2(nb + 0.05 * k)} ${n2(sd * 0.012 * k)} ${n2(nb + 0.035 * k)}`} fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.2} {...SW} />);
+  const clavicles = !child && [-1, 1].map((sd) => (
+    <g key={sd}>
+      <path d={`M${n2(sd * 0.13 * k * bulk)} ${n2(nb + 0.024 * k)} Q${n2(sd * 0.05 * k)} ${n2(nb + 0.05 * k)} ${n2(sd * 0.012 * k)} ${n2(nb + 0.036 * k)}`} fill="none" stroke="#fff" strokeWidth={1.4} strokeOpacity={0.12} {...SW} />
+      <path d={`M${n2(sd * 0.13 * k * bulk)} ${n2(nb + 0.028 * k)} Q${n2(sd * 0.05 * k)} ${n2(nb + 0.054 * k)} ${n2(sd * 0.012 * k)} ${n2(nb + 0.04 * k)}`} fill="none" stroke={ink} strokeWidth={0.8} strokeOpacity={0.3} {...SW} />
+    </g>
+  ));
   // The chest bared for pads or electrodes: the top cut up the front with
   // shears and laid open, its shoulders still on, the two halves lying out
   // over the arms, cut edges outermost; the skin beneath with its
@@ -1284,26 +1376,73 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
   const flapEdge = (sd: number) => smoothOpen([[sd * r.shoulderW * 1.45, bandY + 0.03 * k], [sd * halfAt(r.chestY) * 1.9, r.chestY - 0.01 * k], [sd * halfAt(r.chestY) * 1.97, r.chestY + 0.09 * k], [sd * halfAt(r.waistY) * 1.96, r.waistY + 0.03 * k], [sd * halfAt(hemY) * 1.85, hemY + 0.025 * k]], 0.5);
   const shoulderPts = right.filter((p) => p[1] < bandY - 0.01 * k);
   const shoulderBand = smooth([...shoulderPts, [halfAt(bandY), bandY], [-halfAt(bandY), bandY], ...shoulderPts.slice().reverse().map((p): Pt => [-p[0], p[1]])], 0.5);
+  // The body under the cloth, soft-edged: shadow down the far side and
+  // under the chest, light where the chest rises nearest the lamp.
+  const trunkClip = `ps-trunk-${Math.round(r.chestW * 1000)}-${Math.round(hemY * 1000)}-${Math.round(r.shoulderY * 1000)}`;
+  const sideShade = (sd: number, inner: number) => smooth([
+    [sd * r.shoulderW * 0.6, r.shoulderY + 0.02 * k], [sd * r.chestW * 1.05, r.chestY], [sd * r.waistW * 1.05, r.waistY], [sd * r.hipW * 1.0, hemY + 0.01 * k],
+    [sd * r.hipW * inner, hemY + 0.01 * k], [sd * r.waistW * inner, r.waistY], [sd * r.chestW * (inner + 0.04), r.chestY + 0.02 * k], [sd * r.shoulderW * (inner - 0.15), r.shoulderY + 0.08 * k],
+  ], 0.5);
+  // The deltoids: a dome on each shoulder, lit from the left, falling into shade on the right.
+  const shoulderDomes = (dark: string, light: string) => [-1, 1].map((sd) => (
+    <g key={sd}>
+      <ellipse cx={sd * r.shoulderW * 0.84 - 0.02 * k} cy={r.shoulderY + 0.015 * k} rx={0.055 * k} ry={0.04 * k} fill={light} opacity={0.14} />
+      <ellipse cx={sd * r.shoulderW * 0.84 + 0.025 * k} cy={r.shoulderY + 0.06 * k} rx={0.06 * k} ry={0.035 * k} fill={dark} opacity={0.16} />
+    </g>
+  ));
+  const clothShade = (
+    <g clipPath={`url(#${trunkClip})`}>
+      <g filter="url(#ps-blur-md)">
+        <path d={sideShade(1, 0.6)} fill="#000" opacity={0.2} />
+        <path d={sideShade(-1, 0.76)} fill="#000" opacity={0.07} />
+        <ellipse cx={0} cy={r.chestY + 0.1 * k} rx={r.chestW * 0.8} ry={0.028 * k} fill="#000" opacity={0.12} />
+        <ellipse cx={0} cy={r.shoulderY + 0.02 * k} rx={r.neckW * 1.2} ry={0.04 * k} fill="#000" opacity={0.14} />
+        <ellipse cx={-r.chestW * 0.2} cy={r.chestY - 0.03 * k} rx={r.chestW * 0.4} ry={0.09 * k} fill="#fff" opacity={0.12} />
+        <ellipse cx={0} cy={r.waistY + 0.04 * k} rx={r.waistW * 0.55} ry={0.05 * k} fill="#fff" opacity={0.06} />
+        {shoulderDomes("#000", "#fff")}
+      </g>
+    </g>
+  );
+  const skinShade = (
+    <g clipPath={`url(#${trunkClip})`}>
+      <g filter="url(#ps-blur-md)">
+        {/* The ribcage's far side in shadow, the hollow under each pec, the costal margin, light on the breastbone. */}
+        <path d={sideShade(1, 0.62)} fill="#2a1208" opacity={0.22} />
+        <path d={sideShade(-1, 0.78)} fill="#2a1208" opacity={0.08} />
+        {!child && [-1, 1].map((sd) => <ellipse key={sd} cx={sd * r.chestW * 0.45} cy={r.chestY + (female ? 0.075 : 0.065) * k} rx={r.chestW * 0.38} ry={0.022 * k} fill="#2a1208" opacity={0.2} />)}
+        {!child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.chestW * 0.95)} ${n2(r.chestY + 0.1 * k)} Q${n2(sd * r.chestW * 0.55)} ${n2(r.chestY + 0.16 * k)} ${n2(sd * 0.03 * k)} ${n2(r.waistY - 0.02 * k)}`} fill="none" stroke="#2a1208" strokeWidth={0.02 * k} strokeOpacity={0.14} />)}
+        <path d={`M0 ${n2(nb + 0.06 * k)} V${n2(r.chestY + 0.08 * k)}`} stroke="#2a1208" strokeWidth={0.016 * k} strokeOpacity={0.12} fill="none" />
+        <ellipse cx={0} cy={r.shoulderY + 0.02 * k} rx={r.neckW * 1.1} ry={0.035 * k} fill="#2a1208" opacity={0.16} />
+        <ellipse cx={-r.chestW * 0.25} cy={r.chestY - 0.03 * k} rx={r.chestW * 0.3} ry={0.08 * k} fill="#fff" opacity={0.12} />
+        <ellipse cx={0} cy={r.waistY + 0.02 * k} rx={r.waistW * 0.5} ry={0.07 * k} fill="#fff" opacity={0.07} />
+        {shoulderDomes("#2a1208", "#fff")}
+      </g>
+    </g>
+  );
   const bareTrunk = (
     <g>
-      <path d={topPath} fill={skin} {...edge(skin, 0.5, 0.7, 0.9)} />
+      <path d={topPath} fill={skin} {...edge(skin, 0.55, 0.55, 0.8)} />
       <path d={topPath} fill="url(#ps-skin)" />
+      <path d={topPath} fill="url(#ps-grain)" />
+      {skinShade}
       {!lifted && [-1, 1].map((sd) => (
         <g key={sd}>
-          <path d={flap(sd)} fill={topColour} {...edge(topColour, 0.55, 0.8, 0.9)} />
+          <path d={flap(sd)} fill={topColour} {...edge(topColour, 0.55, 0.6, 0.8)} />
           <path d={flap(sd)} fill={sd === 1 ? "url(#ps-slope-r)" : "url(#ps-slope-l)"} opacity={0.35} />
+          <path d={flap(sd)} fill="url(#ps-grain)" />
           {gown && <path d={flap(sd)} fill="url(#ps-gown)" />}
           {w.exposed === "cut" && <path d={flapEdge(sd)} fill="none" stroke={darken(topColour, 0.5)} strokeWidth={0.8} strokeOpacity={0.6} strokeDasharray="2 1.2" {...SW} />}
           {(tk === "shirt" || tk === "pyjamas") && sd === 1 && [0.2, 0.42, 0.64, 0.86].map((t) => { const y = bandY + (hemY - bandY) * t; const x = halfAt(y) * 1.82; return <circle key={t} cx={x} cy={y} r={0.0065 * k} fill={tk === "pyjamas" ? "#ffffff" : darken(top, 0.4)} stroke={topInk} strokeWidth={0.5} {...SOFT} />; })}
         </g>
       ))}
-      {!lifted && <path d={shoulderBand} fill={topColour} {...edge(topColour, 0.55, 0.8, 0.9)} />}
+      {!lifted && <path d={shoulderBand} fill={topColour} {...edge(topColour, 0.55, 0.6, 0.8)} />}
       {!lifted && <path d={shoulderBand} fill="url(#ps-round)" />}
+      {!lifted && <path d={shoulderBand} fill="url(#ps-grain)" />}
       {!lifted && hiVis && <path d={shoulderBand} fill={w.hiVis ?? topColour} opacity={0.9} />}
       {/* Pushed up: the top rolled under the armpits in a thick band across the top of the chest. */}
       {lifted && (
         <g>
-          <path d={capsule([-r.shoulderW * 0.96, r.shoulderY - 0.012 * k], [r.shoulderW * 0.96, r.shoulderY - 0.012 * k], 0.032 * k, 0.032 * k)} fill={topColour} {...edge(topColour, 0.55, 0.8, 0.9)} />
+          <path d={capsule([-r.shoulderW * 0.96, r.shoulderY - 0.012 * k], [r.shoulderW * 0.96, r.shoulderY - 0.012 * k], 0.032 * k, 0.032 * k)} fill={topColour} {...edge(topColour, 0.55, 0.6, 0.8)} />
           <path d={capsule([-r.shoulderW * 0.96, r.shoulderY - 0.012 * k], [r.shoulderW * 0.96, r.shoulderY - 0.012 * k], 0.032 * k, 0.032 * k)} fill="url(#ps-round-v)" opacity={0.7} />
           {[-0.7, -0.4, -0.1, 0.2, 0.5, 0.8].map((t) => <Crease key={t} a={[t * r.shoulderW, r.shoulderY - 0.04 * k]} b={[(t + 0.12) * r.shoulderW, r.shoulderY + 0.016 * k]} bow={0.004 * k} k={k} o={0.14} />)}
         </g>
@@ -1332,30 +1471,57 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
       {(r.build.elderly || bulk < 0.95) && !child && [-1, 1].map((sd) => <g key={sd}>{[0.08, 0.13, 0.18].map((dy) => <path key={dy} d={bowed([sd * r.chestW * 0.9, r.chestY + dy * k], [sd * r.chestW * 0.3, r.chestY + (dy + 0.03) * k], -sd * 0.01 * k)} fill="none" stroke={ink} strokeWidth={0.8} strokeOpacity={0.07} {...SW} />)}</g>)}
     </g>
   );
+  // The figure's own shadow on the ground: every part as one dark shape,
+  // blurred and thrown a little down and to the right of the body, the
+  // light being over the viewer's left shoulder.
+  const silhouette = (
+    <>
+      <path d={headOutline(r, child)} />
+      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} />
+      <path d={topPath} />
+      <path d={pelvis} />
+      {[r.armR, r.armL].map((arm, i) => <g key={i}><path d={limbPath(arm.a, arm.b, arm.c, r.armW[0] * 1.08, r.armW[1] * 1.1, r.armW[2] * 1.1)} /><path d={capsule(arm.c, arm.d, r.armW[2] * 1.05, r.armW[2] * 0.7)} /></g>)}
+      {([[r.legR, r.toeR, -1], [r.legL, r.toeL, 1]] as [Limb, Pt, number][]).map(([leg, toe, side], i) => {
+        const d = unit(toe);
+        const heel = add(leg.c, mul(d, -(r.feetFlat ? r.footL * 0.14 : r.footW * 0.35)));
+        return <g key={i}><path d={limbPath(leg.a, leg.b, leg.c, r.legW[0] * 1.1, r.legW[1] * 1.12, r.legW[2] * 1.2)} /><path d={footPath(heel, d, mul(perp(d), side), r.footL, r.footW)} /></g>;
+      })}
+    </>
+  );
   const shadowRx = r.pose === "seated" ? r.shoulderW * 1.6 : r.shoulderW * 1.5;
   const armByTheSideR = r.handFlatR && r.armR.c[0] < -r.chestW * 0.9;
   const armByTheSideL = r.handFlatL && r.armL.c[0] > r.chestW * 0.9;
   return (
     <g className="ps-fig">
-      {shadow && <ellipse cx={0.02 * k} cy={(r.bottom + 0.05 * k) / 2} rx={shadowRx} ry={(r.bottom + 0.1 * k) / 2} fill="url(#ps-shadow)" />}
+      {shadow && <ellipse cx={0.02 * k} cy={(r.bottom + 0.05 * k) / 2} rx={shadowRx} ry={(r.bottom + 0.1 * k) / 2} fill="url(#ps-shadow)" opacity={0.6} />}
+      {shadow && (
+        <g filter="url(#ps-soft-shadow)" opacity={0.46} transform={`translate(${n2(0.026 * k)} ${n2(0.03 * k)})`} fill="#000">
+          {silhouette}
+        </g>
+      )}
       {hood}
       {/* Legs */}
       {legSeg(r.legR, -1, r.toeR)}
       {legSeg(r.legL, 1, r.toeL)}
       {/* Arms that lie by the sides go under the trunk's edge; reaching arms come over it. */}
-      {armByTheSideR && armSeg(r.armR, -1, r.palmUpR, r.handFlatR)}
-      {armByTheSideL && armSeg(r.armL, 1, r.palmUpL, r.handFlatL)}
+      {armByTheSideR && armSeg(r.armR, -1, r.palmUpR, r.handFlatR, true)}
+      {armByTheSideL && armSeg(r.armL, 1, r.palmUpL, r.handFlatL, true)}
       {/* Trunk */}
       <g className={chestClass} style={chestStyle}>
-        <path d={pelvis} fill={bare ? skin : bottom} {...edge(bare ? skin : bottom, 0.5, 0.7)} />
+        <path d={pelvis} fill={bare ? skin : bottom} {...edge(bare ? skin : bottom, 0.5, 0.55)} />
         <path d={pelvis} fill={bare ? "url(#ps-skin)" : "url(#ps-round)"} />
+        <path d={pelvis} fill="url(#ps-grain)" />
+        <clipPath id={trunkClip}><path d={topPath} /></clipPath>
         {waistband}
         {exposed ? bareTrunk : (
           <g>
-            <path d={topPath} fill={gown ? "#9fc4dd" : top} {...edge(gown ? "#9fc4dd" : top, 0.55, 0.8, 0.9)} />
+            <path d={topPath} fill={gown ? "#9fc4dd" : top} {...edge(gown ? "#9fc4dd" : top, 0.55, 0.6, 0.8)} />
             <path d={topPath} fill="url(#ps-round)" />
+            <path d={topPath} fill="url(#ps-grain)" />
+            {(tk === "football" || tk === "fleece") && <path d={topPath} fill="url(#ps-sheen)" />}
             {gown && <path d={topPath} fill="url(#ps-gown)" />}
             {tk === "jumper" && <path d={topPath} fill="url(#ps-knit)" />}
+            {clothShade}
             {bust}
             {belly}
             {tk === "football" && <g>{[-0.5, 0.5].map((t) => <path key={t} d={`M${n2(t * r.chestW * 0.9)} ${n2(r.shoulderY)} L${n2(t * r.hipW * 0.9)} ${n2(r.hipY)}`} stroke="#ffffff" strokeWidth={0.02 * k} opacity={0.85} />)}</g>}
@@ -1371,7 +1537,7 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
           </g>
         )}
         {/* The open neck shows skin. */}
-        <path d={`${neckline} Z`} fill={skin} {...edge(skin, 0.45, 0.5)} />
+        <path d={`${neckline} Z`} fill={skin} {...edge(skin, 0.45, 0.4)} />
         <path d={`${neckline} Z`} fill="url(#ps-skin)" opacity={0.6} />
         {clavicles}
         {!lifted && teeNeck}
@@ -1379,6 +1545,12 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
         {!lifted && collar}
         {!lifted && gownTies}
         {onChest}
+      </g>
+      {/* Where parts meet, the light cannot get in: the groove between the chest and each arm, the fold under the waistband, the crease between the legs. */}
+      <g filter="url(#ps-blur-sm)" fill="none" stroke="#000" strokeLinecap="round">
+        {[-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.shoulderW * 0.96)} ${n2(r.shoulderY + 0.05 * k)} Q${n2(sd * r.chestW * 1.04)} ${n2(r.chestY - 0.02 * k)} ${n2(sd * r.chestW * 0.98)} ${n2(r.chestY + 0.09 * k)}`} strokeWidth={0.018 * k} strokeOpacity={0.22} />)}
+        {!bare && <path d={`M${n2(-r.hipW * 0.9)} ${n2(wbBot + 0.012 * k)} Q0 ${n2(wbBot + 0.022 * k)} ${n2(r.hipW * 0.9)} ${n2(wbBot + 0.012 * k)}`} strokeWidth={0.016 * k} strokeOpacity={0.16} />}
+        <path d={`M0 ${n2(r.crotchY + 0.01 * k)} L${n2((r.legR.b[0] + r.legL.b[0]) / 2)} ${n2((r.legR.b[1] + r.legL.b[1]) / 2 - 0.06 * k)}`} strokeWidth={0.02 * k} strokeOpacity={0.14} />
       </g>
       {/* Arms over the trunk */}
       {!armByTheSideR && armSeg(r.armR, -1, r.palmUpR, r.handFlatR)}
