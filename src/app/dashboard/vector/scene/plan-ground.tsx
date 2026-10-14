@@ -549,42 +549,6 @@ const Trolley = ({ x, y }: { x: number; y: number }) => {
   );
 };
 
-/** The restraints over the patient: the shoulder harness to the chest
- *  buckle, a strap over the hips and one over the legs; black webbing,
- *  grey buckles. */
-const TrolleyStraps = ({ x, y, r }: { x: number; y: number; r: Rig }) => {
-  const strap = (x1: number, y1: number, x2: number, y2: number) => (
-    <g>
-      <path d={`M${n2(x1)} ${n2(y1)} L${n2(x2)} ${n2(y2)}`} stroke="#15191c" strokeWidth={0.05} strokeLinecap="round" />
-      <path d={`M${n2(x1)} ${n2(y1)} L${n2(x2)} ${n2(y2)}`} stroke="#3a4046" strokeWidth={0.012} strokeLinecap="round" strokeDasharray="0.03 0.02" />
-    </g>
-  );
-  const chest: Pt = [x, y + r.chestY + 0.06];
-  return (
-    <g>
-      {strap(x - 0.26, y + r.shoulderY - 0.16, chest[0], chest[1])}
-      {strap(x + 0.26, y + r.shoulderY - 0.16, chest[0], chest[1])}
-      {strap(x - 0.31, y + r.hipY + 0.02, x + 0.31, y + r.hipY + 0.02)}
-      {strap(x - 0.31, y + r.hipY + 0.55, x + 0.31, y + r.hipY + 0.55)}
-      {[chest, [x, y + r.hipY + 0.02] as Pt, [x, y + r.hipY + 0.55] as Pt].map((c, i) => (
-        <g key={i}>
-          <rect x={c[0] - 0.045} y={c[1] - 0.03} width={0.09} height={0.06} rx={0.01} fill="#5a6066" {...lineSoft} />
-          <rect x={c[0] - 0.012} y={c[1] - 0.02} width={0.024} height={0.04} rx={0.004} fill="#d13b3b" />
-        </g>
-      ))}
-    </g>
-  );
-};
-
-/** The back of a UK ambulance from above, the way the box bodies are laid
- *  out: the stretcher locked to the nearside (the left, looking forward)
- *  with the lockers along that wall and the side door forward of them; the
- *  attendant's seat at the head of the stretcher against the bulkhead, with
- *  the window through to the cab; the offside clear for the crew to work
- *  from, with the bench seat and its belts along the wall, the cupboards
- *  fore and aft, the sharps bin and the response bag on the shelf; the
- *  yellow floor edging and grab rails; the tail lift and the open rear
- *  doors. The patient's crown is the origin, head towards the cab. */
 /** The LUCAS in its carry case: black with the red trim and the handle,
  *  the name on the lid. Open and empty when the device is on the patient,
  *  the lid folded back and the foam cut-out showing. */
@@ -1341,7 +1305,6 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     framing: "full",
     ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-paving")} /><Kerb x={-0.5} side={1} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
-    over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
     bag: [1.2, 2.12],
     o2: [1.97, -1.38],
@@ -1356,7 +1319,6 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     framing: "full",
     ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-tarmac")} /><rect x={-4} y={3.1} width={8} height={0.14} fill="#f4f4f0" opacity={0.9} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
-    over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
     bag: [1.2, 2.12],
     o2: [1.97, -1.38],
@@ -1371,7 +1333,6 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     framing: "full",
     ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} /><rect x={-4} y={3.3} width={8} height={2} fill={FILL("pg-water")} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
-    over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
     bag: [1.2, 2.12],
     o2: [1.97, -1.38],
@@ -1386,7 +1347,6 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     framing: "full",
     ground: (c) => <AmbulanceSaloon lucasOut={c.lucas} ventOn={c.vent} outside={<rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} />} />,
     under: () => <Trolley x={0} y={0} />,
-    over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
     monitor: [1.05, 1.55],
     bag: [1.2, 2.12],
     o2: [1.97, -1.38],
