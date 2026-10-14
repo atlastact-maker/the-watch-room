@@ -50,6 +50,10 @@ export type CrewTopProps = {
   armsClass?: string;
   /** A class on each glove: "squeeze" for the hand working a bag. */
   handClass?: { left?: string; right?: string };
+  /** Compressions: `hands.left` is the point pressed. The heel of the left
+   *  hand lands on it, the right hand lies over the left with its fingers
+   *  laced through and lifted, both pointing across the patient. */
+  grip?: "cpr";
   /** On the whole figure: an animation delay, so the crew do not sway in step. */
   style?: CSSProperties;
   children?: ReactNode;
@@ -70,11 +74,11 @@ export function crewHeadAt(at: Pt, facing: Pt): Pt {
   return add(at, mul(unit(facing), 0.08));
 }
 
-function Glove({ wrist, dir, colour, hand }: { wrist: Pt; dir: Pt; colour: string; hand: "left" | "right" }) {
+function Glove({ wrist, dir, colour, hand, curl = 0.08, splay = 1.1 }: { wrist: Pt; dir: Pt; colour: string; hand: "left" | "right"; curl?: number; splay?: number }) {
   // A nitrile glove on a hand pressed flat to the work, fingers a little
   // apart; the cuff loose at the wrist. Palm down, a right hand's thumb is
   // on its left as the fingers point away, a left hand's on its right.
-  const parts = handParts({ wrist, dir, L: 0.19, wW: 0.034, thumb: hand === "right" ? -1 : 1, curl: 0.08, splay: 1.1 });
+  const parts = handParts({ wrist, dir, L: 0.19, wW: 0.034, thumb: hand === "right" ? -1 : 1, curl, splay });
   return <HandShape parts={parts} fill={colour} detail="glove" ink="#17304f" cuff={darken(colour, 0.16)} />;
 }
 
@@ -153,9 +157,13 @@ function HeadTop({ c, f, wear, r = 0.13 }: { c: Pt; f: Pt; wear: CrewWear; r?: n
   );
 }
 
-export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, handClass, style, children }: CrewTopProps) {
+export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, handClass, grip, style, children }: CrewTopProps) {
   const f = unit(facing);
   const s = perp(f);
+  // Where the wrists go for compressions: stacked on the point pressed.
+  const press = grip === "cpr" && hands.left ? hands.left : undefined;
+  const wristL = press ? add(press, mul(f, -0.035)) : hands.left;
+  const wristR = press ? add(add(press, mul(f, -0.055)), mul(s, 0.014)) : hands.right;
   const glove = "#4a78b5";
   const ang = deg(f);
   const head = crewHeadAt(at, f);
@@ -216,7 +224,7 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
           </g>
         )}
         <g className={`ps-glove${cls ? ` ${cls}` : ""}`}>
-          <Glove wrist={t} dir={sub(t, el)} colour={glove} hand={hand} />
+          <Glove wrist={t} dir={press ? f : sub(t, el)} colour={glove} hand={hand} curl={press ? (hand === "right" ? 0.7 : 0.15) : undefined} splay={press ? (hand === "right" ? 0.45 : 0.8) : undefined} />
         </g>
       </g>
     );
@@ -275,8 +283,8 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
         <rect x={radioAt[0] - 0.012} y={radioAt[1] - 0.01} width={0.02} height={0.012} rx={0.002} fill="#4cb3ff" opacity={0.8} />
       </g>
       <g className={armsClass}>
-        {arm(shL, hands.left, -1, "left")}
-        {arm(shR, hands.right, 1, "right")}
+        {arm(shL, wristL, -1, "left")}
+        {arm(shR, wristR, 1, "right")}
       </g>
       <g className="ps-crew-head">
         <HeadTop c={head} f={f} wear={wear} r={0.125} />

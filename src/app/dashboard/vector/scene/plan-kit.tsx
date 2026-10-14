@@ -561,32 +561,71 @@ function traces(L: number, T: number, w: number, arrest: boolean): { ecg: string
   return { ecg, pleth, resp };
 }
 
-/** The monitor-defibrillator on the ground: a charcoal case with its carry
- *  handle, a glossy three-channel screen, the mode dial, the charge and shock
- *  buttons, the printer slot and the cable sockets down one side. `at` is
- *  its centre; `portSide` the side the cables leave. */
+/** The LIFEPAK 15's front panel is 40 cm by 32 cm. */
+export const MONITOR_W = 0.4;
+
+/** The monitor-defibrillator on the ground, drawn as the LIFEPAK 15 the
+ *  service carries: a grey case with its carry handle, the big colour
+ *  screen with three channels and the numbers down its right side, the
+ *  green ON button and the SpO₂, NIBP and CO₂ keys down the left, the
+ *  speed dial and the soft keys under the screen, the therapy panel on the
+ *  right (ENERGY SELECT, the yellow CHARGE, the red SHOCK, ANALYZE, PACER,
+ *  SYNC), the printer's paper door and strip at the far right, and the
+ *  cable sockets down the side the cables leave. `at` is its centre. */
 export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; k?: number; arrest?: boolean; portSide?: 1 | -1 }) {
   void k;
   const [x, y] = at;
-  const W = 0.36, H = 0.31, L = x - W / 2, T = y - H / 2;
+  const W = MONITOR_W, H = 0.32, L = x - W / 2, T = y - H / 2;
   const sx = portSide === -1 ? L - 0.02 : L + W - 0.004;
-  const sl = L + 0.022, st = T + 0.034, sw = 0.2, sh = 0.15;
-  const tw = sw - 0.062;
-  const tr = traces(sl + 0.008, st + 0.004, tw, arrest);
+  // The screen and its waveform area; the numbers take the right-hand column.
+  const sl = L + 0.064, st = T + 0.034, sw = 0.215, sh = 0.155;
+  const tw = 0.138;
+  const tr = traces(sl + 0.006, st + 0.016, tw, arrest);
   const clipId = `pk-screen-${Math.round(x * 1000)}-${Math.round(y * 1000)}`;
-  const dial: Pt = [L + 0.295, T + 0.08];
+  const numX = sl + sw - 0.006;
+  const key = (kx: number, ky: number, kw: number, kh: number, fill = "#6b7278", label?: string, labelFill = "#e9ecef") => (
+    <g>
+      <rect x={kx} y={ky} width={kw} height={kh} rx={0.004} fill={fill} stroke="#1b1f23" strokeWidth={0.6} {...SW} />
+      <rect x={kx} y={ky} width={kw} height={kh} rx={0.004} fill="url(#pk-gloss)" />
+      {label && <text x={kx + kw / 2} y={ky + kh / 2 + 0.0035} textAnchor="middle" fontSize={0.0085} fontWeight={700} fill={labelFill} fontFamily="Arial, sans-serif">{label}</text>}
+    </g>
+  );
+  const dial: Pt = [L + 0.248, T + 0.255];
   return (
     <g className="ps-monitor" filter="url(#pk-drop)">
-      <rect x={x - 0.11} y={T - 0.03} width={0.22} height={0.05} rx={0.022} fill="#e0b321" stroke="#6b5410" strokeWidth={0.9} {...SW} />
-      <rect x={x - 0.11} y={T - 0.03} width={0.22} height={0.05} rx={0.022} fill="url(#pk-gloss)" />
-      <rect x={L} y={T} width={W} height={H} rx={0.024} fill="url(#pk-case)" stroke="#0e1114" strokeWidth={1} {...SW} />
-      <rect x={L + 0.007} y={T + 0.007} width={W - 0.014} height={H - 0.014} rx={0.02} fill="none" stroke="#6a7178" strokeWidth={0.6} strokeOpacity={0.5} {...SW} />
-      {/* Screen */}
-      <rect x={sl} y={st} width={sw} height={sh} rx={0.006} fill="url(#pk-screen)" stroke="#05080b" strokeWidth={1} {...SW} />
-      <g stroke="#2a3a2a" strokeWidth={0.4} opacity={0.5}>
-        {[0.25, 0.5, 0.75].map((t) => <path key={t} d={`M${n2(sl)} ${n2(st + sh * t)} H${n2(sl + sw)}`} {...SW} />)}
+      {/* The carry handle along the top edge. */}
+      <rect x={x - 0.1} y={T - 0.028} width={0.2} height={0.046} rx={0.02} fill="#3b4147" stroke="#15191c" strokeWidth={0.9} {...SW} />
+      <rect x={x - 0.07} y={T - 0.022} width={0.14} height={0.03} rx={0.014} fill="#1f2428" />
+      {/* The case. */}
+      <rect x={L} y={T} width={W} height={H} rx={0.022} fill="url(#pk-case)" stroke="#0e1114" strokeWidth={1} {...SW} />
+      <rect x={L + 0.006} y={T + 0.006} width={W - 0.012} height={H - 0.012} rx={0.018} fill="none" stroke="#7d848b" strokeWidth={0.6} strokeOpacity={0.45} {...SW} />
+      <rect x={L + 0.008} y={T + 0.2} width={W - 0.016} height={0.112} rx={0.012} fill="#2a2f34" opacity={0.7} />
+      <text x={L + 0.012} y={T + 0.02} fontSize={0.011} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif" letterSpacing={0.001}>LIFEPAK<tspan fontWeight={400}> 15</tspan></text>
+      <text x={L + 0.012} y={T + 0.029} fontSize={0.005} fontWeight={700} fill="#9aa0a6" fontFamily="Arial, sans-serif">MONITOR / DEFIBRILLATOR</text>
+      {/* Left column: ON, then the SpO₂, NIBP and CO₂ keys. */}
+      <circle cx={L + 0.03} cy={T + 0.055} r={0.013} fill="#2fa85a" stroke="#0f4d2a" strokeWidth={0.8} {...SW} />
+      <circle cx={L + 0.03} cy={T + 0.055} r={0.013} fill="url(#pk-gloss)" />
+      <text x={L + 0.03} y={T + 0.058} textAnchor="middle" fontSize={0.0075} fontWeight={800} fill="#f4f6f8" fontFamily="Arial, sans-serif">ON</text>
+      {[["SpO₂", T + 0.085], ["NIBP", T + 0.125], ["CO₂", T + 0.165]].map(([lab, ky]) => (
+        <g key={lab as string}>
+          <text x={L + 0.012} y={(ky as number) - 0.003} fontSize={0.0065} fontWeight={700} fill="#c9ced3" fontFamily="Arial, sans-serif">{lab as string}</text>
+          {key(L + 0.012, ky as number, 0.038, 0.02)}
+          <circle cx={L + 0.031} cy={(ky as number) + 0.01} r={0.004} fill="#1b1f23" />
+        </g>
+      ))}
+      {/* The screen: three channels and the numbers down the right. */}
+      <rect x={sl - 0.004} y={st - 0.004} width={sw + 0.008} height={sh + 0.008} rx={0.006} fill="#0b0e11" />
+      <rect x={sl} y={st} width={sw} height={sh} rx={0.004} fill="url(#pk-screen)" stroke="#05080b" strokeWidth={1} {...SW} />
+      <rect x={sl} y={st} width={sw} height={0.012} fill="#1a2430" />
+      <text x={sl + 0.004} y={st + 0.0085} fontSize={0.006} fontWeight={700} fill="#c9ced3" fontFamily="Arial, sans-serif">{arrest ? "VF  ·  CPR" : "ADULT  ·  LEAD II"}</text>
+      <text x={sl + sw - 0.004} y={st + 0.0085} textAnchor="end" fontSize={0.006} fontWeight={700} fill="#c9ced3" fontFamily="Arial, sans-serif">14:04</text>
+      <g stroke="#1e2a22" strokeWidth={0.4} opacity={0.6}>
+        {[0.3, 0.52, 0.74].map((t) => <path key={t} d={`M${n2(sl)} ${n2(st + sh * t)} H${n2(sl + tw + 0.006)}`} {...SW} />)}
       </g>
-      <clipPath id={clipId}><rect x={sl + 0.008} y={st} width={tw} height={sh} /></clipPath>
+      <text x={sl + 0.004} y={st + 0.03} fontSize={0.006} fontWeight={700} fill="#3ad17f" fontFamily="Arial, sans-serif">II</text>
+      <text x={sl + 0.004} y={st + 0.064} fontSize={0.006} fontWeight={700} fill="#39c6ea" fontFamily="Arial, sans-serif">SpO₂</text>
+      <text x={sl + 0.004} y={st + 0.098} fontSize={0.006} fontWeight={700} fill="#f3d35a" fontFamily="Arial, sans-serif">CO₂</text>
+      <clipPath id={clipId}><rect x={sl + 0.006} y={st + 0.012} width={tw} height={sh - 0.012} /></clipPath>
       <g clipPath={`url(#${clipId})`}>
         <g className="ps-mon-scroll">
           {[0, 1].map((i) => (
@@ -598,31 +637,54 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
           ))}
         </g>
       </g>
-      <text x={sl + sw - 0.006} y={st + 0.03} textAnchor="end" fontSize={0.028} fontWeight={800} fill="#3ad17f" fontFamily="Arial, sans-serif">{arrest ? "--" : "96"}</text>
-      <text x={sl + sw - 0.006} y={st + 0.066} textAnchor="end" fontSize={0.024} fontWeight={800} fill="#39c6ea" fontFamily="Arial, sans-serif">{arrest ? "--" : "95"}</text>
-      <text x={sl + sw - 0.006} y={st + 0.098} textAnchor="end" fontSize={0.016} fontWeight={700} fill="#e6eef5" fontFamily="Arial, sans-serif">--/--</text>
-      <text x={sl + sw - 0.006} y={st + sh - 0.01} textAnchor="end" fontSize={0.012} fontWeight={700} fill={arrest ? "#ff5d5d" : "#9fb4c8"} fontFamily="Arial, sans-serif">{arrest ? "VF" : "II"}</text>
-      <rect x={sl} y={st} width={sw} height={sh * 0.45} rx={0.006} fill="url(#pk-gloss)" />
-      {/* Mode dial */}
-      <circle cx={dial[0]} cy={dial[1]} r={0.04} fill="#111518" />
-      <circle cx={dial[0]} cy={dial[1]} r={0.033} fill="url(#pk-case)" stroke="#0e1114" strokeWidth={0.8} {...SW} />
-      {[-60, -30, 0, 30, 60, 90].map((a) => <path key={a} d={`M${n2(dial[0] + Math.cos(((a - 90) * Math.PI) / 180) * 0.044)} ${n2(dial[1] + Math.sin(((a - 90) * Math.PI) / 180) * 0.044)} l${n2(Math.cos(((a - 90) * Math.PI) / 180) * 0.006)} ${n2(Math.sin(((a - 90) * Math.PI) / 180) * 0.006)}`} stroke="#c9ced3" strokeWidth={0.8} {...SW} />)}
-      <path d={`M${n2(dial[0])} ${n2(dial[1])} l0 -0.026`} stroke="#e9ecef" strokeWidth={1.6} strokeLinecap="round" {...SW} />
-      {/* Charge and shock */}
-      <rect x={L + 0.255} y={T + 0.138} width={0.08} height={0.03} rx={0.006} fill="#e0b321" stroke="#6b5410" strokeWidth={0.7} {...SW} />
-      <rect x={L + 0.255} y={T + 0.138} width={0.08} height={0.03} rx={0.006} fill="url(#pk-gloss)" />
-      <circle cx={L + 0.295} cy={T + 0.215} r={0.03} fill="#d13b3b" stroke="#5c1313" strokeWidth={0.9} {...SW} />
-      <circle cx={L + 0.295} cy={T + 0.215} r={0.03} fill="url(#pk-gloss)" />
-      <path d={`M${n2(L + 0.3)} ${n2(T + 0.2)} l-0.012 0.016 h0.009 l-0.008 0.016 l0.016 -0.019 h-0.009 z`} fill="#fff" opacity={0.9} />
-      {/* Speaker grille and printer */}
-      {Array.from({ length: 12 }, (_, i) => <circle key={i} cx={L + 0.03 + (i % 6) * 0.012} cy={T + 0.2 + Math.floor(i / 6) * 0.012} r={0.003} fill="#0e1114" />)}
-      <rect x={L + 0.11} y={T + H - 0.058} width={0.115} height={0.016} rx={0.004} fill="#05080b" />
-      <rect x={L + 0.115} y={T + H - 0.056} width={0.105} height={0.005} fill="#e9ecef" opacity={0.8} />
-      {/* Sockets */}
-      <rect x={sx} y={T + 0.045} width={0.024} height={0.036} rx={0.004} fill="#e9ecef" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.095} width={0.024} height={0.03} rx={0.004} fill="#4a5057" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.138} width={0.024} height={0.024} rx={0.004} fill="#2f6fd6" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.175} width={0.024} height={0.024} rx={0.004} fill="#8a9399" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      <path d={`M${n2(sl + tw + 0.012)} ${n2(st + 0.012)} V${n2(st + sh)}`} stroke="#1e2a30" strokeWidth={0.6} {...SW} />
+      {[["HR", arrest ? "--" : "96", "#3ad17f", 0.036], ["SpO₂", arrest ? "--" : "95", "#39c6ea", 0.07], ["CO₂", arrest ? "18" : "38", "#f3d35a", 0.104], ["NIBP", arrest ? "--/--" : "128/80", "#e9b4e8", 0.138]].map(([lab, val, col, dy]) => (
+        <g key={lab as string}>
+          <text x={sl + tw + 0.017} y={st + (dy as number) - 0.011} fontSize={0.0055} fontWeight={700} fill={col as string} fontFamily="Arial, sans-serif">{lab as string}</text>
+          <text x={numX} y={st + (dy as number)} textAnchor="end" fontSize={lab === "NIBP" ? 0.011 : 0.017} fontWeight={800} fill={col as string} fontFamily="Arial, sans-serif">{val as string}</text>
+        </g>
+      ))}
+      {arrest && <text x={sl + tw - 0.004} y={st + sh - 0.006} textAnchor="end" fontSize={0.0075} fontWeight={800} fill="#ff5d5d" fontFamily="Arial, sans-serif">VF — SHOCK ADVISED</text>}
+      <rect x={sl} y={st} width={sw} height={sh * 0.45} rx={0.004} fill="url(#pk-gloss)" />
+      {/* Under the screen: the soft keys and the speed dial. */}
+      {["OPTIONS", "EVENT", "ALARMS", "PRINT", "CODE SUM"].map((lab, i) => <g key={lab}>{key(sl + i * 0.038, T + 0.206, 0.032, 0.016, "#5f666d", lab, "#e9ecef")}</g>)}
+      {["HOME", "TRANSMIT"].map((lab, i) => <g key={lab}>{key(sl + i * 0.052, T + 0.232, 0.046, 0.016, "#5f666d", lab)}</g>)}
+      <circle cx={dial[0]} cy={dial[1]} r={0.03} fill="#111518" />
+      <circle cx={dial[0]} cy={dial[1]} r={0.025} fill="url(#pk-case)" stroke="#0e1114" strokeWidth={0.8} {...SW} />
+      {Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * Math.PI * 2; return <path key={i} d={`M${n2(dial[0] + Math.cos(a) * 0.02)} ${n2(dial[1] + Math.sin(a) * 0.02)} L${n2(dial[0] + Math.cos(a) * 0.026)} ${n2(dial[1] + Math.sin(a) * 0.026)}`} stroke="#8a9199" strokeWidth={0.6} {...SW} />; })}
+      <circle cx={dial[0]} cy={dial[1]} r={0.009} fill="#2a2f34" stroke="#8a9199" strokeWidth={0.6} {...SW} />
+      <text x={dial[0]} y={dial[1] + 0.044} textAnchor="middle" fontSize={0.005} fontWeight={700} fill="#9aa0a6" fontFamily="Arial, sans-serif">SPEED DIAL</text>
+      {/* The therapy panel on the right. */}
+      <rect x={L + 0.29} y={T + 0.03} width={0.078} height={0.26} rx={0.008} fill="#2a2f34" stroke="#15191c" strokeWidth={0.7} {...SW} />
+      <text x={L + 0.329} y={T + 0.046} textAnchor="middle" fontSize={0.0055} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif">ENERGY SELECT</text>
+      <rect x={L + 0.3} y={T + 0.052} width={0.058} height={0.016} rx={0.003} fill="#0b0e11" />
+      <text x={L + 0.329} y={T + 0.064} textAnchor="middle" fontSize={0.009} fontWeight={800} fill="#3ad17f" fontFamily="Arial, sans-serif">200 J</text>
+      {key(L + 0.3, T + 0.072, 0.026, 0.016, "#6b7278", "▲")}
+      {key(L + 0.332, T + 0.072, 0.026, 0.016, "#6b7278", "▼")}
+      <text x={L + 0.329} y={T + 0.104} textAnchor="middle" fontSize={0.0055} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif">CHARGE</text>
+      <rect x={L + 0.306} y={T + 0.108} width={0.046} height={0.034} rx={0.008} fill="#f2c230" stroke="#6b5410" strokeWidth={0.8} {...SW} />
+      <rect x={L + 0.306} y={T + 0.108} width={0.046} height={0.034} rx={0.008} fill="url(#pk-gloss)" />
+      <text x={L + 0.329} y={T + 0.158} textAnchor="middle" fontSize={0.0055} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif">SHOCK</text>
+      <circle cx={L + 0.329} cy={T + 0.185} r={0.023} fill="#d13b3b" stroke="#5c1313" strokeWidth={0.9} {...SW} />
+      <circle cx={L + 0.329} cy={T + 0.185} r={0.023} fill="url(#pk-gloss)" />
+      <path d={`M${n2(L + 0.333)} ${n2(T + 0.172)} l-0.01 0.014 h0.007 l-0.006 0.013 l0.013 -0.016 h-0.007 z`} fill="#fff" opacity={0.95} />
+      {key(L + 0.298, T + 0.222, 0.03, 0.016, "#4a8a5a", "ANALYZE", "#f4f6f8")}
+      {key(L + 0.332, T + 0.222, 0.03, 0.016, "#5f666d", "SYNC")}
+      {key(L + 0.298, T + 0.246, 0.064, 0.016, "#5f666d", "PACER")}
+      {key(L + 0.298, T + 0.27, 0.064, 0.014, "#5f666d", "CODE SUMMARY")}
+      {/* The printer: its door and the strip of paper. */}
+      <rect x={L + 0.372} y={T + 0.02} width={0.022} height={0.28} rx={0.004} fill="#4a5056" stroke="#15191c" strokeWidth={0.7} {...SW} />
+      <rect x={L + 0.375} y={T + 0.03} width={0.016} height={0.08} rx={0.002} fill="#2a2f34" />
+      <rect x={L + 0.376} y={T + 0.014} width={0.014} height={0.07} fill="#f7f5ef" stroke="#c9ced3" strokeWidth={0.5} {...SW} transform={`rotate(-6 ${n2(L + 0.383)} ${n2(T + 0.084)})`} />
+      <path d={`M${n2(L + 0.378)} ${n2(T + 0.02)} v0.056 M${n2(L + 0.382)} ${n2(T + 0.02)} v0.056 M${n2(L + 0.386)} ${n2(T + 0.02)} v0.056`} stroke="#e8a0a0" strokeWidth={0.4} {...SW} transform={`rotate(-6 ${n2(L + 0.383)} ${n2(T + 0.084)})`} />
+      {/* Speaker. */}
+      {Array.from({ length: 12 }, (_, i) => <circle key={i} cx={L + 0.014 + (i % 4) * 0.008} cy={T + 0.2 + Math.floor(i / 4) * 0.008} r={0.0022} fill="#0e1114" />)}
+      {/* Sockets down the side the cables leave: ECG, therapy, SpO₂, NIBP, CO₂. */}
+      <rect x={sx} y={T + 0.04} width={0.024} height={0.03} rx={0.004} fill="#3ad17f" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      <rect x={sx} y={T + 0.078} width={0.024} height={0.04} rx={0.004} fill="#e9ecef" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      <rect x={sx} y={T + 0.126} width={0.024} height={0.026} rx={0.004} fill="#2f6fd6" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      <rect x={sx} y={T + 0.16} width={0.024} height={0.026} rx={0.004} fill="#8a9399" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      <rect x={sx} y={T + 0.194} width={0.024} height={0.026} rx={0.004} fill="#f3d35a" stroke="#0e1114" strokeWidth={0.7} {...SW} />
     </g>
   );
 }

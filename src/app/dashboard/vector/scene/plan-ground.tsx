@@ -479,24 +479,92 @@ const DripStandBase = ({ x, y }: { x: number; y: number }) => (
   </g>
 );
 
-const Trolley = ({ x, y }: { x: number; y: number }) => (
-  <g>
-    <rect x={x - 0.36} y={y - 0.4} width={0.72} height={2.15} rx={0.03} fill="#5f6468" {...line} />
-    <rect x={x - 0.32} y={y - 0.36} width={0.64} height={2.07} rx={0.04} fill="#2f3d55" {...line} />
-    <rect x={x - 0.32} y={y - 0.36} width={0.64} height={0.55} rx={0.04} fill="#3a4a66" />
-    <rect x={x - 0.32} y={y - 0.36} width={0.64} height={2.07} rx={0.04} fill="url(#ps-round)" opacity={0.4} />
-    <rect x={x - 0.42} y={y - 0.1} width={0.06} height={1.1} rx={0.03} fill="#c9ced3" {...line} />
-    <rect x={x + 0.36} y={y - 0.1} width={0.06} height={1.1} rx={0.03} fill="#c9ced3" {...line} />
-  </g>
-);
+/** Stryker's yellow: the touch points on a Power-PRO stretcher. */
+const STRYKER = "#f0b90b";
 
-const TrolleyStraps = ({ x, y, r }: { x: number; y: number; r: Rig }) => (
-  <g>
-    <rect x={x - 0.4} y={y + r.waistY + 0.02} width={0.8} height={0.06} rx={0.01} fill="#e8731f" {...lineSoft} />
-    <rect x={x - 0.06} y={y + r.waistY} width={0.12} height={0.1} rx={0.01} fill="#1b2733" />
-    <rect x={x - 0.4} y={y + r.hipY + 0.5} width={0.8} height={0.06} rx={0.01} fill="#e8731f" {...lineSoft} />
-  </g>
-);
+/** The Stryker Power-PRO stretcher the service carries, from above: the
+ *  black litter frame with its yellow grips, the three-section mattress
+ *  in black with its piping, the backrest raised at the head end, the
+ *  side rails up with their yellow collars, the lift bar at the head, the
+ *  foot-end control handle with the power buttons, the IV pole folded along
+ *  the rail, and the four castors at the corners. `x, y` is the patient's
+ *  crown. */
+const Trolley = ({ x, y }: { x: number; y: number }) => {
+  const W = 0.62, top = y - 0.3, bottom = y + 1.86;
+  const L = x - W / 2;
+  return (
+    <g>
+      {/* Castors under the corners, then the frame. */}
+      {[[L - 0.02, top + 0.16], [L + W + 0.02, top + 0.16], [L - 0.02, bottom - 0.2], [L + W + 0.02, bottom - 0.2]].map(([cx, cy], i) => (
+        <g key={i}>
+          <circle cx={cx} cy={cy} r={0.075} fill="#1f2326" {...line} />
+          <circle cx={cx} cy={cy} r={0.045} fill="#3a4046" />
+          <circle cx={cx} cy={cy} r={0.014} fill="#9aa0a6" />
+        </g>
+      ))}
+      <rect x={L} y={top} width={W} height={bottom - top} rx={0.05} fill="#15191c" {...line} />
+      <rect x={L + 0.025} y={top + 0.025} width={W - 0.05} height={bottom - top - 0.05} rx={0.04} fill="#2b3035" />
+      {/* The mattress: backrest, seat and leg sections, piped. */}
+      <rect x={L + 0.04} y={top + 0.04} width={W - 0.08} height={bottom - top - 0.08} rx={0.035} fill="#23272b" {...lineSoft} />
+      <rect x={L + 0.04} y={top + 0.04} width={W - 0.08} height={0.62} rx={0.035} fill="#2c3136" />
+      <rect x={L + 0.04} y={top + 0.6} width={W - 0.08} height={0.07} fill="url(#ps-slope-u)" opacity={0.7} />
+      <path d={`M${n2(L + 0.05)} ${n2(top + 0.66)} H${n2(L + W - 0.05)} M${n2(L + 0.05)} ${n2(top + 1.2)} H${n2(L + W - 0.05)}`} stroke="#4a5057" strokeWidth={1} fill="none" {...SOFT} />
+      <rect x={L + 0.06} y={top + 0.06} width={W - 0.12} height={bottom - top - 0.12} rx={0.03} fill="none" stroke="#4a5057" strokeWidth={0.8} strokeOpacity={0.8} {...SOFT} />
+      <rect x={L + 0.04} y={top + 0.04} width={W - 0.08} height={bottom - top - 0.08} rx={0.035} fill="url(#ps-round)" opacity={0.35} />
+      <text x={x} y={bottom - 0.07} textAnchor="middle" fontSize={0.045} fontWeight={700} fill="#6b7278" fontFamily="Arial, sans-serif" letterSpacing={0.004}>stryker</text>
+      {/* The pillow. */}
+      <rect x={L + 0.1} y={top + 0.07} width={W - 0.2} height={0.22} rx={0.05} fill="#e9e4da" {...lineSoft} />
+      <rect x={L + 0.1} y={top + 0.07} width={W - 0.2} height={0.22} rx={0.05} fill="url(#ps-round)" opacity={0.3} />
+      {/* The side rails, up, with their yellow collars. */}
+      {[L - 0.045, L + W + 0.01].map((rx) => (
+        <g key={rx}>
+          <rect x={rx} y={top + 0.5} width={0.035} height={0.95} rx={0.017} fill="#15191c" {...line} />
+          <rect x={rx} y={top + 0.5} width={0.035} height={0.95} rx={0.017} fill="url(#ps-round)" opacity={0.5} />
+          <rect x={rx - 0.004} y={top + 0.55} width={0.043} height={0.12} rx={0.02} fill={STRYKER} {...lineSoft} />
+          <rect x={rx - 0.004} y={top + 1.28} width={0.043} height={0.12} rx={0.02} fill={STRYKER} {...lineSoft} />
+        </g>
+      ))}
+      {/* The lift bar at the head end, the IV pole folded along the rail, the foot-end handle and its buttons. */}
+      <rect x={L - 0.02} y={top - 0.06} width={W + 0.04} height={0.05} rx={0.025} fill="#15191c" {...line} />
+      <rect x={L - 0.02} y={top - 0.06} width={0.12} height={0.05} rx={0.025} fill={STRYKER} {...lineSoft} />
+      <rect x={L + W - 0.1} y={top - 0.06} width={0.12} height={0.05} rx={0.025} fill={STRYKER} {...lineSoft} />
+      <rect x={L - 0.075} y={top - 0.02} width={0.018} height={0.9} rx={0.009} fill="#c9ced3" {...lineSoft} />
+      <circle cx={L - 0.066} cy={top - 0.03} r={0.016} fill="#c9ced3" {...lineSoft} />
+      <rect x={L + 0.06} y={bottom + 0.01} width={W - 0.12} height={0.055} rx={0.027} fill={STRYKER} {...line} />
+      <rect x={L + 0.06} y={bottom + 0.01} width={W - 0.12} height={0.055} rx={0.027} fill="url(#ps-round)" opacity={0.3} />
+      <rect x={x - 0.06} y={bottom + 0.018} width={0.12} height={0.04} rx={0.008} fill="#15191c" />
+      <circle cx={x - 0.025} cy={bottom + 0.038} r={0.011} fill="#3ad17f" />
+      <circle cx={x + 0.025} cy={bottom + 0.038} r={0.011} fill="#d13b3b" />
+    </g>
+  );
+};
+
+/** The restraints over the patient: the shoulder harness to the chest
+ *  buckle, a strap over the hips and one over the legs; black webbing,
+ *  grey buckles. */
+const TrolleyStraps = ({ x, y, r }: { x: number; y: number; r: Rig }) => {
+  const strap = (x1: number, y1: number, x2: number, y2: number) => (
+    <g>
+      <path d={`M${n2(x1)} ${n2(y1)} L${n2(x2)} ${n2(y2)}`} stroke="#15191c" strokeWidth={0.05} strokeLinecap="round" />
+      <path d={`M${n2(x1)} ${n2(y1)} L${n2(x2)} ${n2(y2)}`} stroke="#3a4046" strokeWidth={0.012} strokeLinecap="round" strokeDasharray="0.03 0.02" />
+    </g>
+  );
+  const chest: Pt = [x, y + r.chestY + 0.06];
+  return (
+    <g>
+      {strap(x - 0.26, y + r.shoulderY - 0.16, chest[0], chest[1])}
+      {strap(x + 0.26, y + r.shoulderY - 0.16, chest[0], chest[1])}
+      {strap(x - 0.31, y + r.hipY + 0.02, x + 0.31, y + r.hipY + 0.02)}
+      {strap(x - 0.31, y + r.hipY + 0.55, x + 0.31, y + r.hipY + 0.55)}
+      {[chest, [x, y + r.hipY + 0.02] as Pt, [x, y + r.hipY + 0.55] as Pt].map((c, i) => (
+        <g key={i}>
+          <rect x={c[0] - 0.045} y={c[1] - 0.03} width={0.09} height={0.06} rx={0.01} fill="#5a6066" {...lineSoft} />
+          <rect x={c[0] - 0.012} y={c[1] - 0.02} width={0.024} height={0.04} rx={0.004} fill="#d13b3b" />
+        </g>
+      ))}
+    </g>
+  );
+};
 
 const AmbulanceSaloon = ({ outside }: { outside: ReactNode }) => (
   <g>
