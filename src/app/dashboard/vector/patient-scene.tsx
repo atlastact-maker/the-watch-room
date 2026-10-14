@@ -110,6 +110,10 @@ function wearOf(look: PatientLook, setting: SceneSetting, seed: number, wet: boo
     beard: a.sex === "male" && !a.child && a.ageYears >= 22 && (seed >>> 15) % 3 === 0,
     glasses: (a.elderly && (seed >>> 17) % 2 === 0) || (!a.child && (seed >>> 17) % 9 === 0),
     number, wet, flushed: look.skin === "flushed", elderly: a.elderly, child: a.child, sweating: look.sweating,
+    // Pads and electrodes go on skin. Pads mean shears: the top cut up the
+    // front and laid open. Leads alone: a shirt unbuttoned and laid open, a
+    // tee or jumper pushed up to the armpits.
+    exposed: look.kit.pads ? "cut" : look.kit.leads || look.kit.ecg12 ? (topKind === "shirt" || topKind === "pyjamas" || topKind === "fleece" || topKind === "workwear" || topKind === "gown" ? "open" : "lifted") : undefined,
   };
 }
 
@@ -176,10 +180,10 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   // Framing: head to the knees unless the legs matter (or the place says the whole body).
   const legsMatter = look.kit.tourniquet || look.kit.splint || look.hurt.some((h) => /leg/.test(h)) || pose === "floating";
   const framing = spec.framing ?? (legsMatter ? "full" : "upper");
-  const sRaw = framing === "full" ? 254 / (r.bottom + 0.12) : 254 / (Math.max(r.legR.b[1], r.legL.b[1]) + 0.06);
-  const s = Math.max(120, Math.min(262, sRaw));
+  const sRaw = spec.extent ? (H - 28) / (spec.extent[1] - spec.extent[0]) : framing === "full" ? 254 / (r.bottom + 0.12) : 254 / (Math.max(r.legR.b[1], r.legL.b[1]) + 0.06);
+  const s = Math.max(100, Math.min(262, sRaw));
   const ox = W / 2 + (spec.crew === "car" ? 70 : spec.crew === "ledge" ? 40 : 0);
-  const oy = 56;
+  const oy = spec.extent ? 14 - spec.extent[0] * s : 56;
   const px = (p: Pt): Pt => [ox + p[0] * s, oy + p[1] * s];
 
   // Kit on the ground.

@@ -320,6 +320,9 @@ export type Wear = {
   elderly?: boolean;
   child?: boolean;
   sweating?: boolean;
+  /** The chest bared for pads or electrodes: the top cut up the front with
+   *  shears and laid open, unbuttoned and laid open, or pushed up to the armpits. */
+  exposed?: "cut" | "open" | "lifted";
 };
 
 export type FigureProps = {
@@ -1263,6 +1266,72 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
     </g>
   );
   const clavicles = !child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * 0.1 * k * bulk)} ${n2(nb + 0.03 * k)} Q${n2(sd * 0.05 * k)} ${n2(nb + 0.05 * k)} ${n2(sd * 0.012 * k)} ${n2(nb + 0.035 * k)}`} fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.2} {...SW} />);
+  // The chest bared for pads or electrodes: the top cut up the front with
+  // shears and laid open, its shoulders still on, the two halves lying out
+  // over the arms, cut edges outermost; the skin beneath with its
+  // collarbones, breastbone, the swell of the chest and the navel.
+  const exposed = !!w.exposed;
+  const lifted = w.exposed === "lifted";
+  const bandY = r.shoulderY + 0.07 * k;
+  const topColour = gown ? "#9fc4dd" : top;
+  const flap = (sd: number) => {
+    const h = (y: number) => halfAt(y);
+    return smooth([
+      [sd * h(bandY), bandY], [sd * h(r.chestY), r.chestY], [sd * h(r.waistY), r.waistY], [sd * h(hemY) * 1.02, hemY],
+      [sd * h(hemY) * 1.85, hemY + 0.025 * k], [sd * h(r.waistY) * 2.0, r.waistY + 0.03 * k], [sd * h(r.chestY) * 1.95, r.chestY - 0.03 * k], [sd * r.shoulderW * 1.45, bandY + 0.03 * k],
+    ], 0.45);
+  };
+  const flapEdge = (sd: number) => smoothOpen([[sd * r.shoulderW * 1.45, bandY + 0.03 * k], [sd * halfAt(r.chestY) * 1.9, r.chestY - 0.01 * k], [sd * halfAt(r.chestY) * 1.97, r.chestY + 0.09 * k], [sd * halfAt(r.waistY) * 1.96, r.waistY + 0.03 * k], [sd * halfAt(hemY) * 1.85, hemY + 0.025 * k]], 0.5);
+  const shoulderPts = right.filter((p) => p[1] < bandY - 0.01 * k);
+  const shoulderBand = smooth([...shoulderPts, [halfAt(bandY), bandY], [-halfAt(bandY), bandY], ...shoulderPts.slice().reverse().map((p): Pt => [-p[0], p[1]])], 0.5);
+  const bareTrunk = (
+    <g>
+      <path d={topPath} fill={skin} {...edge(skin, 0.5, 0.7, 0.9)} />
+      <path d={topPath} fill="url(#ps-skin)" />
+      {!lifted && [-1, 1].map((sd) => (
+        <g key={sd}>
+          <path d={flap(sd)} fill={topColour} {...edge(topColour, 0.55, 0.8, 0.9)} />
+          <path d={flap(sd)} fill={sd === 1 ? "url(#ps-slope-r)" : "url(#ps-slope-l)"} opacity={0.35} />
+          {gown && <path d={flap(sd)} fill="url(#ps-gown)" />}
+          {w.exposed === "cut" && <path d={flapEdge(sd)} fill="none" stroke={darken(topColour, 0.5)} strokeWidth={0.8} strokeOpacity={0.6} strokeDasharray="2 1.2" {...SW} />}
+          {(tk === "shirt" || tk === "pyjamas") && sd === 1 && [0.2, 0.42, 0.64, 0.86].map((t) => { const y = bandY + (hemY - bandY) * t; const x = halfAt(y) * 1.82; return <circle key={t} cx={x} cy={y} r={0.0065 * k} fill={tk === "pyjamas" ? "#ffffff" : darken(top, 0.4)} stroke={topInk} strokeWidth={0.5} {...SOFT} />; })}
+        </g>
+      ))}
+      {!lifted && <path d={shoulderBand} fill={topColour} {...edge(topColour, 0.55, 0.8, 0.9)} />}
+      {!lifted && <path d={shoulderBand} fill="url(#ps-round)" />}
+      {!lifted && hiVis && <path d={shoulderBand} fill={w.hiVis ?? topColour} opacity={0.9} />}
+      {/* Pushed up: the top rolled under the armpits in a thick band across the top of the chest. */}
+      {lifted && (
+        <g>
+          <path d={capsule([-r.shoulderW * 0.96, r.shoulderY - 0.012 * k], [r.shoulderW * 0.96, r.shoulderY - 0.012 * k], 0.032 * k, 0.032 * k)} fill={topColour} {...edge(topColour, 0.55, 0.8, 0.9)} />
+          <path d={capsule([-r.shoulderW * 0.96, r.shoulderY - 0.012 * k], [r.shoulderW * 0.96, r.shoulderY - 0.012 * k], 0.032 * k, 0.032 * k)} fill="url(#ps-round-v)" opacity={0.7} />
+          {[-0.7, -0.4, -0.1, 0.2, 0.5, 0.8].map((t) => <Crease key={t} a={[t * r.shoulderW, r.shoulderY - 0.04 * k]} b={[(t + 0.12) * r.shoulderW, r.shoulderY + 0.016 * k]} bow={0.004 * k} k={k} o={0.14} />)}
+        </g>
+      )}
+      {/* The chest itself. */}
+      {!child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * 0.03 * k)} ${n2(nb + 0.035 * k)} Q${n2(sd * 0.1 * k * bulk)} ${n2(nb + 0.055 * k)} ${n2(sd * r.shoulderW * 0.85)} ${n2(r.shoulderY + 0.02 * k)}`} fill="none" stroke={ink} strokeWidth={0.8} strokeOpacity={0.22} {...SW} />)}
+      <path d={`M0 ${n2(nb + 0.06 * k)} V${n2(r.chestY + 0.09 * k)}`} stroke={ink} strokeWidth={0.8} strokeOpacity={0.12} fill="none" {...SW} />
+      {female && !child ? (
+        [-1, 1].map((sd) => (
+          <g key={sd}>
+            <ellipse cx={sd * r.chestW * 0.42} cy={r.chestY - 0.01 * k} rx={r.chestW * 0.36} ry={0.075 * k} fill="url(#ps-sphere)" opacity={0.4} />
+            <path d={bowed([sd * r.chestW * 0.75, r.chestY + 0.05 * k], [sd * r.chestW * 0.08, r.chestY + 0.065 * k], sd * 0.014 * k)} fill="none" stroke={ink} strokeWidth={1} strokeOpacity={0.18} {...SW} />
+          </g>
+        ))
+      ) : (
+        [-1, 1].map((sd) => (
+          <g key={sd}>
+            <ellipse cx={sd * r.chestW * 0.46} cy={r.chestY - 0.03 * k} rx={r.chestW * 0.4} ry={0.085 * k} fill="url(#ps-sphere)" opacity={child ? 0.15 : 0.28} />
+            {!child && <path d={bowed([sd * r.chestW * 0.85, r.chestY + 0.045 * k], [sd * r.chestW * 0.12, r.chestY + 0.055 * k], sd * 0.012 * k)} fill="none" stroke={ink} strokeWidth={1} strokeOpacity={0.12} {...SW} />}
+            {!child && <circle cx={sd * r.chestW * 0.5} cy={r.chestY + 0.01 * k} r={0.011 * k} fill={darken(skin, 0.3)} opacity={0.45} />}
+          </g>
+        ))
+      )}
+      {belly}
+      {!r.build.pregnant && <ellipse cx={0} cy={r.waistY + 0.05 * k} rx={0.006 * k} ry={0.009 * k} fill={darken(skin, 0.5)} opacity={0.4} />}
+      {(r.build.elderly || bulk < 0.95) && !child && [-1, 1].map((sd) => <g key={sd}>{[0.08, 0.13, 0.18].map((dy) => <path key={dy} d={bowed([sd * r.chestW * 0.9, r.chestY + dy * k], [sd * r.chestW * 0.3, r.chestY + (dy + 0.03) * k], -sd * 0.01 * k)} fill="none" stroke={ink} strokeWidth={0.8} strokeOpacity={0.07} {...SW} />)}</g>)}
+    </g>
+  );
   const shadowRx = r.pose === "seated" ? r.shoulderW * 1.6 : r.shoulderW * 1.5;
   const armByTheSideR = r.handFlatR && r.armR.c[0] < -r.chestW * 0.9;
   const armByTheSideL = r.handFlatL && r.armL.c[0] > r.chestW * 0.9;
@@ -1281,30 +1350,34 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
         <path d={pelvis} fill={bare ? skin : bottom} {...edge(bare ? skin : bottom, 0.5, 0.7)} />
         <path d={pelvis} fill={bare ? "url(#ps-skin)" : "url(#ps-round)"} />
         {waistband}
-        <path d={topPath} fill={gown ? "#9fc4dd" : top} {...edge(gown ? "#9fc4dd" : top, 0.55, 0.8, 0.9)} />
-        <path d={topPath} fill="url(#ps-round)" />
-        {gown && <path d={topPath} fill="url(#ps-gown)" />}
-        {tk === "jumper" && <path d={topPath} fill="url(#ps-knit)" />}
-        {bust}
-        {belly}
-        {tk === "football" && <g>{[-0.5, 0.5].map((t) => <path key={t} d={`M${n2(t * r.chestW * 0.9)} ${n2(r.shoulderY)} L${n2(t * r.hipW * 0.9)} ${n2(r.hipY)}`} stroke="#ffffff" strokeWidth={0.02 * k} opacity={0.85} />)}</g>}
-        {tk === "pyjamas" && <g>{[-0.6, -0.2, 0.2, 0.6].map((t) => <path key={t} d={`M${n2(t * r.chestW)} ${n2(r.shoulderY)} L${n2(t * r.hipW)} ${n2(r.hipY + 0.02 * k)}`} stroke="#ffffff" strokeWidth={0.012 * k} opacity={0.5} />)}</g>}
-        {tk === "football" && w.number && <text x={0} y={r.chestY + 0.02 * k} textAnchor="middle" fontSize={0.12 * k} fontWeight={800} fill="#ffffff" fontFamily="Arial, sans-serif" opacity={0.9}>{w.number}</text>}
-        {folds}
-        {hiVis}
-        {hoodieFront}
-        {fleeceFront}
-        {pocket}
-        {placket}
-        {!gown && hem}
+        {exposed ? bareTrunk : (
+          <g>
+            <path d={topPath} fill={gown ? "#9fc4dd" : top} {...edge(gown ? "#9fc4dd" : top, 0.55, 0.8, 0.9)} />
+            <path d={topPath} fill="url(#ps-round)" />
+            {gown && <path d={topPath} fill="url(#ps-gown)" />}
+            {tk === "jumper" && <path d={topPath} fill="url(#ps-knit)" />}
+            {bust}
+            {belly}
+            {tk === "football" && <g>{[-0.5, 0.5].map((t) => <path key={t} d={`M${n2(t * r.chestW * 0.9)} ${n2(r.shoulderY)} L${n2(t * r.hipW * 0.9)} ${n2(r.hipY)}`} stroke="#ffffff" strokeWidth={0.02 * k} opacity={0.85} />)}</g>}
+            {tk === "pyjamas" && <g>{[-0.6, -0.2, 0.2, 0.6].map((t) => <path key={t} d={`M${n2(t * r.chestW)} ${n2(r.shoulderY)} L${n2(t * r.hipW)} ${n2(r.hipY + 0.02 * k)}`} stroke="#ffffff" strokeWidth={0.012 * k} opacity={0.5} />)}</g>}
+            {tk === "football" && w.number && <text x={0} y={r.chestY + 0.02 * k} textAnchor="middle" fontSize={0.12 * k} fontWeight={800} fill="#ffffff" fontFamily="Arial, sans-serif" opacity={0.9}>{w.number}</text>}
+            {folds}
+            {hiVis}
+            {hoodieFront}
+            {fleeceFront}
+            {pocket}
+            {placket}
+            {!gown && hem}
+          </g>
+        )}
         {/* The open neck shows skin. */}
         <path d={`${neckline} Z`} fill={skin} {...edge(skin, 0.45, 0.5)} />
         <path d={`${neckline} Z`} fill="url(#ps-skin)" opacity={0.6} />
         {clavicles}
-        {teeNeck}
-        {ribNeck}
-        {collar}
-        {gownTies}
+        {!lifted && teeNeck}
+        {!lifted && ribNeck}
+        {!lifted && collar}
+        {!lifted && gownTies}
         {onChest}
       </g>
       {/* Arms over the trunk */}

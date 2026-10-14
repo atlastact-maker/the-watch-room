@@ -171,7 +171,13 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
 
   // --- On the chest: moves with the breathing.
   const padR = A.rightUpperChest;
-  const padL: Pt = kit.ecg12 ? [r.chestW * 0.8, r.chestY + 0.165 * k] : A.leftLateral;
+  // The apex pad lies on the side of the chest below the armpit, its outer
+  // third turned down round the ribs: from above that part is foreshortened
+  // and falls into shadow beyond the body's edge.
+  const apexY = kit.ecg12 ? r.chestY + 0.165 * k : r.chestY + 0.1 * k;
+  const edgeAt = (y: number) => r.chestW + (r.waistW - r.chestW) * Math.max(0, Math.min(1, (y - r.chestY) / (r.waistY - r.chestY)));
+  const apexEdge = edgeAt(apexY);
+  const padL: Pt = [apexEdge - 0.018 * k, apexY];
   // A defibrillation pad: off-white, with the printed placement picture and its tail of cable.
   const pad = (c: Pt, along: Pt, key: string) => {
     const ang = deg(unit(along));
@@ -205,7 +211,9 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
       {kit.pads && (
         <g>
           {pad(padR, [0.55, 1], "padR")}
-          {pad(padL, [-0.4, 1], "padL")}
+          {pad(padL, [0, 1], "padL")}
+          <rect x={apexEdge} y={apexY - 0.072 * k} width={padL[0] + 0.0525 * k - apexEdge} height={0.144 * k} fill="url(#ps-slope-l)" opacity={0.85} />
+          <path d={`M${n2(apexEdge)} ${n2(apexY - 0.074 * k)} V${n2(apexY + 0.074 * k)}`} stroke="#6f777c" strokeWidth={0.7} strokeOpacity={0.7} fill="none" {...SOFT} />
         </g>
       )}
       {kit.leads && (

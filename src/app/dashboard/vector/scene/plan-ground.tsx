@@ -48,6 +48,8 @@ export type GroundSpec = {
   monitor?: Pt;
   bag?: Pt;
   o2?: Pt;
+  /** The stretch of ground, top to bottom in metres from the crown, the picture should take in. */
+  extent?: [number, number];
 };
 
 // ---------------------------------------------------------------------------
@@ -1224,6 +1226,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     monitor: [-1.0, 0.9],
     bag: [0.95, 1.6],
     o2: [-0.9, -0.6],
+    extent: [-0.5, 2.0],
   },
   ambulance_motorway: {
     outdoor: false,
@@ -1236,6 +1239,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     monitor: [-1.0, 0.9],
     bag: [0.95, 1.6],
     o2: [-0.9, -0.6],
+    extent: [-0.5, 2.0],
   },
   ambulance_river: {
     outdoor: false,
@@ -1248,6 +1252,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     monitor: [-1.0, 0.9],
     bag: [0.95, 1.6],
     o2: [-0.9, -0.6],
+    extent: [-0.5, 2.0],
   },
   ambulance_field: {
     outdoor: false,
@@ -1260,6 +1265,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
     monitor: [-1.0, 0.9],
     bag: [0.95, 1.6],
     o2: [-0.9, -0.6],
+    extent: [-0.5, 2.0],
   },
 };
 
