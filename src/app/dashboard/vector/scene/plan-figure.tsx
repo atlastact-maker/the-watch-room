@@ -492,47 +492,146 @@ function Hand({ wrist, tip, w, side, palmUp, flat, skin, k }: { wrist: Pt; tip: 
   return <HandShape parts={parts} fill={tone} detail={palmUp ? "palm" : "back"} nail={mix(mix(skin, "#ffffff", 0.3), "#f3c6c0", 0.25)} ink={darken(skin, 0.55)} />;
 }
 
-function Shoe({ ankle, toe, kind, colour, w, L, flat, skin, side }: { ankle: Pt; toe: Pt; kind: ShoeKind; colour: string; w: number; L: number; flat: boolean; skin: string; side: 1 | -1 }) {
+// ---------------------------------------------------------------------------
+// Small strokes the body is detailed with
+// ---------------------------------------------------------------------------
+
+const SW = { ...SOFT, strokeLinecap: "round" as const };
+
+/** A bowed line from a to b, bowing `bow` metres to the clockwise side. */
+function bowed(a: Pt, b: Pt, bow: number): string {
+  return `M${P(a)} Q${P(add(lerp(a, b, 0.5), mul(perp(unit(sub(b, a))), bow)))} ${P(b)}`;
+}
+
+/** A crease in cloth or skin: a soft dark line with a lighter ridge beside it. */
+function Crease({ a, b, bow, k, o = 0.14, light = true }: { a: Pt; b: Pt; bow: number; k: number; o?: number; light?: boolean }) {
+  const n = perp(unit(sub(b, a)));
+  const off = mul(n, -0.004 * k);
+  return (
+    <g fill="none">
+      <path d={bowed(a, b, bow)} stroke="#000" strokeWidth={1} strokeOpacity={o} {...SW} />
+      {light && <path d={bowed(add(a, off), add(b, off), bow)} stroke="#fff" strokeWidth={0.8} strokeOpacity={o * 0.7} {...SW} />}
+    </g>
+  );
+}
+
+/** A point on a cubic Bézier. */
+function cubicAt(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: number): Pt {
+  const u = 1 - t;
+  return [
+    u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+    u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
+  ];
+}
+
+/** The outline of a foot or a shoe from above: heel, the hollow of the
+ *  arch on the inside, the ball, and the toe fuller on the big-toe side.
+ *  `medial` is the unit vector towards the other foot. */
+function footPath(heel: Pt, d: Pt, medial: Pt, L: number, w: number, scale = 1): string {
+  const at = (t: number, across: number): Pt => add(add(heel, mul(d, t * L)), mul(medial, across * w * scale));
+  return smooth([
+    at(-0.02, 0), at(0.02, 0.33), at(0.2, 0.4), at(0.45, 0.37), at(0.72, 0.5), at(0.9, 0.47), at(1.0, 0.28), at(1.03, 0.08),
+    at(1.0, -0.14), at(0.9, -0.36), at(0.72, -0.48), at(0.45, -0.44), at(0.2, -0.42), at(0.02, -0.33),
+  ], 0.55);
+}
+
+function Shoe({ ankle, toe, kind, colour, w, L, flat, skin, side, k }: { ankle: Pt; toe: Pt; kind: ShoeKind; colour: string; w: number; L: number; flat: boolean; skin: string; side: 1 | -1; k: number }) {
   const d = unit(toe);
   const n = perp(d);
-  const heel = add(ankle, mul(d, -(flat ? L * 0.12 : w * 0.3)));
-  const tip = add(ankle, mul(d, L));
-  if (kind === "bare" || kind === "socks") {
-    const fill = kind === "socks" ? "#e9ecef" : skin;
+  const medial = mul(n, side);
+  const heel = add(ankle, mul(d, -(flat ? L * 0.14 : w * 0.35)));
+  const at = (t: number, across: number): Pt => add(add(heel, mul(d, t * L)), mul(medial, across * w));
+  const outline = footPath(heel, d, medial, L, w);
+  const across = Math.abs(d[0]) > Math.abs(d[1]) ? "url(#ps-round-v)" : "url(#ps-round)";
+  const lace = (pairs: number[], colourL: string, width = 0.9, spread = 0.2) => (
+    <g stroke={colourL} strokeWidth={width} fill="none">
+      {pairs.slice(0, -1).map((t, i) => <g key={t}><path d={`M${P(at(t, -spread))} L${P(at(pairs[i + 1], spread))}`} {...SW} /><path d={`M${P(at(t, spread))} L${P(at(pairs[i + 1], -spread))}`} {...SW} /></g>)}
+    </g>
+  );
+  const eyelets = (pairs: number[], spread = 0.2) => pairs.map((t) => [-1, 1].map((s) => { const c = at(t, s * spread); return <circle key={`${t}${s}`} cx={c[0]} cy={c[1]} r={w * 0.028} fill="#1b1b1b" opacity={0.7} />; }));
+  if (kind === "bare") {
+    // Toes along the front, the big toe inside; the ball and the ankle bones.
+    const toes = [[0.95, 0.3, 0.13], [0.98, 0.09, 0.09], [0.96, -0.08, 0.08], [0.93, -0.23, 0.075], [0.88, -0.37, 0.065]];
     return (
       <g>
-        <path d={capsule(heel, add(tip, mul(d, -w * 0.3)), w * 0.42, w * 0.5)} fill={fill} {...lineSoft} />
-        {Array.from({ length: 5 }, (_, i) => {
-          const t = (i - 2) / 2;
-          const c = add(add(tip, mul(d, -w * 0.3)), mul(n, t * w * 0.42 * side));
-          return <circle key={i} cx={c[0]} cy={c[1]} r={w * (0.11 - Math.abs(t) * 0.02)} fill={fill} {...lineSoft} />;
+        <path d={footPath(heel, d, medial, L * 0.95, w)} fill={skin} {...lineSoft} />
+        <path d={footPath(heel, d, medial, L * 0.95, w)} fill={across} opacity={0.8} />
+        {toes.map(([t, c, rr], i) => {
+          const p = at(t, c);
+          const tip = add(p, mul(d, w * rr * 0.9));
+          return (
+            <g key={i}>
+              <path d={capsule(add(p, mul(d, -w * rr * 1.2)), tip, w * rr, w * rr * 0.9)} fill={skin} {...lineSoft} />
+              <ellipse cx={tip[0] - d[0] * w * rr * 0.45} cy={tip[1] - d[1] * w * rr * 0.45} rx={w * rr * 0.5} ry={w * rr * 0.42} fill={mix(skin, "#ffffff", 0.3)} stroke={darken(skin, 0.35)} strokeWidth={0.5} {...SOFT} transform={`rotate(${n2(deg(d))} ${n2(tip[0] - d[0] * w * rr * 0.45)} ${n2(tip[1] - d[1] * w * rr * 0.45)})`} />
+            </g>
+          );
         })}
+        <ellipse cx={at(0.68, 0.05)[0]} cy={at(0.68, 0.05)[1]} rx={w * 0.3} ry={w * 0.16} fill="#fff" opacity={0.1} transform={`rotate(${n2(deg(d))} ${P(at(0.68, 0.05))})`} />
+        {[-1, 1].map((s) => <circle key={s} cx={at(0.08, s * 0.3)[0]} cy={at(0.08, s * 0.3)[1]} r={w * 0.06} fill="#fff" opacity={0.18} />)}
       </g>
     );
   }
-  const body = capsule(heel, tip, w * 0.46, w * 0.5);
-  const sole = darken(colour, 0.45);
+  if (kind === "socks") {
+    return (
+      <g>
+        <path d={outline} fill="#e9ecef" {...lineSoft} />
+        <path d={outline} fill={across} opacity={0.7} />
+        <path d={capsule(at(-0.02, 0), at(0.2, 0), w * 0.36, w * 0.42)} fill="#c9ced3" opacity={0.6} />
+        <path d={bowed(at(0.84, 0.42), at(0.84, -0.4), 0.004 * k)} fill="none" stroke="#9aa0a6" strokeWidth={0.7} {...SW} />
+        <path d={capsule(at(-0.06, 0), at(0.06, 0), w * 0.38, w * 0.38)} fill="url(#ps-rib)" />
+      </g>
+    );
+  }
+  const soleColour = kind === "trainers" ? "#dfdbd3" : kind === "boots" ? "#5a3f28" : kind === "slippers" ? "#6b5a4a" : kind === "football" ? "#1b1b1b" : darken(colour, 0.4);
   return (
     <g>
-      <path d={body} fill={colour} {...line} />
-      {flat && (
+      {/* The sole shows as a rim round the upper. */}
+      <path d={footPath(heel, d, medial, L, w, 1.1)} fill={soleColour} {...line} />
+      <path d={outline} fill={colour} stroke={darken(colour, 0.5)} strokeWidth={0.6} {...SOFT} />
+      <path d={outline} fill={across} opacity={0.8} />
+      {kind === "trainers" && (
         <g>
-          {/* Laces and a toe cap on a shoe seen from the top. */}
-          <path d={capsule(lerp(heel, tip, 0.45), lerp(heel, tip, 0.8), w * 0.22, w * 0.18)} fill={darken(colour, 0.12)} opacity={0.9} />
-          {[0.5, 0.6, 0.7].map((t) => { const c = lerp(heel, tip, t); return <path key={t} d={`M${P(add(c, mul(n, -w * 0.16)))} L${P(add(c, mul(n, w * 0.16)))}`} stroke={kind === "trainers" ? "#ffffff" : darken(colour, 0.5)} strokeWidth={0.8} {...SOFT} />; })}
-          {kind === "trainers" && <path d={`M${P(add(lerp(heel, tip, 0.25), mul(n, w * 0.4)))} Q${P(add(lerp(heel, tip, 0.5), mul(n, w * 0.1)))} ${P(add(lerp(heel, tip, 0.8), mul(n, w * 0.42)))}`} fill="none" stroke={darken(colour, 0.35)} strokeWidth={1.1} {...SOFT} />}
-          {kind === "football" && <path d={capsule(lerp(heel, tip, 0.05), lerp(heel, tip, 0.3), w * 0.46, w * 0.46)} fill="#ffffff" opacity={0.55} />}
+          <path d={smooth([at(0.74, 0.5), at(0.9, 0.47), at(1.0, 0.28), at(1.03, 0.08), at(1.0, -0.14), at(0.9, -0.36), at(0.74, -0.46), at(0.78, 0)], 0.5)} fill="url(#ps-mesh)" />
+          <path d={bowed(at(0.76, 0.5), at(0.76, -0.47), -0.006 * k)} fill="none" stroke={darken(colour, 0.35)} strokeWidth={0.7} {...SW} />
+          <path d={capsule(at(0.4, 0), at(0.8, 0), w * 0.17, w * 0.15)} fill={mix(colour, "#ffffff", 0.18)} />
+          {flat ? <g>{eyelets([0.46, 0.56, 0.66, 0.76])}{lace([0.46, 0.56, 0.66, 0.76], "#f7f7f5")}</g> : lace([0.45, 0.62, 0.8], "#f7f7f5", 1.1, 0.24)}
+          <path d={capsule(at(-0.01, 0), at(0.2, 0), w * 0.33, w * 0.41)} fill={darken(colour, 0.22)} opacity={0.9} />
+          <path d={`M${P(at(0.22, -0.4))} Q${P(at(0.5, -0.15))} ${P(at(0.8, -0.42))}`} fill="none" stroke={darken(colour, 0.35)} strokeWidth={1.1} {...SW} />
         </g>
       )}
-      {!flat && (
+      {kind === "shoes" && (
         <g>
-          {/* Toes up: we see the sole's edge and the toe box. */}
-          <path d={capsule(lerp(heel, tip, 0.5), tip, w * 0.48, w * 0.5)} fill={sole} opacity={0.85} />
-          <path d={capsule(lerp(heel, tip, 0.1), lerp(heel, tip, 0.55), w * 0.4, w * 0.44)} fill={colour} />
-          {kind === "trainers" && <path d={`M${P(add(lerp(heel, tip, 0.2), mul(n, -w * 0.3)))} L${P(add(lerp(heel, tip, 0.2), mul(n, w * 0.3)))}`} stroke="#ffffff" strokeWidth={1.2} {...SOFT} />}
+          <path d={bowed(at(0.72, 0.5), at(0.72, -0.47), -0.006 * k)} fill="none" stroke={darken(colour, 0.6)} strokeWidth={0.6} strokeOpacity={0.8} {...SW} />
+          <path d={`M${P(at(0.42, 0.3))} L${P(at(0.7, 0.2))} M${P(at(0.42, -0.3))} L${P(at(0.7, -0.2))}`} fill="none" stroke={darken(colour, 0.6)} strokeWidth={0.6} strokeOpacity={0.7} {...SW} />
+          {eyelets([0.48, 0.58, 0.68], 0.14)}
+          {lace([0.48, 0.58, 0.68], darken(colour, 0.6), 0.7, 0.14)}
+          <ellipse cx={at(0.6, 0.1)[0]} cy={at(0.6, 0.1)[1]} rx={w * 0.14} ry={w * 0.05} fill="#fff" opacity={0.22} transform={`rotate(${n2(deg(d))} ${P(at(0.6, 0.1))})`} />
         </g>
       )}
-      {kind === "boots" && <path d={capsule(add(heel, mul(d, -w * 0.1)), lerp(heel, tip, 0.2), w * 0.5, w * 0.5)} fill={darken(colour, 0.2)} {...lineSoft} />}
+      {kind === "boots" && (
+        <g>
+          <path d={footPath(heel, d, medial, L, w, 1.1)} fill="none" stroke="#c9a46a" strokeWidth={0.6} strokeOpacity={0.7} {...SOFT} />
+          <path d={capsule(at(-0.04, 0), at(0.24, 0), w * 0.42, w * 0.44)} fill={darken(colour, 0.15)} {...lineSoft} />
+          <path d={capsule(at(0.0, 0), at(0.18, 0), w * 0.26, w * 0.3)} fill="#1b1b1b" opacity={0.85} />
+          <path d={bowed(at(0.74, 0.5), at(0.74, -0.47), -0.006 * k)} fill="none" stroke={darken(colour, 0.5)} strokeWidth={0.7} {...SW} />
+          {eyelets([0.3, 0.42, 0.54, 0.66], 0.18)}
+          {lace([0.3, 0.42, 0.54, 0.66], "#3a2a1c", 1.0, 0.18)}
+        </g>
+      )}
+      {kind === "slippers" && (
+        <g>
+          <path d={capsule(at(0.08, 0), at(0.5, 0), w * 0.3, w * 0.34)} fill="#f1e8d8" {...lineSoft} />
+          <path d={capsule(at(0.08, 0), at(0.5, 0), w * 0.3, w * 0.34)} fill="url(#ps-mesh)" opacity={0.6} />
+          <path d={bowed(at(0.52, 0.42), at(0.52, -0.42), 0.006 * k)} fill="none" stroke={darken(colour, 0.4)} strokeWidth={0.8} {...SW} />
+        </g>
+      )}
+      {kind === "football" && (
+        <g>
+          <path d={`M${P(at(0.1, -0.42))} Q${P(at(0.5, -0.2))} ${P(at(0.92, -0.38))}`} fill="none" stroke="#ffffff" strokeWidth={1.4} strokeOpacity={0.85} {...SW} />
+          <path d={`M${P(at(0.1, -0.32))} Q${P(at(0.5, -0.1))} ${P(at(0.9, -0.28))}`} fill="none" stroke="#ffffff" strokeWidth={0.8} strokeOpacity={0.6} {...SW} />
+          {lace([0.45, 0.58, 0.71], "#f7f7f5", 0.8, 0.14)}
+        </g>
+      )}
     </g>
   );
 }
@@ -540,19 +639,24 @@ function Shoe({ ankle, toe, kind, colour, w, L, flat, skin, side }: { ankle: Pt;
 /** The face looking up: hair, brow, eyes, nose, mouth, ears. Drawn upright at the crown; turned by the caller. */
 function Face({ r, w }: { r: Rig; w: Wear }) {
   const L = r.headL, W = r.headW;
-  const cx = 0;
   const skin = w.skin;
-  const eyeY = L * 0.5, eyeX = W * 0.21, eyeRx = W * 0.105, eyeRy = W * 0.058;
-  const irisR = W * 0.052, pupilR = W * 0.026;
-  const browY = L * 0.415;
-  const noseTip: Pt = [cx, L * 0.655];
-  const mouthY = L * 0.79;
-  const lipColour = w.lips === "blue" ? "#5a6f8a" : w.lips === "pale" ? mix(darken(skin, 0.1), "#c9a0a0", 0.3) : mix(darken(skin, 0.25), "#b25a5a", 0.55);
+  const child = !!w.child, elderly = !!w.elderly, female = r.build.sex === "female";
+  const ink = darken(skin, 0.55);
+  // Landmarks: a child's features sit lower on a rounder head.
+  const eyeY = L * (child ? 0.55 : 0.5), eyeX = W * (child ? 0.21 : 0.2), eyeRx = W * (child ? 0.105 : 0.1), eyeRy = W * (child ? 0.065 : 0.056);
+  const irisR = W * (child ? 0.064 : 0.054), pupilR = irisR * 0.42;
+  const browY = eyeY - L * (child ? 0.075 : 0.09);
+  const noseTipY = L * (child ? 0.68 : 0.655), noseW = W * (child ? 0.07 : 0.085);
+  const mouthY = L * (child ? 0.815 : 0.8), mouthW = W * (child ? 0.12 : 0.15);
+  const lip = w.lips === "blue" ? "#5a6f8a" : w.lips === "pale" ? mix(darken(skin, 0.1), "#c9a0a0", 0.3) : mix(darken(skin, 0.22), "#b25a5a", female ? 0.6 : 0.45);
+  const jaw = child ? 0.41 : female ? 0.35 : 0.38;
+  const chinW = child ? 0.14 : female ? 0.11 : 0.17;
   const headPath = smooth([
-    [0, 0], [W * 0.38, L * 0.06], [W * 0.5, L * 0.3], [W * 0.49, L * 0.55], [W * 0.38, L * 0.8], [W * 0.17, L * 0.985], [0, L],
-    [-W * 0.17, L * 0.985], [-W * 0.38, L * 0.8], [-W * 0.49, L * 0.55], [-W * 0.5, L * 0.3], [-W * 0.38, L * 0.06],
+    [0, 0], [W * 0.36, L * 0.05], [W * 0.5, L * 0.3], [W * 0.49, L * 0.55], [W * jaw, L * 0.8], [W * chinW, L * 0.975], [0, L],
+    [-W * chinW, L * 0.975], [-W * jaw, L * 0.8], [-W * 0.49, L * 0.55], [-W * 0.5, L * 0.3], [-W * 0.36, L * 0.05],
   ], 0.6);
   const hairColour = w.wet ? darken(w.hair, 0.25) : w.hair;
+  const hairDark = darken(hairColour, 0.35), hairLight = mix(hairColour, "#ffffff", 0.3);
   const style = w.hairStyle;
   // Hair behind the head (long hair spread on the ground, a bob to the jaw) and the cap on top.
   const hairBack = style === "long"
@@ -568,71 +672,167 @@ function Face({ r, w }: { r: Rig; w: Wear }) {
         ? smooth([[0, -L * 0.03], [W * 0.4, L * 0.05], [W * 0.52, L * 0.3], [W * 0.5, L * 0.48], [W * 0.38, L * 0.36], [W * 0.1, L * 0.27], [-W * 0.18, L * 0.28], [-W * 0.4, L * 0.38], [-W * 0.5, L * 0.48], [-W * 0.52, L * 0.3], [-W * 0.4, L * 0.05]], 0.55)
         : smooth([[0, -L * 0.04], [W * 0.42, L * 0.04], [W * 0.54, L * 0.3], [W * 0.52, L * 0.5], [W * 0.42, L * 0.3], [W * 0.05, L * 0.24], [-W * 0.3, L * 0.3], [-W * 0.46, L * 0.42], [-W * 0.52, L * 0.5], [-W * 0.54, L * 0.3], [-W * 0.42, L * 0.04]], 0.55);
   const baldFringe = style === "bald" ? smooth([[W * 0.3, L * 0.12], [W * 0.5, L * 0.28], [W * 0.5, L * 0.55], [W * 0.42, L * 0.5], [W * 0.4, L * 0.3]], 0.5) : null;
+  // Strands of hair: from the parting out to the edge of the hair, each with a little wave.
+  const strands = (n: number, centre: Pt, rx: number, ry: number, a0: number, a1: number, from: Pt, thick: number, keyBase: string) =>
+    Array.from({ length: n }, (_, i) => {
+      const t = (i + 0.5) / n;
+      const a = ((a0 + (a1 - a0) * t) * Math.PI) / 180;
+      const end: Pt = [centre[0] + Math.cos(a) * rx, centre[1] + Math.sin(a) * ry];
+      const start = lerp(from, end, 0.1 + 0.06 * ((i * 7) % 3));
+      const v = sub(end, start);
+      const c = add(lerp(start, end, 0.5), mul(perp(unit(v)), (i % 2 ? 1 : -1) * len(v) * 0.12));
+      const light = i % 3 === 1;
+      return <path key={`${keyBase}${i}`} d={`M${P(start)} Q${P(c)} ${P(end)}`} fill="none" stroke={light ? hairLight : hairDark} strokeWidth={thick * (light ? 0.7 : 1)} strokeOpacity={w.wet ? 0.55 : light ? 0.35 : 0.42} {...SW} />;
+    });
   const eye = (x: number) => {
-    if (w.eyes === "closed") {
-      return <path d={`M${n2(x - eyeRx)} ${n2(eyeY)} Q${n2(x)} ${n2(eyeY + eyeRy * 1.3)} ${n2(x + eyeRx)} ${n2(eyeY)}`} fill="none" stroke={darken(skin, 0.55)} strokeWidth={1.1} {...SOFT} strokeLinecap="round" />;
+    const sd = x < 0 ? 1 : -1; // towards the nose
+    const inner: Pt = [x + sd * eyeRx, eyeY + eyeRy * 0.15], outer: Pt = [x - sd * eyeRx * 1.02, eyeY - eyeRy * 0.1];
+    const open = w.eyes === "open" ? 1 : w.eyes === "half" ? 0.42 : 0;
+    const up = eyeRy * (0.25 + 1.2 * open);
+    const u1: Pt = [x + sd * eyeRx * 0.5, eyeY - up * 1.3], u2: Pt = [x - sd * eyeRx * 0.35, eyeY - up * 1.35];
+    const upper = `M${P(inner)} C${P(u1)} ${P(u2)} ${P(outer)}`;
+    const lowerC = `C${n2(x - sd * eyeRx * 0.45)} ${n2(eyeY + eyeRy * 1.15)} ${n2(x + sd * eyeRx * 0.4)} ${n2(eyeY + eyeRy * 1.05)} ${P(inner)}`;
+    const shape = `${upper} ${lowerC} Z`;
+    const crease = `M${P(add(inner, [-sd * eyeRx * 0.1, -eyeRy * 1.3]))} C${n2(x + sd * eyeRx * 0.5)} ${n2(eyeY - eyeRy * 2.6)} ${n2(x - sd * eyeRx * 0.5)} ${n2(eyeY - eyeRy * 2.5)} ${P(add(outer, [-sd * eyeRx * 0.08, -eyeRy * 1.0]))}`;
+    const id = `ps-eye-${sd}-${Math.round(W * 1000)}-${Math.round(L * 1000)}`;
+    const lashes = child ? null : [0.72, 0.84, 0.94].map((t) => {
+      const p = cubicAt(inner, u1, u2, outer, t);
+      const q = cubicAt(inner, u1, u2, outer, t + 0.02);
+      const dir = unit(sub(q, p));
+      const out = add(p, add(mul(dir, eyeRy * 0.5), mul(perp(dir), -sd * eyeRy * 0.45)));
+      return <path key={t} d={`M${P(p)} L${P(out)}`} stroke={ink} strokeWidth={0.7} fill="none" {...SW} />;
+    });
+    if (open === 0) {
+      return (
+        <g>
+          <path d={`M${P(inner)} C${n2(x + sd * eyeRx * 0.4)} ${n2(eyeY + eyeRy * 1.15)} ${n2(x - sd * eyeRx * 0.4)} ${n2(eyeY + eyeRy * 1.05)} ${P(outer)}`} fill="none" stroke={ink} strokeWidth={1.2} {...SW} />
+          <path d={crease} fill="none" stroke={ink} strokeWidth={0.6} strokeOpacity={0.3} {...SW} />
+        </g>
+      );
     }
-    const half = w.eyes === "half";
     return (
       <g>
-        <ellipse cx={x} cy={eyeY} rx={eyeRx} ry={eyeRy} fill="#f7f7f5" {...lineSoft} />
-        <circle cx={x} cy={eyeY} r={irisR} fill={w.child ? "#4a7fb5" : "#4a3a2a"} />
-        <circle cx={x} cy={eyeY} r={pupilR} fill="#101418" />
-        <circle cx={x - irisR * 0.35} cy={eyeY - irisR * 0.35} r={pupilR * 0.45} fill="#ffffff" opacity={0.8} />
-        {half && <path d={`M${n2(x - eyeRx * 1.05)} ${n2(eyeY)} Q${n2(x)} ${n2(eyeY - eyeRy * 0.2)} ${n2(x + eyeRx * 1.05)} ${n2(eyeY)} L${n2(x + eyeRx * 1.05)} ${n2(eyeY - eyeRy * 1.4)} L${n2(x - eyeRx * 1.05)} ${n2(eyeY - eyeRy * 1.4)} Z`} fill={skin} />}
-        <path d={`M${n2(x - eyeRx)} ${n2(eyeY - eyeRy * 0.2)} Q${n2(x)} ${n2(eyeY - eyeRy * 1.5)} ${n2(x + eyeRx)} ${n2(eyeY - eyeRy * 0.2)}`} fill="none" stroke={darken(skin, 0.5)} strokeWidth={0.9} {...SOFT} />
+        <clipPath id={id}><path d={shape} /></clipPath>
+        <path d={shape} fill="url(#ps-sclera)" />
+        <g clipPath={`url(#${id})`}>
+          <circle cx={x} cy={eyeY + eyeRy * 0.05} r={irisR} fill={w.child ? "#4a7fb5" : "#4a3a2a"} />
+          <circle cx={x} cy={eyeY + eyeRy * 0.05} r={irisR} fill="url(#ps-iris)" />
+          <circle cx={x} cy={eyeY + eyeRy * 0.05} r={pupilR} fill="#0b0d10" />
+          <circle cx={x - irisR * 0.32} cy={eyeY - irisR * 0.3} r={pupilR * 0.5} fill="#ffffff" opacity={0.85} />
+          <path d={upper} fill="none" stroke="#000" strokeWidth={3} strokeOpacity={0.16} {...SOFT} />
+        </g>
+        <path d={upper} fill="none" stroke={ink} strokeWidth={1.3} {...SW} />
+        <path d={`M${P(outer)} ${lowerC}`} fill="none" stroke={ink} strokeWidth={0.6} strokeOpacity={0.45} {...SW} />
+        {!child && <path d={crease} fill="none" stroke={ink} strokeWidth={0.6} strokeOpacity={0.28} {...SW} />}
+        <circle cx={inner[0] + sd * eyeRx * 0.02} cy={inner[1]} r={eyeRy * 0.2} fill="#d98a8a" opacity={0.7} />
+        {lashes}
       </g>
     );
   };
+  const brow = (x: number) => {
+    const sd = x < 0 ? 1 : -1;
+    const thick = L * (child ? 0.012 : female ? 0.014 : 0.02);
+    const inner: Pt = [x + sd * W * 0.13, browY + L * 0.012];
+    const peak: Pt = [x - sd * W * 0.02, browY - L * (female ? 0.02 : 0.012)];
+    const outer: Pt = [x - sd * W * 0.15, browY + L * (female ? 0.012 : 0.006)];
+    return <path d={`M${P(inner)} Q${P(add(peak, [0, -thick * 0.4]))} ${P(outer)} Q${P(add(peak, [0, thick * 0.7]))} ${P(add(inner, [0, thick]))} Z`} fill={darken(hairColour, 0.15)} opacity={elderly ? 0.75 : 0.92} />;
+  };
+  const ear = (sd: 1 | -1) => {
+    const p = (dx: number, dy: number): Pt => [sd * W * (0.5 + dx), L * dy];
+    return (
+      <g key={sd}>
+        <path d={`M${P(p(-0.03, 0.4))} C${P(p(0.08, 0.36))} ${P(p(0.13, 0.47))} ${P(p(0.1, 0.55))} C${P(p(0.08, 0.61))} ${P(p(0.03, 0.63))} ${P(p(-0.03, 0.6))} Z`} fill={darken(skin, 0.05)} {...lineSoft} />
+        <path d={`M${P(p(0.0, 0.43))} C${P(p(0.08, 0.42))} ${P(p(0.09, 0.5))} ${P(p(0.05, 0.56))}`} fill="none" stroke={ink} strokeWidth={0.6} strokeOpacity={0.45} {...SW} />
+        <path d={`M${P(p(0.02, 0.5))} C${P(p(0.05, 0.5))} ${P(p(0.05, 0.56))} ${P(p(0.02, 0.59))}`} fill="none" stroke={ink} strokeWidth={0.5} strokeOpacity={0.3} {...SW} />
+      </g>
+    );
+  };
+  const openLip = w.mouth === "open";
+  const lipDepth = elderly ? 0.012 : 0.02;
   return (
     <g>
       {hairBack && <path d={hairBack} fill={hairColour} {...lineSoft} />}
-      {/* Ears */}
-      <ellipse cx={-W * 0.5} cy={L * 0.5} rx={W * 0.07} ry={L * 0.075} fill={skin} {...lineSoft} />
-      <ellipse cx={W * 0.5} cy={L * 0.5} rx={W * 0.07} ry={L * 0.075} fill={skin} {...lineSoft} />
+      {hairBack && strands(style === "long" ? 14 : 10, [0, L * (style === "long" ? 0.6 : 0.45)], W * (style === "long" ? 0.76 : 0.64), L * (style === "long" ? 0.7 : 0.53), style === "long" ? 190 : 200, style === "long" ? 350 : 340, [0, L * 0.1], 1.1, "hb")}
+      {hairBack && style === "long" && strands(8, [0, L * 0.62], W * 0.74, L * 0.68, 15, 165, [0, L * 0.55], 1.1, "hl")}
+      {ear(-1)}
+      {ear(1)}
       <path d={headPath} fill={skin} {...line} />
-      {/* Shade under the brow and along the jaw: the face is a form, not a disc. */}
+      {/* The face is a form: shade under the brows, in the hollows of the cheeks and under the lip; light on the forehead and chin. */}
       <path d={headPath} fill="url(#ps-face-shade)" />
+      <ellipse cx={-eyeX} cy={eyeY + L * 0.01} rx={W * 0.17} ry={L * 0.085} fill="url(#ps-socket)" opacity={elderly ? 0.8 : 0.5} />
+      <ellipse cx={eyeX} cy={eyeY + L * 0.01} rx={W * 0.17} ry={L * 0.085} fill="url(#ps-socket)" opacity={elderly ? 0.8 : 0.5} />
+      {!child && <g opacity={elderly ? 0.7 : 0.45}><ellipse cx={-W * 0.34} cy={L * 0.66} rx={W * 0.16} ry={L * 0.1} fill="url(#ps-socket)" /><ellipse cx={W * 0.34} cy={L * 0.66} rx={W * 0.16} ry={L * 0.1} fill="url(#ps-socket)" /></g>}
+      <ellipse cx={0} cy={L * 0.3} rx={W * 0.26} ry={L * 0.07} fill="#fff" opacity={0.09} />
+      <ellipse cx={0} cy={L * 0.925} rx={W * 0.12} ry={L * 0.028} fill="#fff" opacity={0.1} />
+      <ellipse cx={0} cy={mouthY + L * 0.072} rx={W * 0.1} ry={L * 0.012} fill="#000" opacity={0.1} />
       {w.flushed && <g opacity={0.35}><ellipse cx={-W * 0.27} cy={L * 0.62} rx={W * 0.12} ry={L * 0.06} fill="#e0564d" /><ellipse cx={W * 0.27} cy={L * 0.62} rx={W * 0.12} ry={L * 0.06} fill="#e0564d" /></g>}
-      {w.beard && <path d={smooth([[-W * 0.42, L * 0.62], [-W * 0.3, L * 0.9], [0, L * 1.0], [W * 0.3, L * 0.9], [W * 0.42, L * 0.62], [W * 0.3, L * 0.72], [0, L * 0.76], [-W * 0.3, L * 0.72]], 0.5)} fill={hairColour} opacity={0.75} />}
-      {/* Brows */}
-      <path d={`M${n2(-eyeX - eyeRx * 1.1)} ${n2(browY + L * 0.01)} Q${n2(-eyeX)} ${n2(browY - L * 0.02)} ${n2(-eyeX + eyeRx * 1.1)} ${n2(browY + L * 0.005)}`} fill="none" stroke={darken(hairColour, 0.1)} strokeWidth={w.child ? 1 : 1.6} strokeLinecap="round" {...SOFT} />
-      <path d={`M${n2(eyeX - eyeRx * 1.1)} ${n2(browY + L * 0.005)} Q${n2(eyeX)} ${n2(browY - L * 0.02)} ${n2(eyeX + eyeRx * 1.1)} ${n2(browY + L * 0.01)}`} fill="none" stroke={darken(hairColour, 0.1)} strokeWidth={w.child ? 1 : 1.6} strokeLinecap="round" {...SOFT} />
+      {w.beard && (
+        <g>
+          <path d={smooth([[-W * 0.44, L * 0.6], [-W * 0.32, L * 0.9], [0, L * 1.0], [W * 0.32, L * 0.9], [W * 0.44, L * 0.6], [W * 0.3, L * 0.72], [0, L * 0.76], [-W * 0.3, L * 0.72]], 0.5)} fill={hairColour} opacity={0.3} />
+          <path d={smooth([[-W * 0.4, L * 0.66], [-W * 0.3, L * 0.88], [0, L * 0.96], [W * 0.3, L * 0.88], [W * 0.4, L * 0.66], [W * 0.28, L * 0.74], [0, L * 0.78], [-W * 0.28, L * 0.74]], 0.5)} fill={hairColour} opacity={0.4} />
+          <path d={`M${n2(-W * 0.1)} ${n2(L * 0.73)} Q0 ${n2(L * 0.745)} ${n2(W * 0.1)} ${n2(L * 0.73)}`} fill="none" stroke={hairColour} strokeWidth={2} strokeOpacity={0.5} {...SW} />
+        </g>
+      )}
+      {brow(-eyeX)}
+      {brow(eyeX)}
       {eye(-eyeX)}
       {eye(eyeX)}
       {w.glasses && (
         <g fill="none" stroke="#2b3139" strokeWidth={1.1}>
-          <ellipse cx={-eyeX} cy={eyeY} rx={eyeRx * 1.5} ry={eyeRy * 2.1} {...SOFT} />
-          <ellipse cx={eyeX} cy={eyeY} rx={eyeRx * 1.5} ry={eyeRy * 2.1} {...SOFT} />
-          <path d={`M${n2(-eyeX + eyeRx * 1.5)} ${n2(eyeY)} L${n2(eyeX - eyeRx * 1.5)} ${n2(eyeY)}`} {...SOFT} />
+          <rect x={-eyeX - eyeRx * 1.45} y={eyeY - eyeRy * 2.1} width={eyeRx * 2.9} height={eyeRy * 4.2} rx={eyeRx * 0.5} {...SW} />
+          <rect x={eyeX - eyeRx * 1.45} y={eyeY - eyeRy * 2.1} width={eyeRx * 2.9} height={eyeRy * 4.2} rx={eyeRx * 0.5} {...SW} />
+          <path d={`M${n2(-eyeX + eyeRx * 1.45)} ${n2(eyeY - eyeRy * 0.6)} Q0 ${n2(eyeY - eyeRy * 1.2)} ${n2(eyeX - eyeRx * 1.45)} ${n2(eyeY - eyeRy * 0.6)}`} {...SW} />
+          <path d={`M${n2(-eyeX - eyeRx * 1.45)} ${n2(eyeY - eyeRy * 1.2)} L${n2(-W * 0.5)} ${n2(L * 0.46)} M${n2(eyeX + eyeRx * 1.45)} ${n2(eyeY - eyeRy * 1.2)} L${n2(W * 0.5)} ${n2(L * 0.46)}`} strokeOpacity={0.7} {...SW} />
+          <path d={`M${n2(-eyeX - eyeRx * 1.1)} ${n2(eyeY + eyeRy * 1.4)} L${n2(-eyeX - eyeRx * 0.2)} ${n2(eyeY - eyeRy * 1.6)} M${n2(eyeX - eyeRx * 1.1)} ${n2(eyeY + eyeRy * 1.4)} L${n2(eyeX - eyeRx * 0.2)} ${n2(eyeY - eyeRy * 1.6)}`} stroke="#ffffff" strokeWidth={1.4} strokeOpacity={0.35} {...SW} />
         </g>
       )}
-      {/* Nose: the bridge and the tip pointing at the viewer, nostrils either side. */}
-      <path d={`M${n2(-W * 0.045)} ${n2(L * 0.5)} L${n2(-W * 0.075)} ${n2(noseTip[1] - L * 0.01)} Q${n2(0)} ${n2(noseTip[1] + L * 0.03)} ${n2(W * 0.075)} ${n2(noseTip[1] - L * 0.01)} L${n2(W * 0.045)} ${n2(L * 0.5)}`} fill={mix(skin, "#ffffff", 0.08)} stroke={darken(skin, 0.4)} strokeWidth={0.8} strokeOpacity={0.6} {...SOFT} />
-      <ellipse cx={-W * 0.05} cy={noseTip[1] + L * 0.005} rx={W * 0.02} ry={W * 0.014} fill={darken(skin, 0.5)} opacity={0.6} />
-      <ellipse cx={W * 0.05} cy={noseTip[1] + L * 0.005} rx={W * 0.02} ry={W * 0.014} fill={darken(skin, 0.5)} opacity={0.6} />
-      {w.elderly && (
-        <g fill="none" stroke={darken(skin, 0.35)} strokeWidth={0.8} opacity={0.6}>
-          <path d={`M${n2(-W * 0.12)} ${n2(L * 0.68)} Q${n2(-W * 0.2)} ${n2(L * 0.78)} ${n2(-W * 0.16)} ${n2(L * 0.86)}`} {...SOFT} />
-          <path d={`M${n2(W * 0.12)} ${n2(L * 0.68)} Q${n2(W * 0.2)} ${n2(L * 0.78)} ${n2(W * 0.16)} ${n2(L * 0.86)}`} {...SOFT} />
-          <path d={`M${n2(-W * 0.2)} ${n2(L * 0.33)} L${n2(W * 0.2)} ${n2(L * 0.33)}`} opacity={0.6} {...SOFT} />
+      {/* The nose: the bridge catching the light, one side in shadow, the tip and its wings, the nostrils beneath. */}
+      <path d={`M${n2(-W * 0.03)} ${n2(eyeY - L * 0.03)} Q0 ${n2(noseTipY - L * 0.08)} ${n2(-W * 0.022)} ${n2(noseTipY - L * 0.03)} L${n2(W * 0.022)} ${n2(noseTipY - L * 0.03)} Q0 ${n2(noseTipY - L * 0.08)} ${n2(W * 0.03)} ${n2(eyeY - L * 0.03)} Z`} fill="#fff" opacity={0.12} />
+      <path d={`M${n2(W * 0.028)} ${n2(eyeY - L * 0.01)} Q${n2(W * 0.07)} ${n2(noseTipY - L * 0.06)} ${n2(W * 0.09)} ${n2(noseTipY)} Q${n2(W * 0.045)} ${n2(noseTipY + L * 0.02)} ${n2(W * 0.025)} ${n2(noseTipY - L * 0.025)} Z`} fill="#000" opacity={0.1} />
+      <ellipse cx={0} cy={noseTipY} rx={W * 0.066} ry={L * 0.04} fill={mix(skin, "#ffffff", 0.05)} />
+      <ellipse cx={0} cy={noseTipY} rx={W * 0.066} ry={L * 0.04} fill="url(#ps-sphere)" opacity={0.7} />
+      {[-1, 1].map((sd) => (
+        <g key={sd}>
+          <path d={`M${n2(sd * W * 0.05)} ${n2(noseTipY - L * 0.035)} Q${n2(sd * noseW * 1.1)} ${n2(noseTipY - L * 0.01)} ${n2(sd * W * 0.055)} ${n2(noseTipY + L * 0.025)}`} fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.45} {...SW} />
+          <ellipse cx={sd * W * 0.045} cy={noseTipY + L * 0.022} rx={W * 0.024} ry={W * 0.013} fill={darken(skin, 0.6)} opacity={0.55} transform={`rotate(${sd * 25} ${n2(sd * W * 0.045)} ${n2(noseTipY + L * 0.022)})`} />
+        </g>
+      ))}
+      <path d={`M${n2(-W * 0.05)} ${n2(noseTipY + L * 0.032)} Q0 ${n2(noseTipY + L * 0.046)} ${n2(W * 0.05)} ${n2(noseTipY + L * 0.032)}`} fill="none" stroke={ink} strokeWidth={0.8} strokeOpacity={0.3} {...SW} />
+      <path d={`M${n2(-W * 0.03)} ${n2(noseTipY + L * 0.05)} L${n2(-W * 0.04)} ${n2(mouthY - L * 0.025)} M${n2(W * 0.03)} ${n2(noseTipY + L * 0.05)} L${n2(W * 0.04)} ${n2(mouthY - L * 0.025)}`} fill="none" stroke={ink} strokeWidth={0.6} strokeOpacity={0.14} {...SW} />
+      {elderly && (
+        <g fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.35}>
+          <path d={`M${n2(-W * 0.12)} ${n2(L * 0.68)} Q${n2(-W * 0.22)} ${n2(L * 0.78)} ${n2(-W * 0.18)} ${n2(L * 0.88)}`} {...SW} />
+          <path d={`M${n2(W * 0.12)} ${n2(L * 0.68)} Q${n2(W * 0.22)} ${n2(L * 0.78)} ${n2(W * 0.18)} ${n2(L * 0.88)}`} {...SW} />
+          <path d={`M${n2(-W * 0.22)} ${n2(L * 0.3)} Q0 ${n2(L * 0.28)} ${n2(W * 0.22)} ${n2(L * 0.3)} M${n2(-W * 0.18)} ${n2(L * 0.35)} Q0 ${n2(L * 0.335)} ${n2(W * 0.18)} ${n2(L * 0.35)}`} strokeOpacity={0.25} {...SW} />
+          <path d={`M${n2(-W * 0.34)} ${n2(L * 0.48)} l${n2(-W * 0.05)} ${n2(-L * 0.02)} M${n2(-W * 0.34)} ${n2(L * 0.52)} l${n2(-W * 0.05)} ${n2(L * 0.02)} M${n2(W * 0.34)} ${n2(L * 0.48)} l${n2(W * 0.05)} ${n2(-L * 0.02)} M${n2(W * 0.34)} ${n2(L * 0.52)} l${n2(W * 0.05)} ${n2(L * 0.02)}`} strokeOpacity={0.3} {...SW} />
+          <path d={`M${n2(-W * 0.16)} ${n2(L * 0.82)} Q${n2(-W * 0.2)} ${n2(L * 0.9)} ${n2(-W * 0.15)} ${n2(L * 0.95)} M${n2(W * 0.16)} ${n2(L * 0.82)} Q${n2(W * 0.2)} ${n2(L * 0.9)} ${n2(W * 0.15)} ${n2(L * 0.95)}`} strokeOpacity={0.22} {...SW} />
         </g>
       )}
-      {/* Mouth */}
-      {w.mouth === "open" ? (
+      {/* The mouth: the bow of the upper lip, the fuller lower lip and its light, the line between, the corners. */}
+      {openLip ? (
         <g>
-          <ellipse cx={0} cy={mouthY + L * 0.015} rx={W * 0.13} ry={L * 0.055} fill="#4a1f22" stroke={lipColour} strokeWidth={1.4} {...SOFT} />
-          <path d={`M${n2(-W * 0.09)} ${n2(mouthY - L * 0.02)} h${n2(W * 0.18)}`} stroke="#f3efe6" strokeWidth={1.6} {...SOFT} opacity={0.85} />
+          <ellipse cx={0} cy={mouthY + L * 0.022} rx={mouthW * 0.85} ry={L * 0.05} fill="#3a1518" />
+          <path d={`M${n2(-mouthW * 0.62)} ${n2(mouthY - L * 0.016)} Q0 ${n2(mouthY + L * 0.004)} ${n2(mouthW * 0.62)} ${n2(mouthY - L * 0.016)} Q0 ${n2(mouthY - L * 0.03)} ${n2(-mouthW * 0.62)} ${n2(mouthY - L * 0.016)} Z`} fill="#f3efe6" opacity={0.92} />
+          <ellipse cx={0} cy={mouthY + L * 0.048} rx={mouthW * 0.45} ry={L * 0.018} fill="#8a3038" opacity={0.8} />
+          <path d={`M${n2(-mouthW)} ${n2(mouthY)} Q${n2(-mouthW * 0.5)} ${n2(mouthY - L * 0.032)} ${n2(-W * 0.045)} ${n2(mouthY - L * 0.028)} Q0 ${n2(mouthY - L * 0.018)} ${n2(W * 0.045)} ${n2(mouthY - L * 0.028)} Q${n2(mouthW * 0.5)} ${n2(mouthY - L * 0.032)} ${n2(mouthW)} ${n2(mouthY)} Q${n2(mouthW * 0.5)} ${n2(mouthY - L * 0.012)} ${n2(W * 0.045)} ${n2(mouthY - L * 0.008)} Q0 ${n2(mouthY - L * 0.002)} ${n2(-W * 0.045)} ${n2(mouthY - L * 0.008)} Q${n2(-mouthW * 0.5)} ${n2(mouthY - L * 0.012)} ${n2(-mouthW)} ${n2(mouthY)} Z`} fill={lip} />
+          <path d={`M${n2(-mouthW)} ${n2(mouthY)} Q${n2(-mouthW * 0.6)} ${n2(mouthY + L * 0.075)} 0 ${n2(mouthY + L * 0.08)} Q${n2(mouthW * 0.6)} ${n2(mouthY + L * 0.075)} ${n2(mouthW)} ${n2(mouthY)} Q${n2(mouthW * 0.6)} ${n2(mouthY + L * 0.05)} 0 ${n2(mouthY + L * 0.056)} Q${n2(-mouthW * 0.6)} ${n2(mouthY + L * 0.05)} ${n2(-mouthW)} ${n2(mouthY)} Z`} fill={mix(lip, "#ffffff", 0.12)} />
         </g>
       ) : (
         <g>
-          <path d={`M${n2(-W * 0.15)} ${n2(mouthY)} Q${n2(0)} ${n2(mouthY + L * (w.elderly ? 0.0 : 0.02))} ${n2(W * 0.15)} ${n2(mouthY)}`} fill="none" stroke={lipColour} strokeWidth={w.elderly ? 1.3 : 2.2} strokeLinecap="round" {...SOFT} />
-          <path d={`M${n2(-W * 0.15)} ${n2(mouthY)} Q${n2(0)} ${n2(mouthY - L * 0.012)} ${n2(W * 0.15)} ${n2(mouthY)}`} fill="none" stroke={darken(lipColour, 0.3)} strokeWidth={0.9} strokeLinecap="round" {...SOFT} />
+          <path d={`M${n2(-mouthW)} ${n2(mouthY)} Q${n2(-mouthW * 0.55)} ${n2(mouthY - L * (lipDepth + 0.002))} ${n2(-W * 0.045)} ${n2(mouthY - L * lipDepth)} Q0 ${n2(mouthY - L * lipDepth * 0.5)} ${n2(W * 0.045)} ${n2(mouthY - L * lipDepth)} Q${n2(mouthW * 0.55)} ${n2(mouthY - L * (lipDepth + 0.002))} ${n2(mouthW)} ${n2(mouthY)} Q0 ${n2(mouthY + L * 0.008)} ${n2(-mouthW)} ${n2(mouthY)} Z`} fill={lip} />
+          <path d={`M${n2(-mouthW)} ${n2(mouthY)} Q0 ${n2(mouthY + L * 0.008)} ${n2(mouthW)} ${n2(mouthY)} Q${n2(mouthW * 0.6)} ${n2(mouthY + L * (elderly ? 0.026 : 0.046))} 0 ${n2(mouthY + L * (elderly ? 0.03 : 0.052))} Q${n2(-mouthW * 0.6)} ${n2(mouthY + L * (elderly ? 0.026 : 0.046))} ${n2(-mouthW)} ${n2(mouthY)} Z`} fill={mix(lip, "#ffffff", 0.14)} />
+          <ellipse cx={0} cy={mouthY + L * (elderly ? 0.016 : 0.026)} rx={mouthW * 0.35} ry={L * 0.007} fill="#fff" opacity={0.25} />
+          <path d={`M${n2(-mouthW)} ${n2(mouthY)} Q0 ${n2(mouthY + L * 0.01)} ${n2(mouthW)} ${n2(mouthY)}`} fill="none" stroke={darken(lip, 0.45)} strokeWidth={0.9} {...SW} />
+          {!child && [-1, 1].map((sd) => <circle key={sd} cx={sd * mouthW * 1.03} cy={mouthY + L * 0.003} r={W * 0.012} fill="#000" opacity={0.16} />)}
         </g>
       )}
       {hairCap && <path d={hairCap} fill={hairColour} {...line} />}
       {hairCap && style !== "child" && <path d={hairCap} fill="url(#ps-hair-shine)" />}
+      {hairCap && style === "short" && strands(w.wet ? 8 : 14, [0, L * 0.28], W * 0.47, L * 0.3, 190, 350, [-W * 0.12, L * 0.06], w.wet ? 1.3 : 0.8, "hs")}
+      {hairCap && (style === "bob" || style === "long") && strands(w.wet ? 8 : 12, [0, L * 0.28], W * 0.48, L * 0.3, 190, 350, [0, L * 0.02], w.wet ? 1.3 : 0.8, "hc")}
+      {hairCap && style === "child" && strands(7, [0, L * 0.2], W * 0.42, L * 0.2, 200, 340, [0, L * 0.02], 0.8, "hk")}
       {baldFringe && <g fill={hairColour} opacity={0.9}><path d={baldFringe} /><path d={baldFringe} transform="scale(-1 1)" /></g>}
+      {style === "bald" && <ellipse cx={-W * 0.08} cy={L * 0.16} rx={W * 0.22} ry={L * 0.09} fill="#fff" opacity={0.16} />}
       {w.sweating && (
         <g className="ps-sweat">
           <path d={`M${n2(-W * 0.3)} ${n2(L * 0.3)} q-0.012 0.02 0 0.03 q0.012 -0.01 0 -0.03z`} />
@@ -644,7 +844,7 @@ function Face({ r, w }: { r: Rig; w: Wear }) {
   );
 }
 
-/** Gradients the figure paints with; put once in the scene's defs. */
+/** Gradients and patterns the figure paints with; put once in the scene's defs. */
 export function FigureDefs() {
   return (
     <>
@@ -670,6 +870,25 @@ export function FigureDefs() {
         <stop offset="0.7" stopColor="#fff" stopOpacity="0" />
         <stop offset="1" stopColor="#000" stopOpacity="0.25" />
       </radialGradient>
+      {/* A dome lit from above: a knee, a shoulder, the tip of a nose, a belly. */}
+      <radialGradient id="ps-sphere" cx="0.42" cy="0.36" r="0.62">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.3" />
+        <stop offset="0.55" stopColor="#fff" stopOpacity="0.04" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.32" />
+      </radialGradient>
+      <radialGradient id="ps-socket" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stopColor="#000" stopOpacity="0.2" />
+        <stop offset="1" stopColor="#000" stopOpacity="0" />
+      </radialGradient>
+      <radialGradient id="ps-sclera" cx="0.5" cy="0.5" r="0.6">
+        <stop offset="0.5" stopColor="#f7f6f2" />
+        <stop offset="1" stopColor="#cfcac6" />
+      </radialGradient>
+      <radialGradient id="ps-iris" cx="0.4" cy="0.35" r="0.65">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.25" />
+        <stop offset="0.6" stopColor="#000" stopOpacity="0" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.5" />
+      </radialGradient>
       {/* Light at the end nearest the camera, dark at the far end: a back sloping away. */}
       <linearGradient id="ps-slope-r" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.5" /><stop offset="0.7" stopColor="#000" stopOpacity="0.08" /><stop offset="1" stopColor="#fff" stopOpacity="0.12" /></linearGradient>
       <linearGradient id="ps-slope-l" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.5" /><stop offset="0.7" stopColor="#000" stopOpacity="0.08" /><stop offset="1" stopColor="#fff" stopOpacity="0.12" /></linearGradient>
@@ -679,6 +898,12 @@ export function FigureDefs() {
         <stop offset="0.6" stopColor="#000" stopOpacity="0.35" />
         <stop offset="1" stopColor="#000" stopOpacity="0" />
       </radialGradient>
+      {/* Cloth: knit, ribbing, the diamonds of a hospital gown, the mesh of a trainer, denim's weave. */}
+      <pattern id="ps-knit" width="0.012" height="0.012" patternUnits="userSpaceOnUse"><path d="M0 0.012 L0.012 0" stroke="#000" strokeWidth="0.0015" strokeOpacity="0.07" /></pattern>
+      <pattern id="ps-rib" width="0.008" height="0.008" patternUnits="userSpaceOnUse"><path d="M0.004 0 V0.008" stroke="#000" strokeWidth="0.0016" strokeOpacity="0.18" /></pattern>
+      <pattern id="ps-gown" width="0.03" height="0.03" patternUnits="userSpaceOnUse"><path d="M0.015 0.005 L0.025 0.015 L0.015 0.025 L0.005 0.015 Z" fill="none" stroke="#2f6fa8" strokeWidth="0.0015" strokeOpacity="0.45" /></pattern>
+      <pattern id="ps-mesh" width="0.006" height="0.006" patternUnits="userSpaceOnUse"><circle cx="0.003" cy="0.003" r="0.0012" fill="#000" fillOpacity="0.14" /></pattern>
+      <pattern id="ps-denim" width="0.006" height="0.006" patternUnits="userSpaceOnUse"><path d="M0 0.006 L0.006 0" stroke="#fff" strokeWidth="0.0008" strokeOpacity="0.14" /></pattern>
     </>
   );
 }
@@ -704,91 +929,331 @@ export function PlanFigure({ rig: r, w, chestClass, chestStyle, onChest, over, s
   const skin = w.skin;
   const cloth = (c: string) => (w.wet ? darken(c, 0.3) : c);
   const top = cloth(w.top), bottom = cloth(w.bottom);
-  const k = r.k;
+  const k = r.k, bulk = r.bulk;
+  const child = r.build.child, female = r.build.sex === "female";
   const sleeveLong = w.sleeves === "long";
   const bare = w.bottomKind === "bare";
   const shorts = w.bottomKind === "shorts";
   const gown = w.topKind === "gown";
-  const armSeg = (arm: Limb, side: 1 | -1, palmUp: boolean, flat: boolean) => {
-    const sleeveEnd = lerp(arm.a, arm.b, gown ? 0.45 : 0.62);
-    return (
-      <g>
-        {/* Upper arm: skin, then the sleeve over it. */}
-        <Seg a={arm.a} b={arm.b} wa={r.armW[0]} wb={r.armW[1]} fill={skin} />
-        {sleeveLong
-          ? <g><Seg a={arm.a} b={arm.b} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.1} fill={top} /><Seg a={arm.b} b={lerp(arm.b, arm.c, 0.93)} wa={r.armW[1] * 1.1} wb={r.armW[2] * 1.15} fill={top} /></g>
-          : <Seg a={arm.a} b={sleeveEnd} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.14} fill={top} />}
-        {!sleeveLong && <Seg a={arm.b} b={arm.c} wa={r.armW[1]} wb={r.armW[2]} fill={skin} />}
-        {sleeveLong && <Seg a={lerp(arm.b, arm.c, 0.9)} b={arm.c} wa={r.armW[2] * 1.05} wb={r.armW[2]} fill={skin} outline={false} />}
-        <Hand wrist={arm.c} tip={arm.d} w={r.armW[2]} side={side} palmUp={palmUp} flat={flat} skin={skin} k={k} />
-      </g>
-    );
+  const tk = w.topKind, bk = w.bottomKind;
+  const ink = darken(skin, 0.55);
+  const topInk = darken(top, 0.45), bottomInk = darken(bottom, 0.45);
+  const seed = (parseInt(w.top.slice(1), 16) ^ parseInt(w.hair.slice(1), 16)) >>> 0;
+  const ribbed = tk === "jumper" || tk === "hoodie" || tk === "fleece";
+  const belt = !child && (bk === "jeans" || bk === "trousers");
+  const elastic = bk === "joggers" || bk === "pyjamas" || bk === "shorts";
+  const trim = tk === "football" ? (bottom === "#f4f4f0" && top === "#f4f4f0" ? "#1b2733" : bottom) : null;
+  // Where the top ends: a tee rides up on the hips, a jumper covers them, a gown reaches the thighs.
+  const hemY = gown ? r.hipY + 0.14 * k : ribbed || tk === "workwear" ? r.hipY + 0.02 * k : tk === "shirt" || tk === "pyjamas" ? r.hipY - 0.015 * k : tk === "football" ? r.hipY - 0.03 * k : r.hipY - 0.045 * k;
+  // The trunk's outline again, as points, so the top can stop at its hem.
+  const squash = (r.chestY - r.neckBase[1]) / (0.155 * k);
+  const ty = (v: number) => r.neckBase[1] + (v * k - 0.285 * k) * squash;
+  const right: Pt[] = [
+    [0.07 * k * bulk, r.neckBase[1] - 0.01 * k], [r.shoulderW * 0.86, r.shoulderY - 0.015 * k], [r.shoulderW, r.shoulderY + 0.03 * k],
+    [r.chestW * 1.02, ty(0.38)], [r.chestW, r.chestY], [r.waistW, r.waistY], [r.hipW, r.hipY], [r.hipW * 0.7, r.crotchY],
+  ];
+  const halfAt = (y: number): number => {
+    for (let i = 0; i < right.length - 1; i++) {
+      const [x0, y0] = right[i], [x1, y1] = right[i + 1];
+      if (y >= y0 && y <= y1) return x0 + (x1 - x0) * ((y - y0) / (y1 - y0));
+    }
+    return y < right[0][1] ? right[0][0] : right[right.length - 1][0];
   };
+  const hemHalf = gown ? r.hipW * 0.98 : halfAt(hemY) * 1.01;
+  const upperPts = gown ? right.filter((p) => p[1] <= r.hipY) : right.filter((p) => p[1] < hemY - 0.01 * k);
+  const topPath = smooth([...upperPts, [hemHalf, hemY], [-hemHalf, hemY], ...upperPts.slice().reverse().map((p): Pt => [-p[0], p[1]])], 0.55);
+  const pelvis = smooth([[r.waistW, r.waistY - 0.02 * k], [r.hipW, r.hipY], [r.hipW * 0.7, r.crotchY], [-r.hipW * 0.7, r.crotchY], [-r.hipW, r.hipY], [-r.waistW, r.waistY - 0.02 * k]], 0.5);
+  const wbTop = r.hipY - 0.035 * k, wbBot = r.hipY + 0.005 * k;
+  const bandPath = (y0: number, y1: number, inset = 0) => `M${n2(-halfAt(y0) + inset)} ${n2(y0)} L${n2(halfAt(y0) - inset)} ${n2(y0)} L${n2(halfAt(y1) - inset)} ${n2(y1)} L${n2(-halfAt(y1) + inset)} ${n2(y1)} Z`;
+
   const legSeg = (leg: Limb, side: 1 | -1, toe: Pt) => {
     const trouserEnd = shorts ? lerp(leg.a, leg.b, 0.5) : lerp(leg.b, leg.c, 0.92);
     const flat = r.feetFlat;
+    const thighDir = unit(sub(leg.b, leg.a)), shinDir = unit(sub(leg.c, leg.b));
+    const lateral = (v: Pt) => mul(perp(v), -side);
+    const sock = w.shoes === "football" ? (top === "#f4f4f0" ? "#1b2733" : "#f4f4f0") : null;
+    const hemDir = shorts ? thighDir : shinDir;
+    const hemW = shorts ? r.legW[0] * 1.08 : r.legW[2] * 1.25;
+    const hemBand = capsule(add(trouserEnd, mul(hemDir, -0.022 * k)), trouserEnd, hemW, bk === "joggers" && !shorts ? r.legW[2] * 1.05 : hemW);
     return (
       <g>
+        {/* Skin: the thigh and the shin, the cap of the knee, the shin bone's light. */}
         <Seg a={leg.a} b={leg.b} wa={r.legW[0]} wb={r.legW[1]} fill={skin} />
         <Seg a={leg.b} b={leg.c} wa={r.legW[1]} wb={r.legW[2]} fill={skin} />
+        {(bare || shorts) && (
+          <g>
+            <ellipse cx={leg.b[0]} cy={leg.b[1]} rx={r.legW[1] * 0.8} ry={r.legW[1] * 0.9} fill="url(#ps-sphere)" opacity={flat ? 0.75 : 0.45} />
+            <path d={bowed(add(leg.b, mul(perp(shinDir), r.legW[1] * 0.45)), add(leg.b, mul(perp(shinDir), -r.legW[1] * 0.45)), 0.006 * k)} fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.25} {...SW} />
+            <path d={`M${P(add(lerp(leg.b, leg.c, 0.15), mul(perp(shinDir), r.legW[2] * 0.2)))} L${P(add(lerp(leg.b, leg.c, 0.85), mul(perp(shinDir), r.legW[2] * 0.15)))}`} stroke="#fff" strokeWidth={1.4} strokeOpacity={0.1} fill="none" {...SW} />
+          </g>
+        )}
+        {sock && !bare && (
+          <g>
+            <Seg a={add(leg.b, mul(shinDir, 0.03 * k))} b={lerp(leg.b, leg.c, 0.98)} wa={r.legW[1] * 1.05} wb={r.legW[2] * 1.1} fill={sock} />
+            <path d={capsule(add(leg.b, mul(shinDir, 0.03 * k)), add(leg.b, mul(shinDir, 0.075 * k)), r.legW[1] * 1.08, r.legW[1] * 1.06)} fill={darken(sock, 0.2)} opacity={0.8} />
+            <ellipse cx={lerp(leg.b, leg.c, 0.45)[0]} cy={lerp(leg.b, leg.c, 0.45)[1]} rx={r.legW[1] * 0.5} ry={0.08 * k} fill="#fff" opacity={0.14} />
+          </g>
+        )}
         {!bare && (
           shorts
             ? <Seg a={add(leg.a, [0, -r.legW[0] * 0.3])} b={trouserEnd} wa={r.legW[0] * 1.12} wb={r.legW[0] * 1.08} fill={bottom} />
             : <g><Seg a={add(leg.a, [0, -r.legW[0] * 0.3])} b={leg.b} wa={r.legW[0] * 1.1} wb={r.legW[1] * 1.12} fill={bottom} /><Seg a={leg.b} b={trouserEnd} wa={r.legW[1] * 1.12} wb={r.legW[2] * 1.25} fill={bottom} /></g>
         )}
-        {w.bottomKind === "jeans" && <path d={`M${P(lerp(leg.a, leg.b, 0.05))} L${P(lerp(leg.b, trouserEnd, 0.9))}`} stroke={darken(bottom, 0.35)} strokeWidth={0.8} fill="none" opacity={0.7} {...SOFT} transform={`translate(${n2(side * r.legW[1] * 0.75)} 0)`} />}
-        {w.bottomKind === "pyjamas" && [0.25, 0.5, 0.75].map((t) => <path key={t} d={`M${P(lerp(leg.a, leg.c, 0.02))} L${P(lerp(leg.a, trouserEnd, 0.98))}`} stroke="#ffffff" strokeWidth={1} opacity={0.45} fill="none" {...SOFT} transform={`translate(${n2((t - 0.5) * r.legW[0] * 1.6)} 0)`} />)}
-        <Shoe ankle={leg.c} toe={toe} kind={w.shoes} colour={w.shoeColour} w={r.footW} L={r.footL} flat={flat} skin={skin} side={side} />
+        {!bare && (
+          <g>
+            {/* Seams down the outside of the leg, the creases at the knee, the hem turned at the ankle. */}
+            {bk === "jeans" && <path d={capsule(add(leg.a, [0, -r.legW[0] * 0.3]), lerp(leg.a, leg.b, 0.98), r.legW[0] * 1.1, r.legW[1] * 1.12)} fill="url(#ps-denim)" />}
+            {bk === "jeans" && <path d={`M${P(add(lerp(leg.a, leg.b, 0.05), mul(lateral(thighDir), r.legW[0] * 0.88)))} L${P(add(leg.b, mul(lateral(thighDir), r.legW[1] * 0.9)))} L${P(add(trouserEnd, mul(lateral(shinDir), r.legW[2] * 1.02)))}`} fill="none" stroke="#c8a56a" strokeWidth={0.6} strokeOpacity={0.55} {...SW} />}
+            {bk === "trousers" && <path d={`M${P(lerp(leg.a, leg.b, 0.12))} L${P(leg.b)} L${P(lerp(leg.b, trouserEnd, 0.95))}`} fill="none" stroke="#fff" strokeWidth={0.9} strokeOpacity={0.12} {...SW} />}
+            {bk === "trousers" && <path d={`M${P(add(lerp(leg.a, leg.b, 0.1), mul(lateral(thighDir), r.legW[0] * 0.95)))} L${P(add(leg.b, mul(lateral(thighDir), r.legW[1] * 0.95)))} L${P(add(trouserEnd, mul(lateral(shinDir), r.legW[2] * 1.1)))}`} fill="none" stroke={bottomInk} strokeWidth={0.6} strokeOpacity={0.35} {...SW} />}
+            {bk === "joggers" && seed % 2 === 0 && <path d={`M${P(add(lerp(leg.a, leg.b, 0.08), mul(lateral(thighDir), r.legW[0] * 0.8)))} L${P(add(leg.b, mul(lateral(thighDir), r.legW[1] * 0.82)))} L${P(add(trouserEnd, mul(lateral(shinDir), r.legW[2] * 0.9)))}`} fill="none" stroke="#ffffff" strokeWidth={1.4} strokeOpacity={0.55} {...SW} />}
+            {!shorts && (
+              <g>
+                <Crease a={add(add(leg.b, mul(thighDir, -0.04 * k)), mul(perp(thighDir), r.legW[1] * 0.85))} b={add(add(leg.b, mul(thighDir, -0.04 * k)), mul(perp(thighDir), -r.legW[1] * 0.85))} bow={0.009 * k} k={k} o={0.13} />
+                <Crease a={add(add(leg.b, mul(shinDir, 0.05 * k)), mul(perp(shinDir), r.legW[1] * 0.8))} b={add(add(leg.b, mul(shinDir, 0.05 * k)), mul(perp(shinDir), -r.legW[1] * 0.8))} bow={-0.009 * k} k={k} o={0.12} />
+                <Crease a={add(add(leg.b, mul(shinDir, 0.3 * k)), mul(perp(shinDir), r.legW[2] * 0.9))} b={add(add(leg.b, mul(shinDir, 0.36 * k)), mul(perp(shinDir), -r.legW[2] * 0.4))} bow={0.004 * k} k={k} o={0.08} light={false} />
+              </g>
+            )}
+            <path d={hemBand} fill={darken(bottom, 0.18)} opacity={0.9} />
+            {bk === "joggers" && !shorts && <path d={hemBand} fill="url(#ps-rib)" />}
+            {bk === "pyjamas" && <path d={capsule(add(trouserEnd, mul(hemDir, -0.008 * k)), trouserEnd, hemW, hemW)} fill="#ffffff" opacity={0.6} />}
+          </g>
+        )}
+        {bk === "pyjamas" && [0.25, 0.5, 0.75].map((t) => <path key={t} d={`M${P(lerp(leg.a, leg.c, 0.02))} L${P(lerp(leg.a, trouserEnd, 0.98))}`} stroke="#ffffff" strokeWidth={1} opacity={0.45} fill="none" {...SOFT} transform={`translate(${n2((t - 0.5) * r.legW[0] * 1.6)} 0)`} />)}
+        <Shoe ankle={leg.c} toe={toe} kind={w.shoes} colour={w.shoeColour} w={r.footW} L={r.footL} flat={flat} skin={skin} side={side} k={k} />
       </g>
     );
   };
-  // Trunk: the outline in cloth (or a gown, or skin for the open neck), with its shading.
+
+  const armSeg = (arm: Limb, side: 1 | -1, palmUp: boolean, flat: boolean) => {
+    const upDir = unit(sub(arm.b, arm.a)), foreDir = unit(sub(arm.c, arm.b));
+    const sleeveEnd = lerp(arm.a, arm.b, gown ? 0.45 : tk === "football" ? 0.55 : 0.62);
+    const cuffColour = tk === "shirt" || tk === "pyjamas" ? top : darken(top, 0.12);
+    const cuffLen = (tk === "shirt" ? 0.05 : 0.035) * k;
+    const cuff = capsule(add(arm.c, mul(foreDir, -cuffLen)), lerp(arm.b, arm.c, 0.97), r.armW[2] * 1.18, r.armW[2] * 1.12);
+    const buttonAt = add(add(arm.c, mul(foreDir, -cuffLen * 0.5)), mul(perp(foreDir), -side * r.armW[2] * 0.7));
+    return (
+      <g>
+        <Seg a={arm.a} b={arm.b} wa={r.armW[0]} wb={r.armW[1]} fill={skin} />
+        {sleeveLong ? (
+          <g>
+            <Seg a={arm.a} b={arm.b} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.1} fill={top} />
+            <Seg a={arm.b} b={lerp(arm.b, arm.c, 0.93)} wa={r.armW[1] * 1.1} wb={r.armW[2] * 1.15} fill={top} />
+            {tk === "jumper" && <path d={capsule(arm.a, lerp(arm.b, arm.c, 0.93), r.armW[0] * 1.08, r.armW[2] * 1.15)} fill="url(#ps-knit)" />}
+            {/* Cloth bunching at the elbow. */}
+            {[-0.04, -0.015, 0.012].map((o, i) => <Crease key={i} a={add(add(arm.b, mul(upDir, o * k)), mul(perp(upDir), r.armW[1] * 0.95))} b={add(add(arm.b, mul(upDir, o * k)), mul(perp(upDir), -r.armW[1] * 0.95))} bow={(i % 2 ? -1 : 1) * 0.007 * k} k={k} o={0.12} />)}
+            <path d={cuff} fill={cuffColour} {...lineSoft} />
+            {ribbed && <path d={cuff} fill="url(#ps-rib)" />}
+            {tk === "shirt" && <circle cx={buttonAt[0]} cy={buttonAt[1]} r={0.005 * k} fill={darken(top, 0.4)} />}
+            {tk === "pyjamas" && <path d={capsule(add(arm.c, mul(foreDir, -cuffLen * 0.3)), add(arm.c, mul(foreDir, -cuffLen * 0.15)), r.armW[2] * 1.18, r.armW[2] * 1.18)} fill="#ffffff" opacity={0.6} />}
+          </g>
+        ) : (
+          <g>
+            <Seg a={arm.a} b={sleeveEnd} wa={r.armW[0] * 1.08} wb={r.armW[1] * 1.14} fill={top} />
+            <path d={capsule(add(sleeveEnd, mul(upDir, -0.018 * k)), sleeveEnd, r.armW[1] * 1.14, r.armW[1] * 1.14)} fill={trim ?? darken(top, 0.15)} opacity={trim ? 0.95 : 0.85} />
+            {gown && <path d={capsule(add(sleeveEnd, mul(upDir, -0.018 * k)), sleeveEnd, r.armW[1] * 1.14, r.armW[1] * 1.14)} fill="url(#ps-gown)" />}
+          </g>
+        )}
+        {!sleeveLong && <Seg a={arm.b} b={arm.c} wa={r.armW[1]} wb={r.armW[2]} fill={skin} />}
+        {sleeveLong && <Seg a={lerp(arm.b, arm.c, 0.9)} b={arm.c} wa={r.armW[2] * 1.05} wb={r.armW[2]} fill={skin} outline={false} />}
+        {!sleeveLong && (
+          <g>
+            {/* The elbow: a crease over the joint, the point of it catching the light. */}
+            <path d={bowed(add(arm.b, mul(perp(foreDir), r.armW[1] * 0.55)), add(arm.b, mul(perp(foreDir), -r.armW[1] * 0.55)), (palmUp ? 1 : -1) * 0.006 * k)} fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.3} {...SW} />
+            <ellipse cx={arm.b[0]} cy={arm.b[1]} rx={r.armW[1] * 0.55} ry={r.armW[1] * 0.6} fill="url(#ps-sphere)" opacity={0.35} />
+            <path d={`M${P(add(lerp(arm.b, arm.c, 0.2), mul(perp(foreDir), -side * r.armW[1] * 0.25)))} L${P(add(lerp(arm.b, arm.c, 0.9), mul(perp(foreDir), -side * r.armW[2] * 0.3)))}`} stroke="#fff" strokeWidth={1.2} strokeOpacity={0.1} fill="none" {...SW} />
+          </g>
+        )}
+        {!gown && <path d={bowed(add(add(arm.a, mul(upDir, 0.014 * k)), mul(perp(upDir), r.armW[0] * 1.02)), add(add(arm.a, mul(upDir, 0.014 * k)), mul(perp(upDir), -r.armW[0] * 1.02)), 0.012 * k)} fill="none" stroke={topInk} strokeWidth={0.6} strokeOpacity={0.4} {...SW} />}
+        <Hand wrist={arm.c} tip={arm.d} w={r.armW[2]} side={side} palmUp={palmUp} flat={flat} skin={skin} k={k} />
+      </g>
+    );
+  };
+
+  // Necklines: a tee's ribbed round neck, a shirt's collar, a gown's V, a fleece's stand collar.
+  const nb = r.neckBase[1];
+  const roundNeck = (depth: number) => `M${n2(-r.neckW * 0.8)} ${n2(nb - 0.01 * k)} Q0 ${n2(nb + depth)} ${n2(r.neckW * 0.8)} ${n2(nb - 0.01 * k)}`;
   const neckline = gown
     ? `M${n2(-r.shoulderW * 0.55)} ${n2(r.shoulderY - 0.01 * k)} L0 ${n2(r.shoulderY + 0.09 * k)} L${n2(r.shoulderW * 0.55)} ${n2(r.shoulderY - 0.01 * k)}`
-    : w.topKind === "shirt"
-      ? `M${n2(-r.neckW * 0.75)} ${n2(r.neckBase[1] - 0.012 * k)} L${n2(-r.neckW * 0.2)} ${n2(r.neckBase[1] + 0.06 * k)} L0 ${n2(r.neckBase[1] + 0.035 * k)} L${n2(r.neckW * 0.2)} ${n2(r.neckBase[1] + 0.06 * k)} L${n2(r.neckW * 0.75)} ${n2(r.neckBase[1] - 0.012 * k)}`
-      : `M${n2(-r.neckW * 0.8)} ${n2(r.neckBase[1] - 0.01 * k)} Q0 ${n2(r.neckBase[1] + 0.05 * k)} ${n2(r.neckW * 0.8)} ${n2(r.neckBase[1] - 0.01 * k)}`;
-  const chestCx = 0, chestCy = r.chestY;
-  const bellyShade = r.build.pregnant ? <ellipse cx={0} cy={r.waistY + 0.02 * k} rx={r.waistW * 0.85} ry={0.17 * k} fill="url(#ps-shadow)" opacity={0.5} /> : null;
+    : tk === "shirt" || tk === "pyjamas" || tk === "workwear"
+      ? `M${n2(-r.neckW * 0.75)} ${n2(nb - 0.012 * k)} L${n2(-r.neckW * 0.2)} ${n2(nb + 0.06 * k)} L0 ${n2(nb + 0.035 * k)} L${n2(r.neckW * 0.2)} ${n2(nb + 0.06 * k)} L${n2(r.neckW * 0.75)} ${n2(nb - 0.012 * k)}`
+      : roundNeck((tk === "football" ? 0.07 : 0.05) * k);
+  const collar = (tk === "shirt" || tk === "pyjamas" || tk === "workwear") && (
+    <g>
+      {[-1, 1].map((sd) => (
+        <path key={sd} d={`M${n2(sd * r.neckW * 0.78)} ${n2(nb - 0.025 * k)} L${n2(sd * r.neckW * (tk === "workwear" ? 1.35 : 1.6))} ${n2(nb + 0.06 * k)} L${n2(sd * r.neckW * 0.22)} ${n2(nb + 0.065 * k)} Z`} fill={tk === "pyjamas" ? mix(top, "#ffffff", 0.08) : top} {...line} />
+      ))}
+      {tk === "pyjamas" && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 1.6)} ${n2(nb + 0.06 * k)} L${n2(sd * r.neckW * 0.22)} ${n2(nb + 0.065 * k)}`} stroke="#ffffff" strokeWidth={1.4} strokeOpacity={0.7} fill="none" {...SW} />)}
+    </g>
+  );
+  const placket = (tk === "shirt" || tk === "pyjamas") && (
+    <g>
+      <path d={`M${n2(-0.012 * k)} ${n2(nb + 0.06 * k)} V${n2(hemY)} M${n2(0.012 * k)} ${n2(nb + 0.06 * k)} V${n2(hemY)}`} stroke={topInk} strokeWidth={0.6} strokeOpacity={0.4} fill="none" {...SW} />
+      {[0.1, 0.26, 0.42, 0.58, 0.74].map((t) => { const y = nb + 0.08 * k + (hemY - nb - 0.1 * k) * t; return <g key={t}><circle cx={0} cy={y} r={0.0065 * k} fill={tk === "pyjamas" ? "#ffffff" : darken(top, 0.4)} stroke={topInk} strokeWidth={0.5} {...SOFT} /><circle cx={0} cy={y} r={0.002 * k} fill={topInk} opacity={0.6} /></g>; })}
+    </g>
+  );
+  const pocket = (tk === "shirt" || tk === "workwear") && !child && (
+    <g>
+      <path d={`M${n2(-r.chestW * 0.75)} ${n2(r.chestY - 0.07 * k)} h${n2(r.chestW * 0.4)} v${n2(0.1 * k)} l${n2(-r.chestW * 0.2)} ${n2(0.015 * k)} l${n2(-r.chestW * 0.2)} ${n2(-0.015 * k)} z`} fill={top} stroke={topInk} strokeWidth={0.6} strokeOpacity={0.5} {...SOFT} />
+      {tk === "workwear" && <rect x={-r.chestW * 0.62} y={r.chestY - 0.085 * k} width={0.008 * k} height={0.06 * k} rx={0.003 * k} fill="#1b2733" />}
+    </g>
+  );
+  const hood = tk === "hoodie" && (
+    <g>
+      <path d={smooth([[-r.shoulderW * 0.7, r.shoulderY], [-r.headW * 1.15, r.headL * 0.75], [-r.headW * 0.95, r.headL * 0.1], [0, -r.headL * 0.16], [r.headW * 0.95, r.headL * 0.1], [r.headW * 1.15, r.headL * 0.75], [r.shoulderW * 0.7, r.shoulderY]], 0.5)} fill={darken(top, 0.1)} {...line} />
+      <path d={smooth([[-r.shoulderW * 0.7, r.shoulderY], [-r.headW * 1.15, r.headL * 0.75], [-r.headW * 0.95, r.headL * 0.1], [0, -r.headL * 0.16], [r.headW * 0.95, r.headL * 0.1], [r.headW * 1.15, r.headL * 0.75], [r.shoulderW * 0.7, r.shoulderY]], 0.5)} fill="url(#ps-round)" opacity={0.6} />
+      {[-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.headW * 0.8)} ${n2(r.headL * 0.2)} Q${n2(sd * r.headW * 1.0)} ${n2(r.headL * 0.5)} ${n2(sd * r.headW * 0.85)} ${n2(r.headL * 0.75)}`} fill="none" stroke="#000" strokeWidth={1} strokeOpacity={0.14} {...SW} />)}
+    </g>
+  );
+  const hoodieFront = tk === "hoodie" && (
+    <g>
+      {/* Drawstrings from the neck, the kangaroo pocket across the belly. */}
+      {[-1, 1].map((sd) => <g key={sd}><path d={`M${n2(sd * 0.03 * k)} ${n2(nb + 0.055 * k)} Q${n2(sd * 0.045 * k)} ${n2(r.chestY - 0.06 * k)} ${n2(sd * 0.035 * k)} ${n2(r.chestY + 0.01 * k)}`} fill="none" stroke="#e9ecef" strokeWidth={1.3} strokeOpacity={0.9} {...SW} /><rect x={sd * 0.035 * k - 0.004 * k} y={r.chestY + 0.005 * k} width={0.008 * k} height={0.018 * k} rx={0.002 * k} fill="#9aa0a6" /></g>)}
+      <path d={`M${n2(-r.waistW * 0.95)} ${n2(r.waistY - 0.02 * k)} L${n2(-r.waistW * 0.7)} ${n2(r.waistY - 0.055 * k)} L${n2(r.waistW * 0.7)} ${n2(r.waistY - 0.055 * k)} L${n2(r.waistW * 0.95)} ${n2(r.waistY - 0.02 * k)} L${n2(r.hipW * 0.95)} ${n2(hemY - 0.03 * k)} L${n2(-r.hipW * 0.95)} ${n2(hemY - 0.03 * k)} Z`} fill="#000" opacity={0.06} />
+      <path d={`M${n2(-r.waistW * 0.95)} ${n2(r.waistY - 0.02 * k)} L${n2(-r.waistW * 0.7)} ${n2(r.waistY - 0.055 * k)} M${n2(r.waistW * 0.7)} ${n2(r.waistY - 0.055 * k)} L${n2(r.waistW * 0.95)} ${n2(r.waistY - 0.02 * k)} M${n2(-r.waistW * 0.7)} ${n2(r.waistY - 0.055 * k)} H${n2(r.waistW * 0.7)}`} fill="none" stroke={topInk} strokeWidth={0.7} strokeOpacity={0.45} {...SW} />
+    </g>
+  );
+  const fleeceFront = tk === "fleece" && (
+    <g>
+      <path d={capsule([-r.neckW * 0.85, nb + 0.0], [r.neckW * 0.85, nb + 0.0], 0.03 * k, 0.03 * k)} fill={darken(top, 0.12)} {...lineSoft} />
+      <path d={`M${n2(-0.006 * k)} ${n2(nb + 0.03 * k)} V${n2(hemY - 0.01 * k)} M${n2(0.006 * k)} ${n2(nb + 0.03 * k)} V${n2(hemY - 0.01 * k)}`} stroke={darken(top, 0.5)} strokeWidth={0.8} strokeOpacity={0.6} fill="none" {...SW} />
+      <path d={`M0 ${n2(nb + 0.035 * k)} V${n2(hemY - 0.012 * k)}`} stroke="#c9ced3" strokeWidth={0.6} strokeDasharray="1 1" fill="none" {...SOFT} />
+      <rect x={-0.006 * k} y={nb + 0.04 * k} width={0.012 * k} height={0.018 * k} rx={0.002 * k} fill="#9aa0a6" stroke="#1b2733" strokeWidth={0.5} {...SOFT} />
+      <path d={`M${n2(-r.chestW * 0.75)} ${n2(r.chestY - 0.05 * k)} L${n2(-r.chestW * 0.35)} ${n2(r.chestY - 0.05 * k)}`} stroke={darken(top, 0.5)} strokeWidth={1.2} strokeOpacity={0.6} fill="none" {...SW} />
+    </g>
+  );
+  const ribNeck = ribbed && tk !== "fleece" && (
+    <g>
+      <path d={`${roundNeck(0.05 * k)} Q0 ${n2(nb + 0.075 * k)} ${n2(-r.neckW * 0.8)} ${n2(nb - 0.01 * k)} Z`} fill={darken(top, 0.1)} {...lineSoft} />
+      <path d={`${roundNeck(0.05 * k)} Q0 ${n2(nb + 0.075 * k)} ${n2(-r.neckW * 0.8)} ${n2(nb - 0.01 * k)} Z`} fill="url(#ps-rib)" />
+    </g>
+  );
+  const teeNeck = (tk === "tee" || tk === "football") && (
+    <path d={`${roundNeck((tk === "football" ? 0.07 : 0.05) * k)} Q0 ${n2(nb + (tk === "football" ? 0.085 : 0.065) * k)} ${n2(-r.neckW * 0.8)} ${n2(nb - 0.01 * k)} Z`} fill={trim ?? darken(top, 0.12)} opacity={0.95} {...lineSoft} />
+  );
+  const gownTies = gown && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.shoulderW * 0.55)} ${n2(r.shoulderY - 0.01 * k)} l${n2(sd * 0.03 * k)} ${n2(0.03 * k)} m${n2(-sd * 0.03 * k)} ${n2(-0.03 * k)} l${n2(sd * 0.01 * k)} ${n2(0.04 * k)}`} fill="none" stroke="#2f6fa8" strokeWidth={0.8} strokeOpacity={0.7} {...SW} />);
+  const hem = (
+    <g>
+      <path d={bandPath(hemY - 0.016 * k, hemY, 0.002 * k)} fill={darken(top, 0.14)} opacity={0.85} />
+      {ribbed && <path d={bandPath(hemY - 0.016 * k, hemY, 0.002 * k)} fill="url(#ps-rib)" />}
+    </g>
+  );
+  const folds = !gown && (
+    <g>
+      {[-1, 1].map((sd) => (
+        <g key={sd}>
+          <ellipse cx={sd * r.shoulderW * 0.84} cy={r.shoulderY + 0.1 * k} rx={0.05 * k} ry={0.04 * k} fill="url(#ps-socket)" opacity={0.7} />
+          <Crease a={[sd * r.shoulderW * 0.92, r.shoulderY + 0.07 * k]} b={[sd * r.chestW * 0.25, r.chestY + 0.04 * k]} bow={sd * 0.02 * k} k={k} o={0.1} />
+          <Crease a={[sd * r.chestW * 0.97, r.chestY + 0.07 * k]} b={[sd * r.waistW * 0.3, r.waistY - 0.02 * k]} bow={-sd * 0.015 * k} k={k} o={0.09} />
+          <path d={`M${n2(sd * r.shoulderW * 0.98)} ${n2(r.shoulderY + 0.05 * k)} Q${n2(sd * r.chestW * 1.02)} ${n2(r.chestY)} ${n2(sd * halfAt(hemY - 0.02 * k) * 0.97)} ${n2(hemY - 0.02 * k)}`} fill="none" stroke={topInk} strokeWidth={0.6} strokeOpacity={0.25} {...SW} />
+        </g>
+      ))}
+      <Crease a={[-r.waistW * 0.9, r.waistY + 0.03 * k]} b={[r.waistW * 0.85, r.waistY + 0.045 * k]} bow={0.01 * k} k={k} o={0.1} />
+      {hemY > r.waistY + 0.12 * k && <Crease a={[-r.waistW * 0.95, r.waistY + 0.09 * k]} b={[r.waistW * 0.9, r.waistY + 0.075 * k]} bow={-0.012 * k} k={k} o={0.09} />}
+    </g>
+  );
+  const bust = female && !child && (
+    <g>
+      {[-1, 1].map((sd) => (
+        <g key={sd}>
+          <ellipse cx={sd * r.chestW * 0.42} cy={r.chestY - 0.01 * k} rx={r.chestW * 0.34} ry={0.062 * k} fill="url(#ps-sphere)" opacity={0.16} />
+          <path d={bowed([sd * r.chestW * 0.72, r.chestY + 0.045 * k], [sd * r.chestW * 0.1, r.chestY + 0.06 * k], sd * 0.012 * k)} fill="none" stroke="#000" strokeWidth={1} strokeOpacity={0.1} {...SW} />
+        </g>
+      ))}
+    </g>
+  );
+  const belly = r.build.pregnant ? <ellipse cx={0} cy={r.waistY + 0.03 * k} rx={r.waistW * 0.95} ry={0.19 * k} fill="url(#ps-sphere)" opacity={0.6} /> : null;
+  const hiVis = w.hiVis && (
+    <g>
+      <path d={smooth([[-r.shoulderW * 0.95, r.shoulderY + 0.01 * k], [-r.neckW * 0.9, nb + 0.02 * k], [r.neckW * 0.9, nb + 0.02 * k], [r.shoulderW * 0.95, r.shoulderY + 0.01 * k], [r.chestW * 0.98, r.chestY], [r.waistW * 1.05, r.waistY], [r.hipW * 0.95, r.hipY - 0.03 * k], [-r.hipW * 0.95, r.hipY - 0.03 * k], [-r.waistW * 1.05, r.waistY], [-r.chestW * 0.98, r.chestY]], 0.5)} fill={w.hiVis} {...line} opacity={0.97} />
+      {[0.36, 0.52].map((t) => { const y = r.shoulderY + (r.hipY - r.shoulderY) * t; return <g key={t}><path d={`M${n2(-r.chestW * 1.02)} ${n2(y)} h${n2(r.chestW * 2.04)}`} stroke="#8a9399" strokeWidth={0.05 * k} /><path d={`M${n2(-r.chestW * 1.02)} ${n2(y)} h${n2(r.chestW * 2.04)}`} stroke="#dfe3e6" strokeWidth={0.034 * k} /></g>; })}
+      <path d={`M${n2(-r.shoulderW * 0.5)} ${n2(r.shoulderY + 0.02 * k)} L${n2(-r.chestW * 0.45)} ${n2(r.hipY - 0.05 * k)} M${n2(r.shoulderW * 0.5)} ${n2(r.shoulderY + 0.02 * k)} L${n2(r.chestW * 0.45)} ${n2(r.hipY - 0.05 * k)}`} stroke="#8a9399" strokeWidth={0.05 * k} opacity={0.95} fill="none" />
+      <path d={`M${n2(-r.shoulderW * 0.5)} ${n2(r.shoulderY + 0.02 * k)} L${n2(-r.chestW * 0.45)} ${n2(r.hipY - 0.05 * k)} M${n2(r.shoulderW * 0.5)} ${n2(r.shoulderY + 0.02 * k)} L${n2(r.chestW * 0.45)} ${n2(r.hipY - 0.05 * k)}`} stroke="#dfe3e6" strokeWidth={0.034 * k} opacity={0.95} fill="none" />
+      <path d={`M0 ${n2(nb + 0.05 * k)} V${n2(r.hipY - 0.03 * k)}`} stroke="#1b2733" strokeWidth={0.8} strokeOpacity={0.5} strokeDasharray="1.5 1" fill="none" {...SOFT} />
+    </g>
+  );
+  const waistband = !bare && (
+    <g>
+      <path d={bandPath(wbTop, wbBot)} fill={darken(bottom, elastic ? 0.08 : 0.15)} />
+      {elastic && <path d={bandPath(wbTop, wbBot)} fill="url(#ps-rib)" />}
+      {belt && (
+        <g>
+          <path d={bandPath(wbTop + 0.006 * k, wbTop + 0.028 * k)} fill="#2b241f" {...lineSoft} />
+          <path d={bandPath(wbTop + 0.006 * k, wbTop + 0.028 * k)} fill="url(#ps-round)" opacity={0.5} />
+          {[-0.78, -0.32, 0.32, 0.78].map((t) => <rect key={t} x={t * r.hipW - 0.006 * k} y={wbTop + 0.002 * k} width={0.012 * k} height={0.032 * k} rx={0.002 * k} fill={darken(bottom, 0.22)} stroke={bottomInk} strokeWidth={0.5} {...SOFT} />)}
+          <rect x={-0.02 * k} y={wbTop + 0.003 * k} width={0.04 * k} height={0.028 * k} rx={0.004 * k} fill="#b8b2a8" stroke="#5a554d" strokeWidth={0.7} {...SOFT} />
+          <rect x={-0.003 * k} y={wbTop + 0.006 * k} width={0.006 * k} height={0.022 * k} fill="#8a857c" />
+        </g>
+      )}
+      {elastic && bk !== "pyjamas" && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * 0.012 * k)} ${n2(wbBot - 0.01 * k)} Q${n2(sd * 0.02 * k)} ${n2(wbBot + 0.03 * k)} ${n2(sd * 0.028 * k)} ${n2(wbBot + 0.05 * k)}`} fill="none" stroke="#e9ecef" strokeWidth={1.2} strokeOpacity={0.85} {...SW} />)}
+      {(bk === "jeans" || bk === "trousers") && (
+        <g fill="none">
+          <path d={`M0 ${n2(wbBot)} V${n2(r.crotchY - 0.015 * k)}`} stroke={bottomInk} strokeWidth={0.8} strokeOpacity={0.5} {...SW} />
+          {bk === "jeans" && <path d={`M${n2(0.012 * k)} ${n2(wbBot + 0.01 * k)} Q${n2(0.03 * k)} ${n2(r.crotchY - 0.04 * k)} ${n2(0.005 * k)} ${n2(r.crotchY - 0.015 * k)}`} stroke="#c8a56a" strokeWidth={0.6} strokeOpacity={0.7} {...SW} />}
+          {[-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * halfAt(wbBot) * 0.98)} ${n2(wbBot + 0.015 * k)} Q${n2(sd * r.hipW * 0.6)} ${n2(wbBot + 0.03 * k)} ${n2(sd * r.hipW * 0.45)} ${n2(wbBot + 0.08 * k)}`} stroke={bk === "jeans" ? "#c8a56a" : bottomInk} strokeWidth={0.6} strokeOpacity={0.6} {...SW} />)}
+        </g>
+      )}
+    </g>
+  );
+  const neck = (
+    <g>
+      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} fill={darken(skin, 0.08)} {...lineSoft} />
+      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} fill="url(#ps-round)" />
+      <ellipse cx={0} cy={r.neckTop[1] + 0.012 * k} rx={r.neckW * 0.5} ry={0.026 * k} fill="#000" opacity={0.22} />
+      {!child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * r.neckW * 0.42)} ${n2(r.neckTop[1] + 0.03 * k)} Q${n2(sd * r.neckW * 0.3)} ${n2(nb - 0.01 * k)} ${n2(sd * r.neckW * 0.12)} ${n2(nb + 0.015 * k)}`} fill="none" stroke="#000" strokeWidth={1} strokeOpacity={0.1} {...SW} />)}
+      <path d={`M${n2(-r.neckW * 0.08)} ${n2(r.neckTop[1] + 0.04 * k)} V${n2(nb)}`} stroke="#fff" strokeWidth={2} strokeOpacity={0.07} fill="none" {...SW} />
+    </g>
+  );
+  const clavicles = !child && [-1, 1].map((sd) => <path key={sd} d={`M${n2(sd * 0.1 * k * bulk)} ${n2(nb + 0.03 * k)} Q${n2(sd * 0.05 * k)} ${n2(nb + 0.05 * k)} ${n2(sd * 0.012 * k)} ${n2(nb + 0.035 * k)}`} fill="none" stroke={ink} strokeWidth={0.7} strokeOpacity={0.2} {...SW} />);
   const shadowRx = r.pose === "seated" ? r.shoulderW * 1.6 : r.shoulderW * 1.5;
+  const armByTheSideR = r.handFlatR && r.armR.c[0] < -r.chestW * 0.9;
+  const armByTheSideL = r.handFlatL && r.armL.c[0] > r.chestW * 0.9;
   return (
     <g className="ps-fig">
       {shadow && <ellipse cx={0.02 * k} cy={(r.bottom + 0.05 * k) / 2} rx={shadowRx} ry={(r.bottom + 0.1 * k) / 2} fill="url(#ps-shadow)" />}
+      {hood}
       {/* Legs */}
       {legSeg(r.legR, -1, r.toeR)}
       {legSeg(r.legL, 1, r.toeL)}
       {/* Arms that lie by the sides go under the trunk's edge; reaching arms come over it. */}
-      {r.handFlatR && r.armR.c[0] < -r.chestW * 0.9 && armSeg(r.armR, -1, r.palmUpR, r.handFlatR)}
-      {r.handFlatL && r.armL.c[0] > r.chestW * 0.9 && armSeg(r.armL, 1, r.palmUpL, r.handFlatL)}
+      {armByTheSideR && armSeg(r.armR, -1, r.palmUpR, r.handFlatR)}
+      {armByTheSideL && armSeg(r.armL, 1, r.palmUpL, r.handFlatL)}
       {/* Trunk */}
       <g className={chestClass} style={chestStyle}>
-        <path d={r.torso} fill={gown ? "#9fc4dd" : top} {...line} />
-        <path d={r.torso} fill="url(#ps-round)" />
-        {w.topKind === "football" && <g>{[-0.5, 0.5].map((t) => <path key={t} d={`M${n2(t * r.chestW * 0.9)} ${n2(r.shoulderY)} L${n2(t * r.hipW * 0.9)} ${n2(r.hipY)}`} stroke="#ffffff" strokeWidth={0.02 * k} opacity={0.85} />)}</g>}
-        {w.topKind === "pyjamas" && <g>{[-0.6, -0.2, 0.2, 0.6].map((t) => <path key={t} d={`M${n2(t * r.chestW)} ${n2(r.shoulderY)} L${n2(t * r.hipW)} ${n2(r.hipY + 0.02 * k)}`} stroke="#ffffff" strokeWidth={0.012 * k} opacity={0.5} />)}</g>}
-        {w.topKind === "hoodie" && <path d={`M${n2(-r.chestW * 0.55)} ${n2(r.waistY)} h${n2(r.chestW * 1.1)} v${n2(0.12 * k)} h${n2(-r.chestW * 1.1)} z`} fill={darken(top, 0.12)} {...lineSoft} />}
-        {w.topKind === "shirt" && <g>{[0.12, 0.3, 0.48, 0.66].map((t) => <circle key={t} cx={0} cy={r.shoulderY + (r.hipY - r.shoulderY) * t} r={0.009 * k} fill={darken(top, 0.4)} />)}<path d={`M0 ${n2(r.shoulderY + 0.04 * k)} V${n2(r.hipY)}`} stroke={darken(top, 0.25)} strokeWidth={0.8} {...SOFT} /></g>}
-        {w.topKind === "jumper" && <path d={`M${n2(-r.hipW * 0.95)} ${n2(r.hipY - 0.03 * k)} h${n2(r.hipW * 1.9)}`} stroke={darken(top, 0.2)} strokeWidth={0.03 * k} />}
-        {w.topKind === "football" && w.number && <text x={0} y={r.chestY + 0.02 * k} textAnchor="middle" fontSize={0.12 * k} fontWeight={800} fill="#ffffff" fontFamily="Arial, sans-serif" opacity={0.9}>{w.number}</text>}
-        {w.hiVis && (
-          <g>
-            <path d={smooth([[-r.shoulderW * 0.95, r.shoulderY + 0.01 * k], [-r.neckW * 0.9, r.neckBase[1] + 0.02 * k], [r.neckW * 0.9, r.neckBase[1] + 0.02 * k], [r.shoulderW * 0.95, r.shoulderY + 0.01 * k], [r.chestW * 0.98, r.chestY], [r.waistW * 1.05, r.waistY], [r.hipW * 0.95, r.hipY - 0.03 * k], [-r.hipW * 0.95, r.hipY - 0.03 * k], [-r.waistW * 1.05, r.waistY], [-r.chestW * 0.98, r.chestY]], 0.5)} fill={w.hiVis} {...line} opacity={0.97} />
-            {[0.36, 0.52].map((t) => <path key={t} d={`M${n2(-r.chestW * 1.02)} ${n2(r.shoulderY + (r.hipY - r.shoulderY) * t)} h${n2(r.chestW * 2.04)}`} stroke="#d9dee2" strokeWidth={0.045 * k} opacity={0.95} />)}
-            <path d={`M${n2(-r.shoulderW * 0.5)} ${n2(r.shoulderY + 0.02 * k)} L${n2(-r.chestW * 0.45)} ${n2(r.hipY - 0.05 * k)} M${n2(r.shoulderW * 0.5)} ${n2(r.shoulderY + 0.02 * k)} L${n2(r.chestW * 0.45)} ${n2(r.hipY - 0.05 * k)}`} stroke="#d9dee2" strokeWidth={0.04 * k} opacity={0.95} fill="none" />
-          </g>
-        )}
-        {bellyShade}
+        <path d={pelvis} fill={bare ? skin : bottom} {...line} />
+        <path d={pelvis} fill="url(#ps-round)" />
+        {waistband}
+        <path d={topPath} fill={gown ? "#9fc4dd" : top} {...line} />
+        <path d={topPath} fill="url(#ps-round)" />
+        {gown && <path d={topPath} fill="url(#ps-gown)" />}
+        {tk === "jumper" && <path d={topPath} fill="url(#ps-knit)" />}
+        {bust}
+        {belly}
+        {tk === "football" && <g>{[-0.5, 0.5].map((t) => <path key={t} d={`M${n2(t * r.chestW * 0.9)} ${n2(r.shoulderY)} L${n2(t * r.hipW * 0.9)} ${n2(r.hipY)}`} stroke="#ffffff" strokeWidth={0.02 * k} opacity={0.85} />)}</g>}
+        {tk === "pyjamas" && <g>{[-0.6, -0.2, 0.2, 0.6].map((t) => <path key={t} d={`M${n2(t * r.chestW)} ${n2(r.shoulderY)} L${n2(t * r.hipW)} ${n2(r.hipY + 0.02 * k)}`} stroke="#ffffff" strokeWidth={0.012 * k} opacity={0.5} />)}</g>}
+        {tk === "football" && w.number && <text x={0} y={r.chestY + 0.02 * k} textAnchor="middle" fontSize={0.12 * k} fontWeight={800} fill="#ffffff" fontFamily="Arial, sans-serif" opacity={0.9}>{w.number}</text>}
+        {folds}
+        {hiVis}
+        {hoodieFront}
+        {fleeceFront}
+        {pocket}
+        {placket}
+        {!gown && hem}
         {/* The open neck shows skin. */}
         <path d={`${neckline} Z`} fill={skin} {...lineSoft} />
-        {w.topKind === "shirt" && <path d={neckline} fill="none" {...line} />}
-        <g transform={`translate(0 ${n2(chestCy - chestCy)})`}>{onChest}</g>
-        <circle cx={chestCx} cy={chestCy} r={0} fill="none" />
+        <path d={`${neckline} Z`} fill="url(#ps-round)" opacity={0.6} />
+        {clavicles}
+        {teeNeck}
+        {ribNeck}
+        {collar}
+        {gownTies}
+        {onChest}
       </g>
       {/* Arms over the trunk */}
-      {!(r.handFlatR && r.armR.c[0] < -r.chestW * 0.9) && armSeg(r.armR, -1, r.palmUpR, r.handFlatR)}
-      {!(r.handFlatL && r.armL.c[0] > r.chestW * 0.9) && armSeg(r.armL, 1, r.palmUpL, r.handFlatL)}
+      {!armByTheSideR && armSeg(r.armR, -1, r.palmUpR, r.handFlatR)}
+      {!armByTheSideL && armSeg(r.armL, 1, r.palmUpL, r.handFlatL)}
       {/* Neck and head */}
-      <path d={capsule(r.neckTop, add(r.neckBase, [0, 0.02 * k]), r.neckW * 0.5, r.neckW * 0.55)} fill={darken(skin, 0.08)} {...lineSoft} />
+      {neck}
       <g transform={`rotate(${n2(r.headTurn * 14)} 0 ${n2(r.headL * 0.85)})`}>
         <Face r={r} w={w} />
       </g>

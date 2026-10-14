@@ -112,17 +112,35 @@ function HeadTop({ c, f, wear, r = 0.13 }: { c: Pt; f: Pt; wear: CrewWear; r?: n
   const s = perp(unit(f));
   return (
     <g>
-      {[-1, 1].map((side) => { const e = add(c, mul(s, side * r * 0.98)); return <ellipse key={side} cx={e[0]} cy={e[1]} rx={r * 0.16} ry={r * 0.24} fill={wear.skin} {...lineSoft} transform={`rotate(${n2(ang)} ${n2(e[0])} ${n2(e[1])})`} />; })}
+      {[-1, 1].map((side) => { const e = add(c, mul(s, side * r * 0.98)); return <g key={side} transform={`rotate(${n2(ang)} ${n2(e[0])} ${n2(e[1])})`}><ellipse cx={e[0]} cy={e[1]} rx={r * 0.16} ry={r * 0.24} fill={wear.skin} {...lineSoft} /><ellipse cx={e[0]} cy={e[1]} rx={r * 0.08} ry={r * 0.14} fill="none" stroke={darken(wear.skin, 0.4)} strokeWidth={0.6} strokeOpacity={0.5} {...SOFT} /></g>; })}
+      {/* The brow and the tip of the nose show past the forehead of a head bowed to the work. */}
+      <ellipse cx={cx + r * 1.0} cy={cy} rx={r * 0.14} ry={r * 0.2} fill={wear.skin} {...lineSoft} transform={`rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`} />
       <circle cx={cx} cy={cy} r={r} fill={wear.skin} {...line} />
       {hair !== "bald" && (
         <g transform={`rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`}>
-          {/* The crown of the head from above: hair all over, the forehead (towards f) showing. */}
+          {/* The crown of the head from above: hair all over, the forehead (towards f) showing, the strands turning from the whorl at the crown. */}
           <path d={smooth([[cx + r * 0.75, cy - r * 0.6], [cx + r * 0.2, cy - r * 0.95], [cx - r * 0.5, cy - r * 0.85], [cx - r * 0.98, cy - r * 0.2], [cx - r * 0.98, cy + r * 0.2], [cx - r * 0.5, cy + r * 0.85], [cx + r * 0.2, cy + r * 0.95], [cx + r * 0.75, cy + r * 0.6], [cx + r * 0.55, cy]], 0.6)} fill={wear.hair} {...lineSoft} />
-          <path d={`M${n2(cx + r * 0.5)} ${n2(cy - r * 0.1)} L${n2(cx - r * 0.7)} ${n2(cy - r * 0.25)}`} stroke={darken(wear.hair, 0.35)} strokeWidth={0.9} {...SOFT} opacity={0.6} />
-          {(hair === "long" || hair === "bob") && <circle cx={cx - r * 0.85} cy={cy} r={r * 0.45} fill={wear.hair} {...lineSoft} />}
+          {Array.from({ length: 14 }, (_, i) => {
+            const a = (i / 14) * Math.PI * 2 + 0.3;
+            const whorl: Pt = [cx - r * 0.25, cy - r * 0.05];
+            const reach = 0.55 + 0.25 * Math.abs(Math.sin(a * 1.7 + 1));
+            const end: Pt = [whorl[0] + Math.cos(a) * r * reach * (Math.cos(a) > 0 ? 0.8 : 1.05), whorl[1] + Math.sin(a) * r * reach];
+            const start: Pt = [whorl[0] + Math.cos(a) * r * 0.12, whorl[1] + Math.sin(a) * r * 0.12];
+            const c = add(lerp(start, end, 0.5), mul(perp(unit(sub(end, start))), r * 0.09));
+            const light = i % 3 === 1;
+            return <path key={i} d={`M${P(start)} Q${P(c)} ${P(end)}`} fill="none" stroke={light ? "#ffffff" : darken(wear.hair, 0.4)} strokeWidth={light ? 0.6 : 0.8} strokeOpacity={light ? 0.18 : 0.45} {...SOFT} strokeLinecap="round" />;
+          })}
+          {(hair === "long" || hair === "bob") && (
+            <g>
+              <circle cx={cx - r * 0.85} cy={cy} r={r * 0.46} fill={wear.hair} {...lineSoft} />
+              <circle cx={cx - r * 0.85} cy={cy} r={r * 0.46} fill="url(#ps-sphere)" opacity={0.7} />
+              <path d={`M${n2(cx - r * 0.85 + r * 0.3)} ${n2(cy)} a${n2(r * 0.3)} ${n2(r * 0.3)} 0 1 1 ${n2(-r * 0.3)} ${n2(-r * 0.28)} a${n2(r * 0.16)} ${n2(r * 0.16)} 0 1 1 ${n2(r * 0.1)} ${n2(r * 0.2)}`} fill="none" stroke={darken(wear.hair, 0.4)} strokeWidth={0.8} strokeOpacity={0.5} {...SOFT} strokeLinecap="round" />
+            </g>
+          )}
         </g>
       )}
       {hair === "bald" && <circle cx={cx} cy={cy} r={r} fill="url(#ps-face-shade)" />}
+      {hair === "bald" && <ellipse cx={cx - r * 0.2} cy={cy - r * 0.15} rx={r * 0.3} ry={r * 0.2} fill="#fff" opacity={0.16} />}
       {hair !== "bald" && <circle cx={cx} cy={cy} r={r} fill="url(#ps-hair-shine)" />}
       <g transform={`translate(${n2(cx)} ${n2(cy)}) scale(${n2(r / 0.105)}) translate(${n2(-cx)} ${n2(-cy)})`}>
         <Hat c={c} f={f} hat={wear.hat} />
@@ -152,13 +170,35 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
   const arm = (sh: Pt, target: Pt | undefined, bend: 1 | -1, hand: "left" | "right") => {
     const t = target ?? axis(0.24, bend * 0.26);
     const el = elbow(sh, t, 0.2, 0.19, bend);
+    const up = unit(sub(el, sh)), fore = unit(sub(t, el));
+    const longSleeve = forearm !== wear.skin;
+    const crease = (c: Pt, dir: Pt, w: number, bow: number, o: number) => {
+      const n = perp(dir);
+      const a = add(c, mul(n, w)), b = add(c, mul(n, -w));
+      return <path d={`M${P(a)} Q${P(add(lerp(a, b, 0.5), mul(dir, bow)))} ${P(b)}`} fill="none" stroke="#000" strokeWidth={1} strokeOpacity={o} {...SOFT} strokeLinecap="round" />;
+    };
     return (
       <g>
         <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...line} />
         <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
+        {/* The sleeve's hem at the elbow on a short sleeve; the cloth bunching at the elbow on a long one. */}
+        {!longSleeve && <path d={capsule(lerp(sh, el, 0.86), el, 0.042, 0.04)} fill={darken(sleeve, 0.18)} opacity={0.85} />}
+        {crease(lerp(sh, el, 0.72), up, 0.04, 0.008, 0.12)}
         <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} {...line} />
-        {forearm !== wear.skin && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />}
-        {jacket && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.037, 0.035)} fill={band} opacity={0.95} />}
+        {longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />}
+        {longSleeve && crease(lerp(el, t, 0.12), fore, 0.036, -0.007, 0.12)}
+        {longSleeve && crease(lerp(el, t, 0.24), fore, 0.034, 0.006, 0.1)}
+        {longSleeve && <path d={capsule(lerp(el, t, 0.85), lerp(el, t, 0.98), 0.033, 0.031)} fill={darken(forearm, 0.18)} opacity={0.9} />}
+        {!longSleeve && <ellipse cx={el[0]} cy={el[1]} rx={0.02} ry={0.022} fill="url(#ps-sphere)" opacity={0.4} />}
+        {!longSleeve && <path d={`M${P(add(lerp(el, t, 0.2), mul(perp(fore), bend * 0.008)))} L${P(add(lerp(el, t, 0.85), mul(perp(fore), bend * 0.006)))}`} stroke="#fff" strokeWidth={1.2} strokeOpacity={0.1} fill="none" {...SOFT} />}
+        {jacket && <path d={capsule(lerp(el, t, 0.5), lerp(el, t, 0.66), 0.037, 0.035)} fill="#8a9399" opacity={0.95} />}
+        {jacket && <path d={capsule(lerp(el, t, 0.52), lerp(el, t, 0.64), 0.037, 0.035)} fill={band} opacity={0.95} />}
+        {hand === "left" && !jacket && (
+          <g>
+            <path d={capsule(lerp(el, t, 0.88), lerp(el, t, 0.94), 0.032, 0.031)} fill="#1b1b1b" opacity={0.9} />
+            <circle cx={add(lerp(el, t, 0.91), mul(perp(fore), -0.012))[0]} cy={add(lerp(el, t, 0.91), mul(perp(fore), -0.012))[1]} r={0.013} fill="#2b3139" stroke="#c9ced3" strokeWidth={0.8} {...SOFT} />
+          </g>
+        )}
         <Glove wrist={t} dir={sub(t, el)} colour={glove} hand={hand} />
       </g>
     );
@@ -182,20 +222,31 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, c
       {kneeling && [-1, 1].map((side) => {
         const heel = axis(-0.26, side * 0.12);
         const toe = axis(-0.4, side * 0.135);
+        const dir = unit(sub(toe, heel));
         return (
-          <g key={side} opacity={0.9}>
+          <g key={side} opacity={0.92}>
             <path d={capsule(heel, toe, 0.045, 0.04)} fill="#121518" {...line} />
             <path d={capsule(lerp(heel, toe, 0.25), lerp(heel, toe, 0.85), 0.028, 0.025)} fill="#30353b" />
+            {/* The tread of the sole and the heel block. */}
+            {[0.3, 0.42, 0.54, 0.66, 0.78].map((u) => { const c = lerp(heel, toe, u); const n = perp(dir); return <path key={u} d={`M${P(add(c, mul(n, 0.024)))} L${P(add(c, mul(n, -0.024)))}`} stroke="#121518" strokeWidth={0.8} fill="none" {...SOFT} />; })}
+            <path d={`M${P(add(lerp(heel, toe, 0.18), mul(perp(dir), 0.04)))} L${P(add(lerp(heel, toe, 0.18), mul(perp(dir), -0.04)))}`} stroke="#4a5057" strokeWidth={1} fill="none" {...SOFT} />
           </g>
         );
       })}
       <path d={back} fill={jacket ?? wear.uniform} {...line} />
-      {jacket && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke={band} strokeWidth={0.04} />}
+      {/* The seam down the back, the belt with its pouch where the back slopes away. */}
+      <path d={`M${P(axis(-0.05, 0))} L${P(axis(-0.2, 0))}`} stroke={darken(jacket ?? wear.uniform, 0.3)} strokeWidth={0.7} strokeOpacity={0.45} fill="none" {...SOFT} />
+      {!jacket && <path d={capsule(axis(-0.185, -0.13), axis(-0.185, 0.13), 0.012, 0.012)} fill="#2b241f" {...lineSoft} />}
+      {!jacket && <rect x={axis(-0.185, 0.09)[0] - 0.02} y={axis(-0.185, 0.09)[1] - 0.016} width={0.04} height={0.032} rx={0.004} fill="#15191c" {...lineSoft} transform={`rotate(${n2(ang + 90)} ${P(axis(-0.185, 0.09))})`} />}
+      {jacket && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke="#8a9399" strokeWidth={0.046} />}
+      {jacket && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke={band} strokeWidth={0.03} />}
       {wear.hat === "fire_helmet" && <path d={`M${P(axis(-0.12, -0.19))} L${P(axis(-0.12, 0.19))}`} stroke="#d8cf5a" strokeWidth={0.035} />}
       <path d={back} fill={`url(#${slope})`} />
-      {/* Shoulders: the jacket's yoke, or the shirt. */}
+      {/* Shoulders: the jacket's yoke, or the shirt; the collar standing behind the head. */}
       <path d={capsule(shL, shR, 0.1, 0.1)} fill={wear.yoke} {...line} />
       <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-round-v)" opacity={0.4} />
+      <path d={capsule(axis(0.0, -0.085), axis(0.0, 0.085), 0.016, 0.016)} fill={darken(wear.yoke, 0.2)} {...lineSoft} />
+      <path d={capsule(axis(-0.004, -0.08), axis(-0.004, 0.08), 0.008, 0.008)} fill={darken(wear.yoke, 0.35)} opacity={0.8} />
       {jacket && <path d={`M${P(axis(-0.02, -0.11))} L${P(axis(-0.02, 0.11))}`} stroke={band} strokeWidth={0.035} opacity={0.9} />}
       {wear.hat !== "fire_helmet" && slide(shL, -1)}
       {wear.hat !== "fire_helmet" && slide(shR, 1)}

@@ -542,8 +542,8 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
       <rect x={L + 0.007} y={T + 0.007} width={W - 0.014} height={H - 0.014} rx={0.02} fill="none" stroke="#6a7178" strokeWidth={0.6} strokeOpacity={0.5} {...SW} />
       {/* Screen */}
       <rect x={sl} y={st} width={sw} height={sh} rx={0.006} fill="url(#pk-screen)" stroke="#05080b" strokeWidth={1} {...SW} />
-      <g stroke="#2a3a2a" strokeWidth={0.4} {...SW} opacity={0.5}>
-        {[0.25, 0.5, 0.75].map((t) => <path key={t} d={`M${n2(sl)} ${n2(st + sh * t)} H${n2(sl + sw)}`} />)}
+      <g stroke="#2a3a2a" strokeWidth={0.4} opacity={0.5}>
+        {[0.25, 0.5, 0.75].map((t) => <path key={t} d={`M${n2(sl)} ${n2(st + sh * t)} H${n2(sl + sw)}`} {...SW} />)}
       </g>
       <path d={tr.ecg} fill="none" stroke={arrest ? "#4ddc7a" : "#3ad17f"} strokeWidth={1.1} {...SW} />
       <path d={tr.pleth} fill="none" stroke="#39c6ea" strokeWidth={1} {...SW} />
