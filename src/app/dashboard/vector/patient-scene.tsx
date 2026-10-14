@@ -182,7 +182,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   const framing = spec.framing ?? (legsMatter ? "full" : "upper");
   const sRaw = spec.extent ? (H - 28) / (spec.extent[1] - spec.extent[0]) : framing === "full" ? 254 / (r.bottom + 0.12) : 254 / (Math.max(r.legR.b[1], r.legL.b[1]) + 0.06);
   const s = Math.max(100, Math.min(262, sRaw));
-  const ox = W / 2 + (spec.crew === "car" ? 70 : spec.crew === "ledge" ? 40 : 0);
+  const ox = W / 2 - (spec.centreX ?? 0) * s + (spec.crew === "car" ? 70 : spec.crew === "ledge" ? 40 : 0);
   const oy = spec.extent ? 14 - spec.extent[0] * s : 56;
   const px = (p: Pt): Pt => [ox + p[0] * s, oy + p[1] * s];
 
@@ -238,6 +238,20 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
       if (!slots.includes(rightSide)) { slots.push(rightSide); return; }
       if (!slots.includes(leftSide) && !slots.includes(compressor)) { slots.push(leftSide); return; }
       slots.push(headEnd);
+    });
+  } else if (arrangement === "saloon") {
+    // In the back of the ambulance the stretcher is against the nearside
+    // wall: the crew work from the offside and the head end only.
+    const attendant: Slot = { at: [0.1, -(r.headL + 0.3)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
+    const side: Slot = { at: [r.chestW + 0.42, r.chestY + 0.12], facing: [-1, 0], kneeling: false, hands: { left: [A.leftWrist[0] + 0.02, A.leftWrist[1]], right: [A.leftUpperChest[0] + 0.06, A.leftUpperChest[1] - 0.02] } };
+    const foot: Slot = { at: [r.chestW + 0.42, r.hipY + 0.5], facing: [-1, 0], kneeling: false, hands: { left: [A.leftKnee[0] + 0.03, A.leftKnee[1] - 0.06], right: [A.leftThigh[0] + 0.05, A.leftThigh[1]] } };
+    const compressor: Slot = { ...side, hands: cprHands, armsClass: "ps-arms cpr", grip: "cpr" };
+    crew.slice(0, 3).forEach((c, i) => {
+      if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
+      if (needsAirway && !slots.includes(attendant)) { slots.push(attendant); return; }
+      if (!slots.includes(side) && !slots.includes(compressor)) { slots.push(side); return; }
+      if (!slots.includes(foot)) { slots.push(foot); return; }
+      slots.push(attendant);
     });
   } else if (arrangement === "car") {
     const door: Slot = { at: [-(r.chestW + 0.5), r.chestY + 0.15], facing: [1, 0], kneeling: false, hands: { right: [A.rightWrist[0] - 0.02, A.rightWrist[1] - 0.02], left: [A.rightUpperChest[0] - 0.05, A.rightUpperChest[1]] } };

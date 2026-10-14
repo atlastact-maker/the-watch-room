@@ -30,7 +30,7 @@ export type GroundCtx = {
   label: string;
 };
 
-export type CrewArrangement = "sides" | "bedside" | "car" | "water" | "ledge";
+export type CrewArrangement = "sides" | "bedside" | "saloon" | "car" | "water" | "ledge";
 
 export type GroundSpec = {
   ground: (c: GroundCtx) => ReactNode;
@@ -50,6 +50,8 @@ export type GroundSpec = {
   o2?: Pt;
   /** The stretch of ground, top to bottom in metres from the crown, the picture should take in. */
   extent?: [number, number];
+  /** Where the picture is centred across, in metres from the patient's midline (the patient is not always in the middle of the place). */
+  centreX?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -568,22 +570,65 @@ const TrolleyStraps = ({ x, y, r }: { x: number; y: number; r: Rig }) => {
   );
 };
 
+/** The back of a UK ambulance from above, the way the box bodies are laid
+ *  out: the stretcher locked to the nearside (the left, looking forward)
+ *  with the lockers along that wall and the side door forward of them; the
+ *  attendant's seat at the head of the stretcher against the bulkhead, with
+ *  the window through to the cab; the offside clear for the crew to work
+ *  from, with the bench seat and its belts along the wall, the cupboards
+ *  fore and aft, the sharps bin and the response bag on the shelf; the
+ *  yellow floor edging and grab rails; the tail lift and the open rear
+ *  doors. The patient's crown is the origin, head towards the cab. */
 const AmbulanceSaloon = ({ outside }: { outside: ReactNode }) => (
   <g>
     <Base fill="#8f949a" />
     <rect x={-4} y={2.45} width={8} height={4} fill="#5f6468" />
     <g clipPath="url(#pg-doors-clip)">{outside}</g>
-    <rect x={-1.1} y={-3} width={2.2} height={5.45} fill={FILL("pg-lino-grey")} />
-    <rect x={-1.1} y={-3} width={0.04} height={5.45} fill="#f3d35a" />
-    <rect x={1.06} y={-3} width={0.04} height={5.45} fill="#f3d35a" />
-    <rect x={-1.6} y={-3} width={0.5} height={5.45} fill="#e9e4da" {...line} />
-    {[-1.2, -0.4, 0.4, 1.2].map((y) => <rect key={y} x={-1.56} y={y} width={0.42} height={0.7} rx={0.02} fill="#dfe8ef" {...lineSoft} />)}
-    <rect x={-1.5} y={0.5} width={0.3} height={0.4} rx={0.02} fill="#3b4148" {...lineSoft} />
-    <rect x={1.1} y={-3} width={0.5} height={5.45} fill="#2f5c8a" {...line} />
-    {[-1.0, -0.3, 0.4].map((y) => <rect key={y} x={1.14} y={y} width={0.42} height={0.62} rx={0.06} fill="#3a6fa5" {...lineSoft} />)}
-    <rect x={-1.1} y={2.4} width={2.2} height={0.08} fill="#f3d35a" />
-    <rect x={-1.1} y={2.42} width={0.06} height={1.5} fill="#f4f4f0" {...line} transform="rotate(-40 -1.1 2.42)" />
-    <rect x={1.04} y={2.42} width={0.06} height={1.5} fill="#f4f4f0" {...line} transform="rotate(40 1.1 2.42)" />
+    {/* The body shell. */}
+    <rect x={-1.05} y={-2.0} width={3.3} height={4.47} rx={0.06} fill="#3b4148" {...line} />
+    {/* The floor with its yellow edging. */}
+    <rect x={-0.55} y={-1.45} width={2.3} height={3.9} fill={FILL("pg-lino-grey")} />
+    <rect x={-0.55} y={-1.45} width={0.035} height={3.9} fill="#f3d35a" />
+    <rect x={1.715} y={-1.45} width={0.035} height={3.9} fill="#f3d35a" />
+    {/* The stretcher's floor track, where the Stryker locks on. */}
+    <rect x={-0.06} y={-1.25} width={0.12} height={3.5} rx={0.03} fill="#2b3035" {...lineSoft} />
+    {/* The bulkhead and the window through to the cab. */}
+    <rect x={-1.0} y={-1.95} width={3.2} height={0.5} fill="#5a6066" {...line} />
+    <rect x={0.2} y={-1.86} width={1.0} height={0.32} rx={0.03} fill="#2b3a4a" {...lineSoft} />
+    <rect x={0.24} y={-1.83} width={0.92} height={0.26} rx={0.02} fill="#9fc4dd" opacity={0.55} />
+    {/* The attendant's seat at the head of the stretcher, facing the patient. */}
+    <CarSeat x={0.0} y={-0.8} w={0.5} colour="#2f5c8a" />
+    {/* Nearside: the lockers along the wall and the side door forward. */}
+    <rect x={-1.0} y={-1.45} width={0.45} height={3.9} fill="#e9e4da" {...line} />
+    <rect x={-1.0} y={-1.35} width={0.45} height={0.95} fill="#6b7278" {...lineSoft} />
+    <rect x={-0.96} y={-1.3} width={0.37} height={0.85} rx={0.02} fill="#8f949a" />
+    <path d={`M-0.59 -1.3 V-0.45`} stroke="#f3d35a" strokeWidth={0.03} />
+    {[-0.3, 0.5, 1.3].map((y) => <rect key={y} x={-0.96} y={y} width={0.37} height={0.7} rx={0.02} fill="#dfe8ef" {...lineSoft} />)}
+    {[-0.3, 0.5, 1.3].map((y) => <rect key={y} x={-0.66} y={y + 0.25} width={0.04} height={0.2} rx={0.01} fill="#9aa0a6" />)}
+    {/* Offside: the bench seat with its belts, the cupboards, the shelf with the bag and the sharps bin. */}
+    <rect x={1.75} y={-1.45} width={0.45} height={3.9} fill="#e9e4da" {...line} />
+    <rect x={1.78} y={-1.35} width={0.39} height={0.75} rx={0.02} fill="#dfe8ef" {...lineSoft} />
+    {[1.3, 1.85].map((y) => <rect key={y} x={1.78} y={y} width={0.39} height={0.5} rx={0.02} fill="#dfe8ef" {...lineSoft} />)}
+    <rect x={1.3} y={-0.5} width={0.44} height={1.7} rx={0.05} fill="#2f5c8a" {...line} />
+    {[-0.42, 0.16, 0.74].map((y) => (
+      <g key={y}>
+        <rect x={1.34} y={y} width={0.36} height={0.5} rx={0.06} fill="#3a6fa5" {...lineSoft} />
+        <path d={`M1.36 ${n2(y + 0.08)} L1.68 ${n2(y + 0.42)}`} stroke="#1b2733" strokeWidth={0.03} strokeLinecap="round" />
+        <rect x={1.5} y={y + 0.22} width={0.06} height={0.07} rx={0.01} fill="#9aa0a6" />
+      </g>
+    ))}
+    <rect x={1.32} y={-1.3} width={0.38} height={0.62} rx={0.04} fill="#2f7a4f" {...line} />
+    <rect x={1.36} y={-1.24} width={0.3} height={0.5} rx={0.03} fill="url(#ps-round)" opacity={0.5} />
+    <rect x={1.42} y={-1.0} width={0.18} height={0.04} fill="#cfd4d8" opacity={0.9} />
+    <rect x={1.38} y={1.5} width={0.28} height={0.28} rx={0.03} fill="#f3d35a" {...lineSoft} />
+    <rect x={1.42} y={1.54} width={0.2} height={0.08} rx={0.01} fill="#1b2733" opacity={0.8} />
+    {/* The rear: the threshold, the tail lift, the doors swung open. */}
+    <rect x={-0.55} y={2.4} width={2.3} height={0.08} fill="#f3d35a" />
+    <rect x={-0.45} y={2.48} width={2.1} height={0.62} rx={0.02} fill="#4a5056" {...line} />
+    <rect x={-0.45} y={2.48} width={2.1} height={0.62} rx={0.02} fill="url(#ps-round-v)" opacity={0.45} />
+    {[0.2, 0.4, 0.6, 0.8].map((t) => <path key={t} d={`M${n2(-0.45 + 2.1 * t)} 2.52 V3.06`} stroke="#5f666d" strokeWidth={0.6} {...SOFT} />)}
+    <rect x={-0.61} y={2.42} width={0.06} height={1.4} fill="#f4f4f0" {...line} transform="rotate(-40 -0.55 2.42)" />
+    <rect x={1.75} y={2.42} width={0.06} height={1.4} fill="#f4f4f0" {...line} transform="rotate(40 1.75 2.42)" />
   </g>
 );
 
@@ -1217,55 +1262,59 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
   },
   ambulance_street: {
     outdoor: false,
-    crew: "bedside",
+    crew: "saloon",
     lying: "reclined",
     framing: "full",
     ground: () => <AmbulanceSaloon outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-paving")} /><Kerb x={-0.5} side={1} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
-    monitor: [-1.0, 0.9],
-    bag: [0.95, 1.6],
-    o2: [-0.9, -0.6],
-    extent: [-0.5, 2.0],
+    monitor: [1.05, 1.55],
+    bag: [1.2, 2.12],
+    o2: [1.5, -0.6],
+    extent: [-0.42, 1.72],
+    centreX: 0.55,
   },
   ambulance_motorway: {
     outdoor: false,
-    crew: "bedside",
+    crew: "saloon",
     lying: "reclined",
     framing: "full",
     ground: () => <AmbulanceSaloon outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-tarmac")} /><rect x={-4} y={3.1} width={8} height={0.14} fill="#f4f4f0" opacity={0.9} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
-    monitor: [-1.0, 0.9],
-    bag: [0.95, 1.6],
-    o2: [-0.9, -0.6],
-    extent: [-0.5, 2.0],
+    monitor: [1.05, 1.55],
+    bag: [1.2, 2.12],
+    o2: [1.5, -0.6],
+    extent: [-0.42, 1.72],
+    centreX: 0.55,
   },
   ambulance_river: {
     outdoor: false,
-    crew: "bedside",
+    crew: "saloon",
     lying: "reclined",
     framing: "full",
     ground: () => <AmbulanceSaloon outside={<g><rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} /><rect x={-4} y={3.3} width={8} height={2} fill={FILL("pg-water")} /></g>} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
-    monitor: [-1.0, 0.9],
-    bag: [0.95, 1.6],
-    o2: [-0.9, -0.6],
-    extent: [-0.5, 2.0],
+    monitor: [1.05, 1.55],
+    bag: [1.2, 2.12],
+    o2: [1.5, -0.6],
+    extent: [-0.42, 1.72],
+    centreX: 0.55,
   },
   ambulance_field: {
     outdoor: false,
-    crew: "bedside",
+    crew: "saloon",
     lying: "reclined",
     framing: "full",
     ground: () => <AmbulanceSaloon outside={<rect x={-4} y={2.4} width={8} height={3} fill={FILL("pg-grass-wild")} />} />,
     under: () => <Trolley x={0} y={0} />,
     over: (c) => <TrolleyStraps x={0} y={0} r={c.r} />,
-    monitor: [-1.0, 0.9],
-    bag: [0.95, 1.6],
-    o2: [-0.9, -0.6],
-    extent: [-0.5, 2.0],
+    monitor: [1.05, 1.55],
+    bag: [1.2, 2.12],
+    o2: [1.5, -0.6],
+    extent: [-0.42, 1.72],
+    centreX: 0.55,
   },
 };
 
@@ -1273,7 +1322,7 @@ export const GROUNDS: Record<SceneSetting, GroundSpec> = {
 export function GroundClips() {
   return (
     <clipPath id="pg-doors-clip">
-      <rect x={-1.1} y={2.4} width={2.2} height={4} />
+      <rect x={-0.55} y={2.4} width={2.3} height={4} />
     </clipPath>
   );
 }
