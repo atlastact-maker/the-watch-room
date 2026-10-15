@@ -36,6 +36,7 @@ import {
 } from "./dispatch-tiles";
 import { CallScreen, type CallSummary } from "./call-screen";
 import { MobScreen } from "./mob-screen";
+import { ResourcesScreen } from "./resources-screen";
 import type { DeskModel } from "./desk-model";
 import type { TileId, TileLayout } from "./tile";
 import { SERVICE_SHORT, etaLabel } from "./model";
@@ -105,6 +106,10 @@ export function VectorDesk(props: {
   onPlaceUnit: (applianceId: string) => void;
   onFillRemaining: () => void;
   onSendStandby: (id: string) => void;
+  onMoveToStandby: (applianceId: string, stationId: string) => void;
+  onRecallStandby: (applianceId: string) => void;
+  /** This shift's cover record, for the Resources screen. */
+  coverStats: { moves: number; gapMinutes: number };
   onOpenBays: (stationId: string) => void;
   tiles: TilesState;
   setTiles: (next: TilesState | ((t: TilesState) => TilesState)) => void;
@@ -173,6 +178,7 @@ export function VectorDesk(props: {
     { id: "dispatch" as const, label: "Dispatch" },
     { id: "call" as const, label: "Calls", badge: waiting ? String(waiting) : undefined },
     { id: "mob" as const, label: "Mobilising", disabled: !hasIncident, title: hasIncident ? undefined : "Select or open an incident first" },
+    { id: "resources" as const, label: "Resources", badge: model.resources.gaps.length ? String(model.resources.gaps.length) : undefined, title: "Every type counted, every bay, and the cover moves" },
     {
       id: "ground" as const,
       label: "Ground",
@@ -376,6 +382,20 @@ export function VectorDesk(props: {
           onOpenBays={props.onOpenBays}
           onTrack={() => props.onScreen("dispatch")}
           units={props.mobUnits}
+        />
+      )}
+
+      {screen === "resources" && (
+        <ResourcesScreen
+          picture={model.resources}
+          now={props.now}
+          covered={props.coveredServices}
+          stats={props.coverStats}
+          onSendStandby={props.onSendStandby}
+          onMoveToStandby={props.onMoveToStandby}
+          onRecallStandby={props.onRecallStandby}
+          onPick={props.onPickAppliance}
+          onOpenBays={props.onOpenBays}
         />
       )}
 

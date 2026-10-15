@@ -13,6 +13,8 @@ import {
 import { CALL_CHANNELS, CHANNEL_LABEL, type CallChannel } from "@/lib/sim/incident_types";
 import { INTENSITY_META, rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
 import { ResourcingBrief } from "./resourcing-brief";
+import { getStationAppliances } from "@/lib/sim/data";
+import { shiftForHour } from "@/lib/sim/police-callsigns";
 import { timeBandForHour } from "@/lib/sim/weather";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import type { StationWithAppliances } from "../page";
@@ -46,12 +48,12 @@ type Props = {
 
 const INTENSITY_ORDER: ShiftIntensity[] = ["quiet", "normal", "busy"];
 
-type Roll = { states: Record<string, PreShiftState>; at: number };
+type Roll = { states: Record<string, PreShiftState>; at: number; stations: StationWithAppliances[] };
 
 /** The roll for the resourcing page, stamped with when it was made. */
-function makeRoll(appliances: StationWithAppliances["appliances"], intensity: ShiftIntensity): Roll {
+function makeRoll(stations: StationWithAppliances[], intensity: ShiftIntensity): Roll {
   const at = Date.now();
-  return { states: rollPreShiftStates(appliances, intensity, at), at };
+  return { states: rollPreShiftStates(stations.flatMap((s) => s.appliances), intensity, at), at, stations };
 }
 
 /** The committed units' return times count from the moment the shift
@@ -169,7 +171,11 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   const hints = hintsForHour(startHour);
 
   function toResourcing() {
-    setRoll(makeRoll(stationsForPatch.flatMap((s) => s.appliances), intensity));
+    // The police relief on at the start hour: a GMP callsign carries the
+    // turn, so the roll must be over the ids the shift will actually run.
+    const relief = shiftForHour(startHour);
+    const stations = stationsForPatch.map((s) => (s.service === "Police" ? { ...s, appliances: getStationAppliances(s.id, relief) } : s));
+    setRoll(makeRoll(stations, intensity));
     setStep("resourcing");
   }
   function begin() {
@@ -180,7 +186,7 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   if (step === "resourcing" && roll) {
     return (
       <ResourcingBrief
-        stations={stationsForPatch}
+        stations={roll.stations}
         intensity={intensity}
         startHour={startHour}
         covered={covered}

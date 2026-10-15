@@ -5907,3 +5907,45 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .fp-key i.cas { border-radius: 50%; background: #ffb020; }
 @keyframes fp-flicker { 50% { opacity: 0.08; } }
 @keyframes fp-pulse { 50% { stroke-opacity: 0.35; } }
+
+/* --------------------------------------------------------------------------
+   Resources screen, and the pre-shift resourcing page in the same CAD
+   -------------------------------------------------------------------------- */
+.vec-res-strip { flex-shrink: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); border-bottom: 1px solid var(--vec-border); background: var(--vec-surface); }
+.vec-res-strip .svc { padding: 8px 12px; border-right: 1px solid var(--vec-border); border-top: 3px solid var(--vec-border); min-width: 0; }
+.vec-res-strip .svc:last-child { border-right: 0; }
+.vec-res-strip .svc.fire { border-top-color: #b3261e; }
+.vec-res-strip .svc.amb { border-top-color: #197a4b; }
+.vec-res-strip .svc.pol { border-top-color: #1b4d8f; }
+.vec-res-strip .svc.gaps { border-top-color: var(--vec-border-strong); background: var(--vec-surface-raised); }
+.vec-res-strip .vec-v.big small { font-size: 13px; color: var(--vec-text-muted); font-weight: 400; margin-left: 2px; }
+.vec-res-strip .vec-v.big.stop { color: var(--vec-stop); }
+.vec-res-strip .vec-v.big.go { color: var(--vec-go); }
+.vec-res-strip .vec-small .go { color: var(--vec-go); }
+.vec-res-strip .vec-small .warn { color: var(--vec-warn); }
+.vec-res-strip .vec-small .stop { color: var(--vec-stop); }
+.vec-res-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 440px minmax(0, 1fr) 360px; gap: 10px; padding: 10px; }
+.vec-res-body.brief { grid-template-columns: 480px minmax(0, 1fr); }
+.vec-res-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.vec-res-side .vec-box { flex: 1; min-height: 0; }
+.vec-res-table td { padding: 5px 8px; border-bottom: 1px solid var(--vec-border-subtle); vertical-align: top; font-size: 11px; }
+.vec-res-table td .dim { font-size: 10px; color: var(--vec-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.vec-bay .note.stop.cover { font-weight: 700; }
+.vec-res-table td.mono, .vec-res-table th:not(:first-child) { text-align: right; font-family: var(--vec-mono); }
+.vec-res-table tr.none td { background: var(--vec-stop-tint); }
+.vec-res-table tr.thin td { background: var(--vec-warn-tint); }
+.vec-res-table .go { color: var(--vec-go); font-weight: 700; }
+.vec-res-table .warn { color: var(--vec-warn); font-weight: 700; }
+.vec-res-table .stop { color: var(--vec-stop); font-weight: 700; }
+.vec-res-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.vec-res-form label { display: flex; flex-direction: column; gap: 4px; }
+.vec-res-form select.vec-btn { width: 100%; text-align: left; }
+.vec-link { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; }
+.vec-bay .unit.standby { border-color: var(--vec-work); color: var(--vec-work); background: var(--vec-surface-tint); text-decoration: line-through; }
+.vec-bay .unit.visitor { border-style: dashed; border-color: var(--vec-work); color: var(--vec-work); background: var(--vec-surface-tint); }
+.vec-bay .unit.visitor.moving { opacity: 0.6; }
+.vec-bay .note.warn { color: var(--vec-warn); }
+.vec-bay .note.stop { color: var(--vec-stop); }
+.vec-brief .vec-screen-head .vec-btn { margin-left: 6px; }
+.vec-brief .vec-bays .unit { cursor: default; }
+.vec-brief .vec-bays .unit.out { text-decoration: none; }

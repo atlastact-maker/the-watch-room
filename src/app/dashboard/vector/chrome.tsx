@@ -12,7 +12,7 @@ import { shiftForHour } from "@/lib/sim/police-callsigns";
 import type { Severity } from "@/lib/sim/incident_types";
 import { CopyButton } from "./copy-button";
 
-export type VectorScreen = "dispatch" | "call" | "mob" | "ground";
+export type VectorScreen = "dispatch" | "call" | "mob" | "ground" | "resources";
 
 export type MenuItem =
   | { sep: true }

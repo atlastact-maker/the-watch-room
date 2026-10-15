@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -285,6 +285,18 @@ type Props = {
   /** Subject vehicles on the patch and the units holding points for them. */
   subjects?: SubjectView[];
   holdingUnits?: HoldingUnit[];
+  /** Units on cover moves: on the road to a standby point, holding at it, or on the way home. */
+  standbyUnits?: {
+    applianceId: string;
+    callsign: string;
+    service: ServiceCode;
+    type?: ApplianceTypeCode;
+    coords: { lat: number; lng: number };
+    phase: "moving" | "standing" | "returning";
+    label: string;
+    routeCoords?: [number, number][];
+    selected?: boolean;
+  }[];
   now?: number;
 };
 
@@ -294,6 +306,7 @@ export function LeafletMap({
   deployments,
   patrols,
   patrolRoutes,
+  standbyUnits,
   filter,
   patch,
   onSelectAppliance,
@@ -377,6 +390,7 @@ export function LeafletMap({
         deployments={deployments}
         patrols={patrols}
         patrolRoutes={patrolRoutes}
+        standbyUnits={standbyUnits}
         filter={filter}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
@@ -403,6 +417,7 @@ export function PatchLayers({
   deployments,
   patrols,
   patrolRoutes,
+  standbyUnits,
   filter,
   patch,
   onSelectAppliance,
@@ -753,6 +768,38 @@ export function PatchLayers({
           </Tooltip>
         </Marker>
       ))}
+
+      {/* Cover moves: on the road to a standby point, holding at it, or on the way home. */}
+      {(standbyUnits ?? []).filter((u) => shown(u.service)).map((u) => {
+        const sm = serviceMarker(u.service, u.type);
+        return (
+          <Fragment key={`standby-${u.applianceId}`}>
+            {u.routeCoords && u.routeCoords.length >= 2 && (
+              <Polyline positions={u.routeCoords} pathOptions={{ color: "#1b4d8f", weight: 2, opacity: 0.45, dashArray: "4 6" }} interactive={false} />
+            )}
+            <Marker
+              position={[u.coords.lat, u.coords.lng]}
+              icon={chipIcon({
+                callsign: u.callsign,
+                status: "available",
+                serviceColour: sm.colour,
+                resourceCode: sm.code,
+                zoom,
+                subtitle: `${u.phase === "moving" ? "TO STANDBY" : u.phase === "returning" ? "RETURNING" : "STANDBY"} · ${u.label.toUpperCase()}`,
+                selected: u.selected,
+              })}
+              eventHandlers={{ click: () => onSelectAppliance?.(u.applianceId) }}
+              zIndexOffset={u.selected ? 400 : 120}
+            >
+              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                <span className="font-mono text-[11px]">
+                  {u.callsign} — {u.phase === "moving" ? "moving to stand by at" : u.phase === "returning" ? "returning to station from" : "standing by at"} {u.label}
+                </span>
+              </Tooltip>
+            </Marker>
+          </Fragment>
+        );
+      })}
 
       {/* Stations */}
       {(filter?.stations ?? true) &&

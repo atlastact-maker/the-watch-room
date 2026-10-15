@@ -20,6 +20,8 @@ import type { CallRow, CoverRow, HospitalRow, IncidentDetail, IncidentRow, PdaRo
 import type { BayRow, MobHead, TurnoutRow } from "./mob-screen";
 import { gradeShort, impliedGrade, incidentRef, scenarioService, shortAddress, typeChip, waitState } from "./model";
 import { openingCodeLabel } from "@/lib/sim/opening_codes";
+import { standbyPosition, type StandbyMove } from "@/lib/sim/standby";
+import { buildResourcePicture } from "./resources-model";
 
 export type RuntimeLike = {
   outcome: IncidentOutcome | null;
@@ -41,7 +43,10 @@ export type DeskInput = {
   pendingCalls: PendingCall[];
   log: LogEntry[];
   coveredServices: ServiceCode[];
-  standbySent: Record<string, boolean>;
+  /** Cover moves under way, by appliance. */
+  standbyMoves: Record<string, StandbyMove>;
+  /** When each empty station emptied, as the desk has been counting. */
+  coverSince: Record<string, number>;
   commandOptionsFor: (incidentId: string) => { applianceId: string; callsign: string; typeName: string; advice?: string; comfortable?: boolean }[];
   /** Attendance slots added by assistance messages, by incident. */
   extraSlots?: Record<string, PdaSlot[]>;
@@ -60,7 +65,7 @@ function isFree(a: Appliance): boolean {
 }
 
 export function useDeskModel(input: DeskInput) {
-  const { incidents, selectedIncidentId, runtimes, deployments, applianceById, stations, etas, now, pendingCalls, log, coveredServices, standbySent, commandOptionsFor, extraSlots } = input;
+  const { incidents, selectedIncidentId, runtimes, deployments, applianceById, stations, etas, now, pendingCalls, log, coveredServices, standbyMoves, coverSince, commandOptionsFor, extraSlots } = input;
 
   const stationById = useMemo(() => new Map(stations.map((s) => [s.id, s])), [stations]);
   const stationOf = (a: Appliance) => stationById.get(a.stationId);
@@ -196,6 +201,9 @@ export function useDeskModel(input: DeskInput) {
     if (st.service !== "Fire") continue;
     areaFree[st.area] = (areaFree[st.area] ?? 0) + st.appliances.filter((a) => PUMP_TYPES.includes(a.type) && isFree(a) && !deployments.some((d) => d.applianceId === a.id)).length;
   }
+  /* ---- the county's resources, counted ---- */
+  const resources = buildResourcePicture({ stations, deployments, standbyMoves, now, coverSince, positionOf: (m) => standbyPosition(m, now) });
+
   const cards: ResourceCard[] = [];
   for (const st of stations) {
     const stationFreePumps = st.appliances.filter((a) => PUMP_TYPES.includes(a.type) && isFree(a) && !deployments.some((d) => d.applianceId === a.id)).length;
@@ -216,9 +224,11 @@ export function useDeskModel(input: DeskInput) {
         const slot = unfilledSlots.find((s) => s.requiredApplianceTypes.includes(a.type));
         fit = slot ? `Fills ${slot.label}` : unfilledSlots.length ? "Nothing outstanding needs this type — extra attendance" : "Attendance complete — extra attendance";
       }
-      const eta = etas[st.id];
+      // A unit on a cover move is priced from where it stands, not its station.
+      const standingAt = resources.positions[a.id];
+      const eta = standingAt ? etas[`sb:${a.id}`] : etas[st.id];
       // Before the router answers, a crow-fly estimate — flagged as such.
-      const baseSec = eta ? eta.seconds : selected ? (haversineMeters(st.coords, selected.scenario.location.coords) * 1.3) / 13.4 * 0.65 : null;
+      const baseSec = eta ? eta.seconds : selected ? (haversineMeters(standingAt ?? st.coords, selected.scenario.location.coords) * 1.3) / 13.4 * 0.65 : null;
       const etaSec = baseSec !== null ? Math.round(rescaleBlueLightSeconds(baseSec, a.type)) : null;
       const pump = PUMP_TYPES.includes(a.type);
       const cost: ResourceCard["cost"] =
@@ -277,39 +287,8 @@ export function useDeskModel(input: DeskInput) {
     });
   }
 
-  /* ---- standby moves ---- */
-  const standby: StandbyRow[] = [];
-  for (const st of stations) {
-    if (st.service !== "Fire") continue;
-    const pumps = st.appliances.filter((a) => PUMP_TYPES.includes(a.type));
-    if (pumps.length === 0) continue;
-    const inBay = pumps.filter((a) => isFree(a) && !deployments.some((d) => d.applianceId === a.id));
-    if (inBay.length > 0) continue;
-    const donors = stations
-      .filter((s) => s.service === "Fire" && s.id !== st.id)
-      .map((s) => ({
-        s,
-        free: s.appliances.filter((a) => PUMP_TYPES.includes(a.type) && isFree(a) && !deployments.some((d) => d.applianceId === a.id)),
-        dist: haversineMeters(s.coords, st.coords),
-      }))
-      .filter((d) => d.free.length >= 2)
-      .sort((a, b) => a.dist - b.dist);
-    const donor = donors[0];
-    if (!donor) continue;
-    const unit = donor.free[donor.free.length - 1];
-    const id = `${unit.id}->${st.id}`;
-    const committed = pumps.map((a) => a.callsign).join(" and ");
-    standby.push({
-      id,
-      callsign: unit.callsign,
-      from: donor.s.name,
-      to: st.name,
-      travel: `${Math.max(2, Math.round(donor.dist / 1000 / 40 * 60))}m`,
-      reason: `Covers ${st.name} while ${committed} ${pumps.length === 1 ? "is" : "are"} committed`,
-      sent: !!standbySent[id],
-    });
-    if (standby.length >= 4) break;
-  }
+  /* ---- standby moves: the board's suggestions, as rows ---- */
+  const standby: StandbyRow[] = resources.suggestions.map((r) => ({ id: r.id, callsign: r.callsign, from: r.from, to: r.to, travel: r.travel, reason: r.reason, sent: false }));
 
   /* ---- hospitals ---- */
   const origin = selected ? selected.scenario.location.coords : { lat: 53.48, lng: -2.24 };
@@ -363,19 +342,7 @@ export function useDeskModel(input: DeskInput) {
           };
         })
     : [];
-  const bays: BayRow[] = stations
-    .filter((s) => s.appliances.length > 0 && !s.virtual)
-    .map((s) => ({
-      stationId: s.id,
-      id: s.id,
-      name: s.name,
-      service: s.service,
-      units: s.appliances.map((a) => ({
-        applianceId: a.id,
-        callsign: a.callsign,
-        state: a.status === 8 ? "off" : a.status === 7 && !deployments.some((d) => d.applianceId === a.id) ? "in" : "out",
-      })),
-    }));
+  const bays: BayRow[] = resources.bays;
 
   const unfilledTotal = incidents.reduce((n, i) => (runtimes[i.id]?.outcome ? n : n + coverage(i).filter((c) => !c.applianceId).length), 0);
   const focusUnits = selected
@@ -404,6 +371,7 @@ export function useDeskModel(input: DeskInput) {
     mobHead,
     turnouts,
     bays,
+    resources,
     unfilledTotal,
     focusUnits,
     refOf,

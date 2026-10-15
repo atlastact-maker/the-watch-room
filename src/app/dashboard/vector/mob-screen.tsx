@@ -52,7 +52,9 @@ export type BayRow = {
   id: string;
   name: string;
   service: ServiceCode;
-  units: { applianceId: string; callsign: string; state: "in" | "out" | "off" }[];
+  units: { applianceId: string; callsign: string; state: "in" | "out" | "off" | "standby" }[];
+  /** Units from elsewhere standing by here, or on their way to. */
+  visitors?: { applianceId: string; callsign: string; phase: "standing" | "moving" }[];
 };
 
 export function MobScreen({
@@ -327,17 +329,21 @@ export function MobScreen({
             <div className="body">
               <div className="vec-bays">
                 {shownBays.map((b) => {
-                  const inBay = b.units.filter((u) => u.state === "in").length;
+                  const standing = (b.visitors ?? []).filter((v) => v.phase === "standing").length;
+                  const inBay = b.units.filter((u) => u.state === "in").length + standing;
                   const empty = inBay === 0 && b.units.some((u) => u.state !== "off");
                   return (
                     <div key={b.stationId} className={`vec-bay ${empty ? "empty" : ""}`} onDoubleClick={() => onOpenBays(b.stationId)} title="Double-click to look inside the station">
                       <div className="hd"><b>{b.id}</b><span>{b.name}</span></div>
                       <div className="units">
                         {b.units.map((u) => (
-                          <button key={u.applianceId} type="button" className={`unit ${u.state === "out" ? "out" : u.state === "off" ? "off" : ""}`} draggable={u.state === "in"} onDragStart={u.state === "in" ? dragUnit(u.applianceId, b.stationId) : undefined} onClick={() => onPick(u.applianceId)}>{u.callsign}</button>
+                          <button key={u.applianceId} type="button" className={`unit ${u.state === "out" ? "out" : u.state === "off" ? "off" : u.state === "standby" ? "standby" : ""}`} draggable={u.state === "in"} onDragStart={u.state === "in" ? dragUnit(u.applianceId, b.stationId) : undefined} onClick={() => onPick(u.applianceId)} title={u.state === "standby" ? "Away on a cover move" : undefined}>{u.callsign}</button>
+                        ))}
+                        {(b.visitors ?? []).map((v) => (
+                          <button key={`v-${v.applianceId}`} type="button" className={`unit visitor${v.phase === "moving" ? " moving" : ""}`} onClick={() => onPick(v.applianceId)} title={v.phase === "moving" ? "On the way here to stand by" : "Standing by here"}>{v.callsign}</button>
                         ))}
                       </div>
-                      <div className="note">{empty ? "STATION EMPTY" : `${inBay} of ${b.units.length} in the bay`}</div>
+                      <div className="note">{empty ? "STATION EMPTY" : `${inBay} of ${b.units.length + standing} in the bay`}</div>
                     </div>
                   );
                 })}

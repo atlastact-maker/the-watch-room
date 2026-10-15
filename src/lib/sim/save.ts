@@ -4,6 +4,7 @@
 // exactly where they left off — with every stored timestamp shifted
 // forward by the pause duration, so no sim time passes while paused.
 
+import { shiftStandbyMove } from "./standby";
 import type {
   Deployment,
   FireIgnition,
@@ -46,6 +47,9 @@ export type ShiftSave = {
   intensity: ShiftIntensity;
   weather: WeatherState;
   preShiftStates: Record<string, PreShiftState>;
+  /** Cover moves under way. Optional — absent in saves written before
+   *  a standby move was a real move. */
+  standbyMoves?: Record<string, import("./standby").StandbyMove>;
   activeIncident: Incident | null;
   deployments: Deployment[];
   statusOverrides: Record<string, StatusCode>;
@@ -378,6 +382,9 @@ export function applyResumeOffset(
       ? shiftRuntimeSnapshot(save.runtimes, offset) as Record<string, unknown>
       : save.runtimes,
     deployments: save.deployments.map((d) => shiftDeployment(d, offset)),
+    standbyMoves: save.standbyMoves
+      ? Object.fromEntries(Object.entries(save.standbyMoves).map(([id, m]) => [id, shiftStandbyMove(m, offset)]))
+      : save.standbyMoves,
     tasks: save.tasks.map((t) => shiftTask(t, offset)),
     treatmentByCasualtyId: Object.fromEntries(
       Object.entries(save.treatmentByCasualtyId).map(([id, tx]) => [

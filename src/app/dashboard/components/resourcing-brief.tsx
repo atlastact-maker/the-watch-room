@@ -1,31 +1,29 @@
 "use client";
 
-// THE RESOURCING PAGE. The second page of the briefing: what the county
-// actually has at the start of the shift, station by station — the
-// appliances in the bays and available, the ones still committed to a
-// job that started before the operator sat down and when they clear,
+// THE RESOURCING PAGE. The second page of the briefing, in the desk's
+// own CAD: what the county actually has at the start of the shift. The
+// strip counts each service, the table counts each type, and the bays
+// show every station with its appliances — the ones still committed to
+// a job that started before the operator sat down and when they clear,
 // and the ones off the run and why. The mobilising screen shows the
 // same bays once the shift is running; this is the look before the
 // first call, so nobody is surprised to find a pump missing.
 
+import { useState } from "react";
+import "../vector/vector.css";
 import type { ServiceCode, StatusCode } from "@/lib/sim/types";
 import { STATUS_LABELS } from "@/lib/sim/types";
 import { INTENSITY_META, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
+import { RELIEF_START, shiftForHour } from "@/lib/sim/police-callsigns";
+import { useVectorTheme } from "../vector/theme";
+import { SERVICE_SHORT } from "../vector/model";
+import { buildResourcePicture } from "../vector/resources-model";
 import type { StationWithAppliances } from "../page";
 
-type Kind = "available" | "committed" | "off";
-
-const SERVICE_ORDER: ServiceCode[] = ["Fire", "Ambulance", "Police"];
-const SERVICE_COLOUR: Record<ServiceCode, string> = { Fire: "#ef4444", Ambulance: "#10b981", Police: "#3b82f6" };
-const AREA_LABEL: Record<string, string> = { Southern: "South", Eastern: "East", Western: "West", ForceWide: "Force-wide" };
-const AREA_ORDER: Record<string, number> = { Southern: 0, Eastern: 1, Western: 2, ForceWide: 3 };
-const KIND_LABEL: Record<Kind, string> = { available: "Available", committed: "Committed", off: "Off the run" };
-const KIND_CLASS: Record<Kind, string> = {
-  available: "border-(--color-ok)/50 bg-(--color-ok)/10 text-(--color-text)",
-  committed: "border-(--color-amber)/60 bg-(--color-amber)/10 text-(--color-amber)",
-  off: "border-(--color-critical)/50 bg-(--color-critical)/10 text-(--color-critical) line-through decoration-(--color-critical)/70",
-};
-const DOT_CLASS: Record<Kind, string> = { available: "bg-(--color-ok)", committed: "bg-(--color-amber)", off: "bg-(--color-critical)" };
+type Filter = ServiceCode | "All";
+const FILTERS: Filter[] = ["Fire", "Ambulance", "Police", "All"];
+const SVC_CLASS: Record<ServiceCode, string> = { Fire: "fire", Ambulance: "amb", Police: "pol" };
+const RELIEF_LABEL = { early: "Earlies", afternoon: "Lates", night: "Nights" } as const;
 
 type Props = {
   stations: StationWithAppliances[];
@@ -40,150 +38,126 @@ type Props = {
   onBegin: () => void;
 };
 
-function kindOf(ps: PreShiftState | undefined): Kind {
-  if (!ps) return "available";
-  return ps.status === 8 ? "off" : "committed";
-}
-
-function minutesFrom(at: number | undefined, from: number): number | null {
-  if (!at) return null;
-  return Math.max(1, Math.round((at - from) / 60_000));
-}
+const hh = (h: number) => `${String(((h % 24) + 24) % 24).padStart(2, "0")}:00`;
 
 export function ResourcingBrief({ stations, intensity, startHour, covered, roll, rolledAt, onBack, onBegin }: Props) {
-  const services = SERVICE_ORDER.filter((s) => covered.includes(s));
-  const shown = stations
-    .filter((s) => services.includes(s.service) && s.appliances.length > 0)
-    .slice()
-    .sort((a, b) => SERVICE_ORDER.indexOf(a.service) - SERVICE_ORDER.indexOf(b.service) || (AREA_ORDER[a.area] ?? 9) - (AREA_ORDER[b.area] ?? 9) || a.name.localeCompare(b.name));
-  const all = shown.flatMap((s) => s.appliances);
-  const count = (svc: ServiceCode | null, kind: Kind) => all.filter((a) => (svc === null || a.service === svc) && kindOf(roll[a.id]) === kind).length;
+  useVectorTheme();
+  const [filter, setFilter] = useState<Filter>("All");
+  const services = (["Fire", "Ambulance", "Police"] as ServiceCode[]).filter((s) => covered.includes(s));
+  const show = (svc: ServiceCode) => services.includes(svc) && (filter === "All" || filter === svc);
+  // The board as the shift will see it: the roll's statuses on the appliances.
+  const rolled = stations.filter((s) => services.includes(s.service)).map((s) => ({ ...s, appliances: s.appliances.map((a) => (roll[a.id] ? { ...a, status: roll[a.id].status } : a)) }));
+  const picture = buildResourcePicture({ stations: rolled, deployments: [], standbyMoves: {}, now: rolledAt });
   const meta = INTENSITY_META[intensity];
-  const hh = (h: number) => `${String(((h % 24) + 24) % 24).padStart(2, "0")}:00`;
+  const relief = shiftForHour(startHour);
+  const rows = picture.rows.filter((r) => show(r.service));
+  const bays = picture.bays.filter((b) => show(b.service));
+  const minsBack = (at: number | undefined) => (at ? Math.max(1, Math.round((at - rolledAt) / 60_000)) : null);
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col overflow-hidden p-6">
-      <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-6">
-        <div className="justify-self-start">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-sm border border-(--color-border) px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) transition-colors hover:border-(--color-amber-dim) hover:text-(--color-amber)"
-          >
-            ← Change the briefing
-          </button>
+    <div className="cad-application vec-brief" data-screen="resourcing">
+      <div className="vec-screen">
+        <div className="vec-screen-head">
+          <h1><span className="dot" />PRE-SHIFT BRIEFING · RESOURCING</h1>
+          <span className="mono">GREATER MANCHESTER · {meta.label.toUpperCase()} · START {hh(startHour)} · GMP {RELIEF_LABEL[relief].toUpperCase()} ON FROM {hh(RELIEF_START[relief])}</span>
+          <span style={{ flex: 1 }} />
+          <button type="button" className="vec-btn" onClick={onBack}>← CHANGE THE BRIEFING</button>
+          <button type="button" className="vec-btn solid" onClick={onBegin}>BEGIN SHIFT · {hh(startHour)} →</button>
         </div>
-        <div className="text-center">
-          <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">Watch Room // Pre-shift Briefing · Resourcing</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">What you have at {hh(startHour)}</h1>
-          <p className="mt-1 text-sm text-(--color-text-muted)">
-            <strong className="font-bold text-(--color-text)">{meta.label}.</strong> {meta.blurb} The committed units clear on their own; the off-run ones stay off.
-          </p>
+
+        <div className="vec-res-strip">
+          {services.map((svc) => {
+            const t = picture.totals[svc];
+            const committed = t.total - t.available - t.offRun;
+            return (
+              <div key={svc} className={`svc ${SVC_CLASS[svc]}`}>
+                <div className="vec-k">{svc}</div>
+                <div className="vec-v big">{t.available}<small>/{t.total}</small></div>
+                <div className="vec-small"><span className="go">{t.available} available</span> · <span className="warn">{committed} committed</span> · <span className="stop">{t.offRun} off the run</span></div>
+              </div>
+            );
+          })}
+          <div className="svc gaps">
+            <div className="vec-k">Stations empty at the start</div>
+            <div className={`vec-v big ${picture.gaps.length ? "stop" : "go"}`}>{picture.gaps.length}</div>
+            <div className="vec-small">{meta.blurb}</div>
+          </div>
         </div>
-        <div aria-hidden />
-      </div>
 
-      {/* The strip: every covered service, its count and its split. */}
-      <div className="mb-4 grid flex-none gap-3" style={{ gridTemplateColumns: `repeat(${services.length}, minmax(0, 1fr))` }}>
-        {services.map((svc) => {
-          const total = all.filter((a) => a.service === svc).length;
-          const av = count(svc, "available"), co = count(svc, "committed"), off = count(svc, "off");
-          const pct = (n: number) => (total ? `${(n / total) * 100}%` : "0%");
-          return (
-            <section key={svc} className="rounded-sm border border-(--color-border) bg-(--color-surface) p-3">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-(--color-text)">
-                  <span className="inline-block h-2.5 w-2.5 rounded-[1px]" style={{ background: SERVICE_COLOUR[svc] }} />
-                  {svc}
-                </p>
-                <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-                  {av} of {total} available
-                </p>
-              </div>
-              <div className="mt-2 flex h-2 w-full overflow-hidden rounded-[1px] bg-(--color-border-subtle)">
-                <span className="bg-(--color-ok)" style={{ width: pct(av) }} />
-                <span className="bg-(--color-amber)" style={{ width: pct(co) }} />
-                <span className="bg-(--color-critical)" style={{ width: pct(off) }} />
-              </div>
-              <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-                <span className="text-(--color-ok)">{av} available</span> · <span className="text-(--color-amber)">{co} committed</span> · <span className="text-(--color-critical)">{off} off the run</span>
-              </p>
-            </section>
-          );
-        })}
-      </div>
-
-      {/* The bays: a card per station, the appliances as chips, the
-          exceptions written out underneath. Scrolls inside the page. */}
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-sm border border-(--color-border) bg-(--color-bg)/40 p-3">
-        {services.map((svc) => (
-          <section key={svc} className="mb-5 last:mb-0">
-            <h2 className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)">
-              <span className="inline-block h-2 w-2 rounded-[1px]" style={{ background: SERVICE_COLOUR[svc] }} />
-              {svc} · {shown.filter((s) => s.service === svc).length} stations
-            </h2>
-            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))" }}>
-              {shown.filter((s) => s.service === svc).map((s) => {
-                const kinds = s.appliances.map((a) => ({ a, ps: roll[a.id], kind: kindOf(roll[a.id]) }));
-                const inBay = kinds.filter((k) => k.kind === "available").length;
-                const exceptions = kinds.filter((k) => k.kind !== "available");
-                const empty = inBay === 0;
-                return (
-                  <article key={s.id} className={`rounded-sm border p-2.5 ${empty ? "border-(--color-critical)/50 bg-(--color-critical)/5" : "border-(--color-border) bg-(--color-surface)"}`}>
-                    <header className="flex items-baseline justify-between gap-2">
-                      <span className="min-w-0 truncate">
-                        <b className="font-mono text-xs text-(--color-text)">{s.id}</b>
-                        <span className="ml-2 text-[12px] text-(--color-text-muted)">{s.name}</span>
-                      </span>
-                      <span className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{AREA_LABEL[s.area] ?? s.area}</span>
-                    </header>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {kinds.map(({ a, kind }) => (
-                        <span key={a.id} className={`inline-flex items-baseline gap-1.5 rounded-[2px] border px-1.5 py-0.5 font-mono text-[11px] ${KIND_CLASS[kind]}`} title={`${a.callsign} · ${a.typeName} · ${KIND_LABEL[kind]}`}>
-                          <b>{a.callsign}</b>
-                          <small className="text-[9px] uppercase tracking-wider opacity-80">{a.type}</small>
-                        </span>
-                      ))}
-                    </div>
-                    {exceptions.length > 0 && (
-                      <ul className="mt-2 space-y-1">
-                        {exceptions.map(({ a, ps, kind }) => {
-                          const mins = minutesFrom(ps?.availableAt, rolledAt);
-                          return (
-                            <li key={a.id} className="flex items-start gap-1.5 text-[11px] leading-snug text-(--color-text-muted)">
-                              <span className={`mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${DOT_CLASS[kind]}`} />
-                              <span>
-                                <b className="font-mono text-(--color-text)">{a.callsign}</b> · {STATUS_LABELS[(ps?.status ?? 7) as StatusCode]}
-                                {ps?.reason ? ` — ${ps.reason}` : ""}
-                                {mins !== null ? ` · back in ~${mins} min` : ""}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    <p className={`mt-2 font-mono text-[10px] uppercase tracking-widest ${empty ? "text-(--color-critical)" : "text-(--color-text-dim)"}`}>
-                      {empty ? "Station empty" : `${inBay} of ${s.appliances.length} in the bay`}
-                    </p>
-                  </article>
-                );
-              })}
+        <div className="vec-res-body brief">
+          <div className="vec-box">
+            <header><span>Resource types</span><span className="mono">{rows.reduce((n, r) => n + r.total, 0)} units</span></header>
+            <div className="vec-svctabs">
+              {FILTERS.map((k) => (
+                <button key={k} type="button" className={k === "All" ? "" : SVC_CLASS[k]} aria-pressed={filter === k} disabled={k !== "All" && !services.includes(k)} onClick={() => setFilter(k)}>{k === "All" ? "ALL" : SERVICE_SHORT[k]}</button>
+              ))}
             </div>
-          </section>
-        ))}
-      </div>
+            <div className="body">
+              <table className="vec-table vec-res-table">
+                <thead>
+                  <tr><th>Type</th><th>Total</th><th>Avail</th><th title="Committed to a job that started before the shift; clears on its own">Cmtd</th><th>Off</th></tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={`${r.service}:${r.type}`} className={r.available === 0 ? "none" : r.available === 1 ? "thin" : ""}>
+                      <td><b className="mono">{r.code}</b><div className="dim">{r.name}</div></td>
+                      <td className="mono">{r.total}</td>
+                      <td className={`mono ${r.available === 0 ? "stop" : r.available === 1 ? "warn" : "go"}`}>{r.available}</td>
+                      <td className="mono">{r.committed || "·"}</td>
+                      <td className="mono">{r.offRun || "·"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <div className="mt-4 flex flex-none items-center justify-between gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-          <span className="text-(--color-ok)">■</span> available · <span className="text-(--color-amber)">■</span> committed, clears during the shift · <span className="text-(--color-critical)">■</span> off the run all shift
-        </p>
-        <button
-          type="button"
-          onClick={onBegin}
-          className="inline-flex h-14 shrink-0 items-center justify-center rounded-sm bg-(--color-amber) px-8 font-mono text-base font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
-        >
-          Begin Shift · {hh(startHour)} →
-        </button>
+          <div className="vec-box">
+            <header>
+              <span>Station bays</span>
+              <span className="mono">{bays.length} stations · <span className={picture.gaps.filter((g) => show(g.service)).length ? "stop" : "go"}>{picture.gaps.filter((g) => show(g.service)).length} without cover</span></span>
+            </header>
+            <div className="body">
+              <div className="vec-bays">
+                {bays.map((b) => {
+                  const st = stations.find((s) => s.id === b.stationId);
+                  const inBay = b.units.filter((u) => u.state === "in").length;
+                  const live = b.units.some((u) => u.state !== "off");
+                  const empty = inBay === 0 && live;
+                  const exceptions = (st?.appliances ?? []).filter((a) => roll[a.id]);
+                  return (
+                    <div key={b.stationId} className={`vec-bay ${empty ? "empty" : ""}`}>
+                      <div className="hd"><b>{b.id}</b><span>{b.name}</span></div>
+                      <div className="units">
+                        {b.units.map((u) => (
+                          <span key={u.applianceId} className={`unit ${u.state === "out" ? "out" : u.state === "off" ? "off" : ""}`} title={roll[u.applianceId]?.reason}>{u.callsign}</span>
+                        ))}
+                      </div>
+                      {exceptions.map((a) => {
+                        const ps = roll[a.id];
+                        const back = minsBack(ps.availableAt);
+                        return (
+                          <div key={a.id} className={`note ${ps.status === 8 ? "stop" : "warn"}`}>
+                            {a.callsign} · {STATUS_LABELS[ps.status as StatusCode]} — {ps.reason}{back !== null ? ` · back ~${back} min` : ""}
+                          </div>
+                        );
+                      })}
+                      <div className="note">{empty ? "STATION EMPTY" : (picture.coverOf[b.stationId] ?? 1) === 0 ? "NO FRONT-LINE COVER" : `${inBay} of ${b.units.length} in the bay`}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="vec-statusbar">
+          <span className="go">■ AVAILABLE</span>
+          <span className="stop">■ COMMITTED · CLEARS DURING THE SHIFT</span>
+          <span>■ OFF THE RUN ALL SHIFT</span>
+          <span className="spacer" />
+          <span className="mono">{stations.length} STATIONS · {picture.rows.reduce((n, r) => n + r.total, 0)} UNITS · POLICE CALLSIGNS CARRY THE RELIEF</span>
+        </div>
       </div>
     </div>
   );

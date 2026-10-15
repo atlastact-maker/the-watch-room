@@ -22,6 +22,7 @@ export function EmbeddedMap({
   deployments,
   patrols,
   patrolRoutes,
+  standbyUnits,
   filter,
   patch,
   onSelectAppliance,
@@ -48,6 +49,18 @@ export function EmbeddedMap({
   }[];
   /** The circuits those units drive, for the optional route layer. */
   patrolRoutes?: { id: string; label: string; line: { lat: number; lng: number }[] }[];
+  /** Units on cover moves, where they are now. */
+  standbyUnits?: {
+    applianceId: string;
+    callsign: string;
+    service: import("@/lib/sim/types").ServiceCode;
+    type?: import("@/lib/sim/types").ApplianceTypeCode;
+    coords: { lat: number; lng: number };
+    phase: "moving" | "standing" | "returning";
+    label: string;
+    routeCoords?: [number, number][];
+    selected?: boolean;
+  }[];
   /** What the operator has chosen to see. */
   filter?: import("./map-filters").MapFilter;
   patch: Patch | null;
@@ -69,6 +82,7 @@ export function EmbeddedMap({
         deployments={deployments}
         patrols={patrols}
         patrolRoutes={patrolRoutes}
+        standbyUnits={standbyUnits}
         filter={filter}
         patch={patch}
         onSelectAppliance={onSelectAppliance}

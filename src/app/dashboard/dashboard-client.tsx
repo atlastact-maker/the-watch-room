@@ -116,6 +116,8 @@ import {
 import { pagerDelaySec } from "@/lib/sim/turnout";
 import { scoreIncident } from "@/lib/sim/scoring";
 import { rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
+import { activeStandby, standbyPhase, standbyPosition, standbyTravelSec, type StandbyMove } from "@/lib/sim/standby";
+import { COVER_GAP_MS, buildResourcePicture } from "./vector/resources-model";
 import {
   hasHelipad,
   nearestHospital,
@@ -618,6 +620,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // made it, or a save brought it back — so the effect below does not
   // roll a second time over the top of it.
   const preShiftRolledRef = useRef(false);
+  // Cover moves under way, by appliance; when each empty station emptied;
+  // and the shift's record of both for the Resources screen.
+  const [standbyMoves, setStandbyMoves] = useState<Record<string, StandbyMove>>({});
+  const [coverSince, setCoverSince] = useState<Record<string, number>>({});
+  const [coverStats, setCoverStats] = useState<{ moves: number; gapMinutes: number }>({ moves: 0, gapMinutes: 0 });
+  const coverFlaggedRef = useRef<Set<string>>(new Set());
   const [log, setLog] = useState<LogEntry[]>([]);
   /** Jobs closed off the board this shift, kept for their debrief and
    *  the end-of-shift screen. A scored job is not shown its debrief
@@ -907,6 +915,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setWeather(shifted.weather);
     setPreShiftStates(shifted.preShiftStates);
     preShiftRolledRef.current = true;
+    setStandbyMoves(shifted.standbyMoves ?? {});
     const saved = shifted.activeIncident;
     const restoredIncidents = shifted.incidents?.length ? shifted.incidents : saved ? [saved] : [];
     const restoredSelectedId = shifted.selectedIncidentId ?? saved?.id ?? null;
@@ -1018,6 +1027,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         intensity,
         weather,
         preShiftStates,
+        standbyMoves,
         activeIncident,
         deployments,
         statusOverrides,
@@ -1573,6 +1583,48 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
   }, [treatmentByCasualtyId, resusByCasualtyId]);
 
+  // Cover moves that have come home are done with.
+  useEffect(() => {
+    setStandbyMoves((prev) => {
+      const next: typeof prev = {};
+      let changed = false;
+      for (const [id, m] of Object.entries(prev)) {
+        if (standbyPhase(m, now) === "home") { changed = true; continue; }
+        next[id] = m;
+      }
+      return changed ? next : prev;
+    });
+  }, [now]);
+
+  // Cover gaps: when each station with nobody in the bay emptied, the
+  // station-minutes the shift has run without cover, and the setback for
+  // a station left empty a quarter of an hour with a donor in range and
+  // nothing sent. Counted every half minute.
+  useEffect(() => {
+    if (!patch) return;
+    const picture = buildResourcePicture({ stations: myStations, deployments, standbyMoves, now, coverSince });
+    const emptyIds = new Set(picture.gaps.map((g) => g.stationId));
+    setCoverSince((prev) => {
+      const next: Record<string, number> = {};
+      let changed = false;
+      for (const id of emptyIds) {
+        next[id] = prev[id] ?? now;
+        if (!(id in prev)) changed = true;
+      }
+      for (const id of Object.keys(prev)) if (!emptyIds.has(id)) changed = true;
+      return changed ? next : prev;
+    });
+    if (emptyIds.size) setCoverStats((c) => ({ ...c, gapMinutes: c.gapMinutes + emptyIds.size * 0.5 }));
+    for (const g of picture.gaps) {
+      const key = `${g.stationId}:${g.since ?? now}`;
+      if (g.since === null || now - g.since < COVER_GAP_MS || g.inbound || !g.suggestion || coverFlaggedRef.current.has(key)) continue;
+      coverFlaggedRef.current.add(key);
+      const what = g.service === "Fire" ? "pump" : g.service === "Ambulance" ? "ambulance" : "response car";
+      logAnnotation(`${g.name} left with no ${what} for ${Math.round((now - g.since) / 60_000)} minutes while ${g.suggestion.callsign} sat free at ${g.suggestion.from} — no standby move made`, "setback", "cover-gap");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patch, Math.floor(now / 30_000)]);
+
   // Sweep expired pre-shift commitments so appliances return to Available.
   useEffect(() => {
     setPreShiftStates((prev) => {
@@ -1650,6 +1702,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       for (const [id, s] of Object.entries(preShiftStates)) {
         next[id] = s.status;
       }
+      // On a cover move: mobile and available, wherever it stands.
+      for (const m of Object.values(standbyMoves)) {
+        if (standbyPhase(m, now) !== "home") next[m.applianceId] = 6;
+      }
       for (const d of deployments) {
         let desired: StatusCode;
         if (d.returnStartedAt && d.returnArrivesAt && now >= d.returnArrivesAt) {
@@ -1681,7 +1737,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       }
       return next;
     });
-  }, [now, deployments, preShiftStates]);
+  }, [now, deployments, preShiftStates, standbyMoves]);
 
   useEffect(() => {
     const newEntries: LogEntry[] = [];
@@ -1844,6 +1900,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setPatch(undefined);
     setPreShiftStates({});
     preShiftRolledRef.current = false;
+    setStandbyMoves({});
+    setCoverSince({});
+    setCoverStats({ moves: 0, gapMinutes: 0 });
+    coverFlaggedRef.current = new Set();
     clearIncidentState();
   }
 
@@ -3619,6 +3679,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
     dispatchReservationRef.current.add(args.applianceId);
     const mobilisedAt = Date.now();
+    // A job ends a cover move where it stands; the unit moves off from there.
+    const standby = standbyMoves[args.applianceId];
+    if (standby) setStandbyMoves((prev) => { const next = { ...prev }; delete next[args.applianceId]; return next; });
     dispatchBeep();
     bumpStats((s) => {
       s.resourcesAllocated += 1;
@@ -3662,6 +3725,13 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     let etaBase = args.etaSeconds;
     let routeMeters = args.routeMeters;
     let routeCoords = args.routeCoords;
+    if (!origin && standby && standbyPhase(standby, mobilisedAt) !== "home") {
+      origin = standbyPosition(standby, mobilisedAt);
+      const meters = haversineMeters(origin, incident.scenario.location.coords) * 1.3;
+      etaBase = (meters / 13.4) * BLUE_LIGHT_FACTOR * etaTrafficMultiplier(weather.hourOfDay) * etaPrecipMultiplier(weather.precip);
+      routeMeters = meters;
+      routeCoords = undefined;
+    }
     if (!origin && !isAircraft) {
       const track = patrolTrackFor(args.applianceId);
       if (track) {
@@ -4864,8 +4934,17 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         );
       })
       .catch(() => {});
+    // Units on cover moves are priced from where they stand.
+    for (const m of activeStandby(standbyMoves, Date.now())) {
+      routeEta(standbyPosition(m, Date.now()), target, ctrl.signal)
+        .then((raw) => {
+          const r = blueLight(raw);
+          setEtas((prev) => ({ ...prev, [`sb:${m.applianceId}`]: { stationId: `sb:${m.applianceId}`, ...r, seconds: r.seconds * envMult } }));
+        })
+        .catch(() => {});
+    }
     return () => ctrl.abort();
-  }, [activeIncident, allDeployableStations, weather.hourOfDay, weather.precip]);
+  }, [activeIncident, allDeployableStations, weather.hourOfDay, weather.precip, standbyMoves]);
 
   // Water rescue milestones: the boat in, the casualty reached, the
   // landing, or the weir. Each is logged once as the clock passes it.
@@ -6405,7 +6484,6 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   const layout = useTileLayout();
   const { theme, toggle: toggleTheme } = useVectorTheme();
   const [activeCall, setActiveCall] = useState<(PendingCall & { answeredAt: number; opened?: boolean }) | null>(null);
-  const [standbySent, setStandbySent] = useState<Record<string, boolean>>({});
   // Panels lifted into their own browser windows, by id.
   const [popped, setPopped] = useState<Record<string, boolean>>({});
   const [statusMsg, setStatusMsg] = useState("Ready");
@@ -6421,7 +6499,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     pendingCalls,
     log,
     coveredServices,
-    standbySent,
+    standbyMoves,
+    coverSince,
     commandOptionsFor,
     extraSlots: Object.fromEntries(Object.entries(runtimes).map(([id, r]) => [id, r?.extraSlots ?? []])),
   });
@@ -6711,6 +6790,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     pickScreen("dispatch");
   }
 
+  function estimateEtaFrom(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
+    const meters = haversineMeters(from, to) * 1.3;
+    return { stationId: "", meters, seconds: (meters / 13.4) * BLUE_LIGHT_FACTOR, source: "fallback" as const, coords: null };
+  }
+
   function estimateEta(stationId: string, to: { lat: number; lng: number }) {
     const st = allDeployableStations.find((x) => x.id === stationId);
     if (!st) return null;
@@ -6847,8 +6931,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // falls back when the router is down.
     // ETAs are incident-specific. Never reuse a route calculated for the
     // selected job when a row in the county board targets another incident.
-    const eta = (incidentId && incidentId !== selectedIncidentId ? undefined : etas[stationId])
-      ?? estimateEta(stationId, target.scenario.location.coords);
+    // A unit on a cover move is priced and moves off from where it stands.
+    const sb = standbyMoves[applianceId];
+    const sbPos = sb && standbyPhase(sb, Date.now()) !== "home" ? standbyPosition(sb, Date.now()) : null;
+    const eta = sbPos
+      ? ((incidentId && incidentId !== selectedIncidentId ? undefined : etas[`sb:${applianceId}`]) ?? estimateEtaFrom(sbPos, target.scenario.location.coords))
+      : ((incidentId && incidentId !== selectedIncidentId ? undefined : etas[stationId]) ?? estimateEta(stationId, target.scenario.location.coords));
     if (!eta) {
       setStatusMsg("No route for that station");
       return;
@@ -6865,6 +6953,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       etaSeconds: eta.seconds,
       routeMeters: eta.meters,
       routeCoords: eta.coords ?? undefined,
+      origin: sbPos ?? undefined,
     });
     if (ap) setStatusMsg(`${ap.callsign} mobilised${open ? ` — ${open.label}` : " — extra attendance"}`);
   }
@@ -6879,11 +6968,61 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }
 
   function sendStandby(id: string) {
-    const row = desk.standby.find((s) => s.id === id);
-    if (!row || row.sent) return;
-    setStandbySent((prev) => ({ ...prev, [id]: true }));
-    logAnnotation(`${row.callsign} standby move — ${row.from} to ${row.to}. ${row.reason}.`);
-    setStatusMsg(`${row.callsign} moving to ${row.to}`);
+    const row = desk.resources.suggestions.find((r) => r.id === id);
+    if (!row) return;
+    beginStandby(row.applianceId, row.toStationId, row.reason);
+  }
+
+  /** Send a free unit to stand by at a station: a cover move at road
+   *  speed, available the whole way, mobilised from wherever it is. */
+  function beginStandby(applianceId: string, toStationId: string, reason?: string) {
+    const a = applianceById.get(applianceId);
+    const home = findStationForAppliance(applianceId);
+    const dest = allDeployableStations.find((st) => st.id === toStationId);
+    if (!a || !home || !dest) return;
+    if (deployments.some((d) => d.applianceId === applianceId && !(d.returnStartedAt && d.returnArrivesAt && now >= d.returnArrivesAt))) {
+      setStatusMsg(`${a.callsign} is committed — stand it down first`);
+      return;
+    }
+    const prior = standbyMoves[applianceId];
+    const from = prior && standbyPhase(prior, now) !== "home" ? standbyPosition(prior, now) : home.coords;
+    const startedAt = Date.now();
+    const travelSec = standbyTravelSec(from, dest.coords);
+    const why = reason ?? `Standing by at ${dest.name}`;
+    const move: StandbyMove = { applianceId, fromStationId: home.id, home: home.coords, from, to: { stationId: dest.id, lat: dest.coords.lat, lng: dest.coords.lng, label: dest.name }, startedAt, arrivesAt: startedAt + travelSec * 1000, reason: why };
+    setStandbyMoves((prev) => ({ ...prev, [applianceId]: move }));
+    setCoverStats((c) => ({ ...c, moves: c.moves + 1 }));
+    logAnnotation(`${a.callsign} standby move — ${home.name} to ${dest.name}. ${why}`, "annotation", "standby-move");
+    setStatusMsg(`${a.callsign} moving to stand by at ${dest.name}`);
+    void routeEtaRouted(from, dest.coords).then((r) => {
+      if (!r.coords) return;
+      setStandbyMoves((prev) => {
+        const m = prev[applianceId];
+        if (!m || m.startedAt !== startedAt) return prev;
+        return { ...prev, [applianceId]: { ...m, routeCoords: r.coords ?? undefined, arrivesAt: Math.max(Date.now() + 30_000, m.startedAt + r.seconds * 1000) } };
+      });
+    });
+  }
+
+  /** Bring a unit on standby home, at road speed. */
+  function recallStandby(applianceId: string) {
+    const m = standbyMoves[applianceId];
+    if (!m || m.recalledAt !== undefined) return;
+    const a = applianceById.get(applianceId);
+    const pos = standbyPosition(m, now);
+    const recalledAt = Date.now();
+    const travelSec = standbyTravelSec(pos, m.home);
+    setStandbyMoves((prev) => ({ ...prev, [applianceId]: { ...m, recalledAt, recalledFrom: pos, homeArrivesAt: recalledAt + travelSec * 1000 } }));
+    logAnnotation(`${a?.callsign ?? applianceId} recalled from ${m.to.label} to station`, "annotation", "standby-recall");
+    setStatusMsg(`${a?.callsign ?? applianceId} returning to station`);
+    void routeEtaRouted(pos, m.home).then((r) => {
+      if (!r.coords) return;
+      setStandbyMoves((prev) => {
+        const cur = prev[applianceId];
+        if (!cur || cur.recalledAt !== recalledAt) return prev;
+        return { ...prev, [applianceId]: { ...cur, returnRouteCoords: r.coords ?? undefined, homeArrivesAt: Math.max(Date.now() + 30_000, recalledAt + r.seconds * 1000) } };
+      });
+    });
   }
 
   function placeUnit(applianceId: string) {
@@ -7117,7 +7256,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       else setIncidentPanelVisible((v) => !v);
       return;
     }
-    const map: Record<number, VectorScreen> = { 2: "dispatch", 3: "call", 4: "mob", 5: "ground" };
+    const map: Record<number, VectorScreen> = { 2: "dispatch", 3: "call", 4: "mob", 5: "ground", 6: "resources" };
     if (!map[n]) return;
     e.preventDefault();
     pickScreen(map[n]);
@@ -7202,6 +7341,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       onPlaceUnit={placeUnit}
       onFillRemaining={fillRemaining}
       onSendStandby={sendStandby}
+      onMoveToStandby={(applianceId, stationId) => beginStandby(applianceId, stationId)}
+      onRecallStandby={recallStandby}
+      coverStats={coverStats}
       onOpenBays={setBayStationId}
       tiles={tiles}
       setTiles={setTiles}
@@ -7353,6 +7495,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           deployments={deployments}
           patrols={patrols}
           patrolRoutes={patrolRouteLines}
+          standbyUnits={activeStandby(standbyMoves, now).map((m) => {
+            const a = applianceById.get(m.applianceId);
+            const phase = standbyPhase(m, now);
+            return {
+              applianceId: m.applianceId,
+              callsign: a?.callsign ?? m.applianceId,
+              service: a?.service ?? "Fire",
+              type: a?.type,
+              coords: standbyPosition(m, now),
+              phase: phase === "home" ? "standing" : phase,
+              label: m.to.label,
+              routeCoords: phase === "moving" ? m.routeCoords : phase === "returning" ? m.returnRouteCoords : undefined,
+              selected: m.applianceId === selectedApplianceId,
+            };
+          })}
           filter={mapFilter}
           patch={patch ?? null}
           onSelectAppliance={setSelectedApplianceId}
