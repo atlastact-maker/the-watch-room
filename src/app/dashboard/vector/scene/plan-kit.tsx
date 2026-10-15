@@ -187,7 +187,10 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
     return (
       <g key={key} transform={`rotate(${n2(ang)} ${P(c)})`} filter="url(#pk-drop-sm)">
         <path d={`M${n2(c[0] - w / 2)} ${n2(c[1])} l${n2(-0.04 * k)} ${n2(0.01 * k)}`} stroke="#e9ecef" strokeWidth={0.012 * k} strokeLinecap="round" />
+        <rect x={c[0] - w / 2 - 0.008 * k} y={c[1] - h / 2 - 0.008 * k} width={w + 0.016 * k} height={h + 0.016 * k} rx={0.024 * k} fill="#b9c9d2" opacity={0.4} />
         <rect x={c[0] - w / 2} y={c[1] - h / 2} width={w} height={h} rx={0.02 * k} fill="#f4f3ee" stroke="#b5b9bd" strokeWidth={0.8} {...SW} />
+        <rect x={c[0] - w / 2} y={c[1] - h / 2} width={w} height={h} rx={0.02 * k} fill="url(#ps-grain)" />
+        <rect x={c[0] - w / 2} y={c[1] - h / 2} width={w} height={h} rx={0.02 * k} fill="url(#pk-vinyl)" opacity={0.45} />
         <rect x={c[0] - w / 2} y={c[1] - h / 2} width={w} height={h} rx={0.02 * k} fill="url(#pk-gloss)" />
         <circle cx={c[0] - 0.03 * k} cy={c[1] - 0.012 * k} r={0.011 * k} fill="none" stroke="#3a6fa8" strokeWidth={0.7} {...SW} />
         <path d={`M${n2(c[0] - 0.052 * k)} ${n2(c[1] + 0.028 * k)} q${n2(0.022 * k)} ${n2(-0.03 * k)} ${n2(0.044 * k)} 0`} fill="none" stroke="#3a6fa8" strokeWidth={0.7} {...SW} />
@@ -201,8 +204,9 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const electrode = (c: Pt, colour: string, clipDeg: number, key: string) => (
     <g key={key}>
       <circle cx={c[0]} cy={c[1]} r={0.024 * k} fill="#f1efe6" stroke="#c4bfae" strokeWidth={0.7} {...SW} />
-      <circle cx={c[0]} cy={c[1]} r={0.024 * k} fill="url(#pk-gloss)" />
-      <circle cx={c[0]} cy={c[1]} r={0.006 * k} fill="#9aa0a6" stroke="#5f6468" strokeWidth={0.5} {...SW} />
+      <circle cx={c[0]} cy={c[1]} r={0.024 * k} fill="url(#ps-grain)" />
+      <circle cx={c[0]} cy={c[1]} r={0.024 * k} fill="url(#pk-dome)" opacity={0.35} />
+      <circle cx={c[0]} cy={c[1]} r={0.0065 * k} fill="url(#pk-chrome)" stroke="#5f6468" strokeWidth={0.5} {...SW} />
       <g transform={`rotate(${clipDeg} ${P(c)})`}>
         <rect x={c[0] - 0.004 * k} y={c[1] - 0.009 * k} width={0.034 * k} height={0.018 * k} rx={0.005 * k} fill={colour} stroke="#1b2733" strokeWidth={0.5} strokeOpacity={0.6} {...SW} />
       </g>
@@ -332,20 +336,37 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
     <g>
       {kit.collar && (
         <g filter="url(#pk-drop-sm)">
-          <rect x={-r.neckW * 2.0} y={A.neck[1] - 0.055 * k} width={r.neckW * 4.0} height={0.12 * k} rx={0.035 * k} fill="#e3e6e9" stroke="#7d868d" strokeWidth={0.9} {...SW} />
-          <rect x={-r.neckW * 2.0} y={A.neck[1] - 0.055 * k} width={r.neckW * 4.0} height={0.12 * k} rx={0.035 * k} fill="url(#pk-gloss)" />
-          <path d={`M${n2(-r.neckW * 0.95)} ${n2(A.neck[1] - 0.05 * k)} Q0 ${n2(r.headL * 0.95)} ${n2(r.neckW * 0.95)} ${n2(A.neck[1] - 0.05 * k)}`} fill="#d5d9dd" stroke="#7d868d" strokeWidth={0.8} {...SW} />
-          <rect x={-r.neckW * 1.9} y={A.neck[1] + 0.02 * k} width={r.neckW * 3.8} height={0.018 * k} fill="#2f8fd6" opacity={0.9} />
-          <circle cx={0} cy={A.neck[1] + 0.0} r={0.018 * k} fill="#c9ced3" stroke="#7d868d" strokeWidth={0.7} {...SW} />
-          <rect x={r.neckW * 1.3} y={A.neck[1] - 0.045 * k} width={r.neckW * 0.6} height={0.1 * k} rx={0.006 * k} fill="#9aa0a6" opacity={0.8} />
+          {/* The strap round the back, the grey shell with its foam padding, the chin piece, the trachea opening, the sizing dial. */}
+          <rect x={-r.neckW * 2.0} y={A.neck[1] - 0.03 * k} width={r.neckW * 4.0} height={0.06 * k} rx={0.01 * k} fill="#1b1f23" />
+          <rect x={-r.neckW * 2.0} y={A.neck[1] - 0.03 * k} width={r.neckW * 4.0} height={0.06 * k} rx={0.01 * k} fill="url(#pk-velcro)" />
+          <rect x={-r.neckW * 1.85} y={A.neck[1] - 0.055 * k} width={r.neckW * 3.7} height={0.12 * k} rx={0.035 * k} fill="#9aa0a6" stroke="#4d545a" strokeWidth={0.8} {...SW} />
+          <rect x={-r.neckW * 1.85} y={A.neck[1] - 0.055 * k} width={r.neckW * 3.7} height={0.12 * k} rx={0.035 * k} fill="url(#pk-vinyl)" />
+          <rect x={-r.neckW * 1.85} y={A.neck[1] - 0.055 * k} width={r.neckW * 3.7} height={0.12 * k} rx={0.035 * k} fill="url(#ps-grain)" />
+          <Bevel x={-r.neckW * 1.85} y={A.neck[1] - 0.055 * k} w={r.neckW * 3.7} h={0.12 * k} rx={0.035 * k} d={0.0025 * k} light={0.5} dark={0.45} />
+          <rect x={-r.neckW * 1.75} y={A.neck[1] - 0.045 * k} width={r.neckW * 3.5} height={0.028 * k} rx={0.012 * k} fill="#efe9dc" stroke="#c9c0ad" strokeWidth={0.5} {...SW} />
+          <rect x={-r.neckW * 1.75} y={A.neck[1] + 0.037 * k} width={r.neckW * 3.5} height={0.024 * k} rx={0.012 * k} fill="#efe9dc" stroke="#c9c0ad" strokeWidth={0.5} {...SW} />
+          <path d={`M${n2(-r.neckW * 0.95)} ${n2(A.neck[1] - 0.05 * k)} Q0 ${n2(r.headL * 0.95)} ${n2(r.neckW * 0.95)} ${n2(A.neck[1] - 0.05 * k)}`} fill="#aeb4b9" stroke="#4d545a" strokeWidth={0.8} {...SW} />
+          <path d={`M${n2(-r.neckW * 0.95)} ${n2(A.neck[1] - 0.05 * k)} Q0 ${n2(r.headL * 0.95)} ${n2(r.neckW * 0.95)} ${n2(A.neck[1] - 0.05 * k)}`} fill="url(#pk-dome)" opacity={0.6} />
+          <ellipse cx={0} cy={A.neck[1] + 0.008 * k} rx={0.022 * k} ry={0.016 * k} fill="#2b3036" />
+          <ellipse cx={0} cy={A.neck[1] + 0.008 * k} rx={0.022 * k} ry={0.016 * k} fill="url(#pk-dome)" opacity={0.5} />
+          <circle cx={r.neckW * 1.45} cy={A.neck[1] + 0.005 * k} r={0.018 * k} fill="#2f6fd6" stroke="#1b2733" strokeWidth={0.6} {...SW} />
+          <circle cx={r.neckW * 1.45} cy={A.neck[1] + 0.005 * k} r={0.018 * k} fill="url(#pk-dome)" />
+          <text x={r.neckW * 1.45} y={A.neck[1] + 0.009 * k} textAnchor="middle" fontSize={0.011 * k} fontWeight={800} fill="#fff" fontFamily="Arial, sans-serif">3</text>
+          <rect x={-r.neckW * 1.2} y={A.neck[1] - 0.012 * k} width={r.neckW * 0.5} height={0.024 * k} rx={0.004 * k} fill="#f4f6f8" opacity={0.8} />
+          <text x={-r.neckW * 0.95} y={A.neck[1] + 0.005 * k} textAnchor="middle" fontSize={0.009 * k} fontWeight={800} fill="#2f6fd6" fontFamily="Arial, sans-serif">ADULT</text>
         </g>
       )}
       {kit.cuff && (
         <g filter="url(#pk-drop-sm)">
           {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "#1f3a5f", stroke: "#0e1a2b", strokeWidth: 0.8, ...SW }, 0.015 * k)}
-          {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "url(#pk-round)", opacity: 0.6 }, 0.015 * k)}
+          {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "url(#pk-weave)" }, 0.015 * k)}
+          {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "url(#ps-round)", opacity: 0.6 }, 0.015 * k)}
           {slab(add(cuffArm, mul(unit(cuffAlong), 0.045 * k)), cuffAlong, 0.03 * k, r.armW[0] * 2.9, { fill: "#4a6fa5", opacity: 0.6 }, 0.004 * k)}
+          {slab(add(cuffArm, mul(unit(cuffAlong), 0.045 * k)), cuffAlong, 0.03 * k, r.armW[0] * 2.9, { fill: "url(#pk-velcro)" }, 0.004 * k)}
           {slab(add(cuffArm, mul(unit(cuffAlong), -0.03 * k)), cuffAlong, 0.05 * k, r.armW[0] * 1.3, { fill: "#f4f6f8", stroke: "#c9ced3", strokeWidth: 0.5, ...SW }, 0.004 * k)}
+          {slab(add(cuffArm, mul(unit(cuffAlong), -0.03 * k)), cuffAlong, 0.034 * k, r.armW[0] * 0.5, { fill: "#2f6fd6" }, 0.002 * k)}
+          {slab(add(cuffArm, mul(perp(unit(cuffAlong)), r.armW[0] * 1.5)), cuffAlong, 0.024 * k, 0.014 * k, { fill: "url(#pk-steel)", stroke: "#2b2f33", strokeWidth: 0.4, ...SW }, 0.003 * k)}
+          {slab(add(cuffArm, mul(perp(unit(cuffAlong)), r.armW[0] * 1.5)), cuffAlong, 0.024 * k, 0.014 * k, { fill: "url(#pk-gloss)" }, 0.003 * k)}
         </g>
       )}
       {kit.probe && (
@@ -455,6 +476,9 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
           {/* The bag, clear silicone with its gloss and the grip ridges along it. */}
           <path d={bvm.bag} className="ps-bag-bvm" filter="url(#pk-drop-sm)" />
           <path d={bvm.bag} fill="url(#pk-gloss)" />
+          <ellipse cx={bvm.at(bvm.bagStart + 0.075, -0.03)[0]} cy={bvm.at(bvm.bagStart + 0.075, -0.03)[1]} rx={0.05 * k} ry={0.009 * k} fill="#fff" opacity={0.5} transform={`rotate(${n2(deg(bvm.u))} ${P(bvm.at(bvm.bagStart + 0.075, -0.03))})`} />
+          <ellipse cx={bvm.at(bvm.bagStart + 0.15, -0.038)[0]} cy={bvm.at(bvm.bagStart + 0.15, -0.038)[1]} rx={0.025 * k} ry={0.006 * k} fill="#fff" opacity={0.35} transform={`rotate(${n2(deg(bvm.u))} ${P(bvm.at(bvm.bagStart + 0.15, -0.038))})`} />
+          <ellipse cx={bvm.at(bvm.bagStart + 0.11, 0.04)[0]} cy={bvm.at(bvm.bagStart + 0.11, 0.04)[1]} rx={0.07 * k} ry={0.012 * k} fill="#000" opacity={0.1} transform={`rotate(${n2(deg(bvm.u))} ${P(bvm.at(bvm.bagStart + 0.11, 0.04))})`} />
           {[-0.5, 0, 0.5].map((t) => <path key={t} d={`M${P(bvm.at(bvm.bagStart + 0.035, t * 0.034))} L${P(bvm.at(bvm.bagEnd - 0.035, t * 0.034))}`} stroke="#7f98ad" strokeWidth={0.5} opacity={0.45} fill="none" {...SOFT} />)}
           {/* The inlet valve, the oxygen nipple on it and the reservoir. */}
           {slab(bvm.at(bvm.bagEnd + 0.016), bvm.u, 0.032 * k, 0.044 * k, { fill: "#4a5560", stroke: "#1b2733", strokeWidth: 0.7, ...SW }, 0.006 * k)}
@@ -562,7 +586,115 @@ export function KitDefs() {
       <filter id="pk-drop-sm" x="-40%" y="-40%" width="180%" height="180%">
         <feDropShadow dx="0.008" dy="0.012" stdDeviation="0.007" floodColor="#000" floodOpacity="0.4" />
       </filter>
+      <filter id="pk-blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.004" /></filter>
+      {/* Materials: brushed steel and chrome catching bands of light, black rubber,
+          the sheen on vinyl and painted plastic, a window's reflection, a nylon weave,
+          Velcro, the net of a mesh pocket, a dome and a lens. */}
+      <linearGradient id="pk-steel" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#f4f5f6" /><stop offset="0.18" stopColor="#c3c7cb" /><stop offset="0.35" stopColor="#eef0f1" /><stop offset="0.6" stopColor="#9aa0a5" /><stop offset="0.8" stopColor="#d5d8db" /><stop offset="1" stopColor="#858b90" />
+      </linearGradient>
+      <linearGradient id="pk-steel-h" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#f4f5f6" /><stop offset="0.18" stopColor="#c3c7cb" /><stop offset="0.35" stopColor="#eef0f1" /><stop offset="0.6" stopColor="#9aa0a5" /><stop offset="0.8" stopColor="#d5d8db" /><stop offset="1" stopColor="#858b90" />
+      </linearGradient>
+      <linearGradient id="pk-chrome" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#ffffff" /><stop offset="0.28" stopColor="#cfd3d6" /><stop offset="0.48" stopColor="#fafbfb" /><stop offset="0.7" stopColor="#7f858a" /><stop offset="1" stopColor="#d8dbde" />
+      </linearGradient>
+      <linearGradient id="pk-rubber" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#4a4e53" /><stop offset="0.2" stopColor="#2f3337" /><stop offset="1" stopColor="#16191c" />
+      </linearGradient>
+      <linearGradient id="pk-vinyl" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.2" /><stop offset="0.4" stopColor="#fff" stopOpacity="0.03" /><stop offset="1" stopColor="#000" stopOpacity="0.32" />
+      </linearGradient>
+      <linearGradient id="pk-spec" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset="0.38" stopColor="#fff" stopOpacity="0" /><stop offset="0.5" stopColor="#fff" stopOpacity="0.6" /><stop offset="0.62" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+      </linearGradient>
+      <linearGradient id="pk-spec-v" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset="0.3" stopColor="#fff" stopOpacity="0" /><stop offset="0.42" stopColor="#fff" stopOpacity="0.55" /><stop offset="0.54" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+      </linearGradient>
+      <linearGradient id="pk-glass-refl" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset="0.3" stopColor="#fff" stopOpacity="0" /><stop offset="0.42" stopColor="#fff" stopOpacity="0.26" /><stop offset="0.5" stopColor="#fff" stopOpacity="0.1" /><stop offset="0.56" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+      </linearGradient>
+      <linearGradient id="pk-lp-case" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#d2d5d7" /><stop offset="0.08" stopColor="#b7bcc0" /><stop offset="0.7" stopColor="#9aa0a5" /><stop offset="1" stopColor="#7c8388" />
+      </linearGradient>
+      <linearGradient id="pk-lp-panel" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#6c737a" /><stop offset="1" stopColor="#4c5259" />
+      </linearGradient>
+      <radialGradient id="pk-dome" cx="0.35" cy="0.3" r="0.7">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.5" /><stop offset="0.55" stopColor="#fff" stopOpacity="0.04" /><stop offset="1" stopColor="#000" stopOpacity="0.45" />
+      </radialGradient>
+      <radialGradient id="pk-lens" cx="0.4" cy="0.35" r="0.65">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.85" /><stop offset="0.35" stopColor="#fff" stopOpacity="0.15" /><stop offset="1" stopColor="#000" stopOpacity="0.4" />
+      </radialGradient>
+      <pattern id="pk-weave" width="0.005" height="0.005" patternUnits="userSpaceOnUse">
+        <path d="M0 0.0025 H0.005 M0.0025 0 V0.005" stroke="#000" strokeWidth="0.0008" strokeOpacity="0.16" />
+        <rect x="0" y="0" width="0.0025" height="0.0025" fill="#fff" fillOpacity="0.06" />
+      </pattern>
+      <pattern id="pk-velcro" width="0.004" height="0.004" patternUnits="userSpaceOnUse">
+        <circle cx="0.002" cy="0.002" r="0.0009" fill="#000" fillOpacity="0.22" />
+        <circle cx="0.0005" cy="0.0005" r="0.0005" fill="#fff" fillOpacity="0.12" />
+      </pattern>
+      <pattern id="pk-net" width="0.012" height="0.012" patternUnits="userSpaceOnUse">
+        <rect width="0.012" height="0.012" fill="#0f1a14" />
+        <path d="M0 0.006 H0.012 M0.006 0 V0.012" stroke="#3c6a4a" strokeWidth="0.0012" />
+        <path d="M0 0 L0.012 0.012 M0.012 0 L0 0.012" stroke="#2c5238" strokeWidth="0.0008" />
+      </pattern>
+      <pattern id="pk-grip" width="0.006" height="0.006" patternUnits="userSpaceOnUse">
+        <rect width="0.006" height="0.006" fill="#1f2326" />
+        <circle cx="0.003" cy="0.003" r="0.0016" fill="#34393e" />
+        <circle cx="0.0025" cy="0.0025" r="0.0006" fill="#4d5358" />
+      </pattern>
+      <pattern id="pk-tread" width="0.016" height="0.03" patternUnits="userSpaceOnUse">
+        <rect width="0.016" height="0.03" fill="#1c1f22" />
+        <path d="M0 0.008 H0.016 M0 0.02 H0.016" stroke="#0a0c0e" strokeWidth="0.003" />
+        <path d="M0.004 0.001 V0.006 M0.012 0.012 V0.018 M0.004 0.023 V0.029" stroke="#2b2f33" strokeWidth="0.0015" />
+      </pattern>
     </>
+  );
+}
+
+/** The edge of a moulded part, seen from above: a thread of light along its
+ *  upper-left rim and shade along the lower-right, inside the shape. */
+export function Bevel({ x, y, w, h, rx = 0, d = 0.003, light = 0.4, dark = 0.45 }: { x: number; y: number; w: number; h: number; rx?: number; d?: number; light?: number; dark?: number }) {
+  return (
+    <g fill="none" strokeLinecap="round">
+      <path d={`M${n2(x + rx)} ${n2(y + d)} H${n2(x + w - rx)}`} stroke="#fff" strokeOpacity={light} strokeWidth={d} />
+      <path d={`M${n2(x + d)} ${n2(y + rx)} V${n2(y + h - rx)}`} stroke="#fff" strokeOpacity={light * 0.6} strokeWidth={d} />
+      <path d={`M${n2(x + rx)} ${n2(y + h - d)} H${n2(x + w - rx)}`} stroke="#000" strokeOpacity={dark} strokeWidth={d} />
+      <path d={`M${n2(x + w - d)} ${n2(y + rx)} V${n2(y + h - rx)}`} stroke="#000" strokeOpacity={dark * 0.7} strokeWidth={d} />
+    </g>
+  );
+}
+
+/** A machine screw: steel, a slot, and its shadow in the recess. */
+export function Screw({ x, y, r = 0.004 }: { x: number; y: number; r?: number }) {
+  return (
+    <g>
+      <circle cx={x} cy={y} r={r * 1.25} fill="#000" opacity={0.35} />
+      <circle cx={x} cy={y} r={r} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.4} {...SOFT} />
+      <path d={`M${n2(x - r * 0.6)} ${n2(y + r * 0.3)} L${n2(x + r * 0.6)} ${n2(y - r * 0.3)}`} stroke="#2b2f33" strokeWidth={r * 0.35} strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** A zip: two rows of teeth and the slider at one end, along a line. */
+export function Zip({ a, b, slider = "end" }: { a: Pt; b: Pt; slider?: "start" | "end" | "none" }) {
+  const u = unit(sub(b, a)), v = perp(u);
+  const L = len(sub(b, a));
+  const s = slider === "end" ? add(b, mul(u, -0.012)) : add(a, mul(u, 0.012));
+  const ang = deg(u);
+  return (
+    <g>
+      <path d={`M${P(a)} L${P(b)}`} stroke="#0e1114" strokeWidth={0.007} strokeLinecap="round" opacity={0.8} />
+      <path d={`M${P(add(a, mul(v, 0.0015)))} L${P(add(b, mul(v, 0.0015)))}`} stroke="#b9bec3" strokeWidth={0.0022} strokeDasharray="0.0025 0.0018" strokeLinecap="butt" />
+      <path d={`M${P(add(a, mul(v, -0.0015)))} L${P(add(b, mul(v, -0.0015)))}`} stroke="#b9bec3" strokeWidth={0.0022} strokeDasharray="0.0025 0.0018" strokeDashoffset={0.0022} strokeLinecap="butt" />
+      {slider !== "none" && L > 0.04 && (
+        <g transform={`rotate(${n2(ang)} ${P(s)})`}>
+          <rect x={s[0] - 0.009} y={s[1] - 0.006} width={0.018} height={0.012} rx={0.003} fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.4} {...SOFT} />
+          <path d={`M${n2(s[0] + 0.006)} ${n2(s[1])} l0.014 0.004 l0.002 -0.008 z`} fill="#8a9096" stroke="#2b2f33" strokeWidth={0.4} {...SOFT} />
+        </g>
+      )}
+    </g>
   );
 }
 
@@ -617,38 +749,49 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
   const tr = traces(sl + 0.006, st + 0.016, tw, arrest);
   const clipId = `pk-screen-${Math.round(x * 1000)}-${Math.round(y * 1000)}`;
   const numX = sl + sw - 0.006;
-  const key = (kx: number, ky: number, kw: number, kh: number, fill = "#6b7278", label?: string, labelFill = "#e9ecef") => (
+  const key = (kx: number, ky: number, kw: number, kh: number, fill = "#7d8489", label?: string, labelFill = "#f4f6f8") => (
     <g>
-      <rect x={kx} y={ky} width={kw} height={kh} rx={0.004} fill={fill} stroke="#1b1f23" strokeWidth={0.6} {...SW} />
+      <rect x={kx + 0.001} y={ky + 0.0015} width={kw} height={kh} rx={0.004} fill="#000" opacity={0.35} />
+      <rect x={kx} y={ky} width={kw} height={kh} rx={0.004} fill={fill} stroke="#1b1f23" strokeWidth={0.5} {...SW} />
       <rect x={kx} y={ky} width={kw} height={kh} rx={0.004} fill="url(#pk-gloss)" />
-      {label && <text x={kx + kw / 2} y={ky + kh / 2 + 0.0035} textAnchor="middle" fontSize={0.0085} fontWeight={700} fill={labelFill} fontFamily="Arial, sans-serif">{label}</text>}
+      <Bevel x={kx} y={ky} w={kw} h={kh} rx={0.004} d={0.0012} light={0.5} dark={0.4} />
+      {label && <text x={kx + kw / 2} y={ky + kh / 2 + 0.003} textAnchor="middle" fontSize={Math.min(0.0075, (kw * 0.9) / (label.length * 0.62))} fontWeight={700} fill={labelFill} fontFamily="Arial, sans-serif">{label}</text>}
     </g>
   );
   const dial: Pt = [L + 0.248, T + 0.255];
   return (
     <g className="ps-monitor" filter="url(#pk-drop)">
-      {/* The carry handle along the top edge. */}
-      <rect x={x - 0.1} y={T - 0.028} width={0.2} height={0.046} rx={0.02} fill="#3b4147" stroke="#15191c" strokeWidth={0.9} {...SW} />
-      <rect x={x - 0.07} y={T - 0.022} width={0.14} height={0.03} rx={0.014} fill="#1f2428" />
-      {/* The case. */}
-      <rect x={L} y={T} width={W} height={H} rx={0.022} fill="url(#pk-case)" stroke="#0e1114" strokeWidth={1} {...SW} />
-      <rect x={L + 0.006} y={T + 0.006} width={W - 0.012} height={H - 0.012} rx={0.018} fill="none" stroke="#7d848b" strokeWidth={0.6} strokeOpacity={0.45} {...SW} />
-      <rect x={L + 0.008} y={T + 0.2} width={W - 0.016} height={0.112} rx={0.012} fill="#2a2f34" opacity={0.7} />
-      <text x={L + 0.012} y={T + 0.02} fontSize={0.011} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif" letterSpacing={0.001}>LIFEPAK<tspan fontWeight={400}> 15</tspan></text>
-      <text x={L + 0.012} y={T + 0.029} fontSize={0.005} fontWeight={700} fill="#9aa0a6" fontFamily="Arial, sans-serif">MONITOR / DEFIBRILLATOR</text>
+      {/* The carry handle along the top edge: black rubber, ribbed. */}
+      <rect x={x - 0.1} y={T - 0.028} width={0.2} height={0.046} rx={0.02} fill="url(#pk-rubber)" stroke="#0e1114" strokeWidth={0.9} {...SW} />
+      <rect x={x - 0.07} y={T - 0.022} width={0.14} height={0.03} rx={0.014} fill="#111417" />
+      {Array.from({ length: 9 }, (_, i) => <path key={i} d={`M${n2(x - 0.06 + i * 0.015)} ${n2(T - 0.024)} v0.034`} stroke="#000" strokeWidth={0.5} strokeOpacity={0.6} {...SW} />)}
+      <rect x={x - 0.095} y={T - 0.027} width={0.19} height={0.012} rx={0.006} fill="#fff" opacity={0.12} />
+      {/* The case: light grey moulding on a black rubber base, the bumpers at the corners. */}
+      <rect x={L - 0.004} y={T - 0.004} width={W + 0.008} height={H + 0.008} rx={0.026} fill="#16191c" />
+      <rect x={L} y={T} width={W} height={H} rx={0.022} fill="url(#pk-lp-case)" stroke="#0e1114" strokeWidth={0.8} {...SW} />
+      <rect x={L} y={T} width={W} height={H} rx={0.022} fill="url(#ps-grain)" opacity={0.45} />
+      <Bevel x={L} y={T} w={W} h={H} rx={0.022} d={0.0035} light={0.55} dark={0.5} />
+      {[[L, T], [L + W - 0.04, T], [L, T + H - 0.04], [L + W - 0.04, T + H - 0.04]].map(([bx, by], i) => <rect key={i} x={bx} y={by} width={0.04} height={0.04} rx={0.02} fill="url(#pk-rubber)" opacity={0.95} />)}
+      <rect x={L + 0.008} y={T + 0.2} width={W - 0.016} height={0.112} rx={0.012} fill="#000" opacity={0.12} />
+      {[[L + 0.012, T + 0.012], [L + W - 0.012, T + 0.012], [L + 0.012, T + H - 0.012], [L + W - 0.012, T + H - 0.012]].map(([sxx, syy], i) => <Screw key={i} x={sxx} y={syy} r={0.0032} />)}
+      <text x={L + 0.046} y={T + 0.017} fontSize={0.0095} fontWeight={800} fill="#2b3036" fontFamily="Arial, sans-serif" letterSpacing={0.001}>LIFEPAK<tspan fontWeight={400}> 15</tspan></text>
+      <text x={L + 0.046} y={T + 0.0235} fontSize={0.0042} fontWeight={700} fill="#4d545a" fontFamily="Arial, sans-serif">MONITOR / DEFIBRILLATOR</text>
       {/* Left column: ON, then the SpO₂, NIBP and CO₂ keys. */}
+      <circle cx={L + 0.031} cy={T + 0.057} r={0.014} fill="#000" opacity={0.35} />
       <circle cx={L + 0.03} cy={T + 0.055} r={0.013} fill="#2fa85a" stroke="#0f4d2a" strokeWidth={0.8} {...SW} />
-      <circle cx={L + 0.03} cy={T + 0.055} r={0.013} fill="url(#pk-gloss)" />
+      <circle cx={L + 0.03} cy={T + 0.055} r={0.013} fill="url(#pk-dome)" />
       <text x={L + 0.03} y={T + 0.058} textAnchor="middle" fontSize={0.0075} fontWeight={800} fill="#f4f6f8" fontFamily="Arial, sans-serif">ON</text>
       {[["SpO₂", T + 0.085], ["NIBP", T + 0.125], ["CO₂", T + 0.165]].map(([lab, ky]) => (
         <g key={lab as string}>
-          <text x={L + 0.012} y={(ky as number) - 0.003} fontSize={0.0065} fontWeight={700} fill="#c9ced3" fontFamily="Arial, sans-serif">{lab as string}</text>
+          <text x={L + 0.012} y={(ky as number) - 0.003} fontSize={0.0065} fontWeight={700} fill="#2b3036" fontFamily="Arial, sans-serif">{lab as string}</text>
           {key(L + 0.012, ky as number, 0.038, 0.02)}
           <circle cx={L + 0.031} cy={(ky as number) + 0.01} r={0.004} fill="#1b1f23" />
+          <circle cx={L + 0.0305} cy={(ky as number) + 0.0095} r={0.0015} fill="#5fbf6a" opacity={0.9} />
         </g>
       ))}
-      {/* The screen: three channels and the numbers down the right. */}
-      <rect x={sl - 0.004} y={st - 0.004} width={sw + 0.008} height={sh + 0.008} rx={0.006} fill="#0b0e11" />
+      {/* The screen: a black bezel sunk into the case, the glass, three channels and the numbers down the right. */}
+      <rect x={sl - 0.008} y={st - 0.008} width={sw + 0.016} height={sh + 0.016} rx={0.008} fill="#000" opacity={0.4} />
+      <rect x={sl - 0.006} y={st - 0.006} width={sw + 0.012} height={sh + 0.012} rx={0.007} fill="#0b0e11" />
       <rect x={sl} y={st} width={sw} height={sh} rx={0.004} fill="url(#pk-screen)" stroke="#05080b" strokeWidth={1} {...SW} />
       <rect x={sl} y={st} width={sw} height={0.012} fill="#1a2430" />
       <text x={sl + 0.004} y={st + 0.0085} fontSize={0.006} fontWeight={700} fill="#c9ced3" fontFamily="Arial, sans-serif">{arrest ? "VF  ·  CPR" : "ADULT  ·  LEAD II"}</text>
@@ -679,46 +822,60 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
         </g>
       ))}
       {arrest && <text x={sl + tw - 0.004} y={st + sh - 0.006} textAnchor="end" fontSize={0.0075} fontWeight={800} fill="#ff5d5d" fontFamily="Arial, sans-serif">VF — SHOCK ADVISED</text>}
-      <rect x={sl} y={st} width={sw} height={sh * 0.45} rx={0.004} fill="url(#pk-gloss)" />
-      {/* Under the screen: the soft keys and the speed dial. */}
-      {["OPTIONS", "EVENT", "ALARMS", "PRINT", "CODE SUM"].map((lab, i) => <g key={lab}>{key(sl + i * 0.038, T + 0.206, 0.032, 0.016, "#5f666d", lab, "#e9ecef")}</g>)}
-      {["HOME", "TRANSMIT"].map((lab, i) => <g key={lab}>{key(sl + i * 0.052, T + 0.232, 0.046, 0.016, "#5f666d", lab)}</g>)}
-      <circle cx={dial[0]} cy={dial[1]} r={0.03} fill="#111518" />
-      <circle cx={dial[0]} cy={dial[1]} r={0.025} fill="url(#pk-case)" stroke="#0e1114" strokeWidth={0.8} {...SW} />
-      {Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * Math.PI * 2; return <path key={i} d={`M${n2(dial[0] + Math.cos(a) * 0.02)} ${n2(dial[1] + Math.sin(a) * 0.02)} L${n2(dial[0] + Math.cos(a) * 0.026)} ${n2(dial[1] + Math.sin(a) * 0.026)}`} stroke="#8a9199" strokeWidth={0.6} {...SW} />; })}
+      <rect x={sl} y={st} width={sw} height={sh} rx={0.004} fill="url(#pk-glass-refl)" />
+      <rect x={sl} y={st} width={sw} height={sh * 0.3} rx={0.004} fill="url(#pk-gloss)" opacity={0.6} />
+      {/* Under the screen: the soft keys and the speed dial, knurled, in its chrome ring. */}
+      {["OPTIONS", "EVENT", "ALARMS", "PRINT", "CODE SUM"].map((lab, i) => <g key={lab}>{key(sl + i * 0.038, T + 0.206, 0.032, 0.016, "#7d8489", lab)}</g>)}
+      {["HOME", "TRANSMIT"].map((lab, i) => <g key={lab}>{key(sl + i * 0.052, T + 0.232, 0.046, 0.016, "#7d8489", lab)}</g>)}
+      <circle cx={dial[0] + 0.002} cy={dial[1] + 0.003} r={0.033} fill="#000" opacity={0.4} />
+      <circle cx={dial[0]} cy={dial[1]} r={0.032} fill="url(#pk-chrome)" stroke="#2b2f33" strokeWidth={0.5} {...SW} />
+      <circle cx={dial[0]} cy={dial[1]} r={0.027} fill="#111518" />
+      <circle cx={dial[0]} cy={dial[1]} r={0.025} fill="url(#pk-rubber)" stroke="#0e1114" strokeWidth={0.8} {...SW} />
+      {Array.from({ length: 36 }, (_, i) => { const a = (i / 36) * Math.PI * 2; return <path key={i} d={`M${n2(dial[0] + Math.cos(a) * 0.019)} ${n2(dial[1] + Math.sin(a) * 0.019)} L${n2(dial[0] + Math.cos(a) * 0.025)} ${n2(dial[1] + Math.sin(a) * 0.025)}`} stroke={i % 2 ? "#3a3f45" : "#0a0c0e"} strokeWidth={0.6} {...SW} />; })}
+      <circle cx={dial[0]} cy={dial[1]} r={0.019} fill="url(#pk-dome)" />
       <circle cx={dial[0]} cy={dial[1]} r={0.009} fill="#2a2f34" stroke="#8a9199" strokeWidth={0.6} {...SW} />
-      <text x={dial[0]} y={dial[1] + 0.044} textAnchor="middle" fontSize={0.005} fontWeight={700} fill="#9aa0a6" fontFamily="Arial, sans-serif">SPEED DIAL</text>
-      {/* The therapy panel on the right. */}
-      <rect x={L + 0.29} y={T + 0.03} width={0.078} height={0.26} rx={0.008} fill="#2a2f34" stroke="#15191c" strokeWidth={0.7} {...SW} />
+      <path d={`M${n2(dial[0])} ${n2(dial[1] - 0.012)} V${n2(dial[1] - 0.022)}`} stroke="#f4f6f8" strokeWidth={1} strokeLinecap="round" {...SW} />
+      <text x={dial[0]} y={dial[1] + 0.044} textAnchor="middle" fontSize={0.005} fontWeight={700} fill="#2b3036" fontFamily="Arial, sans-serif">SPEED DIAL</text>
+      {/* The therapy panel on the right, sunk a little into the case. */}
+      <rect x={L + 0.291} y={T + 0.031} width={0.078} height={0.26} rx={0.008} fill="#000" opacity={0.3} />
+      <rect x={L + 0.29} y={T + 0.03} width={0.078} height={0.26} rx={0.008} fill="url(#pk-lp-panel)" stroke="#15191c" strokeWidth={0.7} {...SW} />
+      <Bevel x={L + 0.29} y={T + 0.03} w={0.078} h={0.26} rx={0.008} d={0.0015} light={0.25} dark={0.5} />
       <text x={L + 0.329} y={T + 0.046} textAnchor="middle" fontSize={0.0055} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif">ENERGY SELECT</text>
       <rect x={L + 0.3} y={T + 0.052} width={0.058} height={0.016} rx={0.003} fill="#0b0e11" />
       <text x={L + 0.329} y={T + 0.064} textAnchor="middle" fontSize={0.009} fontWeight={800} fill="#3ad17f" fontFamily="Arial, sans-serif">200 J</text>
-      {key(L + 0.3, T + 0.072, 0.026, 0.016, "#6b7278", "▲")}
-      {key(L + 0.332, T + 0.072, 0.026, 0.016, "#6b7278", "▼")}
+      {key(L + 0.3, T + 0.072, 0.026, 0.016, "#7d8489", "▲")}
+      {key(L + 0.332, T + 0.072, 0.026, 0.016, "#7d8489", "▼")}
       <text x={L + 0.329} y={T + 0.104} textAnchor="middle" fontSize={0.0055} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif">CHARGE</text>
+      <rect x={L + 0.307} y={T + 0.11} width={0.046} height={0.034} rx={0.008} fill="#000" opacity={0.4} />
       <rect x={L + 0.306} y={T + 0.108} width={0.046} height={0.034} rx={0.008} fill="#f2c230" stroke="#6b5410" strokeWidth={0.8} {...SW} />
-      <rect x={L + 0.306} y={T + 0.108} width={0.046} height={0.034} rx={0.008} fill="url(#pk-gloss)" />
+      <rect x={L + 0.306} y={T + 0.108} width={0.046} height={0.034} rx={0.008} fill="url(#pk-dome)" />
       <text x={L + 0.329} y={T + 0.158} textAnchor="middle" fontSize={0.0055} fontWeight={800} fill="#e9ecef" fontFamily="Arial, sans-serif">SHOCK</text>
+      <circle cx={L + 0.33} cy={T + 0.187} r={0.024} fill="#000" opacity={0.4} />
       <circle cx={L + 0.329} cy={T + 0.185} r={0.023} fill="#d13b3b" stroke="#5c1313" strokeWidth={0.9} {...SW} />
-      <circle cx={L + 0.329} cy={T + 0.185} r={0.023} fill="url(#pk-gloss)" />
+      <circle cx={L + 0.329} cy={T + 0.185} r={0.023} fill="url(#pk-dome)" />
       <path d={`M${n2(L + 0.333)} ${n2(T + 0.172)} l-0.01 0.014 h0.007 l-0.006 0.013 l0.013 -0.016 h-0.007 z`} fill="#fff" opacity={0.95} />
-      {key(L + 0.298, T + 0.222, 0.03, 0.016, "#4a8a5a", "ANALYZE", "#f4f6f8")}
-      {key(L + 0.332, T + 0.222, 0.03, 0.016, "#5f666d", "SYNC")}
-      {key(L + 0.298, T + 0.246, 0.064, 0.016, "#5f666d", "PACER")}
-      {key(L + 0.298, T + 0.27, 0.064, 0.014, "#5f666d", "CODE SUMMARY")}
-      {/* The printer: its door and the strip of paper. */}
-      <rect x={L + 0.372} y={T + 0.02} width={0.022} height={0.28} rx={0.004} fill="#4a5056" stroke="#15191c" strokeWidth={0.7} {...SW} />
-      <rect x={L + 0.375} y={T + 0.03} width={0.016} height={0.08} rx={0.002} fill="#2a2f34" />
-      <rect x={L + 0.376} y={T + 0.014} width={0.014} height={0.07} fill="#f7f5ef" stroke="#c9ced3" strokeWidth={0.5} {...SW} transform={`rotate(-6 ${n2(L + 0.383)} ${n2(T + 0.084)})`} />
-      <path d={`M${n2(L + 0.378)} ${n2(T + 0.02)} v0.056 M${n2(L + 0.382)} ${n2(T + 0.02)} v0.056 M${n2(L + 0.386)} ${n2(T + 0.02)} v0.056`} stroke="#e8a0a0" strokeWidth={0.4} {...SW} transform={`rotate(-6 ${n2(L + 0.383)} ${n2(T + 0.084)})`} />
+      {key(L + 0.298, T + 0.222, 0.03, 0.016, "#4a8a5a", "ANALYZE")}
+      {key(L + 0.332, T + 0.222, 0.03, 0.016, "#7d8489", "SYNC")}
+      {key(L + 0.298, T + 0.246, 0.064, 0.016, "#7d8489", "PACER")}
+      {key(L + 0.298, T + 0.27, 0.064, 0.014, "#7d8489", "CODE SUMMARY")}
+      {/* The printer: its door and the strip of paper, with its slot's shadow. */}
+      <rect x={L + 0.372} y={T + 0.02} width={0.022} height={0.28} rx={0.004} fill="#000" opacity={0.3} />
+      <rect x={L + 0.371} y={T + 0.019} width={0.022} height={0.28} rx={0.004} fill="#4a5056" stroke="#15191c" strokeWidth={0.7} {...SW} />
+      <Bevel x={L + 0.371} y={T + 0.019} w={0.022} h={0.28} rx={0.004} d={0.001} light={0.3} dark={0.4} />
+      <rect x={L + 0.374} y={T + 0.03} width={0.016} height={0.08} rx={0.002} fill="#1b1f23" />
+      <rect x={L + 0.375} y={T + 0.014} width={0.014} height={0.07} fill="#f7f5ef" stroke="#c9ced3" strokeWidth={0.5} {...SW} transform={`rotate(-6 ${n2(L + 0.382)} ${n2(T + 0.084)})`} />
+      <path d={`M${n2(L + 0.377)} ${n2(T + 0.02)} v0.056 M${n2(L + 0.381)} ${n2(T + 0.02)} v0.056 M${n2(L + 0.385)} ${n2(T + 0.02)} v0.056`} stroke="#e8a0a0" strokeWidth={0.4} {...SW} transform={`rotate(-6 ${n2(L + 0.382)} ${n2(T + 0.084)})`} />
       {/* Speaker. */}
       {Array.from({ length: 12 }, (_, i) => <circle key={i} cx={L + 0.014 + (i % 4) * 0.008} cy={T + 0.2 + Math.floor(i / 4) * 0.008} r={0.0022} fill="#0e1114" />)}
-      {/* Sockets down the side the cables leave: ECG, therapy, SpO₂, NIBP, CO₂. */}
-      <rect x={sx} y={T + 0.04} width={0.024} height={0.03} rx={0.004} fill="#3ad17f" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.078} width={0.024} height={0.04} rx={0.004} fill="#e9ecef" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.126} width={0.024} height={0.026} rx={0.004} fill="#2f6fd6" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.16} width={0.024} height={0.026} rx={0.004} fill="#8a9399" stroke="#0e1114" strokeWidth={0.7} {...SW} />
-      <rect x={sx} y={T + 0.194} width={0.024} height={0.026} rx={0.004} fill="#f3d35a" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      {/* Sockets down the side the cables leave: ECG, therapy, SpO₂, NIBP, CO₂, each in a steel collar. */}
+      {([[T + 0.04, 0.03, "#3ad17f"], [T + 0.078, 0.04, "#e9ecef"], [T + 0.126, 0.026, "#2f6fd6"], [T + 0.16, 0.026, "#8a9399"], [T + 0.194, 0.026, "#f3d35a"]] as [number, number, string][]).map(([sy, h, c], i) => (
+        <g key={i}>
+          <rect x={sx - 0.002} y={sy - 0.002} width={0.028} height={h + 0.004} rx={0.005} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.5} {...SW} />
+          <rect x={sx} y={sy} width={0.024} height={h} rx={0.004} fill={c} stroke="#0e1114" strokeWidth={0.7} {...SW} />
+          <rect x={sx} y={sy} width={0.024} height={h} rx={0.004} fill="url(#pk-gloss)" />
+          <circle cx={sx + 0.012} cy={sy + h / 2} r={0.004} fill="#0e1114" opacity={0.7} />
+        </g>
+      ))}
     </g>
   );
 }
@@ -729,45 +886,90 @@ export function KitBag({ at, k = 1, open = true }: { at: Pt; k?: number; open?: 
   void k;
   const [x, y] = at;
   const W = 0.6, H = 0.44, L = x - W / 2, T = y - H / 2;
+  const green = "#2c6b45", greenDark = "#1b4a2e", greenLight = "#3f8a5c";
+  const nylon = (rx: number, ry: number, rw: number, rh: number, rr: number, fill = green) => (
+    <g>
+      <rect x={rx} y={ry} width={rw} height={rh} rx={rr} fill={fill} stroke={greenDark} strokeWidth={0.9} {...SW} />
+      <rect x={rx} y={ry} width={rw} height={rh} rx={rr} fill="url(#pk-weave)" />
+      <rect x={rx} y={ry} width={rw} height={rh} rx={rr} fill="url(#pk-vinyl)" opacity={0.7} />
+      <rect x={rx + 0.006} y={ry + 0.006} width={rw - 0.012} height={rh - 0.012} rx={Math.max(0, rr - 0.005)} fill="none" stroke={greenLight} strokeWidth={0.0025} strokeOpacity={0.55} />
+      <rect x={rx + 0.011} y={ry + 0.011} width={rw - 0.022} height={rh - 0.022} rx={Math.max(0, rr - 0.009)} fill="none" stroke="#dfe8ef" strokeWidth={0.0008} strokeOpacity={0.45} strokeDasharray="0.003 0.002" />
+    </g>
+  );
+  const pouch = (px: number, py: number, pw: number, ph: number, c: string, label: string) => (
+    <g>
+      <rect x={px + 0.004} y={py + 0.006} width={pw} height={ph} rx={0.014} fill="#000" opacity={0.4} filter="url(#pk-blur)" />
+      <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill={c} stroke="#0e1114" strokeWidth={0.6} strokeOpacity={0.7} {...SW} />
+      <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill="url(#pk-weave)" />
+      <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill="url(#pk-vinyl)" opacity={0.8} />
+      <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill="url(#ps-grain)" />
+      <Bevel x={px} y={py} w={pw} h={ph} rx={0.014} d={0.0025} light={0.35} dark={0.45} />
+      <Zip a={[px + 0.014, py + 0.022]} b={[px + pw - 0.014, py + 0.022]} />
+      <rect x={px + 0.02} y={py + ph * 0.5} width={pw - 0.04} height={0.034} rx={0.003} fill="#f4f6f8" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+      <rect x={px + 0.02} y={py + ph * 0.5} width={pw - 0.04} height={0.034} rx={0.003} fill="url(#pk-velcro)" />
+      <text x={px + pw / 2} y={py + ph * 0.5 + 0.024} textAnchor="middle" fontSize={0.016} fontWeight={800} fill="#1b2733" fontFamily="Arial, sans-serif">{label}</text>
+      <rect x={px + 0.016} y={py + ph - 0.024} width={pw - 0.032} height={0.012} rx={0.004} fill="#000" opacity={0.25} />
+    </g>
+  );
+  const strap = (sxx: number) => (
+    <g>
+      <rect x={sxx} y={T - 0.01} width={0.03} height={H + 0.02} fill="url(#pk-rubber)" />
+      <path d={`M${n2(sxx + 0.005)} ${n2(T)} V${n2(T + H)} M${n2(sxx + 0.025)} ${n2(T)} V${n2(T + H)}`} stroke="#6b7278" strokeWidth={0.0008} strokeDasharray="0.003 0.002" />
+      <rect x={sxx - 0.007} y={T + H - 0.15} width={0.044} height={0.024} rx={0.004} fill="url(#pk-rubber)" stroke="#0e1114" strokeWidth={0.6} {...SW} />
+      <rect x={sxx - 0.004} y={T + H - 0.146} width={0.038} height={0.006} rx={0.002} fill="#6b7278" />
+      <rect x={sxx - 0.004} y={T + H - 0.136} width={0.038} height={0.006} rx={0.002} fill="#6b7278" />
+    </g>
+  );
   return (
     <g className="ps-kitbag" filter="url(#pk-drop)">
       {open && (
         <g>
-          <rect x={L + 0.02} y={T - 0.2} width={W - 0.04} height={0.22} rx={0.05} fill="url(#pk-fabric)" stroke="#0b2416" strokeWidth={1} {...SW} />
-          <rect x={L + 0.07} y={T - 0.17} width={W - 0.14} height={0.13} rx={0.02} fill="url(#pk-mesh)" stroke="#0b2416" strokeWidth={0.6} {...SW} />
-          <rect x={L + 0.02} y={T - 0.2} width={W - 0.04} height={0.22} rx={0.05} fill="url(#pk-gloss)" />
+          {/* The lid, thrown back: its inside face, the net pocket with its elastic, the zip round its edge. */}
+          {nylon(L + 0.02, T - 0.2, W - 0.04, 0.22, 0.05, "#2f7249")}
+          <rect x={L + 0.06} y={T - 0.172} width={W - 0.12} height={0.14} rx={0.014} fill="url(#pk-net)" stroke="#0b2416" strokeWidth={0.6} {...SW} />
+          <rect x={L + 0.06} y={T - 0.172} width={W - 0.12} height={0.14} rx={0.014} fill="url(#pk-gloss)" opacity={0.5} />
+          <path d={`M${n2(L + 0.062)} ${n2(T - 0.17)} H${n2(L + W - 0.062)}`} stroke="#0e1114" strokeWidth={0.006} strokeLinecap="round" />
+          <rect x={L + 0.09} y={T - 0.15} width={0.11} height={0.07} rx={0.006} fill="#e9ecef" opacity={0.75} />
+          <rect x={L + 0.1} y={T - 0.14} width={0.09} height={0.012} fill="#2f6fd6" opacity={0.8} />
+          <rect x={L + 0.24} y={T - 0.155} width={0.08} height={0.08} rx={0.01} fill="#c9d3dc" opacity={0.7} />
+          <Zip a={[L + 0.05, T - 0.19]} b={[L + W - 0.05, T - 0.19]} slider="start" />
         </g>
       )}
-      <rect x={L} y={T} width={W} height={H} rx={0.05} fill="url(#pk-fabric)" stroke="#0b2416" strokeWidth={1} {...SW} />
-      <rect x={L} y={T + H - 0.1} width={W} height={0.032} fill="#cfd4d8" opacity={0.9} />
-      {[L + 0.1, L + W - 0.13].map((sxx) => (
-        <g key={sxx}>
-          <rect x={sxx} y={T} width={0.03} height={H} fill="#15191c" opacity={0.9} />
-          <rect x={sxx - 0.006} y={T + H - 0.15} width={0.042} height={0.02} rx={0.003} fill="#5a6470" stroke="#0e1114" strokeWidth={0.6} {...SW} />
-        </g>
-      ))}
-      <rect x={x - 0.07} y={T - 0.012} width={0.14} height={0.024} rx={0.012} fill="#15191c" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      {/* The body. */}
+      {nylon(L, T, W, H, 0.05)}
+      <rect x={L} y={T} width={W} height={H} rx={0.05} fill="url(#ps-grain)" />
+      {/* The reflective band, stitched on, catching the light. */}
+      <rect x={L} y={T + H - 0.1} width={W} height={0.036} fill="url(#pk-steel-h)" />
+      <rect x={L} y={T + H - 0.1} width={W} height={0.036} fill="url(#pk-glass-refl)" />
+      <path d={`M${n2(L)} ${n2(T + H - 0.097)} H${n2(L + W)} M${n2(L)} ${n2(T + H - 0.067)} H${n2(L + W)}`} stroke="#5f666d" strokeWidth={0.0008} strokeDasharray="0.003 0.002" />
+      {strap(L + 0.1)}
+      {strap(L + W - 0.13)}
+      <Zip a={[L + 0.05, T + 0.014]} b={[L + W - 0.05, T + 0.014]} />
+      {/* The padded handle on the top edge. */}
+      <rect x={x - 0.075} y={T - 0.016} width={0.15} height={0.03} rx={0.015} fill="url(#pk-rubber)" stroke="#0e1114" strokeWidth={0.7} {...SW} />
+      <rect x={x - 0.06} y={T - 0.012} width={0.12} height={0.008} rx={0.004} fill="#fff" opacity={0.12} />
       {open ? (
         <g>
-          <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={H - 0.15} rx={0.025} fill="#0f1a14" />
-          {[["#c0392b", "AIRWAY"], ["#2f6fd6", "CIRC"], ["#e0b321", "DRUGS"]].map(([c, label], i) => (
-            <g key={label}>
-              <rect x={L + 0.06 + i * 0.165} y={T + 0.055} width={0.15} height={0.22} rx={0.012} fill={c} stroke="#0e1114" strokeWidth={0.7} {...SW} />
-              <rect x={L + 0.06 + i * 0.165} y={T + 0.055} width={0.15} height={0.22} rx={0.012} fill="url(#pk-gloss)" />
-              <path d={`M${n2(L + 0.07 + i * 0.165)} ${n2(T + 0.075)} H${n2(L + 0.2 + i * 0.165)}`} stroke="#0e1114" strokeWidth={0.9} strokeDasharray="0.006 0.004" {...SW} />
-              <rect x={L + 0.085 + i * 0.165} y={T + 0.16} width={0.1} height={0.03} rx={0.004} fill="#f4f6f8" />
-              <text x={L + 0.135 + i * 0.165} y={T + 0.181} textAnchor="middle" fontSize={0.016} fontWeight={800} fill="#1b2733" fontFamily="Arial, sans-serif">{label}</text>
-            </g>
-          ))}
-          <circle cx={L + W - 0.085} cy={T + H - 0.14} r={0.028} fill="#e9ecef" stroke="#9aa0a6" strokeWidth={0.7} {...SW} />
-          <circle cx={L + W - 0.085} cy={T + H - 0.14} r={0.012} fill="#0f1a14" />
+          {/* Inside: the dark base, the three pouches, the shears and a roll of tape. */}
+          <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={H - 0.15} rx={0.025} fill="#0d1610" />
+          <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={H - 0.15} rx={0.025} fill="url(#pk-weave)" />
+          <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={0.03} rx={0.01} fill="#000" opacity={0.5} filter="url(#pk-blur)" />
+          {pouch(L + 0.06, T + 0.055, 0.15, 0.22, "#c0392b", "AIRWAY")}
+          {pouch(L + 0.225, T + 0.055, 0.15, 0.22, "#2f6fd6", "CIRC")}
+          {pouch(L + 0.39, T + 0.055, 0.15, 0.22, "#e0b321", "DRUGS")}
+          <g transform={`rotate(-28 ${n2(L + 0.12)} ${n2(T + H - 0.13)})`}>
+            <rect x={L + 0.06} y={T + H - 0.138} width={0.07} height={0.016} rx={0.004} fill="url(#pk-steel-h)" stroke="#5f666d" strokeWidth={0.4} {...SW} />
+            <rect x={L + 0.125} y={T + H - 0.142} width={0.05} height={0.012} rx={0.005} fill="#1f2326" stroke="#0e1114" strokeWidth={0.4} {...SW} />
+            <rect x={L + 0.125} y={T + H - 0.126} width={0.05} height={0.012} rx={0.005} fill="#1f2326" stroke="#0e1114" strokeWidth={0.4} {...SW} />
+          </g>
+          <circle cx={L + W - 0.085} cy={T + H - 0.14} r={0.028} fill="#f1efe8" stroke="#9aa0a6" strokeWidth={0.7} {...SW} />
+          <circle cx={L + W - 0.085} cy={T + H - 0.14} r={0.028} fill="url(#pk-dome)" opacity={0.6} />
+          <circle cx={L + W - 0.085} cy={T + H - 0.14} r={0.012} fill="#0d1610" />
         </g>
       ) : (
-        <g>
-          <path d={`M${n2(L + 0.05)} ${n2(y)} H${n2(L + W - 0.05)}`} stroke="#0b2416" strokeWidth={1.4} strokeDasharray="0.008 0.005" {...SW} />
-        </g>
+        <Zip a={[L + 0.05, y]} b={[L + W - 0.05, y]} />
       )}
-      <rect x={L} y={T} width={W} height={H} rx={0.05} fill="url(#pk-gloss)" opacity={0.6} />
+      <rect x={L} y={T} width={W} height={H} rx={0.05} fill="url(#pk-gloss)" opacity={0.5} />
     </g>
   );
 }
@@ -778,20 +980,50 @@ export function O2Cylinder({ at, k = 1, angle = 90 }: { at: Pt; k?: number; angl
   void k;
   const [x, y] = at;
   const L = 0.52, D = 0.1;
+  const b0 = x + 0.1;
   return (
     <g transform={`rotate(${n2(angle)} ${n2(x)} ${n2(y)})`} filter="url(#pk-drop)">
-      <rect x={x + 0.1} y={y - D / 2} width={L - 0.1} height={D} rx={D / 2} fill="#f2f4f6" stroke="#6f777c" strokeWidth={0.9} {...SW} />
-      <rect x={x + 0.1} y={y - D / 2} width={L - 0.1} height={D} rx={D / 2} fill="url(#pk-cyl)" />
-      <path d={`M${n2(x + 0.1)} ${n2(y - 0.03)} l-0.03 0.008 v0.044 l0.03 0.008 z`} fill="#dfe3e6" stroke="#6f777c" strokeWidth={0.7} {...SW} />
-      <rect x={x - 0.01} y={y - 0.034} width={0.09} height={0.068} rx={0.014} fill="#c9ced3" stroke="#5f6468" strokeWidth={0.8} {...SW} />
-      <rect x={x - 0.01} y={y - 0.034} width={0.09} height={0.068} rx={0.014} fill="url(#pk-gloss)" />
-      <circle cx={x + 0.055} cy={y + 0.004} r={0.02} fill="#1f8a4c" stroke="#0f4d2a" strokeWidth={0.7} {...SW} />
-      <circle cx={x + 0.055} cy={y + 0.004} r={0.008} fill="#f4f6f8" />
-      <circle cx={x + 0.012} cy={y - 0.014} r={0.014} fill="#f4f6f8" stroke="#5f6468" strokeWidth={0.7} {...SW} />
-      <rect x={x + 0.002} y={y + 0.014} width={0.016} height={0.012} rx={0.003} fill="#5f6468" />
-      <rect x={x + 0.16} y={y - D / 2 + 0.004} width={0.03} height={D - 0.008} fill="#8fcf9a" opacity={0.9} />
-      <text x={x + 0.35} y={y + 0.01} textAnchor="middle" fontSize={0.026} fontWeight={800} fill="#1f8a4c" fontFamily="Arial, sans-serif" letterSpacing={0.003}>OXYGEN</text>
-      <text x={x + 0.35} y={y + 0.034} textAnchor="middle" fontSize={0.012} fontWeight={700} fill="#5f6468" fontFamily="Arial, sans-serif">MEDICAL · CD</text>
+      {/* The body: white enamel over steel, lit along its upper third, the far end domed. */}
+      <rect x={b0} y={y - D / 2} width={L - 0.1} height={D} rx={D / 2} fill="#f0f2f3" stroke="#6f777c" strokeWidth={0.8} {...SW} />
+      <rect x={b0} y={y - D / 2} width={L - 0.1} height={D} rx={D / 2} fill="url(#pk-cyl)" />
+      <rect x={b0 + 0.04} y={y - D / 2 + 0.014} width={L - 0.2} height={0.009} rx={0.0045} fill="#fff" opacity={0.7} />
+      <rect x={b0 + 0.03} y={y - D / 2 + 0.03} width={L - 0.18} height={0.006} rx={0.003} fill="#fff" opacity={0.25} />
+      <ellipse cx={x + L - D / 2} cy={y} rx={D / 2} ry={D / 2} fill="url(#pk-dome)" opacity={0.7} />
+      <rect x={b0} y={y - D / 2} width={L - 0.1} height={D} rx={D / 2} fill="url(#ps-grain)" />
+      <ellipse cx={b0 + 0.3} cy={y + 0.03} rx={0.03} ry={0.008} fill="#6f777c" opacity={0.14} />
+      <ellipse cx={b0 + 0.12} cy={y - 0.02} rx={0.02} ry={0.006} fill="#6f777c" opacity={0.12} />
+      {/* The label: oxygen in green, the hazard diamond, a barcode. */}
+      <rect x={b0 + 0.11} y={y - 0.036} width={0.26} height={0.072} rx={0.004} fill="#f8f9f9" stroke="#c9ced3" strokeWidth={0.4} {...SW} />
+      <rect x={b0 + 0.11} y={y - 0.036} width={0.26} height={0.012} fill="#1f8a4c" />
+      <text x={b0 + 0.24} y={y + 0.006} textAnchor="middle" fontSize={0.022} fontWeight={800} fill="#1f8a4c" fontFamily="Arial, sans-serif" letterSpacing={0.002}>OXYGEN</text>
+      <text x={b0 + 0.24} y={y + 0.024} textAnchor="middle" fontSize={0.008} fontWeight={700} fill="#5f6468" fontFamily="Arial, sans-serif">MEDICAL GAS · CD · 460 L</text>
+      <path d={`M${n2(b0 + 0.345)} ${n2(y - 0.02)} l0.014 0.014 l-0.014 0.014 l-0.014 -0.014 z`} fill="#f3d35a" stroke="#1b2733" strokeWidth={0.4} {...SW} />
+      <circle cx={b0 + 0.345} cy={y - 0.006} r={0.004} fill="none" stroke="#1b2733" strokeWidth={0.4} {...SW} />
+      {[0, 0.003, 0.0045, 0.008, 0.011, 0.0125, 0.016, 0.02, 0.022, 0.026, 0.029, 0.031].map((dx, i) => <rect key={i} x={b0 + 0.33 + dx} y={y + 0.014} width={i % 3 === 0 ? 0.0015 : 0.0008} height={0.014} fill="#1b2733" />)}
+      <rect x={b0 + 0.11} y={y - 0.036} width={0.26} height={0.072} rx={0.004} fill="url(#pk-cyl)" opacity={0.5} />
+      {/* The shoulder and neck ring, then the integral valve in its guard. */}
+      <path d={`M${n2(b0)} ${n2(y - 0.032)} l-0.03 0.009 v0.046 l0.03 0.009 z`} fill="url(#pk-steel)" stroke="#6f777c" strokeWidth={0.6} {...SW} />
+      <rect x={b0 - 0.034} y={y - 0.024} width={0.008} height={0.048} fill="#1f8a4c" opacity={0.85} />
+      <rect x={x - 0.012} y={y - 0.036} width={0.094} height={0.072} rx={0.014} fill="#000" opacity={0.3} />
+      <rect x={x - 0.014} y={y - 0.038} width={0.094} height={0.072} rx={0.014} fill="#5a6066" stroke="#2b2f33" strokeWidth={0.7} {...SW} />
+      <rect x={x - 0.014} y={y - 0.038} width={0.094} height={0.072} rx={0.014} fill="url(#pk-vinyl)" />
+      <Bevel x={x - 0.014} y={y - 0.038} w={0.094} h={0.072} rx={0.014} d={0.002} light={0.35} dark={0.5} />
+      {/* The contents gauge, the flow selector, the handwheel. */}
+      <circle cx={x + 0.012} cy={y - 0.014} r={0.015} fill="#f4f6f8" stroke="#2b2f33" strokeWidth={0.6} {...SW} />
+      <path d={`M${n2(x + 0.012 - 0.0105)} ${n2(y - 0.014 - 0.0105)} A0.015 0.015 0 0 1 ${n2(x + 0.012 + 0.0105)} ${n2(y - 0.014 - 0.0105)}`} fill="none" stroke="#1f8a4c" strokeWidth={0.003} />
+      <path d={`M${n2(x + 0.012 - 0.0145)} ${n2(y - 0.014 - 0.003)} A0.015 0.015 0 0 1 ${n2(x + 0.012 - 0.0105)} ${n2(y - 0.014 - 0.0105)}`} fill="none" stroke="#d13b3b" strokeWidth={0.003} />
+      <path d={`M${n2(x + 0.012)} ${n2(y - 0.014)} l0.006 -0.011`} stroke="#1b2733" strokeWidth={0.0012} strokeLinecap="round" />
+      <circle cx={x + 0.012} cy={y - 0.014} r={0.002} fill="#1b2733" />
+      <circle cx={x + 0.012} cy={y - 0.014} r={0.015} fill="url(#pk-glass-refl)" />
+      <circle cx={x + 0.058} cy={y + 0.004} r={0.021} fill="#000" opacity={0.3} />
+      <circle cx={x + 0.056} cy={y + 0.002} r={0.02} fill="#1f8a4c" stroke="#0f4d2a" strokeWidth={0.7} {...SW} />
+      {Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * Math.PI * 2; return <path key={i} d={`M${n2(x + 0.056 + Math.cos(a) * 0.015)} ${n2(y + 0.002 + Math.sin(a) * 0.015)} L${n2(x + 0.056 + Math.cos(a) * 0.02)} ${n2(y + 0.002 + Math.sin(a) * 0.02)}`} stroke="#0f4d2a" strokeWidth={0.5} {...SW} />; })}
+      <circle cx={x + 0.056} cy={y + 0.002} r={0.02} fill="url(#pk-dome)" />
+      <text x={x + 0.056} y={y + 0.005} textAnchor="middle" fontSize={0.007} fontWeight={800} fill="#f4f6f8" fontFamily="Arial, sans-serif">15</text>
+      <rect x={x + 0.001} y={y + 0.015} width={0.02} height={0.016} rx={0.004} fill="url(#pk-rubber)" stroke="#0e1114" strokeWidth={0.5} {...SW} />
+      {[0.004, 0.008, 0.012, 0.016].map((dx) => <path key={dx} d={`M${n2(x + 0.001 + dx)} ${n2(y + 0.016)} v0.014`} stroke="#000" strokeWidth={0.4} strokeOpacity={0.6} {...SW} />)}
+      {/* The outlet: a steel barb at the far side of the valve. */}
+      <rect x={x + 0.074} y={y - 0.03} width={0.012} height={0.01} rx={0.002} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.4} {...SW} />
     </g>
   );
 }
@@ -804,14 +1036,27 @@ export function DripBag({ at, k = 1, lying = false }: { at: Pt; k?: number; lyin
   const top = lying ? y - H / 2 : y;
   return (
     <g transform={lying ? `rotate(20 ${n2(x)} ${n2(y)})` : undefined} filter="url(#pk-drop-sm)">
-      <rect x={x - 0.012} y={top - 0.016} width={0.024} height={0.018} rx={0.007} fill="none" stroke="#9aa0a6" strokeWidth={1.2} {...SW} />
-      <rect x={x - W / 2} y={top} width={W} height={H} rx={0.012} fill="url(#pk-clear)" stroke="#9fb4c8" strokeWidth={0.8} {...SW} />
-      <rect x={x - W / 2 + 0.004} y={top + H * 0.28} width={W - 0.008} height={H * 0.72 - 0.004} rx={0.01} fill="#cfe9f5" opacity={0.45} />
-      <rect x={x - W / 2 + 0.012} y={top + 0.04} width={W - 0.024} height={0.066} fill="#ffffff" stroke="#c9ced3" strokeWidth={0.5} {...SW} />
-      <rect x={x - W / 2 + 0.012} y={top + 0.04} width={W - 0.024} height={0.012} fill="#2f6fd6" />
-      {[0.062, 0.074, 0.086].map((dy) => <rect key={dy} x={x - W / 2 + 0.018} y={top + dy} width={W - 0.036 - (dy === 0.086 ? 0.02 : 0)} height={0.004} fill="#4a6fa5" opacity={0.8} />)}
-      <rect x={x - 0.02} y={top + H} width={0.012} height={0.028} rx={0.003} fill="#dfe8ef" stroke="#9fb4c8" strokeWidth={0.6} {...SW} />
-      <rect x={x + 0.006} y={top + H} width={0.012} height={0.028} rx={0.003} fill="#2f6fd6" stroke="#1b2733" strokeWidth={0.6} {...SW} />
+      <rect x={x - 0.014} y={top - 0.018} width={0.028} height={0.02} rx={0.008} fill="none" stroke="#c9d3dc" strokeWidth={0.0028} />
+      <rect x={x - W / 2} y={top} width={W} height={H} rx={0.012} fill="url(#pk-clear)" stroke="#9fb4c8" strokeWidth={0.7} {...SW} />
+      {/* The fluid, to a line below the seal, and the folds of the bag. */}
+      <rect x={x - W / 2 + 0.004} y={top + 0.014} width={W - 0.008} height={H - 0.018} rx={0.01} fill="#cfe2ef" opacity={0.6} />
+      <rect x={x - W / 2 + 0.004} y={top + 0.014} width={W - 0.008} height={H - 0.018} rx={0.01} fill="url(#pk-vinyl)" opacity={0.5} />
+      <path d={`M${n2(x - W / 2 + 0.006)} ${n2(top + 0.015)} H${n2(x + W / 2 - 0.006)}`} stroke="#fff" strokeWidth={0.0015} strokeOpacity={0.8} />
+      <path d={`M${n2(x - W / 2 + 0.01)} ${n2(top + 0.03)} q0.02 0.05 0.004 0.1 M${n2(x + W / 2 - 0.016)} ${n2(top + 0.05)} q-0.012 0.04 0 0.08`} stroke="#fff" strokeWidth={0.001} strokeOpacity={0.6} fill="none" />
+      <rect x={x - W / 2 + 0.006} y={top + 0.02} width={0.007} height={H - 0.04} rx={0.0035} fill="#fff" opacity={0.55} />
+      {/* The label: a header band, the lines of print, and the scale up the side. */}
+      <rect x={x - W / 2 + 0.014} y={top + 0.038} width={W - 0.028} height={0.068} fill="#ffffff" stroke="#c9ced3" strokeWidth={0.4} {...SW} />
+      <rect x={x - W / 2 + 0.014} y={top + 0.038} width={W - 0.028} height={0.012} fill="#2f6fd6" />
+      <text x={x} y={top + 0.047} textAnchor="middle" fontSize={0.0065} fontWeight={800} fill="#fff" fontFamily="Arial, sans-serif">SODIUM CHLORIDE</text>
+      <text x={x} y={top + 0.058} textAnchor="middle" fontSize={0.005} fontWeight={700} fill="#1b2733" fontFamily="Arial, sans-serif">0.9% w/v · 1000 ml</text>
+      {[0.064, 0.072, 0.08, 0.088, 0.096].map((dy, i) => <rect key={dy} x={x - W / 2 + 0.018} y={top + dy} width={W - 0.036 - (i === 4 ? 0.024 : i === 2 ? 0.01 : 0)} height={0.0025} fill="#4a6fa5" opacity={0.75} />)}
+      {[0.025, 0.05, 0.075, 0.1, 0.125, 0.15].map((dy, i) => <g key={dy}><path d={`M${n2(x + W / 2 - 0.012)} ${n2(top + dy)} h${i % 2 ? 0.006 : 0.009}`} stroke="#1b2733" strokeWidth={0.0008} /></g>)}
+      {/* The ports: the giving set's spike in the clear one, the blue cap on the medication port. */}
+      <rect x={x - 0.021} y={top + H - 0.002} width={0.013} height={0.03} rx={0.003} fill="#e4ebf1" stroke="#9fb4c8" strokeWidth={0.5} {...SW} />
+      <rect x={x - 0.018} y={top + H + 0.006} width={0.007} height={0.03} rx={0.0025} fill="#f4f6f8" stroke="#8a9399" strokeWidth={0.4} {...SW} />
+      <rect x={x + 0.007} y={top + H - 0.002} width={0.013} height={0.028} rx={0.003} fill="#2f6fd6" stroke="#1b2733" strokeWidth={0.5} {...SW} />
+      <rect x={x + 0.007} y={top + H - 0.002} width={0.013} height={0.028} rx={0.003} fill="url(#pk-gloss)" />
+      <rect x={x - W / 2} y={top} width={W} height={H} rx={0.012} fill="url(#pk-glass-refl)" />
     </g>
   );
 }

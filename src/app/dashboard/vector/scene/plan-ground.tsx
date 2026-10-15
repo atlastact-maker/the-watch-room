@@ -11,10 +11,19 @@
 
 import type { ReactNode } from "react";
 import type { SceneSetting } from "@/lib/sim/scene_setting";
-import { type Pt, type Rig, P, smooth, capsule, darken, mix, line, lineSoft, INK } from "./plan-figure";
+import { type Pt, type Rig, P, smooth, smoothOpen, capsule, darken, mix, line, lineSoft, edge, INK } from "./plan-figure";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
+
+/** A small deterministic generator, so the specks, the dents and the tar snakes fall the same way on every render. */
+export function prng(seed: number): () => number {
+  let x = (seed >>> 0) || 1;
+  return () => { x = (Math.imul(x, 1664525) + 1013904223) >>> 0; return x / 4294967296; };
+}
+
+/** The aggregate in a tile of tarmac: chips of stone, light and dark, in the bitumen. */
+const AGGREGATE = (() => { const r = prng(97); return Array.from({ length: 170 }, () => [r() * 0.5, r() * 0.5, 0.003 + r() * 0.009, r()] as const); })();
 
 export type Ambient = { night: boolean; rain: boolean };
 
@@ -130,9 +139,11 @@ export function GroundDefs() {
         {[[0.1, 0.5], [0.4, 0.15], [0.6, 0.35], [0.25, 0.62]].map(([x, y]) => <path key={`${x}${y}`} d={`M${x} ${y} l0.025 -0.06 l0.025 0.06 M${x + 0.05} ${y} l0.02 -0.045 l0.02 0.045`} stroke="#3f7030" strokeWidth={0.01} fill="none" />)}
       </pattern>
       <pattern id="pg-tarmac" width="0.5" height="0.5" patternUnits="userSpaceOnUse">
-        <rect width="0.5" height="0.5" fill="#4b4f54" />
-        {[[0.05, 0.08], [0.2, 0.3], [0.38, 0.12], [0.44, 0.42], [0.12, 0.45], [0.3, 0.2]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={0.008} fill={i % 2 ? "#5a5e63" : "#3f4347"} />)}
+        <rect width="0.5" height="0.5" fill="#474b50" />
+        {AGGREGATE.map(([x, y, r, t], i) => <circle key={i} cx={x} cy={y} r={r} fill={t < 0.28 ? "#2e3236" : t < 0.56 ? "#585d63" : t < 0.84 ? "#3b3f44" : "#6d7278"} fillOpacity={0.9} />)}
       </pattern>
+      <radialGradient id="pg-mottle-d" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#000" stopOpacity="0.14" /><stop offset="1" stopColor="#000" stopOpacity="0" /></radialGradient>
+      <radialGradient id="pg-mottle-l" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#fff" stopOpacity="0.07" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></radialGradient>
       <pattern id="pg-concrete" width="2" height="2" patternUnits="userSpaceOnUse">
         <rect width="2" height="2" fill="#8d9196" />
         <path d="M0 0 H2 M0 0 V2" stroke="#767a7f" strokeWidth={0.015} />
@@ -197,6 +208,33 @@ export function GroundDefs() {
 // ---------------------------------------------------------------------------
 
 const FILL = (id: string) => `url(#${id})`;
+
+/** A stretch of carriageway: the aggregate, the mottling of old and new
+ *  surface, each lane's wheel tracks polished lighter and the oil down its
+ *  middle, tar snakes over the cracks, an older patch. `lanes` are the y
+ *  of each lane's centre line. */
+export function Tarmac({ x, y, w, h, seed = 1, lanes = [] }: { x: number; y: number; w: number; h: number; seed?: number; lanes?: number[] }) {
+  const r = prng(seed);
+  const mottle = Array.from({ length: 9 }, () => [x + r() * w, y + r() * h, 0.8 + r() * 1.8, 0.5 + r() * 1.1, r() > 0.45] as const);
+  const snakes = Array.from({ length: 4 }, () => { const pts: Pt[] = []; let px = x + r() * w, py = y + r() * h; for (let k = 0; k < 6; k++) { pts.push([px, py]); px += (r() - 0.3) * 0.9; py += (r() - 0.5) * 0.9; } return pts; });
+  const patch = [x + w * (0.55 + r() * 0.3), y + h * (0.1 + r() * 0.3)];
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill="url(#pg-tarmac)" />
+      {mottle.map(([cx, cy, rx, ry, light], i) => <ellipse key={i} cx={cx} cy={cy} rx={rx} ry={ry} fill={light ? "url(#pg-mottle-l)" : "url(#pg-mottle-d)"} />)}
+      <rect x={patch[0]} y={patch[1]} width={1.4} height={0.9} fill="#3b3f44" opacity={0.55} />
+      <rect x={patch[0]} y={patch[1]} width={1.4} height={0.9} fill="none" stroke="#111315" strokeWidth={0.02} strokeOpacity={0.6} />
+      {lanes.map((ly) => (
+        <g key={ly}>
+          <rect x={x} y={ly - 1.1} width={w} height={0.42} fill="#fff" opacity={0.035} />
+          <rect x={x} y={ly + 0.68} width={w} height={0.42} fill="#fff" opacity={0.035} />
+          <rect x={x} y={ly - 0.22} width={w} height={0.44} fill="#000" opacity={0.075} />
+        </g>
+      ))}
+      {snakes.map((pts, i) => <path key={i} d={smoothOpen(pts, 0.5)} fill="none" stroke="#141618" strokeWidth={0.035} strokeOpacity={0.6} strokeLinecap="round" />)}
+    </g>
+  );
+}
 const Base = ({ id, fill }: { id?: string; fill?: string }) => <rect x={-4} y={-3} width={8} height={8} fill={id ? FILL(id) : fill} />;
 
 const Mug = ({ x, y, spilt = false, colour = "#e9ecef" }: { x: number; y: number; spilt?: boolean; colour?: string }) => (
@@ -670,30 +708,90 @@ const AmbulanceSaloon = ({ outside, lucasOut, ventOn }: { outside: ReactNode; lu
   </g>
 );
 
-const CarSeat = ({ x, y, w = 0.58, colour = "#2b2f36" }: { x: number; y: number; w?: number; colour?: string }) => (
-  <g>
-    <rect x={x - w / 2 - 0.05} y={y - 0.55} width={w + 0.1} height={0.36} rx={0.1} fill={darken(colour, 0.1)} {...line} />
-    <rect x={x - 0.16} y={y - 0.62} width={0.32} height={0.22} rx={0.06} fill={colour} {...line} />
-    <rect x={x - w / 2} y={y - 0.2} width={w} height={0.95} rx={0.08} fill={colour} {...line} />
-    <rect x={x - w / 2 + 0.08} y={y - 0.15} width={w - 0.16} height={0.85} rx={0.06} fill={mix(colour, "#ffffff", 0.08)} {...lineSoft} />
-    <rect x={x - w / 2} y={y - 0.2} width={w} height={0.95} rx={0.08} fill="url(#ps-round)" opacity={0.4} />
-  </g>
-);
-
-const SteeringWheel = ({ x, y, airbag = true, r = 0.19 }: { x: number; y: number; airbag?: boolean; r?: number }) => (
-  <g>
-    <circle cx={x} cy={y} r={r} fill="none" stroke="#1b1f24" strokeWidth={0.045} />
-    <circle cx={x} cy={y} r={r} fill="none" stroke="#3a3f45" strokeWidth={0.02} />
-    <path d={`M${n2(x - r)} ${n2(y)} H${n2(x + r)} M${n2(x)} ${n2(y)} V${n2(y + r)}`} stroke="#1b1f24" strokeWidth={0.035} />
-    <circle cx={x} cy={y} r={0.06} fill="#1b1f24" />
-    {airbag && (
-      <g>
-        <path d={smooth([[x - 0.2, y - 0.08], [x - 0.08, y - 0.23], [x + 0.14, y - 0.2], [x + 0.23, y - 0.02], [x + 0.11, y + 0.18], [x - 0.13, y + 0.15]], 0.6)} fill="#f4f4f0" opacity={0.92} {...line} />
-        <path d={`M${n2(x - 0.12)} ${n2(y - 0.04)} q0.12 0.08 0.24 -0.02 M${n2(x - 0.08)} ${n2(y + 0.08)} q0.08 0.05 0.16 0`} fill="none" stroke="#c9ced3" strokeWidth={0.012} />
+/** A car seat from above: the headrest on its posts, the padded top of the
+ *  backrest, the cushion with its bolsters raised at the sides and the
+ *  stitched insert sunk between them. `x, y` is where the backrest meets
+ *  the cushion; the cushion runs down the picture from it. */
+export const CarSeat = ({ x, y, w = 0.58, colour = "#2b2f36", cloth = true }: { x: number; y: number; w?: number; colour?: string; cloth?: boolean }) => {
+  const id = `pg-seat-${Math.round(x * 100)}-${Math.round(y * 100)}-${Math.round(w * 100)}`;
+  const dark = darken(colour, 0.35), light = mix(colour, "#ffffff", 0.13);
+  const skin = cloth ? "url(#ps-knit)" : "url(#pk-vinyl)";
+  return (
+    <g>
+      <rect x={x - w / 2 - 0.02} y={y - 0.58} width={w + 0.1} height={1.38} rx={0.1} fill="#000" opacity={0.35} filter="url(#ps-blur-md)" />
+      {/* The backrest's top, wider than the cushion, and the headrest on its posts. */}
+      <rect x={x - w / 2 - 0.05} y={y - 0.55} width={w + 0.1} height={0.36} rx={0.1} fill={colour} {...edge(colour, 0.5, 0.7, 0.8)} />
+      <rect x={x - w / 2 - 0.05} y={y - 0.55} width={w + 0.1} height={0.36} rx={0.1} fill="url(#ps-round-v)" opacity={0.5} />
+      <rect x={x - w / 2 - 0.05} y={y - 0.55} width={w + 0.1} height={0.36} rx={0.1} fill={skin} />
+      <rect x={x - w / 2 - 0.05} y={y - 0.55} width={w + 0.1} height={0.36} rx={0.1} fill="url(#ps-grain)" />
+      {[-0.07, 0.07].map((dx) => <rect key={dx} x={x + dx - 0.008} y={y - 0.6} width={0.016} height={0.08} fill="url(#pk-chrome)" />)}
+      <rect x={x - 0.16} y={y - 0.65} width={0.32} height={0.2} rx={0.07} fill={colour} {...edge(colour, 0.5, 0.7, 0.8)} />
+      <rect x={x - 0.16} y={y - 0.65} width={0.32} height={0.2} rx={0.07} fill="url(#ps-round)" opacity={0.55} />
+      <rect x={x - 0.16} y={y - 0.65} width={0.32} height={0.2} rx={0.07} fill={skin} />
+      <rect x={x - 0.16} y={y - 0.65} width={0.32} height={0.2} rx={0.07} fill="url(#ps-grain)" />
+      {/* The cushion: bolsters either side, the insert sunk between them, the crease where the back meets the base. */}
+      <rect x={x - w / 2} y={y - 0.2} width={w} height={0.95} rx={0.08} fill={colour} {...edge(colour, 0.5, 0.7, 0.8)} />
+      <rect x={x - w / 2} y={y - 0.2} width={w} height={0.95} rx={0.08} fill="url(#ps-round)" opacity={0.4} />
+      <clipPath id={id}><rect x={x - w / 2} y={y - 0.2} width={w} height={0.95} rx={0.08} /></clipPath>
+      <g clipPath={`url(#${id})`}>
+        <rect x={x - w / 2 + 0.09} y={y - 0.12} width={w - 0.18} height={0.82} rx={0.06} fill={light} />
+        <rect x={x - w / 2 + 0.09} y={y - 0.12} width={w - 0.18} height={0.82} rx={0.06} fill={skin} />
+        <g filter="url(#ps-blur-sm)">
+          <rect x={x - w / 2 + 0.09} y={y - 0.12} width={w - 0.18} height={0.82} rx={0.06} fill="none" stroke="#000" strokeWidth={0.03} strokeOpacity={0.4} />
+          <rect x={x - w / 2 + 0.02} y={y - 0.18} width={0.06} height={0.9} rx={0.03} fill="#fff" opacity={0.12} />
+          <rect x={x + w / 2 - 0.1} y={y - 0.18} width={0.06} height={0.9} rx={0.03} fill="#000" opacity={0.18} />
+          <ellipse cx={x} cy={y + 0.52} rx={w * 0.3} ry={0.2} fill="#000" opacity={0.14} />
+          <path d={`M${n2(x - w / 2 + 0.06)} ${n2(y + 0.3)} H${n2(x + w / 2 - 0.06)}`} stroke="#000" strokeWidth={0.03} strokeOpacity={0.35} fill="none" />
+        </g>
+        {[0.06, 0.2, 0.42, 0.58].map((dy) => <path key={dy} d={`M${n2(x - w / 2 + 0.12)} ${n2(y + dy)} H${n2(x + w / 2 - 0.12)}`} stroke={dark} strokeWidth={0.7} strokeOpacity={0.6} strokeDasharray="1.5 1" {...SOFT} />)}
       </g>
-    )}
-  </g>
-);
+      <rect x={x - w / 2} y={y - 0.2} width={w} height={0.95} rx={0.08} fill="url(#ps-grain)" />
+    </g>
+  );
+};
+
+/** The steering wheel from above: the leather rim with the light along its
+ *  upper edge, three spokes, the hub with the airbag cover; or, after the
+ *  crash, the bag hanging deflated over it in folds. */
+export const SteeringWheel = ({ x, y, airbag = true, r = 0.19 }: { x: number; y: number; airbag?: boolean; r?: number }) => {
+  const id = `pg-bag-${Math.round(x * 100)}-${Math.round(y * 100)}`;
+  const bag = smooth([[x - 0.24, y - 0.06], [x - 0.1, y - 0.26], [x + 0.14, y - 0.23], [x + 0.27, y - 0.02], [x + 0.18, y + 0.2], [x - 0.02, y + 0.26], [x - 0.2, y + 0.16]], 0.55);
+  return (
+    <g>
+      <circle cx={x + 0.015} cy={y + 0.02} r={r} fill="none" stroke="#000" strokeWidth={0.05} opacity={0.35} filter="url(#ps-blur-sm)" />
+      <circle cx={x} cy={y} r={r} fill="none" stroke="#111417" strokeWidth={0.05} />
+      <circle cx={x} cy={y} r={r + 0.012} fill="none" stroke="#fff" strokeWidth={0.008} strokeOpacity={0.22} strokeDasharray={`${n2(r * 2.4)} ${n2(r * 4)}`} transform={`rotate(-150 ${n2(x)} ${n2(y)})`} />
+      <circle cx={x} cy={y} r={r - 0.014} fill="none" stroke="#000" strokeWidth={0.008} strokeOpacity={0.35} />
+      <path d={`M${n2(x - r + 0.02)} ${n2(y)} H${n2(x + r - 0.02)} M${n2(x)} ${n2(y)} V${n2(y + r - 0.02)}`} stroke="#15181c" strokeWidth={0.04} strokeLinecap="round" />
+      <path d={`M${n2(x - r + 0.03)} ${n2(y - 0.007)} H${n2(x + r - 0.03)}`} stroke="#fff" strokeWidth={0.006} strokeOpacity={0.15} />
+      <rect x={x - 0.075} y={y - 0.065} width={0.15} height={0.13} rx={0.035} fill="#1b1f23" {...edge("#1b1f23", 0.3, 0.8, 0.8)} />
+      <rect x={x - 0.075} y={y - 0.065} width={0.15} height={0.13} rx={0.035} fill="url(#pk-dome)" />
+      <circle cx={x} cy={y} r={0.022} fill="none" stroke="#9aa0a6" strokeWidth={0.004} />
+      {airbag && (
+        <g>
+          <path d={bag} fill="#000" opacity={0.3} filter="url(#ps-blur-md)" transform="translate(0.02 0.03)" />
+          <path d={bag} fill="#ebe8df" {...edge("#ebe8df", 0.4, 0.6, 0.8)} />
+          <path d={bag} fill="url(#ps-grain)" />
+          <clipPath id={id}><path d={bag} /></clipPath>
+          <g clipPath={`url(#${id})`}>
+            <g filter="url(#ps-blur-sm)" fill="none" strokeLinecap="round">
+              <path d={`M${n2(x - 0.2)} ${n2(y - 0.02)} q0.12 0.1 0.26 -0.03 q0.1 -0.06 0.2 0.02`} stroke="#000" strokeOpacity={0.2} strokeWidth={0.03} />
+              <path d={`M${n2(x - 0.12)} ${n2(y + 0.1)} q0.1 0.06 0.22 -0.01 q0.08 -0.04 0.14 0.03`} stroke="#000" strokeOpacity={0.16} strokeWidth={0.028} />
+              <path d={`M${n2(x - 0.06)} ${n2(y - 0.2)} q0.05 0.1 0.14 0.05`} stroke="#000" strokeOpacity={0.14} strokeWidth={0.024} />
+              <path d={`M${n2(x - 0.18)} ${n2(y - 0.06)} q0.12 0.08 0.25 -0.04`} stroke="#fff" strokeOpacity={0.45} strokeWidth={0.014} />
+              <path d={`M${n2(x - 0.1)} ${n2(y + 0.07)} q0.1 0.05 0.2 -0.02`} stroke="#fff" strokeOpacity={0.35} strokeWidth={0.012} />
+              <ellipse cx={x + 0.12} cy={y + 0.13} rx={0.12} ry={0.08} fill="#000" opacity={0.14} />
+              <ellipse cx={x - 0.14} cy={y + 0.12} rx={0.08} ry={0.06} fill="#000" opacity={0.12} />
+            </g>
+            <path d={`M${n2(x - 0.16)} ${n2(y + 0.02)} q0.1 0.06 0.22 -0.02`} fill="none" stroke="#b5b0a3" strokeWidth={0.8} strokeOpacity={0.6} {...SOFT} />
+            <path d={`M${n2(x - 0.02)} ${n2(y - 0.16)} q0.06 0.08 0.16 0.04`} fill="none" stroke="#b5b0a3" strokeWidth={0.8} strokeOpacity={0.5} {...SOFT} />
+          </g>
+          <path d={`M${n2(x - 0.07)} ${n2(y - 0.08)} l0.06 0.09 l0.07 -0.09`} fill="none" stroke="#2b2f33" strokeWidth={0.8} strokeOpacity={0.45} {...SOFT} />
+        </g>
+      )}
+    </g>
+  );
+};
 
 const Seatbelt = ({ r }: { r: Rig }) => (
   <path d={`M${n2(r.shoulderW * 0.75)} ${n2(r.shoulderY - 0.02)} L${n2(-r.hipW * 0.8)} ${n2(r.hipY + 0.06)}`} stroke="#2b3139" strokeWidth={0.05} strokeLinecap="round" opacity={0.9} />
