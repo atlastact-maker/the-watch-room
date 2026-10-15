@@ -136,11 +136,10 @@ const tierForScale = (s: number): MarkerTier => (s < 6 ? "compact" : s < 14 ? "s
 
 /** A unit as the CAD symbol the desk draws: the service-coloured body
  *  with its two-letter resource code, the status roundel notched into
- *  its top-left, the callsign plate flush to its right, and the dot
- *  below on the unit's exact position — pixel-sized whatever the
- *  framing. Under it, faint and true to scale, the footprint turned the
- *  way the vehicle is parked. Click to select it on the tablet. */
-function UnitSymbol({ appliance, at, heading, s, subtitle, selected, commander, unplaced, onClick }: { appliance: Appliance; at: Pt; heading: number; s: number; subtitle?: string; selected: boolean; commander: boolean; unplaced: boolean; onClick?: () => void }) {
+ *  its top-left, the callsign plate flush to its right, and the leader
+ *  down to the dot on the unit's exact position — pixel-sized whatever
+ *  the framing, and nothing else. Click to select it on the tablet. */
+function UnitSymbol({ appliance, at, s, subtitle, selected, commander, unplaced, onClick }: { appliance: Appliance; at: Pt; s: number; subtitle?: string; selected: boolean; commander: boolean; unplaced: boolean; onClick?: () => void }) {
   const sm = serviceMarker(appliance.service, appliance.type);
   const tier = tierForScale(s);
   const t = TIERS[tier];
@@ -158,13 +157,8 @@ function UnitSymbol({ appliance, at, heading, s, subtitle, selected, commander, 
   const plateW = t.plate ? Math.ceil(Math.max(plateText.length * t.plateFont * 0.62, sub.length * 8 * 0.62) + t.platePad * 2) : 0;
   const plateR = t.sym >= 30 ? 4 : 3;
   const plateBorder = commander ? "#fbbf24" : sm.colour;
-  const fp = unitFootprint(appliance.type, appliance.service);
   return (
     <g onClick={onClick} style={onClick ? { cursor: "pointer" } : undefined} opacity={unplaced ? 0.6 : 1}>
-      <g className="gv-unit" transform={`translate(${P(at)}) rotate(${n2(heading)})`} opacity={0.6}>
-        <rect x={-fp.w / 2} y={-fp.l / 2} width={fp.w} height={fp.l} rx={0.3} fill={sm.colour} fillOpacity={0.16} stroke={sm.colour} strokeWidth={0.12} strokeDasharray="0.5 0.3" />
-        <path d={`M ${n2(-fp.w / 2 + 0.3)} ${n2(-fp.l / 2 + 1)} L 0 ${n2(-fp.l / 2 + 0.2)} L ${n2(fp.w / 2 - 0.3)} ${n2(-fp.l / 2 + 1)}`} fill="none" stroke={sm.colour} strokeWidth={0.12} />
-      </g>
       <g transform={`translate(${P(at)}) scale(${n2(1 / s)}) translate(${-anchorX} ${-anchorY})`} fontFamily={MONO}>
         {selected && <rect x={-6} y={-6} width={bodyW + plateW + 12} height={bodyH + 12} rx={7} fill="none" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3" />}
         <rect x={-0.5} y={-0.5} width={bodyW + 1} height={bodyH + 1} rx={3.5} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth={1} />
@@ -679,7 +673,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, hour
           {view.stopped.map((v, i) => <CarMark key={i} at={v.at} heading={v.heading} paint={v.paint ?? (v.kind === "artic" ? "#e8e9ea" : "#9aa4ad")} kind={v.kind} />)}
           {/* The units, parked or put where their task has them. */}
           {units.map((u) => (
-            <UnitSymbol key={u.r.appliance.id} appliance={u.r.appliance} at={u.at} heading={u.heading} s={s} subtitle={u.role ?? u.r.appliance.type.replace(/_/g, " ")} selected={u.r.appliance.id === selectedUnitId} commander={u.r.appliance.id === commanderApplianceId} unplaced={!u.placed} onClick={onSelectUnit ? () => onSelectUnit(u.r.appliance.id) : undefined} />
+            <UnitSymbol key={u.r.appliance.id} appliance={u.r.appliance} at={u.at} s={s} subtitle={u.role ?? u.r.appliance.type.replace(/_/g, " ")} selected={u.r.appliance.id === selectedUnitId} commander={u.r.appliance.id === commanderApplianceId} unplaced={!u.placed} onClick={onSelectUnit ? () => onSelectUnit(u.r.appliance.id) : undefined} />
           ))}
           {/* The cones: the fend-off's, the taper's as far as it has got. */}
           {[...fendCones, ...conePts.slice(0, coneShown)].map((c, i) => <circle key={`c${i}`} cx={c[0]} cy={c[1]} r={0.26} fill="#ff7a1a" stroke="#fff" strokeWidth={0.07} />)}
@@ -741,13 +735,10 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, hour
           )}
           {/* Night, with the scene lighting and the units' own light pooling on the road. */}
           {amb.night && <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#071020" opacity={0.62} mask="url(#gv-night)" />}
-          {/* What a unit is doing where it is, under its footprint — the symbol carries it at the close framings. */}
-          {tierForScale(s) !== "detailed" && units.filter((u) => u.role).map((u) => {
-            const fp = unitFootprint(u.r.appliance.type, u.r.appliance.service);
-            const ext = Math.max(fp.l, fp.w) / 2;
-            const up = top ? u.at[1] < eb.y : u.at[1] > eb.y + eb.h;
-            return <g key={`p${u.r.appliance.id}`}>{plate(u.at, up ? -(ext + 0.5) : ext + 1.1, [{ text: u.role!, cls: "sub" }])}</g>;
-          })}
+          {/* What a unit is doing where it is, under its position dot — the symbol carries it at the close framings. */}
+          {tierForScale(s) !== "detailed" && units.filter((u) => u.role).map((u) => (
+            <g key={`p${u.r.appliance.id}`}>{plate(u.at, (DOT / 2 + 12) / s, [{ text: u.role!, cls: "sub" }])}</g>
+          ))}
           {frame !== "wreck" && view.stopped.map((v) => <g key={v.label}>{plate(v.at, 2.2, [{ text: v.label, cls: "sub" }])}</g>)}
           {frame === "wide" && (
             <g>
