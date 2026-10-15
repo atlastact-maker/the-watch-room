@@ -132,6 +132,7 @@ import {
 import { liveTasks, mapLiveTasks, dueTasks, waterUseByTank, baConsumption } from "@/lib/sim/runtime-tasks";
 import { trafficState, laneLabel, nearMissChancePerMinute, nearMissWording } from "@/lib/sim/traffic";
 import { simulateIncident } from "@/lib/sim/incident_sim";
+import { damageRatePerMin } from "@/lib/sim/fire_dynamics";
 import {
   CAPABILITIES_BY_TYPE,
   DOOR_TYPE_LABEL,
@@ -679,6 +680,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // severity so we only emit a SITREP entry when these actually change,
   // not on every sim recompute.
   const [lastFireStage, setLastFireStage] = useState<string>("none");
+  /** Room events the log already carries, keyed by incident, kind, room and time. */
+  const seenFireEventsRef = useRef<Set<string>>(new Set());
   const [lastCasualtySeverity, setLastCasualtySeverity] = useState<Record<string, string>>({});
   const [newlyConfirmedHazards, setNewlyConfirmedHazards] = useState<Set<string>>(new Set());
 
@@ -1091,7 +1094,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     const stage = incidentSim.fireStage;
     const material = incidentSim.fireMaterial;
     const structural = material === "structural" || material === "bulk_combustible" || material === "electrical";
-    const ratePerMin = !structural ? 0 : stage === "flashover_risk" ? 3.2 : stage === "fully_developed" ? 1.3 : stage === "developing" ? 0.25 : 0;
+    const ratePerMin = !structural ? 0 : incidentSim.fire ? damageRatePerMin(incidentSim.fire) : stage === "flashover_risk" ? 3.2 : stage === "fully_developed" ? 1.3 : stage === "developing" ? 0.25 : 0;
     const damage = Math.min(100, rt.structuralDamage + ratePerMin * (dt / 60));
     if (damage !== rt.structuralDamage && !rt.collapsedAt) updateRuntime(activeIncident.id, (r) => ({ ...r, structuralDamage: damage }));
     if (damage >= 100 && !rt.collapsedAt) {
@@ -2062,6 +2065,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                 growthRateMpm:
                   v.growthRateMpm ?? liveScenario.scene!.fireSeat!.growthRateMpm,
                 maxRadiusM: v.maxRadiusM ?? liveScenario.scene!.fireSeat!.maxRadiusM,
+                // The room it starts in: the variant's, else found from its position.
+                compartmentId: v.compartmentId,
               },
             },
           };
@@ -5416,6 +5421,36 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       if (spoken) newEntries.push({ id: `inf-stage:${cur}:${Date.now()}`, timestamp: Date.now(), kind: "annotation", message: spoken });
     }
 
+    // Room by room: what the fire did since the call, in the engine's own
+    // words — into a room, a flashover, a window gone, a door burnt
+    // through, a backdraught, a room knocked down. A backdraught with
+    // crews inside is a firefighter emergency.
+    if (incidentSim.fire && activeIncident) {
+      for (const e of incidentSim.fire.events) {
+        if (e.at < activeIncident.receivedAt) continue;
+        const key = `${activeIncident.id}:${e.kind}:${e.compartmentId}:${e.at}`;
+        if (seenFireEventsRef.current.has(key)) continue;
+        seenFireEventsRef.current.add(key);
+        newEntries.push({
+          id: `fire-room:${e.kind}:${e.compartmentId}:${e.at}`,
+          timestamp: e.at,
+          kind: e.kind === "backdraught" || e.kind === "fed" ? "setback" : "fire_stage",
+          message: e.text,
+        });
+        if (e.kind === "backdraught") {
+          const inside = tasks.filter((t) => t.state === "active" && (t.kind === "ba_sar" || (t.kind === "hose_attack" && (t.attackMode ?? "interior_attack") === "interior_attack")));
+          const crew = inside.flatMap((t) => t.assignedCrewIds);
+          if (crew.length) {
+            const room = incidentSim.fire.plan.compartments.find((c) => c.id === e.compartmentId)?.label.toLowerCase() ?? "building";
+            for (const t of inside) abortTask(t.id);
+            updateRuntime(activeIncident.id, (r) => ({ ...r, injuredCrewIds: [...new Set([...r.injuredCrewIds, ...crew])] }));
+            newEntries.push({ id: `backdraught-crews:${e.at}`, timestamp: e.at, kind: "setback", message: `CREWS INSIDE AT THE BACKDRAUGHT — ${crew.length} firefighter${crew.length === 1 ? "" : "s"} caught by the ${room} going, firefighter emergency declared` });
+            emergencyTone();
+          }
+        }
+      }
+    }
+
     // Casualty deterioration + expectant transitions.
     const nextSev: Record<string, string> = { ...lastCasualtySeverity };
     for (const [cid, prog] of Object.entries(incidentSim.casualtyProgression)) {
@@ -5805,6 +5840,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     crsDurationSec?: number;
     crsLabel?: string;
     crsDoneMessage?: string;
+    targetCompartmentId?: string;
+    openingId?: string;
+    ventMode?: import("@/lib/sim/incident_types").VentMode;
   }) {
     const startedAt = Date.now();
     const taskGuardKey = `${activeIncident?.id ?? "none"}|${args.applianceId}|${args.kind}`;
@@ -5972,6 +6010,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       crsActionId: args.crsActionId,
       crsLabel: args.crsLabel,
       crsDoneMessage: args.crsDoneMessage,
+      targetCompartmentId: args.targetCompartmentId,
+      openingId: args.openingId,
+      ventMode: args.ventMode,
     };
     setTasks((prev) => [...prev, task]);
 

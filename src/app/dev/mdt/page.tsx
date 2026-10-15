@@ -256,13 +256,16 @@ export default function MdtHarnessPage() {
   }, []);
   const treatmentByCasualtyId = useMemo(() => (treatment ? { [treatment.casualtyId]: treatment } : {}), [treatment]);
   const [extra, setExtra] = useState<Task[]>([]);
-  const tasks = useMemo(() => [...world.tasks, ...extra.map((t) => (t.state === "active" && t.completesAt && now >= t.completesAt ? { ...t, state: "completed" as const } : t))], [world.tasks, extra, now]);
+  // ?cold=1 — nothing done yet: no jet, no BA team, so the fire is seen
+  // as it develops on its own.
+  const cold = !!param("cold");
+  const tasks = useMemo(() => [...world.tasks.filter((t) => !cold || (t.kind !== "hose_attack" && t.kind !== "ba_sar" && t.kind !== "gain_entry")), ...extra.map((t) => (t.state === "active" && t.completesAt && now >= t.completesAt ? { ...t, state: "completed" as const } : t))], [world.tasks, extra, now, cold]);
   const speed = param("fast") ? 20 : 1;
-  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string; lanes?: number[]; junction?: string }) => {
+  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string; lanes?: number[]; junction?: string; attackMode?: Task["attackMode"]; hoseType?: Task["hoseType"]; baMode?: Task["baMode"]; targetCompartmentId?: string; openingId?: string; ventMode?: Task["ventMode"] }) => {
     const t0 = Date.now();
     const base = args.crsDurationSec ?? (args.kind === "rtc_extrication" ? 300 : args.kind === "fend_off" ? 45 : args.kind === "lane_closure" ? 90 + 45 * Math.max(1, args.lanes?.length ?? 1) : args.kind === "rolling_road_block" ? 240 : args.kind === "carriageway_closure" ? 420 : 120);
     const dur = Math.max(3, base / speed);
-    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage, lanes: args.lanes, junction: args.junction } as unknown as Task]);
+    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage, lanes: args.lanes, junction: args.junction, attackMode: args.attackMode, hoseType: args.hoseType, baMode: args.baMode, baCrewIds: args.kind === "ba_sar" ? args.assignedCrewIds ?? [] : undefined, targetCompartmentId: args.targetCompartmentId, openingId: args.openingId, ventMode: args.ventMode } as unknown as Task]);
   };
   const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const, endedAt: Date.now() } : t)));
   const completeTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id && t.state === "active" ? { ...t, state: "completed" as const } : t)));

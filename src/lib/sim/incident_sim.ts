@@ -13,6 +13,8 @@ import {
 import { landedBy, weirReachedAt } from "./water_rescue";
 import { reachedBy as ropeReachedBy, recoveredBy as ropeRecoveredBy } from "./rope_rescue";
 import { trafficState } from "./traffic";
+import { FLASHOVER_WARN_SEC, compartmentAt, simulateFire, type CompartmentState, type FireState } from "./fire_dynamics";
+import { buildingPlanFor } from "./fire_plans";
 import type {
   FireMaterial,
   PatientRedFlag,
@@ -106,6 +108,11 @@ export type IncidentSimState = {
   /** Hazmat: DIM has named the substance, and decontamination is done. */
   hazmatIdentified: boolean;
   decontaminated: boolean;
+  /** The fire room by room, when the scene has a building to burn: each
+   *  room's phase, heat, smoke and tenability, the doors and windows,
+   *  and what happened when. Null for a vehicle, vegetation, open ground
+   *  or no fire seat; the radius model stands in for those. */
+  fire: FireState | null;
 };
 
 // --- Progression cadence constants --------------------------------------
@@ -306,13 +313,85 @@ export function simulateIncident(
     if (fireRadiusM <= 0) fireRateMpm = Math.max(0, fireRateMpm);
   }
 
+  // --- Compartment fire ----------------------------------------------------
+  // A building burns room by room. The engine replays the fire from its
+  // ignition to now through the plan's rooms and openings, with the crews'
+  // water, doors and fans read off the tasks; the radius the maps draw and
+  // the rate the screens show are then read off the rooms. The radius
+  // model above stands in where there is no building to burn.
+  let fire: FireState | null = null;
+  const plan = scene?.fireSeat ? buildingPlanFor(scene, incident.scenario) : null;
+  if (scene?.fireSeat && plan) {
+    const seat = scene.fireSeat;
+    // The authored seat has been burning since before the call. A dormant
+    // seat (an alarm) lights only when the informant beat ignites it.
+    const seatBurns = seat.radiusM > 0 || (seat.growthRateMpm ?? 0.2) > 0;
+    const ignitedAt = seatBurns
+      ? incident.receivedAt - (plan.headStartSec ?? 240) * 1000
+      : fireIgnition && now >= fireIgnition.atMs
+        ? fireIgnition.atMs
+        : null;
+    const windMult = 1 + (windGrowthMultiplier - 1) * 0.5;
+    const key = [
+      incident.id,
+      plan.originId,
+      plan.compartments.length,
+      ignitedAt,
+      Math.floor(now / 1000),
+      windMult.toFixed(3),
+      material,
+      Array.from(isolatedHazards).sort().join(","),
+      tasks
+        .filter((t) => t.kind === "hose_attack" || t.kind === "aerial_monitor" || t.kind === "ba_sar" || t.kind === "ventilate" || t.kind === "gain_entry" || t.kind === "connect_hydrant")
+        .map((t) => `${t.id}:${t.state}:${t.startedAt}:${t.completesAt ?? ""}:${t.endedAt ?? ""}:${t.attackMode ?? ""}:${t.baMode ?? ""}:${t.hoseType ?? ""}:${t.targetCompartmentId ?? ""}:${t.openingId ?? ""}:${t.ventMode ?? ""}:${t.baCrewIds?.length ?? ""}:${t.assignedCrewIds.length}:${t.hretTurret ? 1 : 0}`)
+        .join("|"),
+      deployments.map((d) => `${d.applianceId}:${d.arrivesAt}:${d.pumpRunning === false ? 0 : 1}:${Object.keys(d.crewEquipment ?? {}).length}`).join("|"),
+    ].join("#");
+    fire = cachedFire(key, () =>
+      simulateFire({
+        plan,
+        material,
+        ignitedAt,
+        now,
+        tasks,
+        deployments,
+        windMult,
+        isolatedHazardIds: isolatedHazards,
+        seat: seat.pos,
+      }),
+    );
+    fireRadiusM = fire.fireExtentM;
+    fireRateMpm = fire.fireExtentM - fire.fireExtentAgoM;
+  }
+
   // --- Fire stage classification ------------------------------------------
   // Derived from current radius (as a fraction of the scenario's modelled
   // maximum) and whether the fire is currently growing or shrinking. Used
   // for SITREP colouring, tactical guidance and flashover risk.
   let fireStage: FireStage = "none";
   let flashoverCountdownSec: number | null = null;
-  if (scene?.fireSeat) {
+  if (fire) {
+    // Read off the rooms: a room on its way to flashover sets the clock,
+    // water pulling the heat down is "under control", a room that has
+    // flashed over is a fully developed fire.
+    const rooms = fire.compartments;
+    const anyDeveloped = rooms.some((c) => c.phase === "developed" || c.phase === "decaying");
+    const waterOn = rooms.some((c) => c.waterLpm > 0);
+    let soonest: number | null = null;
+    for (const c of rooms) {
+      if (c.flashoverInSec === null || c.flashoverInSec > FLASHOVER_WARN_SEC) continue;
+      if (soonest === null || c.flashoverInSec < soonest) soonest = c.flashoverInSec;
+    }
+    if (!fire.everBurned) fireStage = "none";
+    else if (fire.roomsAlight === 0 && fire.totalMw < 0.05) fireStage = "extinguished";
+    else if (waterOn && fire.trendMwPerMin < -0.1 && (soonest === null || soonest > 60)) fireStage = "under_control";
+    else if (anyDeveloped) fireStage = "fully_developed";
+    else if (soonest !== null) {
+      fireStage = "flashover_risk";
+      flashoverCountdownSec = soonest;
+    } else if (fire.roomsAlight >= 2 || fire.totalMw >= 1) fireStage = "developing";
+    else fireStage = "incipient";
+  } else if (scene?.fireSeat) {
     const maxR = scene.fireSeat.maxRadiusM ?? 15;
     const pct = maxR > 0 ? fireRadiusM / maxR : 0;
     const shrinking = fireRateMpm < -0.01;
@@ -362,9 +441,40 @@ export function simulateIncident(
   const involvement = { room: 0, floor: 0, roof: 0 };
   const ventTasks = tasks.filter((t) => t.kind === "ventilate" && t.state === "completed");
   const firstJet = tasks.filter((t) => t.kind === "hose_attack" && t.state !== "aborted").reduce<number | null>((acc, t) => (acc === null || t.startedAt < acc ? t.startedAt : acc), null);
-  const ventilated = ventTasks.length > 0 && activeSuppressionNow > 0;
-  const ventilationFedFire = ventTasks.some((t) => firstJet === null || (t.completesAt ?? 0) < firstJet);
-  if (scene?.fireSeat && fireRadiusM > 0) {
+  const ventilated = fire
+    ? ventTasks.length > 0 && fire.compartments.some((c) => c.waterLpm > 0)
+    : ventTasks.length > 0 && activeSuppressionNow > 0;
+  const ventilationFedFire = fire
+    ? fire.events.some((e) => e.kind === "fed" || e.kind === "backdraught")
+    : ventTasks.some((t) => firstJet === null || (t.completesAt ?? 0) < firstJet);
+  if (fire) {
+    // Room by room: the room of origin by how far it has gone, the rest of
+    // its floor and the top of the building by the share of their rooms
+    // that have burned.
+    smokeRadiusM = fire.smokeExtentM;
+    const comps = fire.plan.compartments.filter((c) => !c.exposure);
+    const byId = new Map(fire.compartments.map((s) => [s.id, s] as const));
+    const burned = (s: CompartmentState | undefined) => !!s && s.phase !== "clear" && s.phase !== "smoke";
+    const area = (c: (typeof comps)[number]) => Math.max(0.1, c.shape.w * c.shape.h);
+    const share = (set: typeof comps) => {
+      const total = set.reduce((n, c) => n + area(c), 0);
+      return total > 0 ? set.reduce((n, c) => n + (burned(byId.get(c.id)) ? area(c) : 0), 0) / total : 0;
+    };
+    const origin = comps.find((c) => c.id === fire!.originId);
+    const o = byId.get(fire.originId);
+    involvement.room =
+      !o ? 0
+      : o.phase === "developed" || o.phase === "decaying" || o.phase === "burnt_out" || o.flashoverAt !== null ? 1
+      : o.phase === "growing" || o.phase === "starved" ? Math.min(1, 0.25 + 0.75 * Math.min(1, o.hrrMw / 2))
+      : o.phase === "knocked" ? 0.5
+      : 0;
+    const originFloor = origin?.floor ?? 0;
+    const topFloor = comps.reduce((m, c) => Math.max(m, c.floor), 0);
+    involvement.floor = share(comps.filter((c) => c.floor === originFloor && c.id !== fire!.originId));
+    involvement.roof = topFloor > originFloor
+      ? share(comps.filter((c) => c.floor === topFloor))
+      : share(comps.filter((c) => burned(byId.get(c.id)) && (byId.get(c.id)?.flashoverAt !== null)));
+  } else if (scene?.fireSeat && fireRadiusM > 0) {
     const maxR = scene.fireSeat.maxRadiusM ?? 15;
     const pct = maxR > 0 ? fireRadiusM / maxR : 0;
     const smokey = material === "vegetation" ? 1.3 : material === "vehicle" ? 1.4 : 1.9;
@@ -416,19 +526,39 @@ export function simulateIncident(
   // --- Casualty discovery (BA SAR-driven) ----------------------------------
   // Cumulative (BA wearer × minute) from ba_sar tasks.
   let baSarMinutes = 0;
+  // The same, less the minutes the way in and up was alight: a crew cannot
+  // search past a burning hall or stairs — unless a jet is in with them,
+  // which they push through behind.
+  let baSearchMinutes = 0;
+  const jetCover: [number, number][] = tasks
+    .filter((t) => t.kind === "hose_attack" && t.state !== "aborted" && (t.attackMode ?? "interior_attack") === "interior_attack")
+    .map((t) => [t.startedAt, t.state === "completed" ? t.completesAt ?? now : now] as [number, number]);
   for (const t of tasks) {
     if (t.kind !== "ba_sar") continue;
     if (t.state === "aborted") continue;
     const secs = taskDurationSec(t, now);
     const crewSize = t.baCrewIds?.length ?? 2;
     baSarMinutes += (crewSize * secs) / 60;
+    const end = t.state === "completed" ? t.completesAt ?? now : now;
+    const cut = fire ? cutSeconds(t.startedAt, end, fire.routeCut, jetCover) : 0;
+    baSearchMinutes += (crewSize * Math.max(0, secs - cut)) / 60;
   }
+
+  // The room each casualty is in, when the fire is modelled room by room.
+  const roomOf = (c: SceneCasualty): CompartmentState | null => {
+    if (!fire) return null;
+    const id = c.compartmentId ?? compartmentAt(fire.plan, c.pos)?.id;
+    return id ? fire.compartments.find((s) => s.id === id) ?? null : null;
+  };
+  // Smoke slows a search: a room logged to the floor takes half as long again.
+  const searchThreshold = (c: SceneCasualty, room: CompartmentState | null): number =>
+    room ? c.discoverAfterMinBa * (1 + 0.5 * room.smoke) : c.discoverAfterMinBa;
 
   const foundCasualties: SceneCasualty[] = [];
   if (scene?.casualties) {
     for (const c of scene.casualties) {
       if (absent.has(c.id)) continue; // not in the building this run
-      if (baSarMinutes >= c.discoverAfterMinBa) {
+      if (baSearchMinutes >= searchThreshold(c, roomOf(c))) {
         foundCasualties.push(c);
       }
     }
@@ -485,7 +615,8 @@ export function simulateIncident(
       // faster: the search threshold stretches with the floor involved,
       // and the deterioration clock runs at 60% of its window.
       const fromSeat = scene.fireSeat ? Math.hypot(c.pos.x - scene.fireSeat.pos.x, c.pos.y - scene.fireSeat.pos.y) : Infinity;
-      const inSmoke = fromSeat <= smokeRadiusM;
+      const room = roomOf(c);
+      const inSmoke = room ? room.smoke > 0.3 || room.untenable > 0 : fromSeat <= smokeRadiusM;
       // Found by the BA search, or — on open ground — by the first crew
       // having been there long enough to walk to them, or by the rope
       // team reaching the edge and looking down.
@@ -493,7 +624,7 @@ export function simulateIncident(
         ? tasks.find((t) => t.kind === "rope_rescue" && t.ropeRescue && t.casualtyId === c.id && t.state !== "aborted")?.ropeRescue
         : undefined;
       const located =
-        baSarMinutes >= c.discoverAfterMinBa * (1 + 0.5 * involvement.floor) ||
+        baSearchMinutes >= (room ? searchThreshold(c, room) : c.discoverAfterMinBa * (1 + 0.5 * involvement.floor)) ||
         (c.discoverAfterMinOnScene !== undefined && firstArrival !== null && (now - firstArrival) / 60_000 >= c.discoverAfterMinOnScene) ||
         (!!rope && now >= rope.atTopAt);
       const paired = pairingByCasualtyId[c.id];
@@ -541,8 +672,13 @@ export function simulateIncident(
         const tx = treatmentByCasualtyId?.[c.id];
         const { windowSec: baseWindow, savedGrades } = treatmentModifiers(tx, incidentSec);
         // Smoke bites once the fire is out of its room: the window
-        // shortens by a fifth for anyone still inside and unfound.
-        const windowSec = inSmoke && !located && involvement.floor > 0 ? baseWindow * 0.8 : baseWindow;
+        // shortens by a fifth for anyone still inside and unfound. With
+        // the rooms modelled it is the room's own air that counts: an
+        // untenable room halves the window of anyone unfound in it.
+        const alightRoom = room?.phase === "growing" || room?.phase === "starved";
+        const windowSec = room
+          ? located ? baseWindow : alightRoom ? baseWindow * 0.5 : baseWindow * (1 - 0.3 * room.untenable)
+          : inSmoke && !located && involvement.floor > 0 ? baseWindow * 0.8 : baseWindow;
         const worseningRaw = Math.floor(incidentSec / windowSec);
         const worsening = Math.max(0, worseningRaw - savedGrades);
         effectiveIdx = Math.min(SEVERITY_ORDER.length - 1, effectiveIdx + worsening);
@@ -565,14 +701,13 @@ export function simulateIncident(
       }
       if (c.atHeight && ropeRecoveredBy(rope, now) && stage === "located") stage = "extricated";
 
-      // Flashover eats any casualty still inside.
-      if (
-        fireStage === "flashover_risk" &&
-        flashoverCountdownSec === 0 &&
-        (stage === "undiscovered" || stage === "located")
-      ) {
-        stage = "expectant";
-      }
+      // Flashover eats any casualty still inside: with the rooms modelled,
+      // anyone unfound in a room that has flashed over, or found but
+      // still in a room fully involved now.
+      const flashedOn = room
+        ? (stage === "undiscovered" && room.flashoverAt !== null) || (stage === "located" && room.phase === "developed")
+        : fireStage === "flashover_risk" && flashoverCountdownSec === 0 && (stage === "undiscovered" || stage === "located");
+      if (flashedOn) stage = "expectant";
 
       const finalStage = severity === "expectant" ? "expectant" : stage;
       const paused =
@@ -606,8 +741,9 @@ export function simulateIncident(
     foundCasualties,
     casualtyProgression,
     absentCasualtyIds: Array.from(absent),
-    exposureBreached:
-      !!scene?.exposureRisk && fireRadiusM >= scene.exposureRisk.atRadiusM,
+    exposureBreached: fire
+      ? fire.events.some((e) => e.kind === "exposure")
+      : !!scene?.exposureRisk && fireRadiusM >= scene.exposureRisk.atRadiusM,
     firstArrivalElapsedSec:
       firstArrival === null ? 0 : Math.max(0, (now - firstArrival) / 1000),
     baMinutesOnScene,
@@ -619,7 +755,44 @@ export function simulateIncident(
     frontOffset,
     hazmatIdentified,
     decontaminated,
+    fire,
   };
+}
+
+/** Seconds of [from, to] that fall inside any of the cut spans (epoch ms),
+ *  less whatever a covering span (a jet working) overlaps. */
+function cutSeconds(from: number, to: number, cuts: [number, number][], covers: [number, number][] = []): number {
+  // Merge the covers so an overlap is never counted twice.
+  const merged: [number, number][] = [];
+  for (const c of [...covers].sort((p, q) => p[0] - q[0])) {
+    const last = merged[merged.length - 1];
+    if (last && c[0] <= last[1]) last[1] = Math.max(last[1], c[1]);
+    else merged.push([c[0], c[1]]);
+  }
+  let s = 0;
+  for (const [a, b] of cuts) {
+    const lo = Math.max(from, a);
+    const hi = Math.min(to, b);
+    if (hi <= lo) continue;
+    let covered = 0;
+    for (const [p, q] of merged) {
+      const x = Math.max(lo, p);
+      const y = Math.min(hi, q);
+      if (y > x) covered += y - x;
+    }
+    s += (hi - lo - covered) / 1000;
+  }
+  return s;
+}
+
+/** The last fire replay, kept for the next caller with the same inputs:
+ *  every screen on the desk asks for the same second's state. */
+let fireCache: { key: string; state: FireState } | null = null;
+function cachedFire(key: string, make: () => FireState): FireState {
+  if (fireCache && fireCache.key === key) return fireCache.state;
+  const state = make();
+  fireCache = { key, state };
+  return state;
 }
 
 /**

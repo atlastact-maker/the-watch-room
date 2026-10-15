@@ -1266,6 +1266,9 @@ export type TaskKind =
   | "crs_action";         // timed — a make-safe action from the MDT CRS tab
 
 export type HoseType = "45mm" | "70mm" | "LDH_150mm";
+
+/** What a ventilation task does to its opening. */
+export type VentMode = "open" | "ppv" | "close";
 export type KitKind = "aed" | "first_aid" | "trauma" | "extinguisher";
 
 // ---------------------------------------------------------------------------
@@ -1619,6 +1622,12 @@ export type Task = {
   /** Road bearing at the closure point (compass degrees) — the cone
    *  line renders perpendicular to this. */
   closureBearingDeg?: number;
+  /** For hose_attack / aerial_monitor on a building: the room the water goes into (the engine picks when absent). */
+  targetCompartmentId?: string;
+  /** For ventilate: the door or window, and what is done with it — opened,
+   *  a fan set in it, or shut (door control). */
+  openingId?: string;
+  ventMode?: VentMode;
   /** For lane_closure: the lanes coned off, numbered from the nearside. */
   lanes?: number[];
   /** For rolling_road_block / carriageway_closure: the junction it runs from or is held at. */

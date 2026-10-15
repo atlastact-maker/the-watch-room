@@ -21,17 +21,17 @@
 
 import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
-import type { EntryTool, HoseAttackMode, HoseType, Incident, KitKind, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
+import type { EntryTool, HoseAttackMode, HoseType, Incident, KitKind, LogEntry, Task, TaskKind, VentMode } from "@/lib/sim/incident_types";
 import { ENTRY_TOOL_LABEL, TASK_MIN_CREW, hasWaterSupplyChain } from "@/lib/sim/incident_types";
 import { mitigationOptionsFor } from "@/lib/sim/mitigation";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedDeployment } from "../components/incident-view";
-import { SceneCanvas } from "../components/scene-canvas";
 import { BaControlBoard } from "../components/ba-control-board";
 import { TASK_LABEL, catalogueKinds, competencyFor, useSceneHydrants, type TaskWorkspaceProps } from "./mdt-task-workspace";
 import { updatePlan, useCommandPlan, type CommandPlan } from "./command-store";
 import { openingCodeLabel } from "@/lib/sim/opening_codes";
 import { FiregroundBoard } from "./fireground-board";
+import { roomRows } from "./floor-plan";
 import { RtcStage, type RtcPanel } from "./rtc-stage";
 
 type Page = "actions" | "command" | "ba" | "rtc" | "log";
@@ -341,6 +341,11 @@ export function FireCommandScreen(props: FireCommandProps) {
   const [attackMode, setAttackMode] = useState<HoseAttackMode>("exterior_attack");
   const [hose, setHose] = useState<HoseType>("45mm");
   const [baMode, setBaMode] = useState<"search" | "firefighting">("search");
+  // Where the jet goes and what the ventilation does, when the fire is
+  // modelled room by room. Empty means the crew's own call.
+  const [roomPick, setRoomPick] = useState("");
+  const [ventOpeningPick, setVentOpeningPick] = useState("");
+  const [ventModePick, setVentModePick] = useState<VentMode>("open");
   const [entryTool, setEntryTool] = useState<EntryTool>("halligan");
   const [kitKind, setKitKind] = useState<KitKind>("first_aid");
   const [hydrantPick, setHydrantPick] = useState("");
@@ -397,20 +402,10 @@ export function FireCommandScreen(props: FireCommandProps) {
       : "None reported";
   const hazards = sim?.visibleHazards ?? [];
   const isolated = (id: string) => !!sim?.mitigatedHazardIds.includes(id);
-  const utilities = (() => {
-    const gas = hazards.find((h) => h.kind === "gas");
-    const elec = hazards.find((h) => h.kind === "electrical");
-    const parts: string[] = [];
-    if (gas) parts.push(`Gas ${isolated(gas.id) ? "isolated" : "LIVE"}`);
-    if (elec) parts.push(`Electric ${isolated(elec.id) ? "isolated" : "LIVE"}`);
-    if (!gas && !elec && sc.property.knownHazards.length) parts.push(sc.property.knownHazards[0]);
-    return parts.length ? parts.join(" · ") : "Unknown";
-  })();
   const suppressing = active.filter((t) => ["hose_attack", "aerial_monitor", "wildfire_beating", "wildfire_knapsack"].includes(t.kind));
   const integrity = props.structural?.integrity ?? 100;
   const collapsed = !!props.structural?.collapsedAt;
   const structureTone: "go" | "warn" | "stop" = collapsed ? "stop" : integrity < 25 ? "stop" : integrity < 55 ? "warn" : "go";
-  const structureText = collapsed ? "COLLAPSED" : integrity < 25 ? "Collapse imminent — withdraw" : integrity < 55 ? "Compromised — restrict entry" : integrity < 85 ? "Fire-damaged — monitor" : "Sound";
   const isStructure = !!sim?.fireMaterial && sim.fireMaterial !== "vegetation";
 
   // ---- Water ----------------------------------------------------------------
@@ -638,9 +633,34 @@ export function FireCommandScreen(props: FireCommandProps) {
       casualtyId: kind === "extract_casualty" ? targetCasualty?.id : undefined,
       entryTool: kind === "gain_entry" ? entryTool : undefined,
       kitKind: kind === "kit_grab" ? kitKind : undefined,
+      targetCompartmentId: kind === "hose_attack" && roomPick ? roomPick : undefined,
+      openingId: kind === "ventilate" && ventOpeningPick ? ventOpeningPick : undefined,
+      ventMode: kind === "ventilate" ? ventModePick : undefined,
     });
     setCrewPick(null);
   }
+
+  // The rooms a jet can be sent to by the way of attack, and the openings
+  // a ventilation job can go for.
+  const fireRooms = sim?.fire ? roomRows(sim.fire) : [];
+  const alight = (p: string) => p === "growing" || p === "developed" || p === "decaying" || p === "starved";
+  const openToAir = (id: string) => !!sim?.fire && sim.fire.plan.openings.some((o) => o.between.includes(id) && o.between.includes("outside") && (o.kind === "window" || o.kind === "door") && sim.fire!.openings.find((s) => s.id === o.id)?.open);
+  const jetRooms = fireRooms.filter((r) =>
+    attackMode === "interior_attack" ? alight(r.state.phase) || r.state.phase === "smoke"
+    : attackMode === "exterior_attack" ? alight(r.state.phase) && openToAir(r.id)
+    : attackMode === "uhpl_lance" ? alight(r.state.phase)
+    : !alight(r.state.phase),
+  );
+  const ventOpenings = sim?.fire
+    ? sim.fire.plan.openings
+        .map((o) => ({ o, s: sim.fire!.openings.find((x) => x.id === o.id)! }))
+        .filter(({ o, s }) =>
+          ventModePick === "close" ? s.open && o.kind === "door" && s.failedAt === null
+          : ventModePick === "ppv" ? o.kind === "door" && o.between.includes("outside")
+          : o.between.includes("outside") && (o.kind === "window" || o.kind === "door") && !s.open,
+        )
+        .map(({ o, s }) => ({ id: o.id, label: `${o.label ?? o.id} · ${s.failedAt !== null ? "gone" : s.ppv ? "fan in it" : s.open ? "open" : "shut"}` }))
+    : [];
 
   // ---- The tablet's top strip --------------------------------------------------
   const selection: FireSelection | null = here || committed.some((r) => r.appliance.id === appliance.id)
@@ -714,82 +734,6 @@ export function FireCommandScreen(props: FireCommandProps) {
           </div>
         </dd>
       </dl>
-    </Card>
-  );
-
-  // The fire picture as the action page carries it: the stage, the alarms
-  // and the numbers, without the involvement bars and the scene plan —
-  // those are on the BA page and Fire command.
-  const fireCardCompact = (
-    <Card title="Fire picture" icon="🔥" fill headerExtra={sim ? <span className="pc-meta">{sim.fireMaterialKnown ? sim.fireMaterial ?? "" : "material not confirmed"}</span> : undefined}>
-      <div className="fc-fire">
-        <div className={`fc-fire-stage ${stageTone}`}>
-          <b>{STAGE_LABEL[fireStage]}</b>
-          <span>{sim && sim.fireRadiusM > 0 ? `${sim.fireRadiusM.toFixed(0)} m · ${sim.fireRateMpm > 0.05 ? `growing ${sim.fireRateMpm.toFixed(1)} m/min` : sim.fireRateMpm < -0.05 ? `knocking down ${Math.abs(sim.fireRateMpm).toFixed(1)} m/min` : "holding"}${sim.smokeRadiusM > 0 ? ` · smoke ${sim.smokeRadiusM.toFixed(0)} m` : ""}` : "No fire on the ground"}</span>
-        </div>
-        {sim?.flashoverCountdownSec != null && <div className="fc-fire-alert">FLASHOVER IN {sim.flashoverCountdownSec}s — GET THEM OUT OR GET WATER ON IT</div>}
-        {sim?.exposureBreached && <div className="fc-fire-alert warn">FIRE INTO THE EXPOSURE — the neighbour is involved</div>}
-        {collapsed && <div className="fc-fire-alert">STRUCTURAL COLLAPSE — nobody goes back in</div>}
-        <dl className="pc-facts tight">
-          <dt>Jets</dt><dd className={suppressing.length ? "go" : ""}>{suppressing.length ? `${suppressing.length} working · ${[...new Set(suppressing.map((t) => callsignOf(t.applianceId)))].join(", ")}` : "None in play"}</dd>
-          <dt>BA</dt><dd className={baTasks.length ? "warn" : ""}>{baTasks.length ? `${baTasks.length} team${baTasks.length === 1 ? "" : "s"} under air` : "Nobody committed"}</dd>
-          <dt>Persons</dt><dd className={located.length || personsReported ? "warn" : ""}>{personsText}</dd>
-          <dt>Utilities</dt><dd className={/LIVE/.test(utilities) ? "stop" : ""}>{utilities}</dd>
-          {isStructure && (<><dt>Structure</dt><dd className={structureTone}>{structureText}{props.structural?.injured ? ` · ${props.structural.injured} injured` : ""}</dd></>)}
-        </dl>
-        {props.structural && isStructure && (
-          <div className={`fc-structure ${structureTone}`} title="Structural integrity — damage accrues while the fire is developed">
-            <i style={{ width: `${Math.max(0, Math.min(100, integrity))}%` }} />
-            <span>{collapsed ? "STRUCTURE FAILED" : `Structure ${Math.round(integrity)}%`}</span>
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-
-  const fireCard = (
-    <Card title="Fire picture" icon="🔥" fill headerExtra={sim ? <span className="pc-meta">{sim.fireMaterialKnown ? sim.fireMaterial ?? "" : "material not confirmed"}</span> : undefined}>
-      <div className="fc-fire">
-        <div className={`fc-fire-stage ${stageTone}`}>
-          <b>{STAGE_LABEL[fireStage]}</b>
-          <span>{sim && sim.fireRadiusM > 0 ? `${sim.fireRadiusM.toFixed(0)} m · ${sim.fireRateMpm > 0.05 ? `growing ${sim.fireRateMpm.toFixed(1)} m/min` : sim.fireRateMpm < -0.05 ? `knocking down ${Math.abs(sim.fireRateMpm).toFixed(1)} m/min` : "holding"}` : "No fire on the ground"}</span>
-        </div>
-        {sim && sim.fireRadiusM > 0 && (
-          <div className="fc-involve">
-            {([["Room", sim.involvement.room], ["Floor", sim.involvement.floor], ["Roof", sim.involvement.roof]] as const).map(([k, v]) => (
-              <div key={k} className={v >= 0.99 ? "stop" : v > 0 ? "warn" : ""}><span>{k}</span><i style={{ width: `${Math.round(v * 100)}%` }} /><b>{v >= 0.99 ? "involved" : v > 0 ? `${Math.round(v * 100)}%` : "clear"}</b></div>
-            ))}
-            <div className="smoke"><span>Smoke</span><b>{sim.smokeRadiusM.toFixed(0)} m from the seat</b></div>
-          </div>
-        )}
-        {sim?.flashoverCountdownSec != null && <div className="fc-fire-alert">FLASHOVER IN {sim.flashoverCountdownSec}s — GET THEM OUT OR GET WATER ON IT</div>}
-        {sim?.exposureBreached && <div className="fc-fire-alert warn">FIRE INTO THE EXPOSURE — the neighbour is involved</div>}
-        {collapsed && <div className="fc-fire-alert">STRUCTURAL COLLAPSE — nobody goes back in</div>}
-        <dl className="pc-facts tight">
-          <dt>Jets</dt><dd className={suppressing.length ? "go" : ""}>{suppressing.length ? `${suppressing.length} working · ${[...new Set(suppressing.map((t) => callsignOf(t.applianceId)))].join(", ")}` : "None in play"}</dd>
-          <dt>BA</dt><dd className={baTasks.length ? "warn" : ""}>{baTasks.length ? `${baTasks.length} team${baTasks.length === 1 ? "" : "s"} under air` : "Nobody committed"}</dd>
-          <dt>Persons</dt><dd className={located.length || personsReported ? "warn" : ""}>{personsText}</dd>
-          <dt>Utilities</dt><dd className={/LIVE/.test(utilities) ? "stop" : ""}>{utilities}</dd>
-          {isStructure && (<><dt>Structure</dt><dd className={structureTone}>{structureText}{props.structural?.injured ? ` · ${props.structural.injured} injured` : ""}</dd></>)}
-        </dl>
-        {props.structural && isStructure && (
-          <div className={`fc-structure ${structureTone}`} title="Structural integrity — damage accrues while the fire is developed">
-            <i style={{ width: `${Math.max(0, Math.min(100, integrity))}%` }} />
-            <span>{collapsed ? "STRUCTURE FAILED" : `Structure ${Math.round(integrity)}%`}</span>
-          </div>
-        )}
-        <div className="fc-map">
-          {sc.scene ? (
-            <SceneCanvas
-              scene={sc.scene}
-              deployments={onScene.map((r) => ({ deployment: r.deployment, callsign: r.appliance.callsign, service: r.appliance.service }))}
-              live={sim ? { fireRadiusM: sim.fireRadiusM, smokeRadiusM: sim.smokeRadiusM, frontOffset: sim.frontOffset } : null}
-            />
-          ) : (
-            <div className="pc-map-empty">NO SCENE PLAN FOR THIS INCIDENT</div>
-          )}
-        </div>
-      </div>
     </Card>
   );
 
@@ -893,6 +837,32 @@ export function FireCommandScreen(props: FireCommandProps) {
             <select value={hose} onChange={(e) => setHose(e.target.value as HoseType)}>{HOSES.map((h) => <option key={h.type} value={h.type}>{h.label}</option>)}</select>
           </label>
           <label className="pc-field inline"><span>Pump</span><output className={pumpOn ? "hi" : ""}>{pumpOn ? `Running · ${pumpOperator?.name ?? "operator"}` : "Not running"}{!pumpOn && <button type="button" className="pc-mini" disabled={!canAct || !props.onSetPumpRunning} onClick={startPump}>Start pump</button>}</output></label>
+        </>
+      )}
+      {kind === "hose_attack" && sim?.fire && (
+        <label className="pc-field inline"><span>Where</span>
+          <select value={jetRooms.some((r) => r.id === roomPick) ? roomPick : ""} onChange={(e) => setRoomPick(e.target.value)}>
+            <option value="">Crew&apos;s call{attackMode === "exterior_cooling" ? " — the exposures and the rooms beside the fire" : attackMode === "exterior_attack" ? " — the hottest room showing" : " — the seat of the fire"}</option>
+            {jetRooms.map((r) => <option key={r.id} value={r.id}>{r.label} · {r.state.words}</option>)}
+          </select>
+        </label>
+      )}
+      {kind === "ventilate" && sim?.fire && (
+        <>
+          <label className="pc-field inline"><span>Do what</span>
+            <select value={ventModePick} onChange={(e) => { setVentModePick(e.target.value as VentMode); setVentOpeningPick(""); }}>
+              <option value="open">Open it up — let the smoke out</option>
+              <option value="ppv">Positive pressure fan — blow it clear</option>
+              <option value="close">Shut the door — starve it, hold the smoke</option>
+            </select>
+          </label>
+          <label className="pc-field inline"><span>Opening</span>
+            <select value={ventOpenings.some((o) => o.id === ventOpeningPick) ? ventOpeningPick : ""} onChange={(e) => setVentOpeningPick(e.target.value)}>
+              <option value="">{ventModePick === "close" ? "Crew's call — the fire room's door" : ventModePick === "ppv" ? "Crew's call — the front door" : "Crew's call — the fire room's window"}</option>
+              {ventOpenings.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          </label>
+          {ventModePick !== "close" && !suppressing.length && <p className="pc-note">No jet is working yet: air in now feeds the fire.</p>}
         </>
       )}
       {kind === "ba_sar" && (

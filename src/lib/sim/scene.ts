@@ -67,6 +67,78 @@ export type FireMaterial =
   | "vehicle"           // car / HGV — water-foam mix, watch for fuel tank
   | "vegetation";       // moorland / grassland — beaters + firebreaks, peat re-burns
 
+/** What a room is furnished with, for how fast a fire in it grows and
+ *  how long it has to burn: the engine's growth curve, fuel load and peak
+ *  output come from this. */
+export type FuelClass =
+  | "domestic"     // a lounge, a dining room: upholstery, carpets, curtains
+  | "bedroom"      // beds, wardrobes, clothes
+  | "kitchen"      // the fast one: cooking oil, units, plastics
+  | "storage"      // a stock room, a cellar full of stuff
+  | "office"       // desks, paper, screens
+  | "commercial"   // a shop floor, a bar
+  | "industrial"   // racked stock, pallets, plastics by the tonne
+  | "plant"        // switchgear, a plant room: little to burn, electrical
+  | "corridor"     // a hall or a landing: a route, little fuel
+  | "stair"        // the stair: a route up, little fuel
+  | "void"         // a roof void, a floor void: timbers
+  | "sparse";      // a bathroom, a garage: not much
+
+/** A room, in the building's metres: where it is, which floor, what is in it. */
+export type Compartment = {
+  id: string;
+  label: string;
+  /** 0 is the ground floor; the roof void sits above the top floor. */
+  floor: number;
+  shape: SceneRect;
+  /** Metres floor to ceiling. Default 2.4. */
+  heightM?: number;
+  fuel: FuelClass;
+  /** A hall, a landing, a stair: the way in and the way out for everyone. */
+  route?: boolean;
+  /** The neighbour's, or the next unit's: fire in here is the exposure breached. */
+  exposure?: boolean;
+};
+
+export type OpeningKind =
+  | "door"       // between rooms, or to the outside; closed unless said
+  | "window"     // to the outside; shut until it fails in the heat or a crew opens it
+  | "stair"      // the stair up: always open
+  | "hatch"      // a loft hatch: closed
+  | "wall"       // no opening at all — a fire path through a party wall or a ceiling once it fails
+  | "partition"; // a stud wall: fails sooner than a wall
+
+/** A way between two rooms, or between a room and the outside. */
+export type Opening = {
+  id: string;
+  kind: OpeningKind;
+  /** The two sides; "outside" is the open air. */
+  between: [string, string];
+  label?: string;
+  widthM?: number;
+  heightM?: number;
+  /** Open as the job starts (a door left open, a window on the latch). */
+  open?: boolean;
+  /** Minutes a closed door, wall or ceiling holds against a developed fire before it fails. */
+  fireResistanceMin?: number;
+  /** Where it sits on the plan, for drawing. */
+  at?: ScenePoint;
+  /** For a window: the face of the building it is in. */
+  face?: "N" | "S" | "E" | "W";
+};
+
+/** The building the fire is in, as the fire engine sees it: rooms, and
+ *  the doors, windows, stairs, hatches and walls between them. Authored
+ *  for the jobs that matter; generated from the footprint for the rest. */
+export type BuildingPlan = {
+  compartments: Compartment[];
+  openings: Opening[];
+  /** Where the fire starts; the fire seat's position picks a room when absent. */
+  originId?: string;
+  /** How long the fire has been going when the call comes in. Default 240 s. */
+  headStartSec?: number;
+};
+
 export type SceneFire = {
   pos: ScenePoint;
   radiusM: number;
@@ -83,6 +155,8 @@ export type SceneFire = {
    *  survey completes. Lets scenarios model "the caller said chip-pan but
    *  on arrival it's an electrical cupboard" discovery beats. */
   unknownMaterial?: boolean;
+  /** The room it starts in, when the scene has a plan. */
+  compartmentId?: string;
 };
 
 /** Clinical presentation on patient assessment — authored on the scene
@@ -220,6 +294,9 @@ export type SceneCasualty = {
    *  has completed on the job. The scoop-and-run the RTC lesson warns
    *  against is refused rather than merely discouraged. */
   trappedUntilExtricated?: boolean;
+  /** The room they are in, when the scene has a plan — the smoke and the
+   *  heat in it are theirs. */
+  compartmentId?: string;
   label?: string;
   /** Chance (0–1) this casualty is actually present, rolled ONCE when the
    *  incident opens — the "persons reality" roll. Omit for always-present.
@@ -338,6 +415,8 @@ export type FireOriginVariant = {
   probability: number;
   label: string;          // e.g. "Lounge — electrical fault"
   pos: ScenePoint;
+  /** The room, when the scene has a plan. */
+  compartmentId?: string;
   material?: FireMaterial;
   radiusM?: number;
   growthRateMpm?: number;
@@ -414,6 +493,8 @@ export type SceneCarriageway = {
 
 export type Scene = {
   viewBox: { x: number; y: number; width: number; height: number };
+  /** The building as rooms and openings, for the fire engine. */
+  plan?: BuildingPlan;
   /** The running road the job is on, when it is on one. */
   carriageway?: SceneCarriageway;
   /** Moving water, for scenes with someone in it. */

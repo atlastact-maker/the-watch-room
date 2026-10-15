@@ -120,6 +120,64 @@ export const scenario02: Scenario = {
   scene: {
     viewBox: { x: -40, y: -30, width: 80, height: 60 },
     compassNorth: "up",
+    // The house as the fire engine has it: a 1950s semi, front door and
+    // lounge to the road (south), kitchen and dining room at the back,
+    // the stairs off the hall up to a landing with three bedrooms and the
+    // bathroom, the loft done out as a bedroom up a single stair, the roof
+    // void over it all, and no. 287 through the party wall. Kelly pulled
+    // the kitchen door to as they ran — a solid 1950s panel door, and it
+    // is what keeps the hall passable until it burns through; the lounge
+    // door was left open. The children's doors are shut, which is what
+    // keeps them alive. The front door latched behind the parents — hence
+    // the forcible entry. The pan went up three minutes before the call.
+    plan: {
+      headStartSec: 180,
+      originId: "kitchen",
+      compartments: [
+        { id: "hall", label: "Hall", floor: 0, shape: { x: 0.5, y: -1, w: 3, h: 4 }, fuel: "corridor", route: true },
+        { id: "lounge", label: "Lounge", floor: 0, shape: { x: -3.5, y: -0.5, w: 4, h: 3.5 }, fuel: "domestic" },
+        { id: "kitchen", label: "Kitchen", floor: 0, shape: { x: -3.5, y: -5, w: 4, h: 4.5 }, fuel: "kitchen" },
+        { id: "dining", label: "Dining room", floor: 0, shape: { x: 0.5, y: -5, w: 3, h: 4 }, fuel: "domestic" },
+        { id: "landing", label: "Landing", floor: 1, shape: { x: 0.5, y: -2, w: 3, h: 2.5 }, fuel: "corridor", route: true },
+        { id: "bed-front", label: "Front bedroom", floor: 1, shape: { x: -3.5, y: 0, w: 4, h: 3 }, fuel: "bedroom" },
+        { id: "bed-back", label: "Back bedroom", floor: 1, shape: { x: 0.5, y: -5, w: 3, h: 3 }, fuel: "bedroom" },
+        { id: "bed-rear", label: "Rear bedroom", floor: 1, shape: { x: -3.5, y: -5, w: 4, h: 5 }, fuel: "bedroom" },
+        { id: "bathroom", label: "Bathroom", floor: 1, shape: { x: 0.5, y: 0.5, w: 3, h: 2.5 }, fuel: "sparse" },
+        { id: "loft", label: "Loft bedroom", floor: 2, shape: { x: -3.5, y: -4, w: 7, h: 5 }, fuel: "bedroom", heightM: 2.1 },
+        { id: "roof", label: "Roof void", floor: 2, shape: { x: -3.5, y: -5, w: 7, h: 8 }, fuel: "void", heightM: 1.2 },
+        { id: "n287", label: "No. 287", floor: 0, shape: { x: 3.5, y: -5, w: 7, h: 8 }, fuel: "domestic", exposure: true },
+      ],
+      openings: [
+        { id: "front-door", kind: "door", between: ["hall", "outside"], label: "Front door", at: { x: 2, y: 3 }, face: "S" },
+        { id: "lounge-door", kind: "door", between: ["lounge", "hall"], label: "Lounge door", open: true, at: { x: 0.5, y: 1.5 } },
+        { id: "kitchen-door", kind: "door", between: ["kitchen", "hall"], label: "Kitchen door", fireResistanceMin: 15, at: { x: 0.5, y: -0.75 } },
+        { id: "kitchen-arch", kind: "door", between: ["kitchen", "dining"], label: "Kitchen arch", open: true, widthM: 1.2, at: { x: 0.5, y: -3.5 } },
+        { id: "dining-door", kind: "door", between: ["dining", "hall"], label: "Dining room door", at: { x: 2, y: -1 } },
+        { id: "back-door", kind: "door", between: ["kitchen", "outside"], label: "Back door", at: { x: -1.5, y: -5 }, face: "N" },
+        { id: "kitchen-window", kind: "window", between: ["kitchen", "outside"], label: "Kitchen window", at: { x: -3.5, y: -2.5 }, face: "W" },
+        { id: "lounge-window", kind: "window", between: ["lounge", "outside"], label: "Lounge window", widthM: 1.8, at: { x: -1.5, y: 3 }, face: "S" },
+        { id: "dining-window", kind: "window", between: ["dining", "outside"], label: "Dining room window", at: { x: 2, y: -5 }, face: "N" },
+        { id: "stairs", kind: "stair", between: ["hall", "landing"], label: "Stairs", at: { x: 2, y: -1.5 } },
+        { id: "bed-front-door", kind: "door", between: ["bed-front", "landing"], label: "Front bedroom door", at: { x: 0.5, y: 0.3 } },
+        { id: "bed-back-door", kind: "door", between: ["bed-back", "landing"], label: "Back bedroom door", at: { x: 2, y: -2 } },
+        { id: "bed-rear-door", kind: "door", between: ["bed-rear", "landing"], label: "Rear bedroom door", at: { x: 0.5, y: -1.5 } },
+        { id: "bathroom-door", kind: "door", between: ["bathroom", "landing"], label: "Bathroom door", open: true, at: { x: 2, y: 0.5 } },
+        { id: "bed-front-window", kind: "window", between: ["bed-front", "outside"], label: "Front bedroom window", widthM: 1.5, at: { x: -1.5, y: 3 }, face: "S" },
+        { id: "bed-back-window", kind: "window", between: ["bed-back", "outside"], label: "Back bedroom window", at: { x: 2, y: -5 }, face: "N" },
+        { id: "bed-rear-window", kind: "window", between: ["bed-rear", "outside"], label: "Rear bedroom window", at: { x: -1.5, y: -5 }, face: "N" },
+        { id: "bathroom-window", kind: "window", between: ["bathroom", "outside"], label: "Bathroom window", widthM: 0.6, heightM: 0.6, at: { x: 2, y: 3 }, face: "S" },
+        { id: "loft-stair", kind: "stair", between: ["landing", "loft"], label: "Loft stair", widthM: 0.7, at: { x: 1, y: -1 } },
+        { id: "loft-window", kind: "window", between: ["loft", "outside"], label: "Loft window", widthM: 0.8, heightM: 1.0, at: { x: -2, y: -4 }, face: "N" },
+        { id: "loft-partition", kind: "partition", between: ["loft", "roof"], label: "Loft partition", fireResistanceMin: 15 },
+        { id: "ceiling-front", kind: "wall", between: ["bed-front", "roof"], label: "Ceiling", fireResistanceMin: 20 },
+        { id: "ceiling-back", kind: "wall", between: ["bed-back", "roof"], label: "Ceiling", fireResistanceMin: 20 },
+        { id: "ceiling-rear", kind: "wall", between: ["bed-rear", "roof"], label: "Ceiling", fireResistanceMin: 20 },
+        { id: "ceiling-landing", kind: "wall", between: ["landing", "roof"], label: "Ceiling", fireResistanceMin: 20 },
+        { id: "party-wall", kind: "wall", between: ["hall", "n287"], label: "Party wall", fireResistanceMin: 60 },
+        { id: "party-wall-rear", kind: "wall", between: ["dining", "n287"], label: "Party wall", fireResistanceMin: 60 },
+        { id: "party-roof", kind: "wall", between: ["roof", "n287"], label: "Roof void party wall", fireResistanceMin: 40 },
+      ],
+    },
     // Stairs from the back bedroom, in a fire.
     egressExtraSeconds: 120,
     // What this building will not take. Prose above; a locked option
@@ -188,7 +246,8 @@ export const scenario02: Scenario = {
     // (cigarette — right next to where the boy sleeps). The material is
     // hidden until a 360 survey confirms it.
     fireSeat: {
-      pos: { x: 0, y: -3 },
+      pos: { x: -1.5, y: -3 },
+      compartmentId: "kitchen",
       radiusM: 2.5,
       // Below the exterior-attack rate (0.18) only just: a jet from outside
       // holds it, and only an interior attack or BA on the search shrinks it.
@@ -203,12 +262,14 @@ export const scenario02: Scenario = {
         probability: 0.3,
         label: "Lounge — electrical fault",
         pos: { x: -2, y: 1 },
+        compartmentId: "lounge",
         material: "electrical",
       },
       {
         probability: 0.2,
         label: "Upstairs bedroom — cigarette",
         pos: { x: 1, y: -4 },
+        compartmentId: "bed-back",
         material: "structural",
         radiusM: 2,
         growthRateMpm: 0.22,
@@ -274,6 +335,7 @@ export const scenario02: Scenario = {
         // to a BA team that is in on time and an ambulance paired with him.
         id: "cas-1",
         pos: { x: 2, y: -4 },
+        compartmentId: "bed-back",
         severity: "serious",
         discoverAfterMinBa: 2,
         presentProbability: 0.67,
@@ -294,7 +356,8 @@ export const scenario02: Scenario = {
       },
       {
         id: "cas-2",
-        pos: { x: -1, y: -1 },
+        pos: { x: 1.2, y: -0.5 },
+        compartmentId: "hall",
         severity: "serious",
         discoverAfterMinBa: 7,
         // Only exists when the "second-casualty" beat fires — the father
@@ -319,6 +382,7 @@ export const scenario02: Scenario = {
         // single stair, above the smoke; found later than the boy would be.
         id: "cas-3",
         pos: { x: 1, y: -1 },
+        compartmentId: "loft",
         severity: "serious",
         discoverAfterMinBa: 5,
         presentProbability: 0,

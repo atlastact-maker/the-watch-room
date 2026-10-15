@@ -14,6 +14,8 @@ import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedDeployment } from "../components/incident-view";
 import { SceneCanvas } from "../components/scene-canvas";
 import { fireHistory, recordFire } from "@/lib/sim/fire_history";
+import { FLASHOVER_WARN_SEC } from "@/lib/sim/fire_dynamics";
+import { FloorPlan } from "./floor-plan";
 
 type Tone = "go" | "warn" | "stop" | "";
 
@@ -84,6 +86,30 @@ function FireTrend({ hist, maxR, now, tone }: { hist: readonly { t: number; r: n
 function mmss(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** The room-level alarms: a room on its way to flashover, a shut-up hot
+ *  room that will burst when it is opened, a door about to give way. */
+export function roomAlerts(fire: NonNullable<IncidentSimState["fire"]>): { key: string; head: string; text: string; tone: Tone }[] {
+  const out: { key: string; head: string; text: string; tone: Tone }[] = [];
+  const label = (id: string) => fire.plan.compartments.find((c) => c.id === id)?.label ?? id;
+  for (const c of fire.compartments) {
+    if (c.phase === "growing" && c.flashoverInSec !== null && c.flashoverInSec <= FLASHOVER_WARN_SEC) {
+      out.push({ key: `fo:${c.id}`, head: `FLASHOVER IN ${c.flashoverInSec}s — ${label(c.id).toUpperCase()}`, text: c.waterLpm > 0 ? "Water is on it — keep it there, nobody goes in" : "Get them out or get water on it", tone: "" });
+    }
+    if (c.backdraughtRisk) {
+      out.push({ key: `bd:${c.id}`, head: `BACKDRAUGHT RISK — ${label(c.id).toUpperCase()}`, text: "Shut up and hot: a jet in before anyone opens it", tone: "warn" });
+    }
+  }
+  for (const o of fire.openings) {
+    if (o.failsInSec === null || o.open || o.failsInSec > 300) continue;
+    const op = fire.plan.openings.find((p) => p.id === o.id);
+    if (!op) continue;
+    const hot = fire.compartments.filter((c) => op.between.includes(c.id)).sort((a, b) => b.tempC - a.tempC);
+    const into = op.between.find((id) => id !== hot[0]?.id && id !== "outside");
+    out.push({ key: `fail:${o.id}`, head: `${(op.label ?? "DOOR").toUpperCase()} GOING IN ${mmss(o.failsInSec * 1000)}`, text: into ? `Fire into the ${label(into).toLowerCase()} when it does` : "Fire through it when it does", tone: "warn" });
+  }
+  return out.slice(0, 4);
 }
 
 function Meter({ label, value, sub, pct, tone, children }: { label: string; value: ReactNode; sub?: ReactNode; pct?: number | null; tone?: Tone; children?: ReactNode }) {
@@ -179,7 +205,7 @@ export function FiregroundBoard(props: FiregroundBoardProps) {
   const segs = (v: number) => Array.from({ length: 10 }, (_, i) => (v * 10 > i + 0.5 ? "on" : ""));
 
   return (
-    <div className={`fg-board${compact ? " compact" : ""}`}>
+    <div className={`fg-board${compact ? " compact" : ""}${sim?.fire ? " rooms" : ""}`}>
       <div className="fg-zone fg-zone-state">
       {/* Where the fire is on its development, and which way it is going. */}
       <div className={`fg-track ${tone}`}>
@@ -202,7 +228,9 @@ export function FiregroundBoard(props: FiregroundBoardProps) {
         </span>
       </div>
 
-      {sim?.flashoverCountdownSec != null && (
+      {sim?.fire ? roomAlerts(sim.fire).map((a) => (
+        <div key={a.key} className={`fg-alert ${a.tone}${a.tone === "" ? " pulse" : ""}`}><b>{a.head}</b><span>{a.text}</span></div>
+      )) : sim?.flashoverCountdownSec != null && (
         <div className="fg-alert pulse"><b>FLASHOVER IN {sim.flashoverCountdownSec}s</b><span>Get them out or get water on it</span></div>
       )}
       {collapsed && <div className="fg-alert"><b>STRUCTURAL COLLAPSE</b><span>Nobody goes back in</span></div>}
@@ -215,7 +243,9 @@ export function FiregroundBoard(props: FiregroundBoardProps) {
 
       {!compact && (
         <div className="fg-plan fg-zone">
-          {scene ? (
+          {sim?.fire ? (
+            <FloorPlan fire={sim.fire} casualties={located} progression={sim.casualtyProgression} />
+          ) : scene ? (
             <SceneCanvas
               scene={scene}
               deployments={onScene.map((r) => ({ deployment: r.deployment, callsign: r.appliance.callsign, service: r.appliance.service }))}
@@ -224,13 +254,17 @@ export function FiregroundBoard(props: FiregroundBoardProps) {
           ) : (
             <div className="fg-plan-empty">NO SCENE PLAN FOR THIS INCIDENT</div>
           )}
-          {scene && radius > 0 && <div className="fg-plan-key"><i className="fire" />fire {radius.toFixed(0)} m<i className="smoke" />smoke {(sim?.smokeRadiusM ?? 0).toFixed(0)} m</div>}
+          {scene && !sim?.fire && radius > 0 && <div className="fg-plan-key"><i className="fire" />fire {radius.toFixed(0)} m<i className="smoke" />smoke {(sim?.smokeRadiusM ?? 0).toFixed(0)} m</div>}
         </div>
       )}
 
       <div className="fg-meters fg-zone">
         <Meter label="Fire size" value={radius > 0 ? `${radius.toFixed(0)} m` : "—"} sub={radius > 0 ? `of ${maxR.toFixed(0)} m · ${Math.round(sizePct)}%` : "no fire"} pct={sizePct} tone={tone} />
-        <Meter label="Smoke" value={sim && sim.smokeRadiusM > 0 ? `${sim.smokeRadiusM.toFixed(0)} m` : "—"} sub={sim?.ventilated ? "ventilated" : sim && sim.smokeRadiusM > 0 ? "from the seat" : "clear"} tone={sim && sim.smokeRadiusM > 12 ? "warn" : ""} />
+        {sim?.fire ? (
+          <Meter label="Rooms" value={sim.fire.roomsAlight ? `${sim.fire.roomsAlight} alight` : sim.fire.roomsInvolved ? "None alight" : "Clear"} sub={`${sim.fire.compartments.filter((c) => c.phase === "smoke").length} smoke-logged · ${sim.fire.compartments.filter((c) => c.phase === "knocked").length} knocked · ${sim.fire.totalMw >= 0.05 ? `${sim.fire.totalMw.toFixed(1)} MW` : "no heat"}`} tone={sim.fire.roomsAlight ? (sim.fire.compartments.some((c) => c.phase === "developed") ? "stop" : "warn") : sim.fire.everBurned ? "go" : ""} />
+        ) : (
+          <Meter label="Smoke" value={sim && sim.smokeRadiusM > 0 ? `${sim.smokeRadiusM.toFixed(0)} m` : "—"} sub={sim?.ventilated ? "ventilated" : sim && sim.smokeRadiusM > 0 ? "from the seat" : "clear"} tone={sim && sim.smokeRadiusM > 12 ? "warn" : ""} />
+        )}
         {isStructure && (
           <Meter label="Involvement" value={inv.roof >= 0.99 ? "Roof involved" : inv.floor > 0 ? `Floor ${Math.round(inv.floor * 100)}%` : inv.room > 0 ? `Room ${Math.round(inv.room * 100)}%` : "Clear"} tone={inv.roof > 0 ? "stop" : inv.floor > 0 ? "warn" : inv.room > 0.5 ? "warn" : ""}>
             <div className="fg-segs">

@@ -180,11 +180,14 @@ export function scoreIncident(
   }
 
   // 5. Fire outcome — did we extinguish / did it flash over?
+  const firstFireArrival = deployments.filter((d) => d.arrivesAt).reduce<number | null>((acc, d) => (acc === null || d.arrivesAt < acc ? d.arrivesAt : acc), null);
   if (sim && incident.scenario.scene?.fireSeat) {
     const extinguished = sim.fireStage === "extinguished" || sim.fireRadiusM <= 0.1;
-    const flashoverReached = !!log?.some(
-      (e) => e.kind === "fire_stage" && /flashover/i.test(e.message),
-    );
+    // With the rooms modelled, a flashover counts against the crews only
+    // once they were there to prevent it; before that it is the fire's.
+    const flashoverReached = sim.fire
+      ? !!log?.some((e) => e.id.startsWith("fire-room:flashover:") && (firstFireArrival === null || e.timestamp >= firstFireArrival))
+      : !!log?.some((e) => e.kind === "fire_stage" && /flashover/i.test(e.message));
     metrics.push({
       label: "Fire outcome",
       target: "Extinguished before stop message",
@@ -200,6 +203,19 @@ export function scoreIncident(
         : extinguished
           ? "partial"
           : false,
+    });
+  }
+
+  // 5b. The rooms: what the fire took once the crews were there to stop it.
+  if (sim?.fire && log && firstFireArrival !== null) {
+    const lost = log.filter((e) => (e.id.startsWith("fire-room:spread:") || e.id.startsWith("fire-room:failed:") || e.id.startsWith("fire-room:exposure:")) && e.timestamp >= firstFireArrival);
+    const rooms = [...new Set(lost.map((e) => e.id.split(":")[2]))];
+    const labelOf = (id: string) => sim.fire!.plan.compartments.find((c) => c.id === id)?.label.toLowerCase() ?? id;
+    metrics.push({
+      label: "Fire held",
+      target: "No more rooms lost after the first appliance arrived",
+      actual: rooms.length === 0 ? "Held to the rooms it had on arrival" : `Fire into the ${rooms.map(labelOf).join(", ")} after arrival`,
+      passed: rooms.length === 0 ? true : rooms.length === 1 ? "partial" : false,
     });
   }
 

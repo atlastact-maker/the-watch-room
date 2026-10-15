@@ -5208,6 +5208,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 
 .fg-stage span { font-size: 7.5px; }
 .fg-board:not(.compact) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.45fr); }
+.fg-board:not(.compact).rooms { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.45fr) minmax(0, 1.3fr); }
 .fg-trend { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: 5px 8px 4px; border: 1px solid var(--fc-line-soft); border-radius: 2px; background: var(--fc-card-h); }
 .fg-trend .hd, .fg-trend .axis { display: flex; justify-content: space-between; font: 700 8px var(--vec-mono, Consolas, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fc-muted); }
 .fg-trend svg { display: block; width: 100%; height: 56px; }
@@ -5831,3 +5832,60 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .gv-unit.unplaced { opacity: 0.75; }
 .gv-unit.unplaced > svg, .gv-unit.unplaced > g { filter: saturate(0.6); }
 @media (prefers-reduced-motion: reduce) { .gv-car { animation-duration: 0s; } }
+
+/* ---- The floor plan: the rooms with the fire in them ----------------------- */
+.fp { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+.fp svg { display: block; width: 100%; height: 100%; flex: 1; min-height: 0; font-family: var(--vec-sans, Arial, sans-serif); }
+.fp-title { font: 700 0.5px var(--vec-mono, Consolas, monospace); letter-spacing: 0.06em; fill: #9fb3c4; }
+.fp-room .floor { stroke: none; }
+.fp-room .wall { fill: none; stroke: #4e6a80; stroke-width: 0.1; }
+.fp-room.pickable { cursor: pointer; }
+.fp-room.pickable:hover .wall { stroke: #e6eef5; stroke-width: 0.14; }
+.fp-room.picked .wall { stroke: #ffffff; stroke-width: 0.18; stroke-dasharray: 0.3 0.15; }
+.fp-room .flame { fill: #ffb347; opacity: 0.25; animation: fp-flicker 0.55s steps(2, end) infinite; }
+.fp-room .smoke { fill: #aab4bd; }
+.fp-room .water { fill: none; stroke: #60a5fa; stroke-width: 0.14; }
+.fp-room.flash .wall { stroke: #ff3b3b; stroke-width: 0.2; animation: fp-pulse 0.9s steps(2, start) infinite; }
+.fp-room.backdraught .wall { stroke: #ffb020; stroke-width: 0.18; stroke-dasharray: 0.25 0.15; }
+.fp-label { font-size: 0.42px; font-weight: 700; fill: #eef3f7; text-anchor: start; paint-order: stroke; stroke: #0d1a26; stroke-width: 0.08; }
+.fp-words { font-size: 0.3px; fill: #d7e2ea; text-anchor: start; paint-order: stroke; stroke: #0d1a26; stroke-width: 0.06; }
+.fp-text { pointer-events: none; }
+.fp-words.flash { fill: #ffd1cc; font-weight: 800; }
+.fp-water { font: 700 0.3px var(--vec-mono, Consolas, monospace); fill: #93c5fd; text-anchor: end; }
+.fp-outer { fill: none; stroke: #c9d6e2; stroke-width: 0.16; }
+.fp-opening .gap { stroke: #0d1a26; stroke-width: 0.28; stroke-linecap: butt; }
+.fp-opening .leaf { stroke-width: 0.16; stroke-linecap: butt; }
+.fp-opening.door.shut .leaf { stroke: #e2e8f0; }
+.fp-opening.door.open .leaf { stroke: #5fd38d; }
+.fp-opening.door.gone .leaf { stroke: #ff5a3c; stroke-dasharray: 0.15 0.1; }
+.fp-opening.window.shut .leaf { stroke: #7dd3fc; }
+.fp-opening.window.open .leaf { stroke: #5fd38d; }
+.fp-opening.window.gone .leaf { stroke: #ff5a3c; stroke-dasharray: 0.15 0.1; }
+.fp-opening.hatch.shut .leaf { stroke: #cbd5e1; }
+.fp-fan circle { fill: #0ea5e9; stroke: #e0f2fe; stroke-width: 0.04; }
+.fp-fan path { fill: #e0f2fe; }
+.fp-fan .blow { stroke: #7dd3fc; stroke-width: 0.1; stroke-dasharray: 0.12 0.08; }
+.fp-timer { font: 800 0.34px var(--vec-mono, Consolas, monospace); fill: #ff6b6b; text-anchor: middle; paint-order: stroke; stroke: #0d1a26; stroke-width: 0.1; }
+.fp-stair rect { fill: #2a3b4b; stroke: #8aa0b3; stroke-width: 0.06; opacity: 0.9; }
+.fp-stair line { stroke: #8aa0b3; stroke-width: 0.05; }
+.fp-stair text { font: 700 0.28px var(--vec-mono, Consolas, monospace); fill: #c9d6e2; text-anchor: middle; }
+.fp-exposure rect { fill: #15202c; stroke: #4e6a80; stroke-width: 0.08; stroke-dasharray: 0.3 0.2; }
+.fp-exposure text { font: 700 0.34px var(--vec-mono, Consolas, monospace); fill: #7f97a8; text-anchor: middle; letter-spacing: 0.04em; }
+.fp-exposure.alight rect { fill: #7d3914; }
+.fp-exposure.alight text { fill: #ffd1cc; }
+.fp-casualty circle { stroke: #0d1a26; stroke-width: 0.06; }
+.fp-casualty .head { fill: #0d1a26; stroke: none; }
+.fp-casualty .body { fill: #0d1a26; }
+.fp-casualty.expectant circle { opacity: 0.8; }
+.fp-key { flex: none; display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 3px 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(10, 10, 12, 0.6); font: 700 9px var(--vec-mono, monospace); letter-spacing: 0.08em; color: #e6eef5; text-transform: uppercase; }
+.fp-key span { display: inline-flex; align-items: center; gap: 3px; }
+.fp-key i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+.fp-key i.smoke { background: #aab4bd; opacity: 0.7; }
+.fp-key i.door { width: 12px; height: 3px; }
+.fp-key i.door.shut { background: #e2e8f0; }
+.fp-key i.door.open { background: #5fd38d; }
+.fp-key i.door.gone { background: #ff5a3c; }
+.fp-key i.water { box-sizing: border-box; border: 2px solid #60a5fa; background: transparent; }
+.fp-key i.cas { border-radius: 50%; background: #ffb020; }
+@keyframes fp-flicker { 50% { opacity: 0.08; } }
+@keyframes fp-pulse { 50% { stroke-opacity: 0.35; } }

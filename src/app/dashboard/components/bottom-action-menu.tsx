@@ -52,6 +52,7 @@ import type {
   DrugName as TxDrugName,
   PackagingAction as TxPackagingAction,
   PatientTreatmentState,
+  VentMode,
 } from "@/lib/sim/incident_types";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
 
@@ -109,6 +110,11 @@ export type StartTaskFn = (args: {
   crsDurationSec?: number;
   crsLabel?: string;
   crsDoneMessage?: string;
+  /** Where a jet goes and what a ventilation job does, when the fire is
+   *  modelled room by room. Left out, the crew make their own call. */
+  targetCompartmentId?: string;
+  openingId?: string;
+  ventMode?: VentMode;
 }) => string | void;
 
 export type UnitControlPage = "vehicle" | "crew" | "water" | "treatment" | "actions";
