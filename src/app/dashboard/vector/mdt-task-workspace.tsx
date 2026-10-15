@@ -75,6 +75,10 @@ export const TASK_LABEL: Record<TaskKind, string> = {
   traffic_mgmt: "Traffic management",
   close_carriageway: "Close a carriageway",
   close_road: "Close the road",
+  fend_off: "Fend-off position",
+  lane_closure: "Close lanes",
+  rolling_road_block: "Rolling road block",
+  carriageway_closure: "Close the carriageway",
   scene_preservation: "Preserve the scene",
   vehicle_stop: "Stop the vehicle",
   request_details: "Request details",
@@ -127,6 +131,10 @@ const TASK_CONFIG: Record<TaskKind, TaskConfig> = {
   traffic_mgmt: [["Establish control point", "Maintain control point", "Handover control point"], ["Tactical aids", "Comms", "Cones + signage"], false],
   close_carriageway: [["Establish closure", "Maintain closure", "Handover closure"], ["Cones + signage", "Road closure kit", "Scene lighting"], false],
   close_road: [["Establish closure", "Maintain closure", "Handover closure"], ["Cones + signage", "Road closure kit", "Scene lighting"], false],
+  fend_off: [["Protect the working area"], ["Blue lights", "Rear reds", "Cones + signage"], false],
+  lane_closure: [["Establish closure", "Maintain closure", "Handover closure"], ["Cones + signage", "Road closure kit"], false],
+  rolling_road_block: [["Block from the junction", "Hold the block", "Release"], ["Roads policing car", "Blue lights"], false],
+  carriageway_closure: [["Close at the junction", "Sign the diversion", "Handover to Highways"], ["Road closure kit", "Cones + signage"], false],
   scene_preservation: [["Establish scene boundary", "Control scene access", "Scene handover"], ["Tactical aids", "Comms", "Investigation kit"], false],
   vehicle_stop: [["Routine stop", "Stop and search", "Stop on a marker"], ["Comms", "Tactical aids"], false],
   request_details: [["Name and address", "Identity check"], ["Comms", "Pocket notebook"], false],
@@ -177,6 +185,10 @@ const TASK_DETAIL: Record<TaskKind, [string, string, string]> = {
   traffic_mgmt: ["Coordinate a team at nominated traffic control points.", "Traffic equipment listed on the vehicle", "Record assigned control points|Record traffic management in place|Report traffic conditions and handover"],
   close_carriageway: ["Cone off one carriageway and keep traffic moving on the other.", "Road closure equipment", "Record closure limits|Record closure status|Report restrictions and handover"],
   close_road: ["Track a road closure assignment, limits and reported status.", "Road closure equipment", "Record closure limits and assignment|Record closure status|Report restrictions and handover"],
+  fend_off: ["Park the appliance across the live lanes upstream of the working area, so it takes the hit and not the crew.", "The appliance itself, lights on", "Position upstream of the wreck|Angle across the lanes, wheels turned away|Report the working area protected"],
+  lane_closure: ["Cone off the named lanes at the scene with a taper upstream, so nothing runs beside the work.", "Cones, signs and a taper", "Set the taper upstream|Close the lanes to the scene|Report lanes closed and what still runs"],
+  rolling_road_block: ["Bring the carriageway to a stop from the upstream junction behind the roads unit and hold it while the crews work.", "A roads policing car with the training", "Enter at the junction, lights on|Slow the traffic to a stop|Hold the block and report it in force"],
+  carriageway_closure: ["Shut the carriageway at the upstream junction and sign the diversion, with National Highways where they are on scene.", "Road closure kit, signs, the ROC's signals", "Close the on-slip at the junction|Sign the diversion|Report the carriageway closed"],
   scene_preservation: ["Track scene boundaries, access and handover to the nominated team.", "Scene recording and barrier equipment", "Record assigned scene boundary|Record access observations|Record scene handover"],
   vehicle_stop: ["Stop the vehicle, speak to the occupants and run the checks.", "Comms and tactical aids", "Signal the stop|Speak to the driver|Run PNC and driver checks"],
   request_details: ["Take the person's name, date of birth and address, and confirm them.", "Pocket notebook", "Ask for details|Check any identification|Record in the notebook"],
@@ -224,6 +236,8 @@ const TASK_COMPETENCIES: Partial<Record<TaskKind, { all?: Competency[]; any?: Co
   commander: { any: ["command"] },
   traffic_mgmt: { all: ["traffic"] },
   close_road: { all: ["traffic"] },
+  rolling_road_block: { all: ["traffic"] },
+  carriageway_closure: { all: ["traffic"] },
   close_carriageway: { all: ["traffic"] },
   triage_sieve: { all: ["assessment"] },
   extract_casualty: { all: ["movement"] },
@@ -288,9 +302,12 @@ export function catalogueKinds(a: Appliance, incident: Incident): TaskKind[] {
     if (incident.scenario.scene?.highRise) kinds.push("bridgehead", "evacuate_floors");
     if (incident.scenario.scene?.highRise?.firefightingLift) kinds.push("firefighting_lift");
     if (incident.scenario.scene?.hazards.some((h) => h.kind === "chemical")) kinds.push("hazmat_identify", "decontaminate");
+    if (incident.scenario.scene?.carriageway) kinds.push("fend_off");
   } else if (a.service === "Police") {
     const vehicleJob = /anpr|pursuit|fail_to_stop|drink_driver|vehicle|rtc/i.test(incident.scenario.type);
     kinds = ["cordon", "traffic_mgmt", "scene_preservation", "survey", "commander"];
+    // A live carriageway: the fend-off and the lanes for any car, the block and the junction for the roads units.
+    if (incident.scenario.scene?.carriageway) kinds.unshift("fend_off", "lane_closure", ...(a.type === "Police_RPU" || a.type === "Police_TraffMot" ? ["rolling_road_block" as const, "carriageway_closure" as const] : []));
     if (a.type === "Police_RPU" || carries(a, "Road closure kit")) kinds.splice(2, 0, "close_carriageway", "close_road");
     // Vehicle work: any car can stop a compliant driver or follow; the
     // pre-emptive tactics belong to the TPAC-trained roads crews.

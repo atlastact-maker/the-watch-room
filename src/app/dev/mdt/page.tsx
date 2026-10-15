@@ -76,6 +76,8 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const p2 = pumps[1] ?? others[0];
   const p3 = others.find((a) => a.id !== p2?.id);
   const dca = stations.filter((s) => s.service === "Ambulance").flatMap((s) => s.appliances).find((a) => a.type === "DCA");
+  // A roads policing car for the live carriageway, with ?police=1.
+  const rpu = param("police") ? stations.filter((s) => s.service === "Police").flatMap((s) => s.appliances).find((a) => a.type === "Police_RPU") ?? null : null;
 
   const incident: Incident = { id: "DEV-1", scenarioId: scenario.id, scenario: scenarioForWorld, receivedAt };
   const here = scenario.location.coords;
@@ -104,9 +106,11 @@ function buildWorld(scenarioId: string, minutesIn: number) {
     mk(p2.id, 12 * 60, 6 * 60, offset(here, 30, -18), { pumpRunning: true, pumpOperatorCrewId: p2.crewMembers[0]?.id, crewEquipment: { [j1]: ["branch_45mm"], [j2]: ["branch_45mm"], [h1]: ["standpipe", "red_key"] } }),
   ];
   if (p3) deployments.push(mk(p3.id, 3 * 60, 6 * 60, null));
+  if (rpu) deployments.push(mk(rpu.id, 8 * 60, 5 * 60, offset(here, -40, -8)));
   // The ambulance crew are with the first casualty: survey done, leads and
   // a probe on, oxygen running, aspirin given.
-  const careMode = param("unit") === "dca" && !!dca && !!casualty;
+  const unitParam = param("unit");
+  const careMode = unitParam === "dca" && !!dca && !!casualty;
   if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, offset(here, -10, 26), careMode ? { treatingCasualtyId: casualty!.id, treatingSince: nowMs - 5 * 60_000 } : {}));
   let treatment: PatientTreatmentState | null = null;
   let resus: ResusState | null = null;
@@ -219,14 +223,22 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const etas = Object.fromEntries(stations.map((s, i) => [s.id, { seconds: 240 + ((i * 37) % 400), meters: 3000 + ((i * 911) % 6000), coords: null }])) as unknown as Record<string, Eta>;
   const vehicleGauges = Object.fromEntries([p1, p2, p3, dca].filter(Boolean).map((a) => [a!.id, { fuelPct: 82, waterPct: a!.service === "Fire" ? 58 : 100, conditionPct: 96 }]));
 
-  return { incident, stations, deployments, tasks, crewAir, log, informantLog, etas, vehicleGauges, busyCrewIds: new Set<string>([ba1, ba2, j1, j2]), commanderId: p1.id, unitId: careMode ? dca!.id : p1.id, baCrews: { [p1.id]: 2 }, treatment, resus };
+  return { incident, stations, deployments, tasks, crewAir, log, informantLog, etas, vehicleGauges, busyCrewIds: new Set<string>([ba1, ba2, j1, j2]), commanderId: p1.id, unitId: careMode ? dca!.id : unitParam === "rpu" && rpu ? rpu.id : p1.id, rpuId: rpu?.id ?? null, baCrews: { [p1.id]: 2 }, treatment, resus };
 }
 
 export default function MdtHarnessPage() {
   const [now, setNow] = useState(() => Date.now());
   const [world] = useState(() => buildWorld(param("s") ?? "02", Number(param("min") ?? 14)));
   const unitParam = param("unit");
-  const [unitId, setUnitId] = useState<string | null>(unitParam && unitParam !== "dca" ? unitParam : world.unitId);
+  const [unitId, setUnitId] = useState<string | null>(unitParam && unitParam !== "dca" && unitParam !== "rpu" ? unitParam : world.unitId);
+  // What the screens send up to control, kept locally: a Highways request
+  // starts the ROC's clock the way it does on the desk.
+  const [extraLog, setExtraLog] = useState<LogEntry[]>([]);
+  const log = useMemo(() => [...world.log, ...extraLog], [world.log, extraLog]);
+  const requestSupport = (kind: string, applianceId: string) => {
+    const at = Date.now();
+    setExtraLog((l) => [...l, { id: kind === "highways" ? `hw-ask:DEV-1:${at}` : `vec:${at}:${l.length}`, timestamp: at, kind: "annotation", message: `${applianceId} → CONTROL: requests ${kind}` }]);
+  };
   const [treatment, setTreatment] = useState<PatientTreatmentState | null>(world.treatment);
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -240,12 +252,14 @@ export default function MdtHarnessPage() {
   const [extra, setExtra] = useState<Task[]>([]);
   const tasks = useMemo(() => [...world.tasks, ...extra.map((t) => (t.state === "active" && t.completesAt && now >= t.completesAt ? { ...t, state: "completed" as const } : t))], [world.tasks, extra, now]);
   const speed = param("fast") ? 20 : 1;
-  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string }) => {
+  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string; lanes?: number[]; junction?: string }) => {
     const t0 = Date.now();
-    const dur = Math.max(3, (args.crsDurationSec ?? (args.kind === "rtc_extrication" ? 300 : 120)) / speed);
-    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage } as unknown as Task]);
+    const base = args.crsDurationSec ?? (args.kind === "rtc_extrication" ? 300 : args.kind === "fend_off" ? 45 : args.kind === "lane_closure" ? 90 + 45 * Math.max(1, args.lanes?.length ?? 1) : args.kind === "rolling_road_block" ? 240 : args.kind === "carriageway_closure" ? 420 : 120);
+    const dur = Math.max(3, base / speed);
+    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage, lanes: args.lanes, junction: args.junction } as unknown as Task]);
   };
   const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const } : t)));
+  const completeTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id && t.state === "active" ? { ...t, state: "completed" as const } : t)));
   const sim = useMemo(() => simulateIncident(world.incident, world.deployments, world.baCrews, tasks, now, treatmentByCasualtyId), [world, tasks, now, treatmentByCasualtyId]);
   return (
     <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
@@ -254,7 +268,7 @@ export default function MdtHarnessPage() {
           incident={world.incident}
           stations={world.stations}
           deployments={world.deployments}
-          log={world.log}
+          log={log}
           outcome={null}
           onDeploy={() => {}}
           onStandDownForWelfare={() => {}}
@@ -279,6 +293,8 @@ export default function MdtHarnessPage() {
           vehicleGauges={world.vehicleGauges}
           onStartTask={startTask}
           onAbortTask={abortTask}
+          onCompleteTask={completeTask}
+          onRequestSupport={requestSupport}
           onSetLightState={() => {}}
           onSetPumpRunning={() => {}}
           onSetPumpOperator={() => {}}

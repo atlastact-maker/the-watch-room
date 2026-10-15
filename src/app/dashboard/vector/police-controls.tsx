@@ -22,6 +22,7 @@
 import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
 import type { Incident, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
+import { trafficState, laneLabel } from "@/lib/sim/traffic";
 import { TASK_MIN_CREW } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { dobDisplay, dobOf, type PersonRecord, type RecordIndex, type VehicleRecord } from "@/lib/sim/records";
@@ -56,7 +57,9 @@ type ActionDef = {
   /** A control on the road the crew records rather than runs as a task. */
   control?: string;
   /** Screen-side actions with no task behind them. */
-  run?: "occupants" | "reopen" | "release";
+  run?: "occupants" | "reopen" | "release" | "release_block" | "reopen_lanes";
+  /** Roads policing work: the block and the junction need the car and the training. */
+  roads?: boolean;
   /** Only for crews with TPAC on their record. */
   tpac?: boolean;
   /** Custody transport needs someone under arrest. */
@@ -135,6 +138,13 @@ const A: Record<string, ActionDef> = {
   place_sign: { key: "place_sign", label: "Place sign", icon: I.sign, target: "none", control: "Sign placed" },
   custody_transport: { key: "custody_transport", label: "Custody transport", sub: "Van to custody", icon: I.van, target: "person", kind: "convey_custody", support: "custody", requiresArrest: true },
   request_ambulance: { key: "request_ambulance", label: "Request ambulance", icon: I.plus, target: "none", support: "ambulance" },
+  // The live carriageway — see src/lib/sim/traffic.ts.
+  fend_off: { key: "fend_off", label: "Fend-off position", sub: "Car across the live lanes", icon: I.car, target: "none", kind: "fend_off" },
+  lane_closure: { key: "lane_closure", label: "Close lanes", sub: "Cones to the scene", icon: I.lane, target: "none", kind: "lane_closure" },
+  rolling_block: { key: "rolling_block", label: "Rolling road block", sub: "From the junction", icon: I.road, target: "none", kind: "rolling_road_block", roads: true },
+  carriageway_closure: { key: "carriageway_closure", label: "Close carriageway", sub: "At the junction · diversion", icon: I.road, target: "none", kind: "carriageway_closure", roads: true },
+  release_block: { key: "release_block", label: "Release block", sub: "Traffic running again", icon: I.play, target: "none", run: "release_block" },
+  reopen_lanes: { key: "reopen_lanes", label: "Reopen lanes", sub: "Cones in, lanes back", icon: I.reopen, target: "none", run: "reopen_lanes" },
 };
 
 const TABS: { key: ActionTab; label: string; icon: ReactNode }[] = [
@@ -357,6 +367,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const [searchGrounds, setSearchGrounds] = useState("");
   const [searchPower, setSearchPower] = useState("");
   const [direction, setDirection] = useState(DIRECTIONS[0]);
+  /** Lanes picked for a closure; null until the officer changes the default. */
+  const [lanesSel, setLanesSel] = useState<number[] | null>(null);
   const [threat, setThreat] = useState<string | null>(null);
   const [containment, setContainment] = useState<string | null>(null);
   const [pncSeed, setPncSeed] = useState<{ query: string; kind: "vehicle" | "person" } | null>(null);
@@ -464,10 +476,19 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const searchReady = !!searchReasonText && searchGrounds.trim().length > 0 && !!searchPower;
 
   // ---- Traffic ---------------------------------------------------------------------
-  const closureTasks = active.filter((t) => t.kind === "close_road" || t.kind === "close_carriageway");
+  // A closure stays on the road once the cones are out: in force, not finished.
+  const closureTasks = tasks.filter((t) => (t.kind === "close_road" || t.kind === "close_carriageway") && t.state !== "aborted");
+  const carriageway = sc.scene?.carriageway ?? null;
+  const highwaysAskedAt = carriageway ? log.filter((e) => e.id.startsWith(`hw-ask:${incident.id}:`)).map((e) => e.timestamp)[0] ?? null : null;
+  const traffic = carriageway ? trafficState(carriageway, tasks, now, highwaysAskedAt) : null;
+  const roadsUnit = appliance.type === "Police_RPU" || appliance.type === "Police_TraffMot";
+  const trafficJobs = tasks.filter((t) => (t.kind === "fend_off" || t.kind === "lane_closure" || t.kind === "rolling_road_block" || t.kind === "carriageway_closure") && t.state !== "aborted");
+  const trafficJobLabel = (t: Task) => t.kind === "fend_off" ? "Fend-off" : t.kind === "lane_closure" ? `${laneLabel(t.lanes ?? [])} closed` : t.kind === "rolling_road_block" ? `Rolling block from ${t.junction ?? "the junction"}` : `Carriageway closed at ${t.junction ?? "the junction"}`;
+  const lanePick = lanesSel ?? (traffic && carriageway ? (traffic.live.some((l) => carriageway.mustClose.includes(l)) ? traffic.live.filter((l) => carriageway.mustClose.includes(l)) : traffic.live) : []);
   const trafficTasks = active.filter((t) => t.kind === "traffic_mgmt" || t.kind === "cordon");
   const controlRows = [
-    ...closureTasks.map((t) => ({ id: t.id, location: t.closurePos ? `${t.closurePos.lat.toFixed(4)}, ${t.closurePos.lng.toFixed(4)}` : sc.location.address, control: t.kind === "close_road" ? "Road closed" : "Lane closed", resource: callsignOf(t.applianceId), taskId: t.id })),
+    ...trafficJobs.map((t) => ({ id: t.id, location: carriageway?.name ?? sc.location.address, control: `${trafficJobLabel(t)} · ${t.state === "completed" ? "in force" : "setting up"}`, resource: callsignOf(t.applianceId), taskId: t.id })),
+    ...closureTasks.map((t) => ({ id: t.id, location: t.closurePos ? `${t.closurePos.lat.toFixed(4)}, ${t.closurePos.lng.toFixed(4)}` : sc.location.address, control: `${t.kind === "close_road" ? "Road closed" : "Lane closed"}${t.state === "completed" ? " · in force" : ""}`, resource: callsignOf(t.applianceId), taskId: t.id })),
     ...trafficTasks.map((t) => ({ id: t.id, location: sc.location.address, control: t.kind === "cordon" ? "Cones · inner cordon" : record.traffic.find((c) => c.id === `task:${t.id}`)?.control ?? "Traffic management", resource: callsignOf(t.applianceId), taskId: t.id })),
     ...record.traffic.filter((c) => !c.id.startsWith("task:")).map((c) => ({ id: c.id, location: c.location, control: c.control, resource: c.resource, taskId: undefined as string | undefined })),
   ];
@@ -509,6 +530,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
                 : runningOfKind
                   ? runningOfKind.completesAt ? `In progress · ${mmss(runningOfKind.completesAt - now)}` : "In progress"
                   : `${action.label}${needsPerson && person ? ` · ${displayName(person)}` : needsVehicle && vehicle ? ` · ${vehicle.vrm}` : ""}`;
+  const roadsBlocked = !!action.roads && !roadsUnit;
   const primaryDisabled = action.leds
     ? targetMissing || (action.leds === "person" && !!person && !detailsTask(person))
     : action.kind === "convey_custody"
@@ -523,7 +545,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
             ? !trafficTasks.some((t) => t.kind === "traffic_mgmt") || !props.onCompleteTask
             : action.control && !action.kind
               ? !canAct
-              : !canAct || targetMissing || tpacBlocked || trackNeeded || subjectRunning || !!runningOfKind || !!closureRunning || crewFor.length < minCrew || !props.onStartTask || (isSearch && !searchReady);
+              : !canAct || targetMissing || tpacBlocked || trackNeeded || subjectRunning || !!runningOfKind || !!closureRunning || crewFor.length < minCrew || !props.onStartTask || (isSearch && !searchReady) || roadsBlocked;
 
   function requestSupport(kind: SupportKind) {
     const def = SUPPORT.find((s) => s.kind === kind)!;
@@ -560,6 +582,20 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       note("traffic released");
       return;
     }
+    if (action.run === "release_block") {
+      const blocks = trafficJobs.filter((t) => t.kind === "rolling_road_block");
+      if (!blocks.length) { note("no rolling block to release"); return; }
+      for (const t of blocks) props.onAbortTask?.(t.id);
+      note(`rolling block released — ${carriageway?.name ?? "the carriageway"} running again from ${carriageway?.upstream ?? "the junction"}`);
+      return;
+    }
+    if (action.run === "reopen_lanes") {
+      const shut = trafficJobs.filter((t) => t.kind === "lane_closure" || t.kind === "carriageway_closure" || t.kind === "fend_off");
+      if (!shut.length) { note("no lanes closed by the police to reopen"); return; }
+      for (const t of shut) props.onAbortTask?.(t.id);
+      note(`lanes reopened — cones in, ${carriageway?.name ?? "the carriageway"} back to the traffic`);
+      return;
+    }
     if (action.closure) {
       if (props.onBeginRoadClosure) {
         props.onBeginRoadClosure(appliance.id, action.closure, crewFor);
@@ -585,7 +621,13 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       personLabel: label,
       vehicleVrm: needsVehicle ? vehicle?.vrm : undefined,
       searchFindings: findings?.join("; "),
+      lanes: action.kind === "lane_closure" ? lanePick : undefined,
+      junction: action.kind === "rolling_road_block" || action.kind === "carriageway_closure" ? carriageway?.upstream : undefined,
     });
+    if (action.kind === "lane_closure") { setLanesSel(null); note(`closing ${laneLabel(lanePick)} at the scene — cones and a taper upstream`); }
+    else if (action.kind === "rolling_road_block") note(`rolling road block from ${carriageway?.upstream ?? "the junction"} — joining at the on-slip`);
+    else if (action.kind === "carriageway_closure") note(`closing ${carriageway?.name ?? "the carriageway"} at ${carriageway?.upstream ?? "the junction"} — diversion to follow`);
+    else if (action.kind === "fend_off") note("moving to a fend-off position upstream of the scene");
     if (action.control && typeof id === "string") addControl(action.control, id);
     if (action.kind === "arrest" && person) {
       set((r) => ({ ...r, persons: { ...r.persons, [person.id]: { ...r.persons[person.id], offence } } }));
@@ -893,6 +935,21 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       )}
       {tab === "traffic" && (
         <>
+          {carriageway && traffic && (
+            <section className={`pc-group pc-carriageway ${traffic.protected ? "go" : "stop"}`}>
+              <header>{I.lane}<span>LIVE CARRIAGEWAY · {carriageway.name.toUpperCase()}</span></header>
+              <div className="pc-cw-head"><b>{traffic.headline}</b><span>{traffic.detail}</span></div>
+              <div className="pc-cw-lanes">
+                {carriageway.hardShoulder && <i className="hs">HS<small>shoulder</small></i>}
+                {Array.from({ length: carriageway.lanes }, (_, i) => i + 1).map((l) => {
+                  const st = traffic.blocked.includes(l) ? "blocked" : traffic.live.includes(l) ? "live" : "closed";
+                  return <i key={l} className={st}>L{l}<small>{st === "blocked" ? "wreck" : st === "live" ? "running" : traffic.held ? "held" : traffic.closedAtJunction ? "shut" : "closed"}</small></i>;
+                })}
+              </div>
+            </section>
+          )}
+          {carriageway && group("Carriageway", I.lane, [A.fend_off, A.lane_closure, A.rolling_block, A.carriageway_closure])}
+          {carriageway && group("Stand down", I.reopen, [A.release_block, A.reopen_lanes])}
           {group("Road control", I.road, [A.close_road, A.close_lane, A.reopen_road, A.set_diversion])}
           {group("Traffic flow", I.cone, [A.hold_traffic, A.release_traffic, A.direct_traffic], 3)}
           {group("Scene equipment", I.cone, [A.place_cones, A.place_barrier, A.place_sign], 3)}
@@ -956,6 +1013,22 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           </label>
         </>
       )}
+      {action.kind === "lane_closure" && carriageway && traffic && (
+        <div className="pc-field"><span>Lanes to close</span>
+          <div className="pc-lanes">
+            {Array.from({ length: carriageway.lanes }, (_, i) => i + 1).map((l) => {
+              const blocked = traffic.blocked.includes(l), closed = traffic.closed.includes(l), on = lanePick.includes(l);
+              return (
+                <button key={l} type="button" className={`pc-lane${blocked ? " blocked" : closed ? " closed" : on ? " on" : ""}`} disabled={blocked || closed} aria-pressed={on} onClick={() => setLanesSel(on ? lanePick.filter((x) => x !== l) : [...lanePick, l].sort((a, b) => a - b))}>
+                  L{l}<small>{blocked ? "wreck" : closed ? "closed" : on ? "close" : "running"}</small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {(action.kind === "rolling_road_block" || action.kind === "carriageway_closure") && carriageway && <label className="pc-field inline"><span>Junction</span><output>{carriageway.upstream} · {carriageway.name}</output></label>}
+      {roadsBlocked && infoLine("A roads policing unit runs this — ask for one under Traffic support.", "warn")}
       {action.run === "occupants" && vehicle && (
         <div className="pc-occupants">
           {occupantsOf(vehicle).length === 0 ? <p className="pc-note">No occupants on record for {vehicle.vrm} — speak to whoever is with the vehicle.</p> : occupantsOf(vehicle).map((p) => (

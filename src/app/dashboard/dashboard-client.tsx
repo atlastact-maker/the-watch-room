@@ -130,6 +130,7 @@ import {
   type WeatherState,
 } from "@/lib/sim/weather";
 import { liveTasks, mapLiveTasks, dueTasks, waterUseByTank, baConsumption } from "@/lib/sim/runtime-tasks";
+import { trafficState, laneLabel, nearMissChancePerMinute, nearMissWording } from "@/lib/sim/traffic";
 import { simulateIncident } from "@/lib/sim/incident_sim";
 import {
   CAPABILITIES_BY_TYPE,
@@ -430,6 +431,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     /** A grade moved by an informant beat: what the caller said made it a
      *  different call. */
     gradeOverride?: { grade: string; basis: string; atMs: number } | null;
+    /** National Highways asked for the live carriageway — the ROC sets the
+     *  signals a couple of minutes on, the traffic officers land later and
+     *  take the junction. See traffic.ts. */
+    highways?: { requestedAt: number; by: string } | null;
   };
   const emptyRuntime = (): IncidentRuntime => ({
     tasks: [],
@@ -586,6 +591,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
   }, [deployments]);
   const taskStartGuardRef = useRef<Set<string>>(new Set());
+  /** Per job on a live carriageway: what the last pass saw, so the log
+   *  gets each change once and the near-miss roll covers only the time
+   *  since the last roll. */
+  const trafficRef = useRef<Record<string, { protected: boolean; lastRollAt: number; lastNearMissAt: number; signals: boolean; onScene: boolean; closedByHighways: boolean }>>({});
   const [statusOverrides, setStatusOverrides] = useState<Record<string, StatusCode>>({});
   /** Only the selected job's committed units. The map deliberately shows
    *  ALL deployments — an operator wants to see every appliance moving,
@@ -4903,6 +4912,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             kind: "task_completed",
             message: t.crsDoneMessage ?? `${applianceLabel(t.applianceId)} — ${t.crsLabel ?? "CRS action"} complete`,
           });
+        } else if (t.kind === "fend_off" || t.kind === "lane_closure" || t.kind === "rolling_road_block" || t.kind === "carriageway_closure") {
+          const cs = applianceLabel(t.applianceId);
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message:
+              t.kind === "fend_off"
+                ? `${cs} — FEND-OFF in position: appliance across the live lanes upstream of the wreck, blues and rear reds on`
+                : t.kind === "lane_closure"
+                  ? `${cs} — ${laneLabel(t.lanes ?? []).toUpperCase()} CLOSED at the scene — taper and signs out upstream`
+                  : t.kind === "rolling_road_block"
+                    ? `${cs} — ROLLING ROAD BLOCK IN FORCE from ${t.junction ?? "the junction"} — carriageway stopped behind the roads unit`
+                    : `${cs} — CARRIAGEWAY CLOSED at ${t.junction ?? "the junction"} — on-slip shut, diversion signed`,
+          });
         } else if (t.kind === "convey_custody") {
           toAppend.push({
             id,
@@ -4962,6 +4986,46 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       return toAppend.length > 0 ? [...lg, ...toAppend] : lg;
     });
   }, [now, runtimes, incidents]);
+
+  // The live carriageway, once a second on every open job on a running
+  // road: National Highways acting on control's call, the road protected
+  // or running again, and the near misses while lanes run past the crews.
+  useEffect(() => {
+    const logOnce = (id: string, at: number, kind: LogEntry["kind"], message: string) =>
+      setLog((prev) => (prev.some((e) => e.id === id) ? prev : [...prev, { id, timestamp: at, kind, message }]));
+    for (const inc of incidents) {
+      const cw = inc.scenario.scene?.carriageway;
+      const rt = runtimes[inc.id];
+      if (!cw || !rt || rt.outcome || rt.handover) continue;
+      const st = trafficState(cw, rt.tasks, now, rt.highways?.requestedAt ?? null);
+      let mem = trafficRef.current[inc.id];
+      if (!mem) mem = trafficRef.current[inc.id] = { protected: st.protected, lastRollAt: now, lastNearMissAt: 0, signals: false, onScene: false, closedByHighways: false };
+      if ((st.highways === "signals" || st.highways === "on_scene") && !mem.signals) {
+        mem.signals = true;
+        logOnce(`hw-signals:${inc.id}`, now, "annotation", `NATIONAL HIGHWAYS ROC — signals set upstream of ${cw.upstream}: ${laneLabel([...new Set([...cw.blocked, ...cw.mustClose])])} closed with red X, 40 mph, queue warning on the gantries`);
+      }
+      if (st.highways === "on_scene" && !mem.onScene) {
+        mem.onScene = true;
+        logOnce(`hw-onscene:${inc.id}`, now, "in_attendance", `National Highways traffic officers on scene at ${cw.upstream} — taking the junction, closure to follow`);
+      }
+      if (st.closedAtJunction && rt.highways && !rt.tasks.some((t) => t.kind === "carriageway_closure" && t.state === "completed") && !mem.closedByHighways) {
+        mem.closedByHighways = true;
+        logOnce(`hw-closed:${inc.id}`, now, "hazard_mitigated", `${cw.name} CLOSED at ${cw.upstream} by National Highways — diversion signed, nothing coming through to the scene`);
+      }
+      if (st.protected && !mem.protected) logOnce(`protected:${inc.id}:${now}`, now, "hazard_mitigated", `CARRIAGEWAY PROTECTED — ${st.headline.toLowerCase()}: ${st.detail}`);
+      if (!st.protected && mem.protected) logOnce(`released:${inc.id}:${now}`, now, "annotation", `Carriageway running again past the scene — ${st.headline.toLowerCase()}`);
+      mem.protected = st.protected;
+      const anyoneOnScene = deployments.some((d) => d.incidentId === inc.id && d.arrivesAt <= now && !(d.returnStartedAt !== undefined && now >= d.returnStartedAt));
+      const dtMin = Math.min(60_000, Math.max(0, now - mem.lastRollAt)) / 60_000;
+      mem.lastRollAt = now;
+      if (anyoneOnScene && !st.protected && dtMin > 0 && now - mem.lastNearMissAt > 4 * 60_000 && Math.random() < nearMissChancePerMinute(st) * dtMin) {
+        mem.lastNearMissAt = now;
+        logOnce(`nearmiss:${inc.id}:${now}`, now, "setback", nearMissWording(st, Math.random()));
+        alertTone("med");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, runtimes, incidents, deployments]);
 
   // Stage pre-selected BA teams the moment their appliance lands. The
   // en-route pre-select means "rig in BA on the way" — so on arrival the
@@ -5734,6 +5798,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     entryTool?: import("@/lib/sim/incident_types").EntryTool;
     closurePos?: { lat: number; lng: number };
     closureBearingDeg?: number;
+    lanes?: number[];
+    junction?: string;
     crsVehicleId?: string;
     crsActionId?: string;
     crsDurationSec?: number;
@@ -5772,6 +5838,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         logAnnotation(`${applianceLabel(args.applianceId)} BA team committed with NO EMERGENCY TEAM nominated at entry control`, "hazard_confirmed", "ba-no-emerg");
       }
     }
+    // A rolling road block is roads policing work: a response car has
+    // neither the training nor the car for it.
+    if (args.kind === "rolling_road_block") {
+      const ap = applianceById.get(args.applianceId);
+      if (!ap || !["Police_RPU", "Police_TraffMot"].includes(ap.type)) {
+        logAnnotation(`${applianceLabel(args.applianceId)} — rolling road block refused: a roads policing unit runs the block, not a response car`, "setback", "rrb-refused");
+        setStatusMsg("Refused — needs a roads policing unit");
+        taskStartGuardRef.current.delete(taskGuardKey);
+        return;
+      }
+    }
+    // What runs past the scene as this starts, for the jobs that put
+    // people beside the traffic.
+    const carriageway = activeIncident?.scenario.scene?.carriageway;
+    const traffic = carriageway && activeIncident ? trafficState(carriageway, tasks, startedAt, runtimes[activeIncident.id]?.highways?.requestedAt ?? null) : null;
     // Realistic per-task timings. Forcible entry gets its duration from
     // the tool-vs-door matrix instead of the generic roll.
     let durationSec =
@@ -5885,6 +5966,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       entryTool: args.entryTool,
       closurePos: args.closurePos,
       closureBearingDeg: args.closureBearingDeg,
+      lanes: args.lanes,
+      junction: args.junction,
       crsVehicleId: args.crsVehicleId,
       crsActionId: args.crsActionId,
       crsLabel: args.crsLabel,
@@ -5946,6 +6029,28 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           message: `${applianceLabel(args.applianceId)} working the door — ${ENTRY_TOOL_LABEL[args.entryTool!]}`,
         },
       ]);
+    }
+
+    if (args.kind === "fend_off" || args.kind === "lane_closure" || args.kind === "rolling_road_block" || args.kind === "carriageway_closure") {
+      const cs = applianceLabel(args.applianceId);
+      const message =
+        args.kind === "fend_off"
+          ? `${cs} moving to a fend-off position upstream of the wreck — across the live lanes, lights on`
+          : args.kind === "lane_closure"
+            ? `${cs} closing ${laneLabel(args.lanes ?? [])} at the scene — cones and signs going out, taper upstream`
+            : args.kind === "rolling_road_block"
+              ? `${cs} ROLLING ROAD BLOCK from ${args.junction ?? "the upstream junction"} — joining at the on-slip, slowing the carriageway to a stop`
+              : `${cs} closing the carriageway at ${args.junction ?? "the upstream junction"} — on-slip shut, diversion being signed`;
+      setLog((prev) => [...prev, { id: `${args.kind === "fend_off" ? "fendoff" : args.kind === "lane_closure" ? "lanes" : args.kind === "rolling_road_block" ? "rrb" : "cwclose"}:${startedAt}`, timestamp: startedAt, kind: "task_started", message }]);
+    }
+    if (traffic && activeIncident && (args.kind === "crs_action" || args.kind === "rtc_extrication") && !traffic.protected) {
+      const liveId = `livework:${activeIncident.id}`;
+      setLog((prev) => prev.some((e) => e.id === liveId) ? prev : [...prev, { id: liveId, timestamp: startedAt, kind: "hazard_confirmed", message: `Crews working beside a LIVE CARRIAGEWAY — ${traffic.headline.toLowerCase()}, nothing protecting the working area` }]);
+    }
+    if (traffic && args.kind === "rtc_extrication") {
+      setLog((prev) => [...prev, traffic.protected
+        ? { id: `cutsafe:${startedAt}`, timestamp: startedAt, kind: "task_started", message: `Primary rescue under way with the carriageway protected — ${traffic.headline.toLowerCase()}` }
+        : { id: `cutlive:${startedAt}`, timestamp: startedAt, kind: "setback", message: `Primary rescue started on a LIVE carriageway — ${traffic.headline.toLowerCase()}, no block, no closure` }]);
     }
 
     if (args.kind === "close_carriageway" || args.kind === "close_road") {
@@ -6311,6 +6416,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       updateRuntime(inc.id, (r) => ({ ...r, assistance: [...r.assistance, req], extraSlots: [...r.extraSlots, ...slots] }));
       setLog((prev) => [...prev, { id: `mu-ask:${req.id}`, timestamp: at, kind: "make_pumps", message: `ASSISTANCE MESSAGE from ${cs} — ${label}. Three minutes to mobilise.` }]);
       setStatusMsg(`${cs}: ${label}`);
+      alertTone("med");
+      return;
+    }
+    const carriagewayHere = inc?.scenario.scene?.carriageway;
+    if (kind === "highways" && inc && carriagewayHere) {
+      const at = Date.now();
+      const rt = runtimes[inc.id];
+      if (rt?.highways) {
+        logAnnotation(`${cs} → CONTROL: asks for Highways again — the ROC has had the call since ${new Date(rt.highways.requestedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`);
+        setStatusMsg("Highways already asked");
+        return;
+      }
+      updateRuntime(inc.id, (r) => ({ ...r, highways: { requestedAt: at, by: cs } }));
+      setLog((prev) => [...prev, { id: `hw-ask:${inc.id}:${at}`, timestamp: at, kind: "make_pumps", message: `CONTROL → NATIONAL HIGHWAYS ROC on ${cs}'s request — ${carriagewayHere.name} between ${carriagewayHere.upstream} and ${carriagewayHere.downstream}: signals to close ${laneLabel([...new Set([...carriagewayHere.blocked, ...carriagewayHere.mustClose])])}, traffic officers to the junction` }]);
+      setStatusMsg(`National Highways asked — signals in ${2} min, traffic officers in about ${carriagewayHere.highwaysEtaMin ?? 15}`);
       alertTone("med");
       return;
     }
@@ -7956,6 +8076,7 @@ function taskDurationSecFor(
     hazardId?: string;
     mitigationMethod?: string;
     crsDurationSec?: number;
+    lanes?: number[];
   },
   /** The scene's hazards, for a method authored on the hazard itself. */
   hazards?: { id: string; mitigation?: { method: string; durationSec: number }[] }[],
@@ -8003,6 +8124,14 @@ function taskDurationSecFor(
       return 600; // average "golden hour" for a full extrication evolution
     case "firebreak":
       return 600; // wildfire break-cutting takes real effort
+    case "fend_off":
+      return 45; // drive up, angle the appliance across the lanes, lights on
+    case "lane_closure":
+      return 90 + 45 * Math.max(1, args.lanes?.length ?? 1); // the taper upstream, then the cones to the scene, a lane at a time
+    case "rolling_road_block":
+      return 240; // back to the junction, join the traffic, bring it down to a stop at the scene
+    case "carriageway_closure":
+      return 420; // the on-slip shut, the signs and the diversion out
     case "cordon":
       return 180; // walk & tape / cones for an inner cordon
     case "triage_sieve":
@@ -8086,6 +8215,10 @@ function taskLabel(kind: TaskKind): string {
     case "cordon": return "Cordon";
     case "close_carriageway": return "Carriageway closure";
     case "close_road": return "Road closure";
+    case "fend_off": return "Fend-off position";
+    case "lane_closure": return "Lane closure";
+    case "rolling_road_block": return "Rolling road block";
+    case "carriageway_closure": return "Carriageway closure";
     case "traffic_mgmt": return "Traffic management";
     case "scene_preservation": return "Scene preservation";
     case "vehicle_stop": return "Vehicle stop";

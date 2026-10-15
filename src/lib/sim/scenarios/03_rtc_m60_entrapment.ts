@@ -477,6 +477,10 @@ export const scenario03: Scenario = {
   scene: {
     viewBox: { x: -60, y: -20, width: 120, height: 40 },
     compassNorth: "up",
+    // Three running lanes eastbound. The wreck sits across lanes 2 and 3;
+    // lane 1 runs past it until the police shut it, block the carriageway
+    // from J17 or National Highways close it at the junction.
+    carriageway: { name: "M60 eastbound", lanes: 3, hardShoulder: true, blocked: [2, 3], mustClose: [1], upstream: "J17", downstream: "J18", flow: "moderate", highwaysEtaMin: 15 },
     buildings: [
       // Overbridge — shown as a rectangle spanning the carriageway at the
       // eastern edge, downstream of the wreck.

@@ -110,6 +110,9 @@ export const scenario15: Scenario = {
   scene: {
     viewBox: { x: -70, y: -40, width: 140, height: 80 },
     compassNorth: "up",
+    // Two running lanes northbound, the car on the hard shoulder. Lane 1
+    // beside the crew has to be shut before anyone gets off the appliance.
+    carriageway: { name: "A627(M) northbound", lanes: 2, hardShoulder: true, blocked: [], mustClose: [1], upstream: "J1", downstream: "J2", flow: "moderate", highwaysEtaMin: 20 },
     buildings: [],
     roads: [
       { shape: { x: -70, y: -22, w: 140, h: 12 }, kind: "road", label: "A627(M) southbound" },

@@ -9,6 +9,7 @@ import type {
 } from "./incident_types";
 import type { IncidentSimState } from "./incident_sim";
 import { STANDARD_PDA } from "./pda";
+import { laneLabel, PROTECTION_TARGET_MIN } from "./traffic";
 
 const MOBILISE_TARGET_SEC = 90;
 const ATTENDANCE_TARGET_SEC = 10 * 60;
@@ -326,6 +327,43 @@ export function scoreIncident(
         target: "Every critical CRS action done before cutting started",
         actual: has("crsrisk:") ? "Cutting started with critical actions outstanding" : has("crssafe:") ? "Made safe — controlled extrication" : "Extrication started",
         passed: has("crsrisk:") ? "partial" : true,
+      });
+    }
+    // The live carriageway: shut, blocked or closed before anyone had to
+    // work beside it, and how close the traffic came while it ran.
+    const carriageway = incident.scenario.scene?.carriageway;
+    if (carriageway) {
+      const firstOnScene = deployments.reduce<number | null>((acc, d) => (acc === null || d.arrivesAt < acc ? d.arrivesAt : acc), null);
+      const protectedAt = (log ?? []).filter((e) => e.id.startsWith(`protected:${incident.id}:`)).map((e) => e.timestamp).sort((a, b) => a - b)[0] ?? null;
+      const protectedMin = protectedAt !== null && firstOnScene !== null ? Math.max(0, Math.round((protectedAt - firstOnScene) / 60_000)) : null;
+      metrics.push({
+        label: "Carriageway protected",
+        target: `${laneLabel(carriageway.mustClose)} shut, a rolling block or the closure at ${carriageway.upstream} within ${PROTECTION_TARGET_MIN} min of the first arrival`,
+        actual: protectedAt === null ? "Never protected — traffic ran past the working area throughout" : protectedMin === null ? "Protected" : `Protected ${protectedMin} min after the first arrival`,
+        passed: protectedAt === null ? false : protectedMin !== null && protectedMin <= PROTECTION_TARGET_MIN ? true : "partial",
+      });
+      if (has("cutsafe:") || has("cutlive:")) {
+        metrics.push({
+          label: "Rescue on a protected road",
+          target: "The primary rescue started with the carriageway protected",
+          actual: has("cutlive:") ? "Cutting started with traffic running past the wreck" : "Protected before the cut",
+          passed: !has("cutlive:"),
+        });
+      }
+      const nearMisses = (log ?? []).filter((e) => e.id.startsWith(`nearmiss:${incident.id}:`)).length;
+      metrics.push({
+        label: "Near misses",
+        target: "Nothing came through the working area",
+        actual: nearMisses === 0 ? "None" : `${nearMisses} — ${nearMisses === 1 ? "a vehicle came" : "vehicles came"} through while the lanes ran live`,
+        passed: nearMisses === 0 ? true : nearMisses === 1 ? "partial" : false,
+      });
+      const asked = (log ?? []).find((e) => e.id.startsWith(`hw-ask:${incident.id}:`));
+      const askedMin = asked ? Math.max(0, Math.round((asked.timestamp - incident.receivedAt) / 60_000)) : null;
+      metrics.push({
+        label: "National Highways",
+        target: "The ROC asked early — signals and traffic officers take time",
+        actual: askedMin === null ? "Never asked" : `Asked ${askedMin} min after the call`,
+        passed: askedMin === null ? "partial" : askedMin <= 10 ? true : "partial",
       });
     }
     if (has("relief-spare:") || has("relieved:")) {

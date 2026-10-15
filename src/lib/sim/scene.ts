@@ -388,8 +388,34 @@ export type RopeModel = {
   floor?: ScenePoint;
 };
 
+/** A live carriageway the job sits on: how many lanes run past the
+ *  working area, which the wreckage already blocks, which must be shut
+ *  before anyone works beside them, and the junctions either side that a
+ *  rolling block starts from and a closure is held at. Lanes are
+ *  numbered from the nearside: lane 1 is beside the hard shoulder. */
+export type SceneCarriageway = {
+  /** "M60 eastbound" */
+  name: string;
+  lanes: number;
+  hardShoulder: boolean;
+  /** Lanes the wreckage blocks — nothing runs in them. */
+  blocked: number[];
+  /** Lanes that must be shut before the crews are protected: the live
+   *  lane beside the wreck, or lane 1 beside a crew on the hard shoulder. */
+  mustClose: number[];
+  /** The junction traffic comes from, where a rolling block starts and a closure is held. */
+  upstream: string;
+  downstream: string;
+  /** How much is coming through, for how dangerous a running lane is. */
+  flow: "light" | "moderate" | "heavy";
+  /** Minutes for National Highways traffic officers to reach the scene once control asks. */
+  highwaysEtaMin?: number;
+};
+
 export type Scene = {
   viewBox: { x: number; y: number; width: number; height: number };
+  /** The running road the job is on, when it is on one. */
+  carriageway?: SceneCarriageway;
   /** Moving water, for scenes with someone in it. */
   water?: WaterModel;
   /** A face or a drop, for scenes with someone down (or up) it. */

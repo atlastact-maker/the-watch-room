@@ -155,10 +155,26 @@ export const STANDARD_PDA_TEMPLATES: Partial<Record<IncidentTypeCode, PdaTemplat
       pump("pump2", "Pump 2"),
       officer(),
       ambulance("DCA plus HART for entrapment — HART's own tasking criteria (S43)"),
+      {
+        id: "police_scene",
+        label: "Police — scene protection",
+        service: "Police",
+        requiredApplianceTypes: ["Police_Response", "Police_RPU", "Police_TraffMot"],
+        requiredCapabilities: [],
+        notes: "The first car fends off and holds the live lanes until the roads unit lands",
+      },
+      {
+        id: "police_rpu",
+        label: "Roads policing — rolling block",
+        service: "Police",
+        requiredApplianceTypes: ["Police_RPU", "Police_TraffMot"],
+        requiredCapabilities: ["Police_Traffic"],
+        notes: "A rolling road block from the upstream junction, then the closure with National Highways",
+      },
     ],
     basis: [
       "[NWFC-CUM] RTC PERSONS TRAPPED, small vehicles = 2 PUMPS (ANY) + NEAREST SM; large vehicles = rescue unit + support + 2 pumps + SM — S26",
-      "[MODELLED] Aerial off the PDA; GMP traffic and National Highways attend on their own 999 call, not a fire slot",
+      "[MODELLED] Aerial off the PDA; GMP traffic and National Highways attend on their own 999 call, not a fire slot — the police slots here are that call: a response car for the scene and a roads unit for the block",
     ],
   },
   industrial_fire: {

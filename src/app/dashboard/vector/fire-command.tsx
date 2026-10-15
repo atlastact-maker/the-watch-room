@@ -1341,6 +1341,7 @@ export function FireCommandScreen(props: FireCommandProps) {
           onPanel={setRtcPanel}
           onStartTask={props.onStartTask}
           onAbortTask={props.onAbortTask}
+          onRequestSupport={props.onRequestSupport}
           onBack={() => setPage("actions")}
           hour={props.ambient?.hour ?? new Date(now).getHours() + new Date(now).getMinutes() / 60}
           rain={props.ambient ? /rain|drizzle|sleet|snow/.test(props.ambient.precip) : false}

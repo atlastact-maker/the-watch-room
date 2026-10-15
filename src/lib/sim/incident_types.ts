@@ -1231,6 +1231,11 @@ export type TaskKind =
   | "close_carriageway"   // timed setup, then held — one carriageway coned off
   | "close_road"          // timed setup, then held — full road closure + diversion
   | "scene_preservation"  // ongoing — evidence preservation (SIO)
+  // The live carriageway — see traffic.ts
+  | "fend_off"            // timed — an appliance parked across the live lanes upstream of the working area, lights on
+  | "lane_closure"        // timed setup, then held — named lanes coned off at the scene with a taper upstream
+  | "rolling_road_block"  // timed setup, then held — traffic brought to a stop behind the roads unit from the upstream junction
+  | "carriageway_closure" // timed setup, then held — the carriageway shut at the upstream junction with a diversion
   // Vehicles — ANPR hits, fail-to-stops, pursuits
   | "vehicle_stop"        // timed — a compliant stop and checks
   | "follow_contain"      // ongoing — keep obs, no lights, wait for the second car
@@ -1614,6 +1619,10 @@ export type Task = {
   /** Road bearing at the closure point (compass degrees) — the cone
    *  line renders perpendicular to this. */
   closureBearingDeg?: number;
+  /** For lane_closure: the lanes coned off, numbered from the nearside. */
+  lanes?: number[];
+  /** For rolling_road_block / carriageway_closure: the junction it runs from or is held at. */
+  junction?: string;
   // ---- Crash Recovery System (crs_action only) ---------------------------
   /** Which CRS vehicle + action this task executes. Component status on
    *  the CRS schematic is derived from tasks matching these ids. */
@@ -1669,6 +1678,10 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   close_carriageway: 1,
   close_road: 2,
   scene_preservation: 1,
+  fend_off: 1,
+  lane_closure: 1,
+  rolling_road_block: 1,
+  carriageway_closure: 1,
   vehicle_stop: 1,
   request_details: 1,
   take_account: 1,
@@ -1721,6 +1734,10 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   close_carriageway: ["Police"],
   close_road: ["Police"],
   scene_preservation: ["Police"],
+  fend_off: ["Fire", "Police"],
+  lane_closure: ["Police"],
+  rolling_road_block: ["Police"],
+  carriageway_closure: ["Police"],
   vehicle_stop: ["Police"],
   request_details: ["Police"],
   take_account: ["Police"],

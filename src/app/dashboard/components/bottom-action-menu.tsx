@@ -102,6 +102,8 @@ export type StartTaskFn = (args: {
   entryTool?: EntryTool;
   closurePos?: { lat: number; lng: number };
   closureBearingDeg?: number;
+  lanes?: number[];
+  junction?: string;
   crsVehicleId?: string;
   crsActionId?: string;
   crsDurationSec?: number;
@@ -3168,6 +3170,14 @@ function taskShortLabel(k: TaskKind): string {
       return "C'way Closure";
     case "close_road":
       return "Road Closure";
+    case "fend_off":
+      return "Fend-off";
+    case "lane_closure":
+      return "Lane Closure";
+    case "rolling_road_block":
+      return "Rolling Block";
+    case "carriageway_closure":
+      return "C'way Shut";
     case "traffic_mgmt":
       return "Traffic Mgmt";
     case "scene_preservation":

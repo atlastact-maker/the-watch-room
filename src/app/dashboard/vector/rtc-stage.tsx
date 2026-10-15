@@ -26,9 +26,10 @@ import type { ResolvedDeployment } from "../components/incident-view";
 import type { TaskWorkspaceProps } from "./mdt-task-workspace";
 import { patientLook } from "@/lib/sim/patient_look";
 import { RtcScene, type RtcWork } from "./scene/plan-rtc";
+import { trafficState, laneLabel } from "@/lib/sim/traffic";
 import type { SceneCrew } from "./patient-scene";
 
-export type RtcPanel = "vehicle" | "safe" | "glass" | "space" | "extricate" | "hazards" | "casualties" | "log";
+export type RtcPanel = "vehicle" | "road" | "safe" | "glass" | "space" | "extricate" | "hazards" | "casualties" | "log";
 
 export type RtcStageProps = {
   incident: Incident;
@@ -47,6 +48,8 @@ export type RtcStageProps = {
   onPanel: (p: RtcPanel | null) => void;
   onStartTask?: TaskWorkspaceProps["onStartTask"];
   onAbortTask?: (taskId: string) => void;
+  /** Assistance messages to control: police for the road, National Highways. */
+  onRequestSupport?: (kind: string, applianceId: string) => void;
   /** Back to the command pages. */
   onBack: () => void;
   tablet?: boolean;
@@ -122,6 +125,7 @@ const I = {
   bolt: <Icon d="M13 2 4 14h7l-1 8 9-12h-7z" />,
   glass: <Icon d="M4 5h16v11H4zM4 16l4-6 4 5 3-3 5 4M9 20h6" />,
   cut: <Icon d="M6 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM8.5 10.5 20 4M8.5 13.5 20 20" />,
+  lane: <Icon d="M4 3v18M20 3v18M12 3v4m0 3v4m0 3v4" />,
   exit: <Icon d="M10 4H5v16h5M14 8l4 4-4 4M8 12h10" />,
   warn: <Icon d="M12 3l9 16H3zM12 10v4m0 3h.01" />,
   people: <Icon d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a7 7 0 0 1 14 0m1-1a5 5 0 0 1 5 1" />,
@@ -174,6 +178,17 @@ export function RtcStage(props: RtcStageProps) {
   const extrication = tasks.find((t) => t.kind === "rtc_extrication" && t.state === "active") ?? tasks.find((t) => t.kind === "rtc_extrication" && t.state === "completed");
   const extricationState: "none" | "active" | "done" = extrication ? (extrication.state === "completed" ? "done" : "active") : "none";
   const allSafe = crsVehicles.length > 0 && crsVehicles.every(madeSafe);
+
+  // ---- The road the job is on ---------------------------------------------------
+  const carriageway = sc.scene?.carriageway ?? null;
+  const highwaysAskedAt = carriageway ? log.filter((e) => e.id.startsWith(`hw-ask:${incident.id}:`)).map((e) => e.timestamp)[0] ?? null : null;
+  const traffic = carriageway ? trafficState(carriageway, tasks, now, highwaysAskedAt) : null;
+  const policeOnScene = onScene.filter((r) => r.appliance.service === "Police");
+  const myFendOff = tasks.find((t) => t.kind === "fend_off" && t.applianceId === appliance.id && t.state !== "aborted") ?? null;
+  const trafficJobs = tasks.filter((t) => (t.kind === "fend_off" || t.kind === "lane_closure" || t.kind === "rolling_road_block" || t.kind === "carriageway_closure") && t.state !== "aborted");
+  const trafficJobLabel = (t: Task) => `${callsignOf(t.applianceId)} · ${t.kind === "fend_off" ? "fend-off" : t.kind === "lane_closure" ? `${laneLabel(t.lanes ?? [])} closed` : t.kind === "rolling_road_block" ? `rolling block from ${t.junction ?? "the junction"}` : `closed at ${t.junction ?? "the junction"}`}`;
+  const laneNumbers = carriageway ? Array.from({ length: carriageway.lanes }, (_, i) => i + 1) : [];
+  const laneState = (l: number) => (!traffic ? "closed" : traffic.blocked.includes(l) ? "blocked" : traffic.live.includes(l) ? "live" : traffic.held ? "held" : "closed");
 
   // ---- The people in the cars -----------------------------------------------------
   const casualties = sim?.foundCasualties ?? sc.scene?.casualties ?? [];
@@ -228,6 +243,7 @@ export function RtcStage(props: RtcStageProps) {
   const fuelComp = v?.components.find((c) => c.kind === "fuel_tank" && c.action);
   const fuelOpen = !!v && !!fuelComp?.action && crsState(v.id, fuelComp.action.id).state !== "done";
   const alerts: { key: string; tone: Tone; title: string; text: string; fresh?: boolean }[] = [];
+  if (traffic && carriageway && !traffic.protected && fireOnScene.length) alerts.push({ key: "road", tone: "stop", title: traffic.headline, text: traffic.fendOff ? `Fend-off only — ${laneLabel(carriageway.mustClose)} shut or a block from ${carriageway.upstream} before the cut` : `Fend off · police to shut ${laneLabel(carriageway.mustClose)} · block from ${carriageway.upstream}`, fresh: extricationState === "active" || vWorking.length > 0 });
   if (extricationState === "active" && !allSafe) alerts.push({ key: "live", tone: "stop", title: "CUTTING ON A LIVE VEHICLE", text: "Critical actions outstanding — this goes in the log and the debrief", fresh: true });
   if (fuelOpen) alerts.push({ key: "fuel", tone: "stop", title: "FUEL ON THE CARRIAGEWAY", text: `${v!.vrm} tank split — blanket and contain it before any sharp work` });
   if (v && !carriesKit("Hydraulic")) alerts.push({ key: "kit", tone: "warn", title: "NO HYDRAULIC KIT", text: `${appliance.callsign} carries none — a rescue pump or the TRU cuts this car` });
@@ -320,6 +336,45 @@ export function RtcStage(props: RtcStageProps) {
       <div className="fc-rtc-actions">{stdFor(v).filter((a) => SPACE_KEYS.has(STRIP(a.id))).map((a) => stdRow(v, a))}</div>
     </Group>
   ) : null;
+  const roadBody = carriageway && traffic ? (
+    <>
+      <Group title={`${carriageway.name} · ${carriageway.upstream} to ${carriageway.downstream}`} extra={<span className={`cc-pill ${traffic.protected ? "go" : "stop"}`}>{traffic.protected ? "Protected" : "Live"}</span>}>
+        <div className={`rs-road ${traffic.protected ? "go" : "stop"}`}>
+          <b>{traffic.headline}</b>
+          <span>{traffic.detail}</span>
+          <div className="rs-lanes">
+            {carriageway.hardShoulder && <i className="hs">HS<small>hard shoulder</small></i>}
+            {laneNumbers.map((l) => { const st = laneState(l); return <i key={l} className={st}>Lane {l}<small>{st === "blocked" ? "the wreck" : st === "live" ? "running past the work" : st === "held" ? `held from ${carriageway.upstream}` : traffic.closedAtJunction ? `shut at ${carriageway.upstream}` : "coned off"}</small></i>; })}
+          </div>
+        </div>
+        <dl className="pb-facts rs-facts">
+          <dt>In force</dt><dd className={trafficJobs.some((t) => t.state === "completed") ? "go" : ""}>{trafficJobs.filter((t) => t.state === "completed").map(trafficJobLabel).join(" · ") || "nothing yet"}</dd>
+          <dt>Setting up</dt><dd>{trafficJobs.filter((t) => t.state === "active").map((t) => `${trafficJobLabel(t)} · ${mmss(Math.max(0, (t.completesAt ?? now) - now))}`).join(" · ") || "—"}</dd>
+          <dt>Police</dt><dd className={policeOnScene.length ? "" : "warn"}>{policeOnScene.length ? policeOnScene.map((r) => r.appliance.callsign).join(" · ") : "none on scene"}</dd>
+          <dt>Highways</dt><dd className={traffic.highways === "none" ? "warn" : "go"}>{traffic.highways === "none" ? "not asked" : traffic.highways === "requested" ? "asked — signals to follow" : traffic.highways === "signals" ? `signals set · traffic officers due ${traffic.highwaysDueAt ? wall(traffic.highwaysDueAt) : "soon"}` : traffic.closedAtJunction ? `holding ${carriageway.upstream}` : `on scene at ${carriageway.upstream}`}</dd>
+        </dl>
+      </Group>
+      <Group title={`${appliance.callsign} on the road`}>
+        <div className="fc-rtc-actions">
+          <div className={`fc-rtc-action${myFendOff?.state === "completed" ? " done" : myFendOff ? " on" : ""}`}>
+            <div className="txt">
+              <b>Fend-off position</b>
+              <small>Park the appliance across the live lanes upstream of the wreck, blues and rear reds on — it takes the hit, not the crew</small>
+              <span className="meta">{myFendOff?.state === "completed" ? `In position ${wall(myFendOff.completesAt ?? myFendOff.startedAt)}` : myFendOff ? `${mmss(Math.max(0, (myFendOff.completesAt ?? now) - now))} to go` : "1 crew · 1 min · the appliance itself"}</span>
+            </div>
+            {!myFendOff && <button type="button" className="pc-mini" disabled={!canAct || freeCrew.length < 1} onClick={() => props.onStartTask?.({ applianceId: appliance.id, kind: "fend_off", assignedCrewIds: freeCrew.slice(0, 1).map((c) => c.id) })}>Start</button>}
+            {myFendOff?.state === "active" && <button type="button" className="pc-mini" onClick={() => props.onAbortTask?.(myFendOff.id)}>Abort</button>}
+            {myFendOff?.state === "completed" && <span className="fc-rtc-tick">✓</span>}
+          </div>
+        </div>
+        <div className="rs-road-asks">
+          <button type="button" className="pc-mini wide" disabled={!props.onRequestSupport || !!props.resolvedIncident} onClick={() => props.onRequestSupport?.("police", appliance.id)}>Ask control for police — the lanes and a block</button>
+          <button type="button" className="pc-mini wide" disabled={!props.onRequestSupport || !!props.resolvedIncident || traffic.highways !== "none"} onClick={() => props.onRequestSupport?.("highways", appliance.id)}>{traffic.highways === "none" ? "Ask control for National Highways" : "National Highways asked"}</button>
+        </div>
+        <p className="cc-line">The lanes, the rolling block from {carriageway.upstream} and the closure are police work, on their tablet&apos;s Traffic tab. National Highways set the signals upstream a couple of minutes after control asks and take the junction when their traffic officers land.</p>
+      </Group>
+    </>
+  ) : <p className="cc-line">This job is not on a running road.</p>;
   const extricateBody = (
     <>
       <Group title="Release the casualty">
@@ -451,6 +506,24 @@ export function RtcStage(props: RtcStageProps) {
   const vCas = v ? casualtiesOf(v) : [];
   const seatCas = vCas.find((c) => c.trappedUntilExtricated) ?? vCas[0] ?? null;
   const look = seatCas ? patientLook(seatCas, null, undefined, { landed: false }) : null;
+  const strip = carriageway && traffic ? (
+    <div className={`rs-traffic ${traffic.level}`} aria-label={traffic.headline}>
+      {carriageway.hardShoulder && <div className="rs-tl hs"><span>HS</span></div>}
+      {laneNumbers.map((l) => {
+        const st = laneState(l);
+        return (
+          <div key={l} className={`rs-tl ${st}`}>
+            <span>L{l}</span>
+            {st === "live" && <i className="cars"><b /><b /><b /></i>}
+            {st === "closed" && <i className="cones"><b /><b /><b /><b /><b /><b /></i>}
+            {st === "blocked" && <em>wreck</em>}
+            {st === "held" && <em>held from {carriageway.upstream}</em>}
+          </div>
+        );
+      })}
+      <div className="rs-tl-cap"><b>{traffic.headline}</b></div>
+    </div>
+  ) : null;
   const picture = v ? (
     <RtcScene
       vehicle={v}
@@ -471,6 +544,7 @@ export function RtcStage(props: RtcStageProps) {
   // ---- The bar ------------------------------------------------------------------------
   const sections: { key: RtcPanel; label: string; icon: ReactNode; badge?: { count: string; tone: Tone } }[] = [
     { key: "vehicle", label: "Vehicle", icon: I.car },
+    { key: "road", label: "Road", icon: I.lane, badge: traffic ? { count: traffic.protected ? "✓" : "!", tone: traffic.protected ? "go" : "stop" } : undefined },
     { key: "safe", label: "Make safe", icon: I.bolt, badge: v ? { count: `${criticalDone(v)}/${criticalOf(v).length}`, tone: madeSafe(v) ? "go" : "warn" } : undefined },
     { key: "glass", label: "Glass", icon: I.glass, badge: v && keyDone(v, "glass") ? { count: "✓", tone: "go" } : undefined },
     { key: "space", label: "Space", icon: I.cut, badge: v ? (() => { const n = stdFor(v).filter((a) => SPACE_KEYS.has(STRIP(a.id)) && crsState(v.id, a.id).state === "done").length; return n ? { count: String(n), tone: "go" as Tone } : undefined; })() : undefined },
@@ -484,15 +558,16 @@ export function RtcStage(props: RtcStageProps) {
       <span>{label}</span>
     </button>
   );
-  const panelTitle = panel === "vehicle" ? "VEHICLE" : panel === "safe" ? "MAKE SAFE" : panel === "glass" ? "GLASS MANAGEMENT" : panel === "space" ? "SPACE CREATION" : panel === "extricate" ? "EXTRICATION" : panel === "hazards" ? "HAZARDS" : panel === "casualties" ? "CASUALTIES" : panel === "log" ? "LOG" : "";
+  const panelTitle = panel === "vehicle" ? "VEHICLE" : panel === "road" ? "THE ROAD" : panel === "safe" ? "MAKE SAFE" : panel === "glass" ? "GLASS MANAGEMENT" : panel === "space" ? "SPACE CREATION" : panel === "extricate" ? "EXTRICATION" : panel === "hazards" ? "HAZARDS" : panel === "casualties" ? "CASUALTIES" : panel === "log" ? "LOG" : "";
   const panelSub = v ? `${v.vrm} · ${v.make} ${v.model}` : "";
-  const panelBody = panel === "vehicle" ? vehicleBody : panel === "safe" ? safeBody : panel === "glass" ? glassBody : panel === "space" ? spaceBody : panel === "extricate" ? extricateBody : panel === "hazards" ? hazardsBody : panel === "casualties" ? casualtiesBody : panel === "log" ? logBody : null;
+  const panelBody = panel === "vehicle" ? vehicleBody : panel === "road" ? roadBody : panel === "safe" ? safeBody : panel === "glass" ? glassBody : panel === "space" ? spaceBody : panel === "extricate" ? extricateBody : panel === "hazards" ? hazardsBody : panel === "casualties" ? casualtiesBody : panel === "log" ? logBody : null;
 
   return (
     <>
       <div className={`rs-body${props.tablet ? " rs-tablet" : ""}`}>
         <div className={`rs-hero ${headline.tone}`}>
           {picture}
+          {strip}
           {shownAlerts.length > 0 && (
             <div className="rs-alerts pb-alerts">
               {shownAlerts.map((a) => <div key={a.key} className={`pb-alert ${a.tone}${a.fresh ? " pulse" : ""}`}><b>{a.title}</b><span>{a.text}</span></div>)}

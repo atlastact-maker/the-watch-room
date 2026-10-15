@@ -12,6 +12,7 @@ import {
 } from "./incident_types";
 import { landedBy, weirReachedAt } from "./water_rescue";
 import { reachedBy as ropeReachedBy, recoveredBy as ropeRecoveredBy } from "./rope_rescue";
+import { trafficState } from "./traffic";
 import type {
   FireMaterial,
   PatientRedFlag,
@@ -392,6 +393,11 @@ export function simulateIncident(
   const mitigatedHazardIds = tasks
     .filter((t) => t.kind === "mitigate_hazard" && t.state === "completed" && t.hazardId)
     .map((t) => t.hazardId!) as string[];
+  // A live-traffic hazard is answered by the road, not a crew: once the
+  // lanes beside the work are shut, blocked or closed it is mitigated.
+  if (scene?.carriageway && trafficState(scene.carriageway, tasks, now).protected) {
+    for (const h of scene.hazards) if (/live-traffic|live-carriageway|running-traffic/.test(h.id) && !mitigatedHazardIds.includes(h.id)) mitigatedHazardIds.push(h.id);
+  }
   const visibleHazards: SceneHazard[] = [];
   if (scene) {
     const onSceneMinutes = secondsAnyOnScene / 60;
