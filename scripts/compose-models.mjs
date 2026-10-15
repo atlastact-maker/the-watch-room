@@ -13,7 +13,8 @@
 // base's front. Textures come out at 1K WebP unless --no-compress.
 //
 // --straps, for a pack on a person's back, adds two black webbing straps
-// that come up out of the pack, over the shoulders and down the chest.
+// that come up out of the pack, over the shoulders, down the chest and
+// round the ribs into the bottom corners of the pack.
 // Their path is found on the person: rays cast at the mesh round each
 // shoulder and down the front, so the straps lie on the body whatever
 // its shape. Sized to the height: 5 cm wide at 1.78 m.
@@ -143,6 +144,23 @@ if (straps) {
       const t = hit([x, y, 1], [0, 0, -1]);
       if (isFinite(t)) pts.push({ p: [x, y, 1 - t], n: [0, 0, 1] });
     }
+    // Round the ribs under the arm — rays out from inside the torso find its side — and into the bottom corner of the pack.
+    const chestEnd = pts[pts.length - 1].p;
+    const phi0 = Math.atan2(Math.abs(chestEnd[0]), Math.max(0.01, chestEnd[2]));
+    const phi1 = (120 * Math.PI) / 180;
+    const yLow = endY - 0.135 * H;
+    for (let i = 1; i <= 8; i++) {
+      const phi = phi0 + (phi1 - phi0) * (i / 8);
+      const y = endY + (yLow - endY) * (i / 8);
+      const d = [side * Math.sin(phi), 0, Math.cos(phi)];
+      const t = hit([0, y, 0], d);
+      if (isFinite(t)) pts.push({ p: [d[0] * t, y, d[2] * t], n: d });
+    }
+    const pw = ps[0] * k * s, pd = ps[2] * k * s, ph = ps[1] * k * s;
+    const packFace = at[2] + pd / 2;
+    const anchorN = norm([side * 0.4, 0, -1]);
+    pts.push({ p: [side * (pw / 2 - 0.05 * H), at[1] - ph / 2 + 0.025 * H, packFace + 0.02 * H], n: anchorN });
+    pts.push({ p: [side * (pw / 2 - 0.04 * H), at[1] - ph / 2 + 0.015 * H, packFace - 0.03 * H], n: anchorN });
     // Smooth the line and the normals, then lift off the skin.
     const sm = pts.map((q, i) => {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
@@ -184,7 +202,7 @@ if (straps) {
     const tapeHalf = 0.0065 * H, tapeStart = tape.positions.length / 3;
     frames.forEach((f, i) => {
       for (const sgn of [-1, 1]) {
-        const lift2 = thick / 2 + 0.0006 * H;
+        const lift2 = thick / 2 + 0.0015 * H;
         tape.positions.push(f.p[0] + f.n[0] * lift2 + f.b[0] * tapeHalf * sgn, f.p[1] + f.n[1] * lift2 + f.b[1] * tapeHalf * sgn, f.p[2] + f.n[2] * lift2 + f.b[2] * tapeHalf * sgn);
         tape.normals.push(f.n[0], f.n[1], f.n[2]);
         tape.uvs.push(i / (N - 1), sgn < 0 ? 0 : 1);

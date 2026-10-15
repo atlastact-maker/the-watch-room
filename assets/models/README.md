@@ -52,9 +52,10 @@ node scripts/compose-models.mjs doctor.glb backpack.glb assets/models/hems-docto
 
 Meshy models face +z, so a backpack whose straps are on its -z side goes
 on at a yaw of 180 with a negative z. `--straps` adds two black webbing
-straps with a reflective band, up out of the pack, over the shoulders and
-down the chest: their path is found by casting rays at the person's mesh
-round each shoulder and down the front, so they lie on the body.
+straps with a reflective band, up out of the pack, over the shoulders,
+down the chest and round the ribs into the pack's bottom corners: their
+path is found by casting rays at the person's mesh round each shoulder,
+down the front and out from inside the torso, so they lie on the body.
 
 ## Animations
 
