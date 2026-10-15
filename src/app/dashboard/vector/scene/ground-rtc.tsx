@@ -83,7 +83,7 @@ type Unit = {
   lights: string;
 };
 
-type Stander = { at: Pt; facing: Pt; service: "Fire" | "Ambulance" | "Police"; scope?: string; seed: number; role?: string; kneeling?: boolean; hands?: { left?: Pt; right?: Pt }; /** On an errand: the walk under way. */ mover?: Mover };
+type Stander = { at: Pt; facing: Pt; service: "Fire" | "Ambulance" | "Police"; scope?: string; seed: number; role?: string; /** The crew member's own role — the HEMS doctor is drawn from his model. */ memberRole?: string; kneeling?: boolean; hands?: { left?: Pt; right?: Pt }; /** On an errand: the walk under way. */ mover?: Mover };
 
 export function RtcGround({ view, incident, resolved, tasks, log, now, sim, treatmentByCasualtyId, resusByCasualtyId, hour, rain, selectedUnitId, onSelectUnit, commanderApplianceId }: RtcGroundProps) {
   const box = useRef<HTMLDivElement>(null);
@@ -195,9 +195,11 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     return i === 0 ? casualties.filter((c) => c.trappedUntilExtricated) : [];
   };
   const lookOf = (c: SceneCasualty) => patientLook(c, treatmentByCasualtyId?.[c.id], resusByCasualtyId?.[c.id], { landed: false });
+  // The clinicians of an ambulance crew — a HEMS pilot stays with the aircraft.
+  const clinicians = (a: { crewMembers: { id: string; role: string; name: string }[] }) => a.crewMembers.filter((m) => !/pilot/i.test(m.role));
   const medicsWith = (casualtyId: string): SceneCrew[] => units
     .filter((u) => u.r.appliance.service === "Ambulance" && u.r.deployment.treatingCasualtyId === casualtyId)
-    .flatMap((u) => u.r.appliance.crewMembers.slice(0, 2).map((m, i) => ({ callsign: u.r.appliance.callsign, role: m.role, service: "Ambulance" as const, scope: scopeOfApplianceType(u.r.appliance.type), name: i > 0 ? m.name : undefined })));
+    .flatMap((u) => clinicians(u.r.appliance).slice(0, 2).map((m, i) => ({ callsign: u.r.appliance.callsign, role: m.role, service: "Ambulance" as const, scope: scopeOfApplianceType(u.r.appliance.type), name: i > 0 ? m.name : undefined })));
   const seated = new Set<string>();
   const attached = new Set(wrecks.flatMap((_, i) => casualtiesOf(i).map((c) => c.id)));
   const sideOut: Pt = top ? [0, -1] : [0, 1];
@@ -239,7 +241,12 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     const service = a.service === "Fire" || a.service === "Ambulance" || a.service === "Police" ? a.service : "Fire";
     const treating = a.service === "Ambulance" && !!u.r.deployment.treatingCasualtyId;
     const inCar = tasks.some((t) => t.kind === "rolling_road_block" && t.applianceId === a.id && live(t)) ? 1 : 0;
-    const idle = a.crewMembers.filter((m) => !awayIds.has(m.id)).length - (walkingBack.get(a.id) ?? 0) - (treating ? 2 : 0) - inCar;
+    // Who is left by the vehicle: not away at a job, not the two clinicians
+    // with a casualty, not walking back from a job, not in the car.
+    const busy = new Set(awayIds);
+    if (treating) for (const m of clinicians(a).slice(0, 2)) busy.add(m.id);
+    const members = a.crewMembers.filter((m) => !busy.has(m.id)).slice((walkingBack.get(a.id) ?? 0) + inCar);
+    const idle = members.length;
     if (idle <= 0) continue;
     // Along the side of the vehicle nearer the wreck, a step apart, facing it.
     const fp = unitFootprint(a.type, a.service);
@@ -252,7 +259,9 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
       const along = -fp.l * 0.3 + (i * (fp.l * 0.6)) / Math.max(1, n - 1);
       const at: Pt = [u.at[0] + axis[0] * along + across[0] * side * (fp.w / 2 + 0.55), u.at[1] + axis[1] * along + across[1] * side * (fp.w / 2 + 0.55)];
       const e = service === "Fire" ? errand(`${a.id}:errand`, i, n, at) : { at };
-      standers.push({ at: e.at, facing: e.at === at ? unit(toWreck) : unit(sub(at, e.at)), mover: e.mover, service, scope: scopeOfApplianceType(a.type), seed: hash(`${a.id}:${i}`), role: service === "Ambulance" ? "PARAMEDIC" : service === "Police" ? "POLICE" : undefined });
+      const member = members[i];
+      const label = service === "Ambulance" ? (/pilot/i.test(member.role) ? "PILOT" : /doctor/i.test(member.role) ? "DOCTOR" : "PARAMEDIC") : service === "Police" ? "POLICE" : undefined;
+      standers.push({ at: e.at, facing: e.at === at ? unit(toWreck) : unit(sub(at, e.at)), mover: e.mover, service, scope: scopeOfApplianceType(a.type), seed: hash(`${a.id}:${i}`), role: label, memberRole: member.role });
     }
   }
   // The fend-off crew member at the back of the appliance with the cones; the officers on the taper.
@@ -519,6 +528,8 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
             const cur = f.mover ? legAt(f.mover) : null;
             if (f.mover && cur) return <Walker key={`${i}:${cur.index}`} leg={cur.leg} since={cur.since} clip={f.mover.clip} scale={K} />;
             if (f.service === "Fire") return <g key={i}>{scaled(f.at, <ModelSprite id="firefighter_stand" at={f.at} a={deg(f.facing)} />)}</g>;
+            // The air ambulance doctor is his model, the response pack on his back.
+            if (f.service === "Ambulance" && f.scope === "hems" && /doctor/i.test(f.memberRole ?? "")) return <g key={i}>{scaled(f.at, <ModelSprite id="ambulance_medic" at={f.at} a={deg(f.facing)} />)}</g>;
             return <g key={i}>{scaled(f.at, <CrewTop at={f.at} facing={f.facing} hands={f.hands ?? {}} kneeling={!!f.kneeling} style={{ animationDelay: `${((i * 1.3) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: true, role: f.role ?? "" })} />)}</g>;
           })}
           {/* The overbridge, over everything under it: the photograph's own decks, or a drawn one. */}

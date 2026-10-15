@@ -78,6 +78,8 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const dca = stations.filter((s) => s.service === "Ambulance").flatMap((s) => s.appliances).find((a) => a.type === "DCA");
   // A roads policing car for the live carriageway, with ?police=1.
   const rpu = param("police") ? stations.filter((s) => s.service === "Police").flatMap((s) => s.appliances).find((a) => a.type === "Police_RPU") ?? null : null;
+  // The air ambulance on the ground beyond the wreck, with ?hems=1.
+  const hems = param("hems") ? stations.filter((s) => s.service === "Ambulance").flatMap((s) => s.appliances).find((a) => a.type === "HEMS") ?? null : null;
 
   const incident: Incident = { id: "DEV-1", scenarioId: scenario.id, scenario: scenarioForWorld, receivedAt };
   const here = scenario.location.coords;
@@ -113,6 +115,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   ];
   if (p3) deployments.push(mk(p3.id, 3 * 60, 6 * 60, null));
   if (rpu) deployments.push(mk(rpu.id, 8 * 60, 5 * 60, road ? park(-52, 7.3) : park(-40, -8)));
+  if (hems) deployments.push(mk(hems.id, 9 * 60, 5 * 60, road ? park(46, 9.5) : park(24, -34), { parkingBearingDeg: road ? 70 : 20 }));
   // The ambulance crew are with the first casualty: survey done, leads and
   // a probe on, oxygen running, aspirin given.
   const unitParam = param("unit");
