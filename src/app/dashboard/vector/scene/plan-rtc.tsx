@@ -352,8 +352,10 @@ function Ram({ from, to }: { from: Pt; to: Pt }) {
 /** Hydraulic cutters: the rescue cutters modelled in 3D once a `cutters`
  *  model has been rendered (scripts/render-model-sprites.mjs), laid like
  *  the spreaders with the hoses at -x and the blades at +x; until then the
- *  drawing — the black-and-orange body with its carry handle and control,
- *  the steel yoke and the two curved blades on their pivot. */
+ *  drawing, from the product photograph: the black control grip and the
+ *  hose coupling at the back, the silver cylinder with the name on it, the
+ *  orange head, the grey carry loop standing along the top, the steel
+ *  yoke and the two curved blades open on their pivot. */
 function Cutters({ at, a }: { at: Pt; a: number }) {
   const model = (MODEL_SPRITES as Record<string, { href: string; w: number; h: number } | undefined>).cutters;
   if (model) {
@@ -366,24 +368,41 @@ function Cutters({ at, a }: { at: Pt; a: number }) {
   }
   return (
     <g transform={`translate(${P(at)}) rotate(${n2(a)})`}>
-      <rect x={-0.04} y={-0.08} width={0.84} height={0.2} rx={0.06} fill="#000" opacity={0.42} filter="url(#ps-blur-sm)" />
-      <path d="M-0.06 -0.03 h-0.1 M-0.06 0.03 h-0.1" stroke="#1b1f23" strokeWidth={0.03} strokeLinecap="round" />
-      <path d="M-0.06 -0.03 h-0.1" stroke="#c0392b" strokeWidth={0.02} strokeLinecap="round" />
-      <path d="M-0.06 0.03 h-0.1" stroke="#2b5fb5" strokeWidth={0.02} strokeLinecap="round" />
-      <rect x={-0.07} y={-0.09} width={0.5} height={0.18} rx={0.045} fill="#1b1f23" {...edge("#1b1f23", 0.3, 0.8, 0.8)} />
-      <rect x={0.03} y={-0.08} width={0.32} height={0.16} rx={0.035} fill="#e8651a" />
-      <rect x={0.03} y={-0.08} width={0.32} height={0.16} rx={0.035} fill="url(#pk-dome)" />
-      <rect x={-0.07} y={-0.09} width={0.5} height={0.18} rx={0.045} fill="url(#ps-grain)" opacity={0.5} />
-      <Bevel x={-0.07} y={-0.09} w={0.5} h={0.18} rx={0.045} d={0.006} light={0.35} dark={0.5} />
-      <rect x={0.12} y={-0.15} width={0.055} height={0.3} rx={0.025} fill="url(#pk-grip)" stroke="#0b0e11" strokeWidth={0.6} {...SOFT} />
-      <rect x={0.12} y={-0.15} width={0.055} height={0.3} rx={0.025} fill="url(#pk-gloss)" />
-      <circle cx={-0.02} cy={0} r={0.05} fill="url(#pk-rubber)" stroke="#0b0e11" strokeWidth={0.6} {...SOFT} />
-      <circle cx={-0.02} cy={0} r={0.028} fill="#2b5fb5" stroke="#0b0e11" strokeWidth={0.5} {...SOFT} />
-      <rect x={0.36} y={-0.072} width={0.17} height={0.144} rx={0.015} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.6} {...SOFT} />
-      <path d="M0.48 -0.06 Q0.64 -0.16 0.8 -0.012 Q0.62 -0.06 0.5 -0.005 Z" fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.6} strokeLinejoin="round" {...SOFT} />
-      <path d="M0.48 0.06 Q0.64 0.16 0.8 0.012 Q0.62 0.06 0.5 0.005 Z" fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.6} strokeLinejoin="round" {...SOFT} />
-      <path d="M0.52 -0.03 Q0.64 -0.08 0.78 -0.015 M0.52 0.03 Q0.64 0.08 0.78 0.015" fill="none" stroke="#fff" strokeOpacity={0.6} strokeWidth={1} strokeLinecap="round" {...SOFT} />
-      <Screw x={0.5} y={0} r={0.028} />
+      <rect x={-0.2} y={-0.1} width={1.1} height={0.24} rx={0.07} fill="#000" opacity={0.42} filter="url(#ps-blur-sm)" />
+      {/* The hose into the coupling at the back. */}
+      <path d="M-0.12 0.01 h-0.16 q-0.07 0 -0.1 0.05" fill="none" stroke="#15181b" strokeWidth={0.034} strokeLinecap="round" />
+      <path d="M-0.12 0.004 h-0.16 q-0.05 0 -0.08 0.03" fill="none" stroke="#3d4349" strokeWidth={0.008} strokeLinecap="round" opacity={0.8} />
+      <rect x={-0.19} y={-0.026} width={0.07} height={0.062} rx={0.012} fill="url(#pk-chrome)" stroke="#2b2f33" strokeWidth={0.5} {...SOFT} />
+      {/* The control grip: black rubber, the valve lever on top of it. */}
+      <rect x={-0.13} y={-0.058} width={0.18} height={0.116} rx={0.04} fill="url(#pk-rubber)" stroke="#0b0e11" strokeWidth={0.6} {...SOFT} />
+      <rect x={-0.13} y={-0.058} width={0.18} height={0.116} rx={0.04} fill="url(#pk-gloss)" />
+      {[-0.1, -0.08, -0.06].map((x) => <path key={x} d={`M${n2(x)} -0.045 V0.045`} stroke="#0b0e11" strokeWidth={0.5} opacity={0.6} {...SOFT} />)}
+      <rect x={-0.05} y={-0.08} width={0.07} height={0.03} rx={0.008} fill="url(#pk-grip)" stroke="#0b0e11" strokeWidth={0.5} {...SOFT} />
+      {/* The silver cylinder, the name on it. */}
+      <rect x={0.04} y={-0.072} width={0.25} height={0.144} rx={0.03} fill="url(#pk-cyl)" stroke="#2b2f33" strokeWidth={0.6} {...SOFT} />
+      <rect x={0.04} y={-0.072} width={0.25} height={0.144} rx={0.03} fill="url(#pk-chrome)" opacity={0.55} />
+      <rect x={0.11} y={-0.016} width={0.11} height={0.032} rx={0.004} fill="#1b1f23" opacity={0.75} />
+      {[0.12, 0.135, 0.15, 0.165, 0.18, 0.195, 0.21].map((x) => <rect key={x} x={x} y={-0.009} width={0.008} height={0.018} fill="#e9edf0" opacity={0.85} />)}
+      {/* The orange body and head. */}
+      <path d="M0.27 -0.08 H0.45 Q0.58 -0.1 0.63 -0.07 V0.07 Q0.58 0.1 0.45 0.08 H0.27 Q0.25 0.08 0.25 0.06 V-0.06 Q0.25 -0.08 0.27 -0.08 Z" fill="#f06a1c" />
+      <path d="M0.27 -0.08 H0.45 Q0.58 -0.1 0.63 -0.07 V0.07 Q0.58 0.1 0.45 0.08 H0.27 Q0.25 0.08 0.25 0.06 V-0.06 Q0.25 -0.08 0.27 -0.08 Z" fill="url(#pk-dome)" />
+      <path d="M0.27 -0.08 H0.45 Q0.58 -0.1 0.63 -0.07 V0.07 Q0.58 0.1 0.45 0.08 H0.27 Q0.25 0.08 0.25 0.06 V-0.06 Q0.25 -0.08 0.27 -0.08 Z" fill="url(#ps-grain)" opacity={0.45} />
+      <path d="M0.27 -0.08 H0.45 Q0.58 -0.1 0.63 -0.07 V0.07 Q0.58 0.1 0.45 0.08 H0.27 Q0.25 0.08 0.25 0.06 V-0.06 Q0.25 -0.08 0.27 -0.08 Z" fill="none" stroke="#7a3410" strokeWidth={0.6} {...SOFT} />
+      <path d="M0.29 -0.065 H0.46" stroke="#ffd2b3" strokeWidth={0.8} strokeOpacity={0.55} strokeLinecap="round" {...SOFT} />
+      {/* The carry handle: the grey loop standing on the body, its feet on the cylinder and the head. */}
+      <rect x={0.1} y={-0.03} width={0.3} height={0.06} rx={0.03} fill="#000" opacity={0.28} filter="url(#ps-blur-sm)" />
+      <rect x={0.085} y={-0.04} width={0.33} height={0.08} rx={0.04} fill="none" stroke="#4c5258" strokeWidth={0.034} />
+      <rect x={0.085} y={-0.04} width={0.33} height={0.08} rx={0.04} fill="none" stroke="url(#pk-steel)" strokeWidth={0.026} />
+      <path d="M0.13 -0.04 H0.37" stroke="#e3e7ea" strokeWidth={0.8} strokeOpacity={0.6} strokeLinecap="round" {...SOFT} />
+      <rect x={0.075} y={-0.028} width={0.03} height={0.056} rx={0.006} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.5} {...SOFT} />
+      <rect x={0.395} y={-0.028} width={0.03} height={0.056} rx={0.006} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.5} {...SOFT} />
+      {/* The yoke, the pivot and the two curved blades, open. */}
+      <rect x={0.6} y={-0.095} width={0.1} height={0.19} rx={0.02} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.6} {...SOFT} />
+      <path d="M0.64 -0.075 Q0.8 -0.2 0.95 -0.035 Q0.84 -0.065 0.7 -0.012 Z" fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.6} strokeLinejoin="round" {...SOFT} />
+      <path d="M0.64 0.075 Q0.8 0.2 0.95 0.035 Q0.84 0.065 0.7 0.012 Z" fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.6} strokeLinejoin="round" {...SOFT} />
+      <path d="M0.68 -0.05 Q0.8 -0.12 0.93 -0.04 M0.68 0.05 Q0.8 0.12 0.93 0.04" fill="none" stroke="#fff" strokeOpacity={0.6} strokeWidth={1} strokeLinecap="round" {...SOFT} />
+      <path d="M0.72 -0.014 Q0.84 -0.05 0.94 -0.035 M0.72 0.014 Q0.84 0.05 0.94 0.035" fill="none" stroke="#2b2f33" strokeOpacity={0.5} strokeWidth={0.6} strokeLinecap="round" {...SOFT} />
+      <Screw x={0.665} y={0} r={0.032} />
     </g>
   );
 }
