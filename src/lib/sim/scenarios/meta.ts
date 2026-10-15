@@ -178,8 +178,8 @@ export const SCENARIO_META: ScenarioMeta[] = [
       "address": "M60 eastbound (clockwise) between J17 and J18, Prestwich",
       "postcode": "M25 0UA",
       "coords": {
-        "lat": 53.5478,
-        "lng": -2.2824
+        "lat": 53.5457,
+        "lng": -2.2808
       }
     },
     "property": {

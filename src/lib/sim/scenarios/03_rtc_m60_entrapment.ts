@@ -25,10 +25,14 @@ export const scenario03: Scenario = {
   location: {
     // M60 eastbound (clockwise), between Junction 17 (Whitefield) and
     // Junction 18 (Simister Island) — ~1 km east of J17, just short of an
-    // overbridge. Coordinates sit in the eastbound running lane.
+    // overbridge. The point sits in the eastbound running lanes, the
+    // southern carriageway, which runs along the north edge of Heaton
+    // Park here: about 170 m north of the Sheepfoot Lane car park the
+    // records use as the secondary LZ. (The earlier point, 230 m further
+    // north, was in the houses of Besses o' th' Barn.)
     address: "M60 eastbound (clockwise) between J17 and J18, Prestwich",
     postcode: "M25 0UA",
-    coords: { lat: 53.5478, lng: -2.2824 },
+    coords: { lat: 53.5457, lng: -2.2808 },
   },
 
   property: {
