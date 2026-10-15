@@ -22,6 +22,7 @@ import { KitDefs, KitBag, Bevel, Screw } from "./plan-kit";
 import { CrewTop, crewWearOf, crewHeadAt } from "./plan-crew";
 import { GroundDefs, Weather, WeatherDefs, CarSeat, SteeringWheel, Tarmac, prng, type Ambient } from "./plan-ground";
 import { wearOf, hash, type SceneCrew } from "../patient-scene";
+import { MODEL_SPRITES } from "./model-sprites";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
@@ -322,28 +323,16 @@ function Cutters({ at, a }: { at: Pt; a: number }) {
   );
 }
 
-/** Hydraulic spreaders: the same body, with two long steel arms opening to serrated tips. */
+/** Hydraulic spreaders: the rescue spreaders modelled in 3D, rendered from
+ *  above into a sprite (scripts/render-model-sprites.mjs) and laid on the
+ *  ground here, the hose coupling at -x and the arms reaching to +x, with
+ *  the soft shadow the scene gives everything on the road. */
 function Spreaders({ at, a }: { at: Pt; a: number }) {
+  const s = MODEL_SPRITES.spreaders;
   return (
     <g transform={`translate(${P(at)}) rotate(${n2(a)})`}>
-      <rect x={-0.04} y={-0.1} width={1.06} height={0.24} rx={0.06} fill="#000" opacity={0.42} filter="url(#ps-blur-sm)" />
-      <path d="M-0.06 -0.03 h-0.1 M-0.06 0.03 h-0.1" stroke="#1b1f23" strokeWidth={0.03} strokeLinecap="round" />
-      <path d="M-0.06 -0.03 h-0.1" stroke="#c0392b" strokeWidth={0.02} strokeLinecap="round" />
-      <path d="M-0.06 0.03 h-0.1" stroke="#2b5fb5" strokeWidth={0.02} strokeLinecap="round" />
-      <rect x={-0.07} y={-0.085} width={0.52} height={0.17} rx={0.045} fill="#1b1f23" {...edge("#1b1f23", 0.3, 0.8, 0.8)} />
-      <rect x={0.03} y={-0.075} width={0.34} height={0.15} rx={0.035} fill="#e8651a" />
-      <rect x={0.03} y={-0.075} width={0.34} height={0.15} rx={0.035} fill="url(#pk-dome)" />
-      <rect x={-0.07} y={-0.085} width={0.52} height={0.17} rx={0.045} fill="url(#ps-grain)" opacity={0.5} />
-      <Bevel x={-0.07} y={-0.085} w={0.52} h={0.17} rx={0.045} d={0.006} light={0.35} dark={0.5} />
-      <rect x={0.13} y={-0.15} width={0.055} height={0.3} rx={0.025} fill="url(#pk-grip)" stroke="#0b0e11" strokeWidth={0.6} {...SOFT} />
-      <rect x={0.13} y={-0.15} width={0.055} height={0.3} rx={0.025} fill="url(#pk-gloss)" />
-      <circle cx={-0.02} cy={0} r={0.05} fill="url(#pk-rubber)" stroke="#0b0e11" strokeWidth={0.6} {...SOFT} />
-      <circle cx={-0.02} cy={0} r={0.028} fill="#2b5fb5" stroke="#0b0e11" strokeWidth={0.5} {...SOFT} />
-      <rect x={0.38} y={-0.07} width={0.16} height={0.14} rx={0.015} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.6} {...SOFT} />
-      <path d="M0.48 -0.055 L0.98 -0.15 l0.012 0.012 l-0.012 0.012 l0.012 0.012 l-0.012 0.012 l0.012 0.012 L0.52 0 Z" fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.6} strokeLinejoin="round" {...SOFT} />
-      <path d="M0.48 0.055 L0.98 0.15 l0.012 -0.012 l-0.012 -0.012 l0.012 -0.012 l-0.012 -0.012 l0.012 -0.012 L0.52 0 Z" fill="url(#pk-steel-h)" stroke="#2b2f33" strokeWidth={0.6} strokeLinejoin="round" {...SOFT} />
-      <path d="M0.54 -0.04 L0.95 -0.125 M0.54 0.04 L0.95 0.125" fill="none" stroke="#fff" strokeOpacity={0.5} strokeWidth={0.9} strokeLinecap="round" {...SOFT} />
-      <Screw x={0.5} y={0} r={0.028} />
+      <rect x={-0.08} y={-s.h / 2 + 0.05} width={s.w} height={s.h} rx={0.12} fill="#000" opacity={0.45} filter="url(#ps-blur-md)" />
+      <image href={s.href} x={-0.12} y={-s.h / 2} width={s.w} height={s.h} preserveAspectRatio="none" />
     </g>
   );
 }
