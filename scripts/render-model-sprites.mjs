@@ -47,6 +47,7 @@ const MODELS = {
   firefighter_run: { file: "firefighter.glb", yaw: 90, ppm: 220, clip: "Running", frames: 16, pad: 0.05, note: "A firefighter running (Meshy, Mixamo rig): faces +x, the Running clip in 16 frames." },
   firefighter_walk: { file: "firefighter.glb", yaw: 90, ppm: 220, clip: "Walking", frames: 20, pad: 0.05, note: "A firefighter walking: faces +x, the Walking clip in 20 frames." },
   firefighter_stand: { file: "firefighter.glb", yaw: 90, ppm: 220, clip: "Walking", frames: 1, at: 0.27, pad: 0.05, note: "A firefighter standing: faces +x, one pose of the Walking clip with the feet together." },
+  hems_doctor: { file: "hems-doctor.glb", yaw: 90, ppm: 220, pad: 0.05, note: "A HEMS doctor (Meshy) standing with the medical backpack on, arms a little out: faces +x, the pack behind." },
 };
 
 const MIME = { ".js": "text/javascript", ".mjs": "text/javascript", ".glb": "model/gltf-binary", ".html": "text/html", ".json": "application/json", ".wasm": "application/wasm" };
