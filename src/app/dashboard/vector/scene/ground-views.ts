@@ -38,7 +38,20 @@ export type RtcGroundView = {
   /** An aerial photograph of the place, laid under the scene: the image
    *  in public, its pixels per metre, and the pixel that sits at the
    *  scene's origin. The scene's roads are authored to its measurements. */
-  photo?: { href: string; ppm: number; origin: Pt; size: Pt; /** Spans of the photograph that stand above the road — bridge decks — drawn back over whatever passes under them, in metres along x. */ cover?: { x: number; w: number }[] };
+  photo?: {
+    href: string;
+    ppm: number;
+    origin: Pt;
+    size: Pt;
+    /** Spans of the photograph that stand above the road — bridge decks — drawn back over whatever passes under them, in metres along x. */
+    cover?: { x: number; w: number }[];
+    /** The photograph's own tones for the road drawn crisp over it: the lanes, the hard shoulders, the central reservation. */
+    tones?: { road: string; shoulder: string; reservation: string };
+    /** Parts of the road band that stay photographic — the merge and diverge tapers with their chevrons — feathered in over `fadeIn` metres at their start and `fadeOut` at their end. */
+    keep?: { x0: number; x1: number; y0: number; y1: number; fadeIn?: number; fadeOut?: number }[];
+    /** The lane lines' mark and gap, and an x a mark starts at, so the drawn lines fall where the photograph's do. */
+    dashes?: { mark: number; gap: number; phaseX: number };
+  };
 };
 
 export type GroundView = RtcGroundView;
@@ -58,7 +71,18 @@ const VIEWS: Record<string, GroundView> = {
     kind: "rtc",
     flow: 1,
     nearside: "top",
-    photo: { href: "/scenes/rtc-m60-j17.jpg", ppm: 4.16, origin: [575, 492.9], size: [1024, 1024], cover: [{ x: -121.9, w: 12.7 }, { x: -66.1, w: 12.7 }] },
+    photo: {
+      href: "/scenes/rtc-m60-j17.jpg", ppm: 4.16, origin: [575, 492.9], size: [1024, 1024],
+      cover: [{ x: -121.9, w: 12.7 }, { x: -66.1, w: 12.7 }],
+      tones: { road: "#535762", shoulder: "#858381", reservation: "#8a8785" },
+      keep: [
+        { x0: 24, x1: 110, y0: -12.7, y1: -9, fadeIn: 6 },
+        { x0: 28, x1: 110, y0: 18.2, y1: 21.7, fadeIn: 6 },
+        { x0: -140, x1: -117, y0: -12.7, y1: -9, fadeOut: 6 },
+        { x0: -140, x1: -117, y0: 18.2, y1: 21.7, fadeOut: 6 },
+      ],
+      dashes: { mark: 2, gap: 7.6, phaseX: -136.3 },
+    },
     wrecks: [
       { vehicleId: "veh-transit", at: [18, -4], heading: 118 },
       { vehicleId: "veh-ceed", at: [8, -2], heading: 72 },

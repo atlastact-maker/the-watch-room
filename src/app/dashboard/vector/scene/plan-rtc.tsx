@@ -349,8 +349,21 @@ function Ram({ from, to }: { from: Pt; to: Pt }) {
   );
 }
 
-/** Hydraulic cutters: the black-and-orange body with its carry handle and control, the steel yoke and the two curved blades on their pivot. Drawn with the hoses at -x and the blades at +x. */
+/** Hydraulic cutters: the rescue cutters modelled in 3D once a `cutters`
+ *  model has been rendered (scripts/render-model-sprites.mjs), laid like
+ *  the spreaders with the hoses at -x and the blades at +x; until then the
+ *  drawing — the black-and-orange body with its carry handle and control,
+ *  the steel yoke and the two curved blades on their pivot. */
 function Cutters({ at, a }: { at: Pt; a: number }) {
+  const model = (MODEL_SPRITES as Record<string, { href: string; w: number; h: number } | undefined>).cutters;
+  if (model) {
+    return (
+      <g transform={`translate(${P(at)}) rotate(${n2(a)})`}>
+        <rect x={-0.08} y={-model.h / 2 + 0.05} width={model.w} height={model.h} rx={0.12} fill="#000" opacity={0.45} filter="url(#ps-blur-md)" />
+        <image href={model.href} x={-0.12} y={-model.h / 2} width={model.w} height={model.h} preserveAspectRatio="none" />
+      </g>
+    );
+  }
   return (
     <g transform={`translate(${P(at)}) rotate(${n2(a)})`}>
       <rect x={-0.04} y={-0.08} width={0.84} height={0.2} rx={0.06} fill="#000" opacity={0.42} filter="url(#ps-blur-sm)" />

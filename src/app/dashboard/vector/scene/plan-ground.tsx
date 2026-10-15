@@ -213,7 +213,7 @@ const FILL = (id: string) => `url(#${id})`;
  *  surface, each lane's wheel tracks polished lighter and the oil down its
  *  middle, tar snakes over the cracks, an older patch. `lanes` are the y
  *  of each lane's centre line. */
-export function Tarmac({ x, y, w, h, seed = 1, lanes = [] }: { x: number; y: number; w: number; h: number; seed?: number; lanes?: number[] }) {
+export function Tarmac({ x, y, w, h, seed = 1, lanes = [], tint }: { x: number; y: number; w: number; h: number; seed?: number; lanes?: number[]; /** A colour laid over the aggregate, to match the tarmac around it. */ tint?: string }) {
   const r = prng(seed);
   const mottle = Array.from({ length: 9 }, () => [x + r() * w, y + r() * h, 0.8 + r() * 1.8, 0.5 + r() * 1.1, r() > 0.45] as const);
   const snakes = Array.from({ length: 4 }, () => { const pts: Pt[] = []; let px = x + r() * w, py = y + r() * h; for (let k = 0; k < 6; k++) { pts.push([px, py]); px += (r() - 0.3) * 0.9; py += (r() - 0.5) * 0.9; } return pts; });
@@ -221,6 +221,7 @@ export function Tarmac({ x, y, w, h, seed = 1, lanes = [] }: { x: number; y: num
   return (
     <g>
       <rect x={x} y={y} width={w} height={h} fill="url(#pg-tarmac)" />
+      {tint && <rect x={x} y={y} width={w} height={h} fill={tint} opacity={0.62} />}
       {mottle.map(([cx, cy, rx, ry, light], i) => <ellipse key={i} cx={cx} cy={cy} rx={rx} ry={ry} fill={light ? "url(#pg-mottle-l)" : "url(#pg-mottle-d)"} />)}
       <rect x={patch[0]} y={patch[1]} width={1.4} height={0.9} fill="#3b3f44" opacity={0.55} />
       <rect x={patch[0]} y={patch[1]} width={1.4} height={0.9} fill="none" stroke="#111315" strokeWidth={0.02} strokeOpacity={0.6} />

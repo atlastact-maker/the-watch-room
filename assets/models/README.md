@@ -33,6 +33,7 @@ metre space, so a model only needs to be the right size.
 | File | Key | What |
 | --- | --- | --- |
 | `hydraulic-spreaders.glb` | `spreaders` | Hydraulic rescue spreaders on the RTC stage's salvage sheet and at the door. |
+| `hydraulic-cutters.glb` (to come) | `cutters` | The rescue cutters. The RTC stage draws them until the model lands; a `cutters` row in `MODELS` with the blades turned to +x, rendered, replaces the drawing with no other change. |
 | `firefighter.glb` | `firefighter_run`, `firefighter_walk`, `firefighter_stand` | A firefighter with a Mixamo rig and two clips, `Running` and `Walking`, each rendered as a sheet of frames, and one pose of the walk with the feet together as the standing figure. The crews run in with it when a job starts, walk between jobs and back to the appliance, stand by it, and go to the kit and back on the ground view. |
 
 ## Animations

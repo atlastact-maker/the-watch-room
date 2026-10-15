@@ -123,6 +123,15 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
   const area = photo
     ? { x: -photo.origin[0] / photo.ppm, y: -photo.origin[1] / photo.ppm, w: photo.size[0] / photo.ppm, h: photo.size[1] / photo.ppm }
     : { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
+  // The road is drawn crisp over a photograph — a photograph a few pixels
+  // to the metre goes soft long before the close framings — right across
+  // it, in its own tones, with the tapers and chevrons left to the image.
+  const span = photo ? { x: area.x, w: area.w } : null;
+  const tones = photo?.tones ?? null;
+  const dashes = photo?.dashes ?? { mark: 2, gap: 7, phaseX: 0 };
+  const dashPeriod = dashes.mark + dashes.gap;
+  const dashOffset = (x0: number) => { const d = (dashes.phaseX - x0) % dashPeriod; return (dashPeriod - ((d + dashPeriod) % dashPeriod)) % dashPeriod; };
+  const bandY0 = Math.min(...roads.map((r) => r.shape.y)), bandY1 = Math.max(...roads.map((r) => r.shape.y + r.shape.h));
 
   // ---- What is running past, and what the crews have done ---------------------------
   const highwaysAskedAt = log.filter((e) => e.id.startsWith(`hw-ask:${incident.id}:`)).map((e) => e.timestamp)[0] ?? null;
@@ -353,44 +362,64 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
           </mask>
           <linearGradient id="gv-deck" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.35" /><stop offset="0.15" stopColor="#fff" stopOpacity="0.08" /><stop offset="0.85" stopColor="#fff" stopOpacity="0.08" /><stop offset="1" stopColor="#000" stopOpacity="0.4" /></linearGradient>
           {photo && photo.cover && <clipPath id="gv-cover">{photo.cover.map((c, i) => <rect key={i} x={c.x} y={area.y} width={c.w} height={area.h} />)}</clipPath>}
+          {photo && (photo.keep ?? []).map((k, i) => (
+            <linearGradient key={i} id={`gv-keep-${i}`} gradientUnits="userSpaceOnUse" x1={k.x0} y1={0} x2={k.x1} y2={0}>
+              <stop offset="0" stopColor={k.fadeIn ? "#fff" : "#000"} />
+              <stop offset={Math.min(0.5, (k.fadeIn ?? 0) / Math.max(1, k.x1 - k.x0))} stopColor="#000" />
+              <stop offset={Math.max(0.5, 1 - (k.fadeOut ?? 0) / Math.max(1, k.x1 - k.x0))} stopColor="#000" />
+              <stop offset="1" stopColor={k.fadeOut ? "#fff" : "#000"} />
+            </linearGradient>
+          ))}
+          {photo && (
+            <mask id="gv-road-mask" maskUnits="userSpaceOnUse" x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40}>
+              <rect x={area.x - 20} y={bandY0} width={area.w + 40} height={bandY1 - bandY0} fill="#fff" />
+              {(photo.keep ?? []).map((k, i) => <rect key={i} x={k.x0} y={k.y0} width={k.x1 - k.x0} height={k.y1 - k.y0} fill={`url(#gv-keep-${i})`} />)}
+            </mask>
+          )}
         </defs>
         <g className="gv-world" transform={`translate(${n2(ox)} ${n2(oy)}) scale(${s.toFixed(3)})`}>
-          {photo ? (
+          {photo && (
             <g>
               {/* The place itself: the aerial photograph under everything, the verge's green beyond its edge. */}
               <rect x={area.x - 400} y={area.y - 400} width={area.w + 800} height={area.h + 800} fill="#2f4a2b" />
               <image href={photo.href} x={area.x} y={area.y} width={area.w} height={area.h} preserveAspectRatio="none" />
             </g>
-          ) : (
+          )}
+          <g mask={photo ? "url(#gv-road-mask)" : undefined}>
             <g>
               {/* The verges beyond the road, the road itself. */}
-              <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#2f4a2b" />
-              {(() => { const r = prng(hash(incident.id)); return Array.from({ length: 70 }, (_, i) => <ellipse key={i} cx={vb.x - 20 + r() * (vb.width + 40)} cy={vb.y - 20 + r() * (vb.height + 40)} rx={2 + r() * 7} ry={0.8 + r() * 3} fill={r() > 0.5 ? "#3c5c33" : "#253e23"} opacity={0.6} />); })()}
-              <rect x={vb.x - 20} y={vb.y - 20} width={vb.width + 40} height={vb.height + 40} fill="url(#pg-grass-wild)" opacity={0.25} />
+              {!photo && <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#2f4a2b" />}
+              {!photo && (() => { const r = prng(hash(incident.id)); return Array.from({ length: 70 }, (_, i) => <ellipse key={i} cx={vb.x - 20 + r() * (vb.width + 40)} cy={vb.y - 20 + r() * (vb.height + 40)} rx={2 + r() * 7} ry={0.8 + r() * 3} fill={r() > 0.5 ? "#3c5c33" : "#253e23"} opacity={0.6} />); })()}
+              {!photo && <rect x={vb.x - 20} y={vb.y - 20} width={vb.width + 40} height={vb.height + 40} fill="url(#pg-grass-wild)" opacity={0.25} />}
               {roads.map((r, i) => {
-                const sh = r.shape;
+                const sh = { ...r.shape, x: span?.x ?? r.shape.x, w: span?.w ?? r.shape.w };
+                const central = /central/i.test(r.label ?? "");
+                const shoulder = r.kind === "pavement" && !central;
                 const segs = Math.max(1, Math.ceil(sh.w / 30));
                 return (
                   <g key={i}>
-                    {Array.from({ length: segs }, (_, k) => <Tarmac key={k} x={sh.x + (k * sh.w) / segs} y={sh.y} w={sh.w / segs + 0.05} h={sh.h} seed={hash(`${r.label ?? r.kind}:${i}:${k}`)} />)}
-                    {r.kind === "pavement" && <rect x={sh.x} y={sh.y} width={sh.w} height={sh.h} fill={/central/i.test(r.label ?? "") ? "#8c9196" : "#fff"} opacity={/central/i.test(r.label ?? "") ? 0.55 : 0.07} />}
+                    {Array.from({ length: segs }, (_, k) => <Tarmac key={k} x={sh.x + (k * sh.w) / segs} y={sh.y} w={sh.w / segs + 0.05} h={sh.h} seed={hash(`${r.label ?? r.kind}:${i}:${k}`)} tint={tones?.road} />)}
+                    {shoulder && <rect x={sh.x} y={sh.y} width={sh.w} height={sh.h} fill={tones?.shoulder ?? "#fff"} opacity={tones ? 0.82 : 0.07} />}
+                    {central && <rect x={sh.x} y={sh.y} width={sh.w} height={sh.h} fill={tones?.reservation ?? "#8c9196"} opacity={tones ? 0.9 : 0.55} />}
+                    {central && tones && <rect x={sh.x} y={sh.y} width={sh.w} height={sh.h} fill="url(#pg-concrete)" opacity={0.35} />}
                   </g>
                 );
               })}
               {/* Markings: the lane lines, the edge lines, the rumble strip along the hard shoulder; the barrier down the central reservation and along the verges. */}
-              {[eb, wb].filter((x): x is SceneRect => !!x).map((cwy, ci) => {
+              {[eb, wb].filter((x): x is SceneRect => !!x).map((cwy0, ci) => {
+                const cwy = { ...cwy0, x: span?.x ?? cwy0.x, w: span?.w ?? cwy0.w };
                 const n = cw.lanes, h = cwy.h / n;
                 return (
                   <g key={ci}>
-                    {Array.from({ length: n - 1 }, (_, k) => <line key={k} x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (k + 1) * h} y2={cwy.y + (k + 1) * h} stroke="#f2f2ee" strokeWidth={0.15} strokeDasharray="2 7" opacity={0.85} />)}
+                    {Array.from({ length: n - 1 }, (_, k) => <line key={k} x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (k + 1) * h} y2={cwy.y + (k + 1) * h} stroke="#f2f2ee" strokeWidth={0.2} strokeDasharray={`${dashes.mark} ${dashes.gap}`} strokeDashoffset={dashOffset(cwy.x)} opacity={0.92} />)}
                     <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + 0.12} y2={cwy.y + 0.12} stroke="#f2f2ee" strokeWidth={0.2} opacity={0.9} />
                     <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + cwy.h - 0.12} y2={cwy.y + cwy.h - 0.12} stroke="#f2f2ee" strokeWidth={0.2} opacity={0.9} />
-                    <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (cwy === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} y2={cwy.y + (cwy === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} stroke="#000" strokeWidth={0.2} strokeDasharray="0.3 0.3" opacity={0.25} />
+                    <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (cwy0 === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} y2={cwy.y + (cwy0 === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} stroke="#000" strokeWidth={0.2} strokeDasharray="0.3 0.3" opacity={0.25} />
                   </g>
                 );
               })}
               {roads.filter((r) => r.kind === "pavement").map((r, i) => {
-                const sh = r.shape;
+                const sh = { ...r.shape, x: span?.x ?? r.shape.x, w: span?.w ?? r.shape.w };
                 const central = /central/i.test(r.label ?? "");
                 const y = central ? sh.y + sh.h / 2 : top === (sh.y < eb.y) ? sh.y + 0.25 : sh.y + sh.h - 0.25;
                 if (!central && !(top === (sh.y < eb.y))) return null;
@@ -403,7 +432,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
                 );
               })}
             </g>
-          )}
+          </g>
           {/* The traffic: what is still running past in each lane, both ways, and the queue a block holds. */}
           {traffic.live.map((l) => stream(`live:${l}`, laneY(l), flow, perLane, eastSpeed))}
           {wb && Array.from({ length: cw.lanes }, (_, k) => stream(`wb:${k}`, wb.y + (k + 0.5) * (wb.h / cw.lanes), flow > 0 ? -1 : 1, perLane, 13 + k * 3.5))}
