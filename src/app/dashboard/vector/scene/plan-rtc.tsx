@@ -41,18 +41,18 @@ export type RtcFinished = { key: string; crew: number; endedAt: number; applianc
 export const JOG_MS = 3000;
 const JOG_M = 8.1;
 /** Walking pace between jobs, and how long the walk off after the last one takes. */
-const WALK_MPS = 1.4;
+export const WALK_MPS = 1.4;
 export const WALK_OFF_MS = 4000;
 const WALK_OFF_M = 5.5;
 const RUN_MPS = JOG_M / (JOG_MS / 1000);
 
-type Leg = { from: Pt; to: Pt; ms: number };
-type Mover = { legs: Leg[]; since: number; clip: "firefighter_run" | "firefighter_walk" };
+export type Leg = { from: Pt; to: Pt; ms: number };
+export type Mover = { legs: Leg[]; since: number; clip: "firefighter_run" | "firefighter_walk" };
 
 /** One leg of a crew's walk, drawn at the moment `since` into it: the
  *  path is the element's own custom properties under the shared keyframe
  *  rule, the frames the sheet's own animation. */
-function Walker({ leg, since, clip, scale = 1 }: { leg: Leg; since: number; clip: Mover["clip"]; scale?: number }) {
+export function Walker({ leg, since, clip, scale = 1 }: { leg: Leg; since: number; clip: Mover["clip"]; scale?: number }) {
   const dir = sub(leg.to, leg.from);
   return (
     <g className="ps-jog" style={{ "--jx0": `${n2(leg.from[0])}px`, "--jy0": `${n2(leg.from[1])}px`, "--jx1": `${n2(leg.to[0])}px`, "--jy1": `${n2(leg.to[1])}px`, "--jog-dur": `${Math.round(leg.ms)}ms`, animationDelay: `${-Math.round(since)}ms` } as CSSProperties}>
@@ -64,7 +64,7 @@ function Walker({ leg, since, clip, scale = 1 }: { leg: Leg; since: number; clip
 }
 
 /** The leg under way `since` ms into a walk, or null once it is over. */
-function legAt(m: Mover): { leg: Leg; since: number; index: number } | null {
+export function legAt(m: Mover): { leg: Leg; since: number; index: number } | null {
   let t = 0;
   for (let i = 0; i < m.legs.length; i++) {
     const leg = m.legs[i];

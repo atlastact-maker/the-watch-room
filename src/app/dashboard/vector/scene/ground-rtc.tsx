@@ -21,11 +21,12 @@ import { latLngToMetres, type SceneCasualty, type SceneRect } from "@/lib/sim/sc
 import { trafficState } from "@/lib/sim/traffic";
 import { patientLook } from "@/lib/sim/patient_look";
 import type { ResolvedDeployment } from "../../components/incident-view";
-import { FigureDefs, rig, PlanFigure, P, len, sub, unit, lerp, type Pt, type Rig } from "./plan-figure";
+import { FigureDefs, rig, PlanFigure, P, len, sub, unit, lerp, deg, type Pt, type Rig } from "./plan-figure";
 import { KitDefs } from "./plan-kit";
 import { CrewTop, crewWearOf } from "./plan-crew";
 import { GroundDefs, WeatherDefs, Tarmac, prng, type Ambient } from "./plan-ground";
-import { RtcWreck, RtcDefs, Cone, PlanCar, PlanArtic, headingRotate } from "./plan-rtc";
+import { RtcWreck, RtcDefs, Cone, PlanCar, PlanArtic, Walker, legAt, headingRotate, WALK_MPS, type Mover } from "./plan-rtc";
+import { ModelSprite } from "./model-sprite";
 import { UnitSprite, unitFootprint } from "./plan-vehicles";
 import { wearOf, hash, type SceneCrew } from "../patient-scene";
 import { rtcJobs } from "../rtc-state";
@@ -35,6 +36,11 @@ const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
 
 /** How long a crew's walk back to the appliance is followed after a job ends. */
 const WALK_BACK_MS = 40_000;
+/** Crews standing by go on an errand to the wreck's kit now and then: one
+ *  of each appliance's crew at a time, each taking their turn once in
+ *  this long, a few seconds there. */
+const ERRAND_CYCLE_MS = 150_000;
+const ERRAND_PAUSE_MS = 4_500;
 /** The paint on the traffic: the greys and silvers of a motorway, a few colours. */
 const CAR_PAINTS = ["#9aa4ad", "#1f2a36", "#c3c9ce", "#5b6670", "#7b1e24", "#1d4f8c", "#d8d9d3", "#2f2f31", "#6d5c4a", "#e9e9e6", "#3f6b3a", "#8c3c1f"];
 
@@ -77,7 +83,7 @@ type Unit = {
   lights: string;
 };
 
-type Stander = { at: Pt; facing: Pt; service: "Fire" | "Ambulance" | "Police"; scope?: string; seed: number; role?: string; kneeling?: boolean; hands?: { left?: Pt; right?: Pt } };
+type Stander = { at: Pt; facing: Pt; service: "Fire" | "Ambulance" | "Police"; scope?: string; seed: number; role?: string; kneeling?: boolean; hands?: { left?: Pt; right?: Pt }; /** On an errand: the walk under way. */ mover?: Mover };
 
 export function RtcGround({ view, incident, resolved, tasks, log, now, sim, treatmentByCasualtyId, resusByCasualtyId, hour, rain, selectedUnitId, onSelectUnit, commanderApplianceId }: RtcGroundProps) {
   const box = useRef<HTMLDivElement>(null);
@@ -112,6 +118,11 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
   const hs = roads.find((r) => r.kind === "pavement" && (top ? Math.abs(r.shape.y + r.shape.h - eb.y) < 0.05 : Math.abs(r.shape.y - (eb.y + eb.h)) < 0.05))?.shape ?? null;
   const hsMid = hs ? hs.y + hs.h / 2 : top ? eb.y - 1.5 : eb.y + eb.h + 1.5;
   const amb: Ambient = { night: hour !== undefined && (hour < 7 || hour >= 18.5), rain: !!rain };
+  // The ground: the aerial photograph where there is one, else the scene's box.
+  const photo = view.photo ?? null;
+  const area = photo
+    ? { x: -photo.origin[0] / photo.ppm, y: -photo.origin[1] / photo.ppm, w: photo.size[0] / photo.ppm, h: photo.size[1] / photo.ppm }
+    : { x: vb.x, y: vb.y, w: vb.width, h: vb.height };
 
   // ---- What is running past, and what the crews have done ---------------------------
   const highwaysAskedAt = log.filter((e) => e.id.startsWith(`hw-ask:${incident.id}:`)).map((e) => e.timestamp)[0] ?? null;
@@ -197,6 +208,23 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
 
   const standers: Stander[] = [];
   const wreckCentre: Pt = wrecks.length ? [wrecks.reduce((a, w) => a + w.at[0], 0) / wrecks.length, wrecks.reduce((a, w) => a + w.at[1], 0) / wrecks.length] : [0, 0];
+  // Where an errand goes: the kit laid out beyond the first wreck's nose.
+  const kitAt: Pt | null = wrecks.length ? (() => { const w = wrecks[0]; const th = (headingRotate(w.heading) * Math.PI) / 180; const l: Pt = [-5.8, 1.5]; return [w.at[0] + l[0] * Math.cos(th) - l[1] * Math.sin(th), w.at[1] + l[0] * Math.sin(th) + l[1] * Math.cos(th)]; })() : null;
+  // A fire crew member standing by goes to the kit and back now and then:
+  // where they are in that at this moment — walking out, there, walking
+  // back, or standing by — from the clock alone.
+  const errand = (unitKey: string, i: number, n: number, from: Pt): { mover?: Mover; at: Pt } => {
+    if (!kitAt) return { at: from };
+    const ms = Math.max(2000, (len(sub(kitAt, from)) / WALK_MPS) * 1000);
+    const tU = now + (hash(unitKey) % ERRAND_CYCLE_MS);
+    // Whose turn it is this cycle; the rest stand by.
+    if (Math.floor(tU / ERRAND_CYCLE_MS) % n !== i) return { at: from };
+    const t = tU % ERRAND_CYCLE_MS;
+    if (t < ms) return { mover: { legs: [{ from, to: kitAt, ms }], since: t, clip: "firefighter_walk" }, at: kitAt };
+    if (t < ms + ERRAND_PAUSE_MS) return { at: kitAt };
+    if (t < 2 * ms + ERRAND_PAUSE_MS) return { mover: { legs: [{ from: kitAt, to: from, ms }], since: t - ms - ERRAND_PAUSE_MS, clip: "firefighter_walk" }, at: from };
+    return { at: from };
+  };
   for (const u of units) {
     const a = u.r.appliance;
     const service = a.service === "Fire" || a.service === "Ambulance" || a.service === "Police" ? a.service : "Fire";
@@ -214,7 +242,8 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     for (let i = 0; i < n; i++) {
       const along = -fp.l * 0.3 + (i * (fp.l * 0.6)) / Math.max(1, n - 1);
       const at: Pt = [u.at[0] + axis[0] * along + across[0] * side * (fp.w / 2 + 0.55), u.at[1] + axis[1] * along + across[1] * side * (fp.w / 2 + 0.55)];
-      standers.push({ at, facing: unit(toWreck), service, scope: scopeOfApplianceType(a.type), seed: hash(`${a.id}:${i}`), role: service === "Ambulance" ? "PARAMEDIC" : service === "Police" ? "POLICE" : undefined });
+      const e = service === "Fire" ? errand(`${a.id}:errand`, i, n, at) : { at };
+      standers.push({ at: e.at, facing: e.at === at ? unit(toWreck) : unit(sub(at, e.at)), mover: e.mover, service, scope: scopeOfApplianceType(a.type), seed: hash(`${a.id}:${i}`), role: service === "Ambulance" ? "PARAMEDIC" : service === "Police" ? "POLICE" : undefined });
     }
   }
   // The fend-off crew member at the back of the appliance with the cones; the officers on the taper.
@@ -254,7 +283,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
   }
 
   // ---- The traffic ------------------------------------------------------------------------
-  const x0 = vb.x - 8, x1 = vb.x + vb.width + 8;
+  const x0 = area.x - 8, x1 = area.x + area.w + 8;
   const stream = (key: string, y: number, dir: 1 | -1, n: number, mps: number): ReactNode => {
     const r = prng(hash(key));
     const dur = (x1 - x0) / mps;
@@ -276,11 +305,15 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
 
   // ---- The frame: what the picture shows, and the metres per pixel -------------------------
   const wx = wrecks.map((w) => w.at[0]);
+  const aspect = size.w / Math.max(1, size.h);
+  const roadMid = (Math.min(eb.y, wb?.y ?? eb.y) + Math.max(eb.y + eb.h, wb ? wb.y + wb.h : eb.y + eb.h)) / 2;
+  const wideH = Math.min(area.h, area.w / aspect);
   const boxes: Record<Frame, { x0: number; x1: number; y0: number; y1: number }> = {
-    wide: { x0: vb.x, x1: vb.x + vb.width, y0: vb.y, y1: vb.y + vb.height },
+    wide: { x0: area.x, x1: area.x + area.w, y0: Math.max(area.y, Math.min(area.y + area.h - wideH, roadMid - wideH / 2)), y1: 0 },
     work: view.focus,
     wreck: { x0: Math.min(...wx) - 9, x1: Math.max(...wx) + 9, y0: eb.y - (top ? 5 : 3), y1: eb.y + eb.h + (top ? 3 : 5) },
   };
+  boxes.wide.y1 = boxes.wide.y0 + wideH;
   const fb = boxes[frame];
   const s = Math.min(size.w / (fb.x1 - fb.x0), size.h / (fb.y1 - fb.y0));
   const ox = size.w / 2 - ((fb.x0 + fb.x1) / 2) * s, oy = size.h / 2 - ((fb.y0 + fb.y1) / 2) * s;
@@ -314,52 +347,63 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
           <WeatherDefs />
           <RtcDefs />
           <radialGradient id="gv-pool" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#000" /><stop offset="0.55" stopColor="#000" stopOpacity="0.8" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></radialGradient>
-          <mask id="gv-night" maskUnits="userSpaceOnUse" x={vb.x} y={vb.y} width={vb.width} height={vb.height}>
-            <rect x={vb.x} y={vb.y} width={vb.width} height={vb.height} fill="#fff" />
+          <mask id="gv-night" maskUnits="userSpaceOnUse" x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40}>
+            <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#fff" />
             {pools.map((p, i) => <circle key={i} cx={p.at[0]} cy={p.at[1]} r={p.r} fill="url(#gv-pool)" />)}
           </mask>
           <linearGradient id="gv-deck" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#000" stopOpacity="0.35" /><stop offset="0.15" stopColor="#fff" stopOpacity="0.08" /><stop offset="0.85" stopColor="#fff" stopOpacity="0.08" /><stop offset="1" stopColor="#000" stopOpacity="0.4" /></linearGradient>
+          {photo && photo.cover && <clipPath id="gv-cover">{photo.cover.map((c, i) => <rect key={i} x={c.x} y={area.y} width={c.w} height={area.h} />)}</clipPath>}
         </defs>
         <g className="gv-world" transform={`translate(${n2(ox)} ${n2(oy)}) scale(${s.toFixed(3)})`}>
-          {/* The verges beyond the road, the road itself. */}
-          <rect x={vb.x - 20} y={vb.y - 20} width={vb.width + 40} height={vb.height + 40} fill="#2f4a2b" />
-          {(() => { const r = prng(hash(incident.id)); return Array.from({ length: 70 }, (_, i) => <ellipse key={i} cx={vb.x - 20 + r() * (vb.width + 40)} cy={vb.y - 20 + r() * (vb.height + 40)} rx={2 + r() * 7} ry={0.8 + r() * 3} fill={r() > 0.5 ? "#3c5c33" : "#253e23"} opacity={0.6} />); })()}
-          <rect x={vb.x - 20} y={vb.y - 20} width={vb.width + 40} height={vb.height + 40} fill="url(#pg-grass-wild)" opacity={0.25} />
-          {roads.map((r, i) => {
-            const sh = r.shape;
-            const segs = Math.max(1, Math.ceil(sh.w / 30));
-            return (
-              <g key={i}>
-                {Array.from({ length: segs }, (_, k) => <Tarmac key={k} x={sh.x + (k * sh.w) / segs} y={sh.y} w={sh.w / segs + 0.05} h={sh.h} seed={hash(`${r.label ?? r.kind}:${i}:${k}`)} />)}
-                {r.kind === "pavement" && <rect x={sh.x} y={sh.y} width={sh.w} height={sh.h} fill={/central/i.test(r.label ?? "") ? "#8c9196" : "#fff"} opacity={/central/i.test(r.label ?? "") ? 0.55 : 0.07} />}
-              </g>
-            );
-          })}
-          {/* Markings: the lane lines, the edge lines, the rumble strip along the hard shoulder; the barrier down the central reservation and along the verges. */}
-          {[eb, wb].filter((x): x is SceneRect => !!x).map((cwy, ci) => {
-            const n = cw.lanes, h = cwy.h / n;
-            return (
-              <g key={ci}>
-                {Array.from({ length: n - 1 }, (_, k) => <line key={k} x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (k + 1) * h} y2={cwy.y + (k + 1) * h} stroke="#f2f2ee" strokeWidth={0.15} strokeDasharray="2 7" opacity={0.85} />)}
-                <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + 0.12} y2={cwy.y + 0.12} stroke="#f2f2ee" strokeWidth={0.2} opacity={0.9} />
-                <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + cwy.h - 0.12} y2={cwy.y + cwy.h - 0.12} stroke="#f2f2ee" strokeWidth={0.2} opacity={0.9} />
-                <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (cwy === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} y2={cwy.y + (cwy === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} stroke="#000" strokeWidth={0.2} strokeDasharray="0.3 0.3" opacity={0.25} />
-              </g>
-            );
-          })}
-          {roads.filter((r) => r.kind === "pavement").map((r, i) => {
-            const sh = r.shape;
-            const central = /central/i.test(r.label ?? "");
-            const y = central ? sh.y + sh.h / 2 : top === (sh.y < eb.y) ? sh.y + 0.25 : sh.y + sh.h - 0.25;
-            if (!central && !(top === (sh.y < eb.y))) return null;
-            return (
-              <g key={i}>
-                <line x1={sh.x} x2={sh.x + sh.w} y1={y} y2={y} stroke="#6f7478" strokeWidth={0.32} />
-                <line x1={sh.x} x2={sh.x + sh.w} y1={y - 0.09} y2={y - 0.09} stroke="#c9ced2" strokeWidth={0.06} opacity={0.8} />
-                {Array.from({ length: Math.floor(sh.w / 4) }, (_, k) => <rect key={k} x={sh.x + 2 + k * 4} y={y - 0.2} width={0.14} height={0.4} fill="#4a4f53" />)}
-              </g>
-            );
-          })}
+          {photo ? (
+            <g>
+              {/* The place itself: the aerial photograph under everything, the verge's green beyond its edge. */}
+              <rect x={area.x - 400} y={area.y - 400} width={area.w + 800} height={area.h + 800} fill="#2f4a2b" />
+              <image href={photo.href} x={area.x} y={area.y} width={area.w} height={area.h} preserveAspectRatio="none" />
+            </g>
+          ) : (
+            <g>
+              {/* The verges beyond the road, the road itself. */}
+              <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#2f4a2b" />
+              {(() => { const r = prng(hash(incident.id)); return Array.from({ length: 70 }, (_, i) => <ellipse key={i} cx={vb.x - 20 + r() * (vb.width + 40)} cy={vb.y - 20 + r() * (vb.height + 40)} rx={2 + r() * 7} ry={0.8 + r() * 3} fill={r() > 0.5 ? "#3c5c33" : "#253e23"} opacity={0.6} />); })()}
+              <rect x={vb.x - 20} y={vb.y - 20} width={vb.width + 40} height={vb.height + 40} fill="url(#pg-grass-wild)" opacity={0.25} />
+              {roads.map((r, i) => {
+                const sh = r.shape;
+                const segs = Math.max(1, Math.ceil(sh.w / 30));
+                return (
+                  <g key={i}>
+                    {Array.from({ length: segs }, (_, k) => <Tarmac key={k} x={sh.x + (k * sh.w) / segs} y={sh.y} w={sh.w / segs + 0.05} h={sh.h} seed={hash(`${r.label ?? r.kind}:${i}:${k}`)} />)}
+                    {r.kind === "pavement" && <rect x={sh.x} y={sh.y} width={sh.w} height={sh.h} fill={/central/i.test(r.label ?? "") ? "#8c9196" : "#fff"} opacity={/central/i.test(r.label ?? "") ? 0.55 : 0.07} />}
+                  </g>
+                );
+              })}
+              {/* Markings: the lane lines, the edge lines, the rumble strip along the hard shoulder; the barrier down the central reservation and along the verges. */}
+              {[eb, wb].filter((x): x is SceneRect => !!x).map((cwy, ci) => {
+                const n = cw.lanes, h = cwy.h / n;
+                return (
+                  <g key={ci}>
+                    {Array.from({ length: n - 1 }, (_, k) => <line key={k} x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (k + 1) * h} y2={cwy.y + (k + 1) * h} stroke="#f2f2ee" strokeWidth={0.15} strokeDasharray="2 7" opacity={0.85} />)}
+                    <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + 0.12} y2={cwy.y + 0.12} stroke="#f2f2ee" strokeWidth={0.2} opacity={0.9} />
+                    <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + cwy.h - 0.12} y2={cwy.y + cwy.h - 0.12} stroke="#f2f2ee" strokeWidth={0.2} opacity={0.9} />
+                    <line x1={cwy.x} x2={cwy.x + cwy.w} y1={cwy.y + (cwy === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} y2={cwy.y + (cwy === eb ? (top ? 0.12 : cwy.h - 0.12) : (top ? cwy.h - 0.12 : 0.12))} stroke="#000" strokeWidth={0.2} strokeDasharray="0.3 0.3" opacity={0.25} />
+                  </g>
+                );
+              })}
+              {roads.filter((r) => r.kind === "pavement").map((r, i) => {
+                const sh = r.shape;
+                const central = /central/i.test(r.label ?? "");
+                const y = central ? sh.y + sh.h / 2 : top === (sh.y < eb.y) ? sh.y + 0.25 : sh.y + sh.h - 0.25;
+                if (!central && !(top === (sh.y < eb.y))) return null;
+                return (
+                  <g key={i}>
+                    <line x1={sh.x} x2={sh.x + sh.w} y1={y} y2={y} stroke="#6f7478" strokeWidth={0.32} />
+                    <line x1={sh.x} x2={sh.x + sh.w} y1={y - 0.09} y2={y - 0.09} stroke="#c9ced2" strokeWidth={0.06} opacity={0.8} />
+                    {Array.from({ length: Math.floor(sh.w / 4) }, (_, k) => <rect key={k} x={sh.x + 2 + k * 4} y={y - 0.2} width={0.14} height={0.4} fill="#4a4f53" />)}
+                  </g>
+                );
+              })}
+            </g>
+          )}
           {/* The traffic: what is still running past in each lane, both ways, and the queue a block holds. */}
           {traffic.live.map((l) => stream(`live:${l}`, laneY(l), flow, perLane, eastSpeed))}
           {wb && Array.from({ length: cw.lanes }, (_, k) => stream(`wb:${k}`, wb.y + (k + 0.5) * (wb.h / cw.lanes), flow > 0 ? -1 : 1, perLane, 13 + k * 3.5))}
@@ -442,11 +486,19 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
             );
           })}
           {/* Everyone standing by: the crews at their appliances, the fend-off's, the officers on the cones. */}
-          {standers.map((f, i) => (
-            <g key={i}>{scaled(f.at, <CrewTop at={f.at} facing={f.facing} hands={f.hands ?? {}} kneeling={!!f.kneeling} style={{ animationDelay: `${((i * 1.3) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: f.service !== "Fire" || amb.night, role: f.role ?? "" })} />)}</g>
-          ))}
-          {/* The overbridge, over everything under it. */}
-          {view.bridge && (
+          {standers.map((f, i) => {
+            const cur = f.mover ? legAt(f.mover) : null;
+            if (f.mover && cur) return <Walker key={`${i}:${cur.index}`} leg={cur.leg} since={cur.since} clip={f.mover.clip} scale={K} />;
+            if (f.service === "Fire") return <g key={i}>{scaled(f.at, <ModelSprite id="firefighter_stand" at={f.at} a={deg(f.facing)} />)}</g>;
+            return <g key={i}>{scaled(f.at, <CrewTop at={f.at} facing={f.facing} hands={f.hands ?? {}} kneeling={!!f.kneeling} style={{ animationDelay: `${((i * 1.3) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: true, role: f.role ?? "" })} />)}</g>;
+          })}
+          {/* The overbridge, over everything under it: the photograph's own decks, or a drawn one. */}
+          {photo && photo.cover && (
+            <g clipPath="url(#gv-cover)">
+              <image href={photo.href} x={area.x} y={area.y} width={area.w} height={area.h} preserveAspectRatio="none" />
+            </g>
+          )}
+          {!photo && view.bridge && (
             <g>
               <rect x={view.bridge.x + 0.6} y={vb.y - 20} width={view.bridge.w} height={vb.height + 40} fill="#000" opacity={0.38} filter="url(#ps-blur-md)" />
               <rect x={view.bridge.x} y={vb.y - 20} width={view.bridge.w} height={vb.height + 40} fill="#8d9094" />
@@ -458,7 +510,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
             </g>
           )}
           {/* Night, with the scene lighting and the units' own light pooling on the road. */}
-          {amb.night && <rect x={vb.x - 20} y={vb.y - 20} width={vb.width + 40} height={vb.height + 40} fill="#071020" opacity={0.62} mask="url(#gv-night)" />}
+          {amb.night && <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#071020" opacity={0.62} mask="url(#gv-night)" />}
           {/* The plates: who each unit is and what it is doing where it is. */}
           {units.map((u) => {
             const fp = unitFootprint(u.r.appliance.type, u.r.appliance.service);
@@ -471,8 +523,8 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
           {frame !== "wreck" && view.stopped.map((v) => <g key={v.label}>{plate(v.at, 2.2, [{ text: v.label, cls: "sub" }])}</g>)}
           {frame === "wide" && (
             <g>
-              {plate([vb.x + 6, laneY(Math.ceil(cw.lanes / 2))], 0, [{ text: `${cw.upstream} →`, cls: "road" }])}
-              {plate([vb.x + vb.width - 6, laneY(Math.ceil(cw.lanes / 2))], 0, [{ text: `→ ${cw.downstream}`, cls: "road" }])}
+              {plate([area.x + 10, laneY(Math.ceil(cw.lanes / 2))], 0, [{ text: `${cw.upstream} →`, cls: "road" }])}
+              {plate([area.x + area.w - 10, laneY(Math.ceil(cw.lanes / 2))], 0, [{ text: `→ ${cw.downstream}`, cls: "road" }])}
             </g>
           )}
         </g>

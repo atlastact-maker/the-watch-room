@@ -8,8 +8,9 @@ export type ModelSprite = { href: string; w: number; h: number; frames?: number;
 
 export const MODEL_SPRITES = {
   firefighter_run: { href: "/models/firefighter_run.png", w: 1.281, h: 0.803, frames: 16, fps: 24, cols: 16 }, // 
+  firefighter_stand: { href: "/models/firefighter_stand.png", w: 1.036, h: 0.725, frames: 1, fps: 0.96, cols: 1 }, // A firefighter standing: faces +x, one pose of the Walking clip with the feet together.
   firefighter_walk: { href: "/models/firefighter_walk.png", w: 1.108, h: 0.788, frames: 20, fps: 19.2, cols: 20 }, // 
-  spreaders: { href: "/models/spreaders.png", w: 1.009, h: 0.393 }, // Hydraulic rescue spreaders (Meshy): arms to +x, the hose coupling at -x.
+  spreaders: { href: "/models/spreaders.png", w: 1.009, h: 0.393 }, // 
 } satisfies Record<string, ModelSprite>;
 
 export type ModelSpriteKey = keyof typeof MODEL_SPRITES;

@@ -31,10 +31,14 @@ export type RtcGroundView = {
   taper: { from: number; to: number; until: number };
   /** Other vehicles stopped on the road: the witnesses', the caller's. */
   stopped: ({ label: string; kind: "car" | "van" | "artic"; paint?: string } & Placing)[];
-  /** A bridge over the carriageway, along x. */
+  /** A bridge over the carriageway, along x — drawn when there is no photograph to show it. */
   bridge?: { x: number; w: number };
   /** Where the eye goes first: the box the working-area frame shows, in metres. */
   focus: { x0: number; x1: number; y0: number; y1: number };
+  /** An aerial photograph of the place, laid under the scene: the image
+   *  in public, its pixels per metre, and the pixel that sits at the
+   *  scene's origin. The scene's roads are authored to its measurements. */
+  photo?: { href: string; ppm: number; origin: Pt; size: Pt; /** Spans of the photograph that stand above the road — bridge decks — drawn back over whatever passes under them, in metres along x. */ cover?: { x: number; w: number }[] };
 };
 
 export type GroundView = RtcGroundView;
@@ -44,31 +48,35 @@ const VIEWS: Record<string, GroundView> = {
   // running west to east with the hard shoulder on the north side; the
   // Transit at the front nose-on towards the central reservation, the Kia
   // behind it across lanes 2 and 3, the Polo last; the witness's Astra and
-  // the caller's artic pulled onto the hard shoulder behind; the overbridge
-  // downstream of the wreck.
+  // the caller's artic pulled onto the hard shoulder behind. The ground is
+  // the aerial photograph of the junction: the wreck sits just east of its
+  // two overbridges, short of the on-slip merge; the rolling block stops
+  // the traffic at the bridge. Lane lines in the photograph are 15.2 px
+  // apart for 3.65 m lanes, so 4.16 px to the metre; the eastbound nearside
+  // edge line is row 455.5 and the scene's x = 0 is column 575.
   "03": {
     kind: "rtc",
     flow: 1,
     nearside: "top",
+    photo: { href: "/scenes/rtc-m60-j17.jpg", ppm: 4.16, origin: [575, 492.9], size: [1024, 1024], cover: [{ x: -121.9, w: 12.7 }, { x: -66.1, w: 12.7 }] },
     wrecks: [
       { vehicleId: "veh-transit", at: [18, -4], heading: 118 },
       { vehicleId: "veh-ceed", at: [8, -2], heading: 72 },
       { vehicleId: "veh-polo", at: [-2, 0], heading: 104 },
     ],
     holding: [
-      { at: [-22, -10.5], heading: 90 }, { at: [-31, -10.5], heading: 90 }, { at: [26, -10.5], heading: 90 },
-      { at: [34, -10.5], heading: 90 }, { at: [-58, -10.5], heading: 90 }, { at: [-14, -7.3], heading: 90 },
+      { at: [-22, -10.85], heading: 90 }, { at: [-31, -10.85], heading: 90 }, { at: [27, -10.85], heading: 90 },
+      { at: [35, -10.85], heading: 90 }, { at: [-60, -10.85], heading: 90 }, { at: [-16, -7.2], heading: 90 },
     ],
-    fendOff: { at: [-10.5, -3.0], heading: 128 },
+    fendOff: { at: [-10.5, -2.6], heading: 128 },
     block: { at: [-50, -3.6], heading: 142 },
-    junction: { at: [-57, -7.3], heading: 90 },
+    junction: { at: [-58, -10.85], heading: 90 },
     taper: { from: -44, to: -26, until: -8 },
     stopped: [
-      { label: "Astra (witness)", kind: "car", paint: "#8f9aa5", at: [-12, -10.4], heading: 90 },
-      { label: "HGV (caller)", kind: "artic", at: [-45, -10.35], heading: 90 },
+      { label: "Astra (witness)", kind: "car", paint: "#8f9aa5", at: [-12, -10.9], heading: 90 },
+      { label: "HGV (caller)", kind: "artic", at: [-43, -10.9], heading: 90 },
     ],
-    bridge: { x: 42, w: 8 },
-    focus: { x0: -47, x1: 33, y0: -17, y1: 8 },
+    focus: { x0: -62, x1: 36, y0: -21, y1: 13 },
   },
 };
 

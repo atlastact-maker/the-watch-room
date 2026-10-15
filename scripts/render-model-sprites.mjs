@@ -40,11 +40,13 @@ const OUT_TS = resolve(root, "src/app/dashboard/vector/scene/model-sprites.ts");
  *  the scenes show kit at roughly 90 px per metre, so 400 keeps a small
  *  thing crisp when zoomed without a heavy file, and a person's sheet of
  *  frames stays sane at 220. `clip` names an animation in the file and
- *  `frames` how many poses of it to keep. */
+ *  `frames` how many poses of it to keep; `at` starts them that far
+ *  into the clip (a fraction), so one frame can be a chosen pose. */
 const MODELS = {
   spreaders: { file: "hydraulic-spreaders.glb", yaw: 180, ppm: 400, note: "Hydraulic rescue spreaders (Meshy): arms to +x, the hose coupling at -x." },
   firefighter_run: { file: "firefighter.glb", yaw: 90, ppm: 220, clip: "Running", frames: 16, pad: 0.05, note: "A firefighter running (Meshy, Mixamo rig): faces +x, the Running clip in 16 frames." },
   firefighter_walk: { file: "firefighter.glb", yaw: 90, ppm: 220, clip: "Walking", frames: 20, pad: 0.05, note: "A firefighter walking: faces +x, the Walking clip in 20 frames." },
+  firefighter_stand: { file: "firefighter.glb", yaw: 90, ppm: 220, clip: "Walking", frames: 1, at: 0.27, pad: 0.05, note: "A firefighter standing: faces +x, one pose of the Walking clip with the feet together." },
 };
 
 const MIME = { ".js": "text/javascript", ".mjs": "text/javascript", ".glb": "model/gltf-binary", ".html": "text/html", ".json": "application/json", ".wasm": "application/wasm" };
@@ -107,7 +109,8 @@ window.renderModel = async (url, opts) => {
   };
   // The frame: the union of every pose, so the figure never jumps between frames.
   const box = new THREE.Box3();
-  for (let i = 0; i < frames; i++) { poseAt(clip ? (i / frames) * clip.duration : 0); box.union(bounds()); }
+  const at0 = opts.at ?? 0;
+  for (let i = 0; i < frames; i++) { poseAt(clip ? (i / frames + at0) * clip.duration : 0); box.union(bounds()); }
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
   model.position.sub(centre);
@@ -149,7 +152,7 @@ window.renderModel = async (url, opts) => {
   sheet.height = H * rows;
   const ctx = sheet.getContext("2d");
   for (let i = 0; i < frames; i++) {
-    poseAt((i / frames) * clip.duration);
+    poseAt((i / frames + at0) * clip.duration);
     renderer.render(scene, cam);
     ctx.drawImage(renderer.domElement, (i % cols) * W, Math.floor(i / cols) * H);
   }
@@ -177,7 +180,7 @@ async function main() {
     if (!m) { console.error(`unknown model "${key}"`); process.exitCode = 1; continue; }
     if (!existsSync(resolve(SRC, m.file))) { console.error(`missing ${resolve(SRC, m.file)}`); process.exitCode = 1; continue; }
     const url = `/assets/models/${m.file}`;
-    const out = await page.evaluate((args) => window.renderModel(args.url, args.opts), { url, opts: { yaw: m.yaw, ppm: m.ppm, pad: m.pad, clip: m.clip, frames: m.frames } });
+    const out = await page.evaluate((args) => window.renderModel(args.url, args.opts), { url, opts: { yaw: m.yaw, ppm: m.ppm, pad: m.pad, clip: m.clip, frames: m.frames, at: m.at } });
     const png = Buffer.from(out.png.split(",")[1], "base64");
     writeFileSync(resolve(OUT_DIR, `${key}.png`), png);
     meta[key] = { href: `/models/${key}.png`, w: round(out.w), h: round(out.h), note: m.note, ...(out.frames ? { frames: out.frames, fps: round(out.fps), cols: out.cols } : {}) };

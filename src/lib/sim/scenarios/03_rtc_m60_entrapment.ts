@@ -42,7 +42,7 @@ export const scenario03: Scenario = {
       "Fuel spillage suspected from the LGV's split tank",
     ],
     access:
-      "Hard shoulder clear initially but will narrow once rolling block imposed. Lane 1 must stay trafficable for approach. Approach eastbound from J17 (upstream, to the west); the overbridge is beyond the wreck",
+      "Hard shoulder clear initially but will narrow once rolling block imposed. Lane 1 must stay trafficable for approach. Approach eastbound from J17 (upstream, to the west); the wreck is just beyond the junction's overbridges, short of the on-slip merge",
     knownHazards: [
       "Live carriageway — running traffic at 60–70 mph (no variable limit set yet) until rolling block in place",
       "Possible diesel spillage from LGV",
@@ -468,39 +468,42 @@ export const scenario03: Scenario = {
     },
   ],
 
-  // Top-down scene — 120 m wide × 40 m deep motorway section. SVG +Y = south.
+  // Top-down scene — 120 m wide × 48 m deep motorway section. SVG +Y = south.
   // Carriageway runs west-to-east: three eastbound lanes with the hard
   // shoulder on the north (nearside) edge and the central reservation to
   // the south, westbound beyond that. Traffic arrives from the west (J17).
   // Wreckage in lane 2/3 with the LGV at the front (east), nose-on to the
-  // central reservation; the overbridge is downstream of the wreck.
+  // central reservation, just east of the junction's two overbridges and
+  // short of the on-slip merge. The lane widths, the reservation and the
+  // shoulders are measured off the aerial photograph the ground view lays
+  // under the scene (public/scenes/rtc-m60-j17.jpg, see ground-views.ts).
   scene: {
-    viewBox: { x: -60, y: -20, width: 120, height: 40 },
+    viewBox: { x: -60, y: -24, width: 120, height: 48 },
     compassNorth: "up",
     // Three running lanes eastbound. The wreck sits across lanes 2 and 3;
     // lane 1 runs past it until the police shut it, block the carriageway
     // from J17 or National Highways close it at the junction.
     carriageway: { name: "M60 eastbound", lanes: 3, hardShoulder: true, blocked: [2, 3], mustClose: [1], upstream: "J17", downstream: "J18", flow: "moderate", highwaysEtaMin: 15 },
     buildings: [
-      // Overbridge — shown as a rectangle spanning the carriageway at the
-      // eastern edge, downstream of the wreck.
+      // The junction's eastern overbridge — the roundabout's carriageway
+      // over the motorway, just upstream of the wreck.
       {
-        shape: { x: 42, y: -18, w: 8, h: 36 },
+        shape: { x: -66, y: -24, w: 12.4, h: 48 },
         kind: "other",
-        label: "Overbridge",
+        label: "Overbridge (J17)",
       },
     ],
     roads: [
       // Hard shoulder (north side — nearside for eastbound)
-      { shape: { x: -60, y: -12, w: 120, h: 3 }, kind: "pavement", label: "Hard shoulder" },
+      { shape: { x: -60, y: -12.7, w: 120, h: 3.7 }, kind: "pavement", label: "Hard shoulder" },
       // Eastbound carriageway — three lanes
       { shape: { x: -60, y: -9, w: 120, h: 11 }, kind: "road", label: "M60 eastbound" },
-      // Central reservation
-      { shape: { x: -60, y: 2, w: 120, h: 2 }, kind: "pavement", label: "Central res." },
+      // Central reservation — the barrier and its verges
+      { shape: { x: -60, y: 2, w: 120, h: 5.3 }, kind: "pavement", label: "Central res." },
       // Westbound carriageway — runs opposite direction, shown as bleed
-      { shape: { x: -60, y: 4, w: 120, h: 11 }, kind: "road", label: "M60 westbound" },
+      { shape: { x: -60, y: 7.3, w: 120, h: 10.9 }, kind: "road", label: "M60 westbound" },
       // Hard shoulder (south)
-      { shape: { x: -60, y: 15, w: 120, h: 3 }, kind: "pavement", label: "Hard shoulder" },
+      { shape: { x: -60, y: 18.2, w: 120, h: 3.5 }, kind: "pavement", label: "Hard shoulder" },
     ],
     // No hydrants on a motorway — fire cover relies on pump tank water +
     // relay from the nearest hydrant on the slip-road (we don't model
@@ -550,7 +553,7 @@ export const scenario03: Scenario = {
       },
       {
         id: "overbridge-height",
-        pos: { x: 46, y: 0 },
+        pos: { x: -60, y: 0 },
         kind: "structural",
         label: "Low overbridge — no helicopter overhead approach",
         knownFromPri: true,

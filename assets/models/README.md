@@ -33,7 +33,7 @@ metre space, so a model only needs to be the right size.
 | File | Key | What |
 | --- | --- | --- |
 | `hydraulic-spreaders.glb` | `spreaders` | Hydraulic rescue spreaders on the RTC stage's salvage sheet and at the door. |
-| `firefighter.glb` | `firefighter_run`, `firefighter_walk` | A firefighter with a Mixamo rig and two clips, `Running` and `Walking`, each rendered as a sheet of frames. The crew jog in with it on the RTC stage when a job starts. |
+| `firefighter.glb` | `firefighter_run`, `firefighter_walk`, `firefighter_stand` | A firefighter with a Mixamo rig and two clips, `Running` and `Walking`, each rendered as a sheet of frames, and one pose of the walk with the feet together as the standing figure. The crews run in with it when a job starts, walk between jobs and back to the appliance, stand by it, and go to the kit and back on the ground view. |
 
 ## Animations
 
@@ -43,4 +43,7 @@ the model through the clip and lays the frames in a row, and the metadata
 carries the count, the frame rate and the columns.
 `scene/model-sprite.tsx` plays a sheet in a scene (`<ModelSprite id="firefighter_run" at={[x, y]} a={deg} />`).
 Clips should be in place (no root motion) and loop; a person faces +x
-once drawn, which for a Mixamo rig means `yaw: 90`.
+once drawn, which for a Mixamo rig means `yaw: 90`. `at` starts the
+frames that far into the clip (a fraction of it), so `frames: 1` with an
+`at` is one chosen pose — the standing firefighter is the walk a quarter
+of the way through, where the feet pass.
