@@ -258,7 +258,7 @@ export default function MdtHarnessPage() {
     const dur = Math.max(3, base / speed);
     setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage, lanes: args.lanes, junction: args.junction } as unknown as Task]);
   };
-  const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const } : t)));
+  const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const, endedAt: Date.now() } : t)));
   const completeTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id && t.state === "active" ? { ...t, state: "completed" as const } : t)));
   const sim = useMemo(() => simulateIncident(world.incident, world.deployments, world.baCrews, tasks, now, treatmentByCasualtyId), [world, tasks, now, treatmentByCasualtyId]);
   return (

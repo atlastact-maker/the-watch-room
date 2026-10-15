@@ -25,7 +25,7 @@ import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedDeployment } from "../components/incident-view";
 import type { TaskWorkspaceProps } from "./mdt-task-workspace";
 import { patientLook } from "@/lib/sim/patient_look";
-import { RtcScene, type RtcWork } from "./scene/plan-rtc";
+import { RtcScene, WALK_OFF_MS, type RtcWork, type RtcFinished } from "./scene/plan-rtc";
 import { trafficState, laneLabel } from "@/lib/sim/traffic";
 import type { SceneCrew } from "./patient-scene";
 
@@ -174,7 +174,20 @@ export function RtcStage(props: RtcStageProps) {
   const madeSafe = (v: CrsVehicle) => criticalOf(v).every((id) => crsState(v.id, id).state === "done");
   const criticalDone = (v: CrsVehicle) => criticalOf(v).filter((id) => crsState(v.id, id).state === "done").length;
   const doneKeys = (v: CrsVehicle) => new Set(tasks.filter((t) => t.kind === "crs_action" && t.crsVehicleId === v.id && t.state === "completed" && t.crsActionId).map((t) => STRIP(t.crsActionId!)));
-  const workingOn = (v: CrsVehicle): RtcWork[] => tasks.filter((t) => t.kind === "crs_action" && t.crsVehicleId === v.id && t.state === "active" && t.crsActionId).map((t) => ({ key: t.crsActionId!, crew: t.assignedCrewIds.length, startedAt: t.startedAt }));
+  // Where a crew came from: the last job on the same appliance that ended
+  // in the couple of minutes before this one started. Without one they
+  // run in from the appliance; with one they walk over from it.
+  const endOf = (t: Task) => (t.state === "completed" ? t.completesAt ?? t.startedAt : t.endedAt ?? t.startedAt);
+  const crsJobs = tasks.filter((t) => t.kind === "crs_action" && t.crsActionId);
+  const cameFrom = (applianceId: string, startedAt: number) => {
+    const prev = crsJobs.filter((p) => p.applianceId === applianceId && p.state !== "active" && endOf(p) <= startedAt && startedAt - endOf(p) < 120_000).sort((a, b) => endOf(b) - endOf(a))[0];
+    return prev ? { key: prev.crsActionId!, endedAt: endOf(prev) } : undefined;
+  };
+  const workingOn = (v: CrsVehicle): RtcWork[] => crsJobs.filter((t) => t.crsVehicleId === v.id && t.state === "active").map((t) => ({ key: t.crsActionId!, crew: t.assignedCrewIds.length, startedAt: t.startedAt, applianceId: t.applianceId, prev: cameFrom(t.applianceId, t.startedAt) }));
+  const finishedOn = (v: CrsVehicle): RtcFinished[] => crsJobs
+    .filter((t) => t.crsVehicleId === v.id && t.state !== "active" && now - endOf(t) >= 0 && now - endOf(t) < WALK_OFF_MS)
+    .filter((t) => !tasks.some((n) => (n.kind === "crs_action" || n.kind === "rtc_extrication") && n.state === "active" && n.applianceId === t.applianceId && n.startedAt >= endOf(t)))
+    .map((t) => ({ key: t.crsActionId!, crew: t.assignedCrewIds.length, endedAt: endOf(t), applianceId: t.applianceId }));
   const extrication = tasks.find((t) => t.kind === "rtc_extrication" && t.state === "active") ?? tasks.find((t) => t.kind === "rtc_extrication" && t.state === "completed");
   const extricationState: "none" | "active" | "done" = extrication ? (extrication.state === "completed" ? "done" : "active") : "none";
   const allSafe = crsVehicles.length > 0 && crsVehicles.every(madeSafe);
@@ -536,6 +549,9 @@ export function RtcStage(props: RtcStageProps) {
       hour={props.hour}
       rain={props.rain}
       now={now}
+      finished={finishedOn(v)}
+      extricationStartedAt={extricationState === "active" ? extrication?.startedAt : undefined}
+      extricationPrev={extricationState === "active" && extrication ? cameFrom(extrication.applianceId, extrication.startedAt) : undefined}
       components={showComponents && panel === "vehicle"}
       caption={sc.property.class || "On the carriageway"}
       words={[`${v.vrm} · ${v.make} ${v.model}`, seatCas ? (seatCas.trappedUntilExtricated && extricationState !== "done" ? "driver trapped" : extricationState === "done" ? "driver released" : "driver in the seat") : "nobody in it"]}

@@ -28,13 +28,48 @@ import { ModelSprite } from "./model-sprite";
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
 
-/** What is running on the vehicle now, how many pairs of hands are on it, and since when (the crew jog in for the first seconds). */
-export type RtcWork = { key: string; crew: number; startedAt?: number };
+/** What is running on the vehicle now, how many pairs of hands are on it,
+ *  since when, and the job those hands came from: a crew whose last job on
+ *  this appliance ended just before walk over from it; a crew with no
+ *  recent job run in from the appliance upstream. */
+export type RtcWork = { key: string; crew: number; startedAt?: number; applianceId?: string; prev?: { key: string; endedAt: number } };
+/** A job that just ended with nothing following it for that appliance: the crew walk off towards the appliance. */
+export type RtcFinished = { key: string; crew: number; endedAt: number; applianceId?: string };
 
-/** How long a crew take to jog in to a job, and how far: along the road
- *  from the appliance parked upstream, about 2.7 m/s. */
+/** How long a crew take to run in to their first job, and how far: along
+ *  the road from the appliance parked upstream, about 2.7 m/s. */
 export const JOG_MS = 3000;
 const JOG_M = 8.1;
+/** Walking pace between jobs, and how long the walk off after the last one takes. */
+const WALK_MPS = 1.4;
+export const WALK_OFF_MS = 4000;
+const WALK_OFF_M = 5.5;
+
+type Leg = { from: Pt; to: Pt; ms: number };
+type Mover = { legs: Leg[]; since: number; clip: "firefighter_run" | "firefighter_walk" };
+
+/** One leg of a crew's walk, drawn at the moment `since` into it: the
+ *  path is the element's own custom properties under the shared keyframe
+ *  rule, the frames the sheet's own animation. */
+function Walker({ leg, since, clip }: { leg: Leg; since: number; clip: Mover["clip"] }) {
+  const dir = sub(leg.to, leg.from);
+  return (
+    <g className="ps-jog" style={{ "--jx0": `${n2(leg.from[0])}px`, "--jy0": `${n2(leg.from[1])}px`, "--jx1": `${n2(leg.to[0])}px`, "--jy1": `${n2(leg.to[1])}px`, "--jog-dur": `${Math.round(leg.ms)}ms`, animationDelay: `${-Math.round(since)}ms` } as CSSProperties}>
+      <ModelSprite id={clip} at={[0, 0]} a={deg(dir)} />
+    </g>
+  );
+}
+
+/** The leg under way `since` ms into a walk, or null once it is over. */
+function legAt(m: Mover): { leg: Leg; since: number; index: number } | null {
+  let t = 0;
+  for (let i = 0; i < m.legs.length; i++) {
+    const leg = m.legs[i];
+    if (m.since < t + leg.ms) return { leg, since: m.since - t, index: i };
+    t += leg.ms;
+  }
+  return null;
+}
 
 export type RtcSceneProps = {
   vehicle: CrsVehicle;
@@ -53,7 +88,12 @@ export type RtcSceneProps = {
   components?: boolean;
   caption?: string;
   words?: string[];
-  /** The moment, for the crew still jogging in to a job that just started. */
+  /** Jobs that just ended with nothing following, whose crews walk off. */
+  finished?: RtcFinished[];
+  /** When the extrication started and the job its crew came from, for their walk in. */
+  extricationStartedAt?: number;
+  extricationPrev?: { key: string; endedAt: number };
+  /** The moment, for the crew still on their way to a job that just started. */
   now?: number;
 };
 
@@ -501,7 +541,7 @@ function FoamBlanket({ d, seed, clip }: { d: string; seed: number; clip: string 
 const COMP_COLOUR: Record<string, string> = { battery_12v: "#e7b31a", battery_hv: "#e8731f", airbag: "#d13b3b", curtain_airbag: "#d13b3b", pretensioner: "#e67e22", srs_unit: "#8a9399", fuel_tank: "#2f8fd6", gas_strut: "#3ad17f", reinforcement: "#7f1d1d" };
 const COMP_LETTER: Record<string, string> = { battery_12v: "12V", battery_hv: "HV", airbag: "AB", curtain_airbag: "CAB", pretensioner: "PT", srs_unit: "SRS", fuel_tank: "FUEL", gas_strut: "GAS", reinforcement: "UHSS" };
 
-export function RtcScene({ vehicle, done, working, casualty, medics, extrication, extricationCrew = 0, hour, rain, components, caption, words, now }: RtcSceneProps) {
+export function RtcScene({ vehicle, done, working, finished = [], casualty, medics, extrication, extricationCrew = 0, extricationStartedAt, extricationPrev, hour, rain, components, caption, words, now }: RtcSceneProps) {
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(2.2);
   useEffect(() => {
@@ -568,21 +608,48 @@ export function RtcScene({ vehicle, done, working, casualty, medics, extrication
     if (Math.abs(p.x) > sh.L / 2 - 0.5) { const end: 1 | -1 = p.x < 0 ? -1 : 1; return { at: [end * (sh.L / 2 + 0.75), p.y * 0.5], facing: [-end, 0] }; }
     return { at: [p.x, side * sill], facing: [0, -side] };
   };
-  const figures: { at: Pt; facing: Pt; hands?: { left?: Pt; right?: Pt }; service: "Fire" | "Ambulance"; scope?: string; callsign?: string; tag?: string; seed: number; /** Milliseconds into the jog in from the edge, while still running. */ jog?: number }[] = [];
+  const figures: { at: Pt; facing: Pt; hands?: { left?: Pt; right?: Pt }; service: "Fire" | "Ambulance"; scope?: string; callsign?: string; tag?: string; seed: number; /** Still on the way: the walk or run in, and how far into it. */ mover?: Mover }[] = [];
   const taken = new Set<string>();
   const claim = (at: Pt) => { const k = `${Math.round(at[0] * 4)}:${Math.round(at[1] * 4)}`; if (taken.has(k)) return false; taken.add(k); return true; };
+  const spotsFor = (rawKey: string) => {
+    const list = spots[STRIP(rawKey)];
+    if (list) return list;
+    const comp = vehicle.components.find((c) => c.action?.id === rawKey);
+    return comp ? [compSpot(comp)] : [{ at: [nose - 0.8, -0.3] as Pt, facing: [1, 0] as Pt }];
+  };
+  // A walk between two spots goes round the wreck, not through it: when
+  // they are on opposite sides, via whichever end is nearer.
+  const legsBetween = (from: Pt, to: Pt): Leg[] => {
+    const crosses = Math.sign(from[1]) !== Math.sign(to[1]) && Math.abs(from[1]) < hw + 1.5 && Math.abs(to[1]) < hw + 1.5;
+    const midX = Math.abs((from[0] + to[0]) / 2 - nose) < Math.abs((from[0] + to[0]) / 2 - tail) ? nose - 1.3 : tail + 1.3;
+    const pts: Pt[] = crosses ? [from, [midX, from[1] * 0.6], [midX, to[1] * 0.6], to] : [from, to];
+    return pts.slice(1).map((p, i) => ({ from: pts[i], to: p, ms: Math.max(400, (len(sub(p, pts[i])) / WALK_MPS) * 1000) }));
+  };
+  // The way in to a job: from the last job's spot at a walk, or from the appliance upstream at a run.
+  const wayIn = (to: Pt, i: number, startedAt: number | undefined, prev: { key: string; endedAt: number } | undefined): Mover | undefined => {
+    if (startedAt === undefined || now === undefined) return undefined;
+    const since = now - startedAt;
+    if (since < 0) return undefined;
+    // Two crew leaving a one-person job start a step apart, not on top of each other.
+    const prevSpots = prev ? spotsFor(prev.key) : null;
+    const shared = prevSpots ? prevSpots[Math.min(i, prevSpots.length - 1)]?.at ?? null : null;
+    const from: Pt | null = shared ? (i >= (prevSpots?.length ?? 0) ? [shared[0] - 0.55 * (i - (prevSpots?.length ?? 0) + 1), shared[1]] : shared) : null;
+    const m: Mover = from ? { legs: legsBetween(from, to), since, clip: "firefighter_walk" } : { legs: [{ from: [to[0] - JOG_M, to[1]], to, ms: JOG_MS }], since, clip: "firefighter_run" };
+    return legAt(m) ? m : undefined;
+  };
   for (const w of working) {
     const key = STRIP(w.key);
-    let list = spots[key];
-    if (!list) {
-      const comp = vehicle.components.find((c) => c.action?.id === w.key);
-      list = comp ? [compSpot(comp)] : [{ at: [nose - 0.8, -0.3], facing: [1, 0] }];
-    }
-    const since = w.startedAt !== undefined && now !== undefined ? now - w.startedAt : null;
-    const jog = since !== null && since >= 0 && since < JOG_MS ? since : undefined;
-    list.slice(0, Math.max(1, w.crew)).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: hash(key) + i * 131, jog }); });
+    const list = spotsFor(w.key);
+    list.slice(0, Math.max(1, w.crew)).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: hash(key) + i * 131, mover: wayIn(sp.at, i, w.startedAt, w.prev) }); });
   }
-  if (extrication === "active") spots.extrication.slice(0, Math.max(2, Math.min(4, extricationCrew || 4))).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: 401 + i * 131 }); });
+  if (extrication === "active") spots.extrication.slice(0, Math.max(2, Math.min(4, extricationCrew || 4))).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: 401 + i * 131, mover: wayIn(sp.at, i, extricationStartedAt, extricationPrev) }); });
+  // Crews whose job just ended with nothing to follow walk off towards the appliance.
+  const leaving: { mover: Mover; key: string }[] = [];
+  if (now !== undefined) for (const f of finished) {
+    const since = now - f.endedAt;
+    if (since < 0 || since >= WALK_OFF_MS) continue;
+    spotsFor(f.key).slice(0, Math.max(1, f.crew)).forEach((sp, i) => leaving.push({ key: `${f.key}:${i}`, mover: { legs: [{ from: sp.at, to: [sp.at[0] - WALK_OFF_M, sp.at[1]], ms: WALK_OFF_MS }], since, clip: "firefighter_walk" } }));
+  }
   // The ambulance crew: one at the casualty's head through the rear door
   // (or kneeling at the board once they are out), one on the far side.
   medics.slice(0, 2).forEach((m, i) => {
@@ -973,17 +1040,11 @@ export function RtcScene({ vehicle, done, working, casualty, medics, extrication
           {/* Cones along the working edge. */}
           <Cone x={nose - 2.2} y={hw + 1.4} />
           <Cone x={tail + 2.2} y={hw + 1.4} />
-          {/* The crew: jogging in from the edge of the picture to a job that just started, then kneeling to it. */}
+          {/* The crew: on their way to a job that just started — walking from the last one, or running in from the appliance — then kneeling to it; and walking off after a job with nothing to follow. */}
+          {leaving.map((l) => { const cur = legAt(l.mover); return cur ? <Walker key={`off:${l.key}`} leg={cur.leg} since={cur.since} clip={l.mover.clip} /> : null; })}
           {figures.map((f, i) => {
-            if (f.jog !== undefined) {
-              // Along the road from the appliance upstream, straight to the spot.
-              const from: Pt = [f.at[0] - JOG_M, f.at[1]];
-              return (
-                <g key={i} className="ps-jog" style={{ "--jx0": `${n2(from[0])}px`, "--jy0": `${n2(from[1])}px`, "--jx1": `${n2(f.at[0])}px`, "--jy1": `${n2(f.at[1])}px`, "--jog-dur": `${JOG_MS}ms`, animationDelay: `${-Math.round(f.jog)}ms` } as CSSProperties}>
-                  <ModelSprite id="firefighter_run" at={[0, 0]} a={0} />
-                </g>
-              );
-            }
+            const cur = f.mover ? legAt(f.mover) : null;
+            if (f.mover && cur) return <Walker key={`${i}:${cur.index}`} leg={cur.leg} since={cur.since} clip={f.mover.clip} />;
             return <CrewTop key={i} at={f.at} facing={f.facing} hands={f.hands ?? {}} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: f.service === "Ambulance" || amb.night, role: f.service === "Ambulance" ? "PARAMEDIC" : "" })} />;
           })}
           <Weather amb={amb} outdoor centre={[sh.seat[0], sh.seat[1]]} k={1.6} />
