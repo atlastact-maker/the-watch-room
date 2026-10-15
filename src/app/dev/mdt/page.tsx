@@ -12,6 +12,10 @@
 //                 aspirin given, so the casualty care screen has a patient
 //   ?min=14       minutes since the call (default 14)
 //   ?fast=1       tasks started from the screens run twenty times faster
+//   ?desk=1       the desk's ground map instead of the tablet
+//   ?lanes=1      (RTC, with ?police=1) the roads policing crew closing lane 1
+//                 at the scene; ?lanes=done once the closure is in force
+//   ?junction=1   (RTC, with ?police=1) the carriageway shut at the junction
 //
 // Tasks started from the tablet (a CRS action on a vehicle, the
 // extrication) run here as local tasks that complete on their clock, so
@@ -22,6 +26,8 @@ import { useEffect, useMemo, useState } from "react";
 import "../../dashboard/vector/vector.css";
 import { PATCH } from "@/lib/sim/areas";
 import { DraggableIncidentMdt } from "../../dashboard/components/incident-mdt";
+import { GroundSceneMap } from "../../dashboard/components/ground-scene-map";
+import { resolveDeployments } from "../../dashboard/components/incident-view";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import { simulateIncident } from "@/lib/sim/incident_sim";
@@ -214,6 +220,15 @@ function buildWorld(scenarioId: string, minutesIn: number) {
     { id: "t-jet", applianceId: p2.id, kind: "hose_attack", state: "active", startedAt: nowMs - 4 * 60_000, assignedCrewIds: [j1, j2], attackMode: "exterior_attack", hoseType: "45mm" },
     { id: "t-hyd", applianceId: p2.id, kind: "connect_hydrant", state: "completed", startedAt: nowMs - 5 * 60_000, durationSec: 120, completesAt: nowMs - 3 * 60_000, assignedCrewIds: [h1], hydrantId: "H1" },
   ].filter((t) => !road || t.kind === "commander" || t.kind === "survey" || t.kind === "extract_casualty") as unknown as Task[];
+  // The traffic management to look at on a road: lane 1 going in or in
+  // force, the carriageway shut at the junction.
+  if (road && rpu && param("lanes")) {
+    const done = param("lanes") === "done";
+    tasks.push({ id: "t-lane", applianceId: rpu.id, kind: "lane_closure", state: done ? "completed" : "active", startedAt: nowMs - (done ? 240_000 : 60_000), durationSec: 180, completesAt: nowMs + (done ? -60_000 : 120_000), assignedCrewIds: rpu.crewMembers.slice(0, 2).map((m) => m.id), lanes: [1] } as unknown as Task);
+  }
+  if (road && rpu && param("junction")) {
+    tasks.push({ id: "t-junction", applianceId: rpu.id, kind: "carriageway_closure", state: "completed", startedAt: nowMs - 600_000, durationSec: 420, completesAt: nowMs - 180_000, assignedCrewIds: rpu.crewMembers.slice(0, 2).map((m) => m.id), junction: "J17" } as unknown as Task);
+  }
 
   const crewAir: Record<string, number> = { [ba1]: 71, [ba2]: 65 };
   const t = (minAgo: number) => nowMs - minAgo * 60_000;
@@ -282,6 +297,43 @@ export default function MdtHarnessPage() {
     setDeployments((prev) => prev.map((d) => (d.applianceId === applianceId ? withCrewAssignment(d, members, busyOn(tasks, applianceId), crewId, casualtyId, at) : d)));
   };
   const sim = useMemo(() => simulateIncident(world.incident, deployments, world.baCrews, tasks, now, treatmentByCasualtyId), [world, deployments, tasks, now, treatmentByCasualtyId]);
+  // ?desk=1 — the desk's ground map over the same world, for looking at
+  // what the desk draws without a shift.
+  const [selectedApplianceId, setSelectedApplianceId] = useState<string | null>(null);
+  const resolved = useMemo(() => resolveDeployments(deployments, world.stations, now), [deployments, world.stations, now]);
+  if (param("desk")) {
+    return (
+      <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
+        <div style={{ position: "absolute", inset: 0 }}>
+          <GroundSceneMap
+            incident={world.incident}
+            resolved={resolved}
+            onScene={resolved.filter((r) => r.phase === "at_incident").map((r) => ({ deployment: r.deployment, appliance: r.appliance }))}
+            enRoute={resolved.filter((r) => r.phase === "mobile").map((r) => ({ deployment: r.deployment, appliance: r.appliance }))}
+            sim={sim}
+            tasks={tasks}
+            treatmentByCasualtyId={treatmentByCasualtyId}
+            sceneCommanderApplianceId={world.commanderId}
+            crewAir={world.crewAir}
+            busyCrewIds={world.busyCrewIds}
+            vehicleGauges={world.vehicleGauges}
+            selectedApplianceId={selectedApplianceId}
+            now={now}
+            onSetParkingPos={(id, lat, lng, bearingDeg) => setDeployments((prev) => prev.map((d) => (d.applianceId === id ? { ...d, parkingPos: { lat, lng }, parkingBearingDeg: bearingDeg } : d)))}
+            rotatePendingApplianceId={null}
+            onClearRotatePending={() => {}}
+            onStartTask={startTask}
+            onAbortTask={abortTask}
+            onSelectAppliance={setSelectedApplianceId}
+            stations={world.stations}
+            deployments={deployments}
+            patch={PATCH}
+            onAssignCrewToCasualty={assignCrew}
+          />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
       <div style={{ position: "absolute", left: 24, top: 16, width: 1180, height: 820 }}>

@@ -178,29 +178,19 @@ function bearingDeg(a: LatLng, b: LatLng): number {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-/** What a rider looks like from above, in the few pixels the map gives
- *  them: shoulders in the service colour with a hi-vis edge, a head that
- *  says what they are — a yellow fire helmet, a white one for an officer,
- *  a cap band for police, a bare head for an ambulance crew — a cylinder
- *  on the back in BA, and the stretcher handles out front on a carry. The
- *  body group is rotated to the rider's heading by the marker, and the
- *  feet and torso animate while they walk. */
+/** A rider on the map: a dot in the service colour with their role on
+ *  it, as the tablet's ground page draws them — ringed purple in BA,
+ *  amber on a carry. The label beside it carries the name and the job. */
 function figureSvg(service: ServiceCode, initials: string, badge: string | undefined): string {
   const c = SERVICE_COLOUR[service];
-  const officer = service === "Fire" && (initials === "WM" || initials === "CM" || initials === "SM" || badge === "IC");
-  const head = service === "Fire" ? (officer ? "#f8fafc" : "#f5d20c") : "#2b2b30";
-  const headRing = service === "Police" ? "#ffffff" : service === "Ambulance" ? "#86efac" : "#0a0a0c";
   const ba = !!badge && badge.startsWith("BA");
   const carry = badge === "CARRY";
+  const ring = ba ? "#a78bfa" : carry ? "#fbbf24" : null;
   return `<svg class="crew-fig-body" viewBox="0 0 22 22" width="22" height="22" aria-hidden="true">
-    ${carry ? `<rect x="9.4" y="1.2" width="3.2" height="4.4" rx="1" fill="#9ca3af" stroke="#0a0a0c" stroke-width="0.8"/>` : ""}
-    <g class="crew-fig-torso">
-      <ellipse cx="11" cy="12.2" rx="7" ry="4.3" fill="${c.fill}" stroke="#e5e51a" stroke-width="1.2"/>
-      ${ba ? `<rect x="7.6" y="13.2" width="6.8" height="3.1" rx="1.2" fill="#4b5563" stroke="#0a0a0c" stroke-width="0.8"/>` : ""}
-    </g>
-    <circle class="foot foot-l" cx="8" cy="17.4" r="1.4" fill="#0a0a0c"/>
-    <circle class="foot foot-r" cx="14" cy="17.4" r="1.4" fill="#0a0a0c"/>
-    <circle cx="11" cy="9.6" r="3.7" fill="${head}" stroke="${headRing}" stroke-width="1.3"/>
+    ${ring ? `<circle cx="11" cy="11" r="10.3" fill="none" stroke="${ring}" stroke-width="1.5"/>` : ""}
+    <circle cx="11" cy="11" r="8.2" fill="${c.fill}" stroke="#0a0a0c" stroke-width="1.6"/>
+    <circle cx="11" cy="11" r="8.2" fill="none" stroke="#ffffff" stroke-width="1.1" opacity="0.9"/>
+    <text x="11" y="13.3" text-anchor="middle" font-family="var(--font-geist-mono),ui-monospace,monospace" font-size="6.6" font-weight="700" fill="#ffffff">${initials}</text>
   </svg>`;
 }
 
@@ -223,18 +213,16 @@ function figureIcon(service: ServiceCode, initials: string, label: string, badge
   return icon;
 }
 
-/** One rider. The icon is cached by look; heading and gait are applied to
- *  the live element so a turn or a step never rebuilds the marker, and the
- *  marker's own transform transition carries it smoothly between ticks. */
-function CrewMarker({ f, pos, phase, inside, heading, moving, showLabel }: { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; inside: boolean; heading: number; moving: boolean; showLabel: boolean }) {
+/** One rider. The icon is cached by look; the walk is a class on the
+ *  live element so a step never rebuilds the marker, and the marker's own
+ *  transform transition carries it smoothly between ticks. */
+function CrewMarker({ f, pos, phase, inside, moving, showLabel }: { f: CrewFigure; pos: LatLng; phase: "out" | "working" | "back"; inside: boolean; heading: number; moving: boolean; showLabel: boolean }) {
   const ref = useRef<L.Marker | null>(null);
   const surname = f.name.split(/\s+/).pop() ?? f.name;
   const badge = phase === "working" ? f.badge : phase === "back" ? "RTN" : undefined;
   useEffect(() => {
     const el = ref.current?.getElement();
     if (!el) return;
-    const body = el.querySelector<HTMLElement>(".crew-fig-body");
-    if (body) body.style.transform = `rotate(${Math.round(heading)}deg)`;
     el.classList.toggle("walking", moving);
   });
   return (

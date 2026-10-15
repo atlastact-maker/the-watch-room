@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   Circle,
+  CircleMarker,
   MapContainer,
   Marker,
   Polygon,
@@ -47,6 +48,8 @@ import { HoseLine } from "./hose-line";
 import { CrewFigureLayer, figureInside, figurePosition, roleShort, type CrewFigure, type LatLng as CrewLatLng } from "./crew-figures";
 import { assignRowsFor, casualtyShortLabel, CrewAssignMenu, type AssignCrewFn } from "./crew-assign-menu";
 import { busyOn, crewSent } from "@/lib/sim/crew_assign";
+import { laneLabel } from "@/lib/sim/traffic";
+import { groundViewFor } from "../vector/scene/ground-views";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
@@ -800,8 +803,8 @@ function casualtyPinIcon(label: string, severity: string, stage: string, showLab
     iconAnchor: [80, 8],
     html: `
       <div style="position:relative;width:160px;height:30px;pointer-events:none;opacity:${inside ? 0.6 : 1};">
-        <div style="position:absolute;left:80px;top:8px;transform:translate(-50%,-50%);width:12px;height:12px;background:${colour};border:2px solid #0a0a0c;box-shadow:0 0 0 1.5px rgba(255,255,255,0.9);"></div>
-        ${showLabel ? `<div style="position:absolute;left:90px;top:1px;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:#fff;white-space:nowrap;"><b style="color:${colour}">${priority}</b> ${label.toUpperCase()}${suffix}</div>` : ""}
+        <div style="position:absolute;left:80px;top:8px;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:${colour};border:1.5px solid #0a0a0c;box-shadow:0 0 0 1.5px rgba(255,255,255,0.9);box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:7px;font-weight:700;line-height:1;color:${severity === "serious" ? "#0a0a0c" : "#fff"};">${priority}</div>
+        ${showLabel ? `<div style="position:absolute;left:92px;top:1px;padding:1px 4px;background:rgba(10,10,12,0.9);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:8px;line-height:1.35;letter-spacing:0.06em;color:#fff;white-space:nowrap;"><b style="color:${colour}">${priority}</b> ${label.toUpperCase()}${suffix}</div>` : ""}
       </div>`,
   });
   CAS_ICONS.set(key, icon);
@@ -891,6 +894,28 @@ function offsetAlongBearing(
   const dLng =
     (meters * Math.sin(rad)) / (111_320 * Math.cos((lat * Math.PI) / 180));
   return [lat + dLat, lng + dLng];
+}
+
+/** The label on a stretch of carriageway the traffic management has shut
+ *  or held: what and where, in the closure's colour, blinking while it is
+ *  still going in. */
+const BAND_ICONS = new Map<string, L.DivIcon>();
+function bandLabelIcon(label: string, colour: string, inForce: boolean): L.DivIcon {
+  const key = `${label}|${colour}|${inForce ? 1 : 0}`;
+  const hit = BAND_ICONS.get(key);
+  if (hit) return hit;
+  const icon = L.divIcon({
+    className: "",
+    iconSize: [280, 20],
+    iconAnchor: [140, 10],
+    html: `
+      <div style="position:relative;width:280px;height:20px;pointer-events:none;display:flex;justify-content:center;">
+        <div style="padding:3px 8px;background:rgba(10,10,12,0.92);border:1px solid ${colour};border-radius:2px;font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:9px;line-height:1;letter-spacing:0.12em;color:${colour};white-space:nowrap;${inForce ? "" : "animation: closure-blink 1s steps(2, start) infinite;"}">${label}</div>
+      </div>
+      <style>@keyframes closure-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }</style>`,
+  });
+  BAND_ICONS.set(key, icon);
+  return icon;
 }
 
 /** Single top-down traffic cone (concentric rings on a square base) with
@@ -1808,6 +1833,65 @@ export function LeafletGroundMap({
   const casualtyPins = sim.foundCasualties
     .map((c) => ({ c, at: casualtyGround(c.id), stage: casualtyStage(c.id), severity: sim.casualtyProgression?.[c.id]?.severity ?? c.severity }))
     .filter((x): x is typeof x & { at: CrewLatLng } => !!x.at);
+  // The traffic management on the carriageway, as a traffic CAD paints
+  // it: the lanes the cones have shut as a band from the taper to the
+  // scene — amber while the officers are still setting out, red once it
+  // is in force — with the cones as they go down; a closure or a rolling
+  // block held at the upstream junction as a band across the whole
+  // carriageway. The scene's road is laid on the map the way its
+  // casualties are: in metres from the call.
+  const laneBands = (() => {
+    const view = groundViewFor(incident.scenario);
+    const cw = scene?.carriageway;
+    if (!view || !cw || !scene) return null;
+    const eb = scene.roads.find((r) => r.kind === "road" && r.label === cw.name)?.shape ?? scene.roads.find((r) => r.kind === "road")?.shape;
+    if (!eb) return null;
+    const top = view.nearside === "top";
+    const lh = eb.h / cw.lanes;
+    const laneEdge = (k: number) => (top ? eb.y + k * lh : eb.y + eb.h - k * lh);
+    const ll = (x: number, y: number): [number, number] => { const p = metresToLatLng(fireCentre, { x, y }); return [p.lat, p.lng]; };
+    const live = (t: Task) => t.state !== "aborted";
+    const progress = (t: Task) => (t.state === "completed" ? 1 : t.completesAt ? Math.max(0, Math.min(1, (now - t.startedAt) / Math.max(1, t.completesAt - t.startedAt))) : 1);
+    const bands: { key: string; ring: [number, number][]; colour: string; inForce: boolean; label: string; at: [number, number] }[] = [];
+    const cones: [number, number][] = [];
+    const laneTasks = tasks.filter((t) => t.kind === "lane_closure" && live(t));
+    const lanes = [...new Set(laneTasks.flatMap((t) => t.lanes ?? []))].filter((l) => l >= 1 && l <= cw.lanes);
+    if (lanes.length) {
+      const fromNear = lanes.includes(1);
+      const k = fromNear ? Math.max(...lanes) : cw.lanes - Math.min(...lanes) + 1;
+      const inset = 0.4;
+      const a = fromNear ? laneEdge(0) + (top ? inset : -inset) : laneEdge(cw.lanes) + (top ? -inset : inset);
+      const b = fromNear ? laneEdge(k) + (top ? -inset : inset) : laneEdge(cw.lanes - k) + (top ? inset : -inset);
+      const { from, to, until } = view.taper;
+      const inForce = laneTasks.every((t) => t.state === "completed");
+      bands.push({ key: "lanes", ring: [ll(from, a), ll(to, b), ll(until, b), ll(until, a)], colour: inForce ? "#ef4444" : "#f59e0b", inForce, label: inForce ? `${laneLabel(lanes).toUpperCase()} CLOSED` : `CLOSING ${laneLabel(lanes).toUpperCase()}`, at: ll((from + to) / 2, (a + b) / 2) });
+      const pts: [number, number][] = [];
+      const steps = 7;
+      for (let i = 0; i <= steps; i++) pts.push([from + ((to - from) * i) / steps, a + ((b - a) * i) / steps]);
+      const run = Math.abs(until - to);
+      for (let x = 6; x <= run; x += 6) pts.push([to + Math.sign(until - to) * x, b]);
+      const shown = Math.round(pts.length * Math.max(...laneTasks.map(progress)));
+      for (const p of pts.slice(0, shown)) cones.push(ll(p[0], p[1]));
+    }
+    const junctionTask = tasks.find((t) => t.kind === "carriageway_closure" && live(t));
+    const blockTask = tasks.find((t) => t.kind === "rolling_road_block" && live(t));
+    const held = junctionTask ?? blockTask;
+    if (held) {
+      const x0 = (junctionTask ? view.junction : view.block).at[0];
+      const x1 = view.taper.until;
+      const inForce = held.state === "completed";
+      const where = (held.junction ?? cw.upstream).toUpperCase();
+      const label = junctionTask
+        ? (inForce ? `${cw.name.toUpperCase()} CLOSED AT ${where}` : `CLOSING ${cw.name.toUpperCase()} AT ${where}`)
+        : (inForce ? `TRAFFIC HELD · ROLLING BLOCK FROM ${where}` : `ROLLING BLOCK FROM ${where} · DRIVING IN`);
+      bands.push({ key: held.kind, ring: [ll(x0, eb.y), ll(x1, eb.y), ll(x1, eb.y + eb.h), ll(x0, eb.y + eb.h)], colour: inForce ? "#ef4444" : "#f59e0b", inForce, label, at: ll((x0 + x1) / 2, eb.y + eb.h / 2) });
+    }
+    return { bands, cones };
+  })();
+  /** Whether a casualty lies within one of the scene's buildings: a
+   *  person located on the carriageway or the pavement is not "inside". */
+  const insideBuilding = (c: { pos: { x: number; y: number } }) =>
+    (scene?.buildings ?? []).some((b) => c.pos.x >= b.shape.x && c.pos.x <= b.shape.x + b.shape.w && c.pos.y >= b.shape.y && c.pos.y <= b.shape.y + b.shape.h);
   const casualtyLabel = (id: string) => sim.foundCasualties.find((c) => c.id === id)?.label ?? id;
   const casualtyShort = (id: string) => casualtyShortLabel(sim.foundCasualties.find((c) => c.id === id)?.label, id);
   /** Open the send-a-clinician menu for a casualty where the pointer is. */
@@ -2576,6 +2660,17 @@ export function LeafletGroundMap({
           );
         })}
 
+      {/* The traffic management: lanes shut by the cones, the carriageway closed or held from the junction. */}
+      {laneBands?.bands.map((b) => (
+        <Fragment key={`band-${b.key}`}>
+          <Polygon positions={b.ring} pathOptions={{ color: b.colour, weight: 2, opacity: 0.9, dashArray: b.inForce ? undefined : "8 6", fillColor: b.colour, fillOpacity: b.inForce ? 0.22 : 0.12 }} interactive={false} />
+          <Marker position={b.at} icon={bandLabelIcon(b.label, b.colour, b.inForce)} interactive={false} zIndexOffset={600} />
+        </Fragment>
+      ))}
+      {laneBands?.cones.map((c, i) => (
+        <CircleMarker key={`cone-${i}`} center={c} radius={3} pathOptions={{ color: "#fff", weight: 1, fillColor: "#ff7a1a", fillOpacity: 1 }} interactive={false} />
+      ))}
+
       {/* Casualties on the ground, and the people with them */}
       {casualtyPins.map((x) => (
         <Marker
@@ -2596,7 +2691,9 @@ export function LeafletGroundMap({
                 })()
               : carriedNow(x.c.id)
                 ? "carried"
-                : x.stage,
+                : x.stage === "located" && !insideBuilding(x.c)
+                  ? "found"
+                  : x.stage,
             mapZoom >= 19,
           )}
           interactive={!!onAssignCrewToCasualty}
