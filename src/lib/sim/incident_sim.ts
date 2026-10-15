@@ -592,20 +592,28 @@ export function simulateIncident(
     // That keeps downstream stage logic (conveying / at_hospital) right
     // even when e.g. a DCA conveys while an AP stays on scene for the
     // next casualty.
-    const pairingByCasualtyId: Record<string, Deployment> = {};
+    // A pairing is the vehicle's own (it treats, conveys and delivers the
+    // casualty) or a crew member's: someone sent to a casualty other than
+    // the vehicle's, with them for as long as the vehicle is on scene.
+    const pairingByCasualtyId: Record<string, { d: Deployment; crewOnly: boolean }> = {};
     const rank = (d: Deployment): number => {
       if (d.hospitalArrivesAt !== undefined && now >= d.hospitalArrivesAt) return 3;
       if (d.hospitalLegStartedAt) return 2;
       if (now >= d.arrivesAt) return 1;
       return 0;
     };
+    const consider = (casualtyId: string, entry: { d: Deployment; crewOnly: boolean }, r: number) => {
+      const existing = pairingByCasualtyId[casualtyId];
+      if (!existing || r > (existing.crewOnly ? 1 : rank(existing.d))) pairingByCasualtyId[casualtyId] = entry;
+    };
     for (const d of deployments) {
-      if (!d.treatingCasualtyId) continue;
-      if (now < d.arrivesAt && !d.hospitalLegStartedAt) continue;
-      if (d.returnStartedAt && !d.hospitalArrivesAt) continue;
-      const existing = pairingByCasualtyId[d.treatingCasualtyId];
-      if (!existing || rank(d) > rank(existing)) {
-        pairingByCasualtyId[d.treatingCasualtyId] = d;
+      if (d.treatingCasualtyId && (now >= d.arrivesAt || d.hospitalLegStartedAt) && !(d.returnStartedAt && !d.hospitalArrivesAt)) {
+        consider(d.treatingCasualtyId, { d, crewOnly: false }, rank(d));
+      }
+      if (!isOnScene(d, now)) continue;
+      for (const a of Object.values(d.crewAssignments ?? {})) {
+        if (a.casualtyId === d.treatingCasualtyId) continue;
+        consider(a.casualtyId, { d, crewOnly: true }, 1);
       }
     }
 
@@ -627,20 +635,24 @@ export function simulateIncident(
         baSearchMinutes >= (room ? searchThreshold(c, room) : c.discoverAfterMinBa * (1 + 0.5 * involvement.floor)) ||
         (c.discoverAfterMinOnScene !== undefined && firstArrival !== null && (now - firstArrival) / 60_000 >= c.discoverAfterMinOnScene) ||
         (!!rope && now >= rope.atTopAt);
-      const paired = pairingByCasualtyId[c.id];
+      const pairing = pairingByCasualtyId[c.id];
+      const paired = pairing?.d;
       // Treatment is paused while paired with an on-scene ambulance OR
       // while conveying. Once delivered to hospital, the casualty stays
-      // "at_hospital" for the rest of the incident.
+      // "at_hospital" for the rest of the incident. A crew member's own
+      // pairing only ever treats on scene: the vehicle conveys someone else.
       const inTreatmentOnScene =
         paired !== undefined &&
         !paired.hospitalLegStartedAt &&
         isOnScene(paired, now);
       const conveying =
         paired !== undefined &&
+        !pairing.crewOnly &&
         paired.hospitalLegStartedAt !== undefined &&
         (paired.hospitalArrivesAt === undefined || now < paired.hospitalArrivesAt);
       const atHospital =
         paired !== undefined &&
+        !pairing.crewOnly &&
         paired.hospitalArrivesAt !== undefined &&
         now >= paired.hospitalArrivesAt;
 

@@ -60,6 +60,8 @@ export function GroundSceneMap(props: {
   }) => void;
   onAbortTask: (taskId: string) => void;
   onSelectAppliance: (id: string | null) => void;
+  /** Right-click on a casualty: send one of an ambulance crew to them. */
+  onAssignCrewToCasualty?: (applianceId: string, crewId: string, casualtyId: string | null) => void;
   closurePick?: { kind: "close_carriageway" | "close_road" } | null;
   onPlaceClosure?: (lat: number, lng: number, bearingDeg: number) => void;
   /** Patch-scale data for the Patch and Approach detents. */

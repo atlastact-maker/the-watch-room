@@ -73,6 +73,8 @@ export type Props = {
   onUpdateBaRemarks?: (taskId: string, text: string) => void;
   onUpdateBaEntryPoint?: (taskId: string, label: string) => void;
   onSetTreatingCasualty?: (applianceId: string, casualtyId: string | null) => void;
+  /** Send one of an ambulance crew to a casualty by name; null stands them down. */
+  onAssignCrewToCasualty?: (applianceId: string, crewId: string, casualtyId: string | null) => void;
   informantLog?: InformantMessage[];
   informantOnCall?: boolean;
   tacticalMode?: "offensive" | "defensive" | "transitional" | null;
@@ -221,6 +223,7 @@ export function IncidentView({
   onSetParkingPos,
   onStartTask,
   onAbortTask,
+  onAssignCrewToCasualty,
   placePendingApplianceId,
   onClearPlacePending,
   selectedVehicleId,
@@ -344,6 +347,7 @@ export function IncidentView({
             onClearRotatePending={() => onSetRotatePending(null)}
             onStartTask={onStartTask}
             onAbortTask={onAbortTask}
+            onAssignCrewToCasualty={onAssignCrewToCasualty}
             onSelectAppliance={(id) => {
               if (id) onVehicleSelect?.(id);
             }}

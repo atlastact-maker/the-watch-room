@@ -203,6 +203,7 @@ import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { loadScenario } from "@/lib/sim/scenarios/load";
 import { rollVariant, applyVariant, variantAllows, latLngToMetres } from "@/lib/sim/scene";
 import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
+import { assignmentsForConveying, busyOn, hasCrewWith, withCrewAssignment, withVehiclePairing } from "@/lib/sim/crew_assign";
 import { planWaterRescue } from "@/lib/sim/water_rescue";
 import { planRopeRescue } from "@/lib/sim/rope_rescue";
 import { scenarioCovered } from "@/lib/sim/coverage";
@@ -2282,11 +2283,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
    *  intervention set. Deterioration pauses as soon as *any* paramedic
    *  is paired. */
   function setTreatingCasualty(applianceId: string, casualtyId: string | null) {
-    setDeployments((prev) =>
-      prev.map((d) =>
-        d.applianceId === applianceId ? { ...d, treatingCasualtyId: casualtyId, treatingSince: Date.now() } : d,
-      ),
-    );
+    const at = Date.now();
+    const ap = applianceById.get(applianceId);
+    const busy = busyOn(tasks, applianceId);
+    // The vehicle's pairing sends two of its clinicians over; a release
+    // stands down everyone it had sent to that casualty.
+    setDeployments((prev) => prev.map((d) => (d.applianceId === applianceId ? withVehiclePairing(d, ap?.crewMembers ?? [], busy, casualtyId, at) : d)));
     if (casualtyId) {
       // First time we pair this casualty, seed an empty treatment record
       // so the Treatment tab can start mutating state immediately.
@@ -2318,6 +2320,25 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         },
       ]);
     }
+  }
+
+  /** Send one clinician to a casualty — the right-click on the map or the
+   *  ground view — or stand them down with casualtyId = null. The first
+   *  send from a vehicle with no pairing pairs the vehicle too, so the
+   *  patient's record and the hospital leg work as they do today; a
+   *  second clinician can be sent to another casualty on their own. */
+  function assignCrewToCasualty(applianceId: string, crewId: string, casualtyId: string | null) {
+    const at = Date.now();
+    const ap = applianceById.get(applianceId);
+    const member = ap?.crewMembers.find((m) => m.id === crewId);
+    const casualty = activeIncident?.scenario.scene?.casualties?.find((c) => c.id === casualtyId);
+    const busy = busyOn(tasks, applianceId);
+    setDeployments((prev) => prev.map((d) => (d.applianceId === applianceId ? withCrewAssignment(d, ap?.crewMembers ?? [], busy, crewId, casualtyId, at) : d)));
+    if (casualtyId) {
+      setTreatmentByCasualtyId((prev) => (prev[casualtyId] ? prev : { ...prev, [casualtyId]: emptyTreatmentState(casualtyId) }));
+    }
+    const who = member ? `${member.name} (${member.role}, ${applianceLabel(applianceId)})` : applianceLabel(applianceId);
+    logAnnotation(casualtyId ? `${who} sent to ${casualty?.label ?? casualtyId}` : `${who} stood down from their casualty`, "annotation", `send:${crewId}:${casualtyId ?? "off"}:${at}`);
   }
 
   // ---- Treatment handlers ------------------------------------------------
@@ -2377,7 +2398,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // screen says so, and the map shows them still walking.
     if (activeIncident) {
       const casualty = activeIncident.scenario.scene?.casualties?.find((c) => c.id === casualtyId);
-      const paired = deployments.filter((d) => d.incidentId === activeIncident.id && d.treatingCasualtyId === casualtyId && at >= d.arrivesAt);
+      const paired = deployments.filter((d) => d.incidentId === activeIncident.id && hasCrewWith(d, casualtyId) && at >= d.arrivesAt);
       if (casualty && paired.length) {
         const atVehicle = patientAtVehicle(casualty, incidentSim?.casualtyProgression?.[casualtyId]?.stage ?? "located", tasks);
         const here = paired.some((d) => at >= crewWithPatientAt(d, casualty, activeIncident.scenario.location.coords, { atVehicle }));
@@ -3508,6 +3529,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             hospitalName: hospital.name,
             hospitalCoords: hospital.coords,
             hospitalLegStartedAt: now,
+            crewAssignments: assignmentsForConveying(x),
             hospitalEtaSeconds: toHosp.seconds,
             hospitalArrivesAt,
             hospitalRouteCoords: toHosp.coords ?? undefined,
@@ -4147,6 +4169,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             hospitalName: l.hospital.name,
             hospitalCoords: l.hospital.coords,
             hospitalLegStartedAt: resolvedAt,
+            crewAssignments: assignmentsForConveying(d),
             hospitalEtaSeconds: l.hospital.toSeconds,
             hospitalArrivesAt,
             hospitalRouteCoords: l.hospital.toCoords ?? undefined,
@@ -7576,6 +7599,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
               onUpdateBaRemarks={updateBaRemarks}
               onUpdateBaEntryPoint={updateBaEntryPoint}
               onSetTreatingCasualty={setTreatingCasualty}
+              onAssignCrewToCasualty={assignCrewToCasualty}
               informantLog={informantLog}
               informantOnCall={informantOnCall}
               tacticalMode={tacticalMode}
@@ -7666,6 +7690,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                 informantOnCall={informantOnCall}
                 treatmentByCasualtyId={treatmentByCasualtyId}
                 onSetTreatingCasualty={setTreatingCasualty}
+                onAssignCrewToCasualty={assignCrewToCasualty}
                 onStartPatientSurvey={startPatientSurvey}
                 onApplyAirway={applyAirway}
                 onApplyBreathing={applyBreathing}

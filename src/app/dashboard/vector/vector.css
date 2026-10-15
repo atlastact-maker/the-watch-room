@@ -5823,6 +5823,11 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .gv-plate.ic { fill: #ffe08a; }
 .gv-plate.tag { fill: #9be7c4; }
 .gv-plate.road { fill: #f2f2ee; font-size: 10px; letter-spacing: 0.16em; opacity: 0.8; }
+/* The people as dots: the role on the dot once there is room; the blues on a unit. */
+.gv-dot { fill: #fff; font: 700 7px var(--vec-mono, Consolas, monospace); letter-spacing: 0.02em; text-anchor: middle; pointer-events: none; }
+.gv-dot.dark { fill: #0b0f14; }
+.gv-blues { animation: gv-blink 0.8s steps(2, start) infinite; }
+@keyframes gv-blink { from { opacity: 1; } to { opacity: 0.15; } }
 /* The traffic runs the length of the road and comes round again; a unit
    put somewhere by a task slides there as the task runs. Inside the
    metre-scaled group a px is a metre. */

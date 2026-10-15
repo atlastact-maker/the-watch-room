@@ -15,6 +15,7 @@ import type { Deployment, Incident, Task, PatientTreatmentState } from "@/lib/si
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResusState } from "@/lib/sim/resus";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
+import { busyOn, crewSentTo, hasCrewWith } from "@/lib/sim/crew_assign";
 import type { ResolvedDeployment } from "../components/incident-view";
 import { VectorTile, type TileLayout } from "./tile";
 import { PopoutWindow, PopoutFrame } from "./popout";
@@ -47,7 +48,9 @@ export type PatientCareProps = CareCallbacks & {
 export function assignedCasualtyIds(applianceId: string, deployments: Deployment[], tasks: Task[]): Set<string> {
   const ids = new Set<string>();
   for (const d of deployments) {
-    if (d.applianceId === applianceId && d.treatingCasualtyId) ids.add(d.treatingCasualtyId);
+    if (d.applianceId !== applianceId) continue;
+    if (d.treatingCasualtyId) ids.add(d.treatingCasualtyId);
+    for (const a of Object.values(d.crewAssignments ?? {})) ids.add(a.casualtyId);
   }
   for (const t of tasks) {
     if (t.applianceId === applianceId && t.kind === "extract_casualty" && t.state === "active" && t.casualtyId) ids.add(t.casualtyId);
@@ -169,9 +172,15 @@ export function PatientCareWorkspace(props: PatientCareProps) {
             const severity = severityOf(c);
             const tx = treatmentByCasualtyId?.[c.id];
             const vitals = tx?.liveVitals ?? tx?.revealedVitals;
+            // Each vehicle with them, and who of its crew: "A123 · Khan, Patel".
             const crews = deployments
-              .filter((d) => d.treatingCasualtyId === c.id)
-              .map((d) => resolved.find((r) => r.appliance.id === d.applianceId)?.appliance.callsign ?? d.applianceId);
+              .filter((d) => hasCrewWith(d, c.id))
+              .map((d) => {
+                const r = resolved.find((x) => x.appliance.id === d.applianceId);
+                const names = r ? crewSentTo(d, r.appliance.crewMembers, c.id, busyOn(tasks, d.applianceId)).map((s) => s.member.name.split(" ").slice(-1)[0]) : [];
+                const callsign = r?.appliance.callsign ?? d.applianceId;
+                return names.length ? `${callsign} · ${names.join(", ")}` : callsign;
+              });
             const carrying = tasks.filter((t) => t.kind === "extract_casualty" && t.state === "active" && t.casualtyId === c.id).map((t) => resolved.find((r) => r.appliance.id === t.applianceId)?.appliance.callsign ?? t.applianceId);
             const medicalOnScene = resolved.filter((r) => r.appliance.service === "Ambulance" && scopeOfApplianceType(r.appliance.type) !== "none" && r.phase === "at_incident");
             const unpaired = crews.length === 0 && stage !== "at_hospital" && stage !== "conveying";

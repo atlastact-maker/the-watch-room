@@ -90,6 +90,7 @@ type Props = {
   informantOnCall?: boolean;
   treatmentByCasualtyId?: IncidentViewProps["treatmentByCasualtyId"];
   onSetTreatingCasualty?: IncidentViewProps["onSetTreatingCasualty"];
+  onAssignCrewToCasualty?: IncidentViewProps["onAssignCrewToCasualty"];
   onStartPatientSurvey?: IncidentViewProps["onStartPatientSurvey"];
   onApplyAirway?: IncidentViewProps["onApplyAirway"];
   onApplyBreathing?: IncidentViewProps["onApplyBreathing"];
@@ -651,6 +652,7 @@ export function DraggableIncidentMdt(props: Props) {
                 selectedUnitId={unitAppliance?.id ?? null}
                 onSelectUnit={(id) => setUnitId(id)}
                 commanderApplianceId={props.commanderApplianceId ?? props.sceneCommanderApplianceId ?? null}
+                onAssignCrewToCasualty={props.onAssignCrewToCasualty}
               />
             </div>
           ) : jobView === "map" ? (

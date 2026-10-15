@@ -1,34 +1,31 @@
 "use client";
 
-// THE GROUND VIEW OF A ROAD TRAFFIC COLLISION — the whole scene from
-// above on the tablet's Incident app. The carriageway and what is still
-// running on it; the wrecks, each drawn the way the Fire module's stage
-// draws the one it frames; the appliances where the operator parked them
-// on the map, or where a fend-off or a rolling block has put them; the
-// crews running from the appliance to a job, walking between jobs and
-// back; the cones going out across a lane; the ambulance crews with the
-// casualties; the witness's car and the caller's lorry on the hard
-// shoulder; the overbridge. It reads the same deployments, tasks, log and
-// sim state as every other screen and stores nothing of its own. It is
-// for watching: tapping a unit picks it on the tablet, and that is all.
+// THE SCENE FROM ABOVE, AS MARKS. The tablet's Ground page for a road
+// traffic collision: the carriageway — over the junction's aerial
+// photograph where the view has one — the traffic still running past,
+// the units where they are parked or where a task has put them, the
+// wrecks, the cones, and everyone on foot. People are dots in their
+// service's colour with their role on them, the casualties dots in their
+// triage colour, and the picture moves as the jobs move them: crews
+// walking out to a wreck and back, officers along the cones as they are
+// placed, clinicians sent to a casualty crossing the ground to them. A
+// right-click on a casualty opens the menu that sends one.
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { Incident, LogEntry, Task, TaskKind, PatientTreatmentState } from "@/lib/sim/incident_types";
-import { scopeOfApplianceType } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResusState } from "@/lib/sim/resus";
 import { latLngToMetres, type SceneCasualty, type SceneRect } from "@/lib/sim/scene";
 import { trafficState } from "@/lib/sim/traffic";
-import { patientLook } from "@/lib/sim/patient_look";
+import { busyOn, crewSent } from "@/lib/sim/crew_assign";
+import { walkMs as walkMsFor } from "@/lib/sim/crew_walk";
 import type { ResolvedDeployment } from "../../components/incident-view";
-import { FigureDefs, rig, PlanFigure, P, len, sub, unit, lerp, deg, type Pt, type Rig } from "./plan-figure";
-import { KitDefs } from "./plan-kit";
-import { CrewTop, crewWearOf } from "./plan-crew";
+import { assignRowsFor, casualtyShortLabel, CrewAssignMenu, type AssignCrewFn } from "../../components/crew-assign-menu";
+import { P, len, sub, unit, lerp, type Pt } from "./plan-figure";
 import { GroundDefs, WeatherDefs, Tarmac, prng, type Ambient } from "./plan-ground";
-import { RtcWreck, RtcDefs, Cone, PlanCar, PlanArtic, Walker, legAt, headingRotate, WALK_MPS, type Mover } from "./plan-rtc";
-import { ModelSprite } from "./model-sprite";
-import { UnitSprite, unitFootprint } from "./plan-vehicles";
-import { wearOf, hash, type SceneCrew } from "../patient-scene";
+import { shellFor, legAt, headingRotate, WALK_MPS, type Mover, type Leg } from "./plan-rtc";
+import { unitFootprint } from "./plan-vehicles";
+import { hash } from "../patient-scene";
 import { rtcJobs } from "../rtc-state";
 import type { RtcGroundView, Placing } from "./ground-views";
 
@@ -36,13 +33,33 @@ const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
 
 /** How long a crew's walk back to the appliance is followed after a job ends. */
 const WALK_BACK_MS = 40_000;
-/** Crews standing by go on an errand to the wreck's kit now and then: one
- *  of each appliance's crew at a time, each taking their turn once in
- *  this long, a few seconds there. */
-const ERRAND_CYCLE_MS = 150_000;
-const ERRAND_PAUSE_MS = 4_500;
 /** The paint on the traffic: the greys and silvers of a motorway, a few colours. */
 const CAR_PAINTS = ["#9aa4ad", "#1f2a36", "#c3c9ce", "#5b6670", "#7b1e24", "#1d4f8c", "#d8d9d3", "#2f2f31", "#6d5c4a", "#e9e9e6", "#3f6b3a", "#8c3c1f"];
+/** The services' colours, as the desk's map draws its crews. */
+type Service = "Fire" | "Ambulance" | "Police";
+const SERVICE: Record<Service, string> = { Fire: "#d7263d", Ambulance: "#1f9d55", Police: "#2563eb" };
+/** A casualty's dot by triage: P1 red, P2 amber, P3 green. */
+const triageColour = (severity: string) => (severity === "critical" ? "#ef4444" : severity === "serious" ? "#f5b324" : "#34d399");
+const triageLabel = (severity: string) => (severity === "critical" ? "P1" : severity === "serious" ? "P2" : "P3");
+/** What goes on a person's dot: FF, CM, PM, DR, PC … */
+function initialsOf(role: string): string {
+  const r = role.toLowerCase();
+  if (/pilot/.test(r)) return "PLT";
+  if (/doctor/.test(r)) return "DR";
+  if (/critical care/.test(r)) return "CCP";
+  if (/paramedic/.test(r)) return "PM";
+  if (/technician|emt/.test(r)) return "EMT";
+  if (/hart/.test(r)) return "HRT";
+  if (/watch manager/.test(r)) return "WM";
+  if (/crew manager/.test(r)) return "CM";
+  if (/station manager/.test(r)) return "SM";
+  if (/firefighter/.test(r)) return "FF";
+  if (/sergeant/.test(r)) return "SGT";
+  if (/inspector/.test(r)) return "INS";
+  if (/officer|constable/.test(r)) return "PC";
+  return role.split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 3).toUpperCase();
+}
+const serviceOf = (s: string): Service => (s === "Ambulance" || s === "Police" ? s : "Fire");
 
 export type Frame = "wide" | "work" | "wreck";
 
@@ -61,6 +78,8 @@ export type RtcGroundProps = {
   selectedUnitId?: string | null;
   onSelectUnit?: (applianceId: string) => void;
   commanderApplianceId?: string | null;
+  /** Right-click on a casualty: send one of an ambulance crew to them. */
+  onAssignCrewToCasualty?: AssignCrewFn;
 };
 
 /** A compass heading's direction on the picture: north is up. */
@@ -83,9 +102,75 @@ type Unit = {
   lights: string;
 };
 
-type Stander = { at: Pt; facing: Pt; service: "Fire" | "Ambulance" | "Police"; scope?: string; seed: number; role?: string; /** The crew member's own role — the HEMS doctor is drawn from his model. */ memberRole?: string; kneeling?: boolean; hands?: { left?: Pt; right?: Pt }; /** On an errand: the walk under way. */ mover?: Mover };
+/** Someone on foot: where they are or are going, and the walk under way if one is. */
+type Person = { key: string; at: Pt; service: Service; label: string; mover?: Mover; sent?: boolean };
 
-export function RtcGround({ view, incident, resolved, tasks, log, now, sim, treatmentByCasualtyId, resusByCasualtyId, hour, rain, selectedUnitId, onSelectUnit, commanderApplianceId }: RtcGroundProps) {
+/** One leg of a walk, drawn at the moment `since` into it: the path is the
+ *  element's own custom properties under the shared keyframe rule. */
+function DotWalker({ leg, since, children }: { leg: Leg; since: number; children: ReactNode }) {
+  return (
+    <g className="ps-jog" style={{ "--jx0": `${n2(leg.from[0])}px`, "--jy0": `${n2(leg.from[1])}px`, "--jx1": `${n2(leg.to[0])}px`, "--jy1": `${n2(leg.to[1])}px`, "--jog-dur": `${Math.round(leg.ms)}ms`, animationDelay: `${-Math.round(since)}ms` } as CSSProperties}>
+      {children}
+    </g>
+  );
+}
+
+/** A person: a dot in their service's colour, their role on it when there is room. */
+function DotMark({ r, colour, label, s, ring }: { r: number; colour: string; label?: string; s: number; ring?: boolean }) {
+  return (
+    <g>
+      {ring && <circle r={r + 0.26} fill="none" stroke="#ffe08a" strokeWidth={0.1} />}
+      <circle r={r} fill={colour} stroke="#0b0f14" strokeWidth={r * 0.2} />
+      <circle r={r} fill="none" stroke="#fff" strokeWidth={r * 0.14} opacity={0.9} />
+      {label && <text className="gv-dot" transform={`scale(${n2(1 / s)})`} y={2.6}>{label}</text>}
+    </g>
+  );
+}
+
+/** A unit: its footprint in its service's colour, nose marked, the blues
+ *  on when they are. Click to select it on the tablet. */
+function UnitMark({ type, service, at, heading, lights, selected, commander, unplaced, onClick }: { type: string; service: string; at: Pt; heading: number; lights: string; selected: boolean; commander: boolean; unplaced: boolean; onClick?: () => void }) {
+  const fp = unitFootprint(type, service);
+  const colour = SERVICE[serviceOf(service)];
+  const blues = lights !== "off" && lights !== "hazards";
+  return (
+    <g className={`gv-unit${unplaced ? " unplaced" : ""}`} transform={`translate(${P(at)}) rotate(${n2(heading)})`} onClick={onClick} style={onClick ? { cursor: "pointer" } : undefined}>
+      {selected && <rect x={-fp.w / 2 - 0.4} y={-fp.l / 2 - 0.4} width={fp.w + 0.8} height={fp.l + 0.8} rx={0.5} fill="none" stroke="#7fd1ff" strokeWidth={0.16} strokeDasharray="0.5 0.3" />}
+      <rect x={-fp.w / 2} y={-fp.l / 2} width={fp.w} height={fp.l} rx={0.35} fill={colour} fillOpacity={0.3} stroke={colour} strokeWidth={0.18} />
+      <path d={`M ${n2(-fp.w / 2 + 0.3)} ${n2(-fp.l / 2 + 1)} L 0 ${n2(-fp.l / 2 + 0.2)} L ${n2(fp.w / 2 - 0.3)} ${n2(-fp.l / 2 + 1)}`} fill="none" stroke="#fff" strokeWidth={0.14} opacity={0.85} />
+      {blues && <circle cy={-fp.l * 0.18} r={0.24} fill="#5ab4ff" className="gv-blues" />}
+      {commander && <circle cy={fp.l / 2 - 0.7} r={0.3} fill="#ffe08a" stroke="#0b0f14" strokeWidth={0.06} />}
+    </g>
+  );
+}
+
+/** A vehicle in the traffic, or stopped: a plain shape, its cabin darker. */
+function CarMark({ at, heading, paint, kind = "car", lights = false }: { at: Pt; heading: number; paint: string; kind?: "car" | "van" | "artic"; lights?: boolean }) {
+  const L = kind === "artic" ? 16.5 : kind === "van" ? 5.6 : 4.4;
+  const W = kind === "artic" ? 2.5 : kind === "van" ? 2.0 : 1.8;
+  const cab: [number, number] = kind === "artic" ? [-L / 2 + 0.4, -L / 2 + 2.6] : kind === "van" ? [-L / 2 + 0.5, -L / 2 + 2.2] : [-L / 2 + 1.0, L / 2 - 1.4];
+  return (
+    <g transform={`translate(${P(at)}) rotate(${n2(heading)})`}>
+      <rect x={-W / 2} y={-L / 2} width={W} height={L} rx={0.3} fill={paint} stroke="#0b0f14" strokeWidth={0.1} opacity={0.95} />
+      <rect x={-W / 2 + 0.15} y={cab[0]} width={W - 0.3} height={cab[1] - cab[0]} rx={0.2} fill="#161a1f" opacity={0.75} />
+      {lights && <rect x={-W / 2 + 0.2} y={-L / 2 - 0.1} width={W - 0.4} height={0.18} fill="#fff4c2" opacity={0.9} />}
+    </g>
+  );
+}
+
+/** A casualty: a dot in their triage colour, a bigger ring for the hand. */
+function CasualtyMark({ r, severity, s, onMenu }: { r: number; severity: string; s: number; onMenu?: (e: ReactMouseEvent) => void }) {
+  return (
+    <g onContextMenu={onMenu} style={onMenu ? { cursor: "context-menu" } : undefined}>
+      <circle r={r + 0.6} fill="#000" fillOpacity={0.001} />
+      <circle r={r} fill={triageColour(severity)} stroke="#0b0f14" strokeWidth={r * 0.2} />
+      <circle r={r} fill="none" stroke="#fff" strokeWidth={r * 0.14} opacity={0.9} />
+      {r * s >= 7 && <text className="gv-dot dark" transform={`scale(${n2(1 / s)})`} y={2.6}>{triageLabel(severity)}</text>}
+    </g>
+  );
+}
+
+export function RtcGround({ view, incident, resolved, tasks, log, now, sim, hour, rain, selectedUnitId, onSelectUnit, commanderApplianceId, onAssignCrewToCasualty }: RtcGroundProps) {
   const box = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 520 });
   useEffect(() => {
@@ -98,6 +183,8 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     return () => ro.disconnect();
   }, []);
   const [frame, setFrame] = useState<Frame>("work");
+  // The send-a-clinician menu a right-click on a casualty opens, where the click was.
+  const [assignMenu, setAssignMenu] = useState<{ casualtyId: string; x: number; y: number } | null>(null);
 
   const sc = incident.scenario;
   const scene = sc.scene;
@@ -167,10 +254,10 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
   // ---- The wrecks, and the way from each appliance to them ------------------------------
   const crs = sc.crs ?? [];
   const wrecks = view.wrecks.map((w) => ({ ...w, vehicle: crs.find((v) => v.id === w.vehicleId) ?? null })).filter((w) => w.vehicle);
-  const toLocal = (w: Placing, p: Pt): Pt => {
+  /** A point in a wreck's own frame — nose to -x, driver's side to -y — on the picture. */
+  const toWorld = (w: Placing, l: Pt): Pt => {
     const th = (headingRotate(w.heading) * Math.PI) / 180;
-    const dx = p[0] - w.at[0], dy = p[1] - w.at[1];
-    return [dx * Math.cos(th) + dy * Math.sin(th), -dx * Math.sin(th) + dy * Math.cos(th)];
+    return [w.at[0] + l[0] * Math.cos(th) - l[1] * Math.sin(th), w.at[1] + l[0] * Math.sin(th) + l[1] * Math.cos(th)];
   };
   // A crew's doorstep: just off their appliance on the side nearer where they are going.
   const doorstep = (u: Unit, towards: Pt): Pt => {
@@ -181,9 +268,11 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     const reach = (fp.l / 2) * along + (fp.w / 2) * (1 - along) + 0.9;
     return [u.at[0] + dir[0] * reach, u.at[1] + dir[1] * reach];
   };
-  const fromFor = (w: Placing) => (applianceId?: string) => {
-    const u = applianceId ? unitById.get(applianceId) : undefined;
-    return u ? toLocal(w, doorstep(u, w.at)) : null;
+  /** The walk from one point to another at a crew's pace, where it has got to at `now`. */
+  const walk = (from: Pt, to: Pt, t0: number, ms = Math.max(600, (len(sub(to, from)) / WALK_MPS) * 1000)): { mover?: Mover; at: Pt; done: boolean } => {
+    const since = now - t0;
+    if (since >= 0 && since < ms) return { mover: { legs: [{ from, to, ms }], since, clip: "firefighter_walk" }, at: to, done: false };
+    return { at: since < 0 ? from : to, done: since >= ms };
   };
 
   // ---- The people: in the cars, on the hard shoulder, with the crews ---------------------
@@ -194,74 +283,138 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     if (byPos.length) return byPos;
     return i === 0 ? casualties.filter((c) => c.trappedUntilExtricated) : [];
   };
-  const lookOf = (c: SceneCasualty) => patientLook(c, treatmentByCasualtyId?.[c.id], resusByCasualtyId?.[c.id], { landed: false });
-  // The clinicians of an ambulance crew — a HEMS pilot stays with the aircraft.
-  const clinicians = (a: { crewMembers: { id: string; role: string; name: string }[] }) => a.crewMembers.filter((m) => !/pilot/i.test(m.role));
-  const medicsWith = (casualtyId: string): SceneCrew[] => units
-    .filter((u) => u.r.appliance.service === "Ambulance" && u.r.deployment.treatingCasualtyId === casualtyId)
-    .flatMap((u) => clinicians(u.r.appliance).slice(0, 2).map((m, i) => ({ callsign: u.r.appliance.callsign, role: m.role, service: "Ambulance" as const, scope: scopeOfApplianceType(u.r.appliance.type), name: i > 0 ? m.name : undefined })));
-  const seated = new Set<string>();
   const attached = new Set(wrecks.flatMap((_, i) => casualtiesOf(i).map((c) => c.id)));
   const sideOut: Pt = top ? [0, -1] : [0, 1];
+  // Where each casualty is: in their seat, sat on the hard shoulder by
+  // their car, or where they were found — and where a clinician stands
+  // with them: by the door, or either side of them on the ground.
+  const casualtyAt = new Map<string, Pt>();
+  const medicSpots = new Map<string, Pt[]>();
+  // Two people in one car: their plates stack above the car's top seat rather than overprint.
+  const plateRow = new Map<string, number>();
+  const plateAt = new Map<string, Pt>();
+  const trappedStill = (c: SceneCasualty) => !!c.trappedUntilExtricated && jobs.extricationState !== "done";
+  wrecks.forEach((w, i) => {
+    const sh = shellFor(w.vehicle!.body);
+    const vCas = casualtiesOf(i);
+    const seatCas = vCas.find((c) => c.trappedUntilExtricated) ?? vCas.find((c) => c.severity !== "walking") ?? null;
+    const passenger = vCas.find((c) => c !== seatCas && c.severity !== "walking") ?? null;
+    vCas.filter((c) => c !== seatCas && c !== passenger).forEach((c, k) => {
+      const at: Pt = [w.at[0] - flow * (2.4 + k * 1.3), hsMid + sideOut[1] * 0.35];
+      casualtyAt.set(c.id, at);
+      medicSpots.set(c.id, [[at[0] - 0.85, at[1] + sideOut[1] * -0.3], [at[0] + 0.85, at[1] + sideOut[1] * -0.3], [at[0], at[1] + sideOut[1] * -1.0]]);
+    });
+    const seatOf = (side: 1 | -1): Pt => [sh.seat[0], sh.seat[1] * side];
+    const byDoor = (side: 1 | -1): Pt[] => [0, -1.1, 1.1].map((dx) => toWorld(w, [sh.seat[0] + dx, (sh.W / 2 + 0.7) * (sh.seat[1] < 0 ? side : -side) * -1]));
+    if (seatCas) { casualtyAt.set(seatCas.id, toWorld(w, seatOf(1))); medicSpots.set(seatCas.id, byDoor(1)); plateRow.set(seatCas.id, 0); }
+    if (passenger) { casualtyAt.set(passenger.id, toWorld(w, seatOf(-1))); medicSpots.set(passenger.id, byDoor(-1)); plateRow.set(passenger.id, 1); }
+    const seats = [seatCas, passenger].flatMap((c) => (c ? [casualtyAt.get(c.id)!] : []));
+    if (seats.length) {
+      const anchor: Pt = [seats.reduce((a, q) => a + q[0], 0) / seats.length, Math.min(...seats.map((q) => q[1]))];
+      for (const c of [seatCas, passenger]) if (c) plateAt.set(c.id, anchor);
+    }
+  });
+  for (const c of casualties) if (!attached.has(c.id)) {
+    const at: Pt = [c.pos.x, c.pos.y];
+    casualtyAt.set(c.id, at);
+    medicSpots.set(c.id, [[at[0] - 0.85, at[1]], [at[0] + 0.85, at[1]], [at[0], at[1] - 0.85], [at[0], at[1] + 0.85]]);
+  }
 
   // Who is away from their appliance: at a wreck, on the cones, with a casualty, walking back.
   const active = tasks.filter((t) => t.state === "active");
   const awayIds = new Set(active.filter((t) => t.kind === "crs_action" || t.kind === "rtc_extrication" || t.kind === "lane_closure" || t.kind === "fend_off").flatMap((t) => t.assignedCrewIds));
-  // Crews walking back from a job that just ended are on the road, not by
-  // the appliance yet: away for as long as the walk takes.
-  const walkingBack = new Map<string, number>();
-  for (const w of wrecks) for (const f of jobs.finishedOn(w.vehicle!, WALK_BACK_MS)) {
-    const u = f.applianceId ? unitById.get(f.applianceId) : undefined;
-    if (!u) continue;
-    const walkMs = (len(sub(w.at, u.at)) / 1.4) * 1000 + 600;
-    if (now - f.endedAt < walkMs) walkingBack.set(u.r.appliance.id, (walkingBack.get(u.r.appliance.id) ?? 0) + f.crew);
+  const people: Person[] = [];
+
+  // The clinicians sent to each casualty, in the order they were sent:
+  // walking over from their vehicle, then at the spot by the patient.
+  const sentAll = units
+    .filter((u) => u.r.appliance.service === "Ambulance" && !u.r.deployment.hospitalLegStartedAt)
+    .flatMap((u) => crewSent(u.r.deployment, u.r.appliance.crewMembers, busyOn(tasks, u.r.appliance.id)).map((s) => ({ ...s, u })))
+    .sort((a, b) => a.since - b.since);
+  const sentIds = new Set(sentAll.map((s) => s.member.id));
+  const spotTaken = new Map<string, number>();
+  const withCasualty = new Map<string, string[]>();
+  for (const s of sentAll) {
+    const target = casualtyAt.get(s.casualtyId);
+    const spots = medicSpots.get(s.casualtyId) ?? [];
+    if (!target || !spots.length) continue;
+    const k = spotTaken.get(s.casualtyId) ?? 0;
+    spotTaken.set(s.casualtyId, k + 1);
+    const to = spots[Math.min(k, spots.length - 1)];
+    const from = doorstep(s.u, to);
+    const w = walk(from, to, s.since, walkMsFor(len(sub(to, from))));
+    if (w.done) withCasualty.set(s.casualtyId, [...(withCasualty.get(s.casualtyId) ?? []), s.u.r.appliance.callsign]);
+    people.push({ key: `tx:${s.u.r.appliance.id}:${s.member.id}`, at: w.at, mover: w.mover, service: "Ambulance", label: initialsOf(s.member.role), sent: true });
   }
 
-  const standers: Stander[] = [];
+  // The crews on the wrecks: each job's crew at spots round the shell,
+  // walking out from their appliance when the job started, walking back
+  // when it ended; the extrication crew on the remaining spots.
+  const walkingBack = new Map<string, number>();
+  wrecks.forEach((w, wi) => {
+    const v = w.vehicle!;
+    const sh = shellFor(v.body);
+    const o = 0.8;
+    const ringLocal: Pt[] = [[-sh.L / 2 - o, 0], [sh.L / 2 + o, 0], [-sh.L / 4, -(sh.W / 2 + o)], [-sh.L / 4, sh.W / 2 + o], [sh.L / 4, -(sh.W / 2 + o)], [sh.L / 4, sh.W / 2 + o], [0, -(sh.W / 2 + o + 1.0)], [0, sh.W / 2 + o + 1.0], [-sh.L / 2 - o - 1.0, 0.9], [sh.L / 2 + o + 1.0, -0.9]];
+    const ring = ringLocal.map((l) => toWorld(w, l));
+    let next = 0;
+    const spot = () => ring[next++ % ring.length];
+    const spotFor = (key: string, i: number) => ring[(hash(key) + i) % ring.length];
+    const fromOf = (applianceId: string | undefined, to: Pt): Pt | null => {
+      const u = applianceId ? unitById.get(applianceId) : undefined;
+      return u ? doorstep(u, to) : null;
+    };
+    for (const job of jobs.workingOn(v)) {
+      for (let i = 0; i < Math.max(1, job.crew); i++) {
+        const to = spot();
+        const from = job.startedAt !== undefined ? fromOf(job.applianceId, to) : null;
+        const u: { at: Pt; mover?: Mover } = from ? walk(from, to, job.startedAt!) : { at: to };
+        people.push({ key: `job:${wi}:${job.key}:${i}`, at: u.at, mover: u.mover, service: "Fire", label: "FF" });
+      }
+    }
+    if (jobs.extricationState === "active" && jobs.extrication) {
+      const ext = jobs.extrication;
+      const n = Math.max(2, Math.min(4, ext.assignedCrewIds.length || 4));
+      for (let i = 0; i < n; i++) {
+        const to = spot();
+        const from = fromOf(ext.applianceId, to);
+        const u: { at: Pt; mover?: Mover } = from ? walk(from, to, ext.startedAt) : { at: to };
+        people.push({ key: `ext:${wi}:${i}`, at: u.at, mover: u.mover, service: "Fire", label: "FF" });
+      }
+    }
+    for (const f of jobs.finishedOn(v, WALK_BACK_MS)) {
+      for (let i = 0; i < Math.max(1, f.crew); i++) {
+        const from = spotFor(f.key, i);
+        const home = fromOf(f.applianceId, from);
+        if (!home) continue;
+        const u = walk(from, home, f.endedAt);
+        if (!u.mover) continue;
+        people.push({ key: `back:${wi}:${f.key}:${i}`, at: u.at, mover: u.mover, service: "Fire", label: "FF" });
+        if (f.applianceId) walkingBack.set(f.applianceId, (walkingBack.get(f.applianceId) ?? 0) + 1);
+      }
+    }
+  });
+
+  // Everyone standing by their appliance: not away at a job, not sent to
+  // a casualty, not walking back, not in the car on a rolling block —
+  // along the side nearer the wreck, a step apart.
   const wreckCentre: Pt = wrecks.length ? [wrecks.reduce((a, w) => a + w.at[0], 0) / wrecks.length, wrecks.reduce((a, w) => a + w.at[1], 0) / wrecks.length] : [0, 0];
-  // Where an errand goes: the kit laid out beyond the first wreck's nose.
-  const kitAt: Pt | null = wrecks.length ? (() => { const w = wrecks[0]; const th = (headingRotate(w.heading) * Math.PI) / 180; const l: Pt = [-5.8, 1.5]; return [w.at[0] + l[0] * Math.cos(th) - l[1] * Math.sin(th), w.at[1] + l[0] * Math.sin(th) + l[1] * Math.cos(th)]; })() : null;
-  // A fire crew member standing by goes to the kit and back now and then:
-  // where they are in that at this moment — walking out, there, walking
-  // back, or standing by — from the clock alone.
-  const errand = (unitKey: string, i: number, n: number, from: Pt): { mover?: Mover; at: Pt } => {
-    if (!kitAt) return { at: from };
-    const ms = Math.max(2000, (len(sub(kitAt, from)) / WALK_MPS) * 1000);
-    const tU = now + (hash(unitKey) % ERRAND_CYCLE_MS);
-    // Whose turn it is this cycle; the rest stand by.
-    if (Math.floor(tU / ERRAND_CYCLE_MS) % n !== i) return { at: from };
-    const t = tU % ERRAND_CYCLE_MS;
-    if (t < ms) return { mover: { legs: [{ from, to: kitAt, ms }], since: t, clip: "firefighter_walk" }, at: kitAt };
-    if (t < ms + ERRAND_PAUSE_MS) return { at: kitAt };
-    if (t < 2 * ms + ERRAND_PAUSE_MS) return { mover: { legs: [{ from: kitAt, to: from, ms }], since: t - ms - ERRAND_PAUSE_MS, clip: "firefighter_walk" }, at: from };
-    return { at: from };
-  };
   for (const u of units) {
     const a = u.r.appliance;
-    const service = a.service === "Fire" || a.service === "Ambulance" || a.service === "Police" ? a.service : "Fire";
-    const treating = a.service === "Ambulance" && !!u.r.deployment.treatingCasualtyId;
+    const service = serviceOf(a.service);
     const inCar = tasks.some((t) => t.kind === "rolling_road_block" && t.applianceId === a.id && live(t)) ? 1 : 0;
-    // Who is left by the vehicle: not away at a job, not the two clinicians
-    // with a casualty, not walking back from a job, not in the car.
-    const busy = new Set(awayIds);
-    if (treating) for (const m of clinicians(a).slice(0, 2)) busy.add(m.id);
-    const members = a.crewMembers.filter((m) => !busy.has(m.id)).slice((walkingBack.get(a.id) ?? 0) + inCar);
-    const idle = members.length;
-    if (idle <= 0) continue;
-    // Along the side of the vehicle nearer the wreck, a step apart, facing it.
+    const members = a.crewMembers.filter((m) => !awayIds.has(m.id) && !sentIds.has(m.id)).slice((walkingBack.get(a.id) ?? 0) + inCar);
+    const n = Math.min(members.length, 5);
+    if (n <= 0) continue;
     const fp = unitFootprint(a.type, a.service);
     const axis = dirOf(u.heading);
     const across: Pt = [-axis[1], axis[0]];
     const toWreck = sub(wreckCentre, u.at);
     const side = toWreck[0] * across[0] + toWreck[1] * across[1] >= 0 ? 1 : -1;
-    const n = Math.min(idle, 5);
     for (let i = 0; i < n; i++) {
       const along = -fp.l * 0.3 + (i * (fp.l * 0.6)) / Math.max(1, n - 1);
-      const at: Pt = [u.at[0] + axis[0] * along + across[0] * side * (fp.w / 2 + 0.55), u.at[1] + axis[1] * along + across[1] * side * (fp.w / 2 + 0.55)];
-      const e = service === "Fire" ? errand(`${a.id}:errand`, i, n, at) : { at };
-      const member = members[i];
-      const label = service === "Ambulance" ? (/pilot/i.test(member.role) ? "PILOT" : /doctor/i.test(member.role) ? "DOCTOR" : "PARAMEDIC") : service === "Police" ? "POLICE" : undefined;
-      standers.push({ at: e.at, facing: e.at === at ? unit(toWreck) : unit(sub(at, e.at)), mover: e.mover, service, scope: scopeOfApplianceType(a.type), seed: hash(`${a.id}:${i}`), role: label, memberRole: member.role });
+      const at: Pt = [u.at[0] + axis[0] * along + across[0] * side * (fp.w / 2 + 0.7), u.at[1] + axis[1] * along + across[1] * side * (fp.w / 2 + 0.7)];
+      people.push({ key: `by:${a.id}:${members[i].id}`, at, service, label: initialsOf(members[i].role) });
     }
   }
   // The fend-off crew member at the back of the appliance with the cones; the officers on the taper.
@@ -271,7 +424,8 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     const fp = unitFootprint(fendUnit.r.appliance.type, fendUnit.r.appliance.service);
     const axis = dirOf(fendUnit.heading);
     const rear: Pt = [fendUnit.at[0] - axis[0] * (fp.l / 2 + 1.0), fendUnit.at[1] - axis[1] * (fp.l / 2 + 1.0)];
-    standers.push({ at: rear, facing: [-flow, 0], service: fendUnit.r.appliance.service === "Police" ? "Police" : "Fire", seed: hash(`${fendUnit.r.appliance.id}:fend`) });
+    const service = serviceOf(fendUnit.r.appliance.service);
+    people.push({ key: `fend:${fendUnit.r.appliance.id}`, at: rear, service, label: service === "Police" ? "PC" : "FF" });
     for (let i = 0; i < 4; i++) fendCones.push([rear[0] - flow * (2.2 + i * 2.1), rear[1] + (top ? -1 : 1) * (1.2 - i * 0.9)]);
   }
   // The cones across a lane: from the carriageway's edge diagonally to the
@@ -296,7 +450,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     coneShown = Math.round(conePts.length * prog);
     laneTasks.forEach((t, j) => t.assignedCrewIds.slice(0, 3).forEach((_, i) => {
       const p = conePts[Math.max(0, Math.min(conePts.length - 1, coneShown - 1 - i))];
-      standers.push({ at: [p[0] + flow * 0.9, p[1] + (top ? 0.9 : -0.9) * (1 + i * 0.3)], facing: [-flow, 0], service: "Police", seed: hash(`${t.id}:${j}:${i}`), role: "POLICE" });
+      people.push({ key: `cones:${t.id}:${j}:${i}`, at: [p[0] + flow * 0.9, p[1] + (top ? 0.9 : -0.9) * (1 + i * 0.3)], service: "Police", label: "PC" });
     }));
   }
 
@@ -311,7 +465,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
       const van = r() > 0.82;
       return (
         <g key={`${key}:${i}`} className="gv-car" style={{ "--x0": `${n2(dir > 0 ? x0 : x1)}px`, "--x1": `${n2(dir > 0 ? x1 : x0)}px`, "--dur": `${dur.toFixed(2)}s`, animationDelay: `${(-delay).toFixed(2)}s` } as CSSProperties}>
-          <PlanCar at={[0, y]} heading={dir > 0 ? 90 : 270} paint={paint} van={van} lights={amb.night} />
+          <CarMark at={[0, y]} heading={dir > 0 ? 90 : 270} paint={paint} kind={van ? "van" : "car"} lights={amb.night} />
         </g>
       );
     });
@@ -335,10 +489,13 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
   const fb = boxes[frame];
   const s = Math.min(size.w / (fb.x1 - fb.x0), size.h / (fb.y1 - fb.y0));
   const ox = size.w / 2 - ((fb.x0 + fb.x1) / 2) * s, oy = size.h / 2 - ((fb.y0 + fb.y1) / 2) * s;
-  // People are half a metre across from above: at the wide framings they
-  // are drawn larger than life so the crews still read as crews.
-  const K = Math.max(1, Math.min(1.8, 26 / s));
-  const scaled = (at: Pt, node: ReactNode) => (K === 1 ? node : <g transform={`translate(${P(at)}) scale(${n2(K)}) translate(${n2(-at[0])} ${n2(-at[1])})`}>{node}</g>);
+  // A person is half a metre across: at the wide framings the dots are
+  // drawn larger than life so the crews still read, and the roles go on
+  // them once there is room.
+  const dotR = Math.max(0.42, 3.5 / s);
+  const casR = Math.max(0.38, 3.2 / s);
+  const showRoles = dotR * s >= 7;
+  const showTags = s >= 12;
   const plate = (at: Pt, dy: number, lines: { text: string; cls?: string }[]) => (
     <g transform={`translate(${n2(at[0])} ${n2(at[1] + dy)}) scale(${n2(1 / s)})`}>
       {lines.map((l, i) => <text key={i} className={`gv-plate${l.cls ? ` ${l.cls}` : ""}`} y={i * 11} textAnchor="middle">{l.text}</text>)}
@@ -355,15 +512,36 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
     traffic.protected ? "road protected" : traffic.detail,
   ];
 
+  // ---- The hand: a right-click on a casualty sends a clinician ----------------------------
+  const casualtyLabel = (id: string) => casualties.find((c) => c.id === id)?.label ?? id;
+  const casualtyShort = (id: string) => casualtyShortLabel(casualties.find((c) => c.id === id)?.label, id);
+  const openMenu = onAssignCrewToCasualty
+    ? (casualtyId: string) => (e: ReactMouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const r = box.current?.getBoundingClientRect();
+        setAssignMenu({ casualtyId, x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) });
+      }
+    : null;
+  const stageOf = (c: SceneCasualty): string => {
+    if (trappedStill(c)) return "trapped";
+    const st = sim?.casualtyProgression?.[c.id]?.stage;
+    return st ? st.replace(/_/g, " ") : "";
+  };
+
+  const drawPerson = (p: Person) => {
+    const cur = p.mover ? legAt(p.mover) : null;
+    const mark = <DotMark r={dotR} colour={SERVICE[p.service]} label={showRoles ? p.label : undefined} s={s} ring={p.sent} />;
+    if (p.mover && cur) return <DotWalker key={`${p.key}:${cur.index}`} leg={cur.leg} since={cur.since}>{mark}</DotWalker>;
+    return <g key={p.key} transform={`translate(${P(p.at)})`}>{mark}</g>;
+  };
+
   return (
     <div ref={box} className={`gv-scene${amb.night ? " night" : ""}`}>
       <svg viewBox={`0 0 ${size.w} ${size.h}`} preserveAspectRatio="none" aria-label="The scene from above">
         <defs>
-          <FigureDefs />
-          <KitDefs />
           <GroundDefs />
           <WeatherDefs />
-          <RtcDefs />
           <radialGradient id="gv-pool" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#000" /><stop offset="0.55" stopColor="#000" stopOpacity="0.8" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></radialGradient>
           <mask id="gv-night" maskUnits="userSpaceOnUse" x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40}>
             <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#fff" />
@@ -445,93 +623,54 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
           {/* The traffic: what is still running past in each lane, both ways, and the queue a block holds. */}
           {traffic.live.map((l) => stream(`live:${l}`, laneY(l), flow, perLane, eastSpeed))}
           {wb && Array.from({ length: cw.lanes }, (_, k) => stream(`wb:${k}`, wb.y + (k + 0.5) * (wb.h / cw.lanes), flow > 0 ? -1 : 1, perLane, 13 + k * 3.5))}
-          {queue.map((q, i) => <PlanCar key={`q${i}`} at={q} heading={flow > 0 ? 90 : 270} paint={CAR_PAINTS[(i * 5) % CAR_PAINTS.length]} lights={amb.night} />)}
+          {queue.map((q, i) => <CarMark key={`q${i}`} at={q} heading={flow > 0 ? 90 : 270} paint={CAR_PAINTS[(i * 5) % CAR_PAINTS.length]} lights={amb.night} />)}
           {/* Stopped on the hard shoulder: the witness's car, the caller's lorry. */}
-          {view.stopped.map((v, i) => v.kind === "artic" ? <PlanArtic key={i} at={v.at} heading={v.heading} /> : <PlanCar key={i} at={v.at} heading={v.heading} paint={v.paint ?? "#9aa4ad"} van={v.kind === "van"} />)}
+          {view.stopped.map((v, i) => <CarMark key={i} at={v.at} heading={v.heading} paint={v.paint ?? (v.kind === "artic" ? "#e8e9ea" : "#9aa4ad")} kind={v.kind} />)}
           {/* The units, parked or put where their task has them. */}
           {units.map((u) => (
-            <g key={u.r.appliance.id} className="gv-unit-move">
-              <UnitSprite type={u.r.appliance.type} service={u.r.appliance.service} at={u.at} heading={u.heading} lights={u.lights} selected={u.r.appliance.id === selectedUnitId} commander={u.r.appliance.id === commanderApplianceId} unplaced={!u.placed} onClick={onSelectUnit ? () => onSelectUnit(u.r.appliance.id) : undefined} />
-            </g>
+            <UnitMark key={u.r.appliance.id} type={u.r.appliance.type} service={u.r.appliance.service} at={u.at} heading={u.heading} lights={u.lights} selected={u.r.appliance.id === selectedUnitId} commander={u.r.appliance.id === commanderApplianceId} unplaced={!u.placed} onClick={onSelectUnit ? () => onSelectUnit(u.r.appliance.id) : undefined} />
           ))}
           {/* The cones: the fend-off's, the taper's as far as it has got. */}
-          {fendCones.map((c, i) => <Cone key={`fc${i}`} x={c[0]} y={c[1]} />)}
-          {conePts.slice(0, coneShown).map((c, i) => <Cone key={`tc${i}`} x={c[0]} y={c[1]} />)}
-          {/* The wrecks: each as the stage draws it, turned the way it came to rest, its crews coming and going from their appliances. */}
+          {[...fendCones, ...conePts.slice(0, coneShown)].map((c, i) => <circle key={`c${i}`} cx={c[0]} cy={c[1]} r={0.26} fill="#ff7a1a" stroke="#fff" strokeWidth={0.07} />)}
+          {/* The wrecks: each shell turned the way it came to rest, what has been done to it on its plate. */}
           {wrecks.map((w, i) => {
             const v = w.vehicle!;
-            const vCas = casualtiesOf(i);
-            const seatCas = vCas.find((c) => c.trappedUntilExtricated) ?? vCas.find((c) => c.severity !== "walking") ?? null;
-            const passenger = vCas.find((c) => c !== seatCas && c.severity !== "walking") ?? null;
-            const walking = vCas.filter((c) => c !== seatCas && c !== passenger);
-            walking.forEach((c) => seated.add(c.id));
-            const trapped = !!seatCas?.trappedUntilExtricated && jobs.extricationState !== "done";
-            const ext = jobs.extrication;
+            const sh = shellFor(v.body);
+            const done = [...jobs.doneKeys(v)].length;
+            const working = jobs.workingOn(v).map((j) => j.key.replace(/^std-/, "").replace(/-/g, " "));
+            const lines = [{ text: v.body === "van" ? "VAN" : "CAR", cls: "tag" }, ...(working.length ? [{ text: working.join(" · "), cls: "sub" }] : done ? [{ text: `${done} job${done === 1 ? "" : "s"} done`, cls: "sub" }] : [])];
             return (
-              <g key={v.id} transform={`translate(${P(w.at)}) rotate(${n2(headingRotate(w.heading))})`}>
-                <RtcWreck
-                  vehicle={v}
-                  done={jobs.doneKeys(v)}
-                  working={jobs.workingOn(v)}
-                  finished={jobs.finishedOn(v, WALK_BACK_MS)}
-                  casualty={seatCas ? { look: lookOf(seatCas), trapped } : null}
-                  passenger={passenger ? { look: lookOf(passenger) } : null}
-                  medics={seatCas ? medicsWith(seatCas.id) : []}
-                  extrication={seatCas?.trappedUntilExtricated ? jobs.extricationState : "none"}
-                  extricationCrew={ext?.assignedCrewIds.length}
-                  extricationStartedAt={jobs.extricationState === "active" ? ext?.startedAt : undefined}
-                  extricationPrev={jobs.extricationState === "active" && ext ? jobs.cameFrom(ext.applianceId, ext.startedAt) : undefined}
-                  extricationApplianceId={ext?.applianceId}
-                  night={amb.night}
-                  rain={rain}
-                  now={now}
-                  tagScale={s}
-                  tagRotate={headingRotate(w.heading)}
-                  figureScale={K}
-                  cones={false}
-                  from={fromFor(w)}
-                />
+              <g key={v.id}>
+                <g transform={`translate(${P(w.at)}) rotate(${n2(headingRotate(w.heading))})`}>
+                  <rect x={-sh.L / 2} y={-sh.W / 2} width={sh.L} height={sh.W} rx={0.3} fill="#3a3f45" stroke="#c9ced2" strokeWidth={0.14} />
+                  <rect x={sh.cabin[0]} y={-sh.W / 2 + 0.15} width={sh.cabin[1] - sh.cabin[0]} height={sh.W - 0.3} rx={0.15} fill="#1c2026" opacity={0.85} />
+                  {jobs.extricationState === "active" && <rect x={-sh.L / 2 - 0.3} y={-sh.W / 2 - 0.3} width={sh.L + 0.6} height={sh.W + 0.6} rx={0.4} fill="none" stroke="#ffe08a" strokeWidth={0.1} strokeDasharray="0.5 0.3" />}
+                </g>
+                {showTags && plate(w.at, sh.W / 2 + 2.3, lines)}
+                {i === 0 && !showTags && plate(w.at, sh.W / 2 + 1.6, [{ text: "RTC", cls: "tag" }])}
               </g>
             );
           })}
-          {/* The people out of the cars: the walking wounded sat on the hard shoulder by their car, anyone found elsewhere on the scene where they are, a clinician kneeling with them once one has them. */}
-          {[
-            ...wrecks.flatMap((w, i) => casualtiesOf(i).filter((c) => seated.has(c.id)).map((c, k) => ({ c, at: [w.at[0] - flow * (2.4 + k * 1.3), hsMid + sideOut[1] * 0.35] as Pt }))),
-            ...casualties.filter((c) => !attached.has(c.id)).map((c) => ({ c, at: [c.pos.x, c.pos.y] as Pt })),
-          ].map(({ c, at }) => {
-            const look = lookOf(c);
-            const a = look.appearance;
-            const seed = hash(`${c.id}:${a.ageYears}`);
-            const sitting = c.severity === "walking";
-            const r: Rig = rig({ heightM: a.heightM, sex: a.sex, child: a.child, elderly: a.elderly, pregnant: a.pregnant }, { pose: sitting ? "seated" : "lying", cue: "none", headTurn: 0 });
-            const wear = wearOf(look, "road_urban", seed, !!rain);
-            const medics = medicsWith(c.id);
+          {/* The casualties: in their seats, sat on the hard shoulder, or where they were found — each in their triage colour, labelled, with a right-click to send a clinician. */}
+          {casualties.map((c) => {
+            const at = casualtyAt.get(c.id);
+            if (!at) return null;
+            const severity = sim?.casualtyProgression?.[c.id]?.severity ?? c.severity;
+            const stage = stageOf(c);
+            const here = withCasualty.get(c.id) ?? [];
+            const lines = [{ text: casualtyShortLabel(c.label, c.id) }, ...(stage ? [{ text: here.length ? `${stage} · ${[...new Set(here)].join(", ")}` : stage, cls: "sub" }] : [])];
+            const row = plateRow.get(c.id) ?? 0;
             return (
               <g key={c.id}>
-                {scaled(at, (
-                  <g>
-                    <g transform={`translate(${P(at)}) rotate(${top ? 0 : 180})`}>
-                      <PlanFigure rig={r} w={wear} chestClass={look.breathing !== "none" ? "ps-chest breathe" : "ps-chest"} />
-                    </g>
-                    {medics.slice(0, 2).map((m, j) => {
-                      const mAt: Pt = [at[0] + (j === 0 ? -0.75 : 0.75), at[1] + sideOut[1] * -0.25];
-                      return <CrewTop key={j} at={mAt} facing={[j === 0 ? 1 : -1, 0]} hands={{ left: [at[0], at[1] + sideOut[1] * -0.15], right: [at[0] + (j === 0 ? -0.1 : 0.1), at[1] + sideOut[1] * -0.3] }} wear={crewWearOf("Ambulance", m.scope, hash(m.callsign) + j * 977, { jacket: true, role: "PARAMEDIC" })} />;
-                    })}
-                  </g>
-                ))}
-                {medics.length > 0 && plate([at[0], at[1]], sideOut[1] * -0.9 * K, [{ text: medics[0].callsign, cls: "tag" }])}
+                <g transform={`translate(${P(at)})`}>
+                  <CasualtyMark r={casR} severity={severity} s={s} onMenu={openMenu ? openMenu(c.id) : undefined} />
+                </g>
+                {showTags && plate(plateAt.get(c.id) ?? at, -(casR + 4 / s) - ((lines.length - 1) * 11) / s - (row * (lines.length * 11 + 8)) / s, lines)}
               </g>
             );
           })}
-          {/* Everyone standing by: the crews at their appliances, the fend-off's, the officers on the cones. */}
-          {standers.map((f, i) => {
-            const cur = f.mover ? legAt(f.mover) : null;
-            if (f.mover && cur) return <Walker key={`${i}:${cur.index}`} leg={cur.leg} since={cur.since} clip={f.mover.clip} scale={K} />;
-            if (f.service === "Fire") return <g key={i}>{scaled(f.at, <ModelSprite id="firefighter_stand" at={f.at} a={deg(f.facing)} />)}</g>;
-            // The air ambulance doctor is his model, the response pack on his back.
-            if (f.service === "Ambulance" && f.scope === "hems" && /doctor/i.test(f.memberRole ?? "")) return <g key={i}>{scaled(f.at, <ModelSprite id="ambulance_medic" at={f.at} a={deg(f.facing)} />)}</g>;
-            return <g key={i}>{scaled(f.at, <CrewTop at={f.at} facing={f.facing} hands={f.hands ?? {}} kneeling={!!f.kneeling} style={{ animationDelay: `${((i * 1.3) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: true, role: f.role ?? "" })} />)}</g>;
-          })}
+          {/* Everyone on foot: by their appliances, on the wrecks, on the cones, with the casualties, and walking between. */}
+          {people.map(drawPerson)}
           {/* The overbridge, over everything under it: the photograph's own decks, or a drawn one. */}
           {photo && photo.cover && (
             <g clipPath="url(#gv-cover)">
@@ -583,6 +722,17 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, trea
         <b>{traffic.headline}</b>
         <span>{words.join(" · ")}</span>
       </div>
+      {assignMenu && onAssignCrewToCasualty && (
+        <CrewAssignMenu
+          casualty={{ id: assignMenu.casualtyId, label: casualtyLabel(assignMenu.casualtyId) }}
+          rows={assignRowsFor(onScene.map((r) => ({ deployment: r.deployment, appliance: r.appliance })), tasks, assignMenu.casualtyId, casualtyShort)}
+          x={assignMenu.x}
+          y={assignMenu.y}
+          host={size}
+          onAssign={onAssignCrewToCasualty}
+          onClose={() => setAssignMenu(null)}
+        />
+      )}
     </div>
   );
 }

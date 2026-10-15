@@ -21,6 +21,7 @@ import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
 import type { CrsAction, CrsVehicle, Incident, LogEntry, Task } from "@/lib/sim/incident_types";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
+import { busyOn, crewSentTo } from "@/lib/sim/crew_assign";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedDeployment } from "../components/incident-view";
 import type { TaskWorkspaceProps } from "./mdt-task-workspace";
@@ -205,9 +206,11 @@ export function RtcStage(props: RtcStageProps) {
   };
   const trappedIn = (v: CrsVehicle) => casualtiesOf(v).filter((c) => c.trappedUntilExtricated && extricationState !== "done");
   const trappedAll = casualties.filter((c) => c.trappedUntilExtricated);
+  // The clinicians with a casualty: those of each ambulance crew sent to
+  // them by name, else the two the vehicle's pairing implies.
   const medicsWith = (casualtyId: string): SceneCrew[] => onScene
-    .filter((r) => r.appliance.service === "Ambulance" && r.deployment.treatingCasualtyId === casualtyId)
-    .map((r) => ({ callsign: r.appliance.callsign, role: r.appliance.type === "HEMS" ? "Doctor" : "Paramedic", service: "Ambulance" as const, scope: scopeOfApplianceType(r.appliance.type) }));
+    .filter((r) => r.appliance.service === "Ambulance")
+    .flatMap((r) => crewSentTo(r.deployment, r.appliance.crewMembers, casualtyId, busyOn(tasks, r.appliance.id)).map((s) => ({ callsign: r.appliance.callsign, role: s.member.role, service: "Ambulance" as const, scope: scopeOfApplianceType(r.appliance.type), name: s.member.name })));
 
   // ---- Where the job is: the track, the headline, the clock ----------------
   const v = vehicle;

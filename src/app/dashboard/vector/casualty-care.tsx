@@ -57,6 +57,7 @@ import { PatientBoard } from "./patient-board";
 import { isExtractionRequired, type ResolvedDeployment } from "../components/incident-view";
 import type { CasualtyStage } from "@/lib/sim/incident_sim";
 import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
+import { hasCrewWith } from "@/lib/sim/crew_assign";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -234,7 +235,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
 
   // ---- Who is with the patient --------------------------------------
   const pairedAll = deployments
-    .filter((d) => d.treatingCasualtyId === casualtyId)
+    .filter((d) => hasCrewWith(d, casualtyId))
     .map((d) => {
       const r = resolved.find((x) => x.appliance.id === d.applianceId);
       return r ? { deployment: d, appliance: r.appliance } : null;
@@ -254,7 +255,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     .sort((a, b) => SCOPE_LEVEL[scopeOfApplianceType(b.appliance.type)] - SCOPE_LEVEL[scopeOfApplianceType(a.appliance.type)]);
 
   const extractionRequired = isExtractionRequired(casualty, tasks);
-  const convoy = pairedAll.find((p) => p.deployment.hospitalLegStartedAt);
+  const convoy = pairedAll.find((p) => p.deployment.hospitalLegStartedAt && p.deployment.treatingCasualtyId === casualtyId);
   const conveying = !!convoy;
   const atHospital = !!convoy && convoy.deployment.hospitalArrivesAt !== undefined && now >= convoy.deployment.hospitalArrivesAt;
   // The crew are with the patient once the walk from the vehicle is

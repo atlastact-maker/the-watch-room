@@ -1120,6 +1120,13 @@ export type Deployment = {
   /** When the current pairing was made — the crew step out to the
    *  patient from then. */
   treatingSince?: number;
+  /** Who on this crew is with which casualty, by crew member id: the
+   *  operator's own sends (a right-click on a casualty on the map or the
+   *  ground view), or the two clinicians a vehicle pairing sent. Each
+   *  walks to theirs from `since`; a member with a casualty of their own
+   *  counts as treating them, and that casualty's clock pauses, whatever
+   *  the vehicle itself is paired with. */
+  crewAssignments?: Record<string, { casualtyId: string; since: number }>;
 
   /** HEMS flight leg — set only when the NWAA airframe was dispatched
    *  (daylight, weather permitting). The aircraft flies a straight line

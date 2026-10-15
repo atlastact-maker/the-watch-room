@@ -45,6 +45,8 @@ import { GROUND_DETAIL_ZOOM, PatchLayers } from "./leaflet-map";
 import { serviceMarker, unitDivIcon } from "./map-markers";
 import { HoseLine } from "./hose-line";
 import { CrewFigureLayer, figureInside, figurePosition, roleShort, type CrewFigure, type LatLng as CrewLatLng } from "./crew-figures";
+import { assignRowsFor, casualtyShortLabel, CrewAssignMenu, type AssignCrewFn } from "./crew-assign-menu";
+import { busyOn, crewSent } from "@/lib/sim/crew_assign";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
@@ -1138,6 +1140,7 @@ export function LeafletGroundMap({
   patch,
   onOpenStationBays,
   treatmentByCasualtyId,
+  onAssignCrewToCasualty,
 }: {
   incident: Incident;
   resolved: ResolvedDeployment[];
@@ -1148,6 +1151,8 @@ export function LeafletGroundMap({
   /** Per-casualty treatment: the egress move window carries a patient
    *  across the ground from where they lie to the vehicle. */
   treatmentByCasualtyId?: Record<string, PatientTreatmentState>;
+  /** Right-click on a casualty: send one of an ambulance crew to them. */
+  onAssignCrewToCasualty?: AssignCrewFn;
   sceneCommanderApplianceId: string | null;
   crewAir: Record<string, number>;
   busyCrewIds: Set<string>;
@@ -1191,6 +1196,9 @@ export function LeafletGroundMap({
   // Parking workflow — user selects an appliance to place, then map-clicks
   // its position, then a second map-click to set its facing direction.
   const [parking, setParking] = useState<ParkingState>({ phase: "idle" });
+  // The send-a-clinician menu a right-click on a casualty opens, where the click was.
+  const [assignMenu, setAssignMenu] = useState<{ casualtyId: string; x: number; y: number; host: { w: number; h: number } } | null>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
 
 
   // Muster area part-way through being drawn: the first click sets the
@@ -1719,18 +1727,20 @@ export function LeafletGroundMap({
       });
     });
   }
-  // Treating crews: the whole crew at the patient from the moment the
-  // pairing is made (the deployment carries no timestamp, so they step
-  // out at arrival or now, whichever is later).
+  // The clinicians with each patient: those sent to them by name, else
+  // (a pairing made before anyone was named) the first two of the
+  // vehicle's crew not on a job. Each walks over from the vehicle from
+  // the moment they were sent.
+  const atCasualty = new Map<string, number>();
   for (const m of onSceneMarkers) {
-    const cid = m.deployment.treatingCasualtyId;
-    if (!cid || m.deployment.hospitalLegStartedAt) continue;
-    const at = casualtyGround(cid);
-    if (!at) continue;
-    const busy = new Set(tasks.filter((t) => t.state === "active" && t.applianceId === m.appliance.id).flatMap((t) => t.assignedCrewIds));
-    m.appliance.crewMembers.filter((c) => !busy.has(c.id)).slice(0, 2).forEach((cm, i) => {
-      crewFigures.push({ id: `tx:${m.appliance.id}:${cm.id}`, name: cm.name, role: cm.role, service: m.appliance.service, from: m.pos, to: at, startAt: Math.max(m.deployment.arrivesAt, m.deployment.treatingSince ?? m.deployment.arrivesAt), badge: carriedNow(cid) ? "CARRY" : "PATIENT", spreadIndex: i + 2 });
-    });
+    if (m.deployment.hospitalLegStartedAt) continue;
+    for (const s of crewSent(m.deployment, m.appliance.crewMembers, busyOn(tasks, m.appliance.id))) {
+      const at = casualtyGround(s.casualtyId);
+      if (!at) continue;
+      const i = atCasualty.get(s.casualtyId) ?? 0;
+      atCasualty.set(s.casualtyId, i + 1);
+      crewFigures.push({ id: `tx:${m.appliance.id}:${s.member.id}`, name: s.member.name, role: s.member.role, service: m.appliance.service, from: m.pos, to: at, startAt: s.since, badge: carriedNow(s.casualtyId) ? "CARRY" : "PATIENT", spreadIndex: i + 2, crewId: s.member.id, callsign: m.appliance.callsign });
+    }
   }
   // Who is inside the building right now: every rider whose figure is
   // through the door, with their air, cylinder, time in and time of
@@ -1798,6 +1808,14 @@ export function LeafletGroundMap({
   const casualtyPins = sim.foundCasualties
     .map((c) => ({ c, at: casualtyGround(c.id), stage: casualtyStage(c.id), severity: sim.casualtyProgression?.[c.id]?.severity ?? c.severity }))
     .filter((x): x is typeof x & { at: CrewLatLng } => !!x.at);
+  const casualtyLabel = (id: string) => sim.foundCasualties.find((c) => c.id === id)?.label ?? id;
+  const casualtyShort = (id: string) => casualtyShortLabel(sim.foundCasualties.find((c) => c.id === id)?.label, id);
+  /** Open the send-a-clinician menu for a casualty where the pointer is. */
+  const openAssignMenu = (casualtyId: string, e: L.LeafletMouseEvent) => {
+    e.originalEvent.preventDefault();
+    const host = hostRef.current;
+    setAssignMenu({ casualtyId, x: e.containerPoint.x, y: e.containerPoint.y, host: { w: host?.clientWidth ?? 0, h: host?.clientHeight ?? 0 } });
+  };
 
   const hydrantConnections = (() => {
     const m = new Map<string, string>(); // hydrantLabel → callsign
@@ -1896,7 +1914,7 @@ export function LeafletGroundMap({
 
 
   return (
-    <div className="relative h-full w-full">
+    <div ref={hostRef} className="relative h-full w-full">
     <BasemapToggle
       options={options}
       current={basemapId}
@@ -1911,6 +1929,17 @@ export function LeafletGroundMap({
         setParking({ phase: "idle" });
       }}
     />
+    {assignMenu && onAssignCrewToCasualty && (
+      <CrewAssignMenu
+        casualty={{ id: assignMenu.casualtyId, label: casualtyLabel(assignMenu.casualtyId) }}
+        rows={assignRowsFor(onScene, tasks, assignMenu.casualtyId, casualtyShort)}
+        x={assignMenu.x}
+        y={assignMenu.y}
+        host={assignMenu.host}
+        onAssign={onAssignCrewToCasualty}
+        onClose={() => setAssignMenu(null)}
+      />
+    )}
     <MapContainer
       center={centre}
       zoom={OPENING_ZOOM}
@@ -2570,7 +2599,8 @@ export function LeafletGroundMap({
                 : x.stage,
             mapZoom >= 19,
           )}
-          interactive={false}
+          interactive={!!onAssignCrewToCasualty}
+          eventHandlers={onAssignCrewToCasualty ? { contextmenu: (e) => openAssignMenu(x.c.id, e) } : undefined}
           zIndexOffset={640}
         />
       ))}

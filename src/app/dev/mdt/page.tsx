@@ -25,6 +25,7 @@ import { DraggableIncidentMdt } from "../../dashboard/components/incident-mdt";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import { simulateIncident } from "@/lib/sim/incident_sim";
+import { busyOn, withCrewAssignment } from "@/lib/sim/crew_assign";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
 import { calibrate, generateProfile, initialPhysio } from "@/lib/sim/physiology";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
@@ -238,6 +239,9 @@ function buildWorld(scenarioId: string, minutesIn: number) {
 export default function MdtHarnessPage() {
   const [now, setNow] = useState(() => Date.now());
   const [world] = useState(() => buildWorld(param("s") ?? "02", Number(param("min") ?? 14)));
+  // The deployments change under the screens: a clinician sent to a
+  // casualty from the ground view is written back here.
+  const [deployments, setDeployments] = useState(world.deployments);
   const unitParam = param("unit");
   const [unitId, setUnitId] = useState<string | null>(unitParam && unitParam !== "dca" && unitParam !== "rpu" ? unitParam : world.unitId);
   // What the screens send up to control, kept locally: a Highways request
@@ -272,14 +276,19 @@ export default function MdtHarnessPage() {
   };
   const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const, endedAt: Date.now() } : t)));
   const completeTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id && t.state === "active" ? { ...t, state: "completed" as const } : t)));
-  const sim = useMemo(() => simulateIncident(world.incident, world.deployments, world.baCrews, tasks, now, treatmentByCasualtyId), [world, tasks, now, treatmentByCasualtyId]);
+  const assignCrew = (applianceId: string, crewId: string, casualtyId: string | null) => {
+    const at = Date.now();
+    const members = world.stations.flatMap((s) => s.appliances).find((a) => a.id === applianceId)?.crewMembers ?? [];
+    setDeployments((prev) => prev.map((d) => (d.applianceId === applianceId ? withCrewAssignment(d, members, busyOn(tasks, applianceId), crewId, casualtyId, at) : d)));
+  };
+  const sim = useMemo(() => simulateIncident(world.incident, deployments, world.baCrews, tasks, now, treatmentByCasualtyId), [world, deployments, tasks, now, treatmentByCasualtyId]);
   return (
     <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
       <div style={{ position: "absolute", left: 24, top: 16, width: 1180, height: 820 }}>
         <DraggableIncidentMdt
           incident={world.incident}
           stations={world.stations}
-          deployments={world.deployments}
+          deployments={deployments}
           log={log}
           outcome={null}
           onDeploy={() => {}}
@@ -306,6 +315,7 @@ export default function MdtHarnessPage() {
           onStartTask={startTask}
           onAbortTask={abortTask}
           onCompleteTask={completeTask}
+          onAssignCrewToCasualty={assignCrew}
           onRequestSupport={requestSupport}
           onSetLightState={() => {}}
           onSetPumpRunning={() => {}}

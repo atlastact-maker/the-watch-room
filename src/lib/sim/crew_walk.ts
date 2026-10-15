@@ -4,6 +4,7 @@
 // same clock for both, so the screen and the picture agree.
 
 import type { Deployment } from "./incident_types";
+import { sentSince } from "./crew_assign";
 import type { SceneCasualty } from "./scene";
 import { latLngToMetres, metresToLatLng } from "./scene";
 
@@ -18,7 +19,8 @@ export function walkMs(metres: number): number {
 
 /** When this crew steps out towards the patient: on arrival, or when the
  *  pairing was made if that came later. */
-export function crewStepsOutAt(d: Deployment): number {
+export function crewStepsOutAt(d: Deployment, casualtyId?: string): number {
+  if (casualtyId) return sentSince(d, casualtyId);
   return Math.max(d.arrivesAt, d.treatingSince ?? d.arrivesAt);
 }
 
@@ -34,7 +36,7 @@ export function crewWithPatientAt(
   incidentCoords: { lat: number; lng: number },
   opts: { atVehicle?: boolean } = {},
 ): number {
-  const start = crewStepsOutAt(d);
+  const start = crewStepsOutAt(d, casualty.id);
   if (opts.atVehicle || !d.parkingPos) return start + WALK_MIN_MS;
   const where = metresToLatLng(incidentCoords, casualty.pos);
   const o = latLngToMetres(d.parkingPos, where);
