@@ -101,17 +101,23 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const j2 = p2.crewMembers[2]?.id ?? p2.crewMembers[0].id;
   const h1 = p2.crewMembers[3]?.id ?? p2.crewMembers[0].id;
 
+  // Parked for a house: either side of the frontage. Parked for a road:
+  // along the hard shoulder upstream of the wreck, the ambulance beyond
+  // it, the roads policing car furthest back. Scene +y is south, so the
+  // offsets' dy is the negative of the scene's y.
+  const road = !!scenario.scene?.carriageway;
+  const park = (dx: number, dy: number) => offset(here, dx, dy);
   const deployments: Deployment[] = [
-    mk(p1.id, 13 * 60, 5 * 60, offset(here, -28, -14), { pumpRunning: true, pumpOperatorCrewId: p1.crewMembers[0]?.id, crewEquipment: { [ba1]: ["ba_set", "branch_45mm", "radio"], [ba2]: ["ba_set", "thermal_camera", "radio"] } }),
-    mk(p2.id, 12 * 60, 6 * 60, offset(here, 30, -18), { pumpRunning: true, pumpOperatorCrewId: p2.crewMembers[0]?.id, crewEquipment: { [j1]: ["branch_45mm"], [j2]: ["branch_45mm"], [h1]: ["standpipe", "red_key"] } }),
+    mk(p1.id, 13 * 60, 5 * 60, road ? park(-22, 10.5) : park(-28, -14), { pumpRunning: !road, pumpOperatorCrewId: road ? undefined : p1.crewMembers[0]?.id, crewEquipment: road ? {} : { [ba1]: ["ba_set", "branch_45mm", "radio"], [ba2]: ["ba_set", "thermal_camera", "radio"] } }),
+    mk(p2.id, 12 * 60, 6 * 60, road ? park(-31, 10.5) : park(30, -18), { pumpRunning: !road, pumpOperatorCrewId: road ? undefined : p2.crewMembers[0]?.id, crewEquipment: road ? {} : { [j1]: ["branch_45mm"], [j2]: ["branch_45mm"], [h1]: ["standpipe", "red_key"] } }),
   ];
   if (p3) deployments.push(mk(p3.id, 3 * 60, 6 * 60, null));
-  if (rpu) deployments.push(mk(rpu.id, 8 * 60, 5 * 60, offset(here, -40, -8)));
+  if (rpu) deployments.push(mk(rpu.id, 8 * 60, 5 * 60, road ? park(-52, 7.3) : park(-40, -8)));
   // The ambulance crew are with the first casualty: survey done, leads and
   // a probe on, oxygen running, aspirin given.
   const unitParam = param("unit");
   const careMode = unitParam === "dca" && !!dca && !!casualty;
-  if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, offset(here, -10, 26), careMode ? { treatingCasualtyId: casualty!.id, treatingSince: nowMs - 5 * 60_000 } : {}));
+  if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, road ? park(27, 10.5) : park(-10, 26), careMode || (road && casualty) ? { treatingCasualtyId: casualty!.id, treatingSince: nowMs - 5 * 60_000 } : {}));
   let treatment: PatientTreatmentState | null = null;
   let resus: ResusState | null = null;
   if (careMode && casualty) {
@@ -203,7 +209,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
     },
     { id: "t-jet", applianceId: p2.id, kind: "hose_attack", state: "active", startedAt: nowMs - 4 * 60_000, assignedCrewIds: [j1, j2], attackMode: "exterior_attack", hoseType: "45mm" },
     { id: "t-hyd", applianceId: p2.id, kind: "connect_hydrant", state: "completed", startedAt: nowMs - 5 * 60_000, durationSec: 120, completesAt: nowMs - 3 * 60_000, assignedCrewIds: [h1], hydrantId: "H1" },
-  ] as unknown as Task[];
+  ].filter((t) => !road || t.kind === "commander" || t.kind === "survey" || t.kind === "extract_casualty") as unknown as Task[];
 
   const crewAir: Record<string, number> = { [ba1]: 71, [ba2]: 65 };
   const t = (minAgo: number) => nowMs - minAgo * 60_000;

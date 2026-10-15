@@ -14,7 +14,7 @@
 // crew with the casualty, the fuel on the road and the foam that covers
 // it. Night darkens it to the working lights; rain wets it.
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { CrsVehicle, CrsComponent } from "@/lib/sim/incident_types";
 import type { PatientLook } from "@/lib/sim/patient_look";
 import { rig, PlanFigure, FigureDefs, darken, smooth, smoothOpen, capsule, lineSoft, edge, add, mul, sub, unit, perp, lerp, len, deg, P, type Pt, type Rig } from "./plan-figure";
@@ -44,6 +44,7 @@ const JOG_M = 8.1;
 const WALK_MPS = 1.4;
 export const WALK_OFF_MS = 4000;
 const WALK_OFF_M = 5.5;
+const RUN_MPS = JOG_M / (JOG_MS / 1000);
 
 type Leg = { from: Pt; to: Pt; ms: number };
 type Mover = { legs: Leg[]; since: number; clip: "firefighter_run" | "firefighter_walk" };
@@ -51,11 +52,13 @@ type Mover = { legs: Leg[]; since: number; clip: "firefighter_run" | "firefighte
 /** One leg of a crew's walk, drawn at the moment `since` into it: the
  *  path is the element's own custom properties under the shared keyframe
  *  rule, the frames the sheet's own animation. */
-function Walker({ leg, since, clip }: { leg: Leg; since: number; clip: Mover["clip"] }) {
+function Walker({ leg, since, clip, scale = 1 }: { leg: Leg; since: number; clip: Mover["clip"]; scale?: number }) {
   const dir = sub(leg.to, leg.from);
   return (
     <g className="ps-jog" style={{ "--jx0": `${n2(leg.from[0])}px`, "--jy0": `${n2(leg.from[1])}px`, "--jx1": `${n2(leg.to[0])}px`, "--jy1": `${n2(leg.to[1])}px`, "--jog-dur": `${Math.round(leg.ms)}ms`, animationDelay: `${-Math.round(since)}ms` } as CSSProperties}>
-      <ModelSprite id={clip} at={[0, 0]} a={deg(dir)} />
+      <g transform={scale !== 1 ? `scale(${n2(scale)})` : undefined}>
+        <ModelSprite id={clip} at={[0, 0]} a={deg(dir)} />
+      </g>
     </g>
   );
 }
@@ -112,12 +115,13 @@ type Shell = {
   dash: [number, number];
 };
 
-function shellOf(v: CrsVehicle): Shell {
-  if (v.body === "van") {
+export function shellFor(body: "car" | "van"): Shell {
+  if (body === "van") {
     return { L: 5.6, W: 2.0, van: true, cabin: [-2.3, -1.05], roof: [-1.95, -1.1], frontDoor: [-2.0, -1.05], rearDoor: null, seat: [-1.5, -0.52], wheels: [-1.75, 1.65], dash: [-2.3, -2.0] };
   }
   return { L: 4.4, W: 1.78, van: false, cabin: [-1.0, 1.3], roof: [-0.45, 0.95], frontDoor: [-0.8, 0.25], rearDoor: [0.25, 1.1], seat: [0.0, -0.42], wheels: [-1.35, 1.35], dash: [-1.0, -0.62], };
 }
+const shellOf = (v: CrsVehicle): Shell => shellFor(v.body);
 
 /** Where a schematic component sits on the shell: the datasheet is nose-up with the driver's side on its right; here the nose is left and the driver's side the top. */
 function onShell(c: CrsComponent, sh: Shell): { x: number; y: number; w: number; h: number } {
@@ -484,7 +488,7 @@ function Longboard({ x, y }: { x: number; y: number }) {
 }
 
 /** A traffic cone from above: its rubber base, the orange cone lit from the top left, the reflective collar round it. */
-function Cone({ x, y }: { x: number; y: number }) {
+export function Cone({ x, y }: { x: number; y: number }) {
   return (
     <g>
       <rect x={x - 0.15} y={y - 0.14} width={0.36} height={0.36} rx={0.03} fill="#000" opacity={0.4} filter="url(#ps-blur-sm)" />
@@ -541,28 +545,32 @@ function FoamBlanket({ d, seed, clip }: { d: string; seed: number; clip: string 
 const COMP_COLOUR: Record<string, string> = { battery_12v: "#e7b31a", battery_hv: "#e8731f", airbag: "#d13b3b", curtain_airbag: "#d13b3b", pretensioner: "#e67e22", srs_unit: "#8a9399", fuel_tank: "#2f8fd6", gas_strut: "#3ad17f", reinforcement: "#7f1d1d" };
 const COMP_LETTER: Record<string, string> = { battery_12v: "12V", battery_hv: "HV", airbag: "AB", curtain_airbag: "CAB", pretensioner: "PT", srs_unit: "SRS", fuel_tank: "FUEL", gas_strut: "GAS", reinforcement: "UHSS" };
 
-export function RtcScene({ vehicle, done, working, finished = [], casualty, medics, extrication, extricationCrew = 0, extricationStartedAt, extricationPrev, hour, rain, components, caption, words, now }: RtcSceneProps) {
-  const box = useRef<HTMLDivElement>(null);
-  const [aspect, setAspect] = useState(2.2);
-  useEffect(() => {
-    if (!box.current) return;
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0]?.contentRect;
-      if (r && r.height > 0) setAspect(r.width / r.height);
-    });
-    ro.observe(box.current);
-    return () => ro.disconnect();
-  }, []);
-  const W = Math.round(Math.max(600, Math.min(1400, H * aspect)));
+/** The wreck and everything round it, in metres from the car's centre —
+ *  the nose to -x, the driver's side to -y. The RTC stage frames one;
+ *  the ground view lays several across the carriageway, each turned the
+ *  way it ended up. */
+export type RtcWreckProps = Omit<RtcSceneProps, "hour" | "caption" | "words"> & {
+  night?: boolean;
+  /** Pixels per metre where this is drawn, so the crew's tags keep their size. */
+  tagScale?: number;
+  /** Where a crew's way in starts and their walk off ends — their
+   *  appliance, in the wreck's own metres — when the picture knows. */
+  from?: (applianceId?: string) => Pt | null;
+  extricationApplianceId?: string;
+  /** Someone in the passenger seat. */
+  passenger?: { look: PatientLook } | null;
+  /** The crew drawn larger than life, so they still read when the picture is wide. The people in the cars stay to scale. */
+  figureScale?: number;
+  /** The turn the picture has given this wreck, undone on the tags so they read upright. */
+  tagRotate?: number;
+  /** The two cones along the working edge — the stage's; the ground view puts its own out. */
+  cones?: boolean;
+};
+
+export function RtcWreck({ vehicle, done, working, finished = [], casualty, passenger, medics, extrication, extricationCrew = 0, extricationStartedAt, extricationPrev, extricationApplianceId, night = false, rain, components, now, tagScale = 1, from, figureScale = 1, tagRotate = 0, cones = true }: RtcWreckProps) {
   const sh = shellOf(vehicle);
-  const amb: Ambient = { night: hour !== undefined && (hour < 7 || hour >= 18.5), rain: !!rain };
-  // Metres to picture units: the car (up to a long van's cab and box) across
-  // the clear middle between the floating cards, or its width and a crew's
-  // depth either side down the height, whichever is the tighter fit.
-  const CARD = 150;
-  const s = Math.min((H - 24) / (sh.W + 2 * 0.95), Math.max(40, (W - 2 * CARD) / (Math.min(sh.L, 5.6) + 0.8)));
-  const ox = W / 2 - 0.1 * s, oy = H / 2;
-  const px = (p: Pt): Pt => [ox + p[0] * s, oy + p[1] * s];
+  const K = figureScale;
+  const scaled = (at: Pt, node: ReactNode) => (K === 1 ? node : <g transform={`translate(${P(at)}) scale(${n2(K)}) translate(${n2(-at[0])} ${n2(-at[1])})`}>{node}</g>);
   const has = (k: string) => done.has(k);
   const stabilised = has("stabilise"), glass = has("glass"), doorsOff = has("doors-off"), thirdDoor = has("third-door"), roofFlap = has("roof-flap"), roofOff = has("roof-off"), dashRoll = has("dash-roll");
   const roofOpen = roofFlap || roofOff;
@@ -582,6 +590,9 @@ export function RtcScene({ vehicle, done, working, finished = [], casualty, medi
   const r: Rig | null = casualty && a ? rig({ heightM: a.heightM, sex: a.sex, child: a.child, elderly: a.elderly, pregnant: a.pregnant }, { pose: released ? "lying" : "reclined", cue: "none", headTurn: 0 }) : null;
   const wear = casualty && r ? wearOf(casualty.look, released ? "road_urban" : "car", seed, !!rain) : null;
   const headAt: Pt = released ? [0.1, hw + 0.86] : [sh.seat[0] + 0.4, sh.seat[1]];
+  const pa = passenger?.look.appearance;
+  const pr: Rig | null = pa ? rig({ heightM: pa.heightM, sex: pa.sex, child: pa.child, elderly: pa.elderly, pregnant: pa.pregnant }, { pose: "reclined", cue: "none", headTurn: 0 }) : null;
+  const pwear = passenger && pr && pa ? wearOf(passenger.look, "car", hash(`${pa.ageYears}${pa.sex}${pa.hairColour}${pa.topColour}:p`), !!rain) : null;
   const chestClass = casualty && casualty.look.breathing !== "none" ? "ps-chest breathe" : "ps-chest";
   const breath = casualty ? (casualty.look.breathing === "none" ? 0 : 60 / Math.max(6, casualty.look.rr)) : 0;
 
@@ -626,29 +637,43 @@ export function RtcScene({ vehicle, done, working, finished = [], casualty, medi
     return pts.slice(1).map((p, i) => ({ from: pts[i], to: p, ms: Math.max(400, (len(sub(p, pts[i])) / WALK_MPS) * 1000) }));
   };
   // The way in to a job: from the last job's spot at a walk, or from the appliance upstream at a run.
-  const wayIn = (to: Pt, i: number, startedAt: number | undefined, prev: { key: string; endedAt: number } | undefined): Mover | undefined => {
+  // A crew's own spot by the appliance: a step apart from each other.
+  const byUnit = (home: Pt, i: number): Pt => [home[0] + 0.7 * (i % 3) - 0.7, home[1] + 0.55 * Math.floor(i / 3)];
+  const wayIn = (to: Pt, i: number, startedAt: number | undefined, prev: { key: string; endedAt: number } | undefined, applianceId?: string): Mover | undefined => {
     if (startedAt === undefined || now === undefined) return undefined;
     const since = now - startedAt;
     if (since < 0) return undefined;
     // Two crew leaving a one-person job start a step apart, not on top of each other.
     const prevSpots = prev ? spotsFor(prev.key) : null;
     const shared = prevSpots ? prevSpots[Math.min(i, prevSpots.length - 1)]?.at ?? null : null;
-    const from: Pt | null = shared ? (i >= (prevSpots?.length ?? 0) ? [shared[0] - 0.55 * (i - (prevSpots?.length ?? 0) + 1), shared[1]] : shared) : null;
-    const m: Mover = from ? { legs: legsBetween(from, to), since, clip: "firefighter_walk" } : { legs: [{ from: [to[0] - JOG_M, to[1]], to, ms: JOG_MS }], since, clip: "firefighter_run" };
+    const last: Pt | null = shared ? (i >= (prevSpots?.length ?? 0) ? [shared[0] - 0.55 * (i - (prevSpots?.length ?? 0) + 1), shared[1]] : shared) : null;
+    // From the last job at a walk; else at a run from the appliance when the
+    // picture knows where it is, or from upstream when it does not.
+    const home: Pt | null = last ? null : from?.(applianceId) ?? null;
+    const start: Pt = home ? byUnit(home, i) : [to[0] - JOG_M, to[1]];
+    const m: Mover = last
+      ? { legs: legsBetween(last, to), since, clip: "firefighter_walk" }
+      : { legs: [{ from: start, to, ms: home ? Math.max(JOG_MS * 0.4, (len(sub(to, start)) / RUN_MPS) * 1000) : JOG_MS }], since, clip: "firefighter_run" };
     return legAt(m) ? m : undefined;
   };
   for (const w of working) {
     const key = STRIP(w.key);
     const list = spotsFor(w.key);
-    list.slice(0, Math.max(1, w.crew)).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: hash(key) + i * 131, mover: wayIn(sp.at, i, w.startedAt, w.prev) }); });
+    list.slice(0, Math.max(1, w.crew)).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: hash(key) + i * 131, mover: wayIn(sp.at, i, w.startedAt, w.prev, w.applianceId) }); });
   }
-  if (extrication === "active") spots.extrication.slice(0, Math.max(2, Math.min(4, extricationCrew || 4))).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: 401 + i * 131, mover: wayIn(sp.at, i, extricationStartedAt, extricationPrev) }); });
-  // Crews whose job just ended with nothing to follow walk off towards the appliance.
+  if (extrication === "active") spots.extrication.slice(0, Math.max(2, Math.min(4, extricationCrew || 4))).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: 401 + i * 131, mover: wayIn(sp.at, i, extricationStartedAt, extricationPrev, extricationApplianceId) }); });
+  // Crews whose job just ended with nothing to follow walk off towards the
+  // appliance — all the way to it when the picture knows where it is.
   const leaving: { mover: Mover; key: string }[] = [];
   if (now !== undefined) for (const f of finished) {
     const since = now - f.endedAt;
-    if (since < 0 || since >= WALK_OFF_MS) continue;
-    spotsFor(f.key).slice(0, Math.max(1, f.crew)).forEach((sp, i) => leaving.push({ key: `${f.key}:${i}`, mover: { legs: [{ from: sp.at, to: [sp.at[0] - WALK_OFF_M, sp.at[1]], ms: WALK_OFF_MS }], since, clip: "firefighter_walk" } }));
+    if (since < 0) continue;
+    const home = from?.(f.applianceId) ?? null;
+    spotsFor(f.key).slice(0, Math.max(1, f.crew)).forEach((sp, i) => {
+      const to: Pt = home ? byUnit(home, i) : [sp.at[0] - WALK_OFF_M, sp.at[1]];
+      const m: Mover = { legs: [{ from: sp.at, to, ms: home ? Math.max(WALK_OFF_MS * 0.5, (len(sub(to, sp.at)) / WALK_MPS) * 1000) : WALK_OFF_MS }], since, clip: "firefighter_walk" };
+      if (legAt(m)) leaving.push({ key: `${f.key}:${i}`, mover: m });
+    });
   }
   // The ambulance crew: one at the casualty's head through the rear door
   // (or kneeling at the board once they are out), one on the far side.
@@ -696,106 +721,13 @@ export function RtcScene({ vehicle, done, working, finished = [], casualty, medi
   const foamPath = fuelAt ? smooth([[fuelAt.x - 0.9, hw + 0.1], [fuelAt.x + 0.2, hw - 0.05], [fuelAt.x + 1.6, hw + 0.15], [fuelAt.x + 1.9, hw + 0.7], [fuelAt.x + 1.4, hw + 1.25], [fuelAt.x + 0.2, hw + 1.3], [fuelAt.x - 0.9, hw + 1.0], [fuelAt.x - 1.2, hw + 0.55]], 0.6) : null;
   const foamClip = `pr-foam-${vehicle.id}`;
 
-  const cap = caption ?? "On the carriageway";
-
+  const cabClip = `pr-cab-${vehicle.id}`;
   return (
-    <div ref={box} className={`ps-scene ps-set-road_urban pr-scene${amb.night ? " night" : ""} fill`}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" aria-label="The crash from above">
-        <defs>
-          <FigureDefs />
-          <KitDefs />
-          <GroundDefs />
-          <WeatherDefs />
-          <filter id="pr-car-shadow" x="-20%" y="-30%" width="140%" height="160%"><feGaussianBlur stdDeviation="0.05" /></filter>
-          {/* Paint: the body's curve across its width, the sky's gleam down its crown, a lamp's lens, the sky in the glass, a cone's shading, the bubbles of foam. */}
-          <linearGradient id="pr-body-v" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#000" stopOpacity="0.42" />
-            <stop offset="0.1" stopColor="#000" stopOpacity="0.12" />
-            <stop offset="0.3" stopColor="#fff" stopOpacity="0.14" />
-            <stop offset="0.5" stopColor="#fff" stopOpacity="0.24" />
-            <stop offset="0.7" stopColor="#fff" stopOpacity="0.1" />
-            <stop offset="0.9" stopColor="#000" stopOpacity="0.14" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.46" />
-          </linearGradient>
-          <linearGradient id="pr-gleam" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#fff" stopOpacity="0" />
-            <stop offset="0.3" stopColor="#fff" stopOpacity="0" />
-            <stop offset="0.37" stopColor="#fff" stopOpacity="0.22" />
-            <stop offset="0.43" stopColor="#fff" stopOpacity="0.06" />
-            <stop offset="1" stopColor="#fff" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="pr-slope-x" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#000" stopOpacity="0.32" />
-            <stop offset="1" stopColor="#000" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="pr-slope-xr" x1="1" y1="0" x2="0" y2="0">
-            <stop offset="0" stopColor="#000" stopOpacity="0.28" />
-            <stop offset="1" stopColor="#000" stopOpacity="0" />
-          </linearGradient>
-          <radialGradient id="pr-lamp" cx="0.35" cy="0.4" r="0.7">
-            <stop offset="0" stopColor="#fff" stopOpacity="0.85" />
-            <stop offset="0.35" stopColor="#fff" stopOpacity="0.2" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.45" />
-          </radialGradient>
-          <linearGradient id="pr-screen" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#cfdbe4" stopOpacity="0.62" />
-            <stop offset="0.5" stopColor="#8aa0b1" stopOpacity="0.5" />
-            <stop offset="0.86" stopColor="#3f5566" stopOpacity="0.72" />
-            <stop offset="1" stopColor="#1e2b36" stopOpacity="0.9" />
-          </linearGradient>
-          <linearGradient id="pr-screen-r" x1="1" y1="0" x2="0" y2="0">
-            <stop offset="0" stopColor="#cfdbe4" stopOpacity="0.62" />
-            <stop offset="0.5" stopColor="#8aa0b1" stopOpacity="0.5" />
-            <stop offset="0.86" stopColor="#3f5566" stopOpacity="0.72" />
-            <stop offset="1" stopColor="#1e2b36" stopOpacity="0.9" />
-          </linearGradient>
-          <linearGradient id="pr-side-glass" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#b7c8d4" stopOpacity="0.7" />
-            <stop offset="0.5" stopColor="#6f8899" stopOpacity="0.55" />
-            <stop offset="1" stopColor="#3b4f5e" stopOpacity="0.7" />
-          </linearGradient>
-          <linearGradient id="pr-tyre" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#000" stopOpacity="0.55" />
-            <stop offset="0.3" stopColor="#fff" stopOpacity="0.1" />
-            <stop offset="0.5" stopColor="#fff" stopOpacity="0.22" />
-            <stop offset="0.7" stopColor="#fff" stopOpacity="0.08" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.55" />
-          </linearGradient>
-          <pattern id="pr-tread" width="0.03" height="0.016" patternUnits="userSpaceOnUse">
-            <path d="M0.008 0 V0.016 M0.02 0 V0.016" stroke="#07090b" strokeWidth="0.004" />
-            <path d="M0.014 0.002 V0.006 M0.026 0.009 V0.014" stroke="#30353a" strokeWidth="0.0015" />
-          </pattern>
-          <radialGradient id="pr-cone" cx="0.36" cy="0.34" r="0.7">
-            <stop offset="0" stopColor="#ffb880" />
-            <stop offset="0.35" stopColor="#f26d1f" />
-            <stop offset="0.75" stopColor="#c44a0d" />
-            <stop offset="1" stopColor="#6e2606" />
-          </radialGradient>
-          <radialGradient id="pr-cone-shade" cx="0.36" cy="0.34" r="0.7">
-            <stop offset="0" stopColor="#fff" stopOpacity="0.35" />
-            <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
-            <stop offset="1" stopColor="#000" stopOpacity="0.45" />
-          </radialGradient>
-          <pattern id="pr-foam" width="0.14" height="0.14" patternUnits="userSpaceOnUse">
-            <rect width="0.14" height="0.14" fill="#ece6d8" />
-            {[[0.03, 0.03, 0.024], [0.09, 0.02, 0.018], [0.12, 0.07, 0.022], [0.06, 0.08, 0.03], [0.02, 0.11, 0.016], [0.1, 0.12, 0.02]].map(([cx, cy, rr], i) => (
-              <g key={i}>
-                <circle cx={cx} cy={cy} r={rr} fill="#f6f2ea" stroke="#d3cab7" strokeWidth="0.0025" />
-                <circle cx={cx - rr * 0.35} cy={cy - rr * 0.35} r={rr * 0.3} fill="#fff" fillOpacity="0.8" />
-              </g>
-            ))}
-          </pattern>
-          <pattern id="pr-film" width="0.05" height="0.05" patternUnits="userSpaceOnUse"><path d="M0 0.05 L0.05 0 M-0.01 0.01 L0.01 -0.01 M0.04 0.06 L0.06 0.04" stroke="#fff" strokeWidth="0.004" strokeOpacity="0.55" /></pattern>
-          <radialGradient id="pr-spill" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#0d1116" stopOpacity="0.9" /><stop offset="0.7" stopColor="#0d1116" stopOpacity="0.6" /><stop offset="1" stopColor="#0d1116" stopOpacity="0" /></radialGradient>
-          <clipPath id={clipId}><path d={body} /></clipPath>
-          {foamPath && <clipPath id={foamClip}><path d={foamPath} /></clipPath>}
-        </defs>
-        <g transform={`translate(${n2(ox)} ${n2(oy)}) scale(${s.toFixed(2)})`}>
-          {/* The carriageway: tarmac, the lane line, the hard-shoulder edge, skid marks, the glass, the coolant from the split radiator. */}
-          <Tarmac x={-8} y={-4} w={16} h={8} seed={seedV} lanes={[0]} />
-          <rect x={-8} y={hw + 1.5} width={16} height={0.14} fill="#f4f4f0" opacity={0.8} />
-          <rect x={-8} y={hw + 1.5} width={16} height={0.14} fill="url(#ps-grain)" />
-          {Array.from({ length: 14 }, (_, i) => <rect key={i} x={-8 + i * 1.2} y={-hw - 1.48} width={0.6} height={0.12} fill="#f4f4f0" opacity={0.7} />)}
+    <g className="pr-wreck">
+      <clipPath id={clipId}><path d={body} /></clipPath>
+      {foamPath && <clipPath id={foamClip}><path d={foamPath} /></clipPath>}
+      <clipPath id={cabClip}><rect x={sh.cabin[0] + 0.02} y={-hw + 0.1} width={sh.cabin[1] - sh.cabin[0] - 0.04} height={sh.W - 0.2} /></clipPath>
+          {/* Skid marks, the glass, the coolant from the split radiator. */}
           <g opacity={0.5}>
             <path d={`M${n2(nose + 0.3)} ${n2(-hw + 0.3)} q-1.6 0.1 -2.6 0.5`} stroke="#1b1f24" strokeWidth={0.18} fill="none" strokeLinecap="round" />
             <path d={`M${n2(nose + 0.3)} ${n2(hw - 0.3)} q-1.6 0.1 -2.6 0.5`} stroke="#1b1f24" strokeWidth={0.18} fill="none" strokeLinecap="round" />
@@ -915,10 +847,16 @@ export function RtcScene({ vehicle, done, working, finished = [], casualty, medi
             {[0.42, 0.52].map((dx) => <circle key={dx} cx={sh.seat[0] + dx} cy={0} r={0.035} fill="#0e1114" />)}
             {/* The casualty in the seat (drawn before the dash, which lies over their legs). */}
             {casualty && r && wear && !released && (
-              <g clipPath={`url(#pr-cab-${vehicle.id})`}>
-                <clipPath id={`pr-cab-${vehicle.id}`}><rect x={sh.cabin[0] + 0.02} y={-hw + 0.1} width={sh.cabin[1] - sh.cabin[0] - 0.04} height={sh.W - 0.2} /></clipPath>
+              <g clipPath={`url(#${cabClip})`}>
                 <g transform={`translate(${n2(headAt[0])} ${n2(headAt[1])}) rotate(90)`}>
                   <PlanFigure rig={r} w={wear} chestClass={chestClass} chestStyle={breath ? ({ "--ps-breath": `${breath.toFixed(2)}s` } as CSSProperties) : undefined} shadow={false} />
+                </g>
+              </g>
+            )}
+            {passenger && pr && pwear && (
+              <g clipPath={`url(#${cabClip})`}>
+                <g transform={`translate(${n2(sh.seat[0] + 0.4)} ${n2(-sh.seat[1])}) rotate(90)`}>
+                  <PlanFigure rig={pr} w={pwear} chestClass={passenger.look.breathing !== "none" ? "ps-chest breathe" : "ps-chest"} shadow={false} />
                 </g>
               </g>
             )}
@@ -1038,15 +976,165 @@ export function RtcScene({ vehicle, done, working, finished = [], casualty, medi
             </g>
           )}
           {/* Cones along the working edge. */}
-          <Cone x={nose - 2.2} y={hw + 1.4} />
-          <Cone x={tail + 2.2} y={hw + 1.4} />
+          {cones && <Cone x={nose - 2.2} y={hw + 1.4} />}
+          {cones && <Cone x={tail + 2.2} y={hw + 1.4} />}
           {/* The crew: on their way to a job that just started — walking from the last one, or running in from the appliance — then kneeling to it; and walking off after a job with nothing to follow. */}
-          {leaving.map((l) => { const cur = legAt(l.mover); return cur ? <Walker key={`off:${l.key}`} leg={cur.leg} since={cur.since} clip={l.mover.clip} /> : null; })}
+          {leaving.map((l) => { const cur = legAt(l.mover); return cur ? <Walker key={`off:${l.key}`} leg={cur.leg} since={cur.since} clip={l.mover.clip} scale={K} /> : null; })}
           {figures.map((f, i) => {
             const cur = f.mover ? legAt(f.mover) : null;
-            if (f.mover && cur) return <Walker key={`${i}:${cur.index}`} leg={cur.leg} since={cur.since} clip={f.mover.clip} />;
-            return <CrewTop key={i} at={f.at} facing={f.facing} hands={f.hands ?? {}} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: f.service === "Ambulance" || amb.night, role: f.service === "Ambulance" ? "PARAMEDIC" : "" })} />;
+            if (f.mover && cur) return <Walker key={`${i}:${cur.index}`} leg={cur.leg} since={cur.since} clip={f.mover.clip} scale={K} />;
+            return <g key={i}>{scaled(f.at, <CrewTop at={f.at} facing={f.facing} hands={f.hands ?? {}} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: f.service === "Ambulance" || night, role: f.service === "Ambulance" ? "PARAMEDIC" : "" })} />)}</g>;
           })}
+          {/* The ambulance crew's tags, at the picture's pixel size whatever the scale. */}
+          {figures.filter((f) => f.tag).map((f, i) => {
+            const h = crewHeadAt(f.at, f.facing);
+            const dx = f.facing[0] !== 0 ? -f.facing[0] * 34 : 0;
+            const dy = f.facing[0] !== 0 ? -4 : -28;
+            return <g key={`tag${i}`} transform={`translate(${n2(h[0])} ${n2(h[1])}) rotate(${n2(-tagRotate)}) scale(${n2(1 / tagScale)})`}><text x={dx} y={dy} textAnchor="middle" className="ps-tag">{f.tag}</text></g>;
+          })}
+    </g>
+  );
+}
+
+/** The paint, glass, lamps, tyres, cones and foam the wrecks and the cars share. Once per picture, in its defs. */
+export function RtcDefs() {
+  return (
+    <>
+      <filter id="pr-car-shadow" x="-20%" y="-30%" width="140%" height="160%"><feGaussianBlur stdDeviation="0.05" /></filter>
+      {/* Paint: the body's curve across its width, the sky's gleam down its crown, a lamp's lens, the sky in the glass, a cone's shading, the bubbles of foam. */}
+      <linearGradient id="pr-body-v" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#000" stopOpacity="0.42" />
+        <stop offset="0.1" stopColor="#000" stopOpacity="0.12" />
+        <stop offset="0.3" stopColor="#fff" stopOpacity="0.14" />
+        <stop offset="0.5" stopColor="#fff" stopOpacity="0.24" />
+        <stop offset="0.7" stopColor="#fff" stopOpacity="0.1" />
+        <stop offset="0.9" stopColor="#000" stopOpacity="0.14" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.46" />
+      </linearGradient>
+      <linearGradient id="pr-body-h" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#000" stopOpacity="0.42" />
+        <stop offset="0.1" stopColor="#000" stopOpacity="0.12" />
+        <stop offset="0.3" stopColor="#fff" stopOpacity="0.14" />
+        <stop offset="0.5" stopColor="#fff" stopOpacity="0.24" />
+        <stop offset="0.7" stopColor="#fff" stopOpacity="0.1" />
+        <stop offset="0.9" stopColor="#000" stopOpacity="0.14" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.46" />
+      </linearGradient>
+      <linearGradient id="pr-gleam" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#fff" stopOpacity="0" />
+        <stop offset="0.3" stopColor="#fff" stopOpacity="0" />
+        <stop offset="0.37" stopColor="#fff" stopOpacity="0.22" />
+        <stop offset="0.43" stopColor="#fff" stopOpacity="0.06" />
+        <stop offset="1" stopColor="#fff" stopOpacity="0" />
+      </linearGradient>
+      <linearGradient id="pr-slope-x" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#000" stopOpacity="0.32" />
+        <stop offset="1" stopColor="#000" stopOpacity="0" />
+      </linearGradient>
+      <linearGradient id="pr-slope-xr" x1="1" y1="0" x2="0" y2="0">
+        <stop offset="0" stopColor="#000" stopOpacity="0.28" />
+        <stop offset="1" stopColor="#000" stopOpacity="0" />
+      </linearGradient>
+      <radialGradient id="pr-lamp" cx="0.35" cy="0.4" r="0.7">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.85" />
+        <stop offset="0.35" stopColor="#fff" stopOpacity="0.2" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.45" />
+      </radialGradient>
+      <linearGradient id="pr-screen" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#cfdbe4" stopOpacity="0.62" />
+        <stop offset="0.5" stopColor="#8aa0b1" stopOpacity="0.5" />
+        <stop offset="0.86" stopColor="#3f5566" stopOpacity="0.72" />
+        <stop offset="1" stopColor="#1e2b36" stopOpacity="0.9" />
+      </linearGradient>
+      <linearGradient id="pr-screen-r" x1="1" y1="0" x2="0" y2="0">
+        <stop offset="0" stopColor="#cfdbe4" stopOpacity="0.62" />
+        <stop offset="0.5" stopColor="#8aa0b1" stopOpacity="0.5" />
+        <stop offset="0.86" stopColor="#3f5566" stopOpacity="0.72" />
+        <stop offset="1" stopColor="#1e2b36" stopOpacity="0.9" />
+      </linearGradient>
+      <linearGradient id="pr-side-glass" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#b7c8d4" stopOpacity="0.7" />
+        <stop offset="0.5" stopColor="#6f8899" stopOpacity="0.55" />
+        <stop offset="1" stopColor="#3b4f5e" stopOpacity="0.7" />
+      </linearGradient>
+      <linearGradient id="pr-tyre" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stopColor="#000" stopOpacity="0.55" />
+        <stop offset="0.3" stopColor="#fff" stopOpacity="0.1" />
+        <stop offset="0.5" stopColor="#fff" stopOpacity="0.22" />
+        <stop offset="0.7" stopColor="#fff" stopOpacity="0.08" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.55" />
+      </linearGradient>
+      <pattern id="pr-tread" width="0.03" height="0.016" patternUnits="userSpaceOnUse">
+        <path d="M0.008 0 V0.016 M0.02 0 V0.016" stroke="#07090b" strokeWidth="0.004" />
+        <path d="M0.014 0.002 V0.006 M0.026 0.009 V0.014" stroke="#30353a" strokeWidth="0.0015" />
+      </pattern>
+      <radialGradient id="pr-cone" cx="0.36" cy="0.34" r="0.7">
+        <stop offset="0" stopColor="#ffb880" />
+        <stop offset="0.35" stopColor="#f26d1f" />
+        <stop offset="0.75" stopColor="#c44a0d" />
+        <stop offset="1" stopColor="#6e2606" />
+      </radialGradient>
+      <radialGradient id="pr-cone-shade" cx="0.36" cy="0.34" r="0.7">
+        <stop offset="0" stopColor="#fff" stopOpacity="0.35" />
+        <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
+        <stop offset="1" stopColor="#000" stopOpacity="0.45" />
+      </radialGradient>
+      <pattern id="pr-foam" width="0.14" height="0.14" patternUnits="userSpaceOnUse">
+        <rect width="0.14" height="0.14" fill="#ece6d8" />
+        {[[0.03, 0.03, 0.024], [0.09, 0.02, 0.018], [0.12, 0.07, 0.022], [0.06, 0.08, 0.03], [0.02, 0.11, 0.016], [0.1, 0.12, 0.02]].map(([cx, cy, rr], i) => (
+          <g key={i}>
+            <circle cx={cx} cy={cy} r={rr} fill="#f6f2ea" stroke="#d3cab7" strokeWidth="0.0025" />
+            <circle cx={cx - rr * 0.35} cy={cy - rr * 0.35} r={rr * 0.3} fill="#fff" fillOpacity="0.8" />
+          </g>
+        ))}
+      </pattern>
+      <pattern id="pr-film" width="0.05" height="0.05" patternUnits="userSpaceOnUse"><path d="M0 0.05 L0.05 0 M-0.01 0.01 L0.01 -0.01 M0.04 0.06 L0.06 0.04" stroke="#fff" strokeWidth="0.004" strokeOpacity="0.55" /></pattern>
+      <radialGradient id="pr-spill" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stopColor="#0d1116" stopOpacity="0.9" /><stop offset="0.7" stopColor="#0d1116" stopOpacity="0.6" /><stop offset="1" stopColor="#0d1116" stopOpacity="0" /></radialGradient>
+    </>
+  );
+}
+
+/** The RTC stage's picture: one wreck filling the frame, the carriageway under it, the weather over it. */
+export function RtcScene({ vehicle, hour, rain, caption, words, ...rest }: RtcSceneProps) {
+  const box = useRef<HTMLDivElement>(null);
+  const [aspect, setAspect] = useState(2.2);
+  useEffect(() => {
+    if (!box.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r && r.height > 0) setAspect(r.width / r.height);
+    });
+    ro.observe(box.current);
+    return () => ro.disconnect();
+  }, []);
+  const W = Math.round(Math.max(600, Math.min(1400, H * aspect)));
+  const sh = shellOf(vehicle);
+  const hw = sh.W / 2;
+  const amb: Ambient = { night: hour !== undefined && (hour < 7 || hour >= 18.5), rain: !!rain };
+  // Metres to picture units: the car (up to a long van's cab and box) across
+  // the clear middle between the floating cards, or its width and a crew's
+  // depth either side down the height, whichever is the tighter fit.
+  const CARD = 150;
+  const s = Math.min((H - 24) / (sh.W + 2 * 0.95), Math.max(40, (W - 2 * CARD) / (Math.min(sh.L, 5.6) + 0.8)));
+  const ox = W / 2 - 0.1 * s, oy = H / 2;
+  const cap = caption ?? "On the carriageway";
+  return (
+    <div ref={box} className={`ps-scene ps-set-road_urban pr-scene${amb.night ? " night" : ""} fill`}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" aria-label="The crash from above">
+        <defs>
+          <FigureDefs />
+          <KitDefs />
+          <GroundDefs />
+          <WeatherDefs />
+          <RtcDefs />
+        </defs>
+        <g transform={`translate(${n2(ox)} ${n2(oy)}) scale(${s.toFixed(2)})`}>
+          {/* The carriageway: tarmac, the lane line, the hard-shoulder edge. */}
+          <Tarmac x={-8} y={-4} w={16} h={8} seed={hash(vehicle.id)} lanes={[0]} />
+          <rect x={-8} y={hw + 1.5} width={16} height={0.14} fill="#f4f4f0" opacity={0.8} />
+          <rect x={-8} y={hw + 1.5} width={16} height={0.14} fill="url(#ps-grain)" />
+          {Array.from({ length: 14 }, (_, i) => <rect key={i} x={-8 + i * 1.2} y={-hw - 1.48} width={0.6} height={0.12} fill="#f4f4f0" opacity={0.7} />)}
+          <RtcWreck vehicle={vehicle} rain={rain} night={amb.night} tagScale={s} {...rest} />
           <Weather amb={amb} outdoor centre={[sh.seat[0], sh.seat[1]]} k={1.6} />
         </g>
         {amb.rain && (
@@ -1054,17 +1142,96 @@ export function RtcScene({ vehicle, done, working, finished = [], casualty, medi
             {Array.from({ length: 30 }, (_, i) => <line key={i} x1={(i * 53) % W} y1={((i * 37) % H) - 20} x2={((i * 53) % W) + 3} y2={((i * 37) % H) - 4} />)}
           </g>
         )}
-        {figures.filter((f) => f.tag).map((f, i) => {
-          const h = px(crewHeadAt(f.at, f.facing));
-          const dx = f.facing[0] !== 0 ? -f.facing[0] * 34 : 0;
-          const dy = f.facing[0] !== 0 ? -4 : -28;
-          return <text key={i} x={h[0] + dx} y={h[1] + dy} textAnchor="middle" className="ps-tag">{f.tag}</text>;
-        })}
       </svg>
       <div className="ps-caption">
         <b>{cap}</b>
         <span>{(words ?? []).join(" · ")}</span>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Whole vehicles on the road — the traffic running past, the cars pulled
+// onto the hard shoulder, the lorry whose driver rang in. The same shell,
+// paint, glass and lamps as the wrecks, undamaged, turned to a compass
+// heading (0 north, 90 east) about `at`.
+// ---------------------------------------------------------------------------
+
+/** The local frame has the nose to -x; a compass heading turns it to face that way. */
+export const headingRotate = (heading: number) => heading + 90;
+
+export function PlanCar({ at, heading, paint, van = false, lights = false }: { at: Pt; heading: number; paint: string; van?: boolean; /** Headlamps and tail lamps lit. */ lights?: boolean }) {
+  const sh = shellFor(van ? "van" : "car");
+  const hw = sh.W / 2, nose = -sh.L / 2, tail = sh.L / 2;
+  const body = bodyPath(sh, false);
+  const fd = sh.frontDoor, rd = sh.rearDoor;
+  const screen = (x0: number, x1: number, y0: number, y1: number) => `M${n2(x0)} ${n2(y0 + 0.08)} Q${n2(x0)} ${n2(y0)} ${n2(x0 + 0.1)} ${n2(y0)} L${n2(x1)} ${n2(y0 + 0.02)} L${n2(x1)} ${n2(y1 - 0.02)} L${n2(x0 + 0.1)} ${n2(y1)} Q${n2(x0)} ${n2(y1)} ${n2(x0)} ${n2(y1 - 0.08)} Z`;
+  const windscreen = screen(sh.cabin[0], sh.roof[0] - 0.03, -hw + 0.2, hw - 0.2);
+  const rearScreen = sh.van ? null : `M${n2(sh.roof[1] + 0.03)} ${n2(-hw + 0.22)} L${n2(sh.cabin[1])} ${n2(-hw + 0.3)} Q${n2(sh.cabin[1] + 0.05)} 0 ${n2(sh.cabin[1])} ${n2(hw - 0.3)} L${n2(sh.roof[1] + 0.03)} ${n2(hw - 0.22)} Z`;
+  const sideWindow = (x0: number, x1: number, side: 1 | -1) => `M${n2(x0 + 0.04)} ${n2(side * (hw - 0.03))} L${n2(x1 - 0.04)} ${n2(side * (hw - 0.03))} L${n2(x1 - 0.1)} ${n2(side * (hw - 0.2))} L${n2(x0 + 0.1)} ${n2(side * (hw - 0.2))} Z`;
+  const doorPanel = (x0: number, x1: number, side: 1 | -1) => `M${n2(x0)} ${n2(side * (hw + 0.02))} L${n2(x1)} ${n2(side * (hw + 0.02))} L${n2(x1)} ${n2(side * (hw - 0.26))} L${n2(x0)} ${n2(side * (hw - 0.26))} Z`;
+  const roof = { x: sh.roof[0], y: -hw + 0.16, w: sh.roof[1] - sh.roof[0], h: sh.W - 0.32 };
+  return (
+    <g transform={`translate(${P(at)}) rotate(${n2(headingRotate(heading))})`}>
+      <path d={body} fill="#000" opacity={0.42} filter="url(#ps-blur-md)" transform="translate(0.06 0.08)" />
+      {sh.wheels.map((x) => [-1, 1].map((side) => {
+        const y = side * (hw - 0.02) - (side > 0 ? 0.12 : 0.14);
+        return <rect key={`${x}${side}`} x={x - 0.33} y={y} width={0.66} height={0.26} rx={0.06} fill="#121518" />;
+      }))}
+      <Mirror x={fd[0] + 0.05} side={-1} hw={hw} paint={paint} />
+      <Mirror x={fd[0] + 0.05} side={1} hw={hw} paint={paint} />
+      <Painted d={body} paint={paint} />
+      <Seam d={`M${n2(nose + 0.5)} ${n2(-hw + 0.3)} L${n2(sh.cabin[0] - 0.05)} ${n2(-hw + 0.1)} M${n2(nose + 0.5)} ${n2(hw - 0.3)} L${n2(sh.cabin[0] - 0.05)} ${n2(hw - 0.1)} M${n2(nose + 0.5)} ${n2(-hw + 0.3)} Q${n2(nose + 0.38)} 0 ${n2(nose + 0.5)} ${n2(hw - 0.3)}`} />
+      {!sh.van && <Seam d={`M${n2(sh.cabin[1] + 0.1)} ${n2(-hw + 0.3)} L${n2(tail - 0.2)} ${n2(-hw + 0.4)} M${n2(sh.cabin[1] + 0.1)} ${n2(hw - 0.3)} L${n2(tail - 0.2)} ${n2(hw - 0.4)} M${n2(tail - 0.2)} ${n2(-hw + 0.4)} Q${n2(tail - 0.12)} 0 ${n2(tail - 0.2)} ${n2(hw - 0.4)}`} />}
+      {sh.van && <Seam d={`M${n2(sh.cabin[1] + 0.05)} ${n2(-hw + 0.1)} V${n2(hw - 0.1)} M${n2(tail - 0.1)} ${n2(-hw + 0.32)} V${n2(hw - 0.32)}`} dark={0.6} light={0.3} w={1.1} />}
+      {/* The glasshouse: the roof between the screens, the side glass, the door gaps. */}
+      <Painted d={`M${n2(roof.x + 0.1)} ${n2(roof.y)} H${n2(roof.x + roof.w - 0.1)} q0.1 0 0.1 0.1 V${n2(roof.y + roof.h - 0.1)} q0 0.1 -0.1 0.1 H${n2(roof.x + 0.1)} q-0.1 0 -0.1 -0.1 V${n2(roof.y + 0.1)} q0 -0.1 0.1 -0.1 Z`} paint={paint} opacity={sh.van ? 0 : 0.42} gleam={false} />
+      <path d={windscreen} fill="url(#pr-screen)" />
+      <path d={windscreen} fill="url(#pk-glass-refl)" />
+      <path d={windscreen} fill="none" stroke="#0b0e11" strokeWidth={1.1} strokeOpacity={0.9} {...SOFT} />
+      {rearScreen && <path d={rearScreen} fill="url(#pr-screen-r)" />}
+      {rearScreen && <path d={rearScreen} fill="none" stroke="#0b0e11" strokeWidth={1.1} strokeOpacity={0.9} {...SOFT} />}
+      {[-1, 1].map((side) => (
+        <g key={side}>
+          <path d={sideWindow(fd[0], fd[1], side as 1 | -1)} fill="url(#pr-side-glass)" stroke="#0b0e11" strokeWidth={0.9} strokeOpacity={0.9} {...SOFT} />
+          {rd && <path d={sideWindow(rd[0], rd[1], side as 1 | -1)} fill="url(#pr-side-glass)" stroke="#0b0e11" strokeWidth={0.9} strokeOpacity={0.9} {...SOFT} />}
+          <Seam d={doorPanel(fd[0], fd[1], side as 1 | -1)} />
+          {rd && <Seam d={doorPanel(rd[0], rd[1], side as 1 | -1)} />}
+        </g>
+      ))}
+      {[-1, 1].map((side) => <HeadLamp key={side} nose={nose} side={side as 1 | -1} hw={hw} van={sh.van} cracked={false} />)}
+      {[-1, 1].map((side) => <RearLamp key={side} tail={tail} side={side as 1 | -1} hw={hw} van={sh.van} />)}
+      {lights && [-1, 1].map((side) => <ellipse key={side} cx={nose - 0.9} cy={side * (hw - 0.4)} rx={1.1} ry={0.3} fill="#fff6d6" opacity={0.18} filter="url(#ps-blur-md)" />)}
+      {lights && [-1, 1].map((side) => <circle key={side} cx={tail - 0.2} cy={side * (hw - 0.3)} r={0.12} fill="#ff3b3b" opacity={0.55} filter="url(#ps-blur-sm)" />)}
+    </g>
+  );
+}
+
+/** An articulated lorry: the tractor unit's cab with its sleeper and the
+ *  wind kit, the fifth wheel, the box trailer's roof with its ribs, the
+ *  twin rear axles and the under-run bar. The nose to -x, like everything. */
+export function PlanArtic({ at, heading, paint = "#2d6cb5", trailer = "#e8e9ea" }: { at: Pt; heading: number; paint?: string; trailer?: string }) {
+  const L = 16.5, W = 2.55, hw = W / 2, nose = -L / 2;
+  const cabL = 2.3, cab = `M${n2(nose + 0.15)} ${n2(-hw + 0.25)} Q${n2(nose)} ${n2(-hw + 0.3)} ${n2(nose)} 0 Q${n2(nose)} ${n2(hw - 0.3)} ${n2(nose + 0.15)} ${n2(hw - 0.25)} L${n2(nose + cabL)} ${n2(hw - 0.05)} L${n2(nose + cabL)} ${n2(-hw + 0.05)} Z`;
+  const box = { x: nose + cabL + 0.45, y: -hw, w: L - cabL - 0.45, h: W };
+  const boxPath = `M${n2(box.x + 0.08)} ${n2(box.y)} H${n2(box.x + box.w - 0.08)} q0.08 0 0.08 0.08 V${n2(box.y + box.h - 0.08)} q0 0.08 -0.08 0.08 H${n2(box.x + 0.08)} q-0.08 0 -0.08 -0.08 V${n2(box.y + 0.08)} q0 -0.08 0.08 -0.08 Z`;
+  const axles = [nose + 1.1, nose + 3.3, box.x + box.w - 2.6, box.x + box.w - 1.3];
+  return (
+    <g transform={`translate(${P(at)}) rotate(${n2(headingRotate(heading))})`}>
+      <rect x={nose + 0.1} y={-hw + 0.1} width={L} height={W} rx={0.2} fill="#000" opacity={0.42} filter="url(#ps-blur-md)" />
+      {axles.map((x) => [-1, 1].map((side) => <rect key={`${x}${side}`} x={x - 0.5} y={side * (hw - 0.05) - (side > 0 ? 0.2 : 0.1)} width={1.0} height={0.3} rx={0.06} fill="#121518" />))}
+      <rect x={nose + cabL - 0.05} y={-hw + 0.3} width={0.9} height={W - 0.6} rx={0.05} fill="#1b1f23" {...edge("#1b1f23", 0.3, 0.8, 0.8)} />
+      <circle cx={nose + cabL + 0.4} cy={0} r={0.32} fill="url(#pk-steel)" stroke="#2b2f33" strokeWidth={0.5} {...SOFT} />
+      <Painted d={cab} paint={paint} />
+      <path d={`M${n2(nose + 0.18)} ${n2(-hw + 0.35)} Q${n2(nose + 0.08)} 0 ${n2(nose + 0.18)} ${n2(hw - 0.35)} L${n2(nose + 0.55)} ${n2(hw - 0.4)} Q${n2(nose + 0.45)} 0 ${n2(nose + 0.55)} ${n2(-hw + 0.4)} Z`} fill="url(#pr-screen)" stroke="#0b0e11" strokeWidth={1} strokeOpacity={0.9} {...SOFT} />
+      <Seam d={`M${n2(nose + 1.5)} ${n2(-hw + 0.1)} V${n2(hw - 0.1)}`} dark={0.55} light={0.25} />
+      <path d={`M${n2(nose + 1.6)} ${n2(-hw + 0.2)} L${n2(nose + cabL)} ${n2(-hw + 0.35)} L${n2(nose + cabL)} ${n2(hw - 0.35)} L${n2(nose + 1.6)} ${n2(hw - 0.2)} Z`} fill={darken(paint, 0.25)} opacity={0.7} />
+      <Painted d={boxPath} paint={trailer} />
+      {Array.from({ length: Math.floor(box.w / 0.9) }, (_, i) => <Seam key={i} d={`M${n2(box.x + 0.5 + i * 0.9)} ${n2(box.y + 0.12)} V${n2(box.y + box.h - 0.12)}`} dark={0.22} light={0.2} />)}
+      <Seam d={`M${n2(box.x + 0.1)} ${n2(box.y + 0.1)} H${n2(box.x + box.w - 0.1)} M${n2(box.x + 0.1)} ${n2(box.y + box.h - 0.1)} H${n2(box.x + box.w - 0.1)}`} dark={0.4} light={0.25} />
+      <rect x={box.x + box.w - 0.12} y={-hw + 0.2} width={0.1} height={W - 0.4} rx={0.02} fill="#15181c" />
+      {[-1, 1].map((side) => <rect key={side} x={box.x + box.w - 0.2} y={side * (hw - 0.3) - 0.12} width={0.14} height={0.24} rx={0.03} fill="#b5101f" />)}
+    </g>
   );
 }

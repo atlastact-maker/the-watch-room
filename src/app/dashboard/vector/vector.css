@@ -5794,3 +5794,40 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
    the frames are the sheet's SMIL animation. */
 .ps-jog { animation: ps-jog var(--jog-dur, 3s) linear both; }
 @keyframes ps-jog { from { transform: translate(var(--jx0), var(--jy0)); } to { transform: translate(var(--jx1), var(--jy1)); } }
+
+/* The Incident app's pages: Job · Map · Ground. Ground is the whole scene
+   from above (scene/ground-rtc.tsx) for the jobs whose scenario has one. */
+.vec-mdt-jobbar { display: flex; align-items: center; gap: 4px; padding: 6px 10px 0; }
+.vec-mdt-jobbar button { padding: 4px 12px; border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); color: var(--vec-text-dim); font: 700 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.vec-mdt-jobbar button[aria-selected="true"] { background: #3f5c72; border-color: #3f5c72; color: #fff; }
+.vec-mdt-jobbar .who { margin-left: auto; font: 600 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.08em; color: var(--vec-text-muted); text-transform: uppercase; }
+.vec-mdt-jobmap { flex: 1; min-height: 0; margin: 8px 10px 10px; border: 1px solid var(--vec-border); border-radius: 3px; background: #0a0a0c; overflow: hidden; }
+.vec-mdt-jobmap > svg { display: block; width: 100%; height: 100%; }
+.vec-mdt-ground { flex: 1; min-height: 0; margin: 8px 10px 10px; border: 1px solid var(--vec-border); border-radius: 3px; overflow: hidden; display: flex; }
+.gv-scene { position: relative; flex: 1; min-height: 0; background: #1f2b1d; overflow: hidden; }
+.gv-scene > svg { display: block; width: 100%; height: 100%; }
+.gv-world { transition: transform 700ms cubic-bezier(0.3, 0.7, 0.2, 1); }
+.gv-empty { padding: 30px 12px; color: var(--vec-text-muted); font-size: 12px; }
+.gv-frames { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; padding: 2px; background: rgba(6, 12, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 4px; backdrop-filter: blur(2px); }
+.gv-frames button { padding: 3px 9px; border: 0; border-radius: 3px; background: transparent; color: #cfdbe4; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.gv-frames button[aria-pressed="true"] { background: #3f5c72; color: #fff; }
+.gv-caption { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 6px 10px; background: linear-gradient(to top, rgba(6, 12, 18, 0.92), rgba(6, 12, 18, 0.6) 70%, rgba(6, 12, 18, 0)); font-size: 11px; color: #cfdbe4; pointer-events: none; }
+.gv-caption b { font: 700 9.5px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: #fff; }
+.gv-caption.live b, .gv-caption.fend_off b { color: #ff8a8a; }
+.gv-caption.lanes_closed b { color: #ffd27a; }
+.gv-caption.held b, .gv-caption.closed b { color: #7ee2a8; }
+.gv-plate { fill: #ffffff; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.08em; text-transform: uppercase; paint-order: stroke; stroke: rgba(0, 0, 0, 0.8); stroke-width: 3px; pointer-events: none; }
+.gv-plate.sub { fill: #cfdbe4; font-weight: 600; font-size: 8px; letter-spacing: 0.06em; text-transform: none; }
+.gv-plate.sel { fill: #7fd1ff; }
+.gv-plate.ic { fill: #ffe08a; }
+.gv-plate.tag { fill: #9be7c4; }
+.gv-plate.road { fill: #f2f2ee; font-size: 10px; letter-spacing: 0.16em; opacity: 0.8; }
+/* The traffic runs the length of the road and comes round again; a unit
+   put somewhere by a task slides there as the task runs. Inside the
+   metre-scaled group a px is a metre. */
+.gv-car { animation: gv-drive var(--dur, 8s) linear infinite; }
+@keyframes gv-drive { from { transform: translateX(var(--x0)); } to { transform: translateX(var(--x1)); } }
+.gv-unit { transition: transform 1s linear; }
+.gv-unit.unplaced { opacity: 0.75; }
+.gv-unit.unplaced > svg, .gv-unit.unplaced > g { filter: saturate(0.6); }
+@media (prefers-reduced-motion: reduce) { .gv-car { animation-duration: 0s; } }

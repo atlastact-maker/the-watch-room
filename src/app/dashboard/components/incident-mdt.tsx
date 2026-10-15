@@ -29,6 +29,9 @@ import { PoliceControlsScreen, type SupportKind, type PoliceSelection } from "..
 import type { FireSelection } from "../vector/fire-command";
 import { VitalMonitorPanel } from "../vector/vital-monitor";
 import { MdtNotepad } from "../vector/mdt-notepad";
+import { SceneCanvas } from "./scene-canvas";
+import { RtcGround } from "../vector/scene/ground-rtc";
+import { groundViewFor } from "../vector/scene/ground-views";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
 import { serviceMarker, unitMarkerHtml, type MarkerStatusKey } from "./unit-chip";
 import type { RecordIndex } from "@/lib/sim/records";
@@ -368,6 +371,19 @@ export function DraggableIncidentMdt(props: Props) {
   const [module, setModule] = useState<MdtApp>(props.policePage ? "police" : "home");
   const [startOpen, setStartOpen] = useState(false);
   const launch = (app: MdtApp) => { setModule(app); setStartOpen(false); };
+  // The Incident app's pages: the job and its log, the scene map, and —
+  // on a job whose scenario has one — the ground view, the whole scene
+  // drawn from above. The tablet turns to the ground on its own when
+  // this unit books in attendance; the operator can turn it back.
+  const groundView = groundViewFor(sc);
+  const attending = !resolved && unitRow?.phase === "at_incident";
+  const [jobView, setJobView] = useState<"job" | "map" | "ground">(attending && groundView ? "ground" : "job");
+  const [seenAttending, setSeenAttending] = useState(attending);
+  if (attending !== seenAttending) {
+    setSeenAttending(attending);
+    if (attending && groundView) setJobView("ground");
+  }
+  if (jobView === "ground" && !groundView) setJobView("job");
   const [seenPolicePage, setSeenPolicePage] = useState(props.policePage?.seq ?? 0);
   if (props.policePage && props.policePage.seq !== seenPolicePage) {
     setSeenPolicePage(props.policePage.seq);
@@ -611,6 +627,45 @@ export function DraggableIncidentMdt(props: Props) {
         ) : module === "police" ? (
           serviceModule("Police")
         ) : module === "incident" ? (
+          <>
+          <div className="vec-mdt-jobbar" role="tablist" aria-label="Incident pages">
+            <button type="button" role="tab" aria-selected={jobView === "job"} onClick={() => setJobView("job")}>Job</button>
+            <button type="button" role="tab" aria-selected={jobView === "map"} onClick={() => setJobView("map")}>Map</button>
+            {groundView && <button type="button" role="tab" aria-selected={jobView === "ground"} onClick={() => setJobView("ground")}>Ground</button>}
+            <span className="who">{unitCallsign} · {unitState}</span>
+          </div>
+          {jobView === "ground" && groundView ? (
+            <div className="vec-mdt-ground">
+              <RtcGround
+                view={groundView}
+                incident={incident}
+                resolved={resolvedDeps}
+                tasks={tasks ?? []}
+                log={props.log}
+                now={nowMs}
+                sim={sim ?? null}
+                treatmentByCasualtyId={props.treatmentByCasualtyId}
+                resusByCasualtyId={props.resusByCasualtyId}
+                hour={props.ambient?.hour}
+                rain={props.ambient?.precip === "rain"}
+                selectedUnitId={unitAppliance?.id ?? null}
+                onSelectUnit={(id) => setUnitId(id)}
+                commanderApplianceId={props.commanderApplianceId ?? props.sceneCommanderApplianceId ?? null}
+              />
+            </div>
+          ) : jobView === "map" ? (
+            <div className="vec-mdt-jobmap">
+              {sc.scene ? (
+                <SceneCanvas
+                  scene={sc.scene}
+                  deployments={resolvedDeps.filter((r) => r.phase === "at_incident").map((r) => ({ deployment: r.deployment, callsign: r.appliance.callsign, service: r.appliance.service }))}
+                  live={sim ? { fireRadiusM: sim.fireRadiusM, smokeRadiusM: sim.smokeRadiusM, frontOffset: sim.frontOffset } : null}
+                />
+              ) : (
+                <div className="vec-tile-empty">No scene plan for this incident</div>
+              )}
+            </div>
+          ) : (
           <div className="vec-mdt-job">
             <div className="facts">
               <div><span>Reference</span><b>{ref}</b></div>
@@ -628,6 +683,8 @@ export function DraggableIncidentMdt(props: Props) {
               {props.log.filter((e) => e.timestamp >= incident.receivedAt).length === 0 && <div className="row muted"><span>Nothing logged yet</span></div>}
             </div>
           </div>
+          )}
+          </>
         ) : resolved ? (
           <div className="vec-tile-empty">Incident closed — patient records are in the debrief</div>
         ) : !sim ? (
