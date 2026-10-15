@@ -25,6 +25,8 @@ import { P, len, sub, unit, lerp, type Pt } from "./plan-figure";
 import { GroundDefs, WeatherDefs, Tarmac, prng, type Ambient } from "./plan-ground";
 import { shellFor, legAt, headingRotate, WALK_MPS, type Mover, type Leg } from "./plan-rtc";
 import { unitFootprint } from "./plan-vehicles";
+import { DOT, LEADER_H, MARKER_STATUS, MONO, SELECTED_LEADER_H, TIERS, serviceMarker, type MarkerTier } from "../../components/unit-chip";
+import type { Appliance } from "@/lib/sim/types";
 import { hash } from "../patient-scene";
 import { rtcJobs } from "../rtc-state";
 import type { RtcGroundView, Placing } from "./ground-views";
@@ -127,19 +129,68 @@ function DotMark({ r, colour, label, s, ring }: { r: number; colour: string; lab
   );
 }
 
-/** A unit: its footprint in its service's colour, nose marked, the blues
- *  on when they are. Click to select it on the tablet. */
-function UnitMark({ type, service, at, heading, lights, selected, commander, unplaced, onClick }: { type: string; service: string; at: Pt; heading: number; lights: string; selected: boolean; commander: boolean; unplaced: boolean; onClick?: () => void }) {
-  const fp = unitFootprint(type, service);
-  const colour = SERVICE[serviceOf(service)];
-  const blues = lights !== "off" && lights !== "hazards";
+/** The chip's tier by the picture's scale, as the desk's by its zoom:
+ *  symbol only when pulled right back, the callsign plate in close, the
+ *  type line closer still. */
+const tierForScale = (s: number): MarkerTier => (s < 6 ? "compact" : s < 14 ? "standard" : "detailed");
+
+/** A unit as the CAD symbol the desk draws: the service-coloured body
+ *  with its two-letter resource code, the status roundel notched into
+ *  its top-left, the callsign plate flush to its right, and the dot
+ *  below on the unit's exact position — pixel-sized whatever the
+ *  framing. Under it, faint and true to scale, the footprint turned the
+ *  way the vehicle is parked. Click to select it on the tablet. */
+function UnitSymbol({ appliance, at, heading, s, subtitle, selected, commander, unplaced, onClick }: { appliance: Appliance; at: Pt; heading: number; s: number; subtitle?: string; selected: boolean; commander: boolean; unplaced: boolean; onClick?: () => void }) {
+  const sm = serviceMarker(appliance.service, appliance.type);
+  const tier = tierForScale(s);
+  const t = TIERS[tier];
+  const st = MARKER_STATUS.attendance;
+  const bodyW = t.sym + (tier === "detailed" ? 12 : 8);
+  const bodyH = t.sym;
+  const cabH = Math.max(5, Math.round(bodyH * 0.34));
+  const codeSize = Math.max(8, t.codeSize - 1);
+  const leaderTop = selected ? t.sym + 6 : t.sym;
+  const leaderH = selected ? SELECTED_LEADER_H : LEADER_H;
+  const anchorX = bodyW / 2;
+  const anchorY = leaderTop + leaderH + DOT / 2;
+  const plateText = appliance.callsign.toUpperCase().slice(0, 10);
+  const sub = t.subtitle && subtitle ? subtitle.toUpperCase().slice(0, 22) : "";
+  const plateW = t.plate ? Math.ceil(Math.max(plateText.length * t.plateFont * 0.62, sub.length * 8 * 0.62) + t.platePad * 2) : 0;
+  const plateR = t.sym >= 30 ? 4 : 3;
+  const plateBorder = commander ? "#fbbf24" : sm.colour;
+  const fp = unitFootprint(appliance.type, appliance.service);
   return (
-    <g className={`gv-unit${unplaced ? " unplaced" : ""}`} transform={`translate(${P(at)}) rotate(${n2(heading)})`} onClick={onClick} style={onClick ? { cursor: "pointer" } : undefined}>
-      {selected && <rect x={-fp.w / 2 - 0.4} y={-fp.l / 2 - 0.4} width={fp.w + 0.8} height={fp.l + 0.8} rx={0.5} fill="none" stroke="#7fd1ff" strokeWidth={0.16} strokeDasharray="0.5 0.3" />}
-      <rect x={-fp.w / 2} y={-fp.l / 2} width={fp.w} height={fp.l} rx={0.35} fill={colour} fillOpacity={0.3} stroke={colour} strokeWidth={0.18} />
-      <path d={`M ${n2(-fp.w / 2 + 0.3)} ${n2(-fp.l / 2 + 1)} L 0 ${n2(-fp.l / 2 + 0.2)} L ${n2(fp.w / 2 - 0.3)} ${n2(-fp.l / 2 + 1)}`} fill="none" stroke="#fff" strokeWidth={0.14} opacity={0.85} />
-      {blues && <circle cy={-fp.l * 0.18} r={0.24} fill="#5ab4ff" className="gv-blues" />}
-      {commander && <circle cy={fp.l / 2 - 0.7} r={0.3} fill="#ffe08a" stroke="#0b0f14" strokeWidth={0.06} />}
+    <g onClick={onClick} style={onClick ? { cursor: "pointer" } : undefined} opacity={unplaced ? 0.6 : 1}>
+      <g className="gv-unit" transform={`translate(${P(at)}) rotate(${n2(heading)})`} opacity={0.6}>
+        <rect x={-fp.w / 2} y={-fp.l / 2} width={fp.w} height={fp.l} rx={0.3} fill={sm.colour} fillOpacity={0.16} stroke={sm.colour} strokeWidth={0.12} strokeDasharray="0.5 0.3" />
+        <path d={`M ${n2(-fp.w / 2 + 0.3)} ${n2(-fp.l / 2 + 1)} L 0 ${n2(-fp.l / 2 + 0.2)} L ${n2(fp.w / 2 - 0.3)} ${n2(-fp.l / 2 + 1)}`} fill="none" stroke={sm.colour} strokeWidth={0.12} />
+      </g>
+      <g transform={`translate(${P(at)}) scale(${n2(1 / s)}) translate(${-anchorX} ${-anchorY})`} fontFamily={MONO}>
+        {selected && <rect x={-6} y={-6} width={bodyW + plateW + 12} height={bodyH + 12} rx={7} fill="none" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3" />}
+        <rect x={-0.5} y={-0.5} width={bodyW + 1} height={bodyH + 1} rx={3.5} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth={1} />
+        <rect x={0} y={0} width={bodyW} height={bodyH} rx={3} fill={sm.colour} stroke="#f5f5f5" strokeWidth={t.border} />
+        <rect x={bodyW * 0.22} y={2} width={bodyW * 0.56} height={cabH} rx={2} fill="#263241" stroke="rgba(255,255,255,0.55)" strokeWidth={1} opacity={0.95} />
+        <rect x={-3} y={3} width={3} height={Math.max(7, bodyH - 8)} rx={1.5} fill="#17191c" />
+        <rect x={bodyW} y={3} width={3} height={Math.max(7, bodyH - 8)} rx={1.5} fill="#17191c" />
+        <text x={bodyW / 2} y={(cabH + bodyH) / 2 + codeSize * 0.36} textAnchor="middle" fontSize={codeSize} fontWeight={700} fill="#fff">{sm.code}</text>
+        <g transform={`translate(${-t.roundelOff} ${-t.roundelOff})`}>
+          <rect x={-0.5} y={-0.5} width={t.roundel + 1} height={t.roundel + 1} rx={2.5} fill="none" stroke="rgba(0,0,0,0.4)" strokeWidth={1} />
+          <rect width={t.roundel} height={t.roundel} rx={2} fill={st.colour} stroke="#fff" strokeWidth={t.border} />
+          <text x={t.roundel / 2} y={t.roundel / 2 + t.numSize * 0.36} textAnchor="middle" fontSize={t.numSize} fontWeight={700} fill="#fff">{st.code}</text>
+        </g>
+        {t.plate && (
+          <g transform={`translate(${bodyW} 0)`}>
+            <path d={`M 0 -0.5 H ${plateW - plateR} A ${plateR + 0.5} ${plateR + 0.5} 0 0 1 ${plateW + 0.5} ${plateR} V ${bodyH - plateR} A ${plateR + 0.5} ${plateR + 0.5} 0 0 1 ${plateW - plateR} ${bodyH + 0.5} H 0 Z`} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth={1} />
+            <path d={`M 0 0 H ${plateW - plateR} A ${plateR} ${plateR} 0 0 1 ${plateW} ${plateR} V ${bodyH - plateR} A ${plateR} ${plateR} 0 0 1 ${plateW - plateR} ${bodyH} H 0 Z`} fill="#fff" stroke={plateBorder} strokeWidth={t.border} />
+            <rect x={-t.border} y={t.border} width={t.border * 2} height={bodyH - t.border * 2} fill="#fff" />
+            <text x={t.platePad} y={sub ? (bodyH - 20) / 2 + t.plateFont * 0.8 : bodyH / 2 + t.plateFont * 0.36} fontSize={t.plateFont} fontWeight={700} fill="#18181b">{plateText}</text>
+            {sub && <text x={t.platePad} y={(bodyH - 20) / 2 + t.plateFont + 1 + 8 * 0.8} fontSize={8} fontWeight={500} fill="#71717a" letterSpacing="0.06em">{sub}</text>}
+          </g>
+        )}
+        <rect x={anchorX - 0.5} y={leaderTop} width={1} height={leaderH} fill={sm.colour} />
+        <circle cx={anchorX} cy={leaderTop + leaderH + DOT / 2} r={DOT / 2} fill={sm.colour} stroke="#fff" strokeWidth={1.5} />
+        <circle cx={anchorX} cy={leaderTop + leaderH + DOT / 2} r={DOT / 2 + 1.2} fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
+      </g>
     </g>
   );
 }
@@ -628,7 +679,7 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, hour
           {view.stopped.map((v, i) => <CarMark key={i} at={v.at} heading={v.heading} paint={v.paint ?? (v.kind === "artic" ? "#e8e9ea" : "#9aa4ad")} kind={v.kind} />)}
           {/* The units, parked or put where their task has them. */}
           {units.map((u) => (
-            <UnitMark key={u.r.appliance.id} type={u.r.appliance.type} service={u.r.appliance.service} at={u.at} heading={u.heading} lights={u.lights} selected={u.r.appliance.id === selectedUnitId} commander={u.r.appliance.id === commanderApplianceId} unplaced={!u.placed} onClick={onSelectUnit ? () => onSelectUnit(u.r.appliance.id) : undefined} />
+            <UnitSymbol key={u.r.appliance.id} appliance={u.r.appliance} at={u.at} heading={u.heading} s={s} subtitle={u.role ?? u.r.appliance.type.replace(/_/g, " ")} selected={u.r.appliance.id === selectedUnitId} commander={u.r.appliance.id === commanderApplianceId} unplaced={!u.placed} onClick={onSelectUnit ? () => onSelectUnit(u.r.appliance.id) : undefined} />
           ))}
           {/* The cones: the fend-off's, the taper's as far as it has got. */}
           {[...fendCones, ...conePts.slice(0, coneShown)].map((c, i) => <circle key={`c${i}`} cx={c[0]} cy={c[1]} r={0.26} fill="#ff7a1a" stroke="#fff" strokeWidth={0.07} />)}
@@ -690,14 +741,12 @@ export function RtcGround({ view, incident, resolved, tasks, log, now, sim, hour
           )}
           {/* Night, with the scene lighting and the units' own light pooling on the road. */}
           {amb.night && <rect x={area.x - 20} y={area.y - 20} width={area.w + 40} height={area.h + 40} fill="#071020" opacity={0.62} mask="url(#gv-night)" />}
-          {/* The plates: who each unit is and what it is doing where it is. */}
-          {units.map((u) => {
+          {/* What a unit is doing where it is, under its footprint — the symbol carries it at the close framings. */}
+          {tierForScale(s) !== "detailed" && units.filter((u) => u.role).map((u) => {
             const fp = unitFootprint(u.r.appliance.type, u.r.appliance.service);
-            const lines = [{ text: u.r.appliance.callsign, cls: u.r.appliance.id === selectedUnitId ? "sel" : u.r.appliance.id === commanderApplianceId ? "ic" : undefined }, ...(u.role ? [{ text: u.role, cls: "sub" }] : [])];
-            // On the verge side of the carriageway the plate goes above the unit, off the road.
             const ext = Math.max(fp.l, fp.w) / 2;
             const up = top ? u.at[1] < eb.y : u.at[1] > eb.y + eb.h;
-            return <g key={`p${u.r.appliance.id}`}>{plate(u.at, up ? -(ext + 0.5) - ((lines.length - 1) * 11) / s : ext + 1.1, lines)}</g>;
+            return <g key={`p${u.r.appliance.id}`}>{plate(u.at, up ? -(ext + 0.5) : ext + 1.1, [{ text: u.role!, cls: "sub" }])}</g>;
           })}
           {frame !== "wreck" && view.stopped.map((v) => <g key={v.label}>{plate(v.at, 2.2, [{ text: v.label, cls: "sub" }])}</g>)}
           {frame === "wide" && (

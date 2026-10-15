@@ -114,7 +114,7 @@ export function markerTierForZoom(zoom: number): MarkerTier {
   return "standard";
 }
 
-const TIERS = {
+export const TIERS = {
   compact: {
     sym: 20,
     radius: "3px",
@@ -156,12 +156,12 @@ const TIERS = {
   },
 } as const;
 
-const MONO = "var(--font-geist-mono), ui-monospace, monospace";
+export const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
 /** Leader + dot geometry, shared by every tier. */
-const LEADER_H = 10;
-const SELECTED_LEADER_H = 12;
-const DOT = 8;
+export const LEADER_H = 10;
+export const SELECTED_LEADER_H = 12;
+export const DOT = 8;
 
 export type UnitMarker = {
   html: string;

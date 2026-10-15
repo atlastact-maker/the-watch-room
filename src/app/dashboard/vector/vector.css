@@ -5796,7 +5796,7 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .ps-jog { animation: ps-jog var(--jog-dur, 3s) linear both; }
 @keyframes ps-jog { from { transform: translate(var(--jx0), var(--jy0)); } to { transform: translate(var(--jx1), var(--jy1)); } }
 
-/* The Incident app's pages: Job · Map · Ground. Ground is the whole scene
+/* The Incident app's pages: Job · Ground (Map only where there is no ground view). Ground is the whole scene
    from above (scene/ground-rtc.tsx) for the jobs whose scenario has one. */
 .vec-mdt-jobbar { display: flex; align-items: center; gap: 4px; padding: 6px 10px 0; }
 .vec-mdt-jobbar button { padding: 4px 12px; border: 1px solid var(--vec-border); border-radius: 3px; background: var(--vec-surface); color: var(--vec-text-dim); font: 700 10px var(--vec-mono, Consolas, monospace); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }

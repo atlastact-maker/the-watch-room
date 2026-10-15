@@ -372,10 +372,11 @@ export function DraggableIncidentMdt(props: Props) {
   const [module, setModule] = useState<MdtApp>(props.policePage ? "police" : "home");
   const [startOpen, setStartOpen] = useState(false);
   const launch = (app: MdtApp) => { setModule(app); setStartOpen(false); };
-  // The Incident app's pages: the job and its log, the scene map, and —
-  // on a job whose scenario has one — the ground view, the whole scene
-  // drawn from above. The tablet turns to the ground on its own when
-  // this unit books in attendance; the operator can turn it back.
+  // The Incident app's pages: the job and its log, and — on a job whose
+  // scenario has one — the ground view, the whole scene drawn from above.
+  // The old scene plan stays only on a job the ground view does not draw
+  // yet. The tablet turns to the ground on its own when this unit books
+  // in attendance; the operator can turn it back.
   const groundView = groundViewFor(sc);
   const attending = !resolved && unitRow?.phase === "at_incident";
   const [jobView, setJobView] = useState<"job" | "map" | "ground">(attending && groundView ? "ground" : "job");
@@ -631,7 +632,7 @@ export function DraggableIncidentMdt(props: Props) {
           <>
           <div className="vec-mdt-jobbar" role="tablist" aria-label="Incident pages">
             <button type="button" role="tab" aria-selected={jobView === "job"} onClick={() => setJobView("job")}>Job</button>
-            <button type="button" role="tab" aria-selected={jobView === "map"} onClick={() => setJobView("map")}>Map</button>
+            {!groundView && <button type="button" role="tab" aria-selected={jobView === "map"} onClick={() => setJobView("map")}>Map</button>}
             {groundView && <button type="button" role="tab" aria-selected={jobView === "ground"} onClick={() => setJobView("ground")}>Ground</button>}
             <span className="who">{unitCallsign} · {unitState}</span>
           </div>
