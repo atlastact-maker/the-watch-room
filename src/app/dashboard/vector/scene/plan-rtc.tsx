@@ -23,12 +23,18 @@ import { CrewTop, crewWearOf, crewHeadAt } from "./plan-crew";
 import { GroundDefs, Weather, WeatherDefs, CarSeat, SteeringWheel, Tarmac, prng, type Ambient } from "./plan-ground";
 import { wearOf, hash, type SceneCrew } from "../patient-scene";
 import { MODEL_SPRITES } from "./model-sprites";
+import { ModelSprite } from "./model-sprite";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
 
-/** What is running on the vehicle now, and how many pairs of hands are on it. */
-export type RtcWork = { key: string; crew: number };
+/** What is running on the vehicle now, how many pairs of hands are on it, and since when (the crew jog in for the first seconds). */
+export type RtcWork = { key: string; crew: number; startedAt?: number };
+
+/** How long a crew take to jog in to a job, and how far: along the road
+ *  from the appliance parked upstream, about 2.7 m/s. */
+export const JOG_MS = 3000;
+const JOG_M = 8.1;
 
 export type RtcSceneProps = {
   vehicle: CrsVehicle;
@@ -47,6 +53,8 @@ export type RtcSceneProps = {
   components?: boolean;
   caption?: string;
   words?: string[];
+  /** The moment, for the crew still jogging in to a job that just started. */
+  now?: number;
 };
 
 const H = 360;
@@ -493,7 +501,7 @@ function FoamBlanket({ d, seed, clip }: { d: string; seed: number; clip: string 
 const COMP_COLOUR: Record<string, string> = { battery_12v: "#e7b31a", battery_hv: "#e8731f", airbag: "#d13b3b", curtain_airbag: "#d13b3b", pretensioner: "#e67e22", srs_unit: "#8a9399", fuel_tank: "#2f8fd6", gas_strut: "#3ad17f", reinforcement: "#7f1d1d" };
 const COMP_LETTER: Record<string, string> = { battery_12v: "12V", battery_hv: "HV", airbag: "AB", curtain_airbag: "CAB", pretensioner: "PT", srs_unit: "SRS", fuel_tank: "FUEL", gas_strut: "GAS", reinforcement: "UHSS" };
 
-export function RtcScene({ vehicle, done, working, casualty, medics, extrication, extricationCrew = 0, hour, rain, components, caption, words }: RtcSceneProps) {
+export function RtcScene({ vehicle, done, working, casualty, medics, extrication, extricationCrew = 0, hour, rain, components, caption, words, now }: RtcSceneProps) {
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(2.2);
   useEffect(() => {
@@ -560,7 +568,7 @@ export function RtcScene({ vehicle, done, working, casualty, medics, extrication
     if (Math.abs(p.x) > sh.L / 2 - 0.5) { const end: 1 | -1 = p.x < 0 ? -1 : 1; return { at: [end * (sh.L / 2 + 0.75), p.y * 0.5], facing: [-end, 0] }; }
     return { at: [p.x, side * sill], facing: [0, -side] };
   };
-  const figures: { at: Pt; facing: Pt; hands?: { left?: Pt; right?: Pt }; service: "Fire" | "Ambulance"; scope?: string; callsign?: string; tag?: string; seed: number }[] = [];
+  const figures: { at: Pt; facing: Pt; hands?: { left?: Pt; right?: Pt }; service: "Fire" | "Ambulance"; scope?: string; callsign?: string; tag?: string; seed: number; /** Milliseconds into the jog in from the edge, while still running. */ jog?: number }[] = [];
   const taken = new Set<string>();
   const claim = (at: Pt) => { const k = `${Math.round(at[0] * 4)}:${Math.round(at[1] * 4)}`; if (taken.has(k)) return false; taken.add(k); return true; };
   for (const w of working) {
@@ -570,7 +578,9 @@ export function RtcScene({ vehicle, done, working, casualty, medics, extrication
       const comp = vehicle.components.find((c) => c.action?.id === w.key);
       list = comp ? [compSpot(comp)] : [{ at: [nose - 0.8, -0.3], facing: [1, 0] }];
     }
-    list.slice(0, Math.max(1, w.crew)).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: hash(key) + i * 131 }); });
+    const since = w.startedAt !== undefined && now !== undefined ? now - w.startedAt : null;
+    const jog = since !== null && since >= 0 && since < JOG_MS ? since : undefined;
+    list.slice(0, Math.max(1, w.crew)).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: hash(key) + i * 131, jog }); });
   }
   if (extrication === "active") spots.extrication.slice(0, Math.max(2, Math.min(4, extricationCrew || 4))).forEach((sp, i) => { if (claim(sp.at)) figures.push({ ...sp, service: "Fire", seed: 401 + i * 131 }); });
   // The ambulance crew: one at the casualty's head through the rear door
@@ -963,10 +973,19 @@ export function RtcScene({ vehicle, done, working, casualty, medics, extrication
           {/* Cones along the working edge. */}
           <Cone x={nose - 2.2} y={hw + 1.4} />
           <Cone x={tail + 2.2} y={hw + 1.4} />
-          {/* The crew. */}
-          {figures.map((f, i) => (
-            <CrewTop key={i} at={f.at} facing={f.facing} hands={f.hands ?? {}} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: f.service === "Ambulance" || amb.night, role: f.service === "Ambulance" ? "PARAMEDIC" : "" })} />
-          ))}
+          {/* The crew: jogging in from the edge of the picture to a job that just started, then kneeling to it. */}
+          {figures.map((f, i) => {
+            if (f.jog !== undefined) {
+              // Along the road from the appliance upstream, straight to the spot.
+              const from: Pt = [f.at[0] - JOG_M, f.at[1]];
+              return (
+                <g key={i} className="ps-jog" style={{ "--jx0": `${n2(from[0])}px`, "--jy0": `${n2(from[1])}px`, "--jx1": `${n2(f.at[0])}px`, "--jy1": `${n2(f.at[1])}px`, "--jog-dur": `${JOG_MS}ms`, animationDelay: `${-Math.round(f.jog)}ms` } as CSSProperties}>
+                  <ModelSprite id="firefighter_run" at={[0, 0]} a={0} />
+                </g>
+              );
+            }
+            return <CrewTop key={i} at={f.at} facing={f.facing} hands={f.hands ?? {}} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={crewWearOf(f.service, f.scope, f.seed, { jacket: f.service === "Ambulance" || amb.night, role: f.service === "Ambulance" ? "PARAMEDIC" : "" })} />;
+          })}
           <Weather amb={amb} outdoor centre={[sh.seat[0], sh.seat[1]]} k={1.6} />
         </g>
         {amb.rain && (

@@ -174,7 +174,7 @@ export function RtcStage(props: RtcStageProps) {
   const madeSafe = (v: CrsVehicle) => criticalOf(v).every((id) => crsState(v.id, id).state === "done");
   const criticalDone = (v: CrsVehicle) => criticalOf(v).filter((id) => crsState(v.id, id).state === "done").length;
   const doneKeys = (v: CrsVehicle) => new Set(tasks.filter((t) => t.kind === "crs_action" && t.crsVehicleId === v.id && t.state === "completed" && t.crsActionId).map((t) => STRIP(t.crsActionId!)));
-  const workingOn = (v: CrsVehicle): RtcWork[] => tasks.filter((t) => t.kind === "crs_action" && t.crsVehicleId === v.id && t.state === "active" && t.crsActionId).map((t) => ({ key: t.crsActionId!, crew: t.assignedCrewIds.length }));
+  const workingOn = (v: CrsVehicle): RtcWork[] => tasks.filter((t) => t.kind === "crs_action" && t.crsVehicleId === v.id && t.state === "active" && t.crsActionId).map((t) => ({ key: t.crsActionId!, crew: t.assignedCrewIds.length, startedAt: t.startedAt }));
   const extrication = tasks.find((t) => t.kind === "rtc_extrication" && t.state === "active") ?? tasks.find((t) => t.kind === "rtc_extrication" && t.state === "completed");
   const extricationState: "none" | "active" | "done" = extrication ? (extrication.state === "completed" ? "done" : "active") : "none";
   const allSafe = crsVehicles.length > 0 && crsVehicles.every(madeSafe);
@@ -535,6 +535,7 @@ export function RtcStage(props: RtcStageProps) {
       extricationCrew={extrication?.assignedCrewIds.length}
       hour={props.hour}
       rain={props.rain}
+      now={now}
       components={showComponents && panel === "vehicle"}
       caption={sc.property.class || "On the carriageway"}
       words={[`${v.vrm} · ${v.make} ${v.model}`, seatCas ? (seatCas.trappedUntilExtricated && extricationState !== "done" ? "driver trapped" : extricationState === "done" ? "driver released" : "driver in the seat") : "nobody in it"]}

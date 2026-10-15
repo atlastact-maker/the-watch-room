@@ -5787,3 +5787,10 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .pc-lane { cursor: pointer; min-height: 0; }
 .pc-lane.on { border-color: var(--fc-blue); background: rgba(47, 111, 214, 0.25); }
 .pc-lane:disabled { cursor: default; opacity: 0.7; }
+
+/* A 3D model's animation playing in the plan views as a sprite sheet
+   (scene/model-sprite.tsx), and a figure jogging in from the edge of the
+   picture to its job: the path is the element's own custom properties,
+   the frames are the sheet's SMIL animation. */
+.ps-jog { animation: ps-jog var(--jog-dur, 3s) linear both; }
+@keyframes ps-jog { from { transform: translate(var(--jx0), var(--jy0)); } to { transform: translate(var(--jx1), var(--jy1)); } }

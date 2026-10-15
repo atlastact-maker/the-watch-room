@@ -33,3 +33,14 @@ metre space, so a model only needs to be the right size.
 | File | Key | What |
 | --- | --- | --- |
 | `hydraulic-spreaders.glb` | `spreaders` | Hydraulic rescue spreaders on the RTC stage's salvage sheet and at the door. |
+| `firefighter.glb` | `firefighter_run`, `firefighter_walk` | A firefighter with a Mixamo rig and two clips, `Running` and `Walking`, each rendered as a sheet of frames. The crew jog in with it on the RTC stage when a job starts. |
+
+## Animations
+
+A model with animation clips becomes a sheet of frames: the entry in
+`MODELS` names the `clip` and how many `frames` to keep, the script poses
+the model through the clip and lays the frames in a row, and the metadata
+carries the count, the frame rate and the columns.
+`scene/model-sprite.tsx` plays a sheet in a scene (`<ModelSprite id="firefighter_run" at={[x, y]} a={deg} />`).
+Clips should be in place (no root motion) and loop; a person faces +x
+once drawn, which for a Mixamo rig means `yaw: 90`.
