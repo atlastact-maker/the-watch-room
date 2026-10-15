@@ -50,6 +50,7 @@ import { assignRowsFor, casualtyShortLabel, CrewAssignMenu, type AssignCrewFn } 
 import { busyOn, crewSent } from "@/lib/sim/crew_assign";
 import { laneLabel } from "@/lib/sim/traffic";
 import { groundViewFor } from "../vector/scene/ground-views";
+import { carriagewayFrame, framePoint, plainFrame, type SceneFrame } from "@/lib/sim/scene_frame";
 import type { PatientTreatmentState } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import type { ResolvedOnSceneDeployment } from "./ground-scene-map";
@@ -1344,6 +1345,55 @@ export function LeafletGroundMap({
     };
   }, [incidentLat, incidentLng]);
 
+  // The carriageway itself — the motorway's own ways, which the parkable
+  // roads leave out — for a job whose scene is drawn on a road, so the
+  // scene's frame can be laid along the real carriageway. Retried the
+  // same way; nothing is painted wrong while it is still to come, only
+  // east–west on the call.
+  const groundView = groundViewFor(incident.scenario);
+  const wantsCarriageway = !!groundView && !!scene?.carriageway;
+  const [carriagewayWays, setCarriagewayWays] = useState<OsmRoadWay[]>([]);
+  useEffect(() => {
+    if (!wantsCarriageway) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const DELAYS_MS = [5_000, 15_000, 45_000];
+    let attempt = 0;
+    const tryFetch = () => {
+      fetchOsmRoads({ lat: incidentLat, lng: incidentLng }, 400, "carriageway").then((ways) => {
+        if (cancelled) return;
+        if (ways.length > 0) {
+          setCarriagewayWays(ways);
+          return;
+        }
+        if (attempt < DELAYS_MS.length) {
+          timer = window.setTimeout(tryFetch, DELAYS_MS[attempt]);
+          attempt++;
+        }
+      });
+    };
+    tryFetch();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [incidentLat, incidentLng, wantsCarriageway]);
+
+  // The scene's frame on the map: its metres turned onto the real
+  // carriageway where the map holds its geometry, else east–west on the
+  // call. Everything the scene authors in its own metres — the
+  // casualties, the hazards, the hydrants, the lanes the cones shut —
+  // goes through it.
+  const sceneFrame: SceneFrame = (() => {
+    const call = { lat: incidentLat, lng: incidentLng };
+    const cw = scene?.carriageway;
+    if (!groundView || !cw || !scene || carriagewayWays.length === 0) return plainFrame(call);
+    const eb = scene.roads.find((r) => r.kind === "road" && r.label === cw.name)?.shape ?? scene.roads.find((r) => r.kind === "road")?.shape;
+    if (!eb) return plainFrame(call);
+    return carriagewayFrame(call, carriagewayWays, groundView.flow, eb.y + eb.h / 2) ?? plainFrame(call);
+  })();
+  const sceneToLatLng = (p: { x: number; y: number }) => framePoint(sceneFrame, p);
+
   // Build the canonical hydrant list used for labels + polylines.
   // Priority:
   //   1. Scenario-authored absolute coords (real kerbside positions from OSM
@@ -1400,7 +1450,7 @@ export function LeafletGroundMap({
     return (scene?.hydrants ?? [])
       .filter((h) => !!h.pos)
       .flatMap((h) => {
-        const at = kerb(metresToLatLng(incidentAt, h.pos!), h.street, false);
+        const at = kerb(sceneToLatLng(h.pos!), h.street, false);
         if (!at) return [];
         return [{ label: h.label, lat: at.lat, lng: at.lng, sourceId: `scene:${h.label}`, street: h.street }];
       });
@@ -1520,7 +1570,7 @@ export function LeafletGroundMap({
         // work on them there. The egress window is the carry: trolley,
         // scoop or hands, they cross the ground to the vehicle over the
         // time the move takes, and the crew figures go with them.
-        const where = metresToLatLng(fireCentre, c.pos);
+        const where = sceneToLatLng(c.pos);
         const carry = carryWindow(id);
         if (!carry) return where;
         if (now >= carry.endsAt) return vehicle;
@@ -1530,7 +1580,7 @@ export function LeafletGroundMap({
       const pump = carrier ? onSceneMarkers.find((m) => m.appliance.id === carrier.applianceId) : undefined;
       if (pump) return towards(pump.pos, fireCentre, 6);
     }
-    return metresToLatLng(fireCentre, c.pos);
+    return sceneToLatLng(c.pos);
   };
   /** The move the crew chose for this patient and when it runs, if one has. */
   function carryWindow(id: string): { startedAt: number; endsAt: number } | null {
@@ -1629,7 +1679,7 @@ export function LeafletGroundMap({
         break;
       }
       case "extract_casualty": {
-        const casAt = t.casualtyId ? metresToLatLng(fireCentre, sim.foundCasualties.find((c) => c.id === t.casualtyId)?.pos ?? { x: 0, y: 0 }) : fireCentre;
+        const casAt = t.casualtyId ? sceneToLatLng(sim.foundCasualties.find((c) => c.id === t.casualtyId)?.pos ?? { x: 0, y: 0 }) : fireCentre;
         if (entry) path = throughDoor(hoseRun(undefined, m.pos, entry), casAt);
         to = casAt;
         inside = !!entry;
@@ -1643,7 +1693,7 @@ export function LeafletGroundMap({
         break;
       case "mitigate_hazard": {
         const hz = sceneHazards.find((h) => h.id === t.hazardId);
-        to = hz ? metresToLatLng(fireCentre, hz.pos) : towards(m.pos, fireCentre, 6);
+        to = hz ? sceneToLatLng(hz.pos) : towards(m.pos, fireCentre, 6);
         badge = "HAZARD";
         break;
       }
@@ -1841,7 +1891,7 @@ export function LeafletGroundMap({
   // carriageway. The scene's road is laid on the map the way its
   // casualties are: in metres from the call.
   const laneBands = (() => {
-    const view = groundViewFor(incident.scenario);
+    const view = groundView;
     const cw = scene?.carriageway;
     if (!view || !cw || !scene) return null;
     const eb = scene.roads.find((r) => r.kind === "road" && r.label === cw.name)?.shape ?? scene.roads.find((r) => r.kind === "road")?.shape;
@@ -1849,7 +1899,7 @@ export function LeafletGroundMap({
     const top = view.nearside === "top";
     const lh = eb.h / cw.lanes;
     const laneEdge = (k: number) => (top ? eb.y + k * lh : eb.y + eb.h - k * lh);
-    const ll = (x: number, y: number): [number, number] => { const p = metresToLatLng(fireCentre, { x, y }); return [p.lat, p.lng]; };
+    const ll = (x: number, y: number): [number, number] => { const p = sceneToLatLng({ x, y }); return [p.lat, p.lng]; };
     const live = (t: Task) => t.state !== "aborted";
     const progress = (t: Task) => (t.state === "completed" ? 1 : t.completesAt ? Math.max(0, Math.min(1, (now - t.startedAt) / Math.max(1, t.completesAt - t.startedAt))) : 1);
     const bands: { key: string; ring: [number, number][]; colour: string; inForce: boolean; label: string; at: [number, number] }[] = [];

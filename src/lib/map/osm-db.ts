@@ -15,6 +15,10 @@ export type DbHydrant = { id: string; lat: number; lng: number; ref?: string };
  *  Motorway and trunk main carriageways stay out (nobody parks an
  *  appliance in lane one of the M60); their slip roads stay in so RTCs
  *  on junctions still work. */
+/** The main carriageways themselves — the motorway and trunk ways the
+ *  parkable set leaves out — for laying a road scene's frame on the road. */
+export const CARRIAGEWAY_HIGHWAYS = ["motorway", "trunk"];
+
 export const PARKABLE_HIGHWAYS = [
   "primary", "secondary", "tertiary", "unclassified", "residential", "service", "living_street",
   "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link",

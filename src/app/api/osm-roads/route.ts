@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shiftGate } from "@/lib/auth/api-guard";
 import { createClient } from "@/lib/supabase/server";
-import { roadsNearFromDb, type DbWay } from "@/lib/map/osm-db";
+import { CARRIAGEWAY_HIGHWAYS, PARKABLE_HIGHWAYS, roadsNearFromDb, type DbWay } from "@/lib/map/osm-db";
 
 // OSM road polylines around an incident. Used by the ground map to snap
 // operator parking clicks onto the nearest road, put hydrants on the
@@ -52,20 +52,23 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 
-  const key = `${lat.toFixed(6)},${lng.toFixed(6)}@${radius}`;
+  // The parkable roads by default; the main carriageways themselves on
+  // request, for laying a road scene's frame along the real motorway.
+  const classes = sp.get("classes") === "carriageway" ? "carriageway" : "parkable";
+  const key = `${lat.toFixed(6)},${lng.toFixed(6)}@${radius}:${classes}`;
   const hit = cache.get(key);
   if (hit && (hit.ways.length > 0 || Date.now() - hit.at < EMPTY_TTL_MS)) {
     return NextResponse.json({ ways: hit.ways, source: hit.source } satisfies Success);
   }
 
   const supabase = await createClient();
-  const fromDb = await roadsNearFromDb(supabase, { lat, lng }, radius);
+  const fromDb = await roadsNearFromDb(supabase, { lat, lng }, radius, classes === "carriageway" ? CARRIAGEWAY_HIGHWAYS : PARKABLE_HIGHWAYS);
   if (fromDb && fromDb.length > 0) {
     cache.set(key, { at: Date.now(), ways: fromDb, source: "supabase" });
     return NextResponse.json({ ways: fromDb, source: "supabase" } satisfies Success);
   }
 
-  const ways = await fetchRoads({ lat, lng }, radius);
+  const ways = await fetchRoads({ lat, lng }, radius, classes);
   cache.set(key, { at: Date.now(), ways, source: "overpass" });
   return NextResponse.json({ ways, source: "overpass" } satisfies Success);
 }
@@ -73,13 +76,16 @@ export async function GET(request: NextRequest): Promise<Response> {
 async function fetchRoads(
   coords: { lat: number; lng: number },
   radiusM: number,
+  classes: "parkable" | "carriageway",
 ): Promise<Way[]> {
   // Drivable / parkable public ways. Exclude motorway main carriageway
   // (operators don't park an appliance in lane 1 of the M60), but keep
-  // slip roads so RTC scenarios on motorway junctions still work.
+  // slip roads so RTC scenarios on motorway junctions still work. The
+  // carriageways themselves are a request of their own.
+  const pattern = classes === "carriageway" ? "^(motorway|trunk)$" : "^(primary|secondary|tertiary|unclassified|residential|service|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$";
   const query = `
     [out:json][timeout:15];
-    way(around:${radiusM},${coords.lat},${coords.lng})[highway~"^(primary|secondary|tertiary|unclassified|residential|service|living_street|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"];
+    way(around:${radiusM},${coords.lat},${coords.lng})[highway~"${pattern}"];
     out geom;
   `;
   const body = `data=${encodeURIComponent(query)}`;

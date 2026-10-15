@@ -13,11 +13,16 @@ export type OsmRoadWay = {
 
 const cache = new Map<string, Promise<OsmRoadWay[]>>();
 
-export function fetchOsmRoads(coords: LatLng, radiusM = 250): Promise<OsmRoadWay[]> {
-  const key = `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}@${radiusM}`;
+/** Which ways: the roads a vehicle can be parked on (the default), or the
+ *  main carriageways themselves — the motorway's own ways — which the
+ *  parkable set leaves out. */
+export type RoadClasses = "parkable" | "carriageway";
+
+export function fetchOsmRoads(coords: LatLng, radiusM = 250, classes: RoadClasses = "parkable"): Promise<OsmRoadWay[]> {
+  const key = `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}@${radiusM}:${classes}`;
   const existing = cache.get(key);
   if (existing) return existing;
-  const p = doFetch(coords, radiusM);
+  const p = doFetch(coords, radiusM, classes);
   cache.set(key, p);
   p.then((r) => {
     if (r.length === 0) cache.delete(key); // allow retry if the first call failed
@@ -25,10 +30,10 @@ export function fetchOsmRoads(coords: LatLng, radiusM = 250): Promise<OsmRoadWay
   return p;
 }
 
-async function doFetch(coords: LatLng, radiusM: number): Promise<OsmRoadWay[]> {
+async function doFetch(coords: LatLng, radiusM: number, classes: RoadClasses): Promise<OsmRoadWay[]> {
   try {
     const res = await fetch(
-      `/api/osm-roads?lat=${coords.lat}&lng=${coords.lng}&radius=${radiusM}`,
+      `/api/osm-roads?lat=${coords.lat}&lng=${coords.lng}&radius=${radiusM}&classes=${classes}`,
     );
     if (!res.ok) return [];
     const json = (await res.json()) as { ways?: OsmRoadWay[] };
