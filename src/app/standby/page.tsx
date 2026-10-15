@@ -8,7 +8,7 @@ import {
   type AdvisorStanding,
 } from "@/lib/auth/advisor-standing";
 import { signupOpen } from "@/lib/auth/signup-window";
-import { ensurePreAlphaRequest, prealphaClosed, prealphaClosesLabel, prealphaDoors, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { ensurePreAlphaRequest, prealphaDoors, prealphaOpensLabel, prealphaSignups } from "@/lib/prealpha";
 import { RequestPreAlphaButton } from "@/app/prealpha/request-button";
 import { ServiceBadge } from "@/app/components/service-insignia";
 import { AdvisorSync } from "@/app/components/advisor-sync";
@@ -56,9 +56,10 @@ export default async function StandbyPage() {
   const standing = await advisorStanding(supabase, user, role);
   const accepted = standing === "accepted";
   const prealpha = await ensurePreAlphaRequest(supabase, user);
-  const testingOpen = prealphaOpen();
-  const testingClosed = prealphaClosed();
-  const closes = prealphaClosesLabel();
+  const signups = await prealphaSignups(supabase);
+  const testingOpen = signups.open;
+  const testingClosed = signups.closed;
+  const closes = signups.closes;
   // On the list (accepted, invited or ticked) but on this page: the
   // doors are closed. Say so, rather than offering the request again.
   const [{ tester: onList }, doors] = await Promise.all([isTester(supabase, user.email), prealphaDoors(supabase)]);
@@ -114,9 +115,9 @@ export default async function StandbyPage() {
               Reviewed, and not this time. There will be a wider test after the pre-alpha.
             </p>
           ) : testingClosed ? (
-            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Sign-ups for this round closed on {closes}. There will be a wider test after the pre-alpha, and your account is ready for it.</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Sign-ups for this round {closes ? `closed on ${closes}` : "are closed"}. There will be a wider test after the pre-alpha, and your account is ready for it.</p>
           ) : !testingOpen ? (
-            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Access opens {prealphaOpensLabel()}.</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Access opens {signups.opens || prealphaOpensLabel()}.</p>
           ) : prealpha.tableMissing ? (
             <p className="mt-1.5 text-sm leading-relaxed text-(--color-text-muted)">Pre-alpha access is being set up. Try again shortly.</p>
           ) : (

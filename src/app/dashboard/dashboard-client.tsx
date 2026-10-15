@@ -614,6 +614,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
 
 
   const [preShiftStates, setPreShiftStates] = useState<Record<string, PreShiftState>>({});
+  // True once the shift holds a roll — the briefing's resourcing page
+  // made it, or a save brought it back — so the effect below does not
+  // roll a second time over the top of it.
+  const preShiftRolledRef = useRef(false);
   const [log, setLog] = useState<LogEntry[]>([]);
   /** Jobs closed off the board this shift, kept for their debrief and
    *  the end-of-shift screen. A scored job is not shown its debrief
@@ -902,6 +906,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setIntensity(shifted.intensity);
     setWeather(shifted.weather);
     setPreShiftStates(shifted.preShiftStates);
+    preShiftRolledRef.current = true;
     const saved = shifted.activeIncident;
     const restoredIncidents = shifted.incidents?.length ? shifted.incidents : saved ? [saved] : [];
     const restoredSelectedId = shifted.selectedIncidentId ?? saved?.id ?? null;
@@ -995,6 +1000,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // Generate pre-shift state whenever the patch/intensity combo is first set.
   useEffect(() => {
     if (!patch) return;
+    if (preShiftRolledRef.current) return; // the briefing's own roll
     if (Object.keys(preShiftStates).length > 0) return; // already rolled
     const patchAppliances = PATCH_AREAS.flatMap((a) => stationsByArea[a]).flatMap(
       (s) => s.appliances,
@@ -1787,6 +1793,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     startHour?: number,
     services?: ServiceCode[],
     channels?: CallChannel[],
+    preShift?: Record<string, PreShiftState>,
   ) {
     localStorage.setItem(PATCH_STORAGE_KEY, area);
     localStorage.setItem(INTENSITY_STORAGE_KEY, newIntensity);
@@ -1800,7 +1807,10 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
     setPatch(area);
     setIntensity(newIntensity);
-    setPreShiftStates({}); // force a re-roll on first render after selection
+    // The resourcing page's roll, when the briefing made one; else the
+    // effect rolls on the first render after selection.
+    setPreShiftStates(preShift ?? {});
+    preShiftRolledRef.current = !!preShift;
     // Fresh weather for the new shift, pinned to the operator's chosen
     // start time so time-of-day effects (HEMS grounding, rush hour,
     // darkness) match the briefing hints.
@@ -1833,6 +1843,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     localStorage.removeItem(PATCH_STORAGE_KEY);
     setPatch(undefined);
     setPreShiftStates({});
+    preShiftRolledRef.current = false;
     clearIncidentState();
   }
 

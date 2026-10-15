@@ -11,7 +11,7 @@ import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
 import { testerAcceptedEmail } from "@/lib/email/tester-accepted";
 import { testerInvitedEmail } from "@/lib/email/tester-invited";
 import { doorsOpenEmail } from "@/lib/email/doors-open";
-import { PREALPHA_DOORS_KEY, prealphaDoors } from "@/lib/prealpha";
+import { PREALPHA_DOORS_KEY, PREALPHA_SIGNUPS_KEY, prealphaDoors } from "@/lib/prealpha";
 
 // Server actions for the admin area. Every one re-checks admin access
 // app-side AND relies on the database functions checking is_admin()
@@ -285,6 +285,23 @@ export async function acceptAllPendingTesterApplications(): Promise<void> {
   revalidatePath("/admin");
   revalidatePath("/prealpha");
   revalidatePath("/standby");
+}
+
+/** Close or reopen pre-alpha sign-ups ahead of the calendar, or hand
+ *  them back to it (migration 024 for the logged-out pages). Closed: the
+ *  tick at signup and the request button are greyed out and the server
+ *  files nothing; accounts already on the list are untouched. */
+export async function setPrealphaSignups(formData: FormData): Promise<void> {
+  const raw = String(formData.get("signups") ?? "");
+  const value = raw === "open" || raw === "closed" ? raw : "";
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_set_site_setting", { p_key: PREALPHA_SIGNUPS_KEY, p_value: value });
+  if (error?.message?.includes("admin_set_site_setting")) {
+    redirect("/admin?missing=022&tab=prealpha");
+  }
+  if (error) throw new Error(error.message);
+  for (const path of ["/", "/admin", "/prealpha", "/standby", "/signup", "/menu"]) revalidatePath(path);
+  redirect("/admin?tab=prealpha");
 }
 
 /** Open or close the pre-alpha doors (migration 022). Closed: testers

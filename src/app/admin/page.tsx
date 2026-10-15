@@ -21,9 +21,9 @@ import {
   decideTesterApplication,
   inviteTester,
   notifyTestersDoorsOpen,
-  setPrealphaDoors,
+  setPrealphaDoors, setPrealphaSignups,
 } from "./actions";
-import { prealphaDoors, type TesterApplication } from "@/lib/prealpha";
+import { type TesterApplication, prealphaClosed, prealphaClosesLabel, prealphaDoors, prealphaOpen, prealphaOpensLabel, prealphaSignupSwitch, prealphaSignups } from "@/lib/prealpha";
 
 // The admin area — overview numbers, advisor applications, access roles
 // and recent registrations, managed from the site instead of the
@@ -260,6 +260,10 @@ export default async function AdminPage({
     supabase.rpc("admin_count_users", { p_query: userQuery || null }),
   ]);
   const doors = await prealphaDoors(supabase);
+  // Sign-ups: the switch, and what the calendar says underneath it.
+  const signupSwitch = (await prealphaSignupSwitch(supabase)).value;
+  const signups = await prealphaSignups(supabase);
+  const calendar = { open: prealphaOpen(), closed: prealphaClosed(), closes: prealphaClosesLabel(), opens: prealphaOpensLabel() };
   // Before migration 023 the users function has the old one-argument
   // shape; fall back to it so the tab keeps working, capped as before.
   const usersMissing023 = usersResNew.error?.message?.includes("admin_list_users") === true;
@@ -706,6 +710,52 @@ export default async function AdminPage({
               {notified && (
                 <p className="mt-2 text-[12px] text-(--color-ok)">Doors-open email sent to {notified} testers.</p>
               )}
+            </div>
+            {/* Sign-ups. Closed: the tick at signup and the request button
+                are greyed out and nothing new is filed. The calendar still
+                runs underneath; the switch overrides it either way. */}
+            <div className={`rounded-sm border px-4 py-3 ${signups.open ? "border-(--color-ok)/60 bg-(--color-ok)/10" : "border-(--color-border) bg-(--color-surface)"}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className={`font-mono text-[11px] uppercase tracking-[0.25em] ${signups.open ? "text-(--color-ok)" : "text-(--color-text-dim)"}`}>
+                    Sign-ups {signups.open ? "open" : "closed"}
+                    <span className="ml-2 normal-case tracking-normal text-(--color-text-dim)">
+                      {signupSwitch === "calendar"
+                        ? calendar.open
+                          ? `by the calendar${calendar.closes ? ` — close ${calendar.closes}` : ""}`
+                          : calendar.closed
+                            ? `by the calendar${calendar.closes ? ` — closed ${calendar.closes}` : ""}`
+                            : `by the calendar — open ${calendar.opens}`
+                        : `by you${calendar.closed ? " (the calendar has them closed)" : calendar.open ? " (the calendar has them open)" : ""}`}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-(--color-text-muted)">
+                    {signups.open
+                      ? "Anyone can create an account with Join the pre-alpha ticked, or press Request pre-alpha access from their standby page."
+                      : "The tick at signup and the request button are greyed out, and the server files no new requests. Accounts already on the list, pending requests and invites are untouched."}
+                    {" "}Run supabase/migrations/024_prealpha_signups.sql once so logged-out visitors see the switch on the front door and the sign-up page; signed-in pages and the server follow it immediately.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {signups.open ? (
+                    <form action={setPrealphaSignups}>
+                      <input type="hidden" name="signups" value="closed" />
+                      <button type="submit" className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10`}>Close sign-ups</button>
+                    </form>
+                  ) : (
+                    <form action={setPrealphaSignups}>
+                      <input type="hidden" name="signups" value="open" />
+                      <button type="submit" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>Reopen sign-ups</button>
+                    </form>
+                  )}
+                  {signupSwitch !== "calendar" && (
+                    <form action={setPrealphaSignups}>
+                      <input type="hidden" name="signups" value="calendar" />
+                      <button type="submit" className={btnCls}>Follow the calendar</button>
+                    </form>
+                  )}
+                </div>
+              </div>
             </div>
             {missing022 && (
               <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">

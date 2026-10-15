@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signupOpen } from "@/lib/auth/signup-window";
-import { prealphaClosed, prealphaClosesLabel, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { prealphaOpensLabel, prealphaSignups } from "@/lib/prealpha";
 
 // The front door. Same face as the trailer and the share card: the
 // wordmark, the strapline, the dispatch feed, sign up / log in. Wide
@@ -65,9 +65,10 @@ export default async function LandingPage({
   if (user) redirect("/menu");
 
   const open = signupOpen();
-  const testing = prealphaOpen();
-  const closed = prealphaClosed();
-  const closes = prealphaClosesLabel();
+  const signups = await prealphaSignups(supabase);
+  const testing = signups.open;
+  const closed = signups.closed;
+  const closes = signups.closes;
 
   return (
     <div className="relative z-10 flex flex-1 flex-col">
@@ -126,7 +127,7 @@ export default async function LandingPage({
                 ? `Closed pre-alpha · sign-ups open${closes ? ` · close ${closes}` : ""}`
                 : closed
                   ? "Closed pre-alpha · sign-ups closed"
-                  : `Closed pre-alpha · sign-ups open ${prealphaOpensLabel()}`}
+                  : `Closed pre-alpha · sign-ups open ${signups.opens || prealphaOpensLabel()}`}
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
-import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaClosed, prealphaClosesLabel, prealphaOpen, prealphaOpensLabel } from "@/lib/prealpha";
+import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpensLabel, prealphaSignups } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { RequestPreAlphaButton } from "./request-button";
 import { Notice } from "@/app/components/notice";
@@ -36,9 +36,10 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const open = prealphaOpen();
-  const closed = prealphaClosed();
-  const closes = prealphaClosesLabel();
+  const signups = await prealphaSignups(supabase);
+  const open = signups.open;
+  const closed = signups.closed;
+  const closes = signups.closes;
   const { standing, application, tableMissing } = await ensurePreAlphaRequest(supabase, user);
   const inAlready = user ? await hasShiftAccess(supabase, user.email) : false;
   const admin = user ? await hasAdminAccess(supabase, user.email) : false;
@@ -202,11 +203,11 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
             <h2 className={h2Cls}>{standing === "none" ? "Get in" : "Your request"}</h2>
             {closed ? (
               <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
-                Sign-ups for the pre-alpha closed on <span className="text-(--color-amber)">{closes}</span>. There will be a wider test after it, and an account made now is ready for that.
+                Sign-ups for the pre-alpha {closes ? <>closed on <span className="text-(--color-amber)">{closes}</span></> : "are closed"}. There will be a wider test after it, and an account made now is ready for that.
               </p>
             ) : !open ? (
               <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">
-                Access opens on <span className="text-(--color-amber)">{prealphaOpensLabel()}</span>. Create an account now and you can request it the moment it does.
+                Access opens on <span className="text-(--color-amber)">{signups.opens || prealphaOpensLabel()}</span>. Create an account now and you can request it the moment it does.
               </p>
             ) : tableMissing ? (
               <p className="mt-3 text-sm leading-relaxed text-(--color-text-muted)">Pre-alpha access is being set up. Try again shortly.</p>

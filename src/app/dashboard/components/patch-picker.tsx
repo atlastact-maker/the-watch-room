@@ -11,7 +11,8 @@ import {
   scenarioServices,
 } from "@/lib/sim/coverage";
 import { CALL_CHANNELS, CHANNEL_LABEL, type CallChannel } from "@/lib/sim/incident_types";
-import { INTENSITY_META, type ShiftIntensity } from "@/lib/sim/shift";
+import { INTENSITY_META, rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
+import { ResourcingBrief } from "./resourcing-brief";
 import { timeBandForHour } from "@/lib/sim/weather";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import type { StationWithAppliances } from "../page";
@@ -37,10 +38,28 @@ type Props = {
     startHour: number,
     coveredServices: ServiceCode[],
     callChannels: CallChannel[],
+    /** The appliances' states at the start of the shift, as the
+     *  resourcing page showed them — committed or off the run, by id. */
+    preShift: Record<string, PreShiftState>,
   ) => void;
 };
 
 const INTENSITY_ORDER: ShiftIntensity[] = ["quiet", "normal", "busy"];
+
+type Roll = { states: Record<string, PreShiftState>; at: number };
+
+/** The roll for the resourcing page, stamped with when it was made. */
+function makeRoll(appliances: StationWithAppliances["appliances"], intensity: ShiftIntensity): Roll {
+  const at = Date.now();
+  return { states: rollPreShiftStates(appliances, intensity, at), at };
+}
+
+/** The committed units' return times count from the moment the shift
+ *  starts, not from when the page was first read. */
+function rebaseRoll(roll: Roll): Record<string, PreShiftState> {
+  const shift = Date.now() - roll.at;
+  return Object.fromEntries(Object.entries(roll.states).map(([id, ps]) => [id, ps.availableAt ? { ...ps, availableAt: ps.availableAt + shift } : ps]));
+}
 
 const SEVERITY_COLOUR: Record<string, string> = {
   low: "#94a3b8",
@@ -110,6 +129,11 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   // desk, 101 the police desk, and the community line comes to whoever
   // is on.
   const [channels, setChannels] = useState<CallChannel[]>(["999"]);
+  // The second page: the roll of what is available for this intensity,
+  // made when the operator asks to begin and shown before the shift
+  // starts. Going back and beginning again rolls again.
+  const [step, setStep] = useState<"briefing" | "resourcing">("briefing");
+  const [roll, setRoll] = useState<Roll | null>(null);
   const channelNeeds = (c: CallChannel): ServiceCode | null => (c === "111" ? "Ambulance" : c === "101" ? "Police" : null);
   const channelAllowed = (c: CallChannel) => { const n = channelNeeds(c); return !n || covered.includes(n); };
   const effectiveChannels = channels.filter(channelAllowed);
@@ -143,6 +167,30 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   };
 
   const hints = hintsForHour(startHour);
+
+  function toResourcing() {
+    setRoll(makeRoll(stationsForPatch.flatMap((s) => s.appliances), intensity));
+    setStep("resourcing");
+  }
+  function begin() {
+    if (!roll) return;
+    onSelect(patch, intensity, startHour, covered, effectiveChannels, rebaseRoll(roll));
+  }
+
+  if (step === "resourcing" && roll) {
+    return (
+      <ResourcingBrief
+        stations={stationsForPatch}
+        intensity={intensity}
+        startHour={startHour}
+        covered={covered}
+        roll={roll.states}
+        rolledAt={roll.at}
+        onBack={() => setStep("briefing")}
+        onBegin={begin}
+      />
+    );
+  }
 
   return (
     <div className="flex h-[100dvh] w-full flex-col overflow-hidden p-6">
@@ -408,10 +456,10 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
 
           <button
             type="button"
-            onClick={() => onSelect(patch, intensity, startHour, covered, effectiveChannels)}
+            onClick={toResourcing}
             className="mt-1 inline-flex h-14 w-full shrink-0 items-center justify-center rounded-sm bg-(--color-amber) font-mono text-base font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
           >
-            Begin Shift · {String(startHour).padStart(2, "0")}:00 →
+            Resourcing · {String(startHour).padStart(2, "0")}:00 →
           </button>
         </div>
       </div>

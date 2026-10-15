@@ -5,7 +5,7 @@ import { signup } from "@/lib/auth/actions";
 import { AdvisorQuestions } from "@/app/components/advisor-questions";
 import { Notice } from "@/app/components/notice";
 
-export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false, prealphaCloses = "" }: { defaultAdvisorOpen?: boolean; defaultPrealpha?: boolean; prealphaCloses?: string }) {
+export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false, prealphaCloses = "", prealphaOpen = true }: { defaultAdvisorOpen?: boolean; defaultPrealpha?: boolean; prealphaCloses?: string; /** Sign-ups for the pre-alpha are being taken; else the tick is greyed out. */ prealphaOpen?: boolean }) {
   const [state, action, pending] = useActionState(signup, undefined);
   const [advisorOpen, setAdvisorOpen] = useState(defaultAdvisorOpen);
 
@@ -74,17 +74,20 @@ export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false
             {msg}
           </p>
         ))}
-        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
+        <label className={`flex items-start gap-2.5 py-1 select-none ${prealphaOpen ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`} aria-disabled={!prealphaOpen}>
           <input
             type="checkbox"
             name="prealpha"
-            defaultChecked={defaultPrealpha}
-            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) sm:size-4"
+            defaultChecked={prealphaOpen && defaultPrealpha}
+            disabled={!prealphaOpen}
+            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) disabled:cursor-not-allowed sm:size-4"
           />
           <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-muted)">
-            <span className="text-(--color-amber)">Join the pre-alpha</span>
+            <span className={prealphaOpen ? "text-(--color-amber)" : "text-(--color-text-dim)"}>Join the pre-alpha</span>
             <span className="mt-0.5 block normal-case tracking-normal text-(--color-text-dim)">
-              Requests access to the closed test. Granted by hand; you get an email when the desk is open to you.{prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}
+              {prealphaOpen
+                ? `Requests access to the closed test. Granted by hand; you get an email when the desk is open to you.${prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}`
+                : "Sign-ups for the pre-alpha are closed. There will be a wider test after it, and this account will be ready for that."}
             </span>
           </span>
         </label>

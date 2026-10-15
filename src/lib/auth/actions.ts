@@ -4,7 +4,7 @@ import { signupOpen } from "./signup-window";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { filePreAlphaRequest } from "@/lib/prealpha";
+import { filePreAlphaRequest, prealphaSignups } from "@/lib/prealpha";
 import {
   AdvisorSchema,
   ForgotPasswordSchema,
@@ -70,9 +70,11 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
   // like the advisor answers, and becomes the request row on the first
   // signed-in visit (lib/prealpha ensurePreAlphaRequest), or right away
   // below when a session exists.
-  const wantsPrealpha = formData.get("prealpha") === "on";
-
   const supabase = await createClient();
+  // Only while sign-ups are being taken: a tick on a closed form (an old
+  // tab, a crafted request) files nothing.
+  const wantsPrealpha = formData.get("prealpha") === "on" && (await prealphaSignups(supabase)).open;
+
   const origin = await siteOrigin();
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,

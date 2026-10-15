@@ -73,6 +73,42 @@ export const prealphaDoors = cache(async function prealphaDoors(
   }
 });
 
+/** The sign-ups switch (migration 024): closed or open ahead of the
+ *  calendar, or empty to follow it. Flipped from /admin; read once per
+ *  request. Logged out, the key reads through its own policy; before
+ *  the migration a logged-out read sees nothing and follows the
+ *  calendar, which is what the site did. */
+export const PREALPHA_SIGNUPS_KEY = "prealpha_signups";
+export type SignupSwitch = "open" | "closed" | "calendar";
+
+export const prealphaSignupSwitch = cache(async function prealphaSignupSwitch(
+  supabase: SupabaseClient,
+): Promise<{ value: SignupSwitch; lookupFailed: boolean }> {
+  try {
+    const { data, error } = await supabase.from("site_settings").select("value").eq("key", PREALPHA_SIGNUPS_KEY).maybeSingle();
+    if (error) {
+      const missing = /site_settings/.test(error.message) || error.code === "42P01";
+      return { value: "calendar", lookupFailed: !missing };
+    }
+    const v = data?.value;
+    return { value: v === "open" || v === "closed" ? v : "calendar", lookupFailed: false };
+  } catch {
+    return { value: "calendar", lookupFailed: true };
+  }
+});
+
+/** Whether sign-ups are being taken right now: the switch when it is
+ *  set, the calendar otherwise. `closes` and `opens` are the calendar's
+ *  dates as printed, empty when the switch decided. */
+export type SignupWindow = { open: boolean; closed: boolean; bySwitch: boolean; closes: string; opens: string };
+
+export const prealphaSignups = cache(async function prealphaSignups(supabase: SupabaseClient): Promise<SignupWindow> {
+  const { value } = await prealphaSignupSwitch(supabase);
+  if (value === "closed") return { open: false, closed: true, bySwitch: true, closes: "", opens: "" };
+  if (value === "open") return { open: true, closed: false, bySwitch: true, closes: "", opens: "" };
+  return { open: prealphaOpen(), closed: prealphaClosed(), bySwitch: false, closes: prealphaClosesLabel(), opens: prealphaOpensLabel() };
+});
+
 export type PreAlphaStanding = "none" | "pending" | "accepted" | "declined";
 
 export type TesterApplication = {
@@ -134,8 +170,9 @@ export async function filePreAlphaRequest(
   supabase: SupabaseClient,
   user: MinimalUser,
 ): Promise<{ ok: true } | { ok: false; message: string; tableMissing?: boolean }> {
-  if (prealphaClosed()) return { ok: false, message: `Sign-ups closed on ${prealphaClosesLabel()}.` };
-  if (!prealphaOpen()) return { ok: false, message: "Sign-ups are not open yet." };
+  const signups = await prealphaSignups(supabase);
+  if (signups.closed) return { ok: false, message: signups.closes ? `Sign-ups closed on ${signups.closes}.` : "Sign-ups for the pre-alpha are closed." };
+  if (!signups.open) return { ok: false, message: "Sign-ups are not open yet." };
   if (!user.email) return { ok: false, message: "Log in first." };
   const meta = (user.user_metadata ?? {}) as { callsign?: unknown; advisor_discord?: unknown };
   const row = {
@@ -164,7 +201,7 @@ export async function ensurePreAlphaRequest(
   user: MinimalUser | null | undefined,
 ): Promise<{ standing: PreAlphaStanding; application: TesterApplication | null; tableMissing: boolean }> {
   const current = await preAlphaApplication(supabase, user?.id);
-  if (!user || current.standing !== "none" || current.tableMissing || !prealphaRequested(user.user_metadata) || !prealphaOpen()) {
+  if (!user || current.standing !== "none" || current.tableMissing || !prealphaRequested(user.user_metadata) || !(await prealphaSignups(supabase)).open) {
     return current;
   }
   const filed = await filePreAlphaRequest(supabase, user);

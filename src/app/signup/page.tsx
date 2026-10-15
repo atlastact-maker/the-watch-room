@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignupForm } from "./signup-form";
-import { prealphaClosesLabel, prealphaOpen } from "@/lib/prealpha";
+import { prealphaSignups } from "@/lib/prealpha";
+import { createClient } from "@/lib/supabase/server";
 import { signupOpen } from "@/lib/auth/signup-window";
 import { UtcClock } from "./utc-clock";
 
@@ -15,6 +16,7 @@ export default async function SignupPage({
 }) {
   const { advisor, prealpha } = await searchParams;
   const open = signupOpen();
+  const signups = await prealphaSignups(await createClient());
   return (
     <div className="relative z-10 flex flex-1 items-center justify-center p-4 font-mono sm:p-6">
       {/* Vignette — darkens the page edges so the terminal frame glows. */}
@@ -52,7 +54,7 @@ export default async function SignupPage({
           <div className="text-[15px] uppercase tracking-[0.12em] text-(--color-amber)">
             &gt; New operator registration
           </div>
-          {open && prealpha === "1" && (
+          {open && signups.open && prealpha === "1" && (
             <p className="text-xs leading-relaxed text-(--color-text-muted)">
               Joining the <span className="text-(--color-amber)">pre-alpha</span>: the box below is ticked for you. Create the account, confirm your email, and your request is in. Read{" "}
               <Link href="/prealpha" className="text-(--color-info) underline hover:text-(--color-text)">the briefing</Link>{" "}
@@ -60,7 +62,7 @@ export default async function SignupPage({
             </p>
           )}
           {open ? (
-            <SignupForm defaultAdvisorOpen={advisor === "1"} defaultPrealpha={prealpha === "1" && prealphaOpen()} prealphaCloses={prealphaOpen() ? prealphaClosesLabel() : ""} />
+            <SignupForm defaultAdvisorOpen={advisor === "1"} defaultPrealpha={prealpha === "1" && signups.open} prealphaCloses={signups.open ? signups.closes : ""} prealphaOpen={signups.open} />
           ) : (
             <div className="space-y-3">
               <p className="text-xs leading-relaxed text-(--color-text-muted)">
