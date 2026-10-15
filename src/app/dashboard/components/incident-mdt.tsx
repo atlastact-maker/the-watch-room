@@ -25,13 +25,14 @@ import { incidentRef } from "../vector/model";
 import { PopoutWindow } from "../vector/popout";
 import { PatientCareWorkspace, assignedCasualtyIds } from "../vector/patient-care";
 import { FireCommandScreen } from "../vector/fire-command";
-import { PoliceControlsScreen, type SupportKind, type PoliceSelection } from "../vector/police-controls";
-import type { FireSelection } from "../vector/fire-command";
+import { PoliceControlsScreen, type SupportKind, type PoliceSelection, type PoliceRequest } from "../vector/police-controls";
+import type { FireSelection, FireRequest } from "../vector/fire-command";
 import { VitalMonitorPanel } from "../vector/vital-monitor";
 import { MdtNotepad } from "../vector/mdt-notepad";
 import { SceneCanvas } from "./scene-canvas";
 import { RtcGround } from "../vector/scene/ground-rtc";
 import { groundViewFor } from "../vector/scene/ground-views";
+import { GroundBar, GroundPanel, groundBadges, type GroundPanelKey } from "./ground-bar";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
 import { serviceMarker, unitMarkerHtml, type MarkerStatusKey } from "./unit-chip";
 import type { RecordIndex } from "@/lib/sim/records";
@@ -365,6 +366,13 @@ export function DraggableIncidentMdt(props: Props) {
   const [zoom, setZoom] = useState(1);
   const [policeSel, setPoliceSel] = useState<PoliceSelection | null>(null);
   const [fireSel, setFireSel] = useState<FireSelection | null>(null);
+  // The Ground page's menus, and the pages they open in the modules.
+  const [groundPanel, setGroundPanel] = useState<GroundPanelKey | null>(null);
+  // Requests carry a sequence so a repeat of the same page re-opens it:
+  // the desk's own counter for its asks, the clock for the tablet's.
+  const [fireRequest, setFireRequest] = useState<FireRequest | null>(null);
+  const [policeRequest, setPoliceRequest] = useState<PoliceRequest | null>(props.policePage ? { page: props.policePage.page, seq: props.policePage.seq } : null);
+  const [careRequest, setCareRequest] = useState<{ id: string; seq: number } | null>(null);
   // The tablet's modules. Casualty care is the medical module; Fire and
   // Police carry the service's tasking for a unit of that service.
   // The tablet boots to a desktop; apps open from its icons, the taskbar
@@ -389,6 +397,7 @@ export function DraggableIncidentMdt(props: Props) {
   const [seenPolicePage, setSeenPolicePage] = useState(props.policePage?.seq ?? 0);
   if (props.policePage && props.policePage.seq !== seenPolicePage) {
     setSeenPolicePage(props.policePage.seq);
+    setPoliceRequest({ page: props.policePage.page, seq: props.policePage.seq });
     setModule("police");
   }
   // The patient pinned in the top strip: the one open on the care screen,
@@ -400,6 +409,11 @@ export function DraggableIncidentMdt(props: Props) {
   const stripPaired = stripCasualtyId
     ? deployments.filter((d) => d.treatingCasualtyId === stripCasualtyId && nowMs >= d.arrivesAt && scopeOfApplianceType(resolvedDeps.find((r) => r.appliance.id === d.applianceId)?.appliance.type ?? "Police_Response") !== "none").length
     : 0;
+  // From the Ground page's menus into the modules: this patient's care
+  // screen, the Fire module on a page, the Police module on a page.
+  const openCasualtyFromGround = (id: string) => { setOpenCasualtyId(id); setCareRequest({ id, seq: Date.now() }); setGroundPanel(null); launch("care"); };
+  const openFireFromGround = (req: Omit<FireRequest, "seq">) => { setFireRequest({ ...req, seq: Date.now() }); setGroundPanel(null); launch("fire"); };
+  const openPoliceFromGround = (req: Omit<PoliceRequest, "seq">) => { setPoliceRequest({ ...req, seq: Date.now() }); setGroundPanel(null); launch("police"); };
   function serviceModule(service: "Fire" | "Police") {
     if (resolved) return <div className="vec-tile-empty">Incident closed</div>;
     if (!unitAppliance || !unitRow) return <div className="vec-tile-empty">Commit a {service.toLowerCase()} unit to open this module</div>;
@@ -450,6 +464,7 @@ export function DraggableIncidentMdt(props: Props) {
           fatigueByApplianceId={props.fatigueByApplianceId}
           crewAir={props.crewAir}
           onSelectionChange={setFireSel}
+          requestedPage={fireRequest}
         />
       );
     }
@@ -479,7 +494,7 @@ export function DraggableIncidentMdt(props: Props) {
         onOpenAnpr={props.onOpenAnpr}
         onRequestSupport={props.onRequestSupport}
         onArmPlacement={props.onArmPlacement}
-        requestedPage={props.policePage}
+        requestedPage={policeRequest}
         subject={props.subject}
         onPursuitDecision={props.onPursuitDecision}
         onSelectionChange={setPoliceSel}
@@ -637,6 +652,7 @@ export function DraggableIncidentMdt(props: Props) {
             <span className="who">{unitCallsign} · {unitState}</span>
           </div>
           {jobView === "ground" && groundView ? (
+            <div className="vec-mdt-groundstage">
             <div className="vec-mdt-ground">
               <RtcGround
                 view={groundView}
@@ -655,6 +671,36 @@ export function DraggableIncidentMdt(props: Props) {
                 commanderApplianceId={props.commanderApplianceId ?? props.sceneCommanderApplianceId ?? null}
                 onAssignCrewToCasualty={props.onAssignCrewToCasualty}
               />
+              {groundPanel && (
+                <GroundPanel
+                  panel={groundPanel}
+                  onClose={() => setGroundPanel(null)}
+                  incident={incident}
+                  resolved={resolvedDeps}
+                  tasks={tasks ?? []}
+                  log={props.log}
+                  now={nowMs}
+                  sim={sim ?? null}
+                  treatmentByCasualtyId={props.treatmentByCasualtyId}
+                  unitId={unitAppliance?.id ?? null}
+                  onSelectUnit={(id) => setUnitId(id)}
+                  onAssignCrewToCasualty={props.onAssignCrewToCasualty}
+                  onOpenCasualty={openCasualtyFromGround}
+                  onRequestClinician={props.onRequestClinician}
+                  hemsFlyable={props.hemsFlyable}
+                  onOpenFire={openFireFromGround}
+                  onOpenPolice={openPoliceFromGround}
+                  onRequestSupport={props.onRequestSupport}
+                  onNote={props.onNote}
+                />
+              )}
+            </div>
+            <GroundBar
+              panel={groundPanel}
+              onPanel={setGroundPanel}
+              onJob={() => setJobView("job")}
+              badges={groundBadges({ incident, resolved: resolvedDeps, tasks: tasks ?? [], now: nowMs, sim: sim ?? null })}
+            />
             </div>
           ) : jobView === "map" ? (
             <div className="vec-mdt-jobmap">
@@ -697,6 +743,7 @@ export function DraggableIncidentMdt(props: Props) {
             key={unitAppliance?.id ?? "none"}
             inline
             onOpenChange={setOpenCasualtyId}
+            requestedCasualty={careRequest}
             sim={sim}
             incident={incident}
             incidentRef={ref}

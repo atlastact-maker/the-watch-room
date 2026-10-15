@@ -306,6 +306,10 @@ function findingsFor(v: VehicleRecord, persons: Person[]): string[] {
   return out;
 }
 
+/** A page the desk or the tablet asks the module to open, and a tab of
+ *  its actions when it is that page. Bumped seq re-opens it. */
+export type PoliceRequest = { page: Page; tab?: ActionTab; seq: number };
+
 export type PoliceControlsProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbortTask" | "onCompleteTask" | "onNote"> & {
   incident: Incident;
   incidentRef: string;
@@ -329,8 +333,8 @@ export type PoliceControlsProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAb
   onArmPlacement?: (applianceId: string) => void;
   onClose?: () => void;
   /** A page the desk asked for — the Systems menu's PNC and ANPR open
-   *  here. Bumped seq re-opens it. */
-  requestedPage?: { page: "pnc" | "anpr"; seq: number } | null;
+   *  here — or the Ground page's Police menu. Bumped seq re-opens it. */
+  requestedPage?: PoliceRequest | null;
   /** What the officer has in hand, for the tablet's top strip. */
   onSelectionChange?: (sel: PoliceSelection | null) => void;
   /** The car the job is chasing — the tactics act on its live track. */
@@ -356,8 +360,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     setSeenRequest(props.requestedPage.seq);
     setPage(props.requestedPage.page);
   }
-  const [tab, setTabState] = useState<ActionTab>("general");
-  const [actionKey, setActionKey] = useState<string>("take_account");
+  const [tab, setTabState] = useState<ActionTab>(props.requestedPage?.tab ?? "general");
+  const [actionKey, setActionKey] = useState<string>(props.requestedPage?.tab ? TAB_DEFAULT[props.requestedPage.tab] : "take_account");
   const [personId, setPersonId] = useState<string>("");
   const [vehicleId, setVehicleId] = useState<string>("");
   const [offence, setOffence] = useState(OFFENCES[0]);
@@ -381,6 +385,12 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     setTabState(t);
     setActionKey(TAB_DEFAULT[t]);
   };
+  // The tab a requested page named, applied with the page above.
+  const [seenTabRequest, setSeenTabRequest] = useState(props.requestedPage?.seq ?? 0);
+  if (props.requestedPage && props.requestedPage.seq !== seenTabRequest) {
+    setSeenTabRequest(props.requestedPage.seq);
+    if (props.requestedPage.tab) setTab(props.requestedPage.tab);
+  }
 
   // ---- The job ---------------------------------------------------------------
   const sc = incident.scenario;

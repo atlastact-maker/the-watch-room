@@ -39,6 +39,9 @@ export type PatientCareProps = CareCallbacks & {
   /** Which casualty's screen is open — the tablet pins that patient's
    *  monitor in its top strip. */
   onOpenChange?: (casualtyId: string | null) => void;
+  /** The casualty the tablet asks to open — the Ground page's menu.
+   *  Bumped seq re-opens it. */
+  requestedCasualty?: { id: string; seq: number } | null;
   /** The hour of the day and the weather, for the patient scene. */
   ambient?: { hour: number; precip: string };
 };
@@ -71,13 +74,18 @@ function stageLabel(stage: string): string {
 }
 
 export function PatientCareWorkspace(props: PatientCareProps) {
-  const { sim, incident, incidentRef, focusApplianceId, inline, deployments, resolved, tasks, now, treatmentByCasualtyId, resusByCasualtyId, onOpenChange, ambient, ...callbacks } = props;
+  const { sim, incident, incidentRef, focusApplianceId, inline, deployments, resolved, tasks, now, treatmentByCasualtyId, resusByCasualtyId, onOpenChange, ambient, requestedCasualty, ...callbacks } = props;
   const [filter, setFilter] = useState<string>(focusApplianceId ?? "all");
-  const [openId, setOpenIdState] = useState<string | null>(null);
+  const [openId, setOpenIdState] = useState<string | null>(requestedCasualty?.id ?? null);
   const setOpenId = (id: string | null) => {
     setOpenIdState(id);
     onOpenChange?.(id);
   };
+  const [seenRequest, setSeenRequest] = useState(requestedCasualty?.seq ?? 0);
+  if (requestedCasualty && requestedCasualty.seq !== seenRequest) {
+    setSeenRequest(requestedCasualty.seq);
+    setOpenIdState(requestedCasualty.id);
+  }
   const [poppedOut, setPoppedOut] = useState(false);
 
   if (!sim || !incident) {

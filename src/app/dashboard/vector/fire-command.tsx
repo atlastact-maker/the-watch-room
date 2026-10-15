@@ -280,6 +280,10 @@ const STAGE_LABEL: Record<IncidentSimState["fireStage"], string> = {
   extinguished: "Extinguished",
 };
 
+/** A page the tablet asks the module to open — the Ground page's Fire
+ *  menu lands on the RTC stage with a panel up. Bumped seq re-opens it. */
+export type FireRequest = { page: Page; panel?: RtcPanel | null; seq: number };
+
 export type FireCommandProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbortTask" | "onCompleteTask" | "onSetTaskCrew" | "onNote"> & {
   /** The hour of the day and the weather, for the picture on the RTC stage. */
   ambient?: { hour: number; precip: string };
@@ -317,6 +321,7 @@ export type FireCommandProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbort
   crewAir?: Record<string, number>;
   /** What the fireground looks like, for the tablet's top strip. */
   onSelectionChange?: (sel: FireSelection | null) => void;
+  requestedPage?: FireRequest | null;
 };
 
 export type FireSelection = {
@@ -335,7 +340,7 @@ export type FireSelection = {
 export function FireCommandScreen(props: FireCommandProps) {
   const { incident, incidentRef, appliance, unit, resolved, tasks, log, now, sim, sceneCommanderApplianceId, resolvedIncident } = props;
   const plan = useCommandPlan(incident.id);
-  const [page, setPage] = useState<Page>("actions");
+  const [page, setPage] = useState<Page>(props.requestedPage?.page ?? "actions");
   const [tab, setTabState] = useState<ActionTab>("general");
   const [actionKey, setActionKey] = useState<string>("survey");
   const [attackMode, setAttackMode] = useState<HoseAttackMode>("exterior_attack");
@@ -366,7 +371,13 @@ export function FireCommandScreen(props: FireCommandProps) {
   const [sectorPick, setSectorPick] = useState<Record<string, string>>({});
   const [emergPick, setEmergPick] = useState<string[]>([]);
   const [rtcVehicleId, setRtcVehicleId] = useState<string | null>(null);
-  const [rtcPanel, setRtcPanel] = useState<RtcPanel | null>(null);
+  const [rtcPanel, setRtcPanel] = useState<RtcPanel | null>(props.requestedPage?.page === "rtc" ? props.requestedPage.panel ?? null : null);
+  const [seenRequest, setSeenRequest] = useState(props.requestedPage?.seq ?? 0);
+  if (props.requestedPage && props.requestedPage.seq !== seenRequest) {
+    setSeenRequest(props.requestedPage.seq);
+    setPage(props.requestedPage.page);
+    if (props.requestedPage.page === "rtc") setRtcPanel(props.requestedPage.panel ?? null);
+  }
   const sc = incident.scenario;
   const set = (fn: (p: CommandPlan) => CommandPlan) => updatePlan(incident.id, fn);
   const note = (text: string) => props.onNote?.(`${appliance.callsign} · ${text}`);
