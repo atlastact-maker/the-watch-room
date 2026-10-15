@@ -11,7 +11,7 @@
 // helmet, a chequered police cap, the orange of a HEMS team.
 
 import type { CSSProperties, ReactNode } from "react";
-import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, line, lineSoft, handParts, HandShape, limbPath } from "./plan-figure";
+import { type Pt, add, sub, mul, unit, perp, lerp, len, deg, P, capsule, smooth, darken, edge, line, lineSoft, handParts, HandShape, limbPath } from "./plan-figure";
 
 const SOFT = { vectorEffect: "non-scaling-stroke" as const };
 const n2 = (v: number) => (Math.round(v * 1000) / 1000).toString();
@@ -79,7 +79,7 @@ function Glove({ wrist, dir, colour, hand, curl = 0.08, splay = 1.1 }: { wrist: 
   // apart; the cuff loose at the wrist. Palm down, a right hand's thumb is
   // on its left as the fingers point away, a left hand's on its right.
   const parts = handParts({ wrist, dir, L: 0.19, wW: 0.034, thumb: hand === "right" ? -1 : 1, curl, splay });
-  return <HandShape parts={parts} fill={colour} detail="glove" ink="#17304f" cuff={darken(colour, 0.16)} />;
+  return <HandShape parts={parts} fill={colour} detail="glove" ink="#17304f" cuff={darken(colour, 0.16)} sheen />;
 }
 
 function Hat({ c, f, hat }: { c: Pt; f: Pt; hat: CrewHat }) {
@@ -89,12 +89,19 @@ function Hat({ c, f, hat }: { c: Pt; f: Pt; hat: CrewHat }) {
     const colour = hat === "fire_helmet" ? "#f2d33c" : "#f4f4f0";
     return (
       <g transform={`rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`}>
-        <ellipse cx={cx} cy={cy} rx={0.15} ry={0.135} fill={colour} {...line} />
-        <ellipse cx={cx} cy={cy} rx={0.15} ry={0.135} fill="url(#ps-face-shade)" />
-        <path d={`M${n2(cx - 0.1)} ${n2(cy)} H${n2(cx + 0.11)}`} stroke={darken(colour, 0.25)} strokeWidth={0.03} strokeLinecap="round" />
-        <path d={`M${n2(cx + 0.07)} ${n2(cy - 0.12)} q0.08 0.12 0 0.24`} fill="none" stroke="#1b2733" strokeWidth={1.2} {...SOFT} opacity={0.6} />
-        <rect x={cx - 0.03} y={cy - 0.11} width={0.06} height={0.025} fill="#e04b2a" />
-        <rect x={cx - 0.03} y={cy + 0.085} width={0.06} height={0.025} fill="#e04b2a" />
+        {/* The neck curtain hanging behind, the brim, the dome with its comb, the visor's edge at the front, the service flashes. */}
+        <path d={`M${n2(cx - 0.05)} ${n2(cy - 0.125)} L${n2(cx - 0.19)} ${n2(cy - 0.105)} Q${n2(cx - 0.235)} ${n2(cy)} ${n2(cx - 0.19)} ${n2(cy + 0.105)} L${n2(cx - 0.05)} ${n2(cy + 0.125)} Z`} fill="#2b2f36" {...edge("#2b2f36", 0.5, 0.6, 0.8)} />
+        <path d={`M${n2(cx - 0.05)} ${n2(cy - 0.125)} L${n2(cx - 0.19)} ${n2(cy - 0.105)} Q${n2(cx - 0.235)} ${n2(cy)} ${n2(cx - 0.19)} ${n2(cy + 0.105)} L${n2(cx - 0.05)} ${n2(cy + 0.125)} Z`} fill="url(#ps-slope-l)" opacity={0.5} />
+        <ellipse cx={cx} cy={cy} rx={0.165} ry={0.15} fill={darken(colour, 0.22)} {...edge(colour, 0.6, 0.6, 0.8)} />
+        <ellipse cx={cx} cy={cy} rx={0.165} ry={0.15} fill="url(#ps-round)" opacity={0.5} />
+        <ellipse cx={cx} cy={cy} rx={0.138} ry={0.123} fill={colour} />
+        <ellipse cx={cx} cy={cy} rx={0.138} ry={0.123} fill="url(#ps-sphere)" opacity={0.95} />
+        <ellipse cx={cx} cy={cy} rx={0.138} ry={0.123} fill="url(#ps-grain)" />
+        <path d={`M${n2(cx - 0.1)} ${n2(cy)} H${n2(cx + 0.11)}`} stroke={darken(colour, 0.3)} strokeWidth={0.03} strokeLinecap="round" />
+        <path d={`M${n2(cx - 0.1)} ${n2(cy - 0.008)} H${n2(cx + 0.11)}`} stroke="#fff" strokeWidth={0.006} strokeOpacity={0.35} strokeLinecap="round" />
+        <path d={`M${n2(cx + 0.09)} ${n2(cy - 0.11)} Q${n2(cx + 0.2)} ${n2(cy)} ${n2(cx + 0.09)} ${n2(cy + 0.11)}`} fill="none" stroke="#1b2733" strokeWidth={0.012} strokeOpacity={0.7} strokeLinecap="round" />
+        <rect x={cx - 0.03} y={cy - 0.12} width={0.06} height={0.025} fill="#e04b2a" />
+        <rect x={cx - 0.03} y={cy + 0.095} width={0.06} height={0.025} fill="#e04b2a" />
       </g>
     );
   }
@@ -118,25 +125,39 @@ function HeadTop({ c, f, wear, r = 0.13 }: { c: Pt; f: Pt; wear: CrewWear; r?: n
   const ang = deg(f);
   const hair = wear.hairStyle;
   const s = perp(unit(f));
+  const cap = smooth([[cx + r * 0.75, cy - r * 0.6], [cx + r * 0.2, cy - r * 0.95], [cx - r * 0.5, cy - r * 0.85], [cx - r * 0.98, cy - r * 0.2], [cx - r * 0.98, cy + r * 0.2], [cx - r * 0.5, cy + r * 0.85], [cx + r * 0.2, cy + r * 0.95], [cx + r * 0.75, cy + r * 0.6], [cx + r * 0.55, cy]], 0.6);
+  const headClip = `ps-crew-hd-${Math.round(cx * 1000)}-${Math.round(cy * 1000)}`;
   return (
     <g>
       {[-1, 1].map((side) => { const e = add(c, mul(s, side * r * 0.98)); return <g key={side} transform={`rotate(${n2(ang)} ${n2(e[0])} ${n2(e[1])})`}><ellipse cx={e[0]} cy={e[1]} rx={r * 0.16} ry={r * 0.24} fill={wear.skin} {...lineSoft} /><ellipse cx={e[0]} cy={e[1]} rx={r * 0.08} ry={r * 0.14} fill="none" stroke={darken(wear.skin, 0.4)} strokeWidth={0.6} strokeOpacity={0.5} {...SOFT} /></g>; })}
       {/* The brow and the tip of the nose show past the forehead of a head bowed to the work. */}
       <ellipse cx={cx + r * 1.0} cy={cy} rx={r * 0.14} ry={r * 0.2} fill={wear.skin} {...lineSoft} transform={`rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`} />
-      <circle cx={cx} cy={cy} r={r} fill={wear.skin} {...line} />
+      <circle cx={cx} cy={cy} r={r} fill={wear.skin} {...edge(wear.skin, 0.55, 0.55, 0.8)} />
+      <circle cx={cx} cy={cy} r={r} fill="url(#ps-sphere)" opacity={0.5} />
+      <circle cx={cx} cy={cy} r={r} fill="url(#ps-grain)" />
+      {hair !== "bald" && (
+        <g>
+          {/* The hair's shadow on the forehead and the ears, soft. */}
+          <clipPath id={headClip}><circle cx={cx} cy={cy} r={r} /></clipPath>
+          <g clipPath={`url(#${headClip})`}>
+            <path d={cap} fill="#000" opacity={0.3} filter="url(#ps-blur-sm)" transform={`translate(0.012 0.012) rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`} />
+          </g>
+        </g>
+      )}
       {hair !== "bald" && (
         <g transform={`rotate(${n2(ang)} ${n2(cx)} ${n2(cy)})`}>
           {/* The crown of the head from above: hair all over, the forehead (towards f) showing, the strands turning from the whorl at the crown. */}
-          <path d={smooth([[cx + r * 0.75, cy - r * 0.6], [cx + r * 0.2, cy - r * 0.95], [cx - r * 0.5, cy - r * 0.85], [cx - r * 0.98, cy - r * 0.2], [cx - r * 0.98, cy + r * 0.2], [cx - r * 0.5, cy + r * 0.85], [cx + r * 0.2, cy + r * 0.95], [cx + r * 0.75, cy + r * 0.6], [cx + r * 0.55, cy]], 0.6)} fill={wear.hair} {...lineSoft} />
-          {Array.from({ length: 14 }, (_, i) => {
-            const a = (i / 14) * Math.PI * 2 + 0.3;
+          <path d={cap} fill={wear.hair} {...edge(wear.hair, 0.45, 0.6, 0.8)} />
+          <path d={cap} fill="url(#ps-grain)" />
+          {Array.from({ length: 24 }, (_, i) => {
+            const a = (i / 24) * Math.PI * 2 + 0.3;
             const whorl: Pt = [cx - r * 0.25, cy - r * 0.05];
-            const reach = 0.55 + 0.25 * Math.abs(Math.sin(a * 1.7 + 1));
+            const reach = 0.5 + 0.3 * Math.abs(Math.sin(a * 1.7 + 1)) + 0.04 * (i % 3);
             const end: Pt = [whorl[0] + Math.cos(a) * r * reach * (Math.cos(a) > 0 ? 0.8 : 1.05), whorl[1] + Math.sin(a) * r * reach];
-            const start: Pt = [whorl[0] + Math.cos(a) * r * 0.12, whorl[1] + Math.sin(a) * r * 0.12];
-            const c = add(lerp(start, end, 0.5), mul(perp(unit(sub(end, start))), r * 0.09));
-            const light = i % 3 === 1;
-            return <path key={i} d={`M${P(start)} Q${P(c)} ${P(end)}`} fill="none" stroke={light ? "#ffffff" : darken(wear.hair, 0.4)} strokeWidth={light ? 0.6 : 0.8} strokeOpacity={light ? 0.18 : 0.45} {...SOFT} strokeLinecap="round" />;
+            const start: Pt = [whorl[0] + Math.cos(a) * r * (0.1 + 0.04 * (i % 2)), whorl[1] + Math.sin(a) * r * (0.1 + 0.04 * (i % 2))];
+            const c = add(lerp(start, end, 0.5), mul(perp(unit(sub(end, start))), r * (0.07 + 0.03 * (i % 2))));
+            const light = i % 4 === 1;
+            return <path key={i} d={`M${P(start)} Q${P(c)} ${P(end)}`} fill="none" stroke={light ? "#ffffff" : darken(wear.hair, 0.4)} strokeWidth={light ? 0.5 : 0.55 + 0.25 * (i % 3)} strokeOpacity={light ? 0.2 : 0.3 + 0.08 * (i % 3)} {...SOFT} strokeLinecap="round" />;
           })}
           {(hair === "long" || hair === "bob") && (
             <g>
@@ -195,20 +216,22 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
         {longSleeve ? (
           <g>
             {/* One sleeve from shoulder to wrist, the elbow blended. */}
-            <path d={limbPath(sh, el, t, 0.052, 0.04, 0.03)} fill={sleeve} {...line} />
+            <path d={limbPath(sh, el, t, 0.052, 0.04, 0.03)} fill={sleeve} {...edge(sleeve, 0.55, 0.6, 0.8)} />
             <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
             <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-round)" opacity={0.35} />
             <path d={limbPath(sh, el, t, 0.052, 0.04, 0.03)} fill="url(#ps-grain)" />
           </g>
         ) : (
           <g>
-            <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...line} />
+            <path d={capsule(sh, el, 0.052, 0.04)} fill={sleeve} {...edge(sleeve, 0.55, 0.6, 0.8)} />
             <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-round)" opacity={0.6} />
             <path d={capsule(sh, el, 0.052, 0.04)} fill="url(#ps-grain)" />
             {/* The sleeve's hem at the elbow. */}
             <path d={capsule(lerp(sh, el, 0.86), el, 0.042, 0.04)} fill={darken(sleeve, 0.18)} opacity={0.85} />
           </g>
         )}
+        <ellipse cx={sh[0]} cy={sh[1]} rx={0.065} ry={0.055} fill="url(#ps-socket)" opacity={0.8} />
+        <ellipse cx={el[0]} cy={el[1]} rx={0.04} ry={0.034} fill="url(#ps-socket)" opacity={0.5} />
         {crease(lerp(sh, el, 0.72), up, 0.04, 0.008, 0.12)}
         {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill={forearm} stroke={darken(forearm, 0.5)} strokeWidth={0.8} strokeOpacity={0.65} {...SOFT} strokeLinejoin="round" />}
         {!longSleeve && <path d={capsule(el, t, 0.04, 0.03)} fill="url(#ps-skin)" opacity={0.8} />}
@@ -245,6 +268,26 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
     );
   };
   const radioAt = add(add(shL, mul(f, 0.06)), mul(s, 0.07));
+  const yoke = capsule(shL, shR, 0.1, 0.1);
+  const bodyClip = `ps-crew-body-${Math.round(at[0] * 1000)}-${Math.round(at[1] * 1000)}-${Math.round(ang)}`;
+  // The back and the shoulders as forms, soft-edged: the spine's groove
+  // with a shoulder blade either side, the belt's shadow, the far end of
+  // the back falling away, and each shoulder a dome lit from the upper
+  // left of the screen.
+  const bodyShade = (
+    <g>
+      <clipPath id={bodyClip}><path d={back} /><path d={yoke} /></clipPath>
+      <g clipPath={`url(#${bodyClip})`}>
+        <g filter="url(#ps-blur-sm)">
+          <path d={`M${P(axis(-0.1, 0))} L${P(axis(-0.21, 0))}`} stroke="#000" strokeWidth={0.018} strokeOpacity={0.24} fill="none" strokeLinecap="round" />
+          {[-1, 1].map((side) => { const c = axis(-0.13, side * 0.085); return <ellipse key={side} cx={c[0]} cy={c[1]} rx={0.04} ry={0.028} fill="#fff" opacity={0.1} transform={`rotate(${n2(ang)} ${n2(c[0])} ${n2(c[1])})`} />; })}
+          <path d={`M${P(axis(-0.172, -0.16))} L${P(axis(-0.172, 0.16))}`} stroke="#000" strokeWidth={0.016} strokeOpacity={0.2} fill="none" />
+          <path d={`M${P(axis(-0.215, -0.1))} L${P(axis(-0.215, 0.1))}`} stroke="#000" strokeWidth={0.03} strokeOpacity={0.2} fill="none" />
+          {[shL, shR].map((sh, i) => <g key={i}><ellipse cx={sh[0] - 0.025} cy={sh[1] - 0.025} rx={0.05} ry={0.04} fill="#fff" opacity={0.14} /><ellipse cx={sh[0] + 0.03} cy={sh[1] + 0.03} rx={0.055} ry={0.04} fill="#000" opacity={0.16} /></g>)}
+        </g>
+      </g>
+    </g>
+  );
   // The figure's shadow on the floor: back, shoulders, head and both arms as
   // one soft dark shape thrown down and to the right.
   const armShadow = (sh: Pt, target: Pt | undefined, bend: 1 | -1) => {
@@ -269,7 +312,8 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
         const dir = unit(sub(toe, heel));
         return (
           <g key={side} opacity={0.92}>
-            <path d={capsule(heel, toe, 0.045, 0.04)} fill="#121518" {...line} />
+            <path d={capsule(heel, toe, 0.045, 0.04)} fill="#121518" {...edge("#3a3f46", 0.5, 0.7, 0.8)} />
+            <path d={capsule(heel, toe, 0.045, 0.04)} fill="url(#ps-round)" opacity={0.5} />
             <path d={capsule(lerp(heel, toe, 0.25), lerp(heel, toe, 0.85), 0.028, 0.025)} fill="#30353b" />
             {/* The tread of the sole and the heel block. */}
             {[0.3, 0.42, 0.54, 0.66, 0.78].map((u) => { const c = lerp(heel, toe, u); const n = perp(dir); return <path key={u} d={`M${P(add(c, mul(n, 0.024)))} L${P(add(c, mul(n, -0.024)))}`} stroke="#121518" strokeWidth={0.8} fill="none" {...SOFT} />; })}
@@ -277,7 +321,7 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
           </g>
         );
       })}
-      <path d={back} fill={jacket ?? wear.uniform} {...line} />
+      <path d={back} fill={jacket ?? wear.uniform} {...edge(jacket ?? wear.uniform, 0.55, 0.6, 0.8)} />
       {/* The seam down the back, the belt with its pouch where the back slopes away. */}
       <path d={`M${P(axis(-0.05, 0))} L${P(axis(-0.2, 0))}`} stroke={darken(jacket ?? wear.uniform, 0.3)} strokeWidth={0.7} strokeOpacity={0.45} fill="none" {...SOFT} />
       {!jacket && <path d={capsule(axis(-0.185, -0.13), axis(-0.185, 0.13), 0.012, 0.012)} fill="#2b241f" {...lineSoft} />}
@@ -288,9 +332,10 @@ export function CrewTop({ at, facing, hands, wear, kneeling = true, armsClass, h
       <path d={back} fill={`url(#${slope})`} />
       <path d={back} fill="url(#ps-grain)" />
       {/* Shoulders: the jacket's yoke, or the shirt; the collar standing behind the head. */}
-      <path d={capsule(shL, shR, 0.1, 0.1)} fill={wear.yoke} {...line} />
-      <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-round-v)" opacity={0.4} />
-      <path d={capsule(shL, shR, 0.1, 0.1)} fill="url(#ps-grain)" />
+      <path d={yoke} fill={wear.yoke} {...edge(wear.yoke, 0.55, 0.6, 0.8)} />
+      <path d={yoke} fill="url(#ps-round-v)" opacity={0.4} />
+      <path d={yoke} fill="url(#ps-grain)" />
+      {bodyShade}
       {/* The head's shadow on the shoulders. */}
       <circle cx={head[0] + 0.02} cy={head[1] + 0.03} r={0.13} fill="#000" opacity={0.3} filter="url(#ps-blur-sm)" />
       <path d={capsule(axis(0.0, -0.085), axis(0.0, 0.085), 0.016, 0.016)} fill={darken(wear.yoke, 0.2)} {...lineSoft} />

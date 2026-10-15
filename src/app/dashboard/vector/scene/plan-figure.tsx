@@ -441,13 +441,15 @@ export type HandShapeProps = {
   ink?: string;
   /** A band at the wrist: a glove's cuff. */
   cuff?: string;
+  /** A glossy surface: a nitrile glove. */
+  sheen?: boolean;
   opacity?: number;
 };
 
 /** A hand drawn as one shape: the parts are outlined first and then
  *  filled over, so the line runs round the outside only, with the joints
  *  and the nails on top. */
-export function HandShape({ parts, fill, detail, nail, ink = INK, cuff, opacity }: HandShapeProps) {
+export function HandShape({ parts, fill, detail, nail, ink = INK, cuff, sheen, opacity }: HandShapeProps) {
   const { palm, fingers, thumb, at, L } = parts;
   const all = [palm, ...fingers.flatMap((f) => [f.prox, f.dist]), thumb.meta, thumb.prox, thumb.dist];
   const outline = { stroke: ink, strokeWidth: 1.8, strokeOpacity: 0.5, vectorEffect: "non-scaling-stroke" as const, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
@@ -468,6 +470,7 @@ export function HandShape({ parts, fill, detail, nail, ink = INK, cuff, opacity 
       <path d={thumb.dist} fill={across(thumb.dir)} opacity={0.6} />
       <path d={palm} fill="url(#ps-face-shade)" opacity={detail === "palm" ? 0.35 : 0.7} />
       {all.map((d, i) => <path key={`g${i}`} d={d} fill="url(#ps-grain)" opacity={0.8} />)}
+      {sheen && all.map((d, i) => <path key={`h${i}`} d={d} fill="url(#ps-sheen)" opacity={0.85} />)}
       {detail === "back" && (
         <g>
           {/* The tendons fanning over the back of the hand, the knuckles, the joints and the nails. */}
