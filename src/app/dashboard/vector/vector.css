@@ -5658,3 +5658,78 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-card[draggable="true"]:active, .vec-bay .units .unit[draggable="true"]:active { cursor: grabbing; }
 .vec-dropzone.hot { outline: 2px dashed var(--vec-work, #0875bb); outline-offset: -2px; background: var(--vec-surface-tint, #eaf1fa); }
 .vec-slot.drop { background: var(--vec-surface-tint, #eaf1fa); box-shadow: inset 0 0 0 1px var(--vec-work, #0875bb); }
+
+/* ---- The RTC stage: the crash fills the Fire tab, the cards float over it,
+   the jobs sit on a round bar along the foot — the casualty care layout for
+   the vehicle. ------------------------------------------------------------- */
+.pc-screen.rs-mode { grid-template-rows: 46px minmax(0, 1fr) 82px; background: #0b1620; }
+.rs-body { position: relative; min-height: 0; min-width: 0; overflow: hidden; background: #0d1a26; }
+.rs-hero { position: absolute; inset: 0; --pb-bg: #0b1620; --pb-card: #122230; --pb-line: #233a4c; --pb-text: #e6eef5; --pb-dim: #a4b8c8; --pb-muted: #7f97a8; --pb-go: #3ad17f; --pb-warn: #f3c447; --pb-stop: #ff5d5d; --pb-blue: #4cb3ff; color: var(--pb-text); font: 13px/1.4 var(--vec-sans, "IBM Plex Sans", Arial, sans-serif); }
+.rs-hero > .ps-scene.fill { position: absolute; inset: 0; aspect-ratio: auto; border: 0; border-radius: 0; }
+.rs-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 40px; text-align: center; color: var(--pb-dim); font-size: 13px; }
+.rs-alerts { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: min(460px, 42%); z-index: 3; }
+.rs-left, .rs-right { position: absolute; top: 10px; bottom: 36px; width: 262px; display: flex; flex-direction: column; gap: 8px; z-index: 2; overflow: hidden; }
+.rs-left { left: 10px; } .rs-right { right: 10px; }
+.rs-left > *, .rs-right > * { flex: none; }
+.rs-hero .pb-track, .rs-hero .pb-headline, .rs-hero .pb-news, .rs-hero .pb-facts, .rs-hero .pb-record, .rs-hero .pb-flags, .rs-vehicles { background: rgba(6, 12, 18, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 4px; backdrop-filter: blur(3px); }
+.rs-hero .pb-track { padding: 7px 8px 5px; grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.rs-hero .pb-step span { font-size: 7.5px; letter-spacing: 0.02em; }
+.rs-hero .pb-headline { padding: 6px 10px; }
+.rs-hero .pb-news { border-left-width: 4px; }
+.rs-hero .pb-facts { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 4px 8px; padding: 8px 10px; margin: 0; }
+.rs-hero .pb-facts dt, .rs-hero .pb-facts dd { margin: 0; min-width: 0; }
+.rs-hero .pb-flags { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+.rs-hero .pb-record { padding: 8px 10px; gap: 6px; display: flex; flex-direction: column; }
+.rs-hero .pb-timeline { max-height: 220px; overflow: hidden; }
+.rs-hero .pb-alerts { display: grid; gap: 6px; }
+.rs-hero .ps-caption { right: auto; left: 50%; transform: translateX(-50%); bottom: 8px; border-radius: 4px; background: rgba(6, 12, 18, 0.72); border: 1px solid rgba(255, 255, 255, 0.12); padding: 4px 10px; white-space: nowrap; }
+.rs-body:has(.rs-panel) .rs-right { display: none; }
+.rs-vehicles { padding: 6px; }
+.rs-veh-list { display: flex; flex-direction: column; gap: 4px; }
+.rs-veh { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; row-gap: 1px; align-items: center; padding: 6px 8px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 3px; background: rgba(18, 34, 48, 0.6); text-align: left; color: var(--pb-text, #e6eef5); font: inherit; cursor: pointer; }
+.rs-veh .anpr-plate { grid-row: 1 / span 2; font-size: 13px; }
+.rs-veh b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-veh small { grid-column: 2; font: 9.5px var(--vec-mono, Consolas, monospace); letter-spacing: 0.06em; color: var(--pb-muted, #7f97a8); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-veh em { grid-column: 1 / -1; font: 700 9px var(--vec-mono, Consolas, monospace); letter-spacing: 0.1em; font-style: normal; }
+.rs-veh em.go { color: var(--pb-go, #3ad17f); } .rs-veh em.warn { color: var(--pb-warn, #f3c447); }
+.rs-veh.on { border-color: var(--pb-blue, #4cb3ff); box-shadow: inset 0 0 0 1px var(--pb-blue, #4cb3ff); }
+.rs-veh.safe { border-left: 4px solid var(--pb-go, #3ad17f); }
+/* The open section: the care pane's dark glass, with the fire module's tokens re-pointed so its rows and buttons follow. */
+.rs-panel {
+  --fc-bg: rgba(8, 16, 24, 0.9); --fc-card: rgba(18, 34, 48, 0.85); --fc-card-h: rgba(10, 22, 33, 0.95);
+  --fc-line: rgba(255, 255, 255, 0.16); --fc-line-soft: rgba(255, 255, 255, 0.09);
+  --fc-text: #e6eef5; --fc-dim: #a4b8c8; --fc-muted: #7f97a8; --fc-blue: #3a9ae6; --fc-accent: #f3c447;
+  --fc-go: #3ad17f; --fc-warn: #f3c447; --fc-stop: #ff5d5d;
+  font: 13px/1.4 var(--vec-sans, "IBM Plex Sans", Arial, sans-serif);
+}
+.rs-panel .fc-rtc-action { background: rgba(18, 34, 48, 0.55); border-color: var(--fc-line-soft); }
+.rs-panel .fc-rtc-action.done { background: rgba(58, 209, 127, 0.1); }
+.rs-panel .fc-rtc-action.on { background: rgba(243, 196, 71, 0.1); }
+.rs-panel .fc-rtc-action b em { color: var(--fc-warn); }
+.rs-panel .pc-mini { background: rgba(255, 255, 255, 0.06); border-color: var(--fc-line); color: var(--fc-text); }
+.rs-panel .pc-mini:disabled { color: var(--fc-muted); }
+.rs-panel .pc-findings { color: var(--fc-dim); font-size: 11.5px; }
+.rs-panel .fc-chip { background: rgba(18, 34, 48, 0.55); color: var(--fc-text); }
+.rs-panel .fc-rtc-comps .fc-chip.done { border-color: var(--fc-go); color: var(--fc-go); }
+.rs-panel .fc-rtc-comps .fc-chip.battery_12v { border-color: #e7b31a; color: #e7b31a; }
+.rs-panel .fc-rtc-comps .fc-chip.battery_hv { border-color: #e8731f; color: #e8731f; }
+.rs-panel .fc-rtc-comps .fc-chip.airbag, .rs-panel .fc-rtc-comps .fc-chip.curtain_airbag { border-color: #ff6b6b; color: #ff8a8a; }
+.rs-panel .fc-rtc-comps .fc-chip.fuel_tank { border-color: #4cb3ff; color: #4cb3ff; }
+.rs-panel .fc-rtc-comps .fc-chip.reinforcement { border-color: #7f1d1d; background: #7f1d1d; color: #fff; }
+.rs-panel .fc-rtc-comps .fc-chip.gas_strut { border-color: #3ad17f; color: #3ad17f; }
+.rs-panel .pb-facts { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 4px 8px; margin: 0; font-size: 12px; --pb-line: rgba(255, 255, 255, 0.1); --pb-muted: #7f97a8; --pb-text: #e6eef5; --pb-go: #3ad17f; --pb-warn: #f3c447; --pb-stop: #ff5d5d; }
+.rs-panel .pb-timeline { --pb-line: rgba(255, 255, 255, 0.1); --pb-muted: #7f97a8; --pb-text: #e6eef5; --pb-go: #3ad17f; --pb-warn: #f3c447; --pb-stop: #ff5d5d; --pb-dim: #a4b8c8; max-height: none; }
+.rs-panel .cc-primary { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid #2f8fd6; border-radius: 2px; background: #2f8fd6; color: #fff; font: 700 13px var(--vec-sans, Arial, sans-serif); }
+.rs-panel .cc-primary.stop { background: #d13b3b; border-color: #d13b3b; }
+.rs-panel .cc-primary:disabled { background: rgba(255, 255, 255, 0.06); border-color: var(--cc-line); color: var(--cc-muted); }
+.rs-panel .cc-primary svg { width: 18px; height: 18px; }
+.rs-panel .cc-iv, .rs-panel .cc-iv-cols { grid-template-columns: minmax(0, 1fr) 150px 0; }
+.rs-tablet .rs-left, .rs-tablet .rs-right { width: 232px; top: 8px; bottom: 32px; }
+.rs-tablet .rs-hero .pb-news strong { font-size: 36px; }
+.rs-tablet .rs-hero .pb-timeline { max-height: 150px; }
+.pr-comp { fill: #fff; font: 700 0.07px var(--vec-mono, Consolas, monospace); letter-spacing: 0.01em; paint-order: stroke; stroke: rgba(0, 0, 0, 0.75); stroke-width: 0.012px; pointer-events: none; }
+.pr-plate { font-size: 10px; }
+@container (max-width: 980px) {
+  .rs-left, .rs-right { width: 210px; }
+  .rs-hero .pb-news strong { font-size: 34px; }
+}

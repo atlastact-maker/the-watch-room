@@ -411,6 +411,7 @@ export function DraggableIncidentMdt(props: Props) {
           sceneCommanderApplianceId={props.sceneCommanderApplianceId}
           busyCrewIds={props.busyCrewIds}
           resolvedIncident={resolved}
+          ambient={props.ambient}
           onStartTask={props.onStartTask}
           onAbortTask={props.onAbortTask}
           onCompleteTask={props.onCompleteTask}

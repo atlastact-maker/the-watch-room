@@ -21,7 +21,7 @@
 
 import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
-import type { CrsAction, CrsVehicle, EntryTool, HoseAttackMode, HoseType, Incident, KitKind, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
+import type { EntryTool, HoseAttackMode, HoseType, Incident, KitKind, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
 import { ENTRY_TOOL_LABEL, TASK_MIN_CREW, hasWaterSupplyChain } from "@/lib/sim/incident_types";
 import { mitigationOptionsFor } from "@/lib/sim/mitigation";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
@@ -32,6 +32,7 @@ import { TASK_LABEL, catalogueKinds, competencyFor, useSceneHydrants, type TaskW
 import { updatePlan, useCommandPlan, type CommandPlan } from "./command-store";
 import { openingCodeLabel } from "@/lib/sim/opening_codes";
 import { FiregroundBoard } from "./fireground-board";
+import { RtcStage, type RtcPanel } from "./rtc-stage";
 
 type Page = "actions" | "command" | "ba" | "rtc" | "log";
 type ActionTab = "general" | "fire" | "rescue" | "water" | "scene";
@@ -236,44 +237,6 @@ const APPLIANCE_ROLES = ["Firefighting", "Water supply", "Search & rescue", "BA 
 const SUPPLY_STATUS = ["Pending", "Establishing", "Established", "Failing", "Lost"];
 const SECTOR_TASKS = ["Firefighting", "Search and rescue", "Water supply", "Exposure protection", "Ventilation", "Salvage", "Cordon and safety"];
 
-/** The standard space-creation set on any vehicle at an RTC. The
- *  datasheet's own make-safe actions come first; these follow, each
- *  behind the one it depends on — nobody cuts a roof before the glass
- *  is managed or rolls a dash on a car that is still rocking. Ids are
- *  `std-*` so a datasheet's own "stabilise" or "glass" replaces them. */
-type SpaceAction = {
-  id: string;
-  label: string;
-  detail: string;
-  durationSec: number;
-  minCrew: number;
-  after?: string[];
-  kit?: string;
-  critical?: boolean;
-  done: (vrm: string) => string;
-};
-const SPACE_CREATION: SpaceAction[] = [
-  { id: "std-stabilise", label: "Stabilise vehicle", detail: "Blocks and chocks under the sills — kill the movement before anyone leans in", durationSec: 120, minCrew: 2, critical: true, done: (v) => `${v} stabilised on blocks and chocks — no movement on the shell` },
-  { id: "std-glass", label: "Glass management", detail: "Film the screen, take the side glass out under control", durationSec: 90, minCrew: 1, done: (v) => `${v} glass managed — screen filmed, side glass removed` },
-  { id: "std-doors-off", label: "Doors off", detail: "Spread the hinges, pop the latch — driver's door first, then the rear", durationSec: 180, minCrew: 2, after: ["stabilise"], kit: "Hydraulic", done: (v) => `${v} doors off — side access to the casualty` },
-  { id: "std-third-door", label: "Third door conversion", detail: "B-pillar out with the rear door — full side access for the board", durationSec: 240, minCrew: 3, after: ["doors-off"], kit: "Hydraulic", done: (v) => `${v} third door conversion complete — B-pillar out, full side access` },
-  { id: "std-roof-flap", label: "Roof flap", detail: "Cut the A- and B-pillars, fold the roof back over the boot", durationSec: 240, minCrew: 3, after: ["glass", "stabilise"], kit: "Hydraulic", done: (v) => `${v} roof flapped back — access from above` },
-  { id: "std-roof-off", label: "Roof off", detail: "All pillars cut, roof lifted clear — full access from above", durationSec: 300, minCrew: 4, after: ["glass", "stabilise"], kit: "Hydraulic", done: (v) => `${v} roof off and clear — full access from above` },
-  { id: "std-dash-roll", label: "Dash roll", detail: "Relief cuts at the A-pillar base, ram footed on the sill — lift the dash off the legs", durationSec: 240, minCrew: 3, after: ["stabilise", "doors-off"], kit: "Hydraulic", done: (v) => `${v} dash rolled — legs free of the pedal box` },
-];
-
-/** Every distinct make-safe action on a datasheet — whole-vehicle first,
- *  then the components', deduped by id (a shared id is one job). */
-function datasheetActions(v: CrsVehicle): CrsAction[] {
-  const out: CrsAction[] = [];
-  const seen = new Set<string>();
-  for (const a of [...(v.actions ?? []), ...v.components.map((c) => c.action).filter((a): a is CrsAction => !!a)]) {
-    if (seen.has(a.id)) continue;
-    seen.add(a.id);
-    out.push(a);
-  }
-  return out;
-}
 
 function clock(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -318,6 +281,8 @@ const STAGE_LABEL: Record<IncidentSimState["fireStage"], string> = {
 };
 
 export type FireCommandProps = Pick<TaskWorkspaceProps, "onStartTask" | "onAbortTask" | "onCompleteTask" | "onSetTaskCrew" | "onNote"> & {
+  /** The hour of the day and the weather, for the picture on the RTC stage. */
+  ambient?: { hour: number; precip: string };
   incident: Incident;
   incidentRef: string;
   appliance: Appliance;
@@ -396,6 +361,7 @@ export function FireCommandScreen(props: FireCommandProps) {
   const [sectorPick, setSectorPick] = useState<Record<string, string>>({});
   const [emergPick, setEmergPick] = useState<string[]>([]);
   const [rtcVehicleId, setRtcVehicleId] = useState<string | null>(null);
+  const [rtcPanel, setRtcPanel] = useState<RtcPanel | null>(null);
   const sc = incident.scenario;
   const set = (fn: (p: CommandPlan) => CommandPlan) => updatePlan(incident.id, fn);
   const note = (text: string) => props.onNote?.(`${appliance.callsign} · ${text}`);
@@ -1340,120 +1306,11 @@ export function FireCommandScreen(props: FireCommandProps) {
     </Card>
   );
 
-  // ---- RTC page: the vehicles, made safe and opened up -------------------------
-  const crsVehicles = sc.crs ?? [];
-  const rtcVehicle = crsVehicles.find((v) => v.id === rtcVehicleId) ?? crsVehicles[0] ?? null;
-  const crsState = (vehicleId: string, actionId: string): { state: "ready" } | { state: "active"; task: Task } | { state: "done"; task: Task } => {
-    const list = tasks.filter((t) => t.kind === "crs_action" && t.crsVehicleId === vehicleId && t.crsActionId === actionId && t.state !== "aborted");
-    const done = list.find((t) => t.state === "completed");
-    if (done) return { state: "done", task: done };
-    const running = list.find((t) => t.state === "active");
-    return running ? { state: "active", task: running } : { state: "ready" };
-  };
-  const keyDone = (v: CrsVehicle, key: string) => crsState(v.id, key).state === "done" || crsState(v.id, `std-${key}`).state === "done";
-  const carriesKit = (needle: string) => appliance.kit.some((k) => k.toLowerCase().includes(needle.toLowerCase()));
-  const criticalOf = (v: CrsVehicle) => [...datasheetActions(v).filter((a) => a.critical).map((a) => a.id), ...SPACE_CREATION.filter((a) => a.critical && !datasheetActions(v).some((d) => `std-${d.id}` === a.id)).map((a) => a.id)];
-  const madeSafe = (v: CrsVehicle) => criticalOf(v).every((id) => crsState(v.id, id).state === "done");
-  const criticalDone = (v: CrsVehicle) => criticalOf(v).filter((id) => crsState(v.id, id).state === "done").length;
-  const extrication = tasks.find((t) => t.kind === "rtc_extrication" && t.state === "active") ?? tasks.find((t) => t.kind === "rtc_extrication" && t.state === "completed");
   const crsRunningHere = mine.filter((t) => t.kind === "crs_action").length;
-  function startCrs(v: CrsVehicle, a: { id: string; label: string; durationSec: number; minCrew: number }, doneMessage: string) {
-    const crew = freeCrew.slice(0, a.minCrew).map((c) => c.id);
-    if (crew.length < a.minCrew) return;
-    props.onStartTask?.({ applianceId: appliance.id, kind: "crs_action", assignedCrewIds: crew, crsVehicleId: v.id, crsActionId: a.id, crsDurationSec: a.durationSec, crsLabel: `${a.label} · ${v.vrm}`, crsDoneMessage: doneMessage });
-  }
-  const rtcActionRow = (v: CrsVehicle, a: { id: string; label: string; detail?: string; durationSec: number; minCrew: number; critical?: boolean }, doneMessage: string, blockedBy: string | null) => {
-    const st = crsState(v.id, a.id);
-    const short = freeCrew.length < a.minCrew;
-    const disabled = !canAct || st.state !== "ready" || short || !!blockedBy;
-    const hint = blockedBy ?? (short ? `${a.minCrew} needed · ${freeCrew.length} free on ${appliance.callsign}` : `${a.minCrew} crew · ${Math.round(a.durationSec / 60)} min`);
-    return (
-      <div key={a.id} className={`fc-rtc-action${st.state === "done" ? " done" : st.state === "active" ? " on" : ""}${a.critical ? " critical" : ""}`}>
-        <div className="txt">
-          <b>{a.label}{a.critical ? <em title="Counts toward the vehicle being made safe">CRITICAL</em> : null}</b>
-          <small>{st.state === "done" ? doneMessage : a.detail ?? ""}</small>
-          <span className="meta">{st.state === "done" ? `Done ${wall(st.task.completesAt ?? st.task.startedAt)}` : st.state === "active" ? `${callsignOf(st.task.applianceId)} · ${mmss(Math.max(0, (st.task.completesAt ?? now) - now))} to go` : hint}</span>
-        </div>
-        {st.state === "ready" && <button type="button" className="pc-mini" disabled={disabled} title={hint} onClick={() => startCrs(v, a, doneMessage)}>Start</button>}
-        {st.state === "active" && <button type="button" className="pc-mini" onClick={() => props.onAbortTask?.(st.task.id)}>Abort</button>}
-        {st.state === "done" && <span className="fc-rtc-tick">✓</span>}
-      </div>
-    );
-  };
-  const rtcPage = (
-    <>
-      <div className="pc-col">
-        <Card title="Vehicles" icon="▣" fill headerExtra={<span className="pc-meta">{crsVehicles.length ? `${crsVehicles.filter(madeSafe).length} of ${crsVehicles.length} made safe` : "no vehicles"}</span>}>
-          {crsVehicles.length === 0 ? <p className="pc-note">No vehicles on this job. When a job carries a crash, the vehicles sit here with their datasheets and the crew makes them safe and opens them up from this page.</p> : (
-            <div className="fc-rtc-vehicles column">
-              {crsVehicles.map((v) => {
-                const safe = madeSafe(v);
-                return (
-                  <button key={v.id} type="button" className={`fc-rtc-veh${rtcVehicle?.id === v.id ? " on" : ""}${safe ? " safe" : ""}`} aria-pressed={rtcVehicle?.id === v.id} onClick={() => setRtcVehicleId(v.id)}>
-                    <span className="anpr-plate">{v.vrm}</span>
-                    <b>{v.make} {v.model}</b>
-                    <small>{v.years} · {v.body} · {v.fuel === "bev" ? "ELECTRIC · HV" : v.fuel === "phev" ? "PLUG-IN HYBRID" : v.fuel.toUpperCase()}</small>
-                    <em className={safe ? "go" : "warn"}>{safe ? "MADE SAFE" : `${criticalDone(v)}/${criticalOf(v).length} critical done`}</em>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {rtcVehicle && (
-            <>
-              <div className="pc-sub">Datasheet · {rtcVehicle.make} {rtcVehicle.model}</div>
-              <ul className="pc-findings">{rtcVehicle.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
-              <div className="pc-sub">On the schematic</div>
-              <div className="fc-rtc-comps">{rtcVehicle.components.map((c, i) => <span key={i} className={`fc-chip ${c.kind}`}>{c.label}</span>)}</div>
-            </>
-          )}
-        </Card>
-      </div>
-      <div className="pc-col">
-        <Card title={rtcVehicle ? `Make safe · ${rtcVehicle.vrm}` : "Make safe"} icon="⚙" fill headerExtra={<span className="pc-meta">{freeCrew.length} free on {appliance.callsign}{!carriesKit("Hydraulic") ? " · no hydraulic kit" : ""}</span>}>
-          {!rtcVehicle ? <p className="pc-note">Pick a vehicle.</p> : (
-            <>
-              <div className="fc-rtc-actions">{datasheetActions(rtcVehicle).map((a) => rtcActionRow(rtcVehicle, a, a.done, null))}</div>
-              <div className="pc-sub">Space creation · in the order the car allows</div>
-              <div className="fc-rtc-actions">
-                {SPACE_CREATION.filter((a) => !datasheetActions(rtcVehicle).some((d) => `std-${d.id}` === a.id)).map((a) => {
-                  const missingKit = a.kit && !carriesKit(a.kit) ? `Needs ${a.kit.toLowerCase()} rescue kit — not on ${appliance.callsign}` : null;
-                  const waiting = (a.after ?? []).filter((k) => !keyDone(rtcVehicle, k));
-                  const blocked = missingKit ?? (waiting.length ? `After ${waiting.map((k) => k.replace(/-/g, " ")).join(" and ")}` : null);
-                  return rtcActionRow(rtcVehicle, a, a.done(rtcVehicle.vrm), blocked);
-                })}
-              </div>
-            </>
-          )}
-        </Card>
-      </div>
-      <div className="pc-col">
-        <Card title="Extrication" icon="●">
-          <label className="pc-field inline"><span>Vehicles</span><output className={crsVehicles.length && crsVehicles.every(madeSafe) ? "hi" : ""}>{crsVehicles.length === 0 ? "—" : crsVehicles.every(madeSafe) ? "All made safe — controlled release" : crsVehicles.map((v) => `${v.vrm}: ${criticalOf(v).filter((id) => crsState(v.id, id).state !== "done").length} outstanding`).join(" · ")}</output></label>
-          <label className="pc-field inline"><span>Crew</span><output>{freeCrew.length} free · 4 needed{!carriesKit("Hydraulic") ? " · no hydraulic kit" : ""}</output></label>
-          {extrication ? (
-            <div className={`fc-rtc-action${extrication.state === "completed" ? " done" : " on"}`}>
-              <div className="txt"><b>Release the casualty</b><small>{extrication.state === "completed" ? "Casualty released to the ambulance crew" : `${callsignOf(extrication.applianceId)} cutting · ${mmss(Math.max(0, (extrication.completesAt ?? now) - now))} to go`}</small></div>
-              {extrication.state === "active" && <button type="button" className="pc-mini" onClick={() => props.onAbortTask?.(extrication.id)}>Abort</button>}
-              {extrication.state === "completed" && <span className="fc-rtc-tick">✓</span>}
-            </div>
-          ) : (
-            <>
-              {crsVehicles.length > 0 && !crsVehicles.every(madeSafe) && infoLine("Cutting on a vehicle that is not made safe goes in the log and the debrief.", "warn")}
-              <button type="button" className={`pc-primary${crsVehicles.length && crsVehicles.every(madeSafe) ? "" : " running"}`} disabled={!canAct || crsVehicles.length === 0 || freeCrew.length < 4 || !carriesKit("Hydraulic")} title={!carriesKit("Hydraulic") ? "Hydraulic rescue kit needed" : freeCrew.length < 4 ? `Four hands needed · ${freeCrew.length} free` : ""} onClick={() => props.onStartTask?.({ applianceId: appliance.id, kind: "rtc_extrication", assignedCrewIds: freeCrew.slice(0, 4).map((c) => c.id) })}>
-                {I.cut}<span>{crsVehicles.every(madeSafe) ? "Release the casualty — controlled" : "Release the casualty now"}</span>
-              </button>
-            </>
-          )}
-        </Card>
-        {personsCard}
-      </div>
-    </>
-  );
 
   // ---- Screen ---------------------------------------------------------------------
   return (
-    <div className="pc-screen" role="region" aria-label="Fire and rescue command">
+    <div className={`pc-screen${page === "rtc" ? " rs-mode" : ""}`} role="region" aria-label="Fire and rescue command">
       <header className="fc-head">
         <div className="fc-brand">
           <Icon d="M12 2c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z" />
@@ -1466,6 +1323,30 @@ export function FireCommandScreen(props: FireCommandProps) {
         </div>
       </header>
 
+      {page === "rtc" ? (
+        <RtcStage
+          incident={incident}
+          appliance={appliance}
+          tasks={tasks}
+          log={log}
+          now={now}
+          resolved={resolved}
+          sim={sim}
+          freeCrew={freeCrew}
+          canAct={canAct}
+          resolvedIncident={resolvedIncident}
+          vehicleId={rtcVehicleId}
+          onPickVehicle={setRtcVehicleId}
+          panel={rtcPanel}
+          onPanel={setRtcPanel}
+          onStartTask={props.onStartTask}
+          onAbortTask={props.onAbortTask}
+          onBack={() => setPage("actions")}
+          hour={props.ambient?.hour ?? new Date(now).getHours() + new Date(now).getMinutes() / 60}
+          rain={props.ambient ? /rain|drizzle|sleet|snow/.test(props.ambient.precip) : false}
+        />
+      ) : (
+      <>
       <main className={`pc-main ${page}`}>
         {page === "actions" && (
           <>
@@ -1512,7 +1393,6 @@ export function FireCommandScreen(props: FireCommandProps) {
             </div>
           </>
         )}
-        {page === "rtc" && rtcPage}
         {page === "log" && (
           <>
             <div className="pc-col">{summaryCard}{resourceCard}</div>
@@ -1525,9 +1405,11 @@ export function FireCommandScreen(props: FireCommandProps) {
         <button type="button" aria-pressed={page === "actions"} onClick={() => setPage("actions")}>{I.note}<span>Resource actions</span>{mine.length > 0 && <em>{mine.length}</em>}</button>
         <button type="button" aria-pressed={page === "command"} onClick={() => setPage("command")}>{I.command}<span>Fire command</span>{reviewOverdue && <em>!</em>}</button>
         <button type="button" aria-pressed={page === "ba"} onClick={() => setPage("ba")}>{I.ba}<span>BA control</span>{baTasks.length > 0 && <em>{baTasks.length}</em>}</button>
-        <button type="button" aria-pressed={page === "rtc"} onClick={() => setPage("rtc")}>{I.car}<span>RTC</span>{crsRunningHere > 0 && <em>{crsRunningHere}</em>}</button>
+        <button type="button" aria-pressed={false} onClick={() => setPage("rtc")}>{I.car}<span>RTC</span>{crsRunningHere > 0 && <em>{crsRunningHere}</em>}</button>
         <button type="button" aria-pressed={page === "log"} onClick={() => setPage("log")}>{I.clockI}<span>Log</span></button>
       </footer>
+      </>
+      )}
     </div>
   );
 }

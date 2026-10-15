@@ -11,6 +11,12 @@
 //                 with a survey done, leads and a probe on, oxygen and
 //                 aspirin given, so the casualty care screen has a patient
 //   ?min=14       minutes since the call (default 14)
+//   ?fast=1       tasks started from the screens run twenty times faster
+//
+// Tasks started from the tablet (a CRS action on a vehicle, the
+// extrication) run here as local tasks that complete on their clock, so
+// the screens that read them back — the RTC stage's picture — can be
+// watched without a shift.
 
 import { useEffect, useMemo, useState } from "react";
 import "../../dashboard/vector/vector.css";
@@ -231,7 +237,16 @@ export default function MdtHarnessPage() {
     return () => window.clearInterval(id);
   }, []);
   const treatmentByCasualtyId = useMemo(() => (treatment ? { [treatment.casualtyId]: treatment } : {}), [treatment]);
-  const sim = useMemo(() => simulateIncident(world.incident, world.deployments, world.baCrews, world.tasks, now, treatmentByCasualtyId), [world, now, treatmentByCasualtyId]);
+  const [extra, setExtra] = useState<Task[]>([]);
+  const tasks = useMemo(() => [...world.tasks, ...extra.map((t) => (t.state === "active" && t.completesAt && now >= t.completesAt ? { ...t, state: "completed" as const } : t))], [world.tasks, extra, now]);
+  const speed = param("fast") ? 20 : 1;
+  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string }) => {
+    const t0 = Date.now();
+    const dur = Math.max(3, (args.crsDurationSec ?? (args.kind === "rtc_extrication" ? 300 : 120)) / speed);
+    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage } as unknown as Task]);
+  };
+  const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const } : t)));
+  const sim = useMemo(() => simulateIncident(world.incident, world.deployments, world.baCrews, tasks, now, treatmentByCasualtyId), [world, tasks, now, treatmentByCasualtyId]);
   return (
     <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
       <div style={{ position: "absolute", left: 24, top: 16, width: 1180, height: 820 }}>
@@ -247,7 +262,7 @@ export default function MdtHarnessPage() {
           onDismiss={() => {}}
           onClose={() => {}}
           sim={sim}
-          tasks={world.tasks}
+          tasks={tasks}
           now={now}
           informantLog={world.informantLog}
           informantOnCall={false}
@@ -262,8 +277,8 @@ export default function MdtHarnessPage() {
           crewAir={world.crewAir}
           busyCrewIds={world.busyCrewIds}
           vehicleGauges={world.vehicleGauges}
-          onStartTask={() => {}}
-          onAbortTask={() => {}}
+          onStartTask={startTask}
+          onAbortTask={abortTask}
           onSetLightState={() => {}}
           onSetPumpRunning={() => {}}
           onSetPumpOperator={() => {}}

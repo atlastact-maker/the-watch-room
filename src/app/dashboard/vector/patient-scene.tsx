@@ -66,7 +66,7 @@ export function VitalsCard({ look, vitals, className = "ps-ovl ps-vitals" }: { l
 
 const H = 320;
 
-function hash(s: string): number {
+export function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
@@ -83,7 +83,7 @@ function skinColour(base: string, state: Skin): string {
 }
 
 /** What the patient has on: the setting dresses them, the seed picks within it. */
-function wearOf(look: PatientLook, setting: SceneSetting, seed: number, wet: boolean): Wear {
+export function wearOf(look: PatientLook, setting: SceneSetting, seed: number, wet: boolean): Wear {
   const a = look.appearance;
   const pick = <T,>(xs: T[], n: number) => xs[(seed >>> n) % xs.length];
   const skin = skinColour(a.skinBase, look.skin);
