@@ -34,7 +34,7 @@ metre space, so a model only needs to be the right size.
 | --- | --- | --- |
 | `hydraulic-spreaders.glb` | `spreaders` | Hydraulic rescue spreaders on the RTC stage's salvage sheet and at the door. |
 | `hydraulic-cutters.glb` (to come) | `cutters` | The rescue cutters. The RTC stage draws them until the model lands; a `cutters` row in `MODELS` with the blades turned to +x, rendered, replaces the drawing with no other change. |
-| `hems-doctor.glb` | `hems_doctor` | A HEMS doctor with the emergency medical backpack on his back — two Meshy exports put together by a script (the person scaled to 1.78 m with his feet at the origin, the pack turned straps-in and set on the shoulder blades), the pack's yellow straps, handle and loops recoloured black in its texture first, textures at 1K WebP. Standing in an A-pose; faces +x once drawn, the pack behind him. |
+| `hems-doctor.glb` | `hems_doctor` | A HEMS doctor with the emergency medical backpack on his back — two Meshy exports put together by a script (the person scaled to 1.78 m with his feet at the origin, the pack turned straps-in and set on the shoulder blades), the pack's yellow straps, handle and loops recoloured black in its texture first, shoulder straps generated over his shoulders and down his chest), textures at 1K WebP. Standing in an A-pose; faces +x once drawn, the pack behind him. |
 | `firefighter.glb` | `firefighter_run`, `firefighter_walk`, `firefighter_stand` | A firefighter with a Mixamo rig and two clips, `Running` and `Walking`, each rendered as a sheet of frames, and one pose of the walk with the feet together as the standing figure. The crews run in with it when a job starts, walk between jobs and back to the appliance, stand by it, and go to the kit and back on the ground view. |
 
 ## Putting two together
@@ -47,11 +47,14 @@ z towards the base's front). Textures come out at 1K WebP. The HEMS doctor:
 
 ```
 node scripts/compose-models.mjs doctor.glb backpack.glb assets/models/hems-doctor.glb \
-     --height 1.78 --part-height 0.55 --part-yaw 180 --part-at 0,1.21,-0.25 --names doctor,backpack
+     --height 1.78 --part-height 0.55 --part-yaw 180 --part-at 0,1.21,-0.28 --names doctor,backpack --straps
 ```
 
 Meshy models face +z, so a backpack whose straps are on its -z side goes
-on at a yaw of 180 with a negative z.
+on at a yaw of 180 with a negative z. `--straps` adds two black webbing
+straps with a reflective band, up out of the pack, over the shoulders and
+down the chest: their path is found by casting rays at the person's mesh
+round each shoulder and down the front, so they lie on the body.
 
 ## Animations
 

@@ -10,7 +10,7 @@ export const MODEL_SPRITES = {
   firefighter_run: { href: "/models/firefighter_run.png", w: 1.281, h: 0.803, frames: 16, fps: 24, cols: 16 }, // 
   firefighter_stand: { href: "/models/firefighter_stand.png", w: 1.036, h: 0.725, frames: 1, fps: 0.96, cols: 1 }, // 
   firefighter_walk: { href: "/models/firefighter_walk.png", w: 1.108, h: 0.788, frames: 20, fps: 19.2, cols: 20 }, // 
-  hems_doctor: { href: "/models/hems_doctor.png", w: 0.673, h: 1.357 }, // A HEMS doctor (Meshy) standing with the medical backpack on, arms a little out: faces +x, the pack behind.
+  hems_doctor: { href: "/models/hems_doctor.png", w: 0.703, h: 1.357 }, // A HEMS doctor (Meshy) standing with the medical backpack on, arms a little out: faces +x, the pack behind.
   spreaders: { href: "/models/spreaders.png", w: 1.009, h: 0.393 }, // 
 } satisfies Record<string, ModelSprite>;
 
