@@ -20,6 +20,8 @@ export const records55: RecordSet = {
     {
       id: "p55-passenger-none",
       name: "PATEL, Nisha",
+      sex: "F",
+      ethnicity: "N",
       roles: ["witness"],
       scenarioId: "55",
       notes: [

@@ -19,6 +19,7 @@ export const records42: RecordSet = {
       id: "p42-holt",
       name: "HOLT, Daniel",
       sex: "M",
+      ethnicity: "W",
       age: 31,
       roles: ["witness"],
       notes: [
@@ -32,6 +33,7 @@ export const records42: RecordSet = {
       id: "p42-keeper-whitworth",
       name: "WHITWORTH, Carol",
       sex: "F",
+      ethnicity: "W",
       age: 58,
       address: "14 Lynmouth Avenue, Reddish, Stockport",
       postcode: "SK5 7AL",
@@ -48,6 +50,7 @@ export const records42: RecordSet = {
       id: "p42-driver-rourke",
       name: "ROURKE, Kieran",
       sex: "M",
+      ethnicity: "W",
       age: 23,
       address: "Abbey Hey Lane, Gorton, Manchester",
       postcode: "M18 8SA",
