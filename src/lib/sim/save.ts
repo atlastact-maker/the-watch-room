@@ -92,6 +92,8 @@ export type ShiftSave = {
   absentCasualtyIds?: string[];
   /** Services the operator covers this shift. Optional for old saves. */
   coveredServices?: import("./types").ServiceCode[];
+  /** The lines the desk takes this shift. Optional for old saves — 999. */
+  callChannels?: import("./incident_types").CallChannel[];
   newlyFoundCasualties: string[];
   newlyConfirmedHazards: string[];
   lastFireStage: string;

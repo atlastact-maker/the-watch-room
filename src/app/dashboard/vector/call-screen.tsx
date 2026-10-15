@@ -24,7 +24,8 @@ import type { ServiceCode } from "@/lib/sim/types";
 import { labelForType } from "@/lib/sim/pda";
 import { OPENING_CODES, OPENING_SCHEME, openingCodeFits, openingCodeLabel, quickPickOpeningCodes } from "@/lib/sim/opening_codes";
 import { scenarioServices } from "@/lib/sim/coverage";
-import { CALL_QUESTIONS, GRADE_LABELS, adviceAckFor, deflectionFor, keyQuestionsFor, preArrivalFor, reassuranceFor, type CallAnswer, type CallEffect, type CallerState, type PreArrivalStep } from "@/lib/sim/call_script";
+import { GRADE_LABELS, adviceAckFor, deflectionFor, keyQuestionsFor, preArrivalFor, questionBankFor, reassuranceFor, type CallAnswer, type CallEffect, type CallerState, type PreArrivalStep } from "@/lib/sim/call_script";
+import { CHANNEL_LABEL, DESK_OUTCOME_LABEL, channelOf, deskOutcomesFor, type DeskOutcome } from "@/lib/sim/incident_types";
 import type { PendingCall } from "../components/call-stack";
 import type { CallMapUnit } from "./call-location-map";
 import { SERVICE_SHORT, gradeMeaning, gradeShort, hhmmss, impliedGrade, mmss, scenarioService, shortAddress } from "./model";
@@ -87,7 +88,7 @@ export function CallScreen({
   /** Put the phone down on a job already sent, and go to Mobilising. */
   onFinish: (call: PendingCall, summary: CallSummary) => void;
   /** Put the phone down with nobody sent. */
-  onEndCall: (call: PendingCall, closedAtDesk: boolean) => void;
+  onEndCall: (call: PendingCall, closedAtDesk: boolean, outcome?: DeskOutcome) => void;
   /** A line for the shift log. */
   onNote: (text: string) => void;
   covered: ServiceCode[];
@@ -98,13 +99,29 @@ export function CallScreen({
   const s = call.scenario;
   const service = scenarioService(s);
   const script = s.call;
-  const bank = CALL_QUESTIONS[service];
+  // The line the call came in on sets the bank the handler works through
+  // and how the call opens: the BT handover on 999, the health adviser's
+  // opening on 111, the contact handler's on 101, control's own on a
+  // call from the community.
+  const channel = channelOf(s);
+  const bank = questionBankFor(service, channel);
   const [asked, setAsked] = useState<Record<string, string>>({});
   const [lines, setLines] = useState<Line[]>(() => [
-    { at: answeredAt, who: "BT", text: `999 operator — connecting you to ${service.toLowerCase()}.` },
-    { at: answeredAt, who: "OP", text: `${service === "Fire" ? "Fire service" : service === "Ambulance" ? "Ambulance service" : "Police"}, what is the address of the emergency?` },
+    ...(channel === "999"
+      ? [
+          { at: answeredAt, who: "BT" as const, text: `999 operator — connecting you to ${service.toLowerCase()}.` },
+          { at: answeredAt, who: "OP" as const, text: `${service === "Fire" ? "Fire service" : service === "Ambulance" ? "Ambulance service" : "Police"}, what is the address of the emergency?` },
+        ]
+      : channel === "111"
+        ? [{ at: answeredAt, who: "OP" as const, text: "NHS 111, you're through to a health adviser. What's the reason for your call today?" }]
+        : channel === "101"
+          ? [{ at: answeredAt, who: "OP" as const, text: "Greater Manchester Police, 101. How can I help?" }]
+          : [{ at: answeredAt, who: "OP" as const, text: `${service === "Fire" ? "Fire control" : service === "Ambulance" ? "Ambulance control" : "Police control"}, go ahead.` }]),
     { at: answeredAt, who: "CALR", text: script?.openingByVariant?.[call.variantId ?? "base"] ?? script?.opening ?? s.trigger, tone: script?.caller.state === "panicking" ? "urgent" : undefined },
   ]);
+  // How the call closes at the desk when nobody is sent, picked before the
+  // phone goes down.
+  const [outcome, setOutcome] = useState<DeskOutcome | "">("");
   const [confirmed, setConfirmed] = useState(false);
   const [access, setAccess] = useState("");
   const [type, setType] = useState<string | null>(null);
@@ -163,7 +180,7 @@ export function CallScreen({
     return out;
   }, [bank, script, s, asked, call.variantId]);
   const groups = Array.from(new Set(bank.map((q) => q.group)));
-  const keyIds = script?.keyQuestions ?? keyQuestionsFor(service);
+  const keyIds = script?.keyQuestions ?? keyQuestionsFor(service, channel);
   const askedCount = Object.keys(asked).length;
   const keyAsked = keyIds.filter((id) => asked[id]).length;
   const detailsAsked = !!asked[`${service === "Fire" ? "f" : service === "Ambulance" ? "a" : "p"}_details`];
@@ -302,7 +319,7 @@ export function CallScreen({
       <div className="vec-screen-head">
         <h1>
           <span className="dot" />
-          999 CALL IN PROGRESS — {service.toUpperCase()}
+          {CHANNEL_LABEL[channel].toUpperCase()} CALL IN PROGRESS — {service.toUpperCase()}
         </h1>
         <span className="mono">ACTIVE CALL · {call.id.slice(-6).toUpperCase()}</span>
         {opened && <span className="mono go">SENT · CALLER ON THE LINE</span>}
@@ -320,7 +337,7 @@ export function CallScreen({
       <div className="vec-grid call">
         <div className="vec-call-summary">
           <div>
-            <div className="vec-k">Caller · BT 999 handover</div>
+            <div className="vec-k">Caller · {channel === "999" ? "BT 999 handover" : channel === "111" ? "NHS 111 line" : channel === "101" ? "101 switchboard" : "direct line"}</div>
             <div className="vec-v">
               {callerName ?? (script ? "Name not yet taken" : "Member of the public")}
               {script && <span className={`vec-caller-state ${STATE_TONE[callerState]}`}>{STATE_LABEL[callerState]}</span>}
@@ -683,9 +700,9 @@ export function CallScreen({
                 <button
                   type="button"
                   className="vec-create"
-                  disabled={outstanding > 0 || notCovered.length > 0 || !!s.disposal}
+                  disabled={outstanding > 0 || notCovered.length > 0 || (!!s.disposal && !suggested)}
                   onClick={send}
-                  title={s.disposal ? "This call closes at the desk" : "Open the job now and keep the caller on the line"}
+                  title={s.disposal && !suggested ? "This call closes at the desk — unless the caller gives you a reason to send" : "Open the job now and keep the caller on the line"}
                 >
                   Send and stay on the line
                 </button>
@@ -699,16 +716,31 @@ export function CallScreen({
                   >
                     Create incident &amp; mobilise
                   </button>
+                  {s.disposal ? (
+                    <select
+                      className="vec-btn"
+                      value={outcome}
+                      onChange={(e) => setOutcome(e.target.value as DeskOutcome | "")}
+                      title="How this closes at the desk"
+                      aria-label="Desk outcome"
+                    >
+                      <option value="">Close as…</option>
+                      {deskOutcomesFor(channel, service).map((o) => (
+                        <option key={o} value={o}>{DESK_OUTCOME_LABEL[o]}</option>
+                      ))}
+                    </select>
+                  ) : null}
                   <button
                     type="button"
                     className="vec-btn"
+                    disabled={!!s.disposal && !outcome}
                     onClick={() => {
                       setEnded(true);
-                      onEndCall(call, !!s.disposal);
+                      onEndCall(call, !!s.disposal, outcome || undefined);
                     }}
-                    title={s.disposal ? "Close at the desk — advice given, nobody sent" : "Put the phone down with nobody sent"}
+                    title={s.disposal ? "Close at the desk with that outcome — nobody sent" : "Put the phone down with nobody sent"}
                   >
-                    {s.disposal ? "Close at desk · advice given" : "End call · nobody sent"}
+                    {s.disposal ? "Close at desk" : "End call · nobody sent"}
                   </button>
                 </div>
                 <div className="vec-small" style={{ padding: "0 10px 8px" }}>

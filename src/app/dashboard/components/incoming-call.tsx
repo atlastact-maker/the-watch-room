@@ -6,7 +6,7 @@
 // red phone declines and the scenario is dropped.
 
 import { useEffect, useState } from "react";
-import type { Scenario } from "@/lib/sim/incident_types";
+import { CHANNEL_LABEL, channelOf, type Scenario } from "@/lib/sim/incident_types";
 
 export function IncomingCallModal({
   scenario,
@@ -61,7 +61,7 @@ export function IncomingCallModal({
           <div className="flex items-center gap-3">
             <span className="dot-live size-2 rounded-full bg-(--color-critical)" />
             <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
-              Incoming 999 call
+              Incoming {CHANNEL_LABEL[channelOf(scenario)]} call
             </span>
           </div>
           <span className="font-mono text-[11px] tabular-nums text-(--color-text-muted)">

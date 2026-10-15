@@ -63,7 +63,16 @@ export type IncidentTypeCode =
   | "police_mental_health_rcrp"
   | "police_abandoned_999"
   | "police_asb_youths"
-  | "police_vehicle_stop_no_insurance";
+  | "police_vehicle_stop_no_insurance"
+  // The lines other than 999 — see CallChannel. Most of what comes in
+  // on them closes at the desk; the skill is spotting the one that is
+  // an emergency after all.
+  | "ambulance_111_sick_child"
+  | "ambulance_fall_no_injury"
+  | "police_criminal_damage_report"
+  | "police_vehicle_interference"
+  | "ambulance_111_chest_pain"
+  | "police_welfare_partner_referral";
 
 export type Severity = "low" | "moderate" | "high" | "major";
 
@@ -342,6 +351,8 @@ export type Scenario = {
   /** How the call was graded at the point of answer, on the service's
    *  own scale — never one shared scale across three services. */
   callGrade?: CallGrade;
+  /** The line the call comes in on — 999 unless said otherwise. */
+  channel?: CallChannel;
   /** The 999 call as the caller has it — who is ringing, their opening
    *  words, what they answer, what they blurt out. See call_script.ts.
    *  A job without one still takes a call from its own fields. */
@@ -362,7 +373,7 @@ export type Scenario = {
  *  with loadScenario(id). */
 export type ScenarioMeta = Pick<
   Scenario,
-  "id" | "slug" | "title" | "type" | "patch" | "severity" | "trigger" | "location" | "pda"
+  "id" | "slug" | "title" | "type" | "patch" | "severity" | "trigger" | "location" | "pda" | "channel"
 > & {
   property: Pick<Scenario["property"], "class" | "firstDueStationId" | "knownHazards" | "vulnerabilities">;
   pri: Pick<Scenario["pri"], "items">;
@@ -401,7 +412,83 @@ export type CallGrade =
  *  abandoned 999 with a clean call-back is closed at the desk. In GMP's
  *  ladder this is Grade C, Central Resolution — advise and close. GMP
  *  went live with RCRP on 30 September 2024. */
-export type Disposal = { noDeployment: true; basis: string };
+export type Disposal = {
+  noDeployment: true;
+  basis: string;
+  /** The right way to close it at the desk, when the desk is asked to
+   *  say how — see DeskOutcome. Absent, any closure is the right one. */
+  outcome?: DeskOutcome;
+  /** Runs (variant ids) in which the closure is the mistake after all —
+   *  the night the feverish child has the rash, the fall that turns out
+   *  to be a two-hour lie. In those runs the call deploys like any other
+   *  and closing it at the desk is scored as the setback. */
+  unlessVariantIds?: string[];
+};
+
+/** The disposal that applies to this run of the scenario: the authored
+ *  one, unless tonight's variant is one it does not hold for. */
+export function deskDisposalFor(s: Pick<Scenario, "disposal">, variantId?: string): Disposal | undefined {
+  const d = s.disposal;
+  if (!d) return undefined;
+  if (variantId && d.unlessVariantIds?.includes(variantId)) return undefined;
+  return d;
+}
+
+/** The line a call comes in on. 999 is the emergency line. 111 is NHS
+ *  111, the health line the ambulance service answers across the North
+ *  West, where the work is sorting the few emergencies from the many
+ *  calls that are not. 101 is the police non-emergency line, where a
+ *  crime is recorded and graded and most callers never see a car.
+ *  "community" is everything that reaches the desk another way — a care
+ *  home, a housing officer, a school, a responder on the radio. A
+ *  scenario without a channel is a 999 call. */
+export type CallChannel = "999" | "111" | "101" | "community";
+export const CALL_CHANNELS: readonly CallChannel[] = ["999", "111", "101", "community"];
+export function channelOf(s: { channel?: CallChannel }): CallChannel {
+  return s.channel ?? "999";
+}
+/** How the line reads on the desk. */
+export const CHANNEL_LABEL: Record<CallChannel, string> = { "999": "999", "111": "NHS 111", "101": "101", community: "Community" };
+
+/** How a call closes at the desk with nobody sent: what the caller is
+ *  told to do, or what the desk does with the report. */
+export type DeskOutcome =
+  | "self_care"
+  | "pharmacy"
+  | "gp_in_hours"
+  | "gp_out_of_hours"
+  | "utc"
+  | "ed_own_transport"
+  | "crisis_team"
+  | "falls_team"
+  | "community_responder"
+  | "crime_recorded"
+  | "appointment"
+  | "referred_partner"
+  | "advice_given";
+export const DESK_OUTCOME_LABEL: Record<DeskOutcome, string> = {
+  self_care: "Self-care advice",
+  pharmacy: "Pharmacy",
+  gp_in_hours: "GP in hours",
+  gp_out_of_hours: "GP out of hours",
+  utc: "Urgent treatment centre",
+  ed_own_transport: "A&E by own transport",
+  crisis_team: "Mental health crisis team",
+  falls_team: "Falls response — lifting service",
+  community_responder: "Community first responder",
+  crime_recorded: "Crime recorded, no attendance",
+  appointment: "Scheduled appointment",
+  referred_partner: "Referred to partner agency",
+  advice_given: "Advice given, closed",
+};
+/** The outcomes a desk can close a call with, by the line it came in on. */
+export function deskOutcomesFor(channel: CallChannel, service: ServiceCode): DeskOutcome[] {
+  if (channel === "111" || (channel === "community" && service === "Ambulance")) {
+    return ["self_care", "pharmacy", "gp_in_hours", "gp_out_of_hours", "utc", "ed_own_transport", "crisis_team", "falls_team", "community_responder", "advice_given"];
+  }
+  if (channel === "101" || service === "Police") return ["crime_recorded", "appointment", "referred_partner", "crisis_team", "advice_given"];
+  return ["advice_given", "referred_partner"];
+}
 
 // ---------------------------------------------------------------------------
 // Patient treatment — per-casualty clinical state, driven by the Treatment

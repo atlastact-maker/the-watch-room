@@ -59,7 +59,7 @@ function readScenarios() {
 /** The ScenarioMeta projection of one scenario. Keep in step with the
  *  ScenarioMeta type in src/lib/sim/incident_types.ts. */
 function projectMeta(sc) {
-  return {
+  const meta = {
     id: sc.id,
     slug: sc.slug,
     title: sc.title,
@@ -92,6 +92,8 @@ function projectMeta(sc) {
       return out;
     }),
   };
+  if (sc.channel !== undefined) meta.channel = sc.channel;
+  return meta;
 }
 
 /** The full text of meta.ts for the modules as they stand. */

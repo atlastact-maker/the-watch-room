@@ -4264,5 +4264,315 @@ export const SCENARIO_META: ScenarioMeta[] = [
         "notes": "Double crew in the van. Takes the arrested male to custody once the car crew have him cuffed and searched"
       }
     ]
+  },
+  {
+    "id": "56",
+    "slug": "56_chest_pain_111_sale",
+    "title": "Chest pain on 111 — male 61, Sale",
+    "type": "ambulance_111_chest_pain",
+    "patch": "Southern",
+    "severity": "high",
+    "trigger": "NHS 111 — male 61, 'indigestion' for 45 minutes that has not shifted, sweating, feels sick. Type 2 diabetic. Ringing for himself, sat in his front room. Conscious, breathing, talking in full sentences",
+    "location": {
+      "address": "66 Harboro Road, Sale",
+      "postcode": "M33 5AH",
+      "coords": {
+        "lat": 53.4186,
+        "lng": -2.3345
+      }
+    },
+    "property": {
+      "class": "Semi-detached house — two storey",
+      "firstDueStationId": "A-SAL",
+      "knownHazards": [
+        "None on scene"
+      ],
+      "vulnerabilities": [
+        "Type 2 diabetic on metformin — the pain may be duller than the damage",
+        "Minimising: has already decided it is indigestion and will take any reason to ring off"
+      ]
+    },
+    "pri": {
+      "items": [
+        "No PRI — private dwelling.",
+        "NHS Pathways: chest pain or tightness in an adult, present now, is an ambulance disposition whatever line it arrived on. A 111 health adviser who reaches it passes the call to the ambulance service and the category goes with it.",
+        "Diabetics and the elderly present atypically — less pain, more sweat and nausea. 'Indigestion that will not shift' in a sweating diabetic is cardiac until an ECG says otherwise.",
+        "Two things before the crew arrive: 300 mg aspirin chewed if he has it and is not allergic, and the front door unlocked."
+      ]
+    },
+    "pda": [
+      {
+        "id": "dca1",
+        "label": "Ambulance",
+        "service": "Ambulance",
+        "requiredApplianceTypes": [
+          "DCA"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "A-SAL",
+        "notes": "Category 2 — a double-crewed ambulance, because he is going to hospital and a car cannot take him. The nearest DCA, not the nearest RRV"
+      }
+    ],
+    "channel": "111"
+  },
+  {
+    "id": "57",
+    "slug": "57_sick_child_111_heaton_moor",
+    "title": "Feverish child on 111 — female 3, Heaton Moor",
+    "type": "ambulance_111_sick_child",
+    "patch": "Southern",
+    "severity": "low",
+    "trigger": "NHS 111 — female, 3, temperature 38.6 since last night, runny nose and a cough. Alert, drinking, playing on the sofa between grizzles. No rash, breathing normally. Mother ringing; could not get through to the GP",
+    "location": {
+      "address": "14 Shaw Road, Heaton Moor, Stockport",
+      "postcode": "SK4 4AG",
+      "coords": {
+        "lat": 53.4228,
+        "lng": -2.186
+      }
+    },
+    "property": {
+      "class": "Terraced house — two storey",
+      "firstDueStationId": "A-STK",
+      "knownHazards": [
+        "None"
+      ],
+      "vulnerabilities": [
+        "Child aged three — the age where parents are right to worry and usually wrong to panic",
+        "First-time parent who has read about sepsis online and is frightened of missing it"
+      ]
+    },
+    "pri": {
+      "items": [
+        "No PRI — private dwelling.",
+        "NHS Pathways: a feverish child over three months who is alert, drinking, passing urine, breathing without effort and has no rash reaches a primary-care disposition — seen by a GP today — with fever advice and safety-netting. It is not an ambulance category.",
+        "The safety net is the disposal. Tell the parent exactly what to ring 999 for: a rash that does not fade under a glass, breathing that is fast, noisy or hard work, floppy or difficult to wake, not drinking, no wet nappy in twelve hours, a fit.",
+        "Paracetamol and ibuprofen can be given to a child over three months; not both at once unless one has failed. Keep her drinking. Do not cool her with a wet flannel or strip her off."
+      ]
+    },
+    "pda": [
+      {
+        "id": "dca1",
+        "label": "Ambulance (held, not sent)",
+        "service": "Ambulance",
+        "requiredApplianceTypes": [
+          "DCA"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "A-STK",
+        "notes": "Not for this call. Held for the one run in ten where the picture changes — a non-blanching rash, floppy, fast or noisy breathing, hard to wake. Then it is a Category 1 and this goes; until then a well febrile three-year-old does not need a crew"
+      }
+    ],
+    "channel": "111"
+  },
+  {
+    "id": "58",
+    "slug": "58_criminal_damage_101_bramhall",
+    "title": "Criminal damage report on 101 — Ladythorn Road, Bramhall",
+    "type": "police_criminal_damage_report",
+    "patch": "Southern",
+    "severity": "low",
+    "trigger": "101 — criminal damage overnight to a car on a driveway, Ladythorn Road, Bramhall: wing mirror smashed and a scratch keyed along the side; the neighbour's fence panel kicked through. Found at 8 am. Nobody seen; doorbell camera has a hooded figure at 02:14. Caller wants a crime number for the insurance",
+    "location": {
+      "address": "27 Ladythorn Road, Bramhall, Stockport",
+      "postcode": "SK7 2HA",
+      "coords": {
+        "lat": 53.3623,
+        "lng": -2.1572
+      }
+    },
+    "property": {
+      "class": "Detached house with a driveway — residential road",
+      "firstDueStationId": "MP-STK",
+      "knownHazards": [
+        "None"
+      ],
+      "vulnerabilities": [
+        "None — nobody hurt, nobody threatened, no repeat-victim markers on the address"
+      ]
+    },
+    "pri": {
+      "items": [
+        "No PRI — private dwelling.",
+        "Nothing on the address. One other criminal damage report on Ladythorn Road this year — a wing mirror, March, undetected.",
+        "GMP Central Resolution: a crime with no suspect present, no ongoing risk and no vulnerability is recorded, given a crime reference and investigated from the desk — footage requested, lines of enquiry logged — without an officer attending. The caller is told what happens next and when he will hear.",
+        "Doorbell footage is the only evidence here. Secure it on the call: ask him to keep it, not to share it on social media, and tell him how it reaches the investigator."
+      ]
+    },
+    "pda": [
+      {
+        "id": "police1",
+        "label": "Police — response (held, not sent)",
+        "service": "Police",
+        "requiredApplianceTypes": [
+          "Police_Response"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "MP-STK",
+        "notes": "Not for this report. Held only for the picture changing — the offender back on the road and in view, or a neighbour reporting someone in a car now. Then it is an in-progress crime and a car goes; a wing mirror found at breakfast does not"
+      }
+    ],
+    "channel": "101"
+  },
+  {
+    "id": "59",
+    "slug": "59_vehicle_interference_101_denton",
+    "title": "Vehicle interference in progress on 101 — Egerton Street, Denton",
+    "type": "police_vehicle_interference",
+    "patch": "Eastern",
+    "severity": "moderate",
+    "trigger": "101 — caller watching a male in a dark hooded top trying car door handles along Egerton Street, Denton, at ten to midnight. He has just got into a grey Vauxhall Astra two doors down. Still there as the call is answered. Caller 'didn't want to bother 999'",
+    "location": {
+      "address": "Egerton Street, Denton",
+      "postcode": "M34 3PH",
+      "coords": {
+        "lat": 53.4545,
+        "lng": -2.114
+      }
+    },
+    "property": {
+      "class": "Terraced street — on-street parking both sides",
+      "firstDueStationId": "MP-TAM",
+      "knownHazards": [
+        "Unknown male — nothing seen in his hands"
+      ],
+      "vulnerabilities": [
+        "None at risk — the caller is indoors and the offender has not seen her"
+      ]
+    },
+    "pri": {
+      "items": [
+        "No PRI — residential street.",
+        "Theft from motor vehicle series on the Denton West beat since September: nine offences, satnavs, bags and cash from unlocked or forced cars between midnight and four, one suspect description — slim male, dark hooded top, on foot. Nobody arrested.",
+        "A 101 call about a crime happening now is a 999 call on the wrong line. The grade follows the answer to 'is he still there' — present and in progress is Grade 1 Immediate, whichever number rang.",
+        "Approach: two cars, one from each end of the street, no lights or sirens on the approach — he hears a siren and he is through the ginnel to Stockport Road before anybody is out of a car."
+      ]
+    },
+    "pda": [
+      {
+        "id": "police1",
+        "label": "Police — first car, Stockport Road end",
+        "service": "Police",
+        "requiredApplianceTypes": [
+          "Police_Response"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "MP-TAM",
+        "notes": "First car — in from the Stockport Road end, no lights or sirens on the approach. He is in a car with the interior light on and his back to the road: a quiet arrival takes him in it"
+      },
+      {
+        "id": "police2",
+        "label": "Police — second car, Hyde Road end",
+        "service": "Police",
+        "requiredApplianceTypes": [
+          "Police_Response"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "MP-TAM",
+        "notes": "Second car — the Hyde Road end. He runs from the first car; the second one is where he runs to. A single car is a foot chase through the ginnels"
+      }
+    ],
+    "channel": "101"
+  },
+  {
+    "id": "60",
+    "slug": "60_care_home_fall_flixton",
+    "title": "Care home fall, no injury — female 88, Flixton",
+    "type": "ambulance_fall_no_injury",
+    "patch": "Southern",
+    "severity": "low",
+    "trigger": "Care home — resident, female 88, found on her bedroom floor beside the bed at 06:10. Alert and talking, no pain, no injury seen, did not hit her head. Cannot get herself up; staff not able to lift her. On the floor about ten minutes. Senior carer ringing",
+    "location": {
+      "address": "Woodsend Lodge care home, Woodsend Road, Flixton, Urmston",
+      "postcode": "M41 8QL",
+      "coords": {
+        "lat": 53.442,
+        "lng": -2.388
+      }
+    },
+    "property": {
+      "class": "Residential care home — 38 beds, two storey, purpose-built",
+      "firstDueStationId": "A-URM",
+      "knownHazards": [
+        "None"
+      ],
+      "vulnerabilities": [
+        "Resident is 88 with osteoporosis and mild dementia — a fall with no injury found is still a fall in a frail patient",
+        "Staff are not trained or equipped to lift from the floor — the home has a hoist but she is not assessed for it, and no lifting cushion"
+      ]
+    },
+    "pri": {
+      "items": [
+        "No PRI — care home, registered with CQC. Fire plan held by the home.",
+        "NWAS falls pathway: a non-injured faller who is alert, has no pain, did not strike their head and has been down under an hour goes to the Urgent Community Response falls service — a two-hour lifting response with a clinical check — rather than an emergency ambulance. The ambulance is for injury, a long lie, or a change in the patient.",
+        "Long lie: more than an hour on a hard floor at 88 is rhabdomyolysis, pressure damage and hypothermia. Confirm when she was last seen up, not when she was found.",
+        "Care homes cannot lift a resident from the floor without equipment and an assessment, and should not — that is why the lifting service exists."
+      ]
+    },
+    "pda": [
+      {
+        "id": "dca1",
+        "label": "Ambulance (held, not sent)",
+        "service": "Ambulance",
+        "requiredApplianceTypes": [
+          "DCA"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "A-URM",
+        "notes": "Not for this fall as described. Held for the picture changing — pain in the hip or back, a head strike, a long lie, going cold or drowsy. Then it is a Category 2 and this goes; a non-injured faller with staff beside her goes to the lifting service"
+      }
+    ],
+    "channel": "community"
+  },
+  {
+    "id": "61",
+    "slug": "61_welfare_housing_officer_peel_green",
+    "title": "Concern for welfare, housing officer — Milner Court, Peel Green",
+    "type": "police_welfare_partner_referral",
+    "patch": "Western",
+    "severity": "moderate",
+    "trigger": "Housing officer at the door of Flat 6, Milner Court, Peel Green Road — tenant Ronald Casey, 74, lives alone with COPD, not seen since Thursday. Post piling behind the door, milk on the step, curtains shut, phone to voicemail, no answer to knocking. No key held, no family on file. Community partner call",
+    "location": {
+      "address": "Flat 6, Milner Court, Peel Green Road, Peel Green, Eccles",
+      "postcode": "M30 7HR",
+      "coords": {
+        "lat": 53.479,
+        "lng": -2.362
+      }
+    },
+    "property": {
+      "class": "Low-rise block of six housing-association flats — two storey; Flat 6 ground floor at the east end",
+      "firstDueStationId": "MP-SAL",
+      "knownHazards": [
+        "Home oxygen concentrator and cylinders in the flat — no naked flames on entry",
+        "Possible sudden death inside — a scene to be preserved as well as a man to be found"
+      ],
+      "vulnerabilities": [
+        "74, COPD on home oxygen, lives alone — a man who could be on the floor behind the door",
+        "No next of kin on file; the housing association is the only agency in contact"
+      ]
+    },
+    "pri": {
+      "items": [
+        "No PRI — residential flats. The housing association's tenancy file: Ronald CASEY, 74, sole tenant since 2011, COPD, home oxygen, mobility scooter, no next of kin recorded, last contact a repairs visit in August.",
+        "Right Care Right Person (GMP, from 30 September 2024): a concern for welfare is police business where there is a real and immediate risk to life or of serious harm, and where no other agency can reasonably act. A vulnerable man unseen for five days behind a locked door nobody else can open is that — Grade 2 on what is known, Grade 1 the moment there is a sign of life or of distress inside.",
+        "Power of entry: PACE s.17(1)(e) — saving life or limb. The car carries the enforcer; GMFRS for the door is a request if the uPVC beats it.",
+        "If he is dead, it is a sudden death behind a locked door — the police car's job for the rest of the shift, the coroner's officer informed, the flat preserved."
+      ]
+    },
+    "pda": [
+      {
+        "id": "police1",
+        "label": "Police — response",
+        "service": "Police",
+        "requiredApplianceTypes": [
+          "Police_Response"
+        ],
+        "requiredCapabilities": [],
+        "preferredStationId": "MP-SAL",
+        "notes": "One car — a welfare check is one car, and this one puts a door in: PACE s.17 to save life, the enforcer from the boot, GMFRS asked for the door if the uPVC beats it. An ambulance is a request the moment there is a sound from inside, not a slot. If he is dead this crew is there for the rest of the shift"
+      }
+    ],
+    "channel": "community"
   }
 ];

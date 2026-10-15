@@ -10,6 +10,7 @@ import {
   scenarioCovered,
   scenarioServices,
 } from "@/lib/sim/coverage";
+import { CALL_CHANNELS, CHANNEL_LABEL, type CallChannel } from "@/lib/sim/incident_types";
 import { INTENSITY_META, type ShiftIntensity } from "@/lib/sim/shift";
 import { timeBandForHour } from "@/lib/sim/weather";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
@@ -35,6 +36,7 @@ type Props = {
     intensity: ShiftIntensity,
     startHour: number,
     coveredServices: ServiceCode[],
+    callChannels: CallChannel[],
   ) => void;
 };
 
@@ -104,6 +106,17 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
   // are available — a job is locked unless every service its PDA calls
   // for is covered.
   const [covered, setCovered] = useState<ServiceCode[]>([...ALL_SERVICES]);
+  // The lines the desk takes: 999 always; NHS 111 needs the ambulance
+  // desk, 101 the police desk, and the community line comes to whoever
+  // is on.
+  const [channels, setChannels] = useState<CallChannel[]>(["999"]);
+  const channelNeeds = (c: CallChannel): ServiceCode | null => (c === "111" ? "Ambulance" : c === "101" ? "Police" : null);
+  const channelAllowed = (c: CallChannel) => { const n = channelNeeds(c); return !n || covered.includes(n); };
+  const effectiveChannels = channels.filter(channelAllowed);
+  function toggleChannel(c: CallChannel) {
+    if (c === "999") return;
+    setChannels((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : CALL_CHANNELS.filter((x) => prev.includes(x) || x === c)));
+  }
 
   function toggleService(svc: ServiceCode) {
     setCovered((prev) =>
@@ -287,6 +300,48 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
           </section>
 
           <section className="flex-none rounded-sm border border-(--color-border) bg-(--color-surface) p-3">
+            <div className="mb-2 flex items-baseline justify-between">
+              <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
+                Calls taken
+              </p>
+              <span className="font-mono text-xs uppercase tracking-widest text-(--color-text-dim)">
+                {effectiveChannels.length} of 4
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {CALL_CHANNELS.map((c) => {
+                const on = effectiveChannels.includes(c);
+                const locked = c === "999";
+                const allowed = channelAllowed(c);
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => toggleChannel(c)}
+                    disabled={locked || !allowed}
+                    title={locked ? "The emergency line is always taken" : !allowed ? `Needs the ${channelNeeds(c)} desk covered` : undefined}
+                    className={
+                      "rounded-sm border px-2 py-2 font-mono text-[11px] uppercase tracking-widest transition-colors disabled:cursor-default " +
+                      (on
+                        ? "border-(--color-amber) bg-(--color-amber)/10 text-(--color-text)"
+                        : "border-(--color-border) text-(--color-text-dim) opacity-60 hover:opacity-100 disabled:opacity-40")
+                    }
+                  >
+                    {CHANNEL_LABEL[c]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 font-mono text-[11px] leading-snug text-(--color-text-dim)">
+              999 always rings. Add NHS 111 for the health calls the ambulance
+              desk sorts, 101 for the police reports that mostly never see a car,
+              and the community line for care homes, housing officers and
+              responders. Most close at the desk — the skill is the one that
+              is an emergency after all.
+            </p>
+          </section>
+
+          <section className="flex-none rounded-sm border border-(--color-border) bg-(--color-surface) p-3">
             <p className="font-mono text-xs uppercase tracking-widest text-(--color-amber-dim)">
               Shift intensity
             </p>
@@ -353,7 +408,7 @@ export function PatchPicker({ stationsByArea, onSelect }: Props) {
 
           <button
             type="button"
-            onClick={() => onSelect(patch, intensity, startHour, covered)}
+            onClick={() => onSelect(patch, intensity, startHour, covered, effectiveChannels)}
             className="mt-1 inline-flex h-14 w-full shrink-0 items-center justify-center rounded-sm bg-(--color-amber) font-mono text-base font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
           >
             Begin Shift · {String(startHour).padStart(2, "0")}:00 →

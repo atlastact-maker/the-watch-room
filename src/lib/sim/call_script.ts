@@ -10,7 +10,7 @@
 // a script does not answer falls back to the scenario's own fields, so a
 // job with no script still takes a call.
 
-import type { IncidentTypeCode, Scenario } from "./incident_types";
+import { channelOf, type CallChannel, type IncidentTypeCode, type Scenario } from "./incident_types";
 import { BASE_VARIANT } from "./scene";
 import type { ServiceCode } from "./types";
 
@@ -186,9 +186,59 @@ export const CALL_QUESTIONS: Record<ServiceCode, CallQuestion[]> = {
   ],
 };
 
-/** The bank's key questions for a service. */
-export function keyQuestionsFor(service: ServiceCode): string[] {
-  return CALL_QUESTIONS[service].filter((q) => q.key).map((q) => q.id);
+/** NHS 111 as a health adviser takes it: the call opens on the reason
+ *  and whether it is an emergency after all — breathing, chest, stroke,
+ *  bleeding — and works down to what the caller can do for themselves.
+ *  The ids are its own, so a 111 script answers them and nothing else. */
+export const CALL_QUESTIONS_111: CallQuestion[] = [
+  { id: "h_reason", group: "REASON FOR CALL", text: "What is the reason for your call today?", key: true, fallback: (s) => s.trigger },
+  { id: "h_who", group: "PATIENT", text: "Is the call about yourself or someone else, and how old are they?", key: true, fallback: (s) => s.property.occupants || notKnown },
+  { id: "h_breathing", group: "EMERGENCY CHECK", text: "Are they breathing normally — any difficulty, any noise, can they finish a sentence?", key: true, fallback: (s) => s.methane.T || "Yes, breathing's fine." },
+  { id: "h_chest", group: "EMERGENCY CHECK", text: "Any chest pain or tightness — and does it spread to the arm, jaw or back?", fallback: () => "No, nothing like that." },
+  { id: "h_stroke", group: "EMERGENCY CHECK", text: "Any weakness down one side, a drooped face, or trouble getting words out?", fallback: () => "No. They're talking fine." },
+  { id: "h_bleeding", group: "EMERGENCY CHECK", text: "Any bleeding that won't stop, or a rash that doesn't fade when you press a glass on it?", fallback: () => "No bleeding. No rash." },
+  { id: "h_onset", group: "SYMPTOMS", text: "When did it start, and is it getting better, worse or staying the same?", fallback: () => "This morning. About the same." },
+  { id: "h_temp", group: "SYMPTOMS", text: "Have you taken a temperature? Are they drinking, passing water, and alert?", fallback: () => "I've not got a thermometer. They're drinking." },
+  { id: "h_history", group: "PATIENT", text: "Any conditions, medication or allergies I should know about?", key: true, fallback: () => "Nothing. Fit and well, normally." },
+  { id: "h_tried", group: "PATIENT", text: "Have they taken anything for it, and did it help?", fallback: () => "Paracetamol an hour ago. Maybe a bit." },
+  { id: "h_gp", group: "DISPOSITION", text: "Who is their GP, and have you tried the practice?", fallback: () => "They're with the surgery on the high street. I've not rung them." },
+  { id: "h_able", group: "DISPOSITION", text: "Could they get to a pharmacy, their GP or an urgent treatment centre themselves, with someone to take them?", fallback: () => "Yes, I can drive." },
+  { id: "h_worsen", group: "DISPOSITION", text: "If anything changes — worse pain, worse breathing, a collapse — will you ring 999 straight away?", key: true, fallback: () => "Yes. I will." },
+  { id: "h_details", group: "CALLER", text: "Can I take your name, the number you are calling from, and the patient's date of birth?", fallback: () => "I'd rather not give my name. This is my own phone." },
+];
+
+/** 101 as a police contact handler takes it: what is being reported and
+ *  whether it is still happening, who is at risk, what there is to go
+ *  on, and what the caller wants — then a grade on THRIVE, which for
+ *  most of these is a crime number and no car. */
+export const CALL_QUESTIONS_101: CallQuestion[] = [
+  { id: "n_report", group: "REPORT", text: "What are you reporting?", key: true, fallback: (s) => s.trigger },
+  { id: "n_when", group: "REPORT", text: "When did this happen — is it happening now?", key: true, fallback: (s) => s.methane.E || notKnown },
+  { id: "n_where", group: "REPORT", text: "Where exactly — the address, or a junction or landmark?", key: true, fallback: addressOf },
+  { id: "n_suspect", group: "RISK", text: "Is the person responsible still there, or do you know who it is?", key: true, fallback: () => "No. Long gone." },
+  { id: "n_risk", group: "RISK", text: "Is anyone in danger, hurt, or being threatened?", fallback: (s) => s.methane.N || "No, nobody's hurt." },
+  { id: "n_vulnerable", group: "RISK", text: "Is anyone involved vulnerable — a child, someone elderly, anyone at risk from this?", fallback: (s) => s.property.vulnerabilities.length ? s.property.vulnerabilities.join(" ") : "Not that I know of." },
+  { id: "n_loss", group: "REPORT", text: "What damage or loss is there?", fallback: (s) => s.methane.H || notKnown },
+  { id: "n_evidence", group: "EVIDENCE", text: "Is there any CCTV, a doorbell camera, or anyone who saw it?", fallback: () => "No cameras. Nobody saw it." },
+  { id: "n_previous", group: "EVIDENCE", text: "Has anything like this happened before, or been reported before?", fallback: () => "First time." },
+  { id: "n_description", group: "EVIDENCE", text: "Describe them for me — what are they wearing, which way did they go?", fallback: (s) => s.property.occupants || notKnown },
+  { id: "n_wants", group: "DISPOSITION", text: "What would you like to happen — an officer to visit, a crime number for the insurance, or advice?", fallback: () => "I just want it logged, really." },
+  { id: "n_available", group: "DISPOSITION", text: "If an officer does need to see you, when are you about?", fallback: () => "Any evening after six." },
+  { id: "n_details", group: "CALLER", text: "Can I take your name, your address, and a number to reach you on?", fallback: () => "I'd rather not give my name. This is my own phone." },
+];
+
+/** The bank a call works through: the service's own for a 999 call and
+ *  for anything reaching the desk from the community, NHS 111's for a
+ *  111 call, the contact handler's for a 101. */
+export function questionBankFor(service: ServiceCode, channel: CallChannel = "999"): CallQuestion[] {
+  if (channel === "111") return CALL_QUESTIONS_111;
+  if (channel === "101") return CALL_QUESTIONS_101;
+  return CALL_QUESTIONS[service];
+}
+
+/** The bank's key questions for a service, on the line the call came in on. */
+export function keyQuestionsFor(service: ServiceCode, channel: CallChannel = "999"): string[] {
+  return questionBankFor(service, channel).filter((q) => q.key).map((q) => q.id);
 }
 
 /** The grade labels the desk lets a call be moved to, per service. */
@@ -608,7 +658,8 @@ export function validateCallScript(s: Scenario, service: ServiceCode): string[] 
   const c = s.call;
   const out: string[] = [];
   if (!c) return ["no call script"];
-  const bank = CALL_QUESTIONS[service];
+  const channel = channelOf(s);
+  const bank = questionBankFor(service, channel);
   const bankIds = new Set(bank.map((q) => q.id));
   if (!c.opening.trim()) out.push("empty opening");
   if (!c.caller.name.trim()) out.push("no caller name");
@@ -616,7 +667,7 @@ export function validateCallScript(s: Scenario, service: ServiceCode): string[] 
   const answered = Object.keys(c.answers);
   for (const id of answered) if (!bankIds.has(id)) out.push(`answer for unknown question "${id}" (${service} bank)`);
   if (answered.length < 10) out.push(`only ${answered.length} of ${bank.length} questions answered`);
-  const keys = c.keyQuestions ?? keyQuestionsFor(service);
+  const keys = c.keyQuestions ?? keyQuestionsFor(service, channel);
   for (const k of keys) {
     if (!bankIds.has(k)) out.push(`key question "${k}" is not in the ${service} bank`);
     else if (!c.answers[k]) out.push(`key question "${k}" has no answer`);

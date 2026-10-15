@@ -66,6 +66,12 @@ export const SCENARIO_LOADERS: Record<string, () => Promise<Scenario>> = {
   "53": () => import("./53_abandoned_999_wigan").then((m) => m.scenario53),
   "54": () => import("./54_asb_youths_denton").then((m) => m.scenario54),
   "55": () => import("./55_vehicle_stop_sale").then((m) => m.scenario55),
+  "56": () => import("./56_chest_pain_111_sale").then((m) => m.scenario56),
+  "57": () => import("./57_sick_child_111_heaton_moor").then((m) => m.scenario57),
+  "58": () => import("./58_criminal_damage_101_bramhall").then((m) => m.scenario58),
+  "59": () => import("./59_vehicle_interference_101_denton").then((m) => m.scenario59),
+  "60": () => import("./60_care_home_fall_flixton").then((m) => m.scenario60),
+  "61": () => import("./61_welfare_housing_officer_peel_green").then((m) => m.scenario61),
 };
 
 const inflight = new Map<string, Promise<Scenario>>();

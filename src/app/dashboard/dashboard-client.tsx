@@ -74,7 +74,9 @@ import {
 } from "@/lib/sim/types";
 import {
   ALL_SERVICES,
+  CALL_CHANNELS_KEY,
   COVERED_SERVICES_KEY,
+  parseCallChannels,
   parseCoveredServices,
 } from "@/lib/sim/coverage";
 import type {
@@ -97,6 +99,7 @@ import type {
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
 import { EGRESS_SECONDS, MONITORING_LABEL, type MonitoringDevice } from "@/lib/sim/incident_types";
+import { CHANNEL_LABEL, DESK_OUTCOME_LABEL, channelOf, deskDisposalFor, type CallChannel, type DeskOutcome } from "@/lib/sim/incident_types";
 import { EGRESS_LABEL, SCOPE_LABEL } from "./components/treatment-tab";
 import { movingCprFactor, movingRisks } from "@/lib/sim/moving";
 import { rollBasicsResponse, type BasicsResponder } from "@/lib/sim/basics";
@@ -533,6 +536,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   const [coveredServices, setCoveredServices] = useState<ServiceCode[]>([
     ...ALL_SERVICES,
   ]);
+  // The lines the desk takes this shift: 999 always, the others by choice.
+  const [callChannels, setCallChannels] = useState<CallChannel[]>(["999"]);
   // Held scenario awaiting operator answer-or-decline from the 999 call modal.
   const [pendingCall, setPendingCall] = useState<Scenario | null>(null);
   // The unanswered queue. Calls land here — from the menu or from the
@@ -885,6 +890,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setCoveredServices(
       parseCoveredServices(localStorage.getItem(COVERED_SERVICES_KEY)),
     );
+    setCallChannels(parseCallChannels(localStorage.getItem(CALL_CHANNELS_KEY)));
   }, []);
 
   // ---- Save / resume handlers ------------------------------------------
@@ -963,6 +969,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setTreatmentByCasualtyId(shifted.treatmentByCasualtyId);
     setLog(shifted.log);
     setCoveredServices(shifted.coveredServices ?? [...ALL_SERVICES]);
+    setCallChannels(shifted.callChannels ?? ["999"]);
     setNewlyFoundCasualties(new Set(shifted.newlyFoundCasualties));
     setNewlyConfirmedHazards(new Set(shifted.newlyConfirmedHazards));
     setLastFireStage(shifted.lastFireStage);
@@ -1022,6 +1029,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         fireIgnition,
         absentCasualtyIds,
         coveredServices,
+        callChannels,
         newlyFoundCasualties: Array.from(newlyFoundCasualties),
         newlyConfirmedHazards: Array.from(newlyConfirmedHazards),
         lastFireStage,
@@ -1778,12 +1786,17 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     newIntensity: ShiftIntensity,
     startHour?: number,
     services?: ServiceCode[],
+    channels?: CallChannel[],
   ) {
     localStorage.setItem(PATCH_STORAGE_KEY, area);
     localStorage.setItem(INTENSITY_STORAGE_KEY, newIntensity);
     if (services && services.length > 0) {
       localStorage.setItem(COVERED_SERVICES_KEY, JSON.stringify(services));
       setCoveredServices(services);
+    }
+    if (channels && channels.length > 0) {
+      localStorage.setItem(CALL_CHANNELS_KEY, JSON.stringify(channels));
+      setCallChannels(channels);
     }
     setPatch(area);
     setIntensity(newIntensity);
@@ -1970,6 +1983,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       const candidates = openScenarios.filter(
         (sc) =>
           scenarioCovered(sc, coveredServices) &&
+          callChannels.includes(channelOf(sc)) &&
           !live.has(sc.id) &&
           !waiting.has(sc.id),
       );
@@ -1987,7 +2001,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       nextCallAtRef.current = nowMs + (lo + Math.random() * (hi - lo)) * 1000;
     }, 5000);
     return () => clearInterval(id);
-  }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, queueCallById]);
+  }, [patch, incidents, runtimes, intensity, pendingCalls, coveredServices, callChannels, queueCallById]);
 
 
   function triggerScenario(scenario: Scenario, variantId?: string): string | null {
@@ -2006,7 +2020,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       s.byType[scenario.type] = (s.byType[scenario.type] ?? 0) + 1;
     });
     const t = Date.now();
-    const disposal = scenario.disposal;
+    // Tonight's run is drawn before the disposal is read: the run decides
+    // whether this is still a desk-closure job — the feverish child's
+    // rash night deploys like any other call.
+    const runId = variantId ?? rollVariant(scenario.scene?.variants);
+    const disposal = deskDisposalFor(scenario, runId);
     if (disposal) {
       setLog((prev) => [
         ...prev,
@@ -2021,7 +2039,6 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // Tonight's run: drawn with the call when there was one, drawn here
     // for a job placed straight on the board. Baked into this incident's
     // own scenario copy, like the fire origin below.
-    const runId = variantId ?? rollVariant(scenario.scene?.variants);
     const applied = scenario.scene ? applyVariant(scenario.scene, runId) : null;
     let liveScenario: Scenario = applied && applied.variant
       ? {
@@ -6574,7 +6591,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
     setPendingCalls((prev) => prev.filter((c) => c.id !== id));
     setActiveCall({ ...call, answeredAt: Date.now() });
-    logAnnotation(`${call.scenario.title} — 999 call answered${call.scenario.call ? ` · ${call.scenario.call.caller.relation}` : ""}`, "annotation", "call-answered");
+    logAnnotation(`${call.scenario.title} — ${CHANNEL_LABEL[channelOf(call.scenario)]} call answered${call.scenario.call ? ` · ${call.scenario.call.caller.relation}` : ""}`, "annotation", "call-answered");
     setStatusMsg(`Answered · ${call.scenario.title}`);
     pickScreen("call");
   }
@@ -6631,7 +6648,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // A graded call with nobody sent is either the right call — Right
     // Care Right Person, a clean call-back — or a job that comes back
     // later and worse. Say which.
-    const disp = call.scenario.disposal;
+    const disp = deskDisposalFor(call.scenario, call.variantId);
     logAnnotation(
       disp
         ? `${call.scenario.title} — closed at the desk, no deployment. ${disp.basis}.`
@@ -6656,15 +6673,29 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     pickScreen("mob");
   }
 
-  function endCall(call: PendingCall, closedAtDesk: boolean) {
+  function endCall(call: PendingCall, closedAtDesk: boolean, outcome?: DeskOutcome) {
     setActiveCall(null);
-    const disp = call.scenario.disposal;
+    const disp = deskDisposalFor(call.scenario, call.variantId);
+    const how = outcome ? DESK_OUTCOME_LABEL[outcome] : "advice given";
+    // Closed at the desk on the night it should not have been: the run
+    // the authored disposal does not hold for.
+    const flipped = closedAtDesk && !disp && call.scenario.disposal
+      ? call.scenario.scene?.variants?.find((v) => v.id === call.variantId)?.label
+      : undefined;
     logAnnotation(
       closedAtDesk && disp
-        ? `${call.scenario.title} — closed at the desk, advice given. ${disp.basis}.`
-        : `${call.scenario.title} — call ended with nobody sent. A graded call does not go away because the desk put the phone down.`,
+        ? `${call.scenario.title} — closed at the desk: ${how}. ${disp.basis}.`
+        : flipped
+          ? `${call.scenario.title} — closed at the desk as ${how}, and tonight was not the night it closes. ${flipped}.`
+          : `${call.scenario.title} — call ended with nobody sent. A graded call does not go away because the desk put the phone down.`,
       closedAtDesk && disp ? "annotation" : "setback",
     );
+    // Where the scenario says which closure is right, the one chosen is
+    // scored against it.
+    if (closedAtDesk && disp?.outcome && outcome) {
+      if (outcome === disp.outcome) logAnnotation(`${call.scenario.title} — the right disposal: ${how}`, "annotation", "call-disposal");
+      else logAnnotation(`${call.scenario.title} — closed as ${how}; the right disposal was ${DESK_OUTCOME_LABEL[disp.outcome]}`, "setback", "call-disposal");
+    }
     setStatusMsg("Call ended");
     pickScreen("dispatch");
   }

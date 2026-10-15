@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ServiceCode } from "@/lib/sim/types";
 import type { PendingCall } from "../components/call-stack";
+import type { DeskOutcome } from "@/lib/sim/incident_types";
 import type { CallMapUnit } from "./call-location-map";
 import {
   AlertsStrip,
@@ -90,7 +91,7 @@ export function VectorDesk(props: {
   onCreateFromCall: (call: PendingCall, note: string, summary: CallSummary) => void;
   onPreAlertFromCall: (call: PendingCall, note: string) => void;
   onFinishCall: (call: PendingCall, summary: CallSummary) => void;
-  onEndCall: (call: PendingCall, closedAtDesk: boolean) => void;
+  onEndCall: (call: PendingCall, closedAtDesk: boolean, outcome?: DeskOutcome) => void;
   onNote: (text: string) => void;
   onCallNote: (text: string) => void;
   onTestCall: () => void;
@@ -170,7 +171,7 @@ export function VectorDesk(props: {
 
   const tabs = [
     { id: "dispatch" as const, label: "Dispatch" },
-    { id: "call" as const, label: "999 Call", badge: waiting ? String(waiting) : undefined },
+    { id: "call" as const, label: "Calls", badge: waiting ? String(waiting) : undefined },
     { id: "mob" as const, label: "Mobilising", disabled: !hasIncident, title: hasIncident ? undefined : "Select or open an incident first" },
     {
       id: "ground" as const,
@@ -326,7 +327,7 @@ export function VectorDesk(props: {
         ) : (
           <div className="vec-screen">
             <div className="vec-screen-head">
-              <h1>999 Call</h1>
+              <h1>Calls</h1>
               <span className="mono">{waiting ? `${waiting} waiting` : "No calls waiting"}</span>
             </div>
             <div style={{ padding: 12, maxWidth: 640 }}>

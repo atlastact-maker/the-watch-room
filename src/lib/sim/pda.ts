@@ -69,6 +69,18 @@ export function labelForType(t: IncidentTypeCode): string {
       return "Firearms incident (police-led)";
     case "ambulance_cardiac_arrest":
       return "Cardiac arrest (ambulance-led)";
+    case "ambulance_111_sick_child":
+      return "Sick child (NHS 111)";
+    case "ambulance_fall_no_injury":
+      return "Fall, no injury — lifting";
+    case "police_criminal_damage_report":
+      return "Criminal damage report (101)";
+    case "police_vehicle_interference":
+      return "Vehicle interference in progress";
+    case "ambulance_111_chest_pain":
+      return "Chest pain (NHS 111)";
+    case "police_welfare_partner_referral":
+      return "Concern for welfare — partner referral";
     default:
       return String(t).replace(/_/g, " ");
   }

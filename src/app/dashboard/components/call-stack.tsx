@@ -18,7 +18,7 @@ import { Rnd } from "react-rnd";
 import { useState } from "react";
 import { CAD_VARS } from "./cad-theme";
 import type { Incident } from "@/lib/sim/incident_types";
-import type { Scenario, Severity } from "@/lib/sim/incident_types";
+import { CHANNEL_LABEL, channelOf, type Scenario, type Severity } from "@/lib/sim/incident_types";
 
 export type PendingCall = {
   id: string;
@@ -450,6 +450,14 @@ export function CallStack({
                             </span>
                           </div>
                           <div className="mt-0.5 flex items-center gap-1.5">
+                            {channelOf(c.scenario) !== "999" && (
+                              <span
+                                className="px-1 font-mono text-[8px] font-bold uppercase tracking-widest border border-(--color-amber)/60 text-(--color-amber)"
+                                title="The line the call came in on"
+                              >
+                                {CHANNEL_LABEL[channelOf(c.scenario)]}
+                              </span>
+                            )}
                             <span
                               className={`px-1 font-mono text-[8px] font-bold uppercase tracking-widest ${SEV_CLS[c.scenario.severity]}`}
                             >

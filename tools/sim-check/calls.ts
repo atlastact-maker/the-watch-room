@@ -4,8 +4,8 @@
 // a number in the Ofcom drama range.
 
 import { SCENARIOS } from "@/lib/sim/scenarios";
-import { validateCallScript, CALL_QUESTIONS } from "@/lib/sim/call_script";
-import type { Scenario } from "@/lib/sim/incident_types";
+import { validateCallScript, questionBankFor } from "@/lib/sim/call_script";
+import { channelOf, type Scenario } from "@/lib/sim/incident_types";
 import type { ServiceCode } from "@/lib/sim/types";
 
 function serviceOf(s: Scenario): ServiceCode {
@@ -25,7 +25,7 @@ for (const s of SCENARIOS) {
   const lines = validateCallScript(s, service);
   if (lines.length) {
     problems += lines.length;
-    console.log(`\n${s.id} ${s.title} (${service}, ${Object.keys(s.call.answers).length}/${CALL_QUESTIONS[service].length} answered)`);
+    console.log(`\n${s.id} ${s.title} (${service}, ${Object.keys(s.call.answers).length}/${questionBankFor(service, channelOf(s)).length} answered)`);
     for (const l of lines) console.log(`    ${l}`);
   }
 }

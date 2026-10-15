@@ -226,6 +226,13 @@ const EXPECTED: Record<IncidentTypeCode, string[]> = {
   police_abandoned_999: ["P01"],
   police_asb_youths: ["A02", "A01"],
   police_vehicle_stop_no_insurance: ["T01", "P19"],
+  // The other lines
+  ambulance_111_sick_child: ["26"],
+  ambulance_fall_no_injury: ["17"],
+  police_criminal_damage_report: ["C10"],
+  police_vehicle_interference: ["C07", "C06", "P15"],
+  ambulance_111_chest_pain: ["10"],
+  police_welfare_partner_referral: ["P04", "P21"],
 };
 
 export function expectedOpeningCodes(type: IncidentTypeCode): string[] {
