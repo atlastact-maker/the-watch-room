@@ -208,6 +208,7 @@ function Return({
             <>
               <Line label="Name" value={r.name} />
               <Line label="Sex" value={r.sex} />
+              <Line label="Ethnic appearance" value={r.ethnicity === "W" ? "W — WHITE" : r.ethnicity === "N" ? "N — NON-WHITE" : undefined} />
               <Line label="Age" value={r.age} />
               <Line label="DOB" value={dobDisplay(r.dob)} />
               <Rule />
@@ -486,7 +487,7 @@ export function LedsTerminal({
                   ? "VRM"
                   : kind === "address"
                     ? "STREET / POSTCODE"
-                    : "SURNAME/FORENAME:DDMMYYYY"
+                    : "SURNAME/FORENAME:DDMMYYYY:M:W"
               }
               className="min-w-0 flex-1 rounded-none border border-(--color-border) bg-(--color-surface) px-1.5 py-1 font-mono text-[13px] uppercase tracking-wider text-(--color-text) placeholder:tracking-normal placeholder:text-(--color-text-dim)"
             />

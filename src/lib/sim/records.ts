@@ -60,6 +60,8 @@ export type PersonRecord = {
   /** "SURNAME, Forename" reads like a record; the UI shows it as typed. */
   name: string;
   sex?: "M" | "F" | "X";
+  /** Ethnic appearance as a names enquiry takes it: W white, N not. */
+  ethnicity?: "W" | "N";
   /** Age at the time of the scenario, or a date of birth. Either. */
   age?: number;
   dob?: string;

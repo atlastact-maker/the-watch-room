@@ -222,18 +222,22 @@ export function generateVehicle(vrm: string): VehicleRecord {
   };
 }
 
-/** A person for any name typed. */
-export function generatePerson(name: string): PersonRecord {
+/** A person for any name typed. What the enquiry said of them — the
+ *  sex, whether they are white — the record agrees with; the rest is
+ *  drawn from the name, the same every time. */
+export function generatePerson(name: string, known: { sex?: "M" | "F"; ethnicity?: "W" | "N" } = {}): PersonRecord {
   const key = norm(name);
   const rnd = seed(`per:${key}`);
   const where = address(rnd);
   const markers = band(rnd, PERSON_MARKER_BANDS);
-  const sex = rnd() < 0.5 ? "M" : "F";
+  const sex = known.sex ?? (rnd() < 0.5 ? "M" : "F");
+  const ethnicity = known.ethnicity ?? (seed(`per:${key}:eth`)() < 0.8 ? "W" : "N");
   return {
     id: `gen-per-${key.replace(/\s+/g, "-")}`,
     // Keep what was typed — the operator asked about this name.
     name: name.trim().toUpperCase(),
     sex,
+    ethnicity,
     age: int(rnd, 17, 84),
     address: where.address,
     postcode: where.postcode,

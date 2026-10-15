@@ -8,7 +8,7 @@
 
 import { useState, type ReactNode } from "react";
 import { dobDisplay, type RecordIndex, type PersonRecord } from "@/lib/sim/records";
-import { POLICING_PURPOSES, normaliseDob, parsePersonQuery, personCheck, vehicleCheck, type LedsCheck, type LedsReturn, type PolicingPurpose, type VehicleReturn } from "@/lib/sim/leds";
+import { POLICING_PURPOSES, describePersonQuery, normaliseDob, parsePersonQuery, personCheck, vehicleCheck, type LedsCheck, type LedsReturn, type PolicingPurpose, type VehicleReturn } from "@/lib/sim/leds";
 
 type Kind = "vehicle" | "person" | "property";
 
@@ -74,8 +74,9 @@ export function PncPage(props: PncPageProps) {
 
   function submit() {
     if (!index) return setError("The record index is not available on this tablet.");
-    if (query.trim().length < 2) return setError(kind === "person" ? "Enter a name — SURNAME/FORENAME:DDMMYYYY." : "Enter a registration, a name or a description.");
+    if (query.trim().length < 2) return setError(kind === "person" ? "Enter a name — SURNAME/FORENAME:DDMMYYYY:M:W." : "Enter a registration, a name or a description.");
     if (kind === "person" && parsedPerson?.dob && !parsedDob) return setError(`Date of birth "${parsedPerson.dob}" not understood — DDMMYYYY after the colon.`);
+    if (kind === "person" && parsedPerson?.bad.length) return setError(`"${parsedPerson.bad.join(":")}" not understood after the date of birth — M or F for the sex, then W (white) or N (not).`);
     setError(null);
     const at = Date.now();
     const ref = `SIM-${String(checks.length + 1).padStart(5, "0")}`;
@@ -177,6 +178,7 @@ export function PncPage(props: PncPageProps) {
           {section("PERSON DETAILS", <>
             {line("Name", up(r.name))}
             {line("Sex", r.sex ?? "NOT HELD")}
+            {line("Ethnic appearance", r.ethnicity === "W" ? "W — WHITE" : r.ethnicity === "N" ? "N — NON-WHITE" : "NOT HELD")}
             {line("Date of birth", r.dob ? `${dobDisplay(r.dob)}${r.age ? ` (AGE ${r.age})` : ""}` : r.age ? `AGE ${r.age}` : "NOT HELD")}
             {line("Address", up(r.address) || "NO FIXED ADDRESS")}
           </>)}
@@ -233,10 +235,10 @@ export function PncPage(props: PncPageProps) {
             <div className="pnc-kinds">
               {(["vehicle", "person", "property"] as Kind[]).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setError(null); }}>{KIND_LABEL[k]}</button>)}
             </div>
-            <label className="pc-field inline"><span>{KIND_FIELD[kind]}</span><input className={kind === "person" ? "pnc-names" : undefined} value={query} onChange={(e) => setQuery(kind === "person" ? e.target.value.toUpperCase() : e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder={kind === "vehicle" ? "AB12 CDE" : kind === "person" ? "SURNAME/FORENAME:DDMMYYYY" : "IMEI, serial or description"} spellCheck={false} autoCapitalize={kind === "person" ? "characters" : undefined} /></label>
+            <label className="pc-field inline"><span>{KIND_FIELD[kind]}</span><input className={kind === "person" ? "pnc-names" : undefined} value={query} onChange={(e) => setQuery(kind === "person" ? e.target.value.toUpperCase() : e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} placeholder={kind === "vehicle" ? "AB12 CDE" : kind === "person" ? "SURNAME/FORENAME:DDMMYYYY:M:W" : "IMEI, serial or description"} spellCheck={false} autoCapitalize={kind === "person" ? "characters" : undefined} /></label>
             {kind === "person" && (
-              <p className={`pc-info pnc-parse${parsedPerson?.dob && !parsedDob ? " warn" : ""}`}>
-                <span>{!parsedPerson ? "Surname, a slash, forename, a colon, date of birth — DEAKIN/CALLUM:01011995" : parsedPerson.structured ? `${parsedPerson.name || "—"}${parsedPerson.dob ? ` · DOB ${parsedDob ? dobDisplay(parsedDob) : `${parsedPerson.dob} ?`}` : " · no date of birth"}` : `Free text · ${parsedPerson.name} — add /FORENAME:DDMMYYYY to narrow it`}</span>
+              <p className={`pc-info pnc-parse${(parsedPerson?.dob && !parsedDob) || parsedPerson?.bad.length ? " warn" : ""}`}>
+                <span>{!parsedPerson ? "Surname, a slash, forename, then a colon each for date of birth, M or F, and W (white) or N (not) — DEAKIN/CALLUM:01011995:M:W" : parsedPerson.structured ? `${parsedPerson.name || "—"}${parsedPerson.dob ? ` · DOB ${parsedDob ? dobDisplay(parsedDob) : `${parsedPerson.dob} ?`}` : " · no date of birth"}${parsedPerson.sex || parsedPerson.ethnicity ? ` · ${describePersonQuery(parsedPerson)}` : ""}${parsedPerson.bad.length ? ` · "${parsedPerson.bad.join(":")}" ? — M or F, then W or N` : ""}` : `Free text · ${parsedPerson.name} — add /FORENAME:DDMMYYYY:M:W to narrow it`}</span>
               </p>
             )}
             <label className="pc-field inline"><span>Reason</span>

@@ -68,6 +68,8 @@ export type PersonReturn = {
   name: string;
   trace: boolean;
   sex?: "M" | "F" | "X";
+  /** W white, N not — as the enquiry takes it. */
+  ethnicity?: "W" | "N";
   age?: number;
   dob?: string;
   address?: string;
@@ -166,6 +168,7 @@ function personFrom(p: PersonRecord, typed: string): PersonReturn {
     name: p.name || typed,
     trace: true,
     sex: p.sex,
+    ethnicity: p.ethnicity,
     age: p.age,
     dob: dobOf(p),
     address: p.address,
@@ -196,24 +199,49 @@ export function vehicleCheck(index: RecordIndex, vrm: string): VehicleReturn {
 /** A person enquiry by name. A real terminal would want a date of birth
  *  to narrow it; this returns the single unambiguous match or no trace,
  *  rather than guessing between several people with the same surname. */
+export type PersonQuery = {
+  name: string;
+  dob?: string;
+  sex?: "M" | "F";
+  /** W white, N not. */
+  ethnicity?: "W" | "N";
+  /** What came after the date of birth that the terminal did not understand. */
+  bad: string[];
+  structured: boolean;
+};
+
 /** A names enquiry the way it is typed on the real terminal:
- *  `SURNAME/FORENAME:DDMMYYYY`. The forename and the date of birth are
- *  each optional — `DEAKIN`, `DEAKIN/CALLUM`, `DEAKIN:01011995` and
- *  `DEAKIN/CALLUM JOHN:01011995` all parse. Anything without a slash or
- *  a colon is taken as a free-text name ("Callum Deakin", "DEAKIN,
- *  Callum") as before. */
-export function parsePersonQuery(raw: string): { name: string; dob?: string; structured: boolean } {
+ *  `SURNAME/FORENAME:DDMMYYYY:S:E` — the date of birth, then the sex
+ *  (M or F), then whether the person is white (W) or not (N), each
+ *  optional. `DEAKIN`, `DEAKIN/CALLUM`, `DEAKIN:01011995`,
+ *  `DEAKIN/CALLUM JOHN:01011995`, `DEAKIN/CALLUM:01012026:M:N` and
+ *  `DEAKIN/CALLUM::F:W` (no date of birth) all parse. Anything without a
+ *  slash or a colon is taken as a free-text name ("Callum Deakin",
+ *  "DEAKIN, Callum") as before. */
+export function parsePersonQuery(raw: string): PersonQuery {
   const t = raw.trim();
-  if (!/[/:]/.test(t)) return { name: t, structured: false };
-  const [namePart, ...dobParts] = t.split(":");
-  const dobRaw = dobParts.join(":").trim();
+  if (!/[/:]/.test(t)) return { name: t, bad: [], structured: false };
+  const [namePart = "", dobRaw = "", ...rest] = t.split(":").map((x) => x.trim());
   const [surname = "", ...forenames] = namePart.split("/").map((x) => x.trim()).filter(Boolean);
   const name = [surname, forenames.join(" ")].filter(Boolean).join(", ");
-  return { name, dob: dobRaw || undefined, structured: true };
+  const q: PersonQuery = { name, dob: dobRaw || undefined, bad: [], structured: true };
+  // The sex and the ethnic appearance, one letter each, in either order.
+  for (const f of rest.map((x) => x.toUpperCase()).filter(Boolean)) {
+    if ((f === "M" || f === "F") && !q.sex) q.sex = f;
+    else if ((f === "W" || f === "N") && !q.ethnicity) q.ethnicity = f;
+    else q.bad.push(f);
+  }
+  return q;
 }
 
-/** A record as the terminal would be asked for it — "DEAKIN/CALLUM:04031995". */
-export function personQueryFor(p: Pick<PersonRecord, "name" | "age" | "dob">): string {
+/** What a names enquiry said of the person, for a note: "M, white". */
+export function describePersonQuery(q: Pick<PersonQuery, "sex" | "ethnicity">): string {
+  return [q.sex, q.ethnicity === "W" ? "white" : q.ethnicity === "N" ? "non-white" : undefined].filter(Boolean).join(", ");
+}
+
+/** A record as the terminal would be asked for it —
+ *  "DEAKIN/CALLUM:04031995:M:W", with whatever of that the record holds. */
+export function personQueryFor(p: Pick<PersonRecord, "name" | "age" | "dob" | "sex" | "ethnicity">): string {
   const n = p.name.trim();
   let surname: string;
   let forenames: string;
@@ -228,7 +256,9 @@ export function personQueryFor(p: Pick<PersonRecord, "name" | "age" | "dob">): s
   }
   const dob = dobOf(p);
   const ddmmyyyy = dob ? `${dob.slice(8, 10)}${dob.slice(5, 7)}${dob.slice(0, 4)}` : "";
-  return `${surname}${forenames ? `/${forenames}` : ""}${ddmmyyyy ? `:${ddmmyyyy}` : ""}`.toUpperCase();
+  const sex = p.sex === "M" || p.sex === "F" ? p.sex : "";
+  const tail = p.ethnicity ? `:${sex}:${p.ethnicity}` : sex ? `:${sex}` : "";
+  return `${surname}${forenames ? `/${forenames}` : ""}${ddmmyyyy || tail ? `:${ddmmyyyy}` : ""}${tail}`.toUpperCase();
 }
 
 export function personCheck(
@@ -238,12 +268,14 @@ export function personCheck(
    *  DDMMYYYY, narrows the enquiry the way a real terminal insists on. */
   dob?: string,
 ): PersonReturn & { ambiguous?: PersonRecord[] } {
-  // The real syntax carries the date of birth inside the query.
+  // The real syntax carries the date of birth, the sex and the ethnic
+  // appearance inside the query.
   const parsed = parsePersonQuery(name);
   if (parsed.structured) {
     name = parsed.name;
     dob = dob?.trim() ? dob : parsed.dob;
   }
+  const described = parsed.structured ? { sex: parsed.sex, ethnicity: parsed.ethnicity } : {};
   const q = norm(name);
   if (q.length < 2) {
     return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [], vehicleIds: [] };
@@ -270,6 +302,19 @@ export function personCheck(
       return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [`NO TRACE ON THAT DATE OF BIRTH — similar: ${near.join("; ")}`], vehicleIds: [] };
     }
   }
+  // The sex and the ethnic appearance narrow it the same way: a record
+  // that holds the other is not that person; one that holds neither
+  // cannot be ruled out.
+  if ((described.sex || described.ethnicity) && hits.length > 0) {
+    const fits = hits.filter(
+      (p) => (!described.sex || !p.sex || p.sex === "X" || p.sex === described.sex) && (!described.ethnicity || !p.ethnicity || p.ethnicity === described.ethnicity),
+    );
+    if (fits.length) hits = fits;
+    else {
+      const near = hits.slice(0, 3).map((p) => `${p.name} ${describePersonQuery({ sex: p.sex === "X" ? undefined : p.sex, ethnicity: p.ethnicity }).toUpperCase() || "NO DESCRIPTION HELD"}`);
+      return { kind: "person", name: name.trim(), trace: false, warnings: [], wanted: false, missing: false, notes: [`NO TRACE ON THAT DESCRIPTION — similar: ${near.join("; ")}`], vehicleIds: [] };
+    }
+  }
   if (hits.length === 1) return personFrom(hits[0], name);
   if (hits.length > 1) {
     const exact = hits.filter((p) => nameWords(p.name).length === words.length);
@@ -284,7 +329,7 @@ export function personCheck(
   // Nobody authored under that name, so the system holds a generated one.
   // A name typed with no surname is still ambiguous in reality, but the
   // sim answers it rather than stonewalling the operator.
-  return personFrom(generatePerson(name), name);
+  return personFrom(generatePerson(name, described), name);
 }
 
 /** "04/03/1995", "4.3.95" or "1995-03-04" → "1995-03-04". */
