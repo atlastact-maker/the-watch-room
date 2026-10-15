@@ -35,6 +35,7 @@ metre space, so a model only needs to be the right size.
 | `hydraulic-spreaders.glb` | `spreaders` | Hydraulic rescue spreaders on the RTC stage's salvage sheet and at the door. |
 | `hydraulic-cutters.glb` (to come) | `cutters` | The rescue cutters. The RTC stage draws them until the model lands; a `cutters` row in `MODELS` with the blades turned to +x, rendered, replaces the drawing with no other change. |
 | `hems-doctor.glb` | `hems_doctor` | A HEMS doctor with the emergency medical backpack on his back — two Meshy exports put together by a script (the person scaled to 1.78 m with his feet at the origin, the pack turned straps-in and set on the shoulder blades), the pack's yellow straps, handle and loops recoloured black in its texture first, shoulder straps generated over his shoulders and down his chest), textures at 1K WebP. Standing in an A-pose; faces +x once drawn, the pack behind him. |
+| `ambulance-medic.glb` | `ambulance_medic` | An ambulance medic with the red response backpack on his back — two Meshy exports, each over a million triangles, welded and simplified with the CLI first (`weld`, then `simplify --ratio 0.03 --error 0.002` for the person, `--ratio 0.015 --error 0.003` for the pack), then put together by the script: the medic at 1.78 m, the pack at 55 cm straps-in on his shoulder blades, the pack's own strap loops cut off (`--part-cut-z -0.14`) and straps grown over his shoulders and round his ribs instead. Standing with his arms by his sides; faces +x once drawn, the pack behind. |
 | `firefighter.glb` | `firefighter_run`, `firefighter_walk`, `firefighter_stand` | A firefighter with a Mixamo rig and two clips, `Running` and `Walking`, each rendered as a sheet of frames, and one pose of the walk with the feet together as the standing figure. The crews run in with it when a job starts, walk between jobs and back to the appliance, stand by it, and go to the kit and back on the ground view. |
 
 ## Putting two together
@@ -51,7 +52,11 @@ node scripts/compose-models.mjs doctor.glb backpack.glb assets/models/hems-docto
 ```
 
 Meshy models face +z, so a backpack whose straps are on its -z side goes
-on at a yaw of 180 with a negative z. `--straps` adds two black webbing
+on at a yaw of 180 with a negative z. A pack whose straps are modelled as
+loops hanging off its back loses them with `--part-cut-z <z>` (its own
+units: everything wholly behind that depth is dropped), so the grown
+straps fit the person instead. Heavy exports (a million triangles) go
+through the CLI first: `weld`, then `simplify --ratio 0.03 --error 0.002`. `--straps` adds two black webbing
 straps with a reflective band, up out of the pack, over the shoulders,
 down the chest and round the ribs into the pack's bottom corners: their
 path is found by casting rays at the person's mesh round each shoulder,

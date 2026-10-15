@@ -3,7 +3,8 @@
 //
 //   node scripts/compose-models.mjs <base.glb> <part.glb> <out.glb>
 //        [--height 1.78] [--part-height 0.55] [--part-yaw 180]
-//        [--part-at 0,1.21,-0.25] [--names doctor,backpack] [--straps] [--no-compress]
+//        [--part-at 0,1.21,-0.25] [--names doctor,backpack] [--straps]
+//        [--part-cut-z -0.14] [--no-compress]
 //
 // The base is scaled to --height metres, stood with its lowest point at
 // the origin and its footprint centred on it. The part is scaled to
@@ -11,6 +12,10 @@
 // (its +z face then points the other way at 180), and its centre put at
 // --part-at: metres from the base's feet, x across, y up, z towards the
 // base's front. Textures come out at 1K WebP unless --no-compress.
+//
+// --part-cut-z drops the part's triangles that lie wholly behind that z in
+// its own units: a pack whose straps are modelled as loops hanging off its
+// back loses them, and --straps grows ones that fit the person instead.
 //
 // --straps, for a pack on a person's back, adds two black webbing straps
 // that come up out of the pack, over the shoulders, down the chest and
@@ -46,10 +51,32 @@ const at = flag("part-at", "0,0,0").split(",").map(Number);
 const [baseName, partName] = flag("names", "base,part").split(",");
 const compress = !argv.includes("--no-compress");
 const straps = argv.includes("--straps");
+const cutZ = flag("part-cut-z", null);
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const base = await io.read(basePath);
 const part = await io.read(partPath);
+if (cutZ !== null) {
+  const z0 = Number(cutZ);
+  let dropped = 0;
+  for (const mesh of part.getRoot().listMeshes()) {
+    for (const prim of mesh.listPrimitives()) {
+      const P = prim.getAttribute("POSITION").getArray();
+      const I = prim.getIndices();
+      if (!I) continue;
+      const idx = I.getArray();
+      const kept = [];
+      for (let f = 0; f < idx.length; f += 3) {
+        const a = idx[f], b = idx[f + 1], c = idx[f + 2];
+        if (P[a * 3 + 2] < z0 && P[b * 3 + 2] < z0 && P[c * 3 + 2] < z0) { dropped++; continue; }
+        kept.push(a, b, c);
+      }
+      I.setArray(kept.length > 65535 ? new Uint32Array(kept) : new Uint16Array(kept));
+    }
+  }
+  await part.transform(prune());
+  console.log(`cut: dropped ${dropped} triangles of the part behind z=${z0}`);
+}
 const size = (b) => [b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]];
 const centre = (b) => [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2];
 const bb = getBounds(base.getRoot().listScenes()[0]);
