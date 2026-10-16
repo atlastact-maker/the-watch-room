@@ -76,7 +76,7 @@ export function DeskAlerts() {
   return (
     <>
       {prefs.visualCues && alerts.length > 0 && (
-        <div className="vec-alerts" role="region" aria-label="Alerts">
+        <div className="vec-alert-stack" role="region" aria-label="Alerts">
           {alerts.map((a) => (
             <div key={a.id} className={`vec-alert ${a.tone}`}>
               <div>

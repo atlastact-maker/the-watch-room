@@ -6000,7 +6000,10 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cad-application .vec-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .cad-application .vec-skip { position: absolute; left: 8px; top: -48px; z-index: 5000; padding: 8px 12px; border-radius: 3px; background: var(--vec-bar); color: var(--vec-bar-text); font-size: 12px; text-decoration: none; }
 .cad-application .vec-skip:focus { top: 8px; outline: 2px solid var(--vec-work); outline-offset: 2px; }
-.cad-application .vec-alerts { position: absolute; right: 16px; top: 64px; z-index: 1270; display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
+/* The alert cards float top-right over the desk. Their own class: the
+   alerts strip in the menu bar (.vec-alerts, with Test call on it) is a
+   different thing and must stay in the flow. */
+.cad-application .vec-alert-stack { position: absolute; right: 16px; top: 64px; z-index: 1270; display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
 .cad-application .vec-alert { pointer-events: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 9px 8px 9px 12px; border: 1px solid var(--vec-border); border-left-width: 4px; border-radius: 3px; background: var(--vec-surface); color: var(--vec-text); box-shadow: 0 8px 20px #0006; font-size: 12px; animation: vec-alert-in .18s ease-out; }
 .cad-application .vec-alert b { display: block; font-weight: 600; }
 .cad-application .vec-alert span { display: block; margin-top: 2px; line-height: 1.4; color: var(--vec-text-dim); }
