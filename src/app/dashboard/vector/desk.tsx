@@ -191,6 +191,7 @@ export function VectorDesk(props: {
 
   return (
     <div className="cad-application" data-screen={screen}>
+      <a className="vec-skip" href="#vec-main">Skip to the console</a>
       <BrandStrip userEmail={props.userEmail} clock={time} hour={hour} hasLiveIncident={props.hasLiveIncident} shiftSaved={props.shiftSaved} />
       <MenuBar menus={props.menus} lights={props.lights} />
       <ScreenTabs screen={screen} onPick={props.onScreen} tabs={tabs} deskSummary={deskSummary} theme={props.theme} onToggleTheme={props.onToggleTheme} />
@@ -260,7 +261,7 @@ export function VectorDesk(props: {
             onNext={() => props.onScreen("mob")}
           />
           </>)}
-          <div className="vec-workspace">
+          <div className="vec-workspace" id="vec-main" tabIndex={-1}>
             {screen === "dispatch" && (
               <div className="vec-mapbar">
                 <span className="title">{props.mapTitle}</span>
@@ -333,7 +334,7 @@ export function VectorDesk(props: {
         (props.activeCall ? (
           <CallScreen key={props.activeCall.id} call={props.activeCall} answeredAt={props.activeCall.answeredAt} now={props.now} opened={props.activeCall.opened} onCreate={props.onCreateFromCall} onPreAlert={props.onPreAlertFromCall} onFinish={props.onFinishCall} onEndCall={props.onEndCall} onNote={props.onCallNote} covered={props.coveredServices} units={props.callUnits} />
         ) : (
-          <div className="vec-screen">
+          <div className="vec-screen" id="vec-main" tabIndex={-1}>
             <div className="vec-screen-head">
               <h1>Calls</h1>
               <span className="mono">{waiting ? `${waiting} waiting` : "No calls waiting"}</span>

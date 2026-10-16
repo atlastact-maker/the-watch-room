@@ -98,6 +98,8 @@ import type {
   TaskKind,
   TreatmentEvent,
 } from "@/lib/sim/incident_types";
+import { DeskAlerts, raiseAlert, type AlertTone } from "./vector/desk-alerts";
+import { useDeskPrefs } from "@/lib/desk-prefs";
 import { EGRESS_SECONDS, MONITORING_LABEL, type MonitoringDevice } from "@/lib/sim/incident_types";
 import { CHANNEL_LABEL, DESK_OUTCOME_LABEL, channelOf, deskDisposalFor, type CallChannel, type DeskOutcome } from "@/lib/sim/incident_types";
 import { EGRESS_LABEL, SCOPE_LABEL } from "./components/treatment-tab";
@@ -316,6 +318,29 @@ const SEVERITY_WORSE: Record<string, number> = {
   expectant: 3,
 };
 
+/** Which log entries also become an alert card and a spoken line, and
+ *  in what tone. Arrivals are raised where they are logged, scoped to the
+ *  open job; routine movements (returning, refuelling, welfare) stay in
+ *  the log alone. */
+const LOG_CUES: Partial<Record<LogEntry["kind"], { title: string; tone: AlertTone; assertive?: boolean }>> = {
+  incident_opened: { title: "Incident opened", tone: "info" },
+  make_pumps: { title: "Assistance message", tone: "stop", assertive: true },
+  hazard_confirmed: { title: "Hazard", tone: "warn" },
+  casualty_found: { title: "Casualty located", tone: "warn" },
+  casualty_deteriorated: { title: "Patient deteriorating", tone: "stop", assertive: true },
+  casualty_expectant: { title: "Patient expectant", tone: "stop", assertive: true },
+  casualty_treatment_started: { title: "Treatment started", tone: "go" },
+  fire_stage: { title: "Fire development", tone: "warn" },
+  tactical_mode: { title: "Tactical mode", tone: "info" },
+  commander_assigned: { title: "Incident commander", tone: "info" },
+  sector_assigned: { title: "Sectors", tone: "info" },
+  ba_withdrawn: { title: "BA team withdrawn", tone: "warn" },
+  resolved: { title: "Stop message", tone: "go" },
+  at_hospital: { title: "At hospital", tone: "go" },
+  defect: { title: "Vehicle defect", tone: "warn" },
+  setback: { title: "Setback", tone: "warn" },
+};
+
 type Props = {
   userEmail: string;
   stationsByArea: Record<AreaCode, StationWithAppliances[]>;
@@ -344,6 +369,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // "Report a problem" — the pre-alpha's bug report, filed with what the
   // desk knows about the moment.
   const [bugOpen, setBugOpen] = useState(false);
+  // How the desk gets the operator's attention: cards and the live
+  // region, beside the tones. Switched in Help and in Settings.
+  const [deskPrefs, setDeskPrefs] = useDeskPrefs();
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       // Avoid firing while the user is typing in an input / textarea.
@@ -615,7 +643,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   callsReadyRef.current = callsReady;
   // Audible 999 ring when a call comes in.
   useEffect(() => {
-    if (pendingCall) incomingCall();
+    if (!pendingCall) return;
+    incomingCall();
+    raiseAlert({ id: `call:${pendingCall.id}`, tone: "stop", assertive: true, ttlMs: 12000, title: `Incoming ${CHANNEL_LABEL[channelOf(pendingCall)]} call`, body: `${pendingCall.title} · ${pendingCall.location.address}. Enter or A answers; Esc or D declines.` });
   }, [pendingCall]);
   // Status-change airwave click, fire-stage alert tone, and BA low-pressure
   // whistle are all hoisted below the state declarations they depend on —
@@ -658,6 +688,19 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   const [coverStats, setCoverStats] = useState<{ moves: number; gapMinutes: number }>({ moves: 0, gapMinutes: 0 });
   const coverFlaggedRef = useRef<Set<string>>(new Set());
   const [log, setLog] = useState<LogEntry[]>([]);
+  // Visual and spoken cues for what the log records: the card and the
+  // live region beside the tone. A restored shift arrives as one block,
+  // which is history rather than news, so a burst is not announced.
+  const cuedLogLength = useRef(0);
+  useEffect(() => {
+    const fresh = log.slice(cuedLogLength.current);
+    cuedLogLength.current = log.length;
+    if (fresh.length > 6) return;
+    for (const e of fresh) {
+      const cue = LOG_CUES[e.kind];
+      if (cue) raiseAlert({ id: `log:${e.id}`, tone: cue.tone, title: cue.title, body: e.message, assertive: cue.assertive });
+    }
+  }, [log]);
   /** Jobs closed off the board this shift, kept for their debrief and
    *  the end-of-shift screen. A scored job is not shown its debrief
    *  unasked: it waits in a card until the operator wants it. */
@@ -1857,6 +1900,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           kind: "in_attendance",
           message: `${applianceLabel(d.applianceId)} in attendance`,
         });
+        // The arrival card, for the job the operator has open. Every
+        // other arrival is in the log, where it belongs.
+        if (d.incidentId === selectedIncidentId) {
+          const arrivedAt = incidents.find((i) => i.id === d.incidentId);
+          raiseAlert({ id: `arrive:${arrivedKey}`, tone: "go", title: `${applianceLabel(d.applianceId)} in attendance`, body: arrivedAt ? `${incidentRef(arrivedAt)} · ${arrivedAt.scenario.title}` : undefined });
+        }
         // The first fire appliance's informative message, a minute after
         // it lands: what it found, in the words it would use on the air.
         const infKey = `inf-arrive:${d.incidentId}`;
@@ -7565,6 +7614,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       label: "Help",
       items: [
         { label: "Glossary · shortcuts", hint: "?", act: () => setGlossaryOpen(true) },
+        { sep: true },
+        { label: `Audio tones · ${audioMuted ? "off" : "on"}`, act: toggleAudioMuted, title: "Dispatch tones, the 999 ring and warning tones" },
+        { label: `Visual alerts · ${deskPrefs.visualCues ? "on" : "off"}`, act: () => setDeskPrefs({ visualCues: !deskPrefs.visualCues }), title: "Event cards in the top right: a new call, a unit on scene, a patient change" },
+        { label: `Screen reader announcements · ${deskPrefs.announce ? "on" : "off"}`, act: () => setDeskPrefs({ announce: !deskPrefs.announce }), title: "The same events read into a live region; a 999 call interrupts" },
+        { label: `Inline help · ${deskPrefs.inlineHelp ? "on" : "off"}`, act: () => setDeskPrefs({ inlineHelp: !deskPrefs.inlineHelp }), title: "Every option's explanation shown in full on the treatment screens, not only on hover or focus" },
+        { sep: true },
         { label: "Report a problem", act: () => setBugOpen(true), title: "File a bug or a suggestion with the team" },
         ...(viewAs
           ? [
@@ -7588,7 +7643,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     { label: "AIRWAVE", tone: "go", title: "Radio — simulated, always up" },
     { label: "MDT", tone: groundAvailable ? "go" : "warn", title: groundAvailable ? "MDT reachable for the selected job" : "No live job selected" },
     { label: "OS GAZ", tone: osMappingEnabled() ? "go" : "warn", title: osMappingEnabled() ? "OS mapping connected" : "OS mapping not configured — street map in use" },
-    { label: audioMuted ? "AUDIO OFF" : "AUDIT ON", tone: "none" },
+    { label: audioMuted ? "AUDIO OFF" : "AUDIO ON", tone: "none" },
   ];
   const vecKeys = useRef<(e: KeyboardEvent) => void>(() => {});
   vecKeys.current = (e: KeyboardEvent) => {
@@ -8359,6 +8414,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
               logTail: log.slice(-25).map((e) => `${new Date(e.timestamp).toISOString().slice(11, 19)} ${e.kind} ${e.message}`),
             }}
           />
+          <DeskAlerts />
           {/* Scored jobs wait in a card until the operator wants the debrief. */}
           {!shiftDebriefOpen && !reviewJobId && (() => {
             const scored = incidents.filter((i) => runtimes[i.id]?.outcome);

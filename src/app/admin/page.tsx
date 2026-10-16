@@ -9,6 +9,8 @@ import { ownOsrmStatus } from "@/lib/map/osrm";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
 import { CopyEmails } from "./copy-emails";
+import { Notice } from "@/app/components/notice";
+import { SERVICE_TINT, serviceName } from "@/app/menu/menu-types";
 import {
   setRole,
   setTester,
@@ -122,12 +124,6 @@ type UserRow = {
   tester?: boolean;
 };
 
-const inputCls =
-  "rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-2 font-mono text-[12px] text-(--color-text) placeholder:text-(--color-text-dim) focus:border-(--color-amber) focus:outline-none";
-
-const btnCls =
-  "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
-
 type AdminTab = "applications" | "users" | "advisors" | "bugs" | "scenarios" | "prealpha";
 
 type BugRow = {
@@ -146,46 +142,6 @@ type BugRow = {
   updated_at: string;
 };
 
-function AdminTabLink({
-  tab,
-  current,
-  label,
-  count,
-  countTone,
-}: {
-  tab: AdminTab;
-  current: AdminTab;
-  label: string;
-  count: number;
-  countTone?: "amber";
-}) {
-  const active = tab === current;
-  return (
-    <Link
-      href={tab === "applications" ? "/admin" : `/admin?tab=${tab}`}
-      aria-current={active ? "page" : undefined}
-      className={
-        "-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2 font-mono text-[11px] uppercase tracking-widest transition-colors " +
-        (active
-          ? "border-(--color-amber) text-(--color-text)"
-          : "border-transparent text-(--color-text-dim) hover:border-(--color-border) hover:text-(--color-text)")
-      }
-    >
-      {label}
-      <span
-        className={
-          "rounded-sm px-1.5 py-0.5 text-[10px] tabular-nums " +
-          (countTone === "amber"
-            ? "bg-(--color-amber)/15 text-(--color-amber)"
-            : "bg-(--color-surface-raised) text-(--color-text-dim)")
-        }
-      >
-        {count}
-      </span>
-    </Link>
-  );
-}
-
 /** The person's page: their account, standing and service record. */
 function profileHref(userId: string, email?: string): string {
   return `/admin/user?id=${encodeURIComponent(userId)}${email ? `&e=${encodeURIComponent(email)}` : ""}`;
@@ -194,23 +150,6 @@ function profileHref(userId: string, email?: string): string {
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-function Tile({ n, label, tone }: { n: number; label: string; tone?: "amber" }) {
-  return (
-    <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/50 px-3 py-2.5">
-      <div
-        className={`text-xl font-semibold tabular-nums ${
-          tone === "amber" ? "text-(--color-amber)" : "text-(--color-text)"
-        }`}
-      >
-        {n.toLocaleString()}
-      </div>
-      <div className="mt-0.5 text-[9px] uppercase leading-tight tracking-widest text-(--color-text-dim)">
-        {label}
-      </div>
-    </div>
-  );
 }
 
 export default async function AdminPage({
@@ -356,190 +295,161 @@ export default async function AdminPage({
   });
   const advisorsWaiting = testerApps.filter((a) => a.status === "pending" && advisorStanding(advisorOf(a)) && advisorStanding(advisorOf(a)) !== "declined").length;
 
+  // One sentence on what the database is missing, or null when it is all
+  // there. The write actions report the same way through ?missing=.
+  const dbProblem =
+    missing016 || usersLackTester
+      ? "Migration 016 (tester tick) has not reached the app. Run supabase/migrations/016_testers.sql in the Supabase SQL editor, then reload. If it has been run, run  notify pgrst, 'reload schema';  and reload this page."
+      : missing015
+        ? "Migration 015 (Discord permission tick) has not been run. Run supabase/migrations/015_roles_discord_granted.sql in the SQL editor, then reload."
+        : rolesLackTick
+          ? "The Discord tick column is not reaching the app: the API is still serving the old shape of admin_list_roles. In the Supabase SQL editor run  notify pgrst, 'reload schema';  then reload this page."
+          : missing007
+            ? "Migration 007 (admin functions) has not been run. Run supabase/migrations/007_admin_functions.sql in the SQL editor, then reload."
+            : missing008
+              ? "Migration 008 (admin overview) has not been run. Run supabase/migrations/008_admin_overview.sql in the SQL editor, then reload."
+              : missing011
+                ? "Migration 011 (admin notes) has not been run. Run supabase/migrations/011_admin_notes.sql in the SQL editor, then reload."
+                : firstError
+                  ? `Database error: ${firstError.message ?? "unknown"}`
+                  : null;
+
   return (
     <ConsoleShell {...consoleUser(session)} active="admin" title="Administration">
       <header className={styles.pageHead}>
         <div>
           <p className={styles.eyebrow}>Administration · programme and accounts</p>
           <h1 className={styles.pageTitle}>Administration</h1>
-          <p className={styles.lede}>Pre-alpha applications, advisor applications, access roles, released scenarios, reports and accounts.</p>
+          <p className={styles.lede}>Pre-alpha access, advisor applications, access roles, released scenarios, bug reports and accounts.</p>
+        </div>
+        <div className={styles.headMeta}>
+          <span className={`${styles.chip} ${doors.open ? styles.chipOk : styles.chipAmber}`}>Doors {doors.open ? "open" : "closed"}</span>
+          <span className={`${styles.chip} ${signups.open ? styles.chipOk : ""}`}>Sign-ups {signups.open ? "open" : "closed"}</span>
         </div>
       </header>
-      <div className={`${styles.legacy} space-y-8 font-mono`}>
 
-        {(firstError || missing015 || missing016 || rolesLackTick || usersLackTester) && (
-          <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-            {missing016 || usersLackTester
-              ? "Migration 016 (tester tick) has not reached the app yet — run supabase/migrations/016_testers.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, 'reload schema';  and reload this page."
-              : missing015
-              ? "Migration 015 (Discord permission tick) has not been run in Supabase yet — run supabase/migrations/015_roles_discord_granted.sql in the SQL editor, then reload."
-              : rolesLackTick
-                ? "The Discord tick column is not reaching the app yet — the API is still serving the old shape of admin_list_roles. In the Supabase SQL editor run:  notify pgrst, 'reload schema';  then reload this page."
-                : missing007
-              ? "Migration 007 (admin functions) has not been run in Supabase yet — run supabase/migrations/007_admin_functions.sql in the SQL editor, then reload."
-              : missing008
-                ? "Migration 008 (admin overview) has not been run in Supabase yet — run supabase/migrations/008_admin_overview.sql in the SQL editor, then reload."
-                : missing011
-                  ? "Migration 011 (admin notes) has not been run in Supabase yet — run supabase/migrations/011_admin_notes.sql in the SQL editor, then reload."
-                  : `Database error: ${firstError?.message ?? "unknown"}`}
+      {dbProblem && (
+        <Notice tone="critical" title="Database">
+          <p>{dbProblem}</p>
+        </Notice>
+      )}
+
+      {overview && (
+        <section aria-labelledby="admin-overview">
+          <div className={styles.blockHead}>
+            <h2 id="admin-overview">Overview</h2>
+            <span className={styles.chip}>{overview.applications_pending + pendingTesterApps + openBugs} items awaiting action</span>
           </div>
-        )}
-
-        {/* Overview */}
-        {overview && (
-          <section className="space-y-3">
-            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Overview
-            </h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-              <Tile n={overview.total_accounts} label="Accounts" />
-              <Tile n={overview.new_accounts_7d} label="New · 7 days" />
-              <Tile n={overview.applications_pending} label="Applications pending" tone="amber" />
-              <Tile n={overview.advisors_accepted} label="Advisors" />
-              <Tile n={overview.operators_granted} label="Operators" />
-              <Tile n={overview.newsletter_opt_ins} label="Newsletter" />
-              <Tile n={overview.calls_answered} label="Calls answered" />
-              <Tile n={overview.incidents_resolved} label="Incidents resolved" />
-            </div>
-          </section>
-        )}
-
-        {/* Tabs — one list at a time, so nothing needs scrolling for. */}
-        <nav
-          aria-label="Admin sections"
-          className="flex flex-wrap gap-1 border-b border-(--color-border-subtle)"
-        >
-          <AdminTabLink
-            tab="applications"
-            current={tab}
-            label="Advisor applications"
-            count={pending.length}
-            countTone={pending.length > 0 ? "amber" : undefined}
-          />
-          <AdminTabLink tab="users" current={tab} label="Registered users" count={usersTotal} />
-          <AdminTabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} countTone={openBugs > 0 ? "amber" : undefined} />
-          <AdminTabLink tab="scenarios" current={tab} label="Scenarios" count={released.size} />
-          <AdminTabLink tab="prealpha" current={tab} label="Pre-alpha" count={pendingTesterApps} countTone={pendingTesterApps > 0 ? "amber" : undefined} />
-          <AdminTabLink
-            tab="advisors"
-            current={tab}
-            label="Current advisors"
-            count={roles.length}
-          />
-        </nav>
-
-        {/* Advisor applications */}
-        {tab === "applications" && (
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Advisor applications
-            </h2>
-            <span className="text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-              {pending.length} awaiting review · {advisors.length} total
-            </span>
+          <div className={styles.stats}>
+            <div><strong>{overview.total_accounts.toLocaleString("en-GB")}</strong><span>Accounts</span></div>
+            <div><strong>{overview.new_accounts_7d.toLocaleString("en-GB")}</strong><span>New · 7 days</span></div>
+            <div className={overview.applications_pending > 0 ? styles.hot : undefined}><strong>{overview.applications_pending.toLocaleString("en-GB")}</strong><span>Applications pending</span></div>
+            <div><strong>{overview.advisors_accepted.toLocaleString("en-GB")}</strong><span>Advisors</span></div>
+            <div><strong>{overview.operators_granted.toLocaleString("en-GB")}</strong><span>Operators</span></div>
+            <div><strong>{overview.newsletter_opt_ins.toLocaleString("en-GB")}</strong><span>Newsletter</span></div>
+            <div><strong>{overview.calls_answered.toLocaleString("en-GB")}</strong><span>Calls handled</span></div>
+            <div><strong>{overview.incidents_resolved.toLocaleString("en-GB")}</strong><span>Incidents resolved</span></div>
           </div>
+        </section>
+      )}
 
-          {noDiscord.length > 0 && (
-            <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-(--color-info)">Discord handle outstanding · {noDiscord.length}</p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-(--color-text-muted)">Accepted advisors with no handle on record. The closed advisor room cannot be given to them until there is one; the list below is ready for a BCC field.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <CopyEmails emails={noDiscordEmails} className={`${btnCls} border-(--color-info)/60 text-(--color-info) hover:bg-(--color-info)/15`} />
-                  <a href={`mailto:?bcc=${encodeURIComponent(noDiscordEmails.join(","))}&subject=${encodeURIComponent("The Watch Room advisor programme: your Discord handle")}`} className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-info) hover:text-(--color-info)`}>Email all</a>
-                </div>
-              </div>
-              <ul className="mt-3 grid gap-1 sm:grid-cols-2">
-                {noDiscord.map((a) => (
-                  <li key={a.user_id} className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
-                    <Link href={profileHref(a.user_id, a.email)} className="font-semibold text-(--color-text) hover:text-(--color-amber)">{a.callsign || "(no callsign)"}</Link>
-                    <span className="break-all text-(--color-text-dim)">{a.email}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-(--color-text-dim)">{a.assigned_role}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 select-all break-all font-mono text-[11px] text-(--color-text-dim)">{noDiscordEmails.join(", ")}</p>
-            </div>
-          )}
+      {/* One list at a time, so nothing needs scrolling for. */}
+      <nav className={`${styles.tabs} ${styles.section}`} aria-label="Administration sections">
+        <TabLink tab="applications" current={tab} label="Advisor applications" count={pending.length} hot={pending.length > 0} />
+        <TabLink tab="prealpha" current={tab} label="Pre-alpha" count={pendingTesterApps} hot={pendingTesterApps > 0} />
+        <TabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} hot={openBugs > 0} />
+        <TabLink tab="users" current={tab} label="Accounts" count={usersTotal} />
+        <TabLink tab="advisors" current={tab} label="Access roles" count={roles.length} />
+        <TabLink tab="scenarios" current={tab} label="Scenarios" count={released.size} />
+      </nav>
 
-          {advisors.length === 0 ? (
-            <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
-              No applications yet. They land here the moment someone ticks
-              the advisor box at signup.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {advisors.map((a) => {
-                const insignia = serviceKeyFor(a.service);
-                const topics = Array.isArray(a.topics) ? (a.topics as string[]) : [];
-                return (
-                  <div
-                    key={a.user_id}
-                    className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4"
+      {/* Advisor applications */}
+      {tab === "applications" && (
+        <section className={styles.section} aria-labelledby="tab-applications">
+          <div className={styles.blockHead}>
+            <h2 id="tab-applications">Advisor applications</h2>
+            <span className={styles.chip}>{pending.length} awaiting review · {advisors.length} filed</span>
+          </div>
+          <div className={styles.stack}>
+            {noDiscord.length > 0 && (
+              <div className={styles.panel}>
+                <div className={styles.panelHead}>
+                  <h2>Discord handle outstanding</h2>
+                  <span className={`${styles.chip} ${styles.chipInfo}`}>{noDiscord.length} advisor{noDiscord.length === 1 ? "" : "s"}</span>
+                </div>
+                <p className={styles.panelText}>Advisors on the programme with no handle on record. The closed advisor channel cannot be granted until there is one. The addresses below are ready for a BCC field.</p>
+                <div className={styles.actions}>
+                  <CopyEmails emails={noDiscordEmails} className={`${styles.button} ${styles.small}`} />
+                  <a
+                    href={`mailto:?bcc=${encodeURIComponent(noDiscordEmails.join(","))}&subject=${encodeURIComponent("The Watch Room advisor programme: your Discord handle")}`}
+                    className={`${styles.button} ${styles.small}`}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                          <Link href={profileHref(a.user_id, a.email)} className="text-[14px] font-semibold text-(--color-text) underline-offset-4 hover:text-(--color-amber) hover:underline" title="Open their profile and service record">
-                            {a.callsign || "(no callsign)"}
-                          </Link>
-                          <span className="break-all text-[12px] text-(--color-text-dim)">
-                            {a.email}
-                          </span>
+                    Email all
+                  </a>
+                </div>
+                <div className={`${styles.rows} ${styles.subPanel}`}>
+                  {noDiscord.map((a) => (
+                    <div key={a.user_id} className={styles.row}>
+                      <span className={styles.rowText}>
+                        <Link href={profileHref(a.user_id, a.email)} className={styles.textLink}>{a.callsign || "No callsign"}</Link>
+                        {" "}
+                        <span className={styles.email}>{a.email}</span>
+                      </span>
+                      <em>{a.assigned_role}</em>
+                    </div>
+                  ))}
+                </div>
+                <p className={styles.pre} style={{ userSelect: "all" }}>{noDiscordEmails.join(", ")}</p>
+              </div>
+            )}
+
+            {advisors.length === 0 ? (
+              <Notice title="No applications filed">
+                <p>Applications are filed when an account ticks the advisor box at sign-up.</p>
+              </Notice>
+            ) : (
+              <div className={styles.cards}>
+                {advisors.map((a) => {
+                  const insignia = serviceKeyFor(a.service);
+                  const topics = Array.isArray(a.topics) ? (a.topics as string[]) : [];
+                  return (
+                    <article key={a.user_id} className={styles.card}>
+                      <div>
+                        <div className={styles.cardHead}>
+                          <Link href={profileHref(a.user_id, a.email)} title="Open their profile and service record"><strong>{a.callsign || "No callsign"}</strong></Link>
+                          <span className={styles.email}>{a.email}</span>
                           {a.assigned_role ? (
-                            <span className="rounded-sm border border-(--color-ok)/60 bg-(--color-ok)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-ok)">
-                              {a.assigned_role}
-                            </span>
+                            <span className={`${styles.chip} ${styles.chipOk}`}>{a.assigned_role}</span>
                           ) : a.declined_at ? (
-                            <span className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-critical)">
-                              Declined
-                            </span>
+                            <span className={`${styles.chip} ${styles.chipStop}`}>Declined</span>
                           ) : (
-                            <span className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-(--color-amber)">
-                              Awaiting review
-                            </span>
+                            <span className={`${styles.chip} ${styles.chipAmber}`}>Awaiting review</span>
                           )}
                         </div>
-                        <div className="mt-1.5 text-[11px] uppercase tracking-widest text-(--color-text-dim)">
+                        <p className={styles.cardMeta}>
                           {a.service}
                           {a.status ? ` · ${a.status}` : ""}
                           {a.force_area ? ` · ${a.force_area}` : ""}
                           {" · applied "}
                           {fmtDate(a.applied_at)}
-                        </div>
+                        </p>
                         {topics.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {topics.map((t) => (
-                              <span
-                                key={t}
-                                className="rounded-sm border border-(--color-border) px-1.5 py-0.5 text-[10px] text-(--color-text-dim)"
-                              >
-                                {t}
-                              </span>
-                            ))}
+                          <div className={styles.tags}>
+                            {topics.map((t) => <span key={t}>{t}</span>)}
                           </div>
                         )}
-                        {a.background && (
-                          <p className="mt-2 max-w-3xl text-[12px] leading-relaxed text-(--color-text-muted)">
-                            {a.background}
-                          </p>
-                        )}
-                        <div className="mt-1.5 text-[11px] text-(--color-text-dim)">
-                          {a.discord && <>Discord: {a.discord} · </>}
-                          Contact OK: {a.contact_ok ? "yes" : "no"}
-                        </div>
+                        {a.background && <p className={styles.cardBody}>{a.background}</p>}
+                        {a.notes && <p className={styles.cardBody}>{a.notes}</p>}
+                        <p className={styles.cardMeta}>
+                          {a.discord?.trim() ? `Discord ${a.discord.trim()}` : "No Discord handle"}
+                          {" · "}
+                          {a.involvement ? `${a.involvement} · ` : ""}
+                          contact {a.contact_ok ? "permitted" : "not permitted"}
+                        </p>
                       </div>
-
-                      <div className="flex shrink-0 flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-                        {insignia && (
-                          <span className="hidden sm:inline-flex">
-                            <ServiceBadge service={insignia} />
-                          </span>
-                        )}
-                        <div className="flex flex-wrap gap-2">
+                      <div className={styles.cardActions}>
+                        {insignia && <div className={styles.legacy}><ServiceBadge service={insignia} role={a.assigned_role ? a.assigned_role.toUpperCase() : "APPLICANT"} /></div>}
+                        <div className={styles.actions}>
                           {a.assigned_role === null && (
                             <form action={setRole}>
                               <input type="hidden" name="email" value={a.email} />
@@ -550,12 +460,7 @@ export default async function AdminPage({
                                   the insignia on the role, so an accepted
                                   advisor wears it everywhere at once. */}
                               <input type="hidden" name="icon" value={serviceKeyFor(a.service) ?? ""} />
-                              <button
-                                type="submit"
-                                className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
-                              >
-                                Accept advisor
-                              </button>
+                              <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Accept as advisor</button>
                             </form>
                           )}
                           {a.assigned_role === null && !a.declined_at && (
@@ -563,138 +468,112 @@ export default async function AdminPage({
                               <input type="hidden" name="userId" value={a.user_id} />
                               <input type="hidden" name="email" value={a.email} />
                               <input type="hidden" name="declined" value="true" />
-                              <button
-                                type="submit"
-                                className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}
-                              >
-                                Decline
-                              </button>
+                              <button type="submit" className={`${styles.button} ${styles.small} ${styles.danger}`}>Decline</button>
                             </form>
                           )}
                           {a.assigned_role === null && a.declined_at && (
                             <form action={setAdvisorDecline}>
                               <input type="hidden" name="userId" value={a.user_id} />
                               <input type="hidden" name="declined" value="false" />
-                              <button
-                                type="submit"
-                                className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)`}
-                              >
-                                Undo decline
-                              </button>
+                              <button type="submit" className={`${styles.button} ${styles.small}`}>Reinstate application</button>
                             </form>
                           )}
                           {a.assigned_role === "advisor" && (
                             <form action={setRole}>
                               <input type="hidden" name="email" value={a.email} />
                               <input type="hidden" name="role" value="operator" />
-                              <button
-                                type="submit"
-                                className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15`}
-                              >
-                                Promote to operator
-                              </button>
+                              <button type="submit" className={`${styles.primary} ${styles.small}`}>Promote to operator</button>
                             </form>
                           )}
                           {a.assigned_role !== null && a.assigned_role !== "admin" && (
                             <form action={deleteRole}>
                               <input type="hidden" name="email" value={a.email} />
-                              <button
-                                type="submit"
-                                className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}
-                              >
-                                Revoke
-                              </button>
+                              <button type="submit" className={`${styles.button} ${styles.small} ${styles.danger}`}>Revoke</button>
                             </form>
                           )}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-        )}
-
-        {/* Current advisors — the access-roles table: everyone who has
-            been granted something, with the Discord tick. */}
-        {tab === "scenarios" && (
-          <section className="space-y-3">
-            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Scenarios open to testers
-              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                {released.size} of {SCENARIOS.length} · admins see all of them
-              </span>
-            </h2>
-            {(missing018 || missingReleased) && (
-              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-                Migration 018 (scenario release) has not reached the app yet — run supabase/migrations/018_released_scenarios.sql in the Supabase SQL editor, then reload. Until it has, testers get no calls at all.
+                    </article>
+                  );
+                })}
               </div>
             )}
-            <div className="rounded-sm border border-(--color-border-subtle) px-4 py-3 text-[12px]">
-              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Map data</div>
-              {missingMap ? (
-                <p className="mt-1 text-(--color-text-dim)">
-                  Migration 019 (map data) has not been run — the desk is asking the public Overpass mirrors for roads and hydrants on every job. Run supabase/migrations/019_osm_map_data.sql in the SQL editor, then load the tables with tools/osm-import.
-                </p>
-              ) : mapStatus.length === 0 ? (
-                <p className="mt-1 text-(--color-text-dim)">
-                  Tables ready, nothing loaded yet — run tools/osm-import (npm run import) to load Greater Manchester&apos;s roads and hydrants. Until then the desk falls back to the public Overpass mirrors.
-                </p>
-              ) : (
-                <ul className="mt-1 space-y-0.5 text-(--color-text)">
-                  {mapStatus.map((m) => (
-                    <li key={m.kind}>
-                      <span className="capitalize">{m.kind}</span> · {m.row_count.toLocaleString("en-GB")} rows · loaded {new Date(m.imported_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                      <span className="text-(--color-text-dim)"> · {m.source}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Routing</div>
-              {routing.configured ? (
-                <p className={`mt-1 ${routing.reachable ? "text-(--color-text)" : "text-(--color-critical)"}`}>
-                  Own OSRM at {routing.host} · {routing.reachable ? "reachable" : "not answering — ETAs are falling back to OpenRouteService and the public demo server"}
-                </p>
-              ) : (
-                <p className="mt-1 text-(--color-text-dim)">
-                  No OSRM_URL set — ETAs come from OpenRouteService and the public OSRM demo server, which are quota-limited. See tools/osrm/README.md.
-                </p>
-              )}
+          </div>
+        </section>
+      )}
+
+      {/* Scenarios released to testers, with the map and routing status. */}
+      {tab === "scenarios" && (
+        <section className={styles.section} aria-labelledby="tab-scenarios">
+          <div className={styles.blockHead}>
+            <h2 id="tab-scenarios">Scenarios released to testers</h2>
+            <span className={styles.chip}>{released.size} of {SCENARIOS.length} released · admins see all</span>
+          </div>
+          <div className={styles.stack}>
+            {(missing018 || missingReleased) && (
+              <Notice tone="critical" title="Migration 018 (scenario release) has not reached the app">
+                <p>Run supabase/migrations/018_released_scenarios.sql in the Supabase SQL editor, then reload. Until it has, testers receive no calls.</p>
+              </Notice>
+            )}
+            <div className={styles.panel}>
+              <div className={styles.panelHead}>
+                <h2>Map data and routing</h2>
+                <span className={`${styles.chip} ${routing.configured && routing.reachable ? styles.chipOk : routing.configured ? styles.chipStop : ""}`}>
+                  {routing.configured ? (routing.reachable ? "Own routing online" : "Own routing not answering") : "Public routing"}
+                </span>
+              </div>
+              <div className={styles.facts2} style={{ marginTop: 0 }}>
+                {missingMap ? (
+                  <div className={styles.factRow}><span>Map data</span><span>Migration 019 (map data) has not been run; the desk is asking the public Overpass mirrors for roads and hydrants on every job. Run supabase/migrations/019_osm_map_data.sql in the SQL editor, then load the tables with tools/osm-import.</span></div>
+                ) : mapStatus.length === 0 ? (
+                  <div className={styles.factRow}><span>Map data</span><span>Tables ready, nothing loaded yet. Run tools/osm-import (npm run import) to load Greater Manchester&apos;s roads and hydrants. Until then the desk falls back to the public Overpass mirrors.</span></div>
+                ) : (
+                  mapStatus.map((m) => (
+                    <div key={m.kind} className={styles.factRow}>
+                      <span>{m.kind}</span>
+                      <span>{m.row_count.toLocaleString("en-GB")} rows · loaded {new Date(m.imported_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · {m.source}</span>
+                    </div>
+                  ))
+                )}
+                <div className={styles.factRow}>
+                  <span>Routing</span>
+                  <span>
+                    {routing.configured
+                      ? `Own OSRM at ${routing.host} · ${routing.reachable ? "reachable" : "not answering; ETAs are falling back to OpenRouteService and the public demo server"}`
+                      : "No OSRM_URL set. ETAs come from OpenRouteService and the public OSRM demo server, which are quota-limited. See tools/osrm/README.md."}
+                  </span>
+                </div>
+              </div>
             </div>
             {(["Fire", "Ambulance", "Police"] as const).map((service) => {
               const rows = SCENARIOS.filter((sc) => (sc.pda[0]?.service ?? "Fire") === service);
+              const open = rows.filter((sc) => released.has(sc.id)).length;
               return (
-                <div key={service} className="space-y-1.5">
-                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-                    {service} · {rows.filter((sc) => released.has(sc.id)).length} of {rows.length} open
-                  </h3>
-                  <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
+                <div key={service} className={styles.panel}>
+                  <div className={styles.panelHead}>
+                    <h2><span className={styles.swatch} style={{ background: SERVICE_TINT[service] }} aria-hidden="true" />{serviceName(service)}</h2>
+                    <span className={`${styles.chip} ${open > 0 ? styles.chipOk : ""}`}>{open} of {rows.length} released</span>
+                  </div>
+                  <div className={styles.rows}>
                     {rows.map((sc) => {
                       const on = released.has(sc.id);
                       return (
-                        <form key={sc.id} action={setScenarioReleased} className="flex items-center gap-3 px-3 py-1.5 text-[12px]">
+                        <form key={sc.id} action={setScenarioReleased} className={styles.row}>
                           <input type="hidden" name="scenarioId" value={sc.id} />
                           <input type="hidden" name="released" value={on ? "false" : "true"} />
                           <button
                             type="submit"
                             role="checkbox"
                             aria-checked={on}
-                            aria-label={`${sc.title} open to testers`}
-                            title={on ? "Open to testers — click to close" : "Closed — click to open to testers"}
-                            className={
-                              "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[2px] border text-[12px] leading-none transition-colors " +
-                              (on
-                                ? "border-(--color-ok) bg-(--color-ok)/15 text-(--color-ok)"
-                                : "border-(--color-border) text-transparent hover:border-(--color-ok)/60")
-                            }
+                            aria-label={`${sc.title} released to testers`}
+                            title={on ? "Released to testers. Select to withdraw." : "Withheld. Select to release to testers."}
+                            className={`${styles.tick} ${on ? styles.tickOn : ""}`}
                           >
                             ✓
                           </button>
-                          <span className="font-mono text-[10px] text-(--color-text-dim)">#{sc.id}</span>
-                          <span className={on ? "text-(--color-text)" : "text-(--color-text-muted)"}>{sc.title}</span>
-                          <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{sc.severity}</span>
+                          <code>#{sc.id}</code>
+                          <span className={`${styles.rowText} ${on ? "" : styles.off}`}>{sc.title}</span>
+                          <em>{sc.severity}</em>
                         </form>
                       );
                     })}
@@ -702,657 +581,540 @@ export default async function AdminPage({
                 </div>
               );
             })}
-          </section>
-        )}
+          </div>
+        </section>
+      )}
 
-        {tab === "prealpha" && (
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-                Pre-alpha access requests
-                <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                  {pendingTesterApps} waiting{advisorsWaiting > 0 ? ` (${advisorsWaiting} advisor${advisorsWaiting === 1 ? "" : "s"})` : ""} · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} in all
-                </span>
-              </h2>
-              {pendingTesterApps > 0 && (
-                <form action={acceptAllPendingTesterApplications}>
-                  <button type="submit" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>
-                    Accept all {pendingTesterApps} waiting
-                  </button>
-                </form>
-              )}
-            </div>
-            {/* The doors. Closed: everyone on the list is told they are
-                in and waits. Open: the desk. */}
-            <div className={`rounded-sm border px-4 py-3 ${doors.open ? "border-(--color-ok)/60 bg-(--color-ok)/10" : "border-(--color-amber)/60 bg-(--color-amber)/10"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className={`font-mono text-[11px] uppercase tracking-[0.25em] ${doors.open ? "text-(--color-ok)" : "text-(--color-amber)"}`}>
-                    Doors {doors.open ? "open" : "closed"}
-                  </p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-(--color-text-muted)">
-                    {doors.tableMissing
-                      ? "Migration 022 (site settings) has not been run, so the doors cannot be closed: every tester can open the desk. Run supabase/migrations/022_site_settings.sql, which starts them closed."
-                      : doors.open
-                        ? "Every account on the tester list can open the operator console and take a shift."
-                        : "Sign-ups, requests, accepts and invites all work and testers see they are in, but nobody on the list can open the desk until you open the doors. Admins and operators are not held."}
-                  </p>
+      {/* Pre-alpha: the doors, the sign-up switch and the requests. */}
+      {tab === "prealpha" && (
+        <section className={styles.section} aria-labelledby="tab-prealpha">
+          <div className={styles.blockHead}>
+            <h2 id="tab-prealpha">Pre-alpha access</h2>
+            <span className={styles.chip}>
+              {pendingTesterApps} awaiting decision{advisorsWaiting > 0 ? ` (${advisorsWaiting} advisor${advisorsWaiting === 1 ? "" : "s"})` : ""} · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} filed
+            </span>
+          </div>
+          <div className={styles.stack}>
+            <div className={styles.twoUp}>
+              {/* The doors. Closed: everyone on the list is told they are
+                  in and waits. Open: the desk. */}
+              <div className={`${styles.panel} ${doors.open ? styles.panelOk : styles.panelAmber}`}>
+                <div className={styles.panelHead}>
+                  <h2>Doors</h2>
+                  <span className={`${styles.chip} ${doors.open ? styles.chipOk : styles.chipAmber}`}>{doors.open ? "Open" : "Closed"}</span>
                 </div>
+                <p className={styles.panelText}>
+                  {doors.tableMissing
+                    ? "Migration 022 (site settings) has not been run, so the doors cannot be closed: every tester can open the desk. Run supabase/migrations/022_site_settings.sql, which starts them closed."
+                    : doors.open
+                      ? "Every account on the tester list can open the operator console and take a shift."
+                      : "Sign-ups, requests, accepts and invitations all work and testers see they are in, but nobody on the list can open the desk until the doors are opened. Admins and operators are not held."}
+                </p>
                 {!doors.tableMissing && (
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className={styles.actions}>
                     <form action={setPrealphaDoors}>
                       <input type="hidden" name="doors" value={doors.open ? "closed" : "open"} />
-                      <button type="submit" className={`${btnCls} ${doors.open ? "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10" : "border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10"}`}>
-                        {doors.open ? "Close the doors" : "Open the doors"}
-                      </button>
+                      <button type="submit" className={`${styles.button} ${styles.small} ${doors.open ? "" : styles.okBtn}`}>{doors.open ? "Close the doors" : "Open the doors"}</button>
                     </form>
                     {doors.open && (
                       <form action={notifyTestersDoorsOpen}>
-                        <button type="submit" className={`${btnCls} border-(--color-info)/60 text-(--color-info) hover:bg-(--color-info)/10`} title="One email to every account on the tester list">
-                          Email testers: doors open
-                        </button>
+                        <button type="submit" className={`${styles.button} ${styles.small}`} title="One email to every account on the tester list">Email testers: doors open</button>
                       </form>
                     )}
                   </div>
                 )}
+                {notified && <p className={styles.formStatus} style={{ color: "var(--ok)" }}>Doors-open notice sent to {notified} testers.</p>}
               </div>
-              {notified && (
-                <p className="mt-2 text-[12px] text-(--color-ok)">Doors-open email sent to {notified} testers.</p>
-              )}
-            </div>
-            {/* Sign-ups. Closed: the tick at signup and the request button
-                are greyed out and nothing new is filed. The calendar still
-                runs underneath; the switch overrides it either way. */}
-            <div className={`rounded-sm border px-4 py-3 ${signups.open ? "border-(--color-ok)/60 bg-(--color-ok)/10" : "border-(--color-border) bg-(--color-surface)"}`}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className={`font-mono text-[11px] uppercase tracking-[0.25em] ${signups.open ? "text-(--color-ok)" : "text-(--color-text-dim)"}`}>
-                    Sign-ups {signups.open ? "open" : "closed"}
-                    <span className="ml-2 normal-case tracking-normal text-(--color-text-dim)">
-                      {signupSwitch === "calendar"
-                        ? calendar.open
-                          ? `by the calendar${calendar.closes ? ` — close ${calendar.closes}` : ""}`
-                          : calendar.closed
-                            ? `by the calendar${calendar.closes ? ` — closed ${calendar.closes}` : ""}`
-                            : `by the calendar — open ${calendar.opens}`
-                        : `by you${calendar.closed ? " (the calendar has them closed)" : calendar.open ? " (the calendar has them open)" : ""}`}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-(--color-text-muted)">
-                    {signups.open
-                      ? "Anyone can create an account with Join the pre-alpha ticked, or press Request pre-alpha access from their standby page."
-                      : "The tick at signup and the request button are greyed out, and the server files no new requests. Accounts already on the list, pending requests and invites are untouched."}
-                    {" "}Run supabase/migrations/024_prealpha_signups.sql once so logged-out visitors see the switch on the front door and the sign-up page; signed-in pages and the server follow it immediately.
-                  </p>
+
+              {/* Sign-ups. Closed: the tick at sign-up and the request
+                  button are greyed out and nothing new is filed. The
+                  calendar still runs underneath; the switch overrides it. */}
+              <div className={`${styles.panel} ${signups.open ? styles.panelOk : ""}`}>
+                <div className={styles.panelHead}>
+                  <h2>Sign-ups</h2>
+                  <span className={`${styles.chip} ${signups.open ? styles.chipOk : ""}`}>{signups.open ? "Open" : "Closed"}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <p className={styles.cardMeta} style={{ marginTop: 0 }}>
+                  {signupSwitch === "calendar"
+                    ? calendar.open
+                      ? `By the calendar${calendar.closes ? ` · closes ${calendar.closes}` : ""}`
+                      : calendar.closed
+                        ? `By the calendar${calendar.closes ? ` · closed ${calendar.closes}` : ""}`
+                        : `By the calendar · opens ${calendar.opens}`
+                    : `Set by hand${calendar.closed ? " · the calendar has them closed" : calendar.open ? " · the calendar has them open" : ""}`}
+                </p>
+                <p className={styles.panelText}>
+                  {signups.open
+                    ? "Anyone can create an account with Join the pre-alpha ticked, or press Request pre-alpha access from their standby page."
+                    : "The pre-alpha tick at sign-up and the request button on standby are off. Accounts can still be created and invited by hand."}
+                </p>
+                <div className={styles.actions}>
                   {signups.open ? (
                     <form action={setPrealphaSignups}>
                       <input type="hidden" name="signups" value="closed" />
-                      <button type="submit" className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10`}>Close sign-ups</button>
+                      <button type="submit" className={`${styles.button} ${styles.small}`}>Close sign-ups</button>
                     </form>
                   ) : (
                     <form action={setPrealphaSignups}>
                       <input type="hidden" name="signups" value="open" />
-                      <button type="submit" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>Reopen sign-ups</button>
+                      <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Reopen sign-ups</button>
                     </form>
                   )}
                   {signupSwitch !== "calendar" && (
                     <form action={setPrealphaSignups}>
                       <input type="hidden" name="signups" value="calendar" />
-                      <button type="submit" className={btnCls}>Follow the calendar</button>
+                      <button type="submit" className={`${styles.button} ${styles.small}`}>Follow the calendar</button>
                     </form>
                   )}
                 </div>
               </div>
             </div>
+
             {missing022 && (
-              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-                Migration 022 (site settings) has not reached the app yet — run supabase/migrations/022_site_settings.sql in the Supabase SQL editor, then reload.
-              </div>
+              <Notice tone="critical" title="Migration 022 (site settings) has not reached the app">
+                <p>Run supabase/migrations/022_site_settings.sql in the Supabase SQL editor, then reload.</p>
+              </Notice>
             )}
             {(missing020 || missingTesterApps) && (
-              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-                Migration 020 (pre-alpha applications) has not reached the app yet — run supabase/migrations/020_prealpha_applications.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, &apos;reload schema&apos;;  and reload this page.
-              </div>
+              <Notice tone="critical" title="Migration 020 (pre-alpha applications) has not reached the app">
+                <p>Run supabase/migrations/020_prealpha_applications.sql in the Supabase SQL editor, then reload. If it has been run, run <code>notify pgrst, &apos;reload schema&apos;;</code> and reload this page.</p>
+              </Notice>
             )}
+
+            <div className={styles.blockHead}>
+              <h2>Access requests</h2>
+              {pendingTesterApps > 0 && (
+                <form action={acceptAllPendingTesterApplications}>
+                  <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Accept all {pendingTesterApps} awaiting decision</button>
+                </form>
+              )}
+            </div>
             {testerApps.length === 0 && !missingTesterApps ? (
-              <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
-                No requests yet. They land here when someone ticks &ldquo;Join the pre-alpha&rdquo; at signup or presses Request pre-alpha access on their standby page.
-              </p>
+              <Notice title="No requests filed">
+                <p>Requests are filed when an account ticks Join the pre-alpha at sign-up, or presses Request pre-alpha access from its standby page.</p>
+              </Notice>
             ) : (
-              <div className="space-y-3">
+              <div className={styles.cards}>
                 {sortedTesterApps.map((a) => {
-                  const tone = a.status === "accepted" ? "text-(--color-ok)" : a.status === "declined" ? "text-(--color-critical)" : "text-(--color-amber)";
                   const adv = advisorOf(a);
                   const standing = advisorStanding(adv);
-                  const advTone = standing === "accepted"
-                    ? "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)"
-                    : standing === "applicant"
-                      ? "border-(--color-info)/60 bg-(--color-info)/10 text-(--color-info)"
-                      : "border-(--color-border) text-(--color-text-dim)";
+                  const flagged = standing !== null && standing !== "declined";
                   return (
-                    <div key={a.user_id} className={`rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4 ${standing && standing !== "declined" ? "border-l-2 border-l-(--color-info)" : ""}`}>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-baseline gap-2">
-                            <Link href={profileHref(a.user_id, a.email)} className="font-mono text-sm text-(--color-text) underline-offset-4 hover:text-(--color-amber) hover:underline" title="Open their profile and service record">{a.callsign || "(no callsign)"}</Link>
-                            <span className="text-[11px] text-(--color-text-dim)">{a.email}</span>
-                            {a.discord && <span className="text-[11px] text-(--color-info)">@{a.discord}</span>}
-                            <span className={`font-mono text-[10px] uppercase tracking-widest ${tone}`}>{a.status}{a.tester ? " · tester" : ""}</span>
-                            {adv && standing && (
-                              <span
-                                className={`rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ${advTone}`}
-                                title={standing === "accepted" ? "Holds the advisor role" : standing === "applicant" ? "Has filed the advisor questionnaire — awaiting review on the Applications tab" : "Advisor application declined"}
-                              >
-                                {standing === "accepted" ? "Advisor" : standing === "applicant" ? "Advisor applicant" : "Advisor · declined"}
-                                {adv.service ? ` · ${adv.service}` : ""}
-                                {adv.status ? ` · ${adv.status}` : ""}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-(--color-text-dim)">
-                            Requested {fmtDate(a.created_at)}{a.decided_at ? ` · decided ${fmtDate(a.decided_at)}` : ""}
-                            {[a.hours, a.platform].filter(Boolean).length > 0 ? ` · ${[a.hours, a.platform].filter(Boolean).join(" · ")}` : ""}
-                          </p>
-                          {a.background && <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Background · </span>{a.background}</p>}
-                          {a.why && <p className="text-[12px] text-(--color-text-muted)"><span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Why · </span>{a.why}</p>}
-                          {a.note && <p className="text-[12px] text-(--color-amber)"><span className="font-mono text-[10px] uppercase tracking-widest">Note · </span>{a.note}</p>}
+                    <article key={a.user_id} className={`${styles.card} ${flagged ? styles.cardFlag : ""}`}>
+                      <div>
+                        <div className={styles.cardHead}>
+                          <Link href={profileHref(a.user_id, a.email)} title="Open their profile and service record"><strong>{a.callsign || "No callsign"}</strong></Link>
+                          <span className={styles.email}>{a.email}</span>
+                          {a.discord && <span className={`${styles.chip} ${styles.chipInfo}`}>@{a.discord}</span>}
+                          <span className={`${styles.chip} ${a.status === "accepted" ? styles.chipOk : a.status === "declined" ? styles.chipStop : styles.chipAmber}`}>
+                            {a.status}{a.tester ? " · tester" : ""}
+                          </span>
+                          {adv && standing && (
+                            <span
+                              className={`${styles.chip} ${standing === "accepted" ? styles.chipOk : standing === "applicant" ? styles.chipInfo : ""}`}
+                              title={standing === "accepted" ? "Holds the advisor role" : standing === "applicant" ? "Has filed the advisor questionnaire; awaiting review under Advisor applications" : "Advisor application declined"}
+                            >
+                              {standing === "accepted" ? "Advisor" : standing === "applicant" ? "Advisor applicant" : "Advisor · declined"}
+                              {adv.service ? ` · ${adv.service}` : ""}
+                              {adv.status ? ` · ${adv.status}` : ""}
+                            </span>
+                          )}
                         </div>
-                        <form action={decideTesterApplication} className="flex shrink-0 flex-col gap-2 sm:w-56">
-                          <input type="hidden" name="userId" value={a.user_id} />
-                          <input type="hidden" name="email" value={a.email} />
-                          <input name="note" placeholder="Note (optional)" defaultValue={a.note} className="w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-1.5 text-[12px] text-(--color-text)" />
-                          <div className="flex flex-wrap gap-2">
-                            {a.status !== "accepted" && <button type="submit" name="status" value="accepted" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>Accept</button>}
-                            {a.status !== "declined" && <button type="submit" name="status" value="declined" className={`${btnCls} border-(--color-critical)/60 text-(--color-critical) hover:bg-(--color-critical)/10`}>Decline</button>}
-                            {a.status !== "pending" && <button type="submit" name="status" value="pending" className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:text-(--color-text)`}>Back to pending</button>}
-                          </div>
-                        </form>
+                        <p className={styles.cardMeta}>
+                          Requested {fmtDate(a.created_at)}{a.decided_at ? ` · decided ${fmtDate(a.decided_at)}` : ""}
+                          {[a.hours, a.platform].filter(Boolean).length > 0 ? ` · ${[a.hours, a.platform].filter(Boolean).join(" · ")}` : ""}
+                        </p>
+                        {a.background && <p className={styles.cardBody}><b>Background</b> · {a.background}</p>}
+                        {a.why && <p className={styles.cardBody}><b>Why</b> · {a.why}</p>}
+                        {a.note && <p className={styles.cardBody} style={{ color: "var(--amber)" }}><b>Note</b> · {a.note}</p>}
                       </div>
-                    </div>
+                      <form action={decideTesterApplication} className={styles.cardForm}>
+                        <input type="hidden" name="userId" value={a.user_id} />
+                        <input type="hidden" name="email" value={a.email} />
+                        <input name="note" placeholder="Decision note (optional)" defaultValue={a.note} className={styles.input} aria-label="Decision note" />
+                        <div className={styles.actions}>
+                          {a.status !== "accepted" && <button type="submit" name="status" value="accepted" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Accept</button>}
+                          {a.status !== "declined" && <button type="submit" name="status" value="declined" className={`${styles.button} ${styles.small} ${styles.danger}`}>Decline</button>}
+                          {a.status !== "pending" && <button type="submit" name="status" value="pending" className={`${styles.button} ${styles.small}`}>Back to pending</button>}
+                        </div>
+                      </form>
+                    </article>
                   );
                 })}
               </div>
             )}
-          </section>
-        )}
+          </div>
+        </section>
+      )}
 
-        {tab === "bugs" && (
-          <section className="space-y-3">
-            <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-              Bug reports
-              <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                {openBugs} open · {bugs.length} in all
-              </span>
-            </h2>
+      {/* Bug reports, with triage. */}
+      {tab === "bugs" && (
+        <section className={styles.section} aria-labelledby="tab-bugs">
+          <div className={styles.blockHead}>
+            <h2 id="tab-bugs">Bug reports</h2>
+            <span className={styles.chip}>{openBugs} open · {bugs.length} filed</span>
+          </div>
+          <div className={styles.stack}>
             {(missing017 || missingBugs) && (
-              <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
-                Migration 017 (bug reports) has not reached the app yet — run supabase/migrations/017_bug_reports.sql in the Supabase SQL editor, then reload. If it has been run, run:  notify pgrst, &apos;reload schema&apos;;  and reload this page.
-              </div>
+              <Notice tone="critical" title="Migration 017 (bug reports) has not reached the app">
+                <p>Run supabase/migrations/017_bug_reports.sql in the Supabase SQL editor, then reload. If it has been run, run <code>notify pgrst, &apos;reload schema&apos;;</code> and reload this page.</p>
+              </Notice>
             )}
             {!missingBugs && bugs.length === 0 && (
-              <p className="text-[12px] text-(--color-text-dim)">Nothing filed yet. Testers file from Help → Report a problem on the desk, or from Release notes & feedback on the operator console.</p>
+              <Notice title="Nothing filed">
+                <p>Testers file from Help, Report a problem on the desk, or from Release notes and feedback on the operator console.</p>
+              </Notice>
             )}
-            <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
-              {bugs.map((b) => {
-                const ctx = (b.context ?? {}) as Record<string, unknown>;
-                const logTail = Array.isArray(ctx.logTail) ? (ctx.logTail as unknown[]).filter((l): l is string => typeof l === "string") : [];
-                const known = [
-                  ["scenario", ctx.scenario],
-                  ["incident", ctx.incidentRef],
-                  ["screen", ctx.screen],
-                  ["page", ctx.page],
-                  ["version", ctx.version],
-                  ["viewport", ctx.viewport],
-                ].filter((row): row is [string, string] => typeof row[1] === "string" && row[1].length > 0);
-                const sevTone =
-                  b.severity === "blocker" ? "border-(--color-critical)/60 text-(--color-critical)"
-                  : b.severity === "major" ? "border-(--color-amber)/60 text-(--color-amber)"
-                  : "border-(--color-border) text-(--color-text-dim)";
-                const statusTone =
-                  b.status === "open" ? "text-(--color-amber)"
-                  : b.status === "looking" ? "text-(--color-info)"
-                  : b.status === "fixed" ? "text-(--color-ok)"
-                  : "text-(--color-text-dim)";
-                return (
-                  <div key={b.id} className="px-3 py-2.5 text-[12px]">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className={`rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ${sevTone}`}>{b.severity}</span>
-                      <span className="font-semibold text-(--color-text)">{b.summary}</span>
-                      <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{b.category}</span>
-                      <span className={`ml-auto font-mono text-[10px] uppercase tracking-widest ${statusTone}`}>{b.status}</span>
-                      <span className="font-mono text-[10px] text-(--color-text-dim)">{fmtDate(b.created_at)}</span>
-                    </div>
-                    <p className="mt-1.5 whitespace-pre-wrap text-(--color-text-muted)">{b.detail}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] text-(--color-text-dim)">
-                      <span>{b.callsign ? `${b.callsign} · ` : ""}{b.email}</span>
-                      {known.map(([k, v]) => <span key={k}><span className="uppercase tracking-widest">{k}</span> {v}</span>)}
-                    </div>
-                    {typeof ctx.userAgent === "string" && (
-                      <p className="mt-0.5 truncate font-mono text-[10px] text-(--color-text-dim)" title={ctx.userAgent}>{ctx.userAgent}</p>
-                    )}
-                    {logTail.length > 0 && (
-                      <details className="mt-1.5">
-                        <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-text)">Log tail · {logTail.length} lines</summary>
-                        <pre className="mt-1 max-h-64 overflow-auto rounded-sm border border-(--color-border-subtle) bg-(--color-bg) p-2 font-mono text-[10px] leading-relaxed text-(--color-text-muted)">{logTail.join("\n")}</pre>
-                      </details>
-                    )}
-                    <form action={setBugReport} className="mt-2 flex flex-wrap items-center gap-2">
-                      <input type="hidden" name="id" value={b.id} />
-                      <select name="status" defaultValue={b.status} className={`${inputCls} py-1 text-[11px]`}>
-                        <option value="open">open</option>
-                        <option value="looking">looking</option>
-                        <option value="fixed">fixed</option>
-                        <option value="closed">closed</option>
-                      </select>
-                      <input name="note" defaultValue={b.admin_note} placeholder="Triage note" className={`${inputCls} min-w-56 flex-1 py-1 text-[11px]`} />
-                      <button type="submit" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}>Save</button>
-                    </form>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {tab === "advisors" && (
-        <section className="space-y-3">
-          <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-            Current advisors · access roles
-          </h2>
-
-          <form
-            action={setRole}
-            className="grid grid-cols-1 gap-2 rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/40 p-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center"
-          >
-            <input
-              name="email"
-              type="email"
-              required
-              placeholder="email@example.com"
-              className={`${inputCls} w-full lg:w-64`}
-            />
-            <select name="role" className={`${inputCls} w-full lg:w-auto`} defaultValue="operator">
-              <option value="operator">operator</option>
-              <option value="advisor">advisor</option>
-              <option value="admin">admin</option>
-            </select>
-            <select name="icon" className={`${inputCls} w-full lg:w-auto`} defaultValue="">
-              <option value="">icon: from application</option>
-              <option value="fire">fire</option>
-              <option value="ambulance">ambulance</option>
-              <option value="police">police</option>
-              <option value="control">control</option>
-              <option value="specialist">specialist</option>
-            </select>
-            <input
-              name="note"
-              placeholder="note (who is this?)"
-              className={`${inputCls} w-full lg:w-56`}
-            />
-            <button
-              type="submit"
-              className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15 sm:col-span-2 lg:col-span-1 lg:w-auto`}
-            >
-              Grant
-            </button>
-          </form>
-
-          {roles.length > 0 && (
-            <div className="overflow-x-auto rounded-sm border border-(--color-border-subtle)">
-              <table className="w-full min-w-[660px] text-left text-[12px]">
-                <thead>
-                  <tr className="border-b border-(--color-border-subtle) text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-                    <th className="px-3 py-2">Email</th>
-                    <th className="px-3 py-2">Role</th>
-                    <th className="px-3 py-2">Icon</th>
-                    <th className="px-3 py-2">Discord</th>
-                    <th className="px-3 py-2">Note</th>
-                    <th className="px-3 py-2">Since</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roles.map((r) => (
-                    <tr key={r.email} className="border-b border-(--color-border-subtle)/50">
-                      <td className="px-3 py-2 text-(--color-text)">{r.email}</td>
-                      <td className="px-3 py-2 uppercase tracking-widest text-(--color-amber)">
-                        {r.role}
-                      </td>
-                      <td className="px-3 py-2 text-(--color-text-dim)">{r.icon ?? "—"}</td>
-                      <td className="px-3 py-2 font-mono text-(--color-info)">
-                        <div className="flex items-center gap-2">
-                          <span>
-                            {r.discord || <span className="text-(--color-text-dim)">—</span>}
-                          </span>
-                          <form action={setDiscordGranted} className="flex">
-                            <input type="hidden" name="email" value={r.email} />
-                            <input
-                              type="hidden"
-                              name="granted"
-                              value={r.discord_granted ? "false" : "true"}
-                            />
-                            <button
-                              type="submit"
-                              role="checkbox"
-                              aria-checked={!!r.discord_granted}
-                              aria-label="Discord permission given"
-                              title={
-                                r.discord_granted
-                                  ? "Discord permission given — click to clear"
-                                  : "Discord permission not yet given — click to tick"
-                              }
-                              className={
-                                "inline-flex h-5 w-5 items-center justify-center rounded-[2px] border text-[12px] leading-none transition-colors " +
-                                (r.discord_granted
-                                  ? "border-(--color-ok) bg-(--color-ok)/15 text-(--color-ok)"
-                                  : "border-(--color-border) text-transparent hover:border-(--color-ok)/60")
-                              }
-                            >
-                              ✓
-                            </button>
-                          </form>
+            {bugs.length > 0 && (
+              <div className={styles.cards}>
+                {bugs.map((b) => {
+                  const ctx = (b.context ?? {}) as Record<string, unknown>;
+                  const logTail = Array.isArray(ctx.logTail) ? (ctx.logTail as unknown[]).filter((l): l is string => typeof l === "string") : [];
+                  const known = [
+                    ["scenario", ctx.scenario],
+                    ["incident", ctx.incidentRef],
+                    ["screen", ctx.screen],
+                    ["page", ctx.page],
+                    ["version", ctx.version],
+                    ["viewport", ctx.viewport],
+                  ].filter((row): row is [string, string] => typeof row[1] === "string" && row[1].length > 0);
+                  const sevChip = b.severity === "blocker" ? styles.chipStop : b.severity === "major" ? styles.chipAmber : "";
+                  const statusChip = b.status === "open" ? styles.chipAmber : b.status === "looking" ? styles.chipInfo : b.status === "fixed" ? styles.chipOk : "";
+                  return (
+                    <article key={b.id} className={styles.card}>
+                      <div>
+                        <div className={styles.cardHead}>
+                          <span className={`${styles.chip} ${sevChip}`}>{b.severity}</span>
+                          <strong>{b.summary}</strong>
+                          <span className={styles.chip}>{b.category}</span>
+                          <span className={`${styles.chip} ${statusChip}`}>{b.status}</span>
                         </div>
-                      </td>
-                      <td className="px-3 py-2 text-(--color-text-dim)">{r.note || "—"}</td>
-                      <td className="px-3 py-2 text-(--color-text-dim)">{fmtDate(r.created_at)}</td>
-                      <td className="px-3 py-2 text-right">
-                        {r.role !== "admin" && (
-                          <form action={deleteRole}>
-                            <input type="hidden" name="email" value={r.email} />
-                            <button
-                              type="submit"
-                              className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}
-                            >
-                              Revoke
-                            </button>
-                          </form>
+                        <p className={styles.cardMeta}>
+                          {b.callsign ? `${b.callsign} · ` : ""}
+                          <Link href={profileHref(b.user_id, b.email)} className={styles.textLink}>{b.email}</Link>
+                          {" · filed "}{fmtDate(b.created_at)}
+                        </p>
+                        <p className={styles.pre}>{b.detail}</p>
+                        {known.length > 0 && (
+                          <div className={styles.tags}>
+                            {known.map(([k, v]) => <span key={k}>{k} · {v}</span>)}
+                          </div>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        {typeof ctx.userAgent === "string" && (
+                          <p className={`${styles.hint} ${styles.clip}`} title={ctx.userAgent}>{ctx.userAgent}</p>
+                        )}
+                        {logTail.length > 0 && (
+                          <details className={styles.details}>
+                            <summary className={styles.summaryPlain}>Log tail · {logTail.length} lines</summary>
+                            <pre className={styles.log}>{logTail.join("\n")}</pre>
+                          </details>
+                        )}
+                      </div>
+                      <form action={setBugReport} className={styles.cardForm}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <select name="status" defaultValue={b.status} className={styles.input} aria-label="Status">
+                          <option value="open">Open</option>
+                          <option value="looking">Looking into it</option>
+                          <option value="fixed">Fixed</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                        <input name="note" defaultValue={b.admin_note} placeholder="Triage note" className={styles.input} aria-label="Triage note" />
+                        <div className={styles.actions}>
+                          <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Save</button>
+                        </div>
+                      </form>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </section>
-        )}
+      )}
 
-        {/* Recent registrations */}
-        {tab === "users" && (
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
-                Registered users
-                <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                  {usersMissing023
-                    ? `${users.length}${users.length >= 200 ? " · newest 200 shown" : ""}`
-                    : userQuery
-                      ? `${usersTotal} matching · page ${userPage} of ${usersPages}`
-                      : `${usersTotal} · page ${userPage} of ${usersPages}`}
-                </span>
-              </h2>
-              <form method="get" action="/admin" className="flex items-center gap-2">
-                <input type="hidden" name="tab" value="users" />
-                <input name="q" defaultValue={userQuery} placeholder="Search email, callsign or Discord" className={`${inputCls} w-64`} />
-                <button type="submit" className={btnCls}>Search</button>
-                {userQuery && <Link href="/admin?tab=users" className={`${btnCls} border-(--color-border) text-(--color-text-dim)`}>Clear</Link>}
+      {/* Access roles: everyone who has been granted something, with the
+          Discord tick. */}
+      {tab === "advisors" && (
+        <section className={styles.section} aria-labelledby="tab-advisors">
+          <div className={styles.blockHead}>
+            <h2 id="tab-advisors">Access roles</h2>
+            <span className={styles.chip}>{roles.length} granted</span>
+          </div>
+          <div className={styles.stack}>
+            <div className={styles.panel}>
+              <div className={styles.panelHead}><h2>Grant a role</h2></div>
+              <form action={setRole} className={styles.grantForm}>
+                <input name="email" type="email" required placeholder="email@example.com" className={styles.input} aria-label="Email" />
+                <select name="role" className={styles.input} defaultValue="operator" aria-label="Role">
+                  <option value="operator">Operator</option>
+                  <option value="advisor">Advisor</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <select name="icon" className={styles.input} defaultValue="" aria-label="Insignia">
+                  <option value="">Insignia: from application</option>
+                  <option value="fire">Fire</option>
+                  <option value="ambulance">Ambulance</option>
+                  <option value="police">Police</option>
+                  <option value="control">Control</option>
+                  <option value="specialist">Specialist</option>
+                </select>
+                <input name="note" placeholder="Note (who is this?)" className={styles.input} aria-label="Note" />
+                <button type="submit" className={`${styles.primary} ${styles.small}`}>Grant</button>
               </form>
             </div>
-            {(usersMissing023 || missing023) && (
-              <div className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 py-3 text-[12px] text-(--color-amber)">
-                Migration 023 (admin lists) has not been run — run supabase/migrations/023_admin_lists_uncapped.sql in the Supabase SQL editor, then reload. Until then this tab shows the newest 200 accounts and search is off.
+
+            {roles.length > 0 && (
+              <div className={styles.panel}>
+                <div className={styles.panelHead}>
+                  <h2>Granted</h2>
+                  <span className={styles.chip}>{roles.filter((r) => r.discord_granted).length} of {roles.length} on Discord</span>
+                </div>
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Insignia</th>
+                        <th>Discord</th>
+                        <th>Note</th>
+                        <th>Since</th>
+                        <th><span className={styles.srOnly}>Actions</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roles.map((r) => (
+                        <tr key={r.email}>
+                          <td>{r.email}</td>
+                          <td><span className={`${styles.chip} ${styles.chipAmber}`}>{r.role}</span></td>
+                          <td>{r.icon ?? "—"}</td>
+                          <td>
+                            <span className={styles.tickRow}>
+                              <form action={setDiscordGranted}>
+                                <input type="hidden" name="email" value={r.email} />
+                                <input type="hidden" name="granted" value={r.discord_granted ? "false" : "true"} />
+                                <button
+                                  type="submit"
+                                  role="checkbox"
+                                  aria-checked={!!r.discord_granted}
+                                  aria-label="Discord permission granted"
+                                  title={r.discord_granted ? "Discord permission granted. Select to clear." : "Discord permission not yet granted. Select to tick."}
+                                  className={`${styles.tick} ${r.discord_granted ? styles.tickOn : ""}`}
+                                >
+                                  ✓
+                                </button>
+                              </form>
+                              <span>{r.discord || "—"}</span>
+                            </span>
+                          </td>
+                          <td>{r.note || "—"}</td>
+                          <td>{fmtDate(r.created_at)}</td>
+                          <td>
+                            {r.role !== "admin" && (
+                              <form action={deleteRole}>
+                                <input type="hidden" name="email" value={r.email} />
+                                <button type="submit" className={`${styles.button} ${styles.small} ${styles.danger}`}>Revoke</button>
+                              </form>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
-            {users.length === 0 && (
-              <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
-                {userQuery ? "No accounts match." : "No accounts yet."}
-              </p>
+          </div>
+        </section>
+      )}
+
+      {/* Accounts: search, standing, the tester tick and invitations. */}
+      {tab === "users" && (
+        <section className={styles.section} aria-labelledby="tab-users">
+          <div className={styles.blockHead}>
+            <h2 id="tab-users">Accounts</h2>
+            <span className={styles.chip}>
+              {usersMissing023
+                ? `${users.length}${users.length >= 200 ? " · newest 200 shown" : ""}`
+                : userQuery
+                  ? `${usersTotal} matching · page ${userPage} of ${usersPages}`
+                  : `${usersTotal} · page ${userPage} of ${usersPages}`}
+            </span>
+          </div>
+          <form method="get" action="/admin" className={styles.toolbar} role="search">
+            <input type="hidden" name="tab" value="users" />
+            <label className={styles.search}>
+              <span>Search</span>
+              <input name="q" defaultValue={userQuery} placeholder="Email, callsign or Discord handle" />
+            </label>
+            <div className={styles.actions}>
+              <button type="submit" className={`${styles.button} ${styles.small}`}>Search</button>
+              {userQuery && <Link href="/admin?tab=users" className={`${styles.button} ${styles.small}`}>Clear</Link>}
+            </div>
+          </form>
+          <div className={styles.stack}>
+            {(usersMissing023 || missing023) && (
+              <Notice tone="amber" title="Migration 023 (admin lists) has not been run">
+                <p>Run supabase/migrations/023_admin_lists_uncapped.sql in the Supabase SQL editor, then reload. Until then this tab shows the newest 200 accounts and search is off.</p>
+              </Notice>
             )}
             {(missing021 || missingInvites) && (
-              <div className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-4 py-3 text-[12px] text-(--color-amber)">
-                Migration 021 (pre-alpha invitations) has not reached the app yet — run supabase/migrations/021_tester_invites.sql in the Supabase SQL editor, then reload. Until then &ldquo;Invite&rdquo; below will not work; the Tester tick still does.
-              </div>
+              <Notice tone="amber" title="Migration 021 (pre-alpha invitations) has not reached the app">
+                <p>Run supabase/migrations/021_tester_invites.sql in the Supabase SQL editor, then reload. Until then Invite will not work; the Tester tick still does.</p>
+              </Notice>
             )}
             {justInvited && (
-              <div className={`rounded-sm border px-4 py-3 text-[12px] ${inviteMailFailed ? "border-(--color-critical)/60 bg-(--color-critical)/10 text-(--color-critical)" : "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)"}`}>
-                {inviteMailFailed
-                  ? `Invitation recorded for ${justInvited}, but the email did not send (is RESEND_API_KEY set?). Press Invite again once it is.`
-                  : `Invitation sent to ${justInvited}. The desk opens to them when they click the link.`}
+              <Notice tone={inviteMailFailed ? "critical" : "ok"} title={inviteMailFailed ? "Invitation recorded, email not sent" : "Invitation sent"}>
+                <p>
+                  {inviteMailFailed
+                    ? `The invitation for ${justInvited} is on record, but the email did not send (is RESEND_API_KEY set?). Press Invite again once it is.`
+                    : `${justInvited} has been emailed a link. The desk opens to them when they follow it.`}
+                </p>
+              </Notice>
+            )}
+            {users.length === 0 && <Notice title={userQuery ? "No accounts match" : "No accounts yet"} />}
+            {users.length > 0 && (
+              <div className={styles.cards}>
+                {users.map((u) => {
+                  const invite = inviteByEmail.get(u.email.toLowerCase());
+                  return (
+                    <article key={u.user_id} className={`${styles.card} ${styles.cardSolo}`}>
+                      <div>
+                        <div className={styles.cardHead}>
+                          <Link href={profileHref(u.user_id, u.email)} title="Open their profile and service record"><strong>{u.callsign ? u.callsign.toUpperCase() : "No callsign"}</strong></Link>
+                          <span className={styles.email}>{u.email}</span>
+                          {u.discord && <span className={`${styles.chip} ${styles.chipInfo}`} title="Discord handle, from their advisor application">@{u.discord}</span>}
+                          {u.banned && <span className={`${styles.chip} ${styles.chipStop}`}>Banned</span>}
+                          {u.is_advisor_applicant && <span className={`${styles.chip} ${styles.chipInfo}`}>Advisor applicant</span>}
+                          {u.assigned_role && <span className={`${styles.chip} ${styles.chipOk}`}>{u.assigned_role}</span>}
+                          {u.tester && <span className={`${styles.chip} ${styles.chipAmber}`}>Tester</span>}
+                          {!u.tester && invite && <span className={styles.chip} title={`Invited ${fmtDate(invite.created_at)}`}>Invited</span>}
+                          {u.newsletter && <span className={styles.chip} title="Newsletter opt-in">Newsletter</span>}
+                          <span className={styles.email}>registered {fmtDate(u.created_at)}</span>
+                        </div>
+                        {u.assigned_role !== "admin" && (
+                          <div className={styles.cardTools}>
+                            {/* The pre-alpha list: one tick, and they can open
+                                the desk without holding a role. */}
+                            <form action={setTester} className={styles.tickLabel}>
+                              <input type="hidden" name="email" value={u.email} />
+                              <input type="hidden" name="tester" value={u.tester ? "false" : "true"} />
+                              <button
+                                type="submit"
+                                role="checkbox"
+                                aria-checked={!!u.tester}
+                                aria-label="Pre-alpha tester"
+                                title={u.tester ? "On the tester list. Select to remove." : "Not a tester. Select to add to the pre-alpha."}
+                                className={`${styles.tick} ${styles.tickAmber} ${u.tester ? styles.tickOn : ""}`}
+                              >
+                                ✓
+                              </button>
+                              Tester
+                            </form>
+                            {/* The invitation: an email with a link, and the
+                                link is the grant. Re-sends the same link while
+                                it is still open. */}
+                            {!u.tester && (
+                              <form action={inviteTester}>
+                                <input type="hidden" name="email" value={u.email} />
+                                <button
+                                  type="submit"
+                                  className={`${styles.button} ${styles.small}`}
+                                  title={invite ? "Send the invitation again" : "Email them a link that opens the pre-alpha to this account"}
+                                >
+                                  {invite ? "Re-send invitation" : "Invite to pre-alpha"}
+                                </button>
+                              </form>
+                            )}
+                            {!u.assigned_role && (
+                              <form action={setRole} className={styles.tickRow}>
+                                <input type="hidden" name="email" value={u.email} />
+                                <select name="role" className={`${styles.input} ${styles.inputSm}`} defaultValue="operator" aria-label="Role to grant">
+                                  <option value="operator">Operator</option>
+                                  <option value="advisor">Advisor</option>
+                                </select>
+                                <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Grant</button>
+                              </form>
+                            )}
+                            <form action={setBan}>
+                              <input type="hidden" name="userId" value={u.user_id} />
+                              <input type="hidden" name="banned" value={u.banned ? "false" : "true"} />
+                              <button type="submit" className={`${styles.button} ${styles.small} ${u.banned ? styles.okBtn : ""}`}>{u.banned ? "Lift ban" : "Ban"}</button>
+                            </form>
+                            {/* Two-step delete with no client JS: the summary
+                                opens, the real button confirms. */}
+                            <details className={styles.details}>
+                              <summary className={`${styles.button} ${styles.small} ${styles.danger}`}>Delete</summary>
+                              <form action={deleteUser} className={styles.confirm}>
+                                <input type="hidden" name="userId" value={u.user_id} />
+                                <button type="submit" className={`${styles.button} ${styles.small} ${styles.danger}`}>Confirm permanent delete</button>
+                              </form>
+                            </details>
+                            <AdminNotes userId={u.user_id} notes={notesByUser.get(u.user_id) ?? []} />
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
-            <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
-              {users.map((u) => (
-                <div key={u.user_id} className="px-3 py-2.5 text-[12px]">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <Link href={profileHref(u.user_id, u.email)} className="font-semibold text-(--color-text) underline-offset-4 hover:text-(--color-amber) hover:underline" title="Open their profile and service record">
-                      {u.callsign ? u.callsign.toUpperCase() : "—"}
-                    </Link>
-                    <span className="break-all text-(--color-text-dim)">{u.email}</span>
-                    {u.discord && (
-                      <span
-                        className="inline-flex items-center gap-1.5 rounded-sm border border-(--color-info)/40 px-1.5 py-0.5 font-mono text-[11px] text-(--color-info)"
-                        title="Discord handle, from their advisor application"
-                      >
-                        <span className="text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                          Discord
-                        </span>
-                        {u.discord}
-                      </span>
-                    )}
-                    <span className="ml-auto flex items-center gap-2 text-[10px] uppercase tracking-widest">
-                      {u.banned && (
-                        <span className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-1.5 py-0.5 text-(--color-critical)">
-                          Banned
-                        </span>
-                      )}
-                      {u.is_advisor_applicant && (
-                        <span className="rounded-sm border border-(--color-info)/50 px-1.5 py-0.5 text-(--color-info)">
-                          Applicant
-                        </span>
-                      )}
-                      {u.assigned_role && (
-                        <span className="rounded-sm border border-(--color-ok)/50 px-1.5 py-0.5 text-(--color-ok)">
-                          {u.assigned_role}
-                        </span>
-                      )}
-                      {u.tester && (
-                        <span className="rounded-sm border border-(--color-amber)/60 px-1.5 py-0.5 text-(--color-amber)">
-                          Tester
-                        </span>
-                      )}
-                      {!u.tester && inviteByEmail.has(u.email.toLowerCase()) && (
-                        <span className="rounded-sm border border-(--color-amber-dim)/60 px-1.5 py-0.5 text-(--color-amber-dim)" title={`Invited ${fmtDate(inviteByEmail.get(u.email.toLowerCase())!.created_at)}`}>
-                          Invited
-                        </span>
-                      )}
-                      {u.newsletter && (
-                        <span className="text-(--color-text-dim)">✉</span>
-                      )}
-                      <span className="text-(--color-text-dim)">{fmtDate(u.created_at)}</span>
-                    </span>
-                  </div>
-                  {u.assigned_role !== "admin" && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {/* The pre-alpha list: one tick, and they can open
-                          the game without holding a role. */}
-                      <form action={setTester} className="flex items-center gap-1.5">
-                        <input type="hidden" name="email" value={u.email} />
-                        <input type="hidden" name="tester" value={u.tester ? "false" : "true"} />
-                        <button
-                          type="submit"
-                          role="checkbox"
-                          aria-checked={!!u.tester}
-                          aria-label="Pre-alpha tester"
-                          title={u.tester ? "On the tester list — click to remove" : "Not a tester — click to add to the pre-alpha"}
-                          className={
-                            "inline-flex h-5 w-5 items-center justify-center rounded-[2px] border text-[12px] leading-none transition-colors " +
-                            (u.tester
-                              ? "border-(--color-amber) bg-(--color-amber)/15 text-(--color-amber)"
-                              : "border-(--color-border) text-transparent hover:border-(--color-amber)/60")
-                          }
-                        >
-                          ✓
-                        </button>
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">Tester</span>
-                      </form>
-                      {/* The invitation: an email with a link, and the
-                          link is the grant. Re-sends the same link while
-                          it is still open. */}
-                      {!u.tester && (
-                        <form action={inviteTester} className="flex items-center gap-1.5">
-                          <input type="hidden" name="email" value={u.email} />
-                          <button
-                            type="submit"
-                            className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10`}
-                            title={inviteByEmail.has(u.email.toLowerCase()) ? "Send the invitation again" : "Email them a link that opens the pre-alpha to this account"}
-                          >
-                            {inviteByEmail.has(u.email.toLowerCase()) ? "Re-send invite" : "Invite to pre-alpha"}
-                          </button>
-                        </form>
-                      )}
-                      {!u.assigned_role && (
-                        <form action={setRole} className="flex items-center gap-1.5">
-                          <input type="hidden" name="email" value={u.email} />
-                          <select name="role" className={`${inputCls} py-1 text-[11px]`} defaultValue="operator">
-                            <option value="operator">operator</option>
-                            <option value="advisor">advisor</option>
-                          </select>
-                          <button
-                            type="submit"
-                            className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
-                          >
-                            Grant
-                          </button>
-                        </form>
-                      )}
-                      <form action={setBan}>
-                        <input type="hidden" name="userId" value={u.user_id} />
-                        <input type="hidden" name="banned" value={u.banned ? "false" : "true"} />
-                        <button
-                          type="submit"
-                          className={`${btnCls} ${
-                            u.banned
-                              ? "border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15"
-                              : "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15"
-                          }`}
-                        >
-                          {u.banned ? "Unban" : "Ban"}
-                        </button>
-                      </form>
-                      {/* Two-step delete with no client JS: the summary
-                          opens, the real button confirms. */}
-                      <details className="relative">
-                        <summary
-                          className={`${btnCls} inline-block cursor-pointer list-none border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}
-                        >
-                          Delete
-                        </summary>
-                        <form action={deleteUser} className="absolute left-0 top-full z-10 mt-1">
-                          <input type="hidden" name="userId" value={u.user_id} />
-                          <button
-                            type="submit"
-                            className={`${btnCls} whitespace-nowrap border-(--color-critical) bg-(--color-critical)/15 text-(--color-critical)`}
-                          >
-                            Confirm permanent delete
-                          </button>
-                        </form>
-                      </details>
-                      <AdminNotes
-                        userId={u.user_id}
-                        notes={notesByUser.get(u.user_id) ?? []}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
             {!usersMissing023 && usersPages > 1 && (
-              <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-                {userPage > 1 ? <Link href={`/admin?tab=users&page=${userPage - 1}${userQuery ? `&q=${encodeURIComponent(userQuery)}` : ""}`} className={btnCls}>← Newer</Link> : <span />}
+              <nav className={styles.pager} aria-label="Pages of accounts">
+                {userPage > 1 ? <Link href={`/admin?tab=users&page=${userPage - 1}${userQuery ? `&q=${encodeURIComponent(userQuery)}` : ""}`} className={`${styles.button} ${styles.small}`}>Newer</Link> : <span />}
                 <span>Page {userPage} of {usersPages}</span>
-                {userPage < usersPages ? <Link href={`/admin?tab=users&page=${userPage + 1}${userQuery ? `&q=${encodeURIComponent(userQuery)}` : ""}`} className={btnCls}>Older →</Link> : <span />}
-              </div>
+                {userPage < usersPages ? <Link href={`/admin?tab=users&page=${userPage + 1}${userQuery ? `&q=${encodeURIComponent(userQuery)}` : ""}`} className={`${styles.button} ${styles.small}`}>Older</Link> : <span />}
+              </nav>
             )}
-          </section>
-        )}
-      </div>
+          </div>
+        </section>
+      )}
     </ConsoleShell>
   );
 }
 
-/**
- * Notes on one account. Collapsed by default — a user list is for
- * scanning, and notes are for when you have stopped scanning — but the
- * summary carries the count so you can see at a glance which accounts
- * have history without opening anything.
- *
- * No client JS: a <details> for the disclosure, server actions for the
- * writes, same as the rest of this page.
- */
-function AdminNotes({
-  userId,
-  notes,
-}: {
-  userId: string;
-  notes: NoteRow[];
-}) {
+/** One tab on the administration page, with its count. `hot` marks a
+ *  count that is work waiting. */
+function TabLink({ tab, current, label, count, hot }: { tab: AdminTab; current: AdminTab; label: string; count: number; hot?: boolean }) {
+  const active = tab === current;
   return (
-    <details className="w-full">
-      <summary
-        className={`${btnCls} inline-block cursor-pointer list-none border-(--color-info)/50 text-(--color-info) hover:bg-(--color-info)/10`}
-      >
-        Notes{notes.length > 0 ? ` · ${notes.length}` : ""}
-      </summary>
+    <Link href={tab === "applications" ? "/admin" : `/admin?tab=${tab}`} aria-current={active ? "page" : undefined} className={hot ? styles.hot : undefined}>
+      {label} <em>{count.toLocaleString("en-GB")}</em>
+    </Link>
+  );
+}
 
-      <div className="mt-2 space-y-1.5 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 p-2">
-        <p className="font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-          Admin only — never shown to the user
-        </p>
-
+/**
+ * Notes on one account. Collapsed by default: a list of accounts is for
+ * scanning, and notes are for when you have stopped scanning, but the
+ * summary carries the count so the accounts with history show at a
+ * glance. No client JS: a <details> for the disclosure, server actions
+ * for the writes, same as the rest of this page.
+ */
+function AdminNotes({ userId, notes }: { userId: string; notes: NoteRow[] }) {
+  return (
+    <details className={`${styles.details} ${styles.fullWidth}`}>
+      <summary className={`${styles.button} ${styles.small}`}>Notes{notes.length > 0 ? ` · ${notes.length}` : ""}</summary>
+      <div className={styles.subPanel}>
+        <p className={styles.cardMeta} style={{ marginTop: 0 }}>Admin only · never shown to the account holder</p>
         {notes.length > 0 && (
-          <ul className="space-y-1.5">
+          <div className={styles.rows}>
             {notes.map((n) => (
-              <li
-                key={n.id}
-                className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/60 px-2 py-1.5"
-              >
-                <p className="text-[12px] leading-snug text-(--color-text)">{n.note}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-(--color-text-dim)">
-                  <span className="break-all">{n.author_email}</span>
-                  <span>{fmtDate(n.created_at)}</span>
-                  <form action={deleteAdminNote} className="ml-auto">
-                    <input type="hidden" name="noteId" value={n.id} />
-                    <button
-                      type="submit"
-                      className="uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-critical)"
-                      title="Delete this note"
-                    >
-                      Delete
-                    </button>
-                  </form>
-                </div>
-              </li>
+              <div key={n.id} className={styles.row}>
+                <span className={styles.rowText}>{n.note}</span>
+                <code className={styles.rowEnd}>{n.author_email} · {fmtDate(n.created_at)}</code>
+                <form action={deleteAdminNote}>
+                  <input type="hidden" name="noteId" value={n.id} />
+                  <button type="submit" className={`${styles.button} ${styles.small} ${styles.danger}`} title="Delete this note">Delete</button>
+                </form>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
-
-        <form action={addAdminNote} className="flex flex-col gap-1.5 sm:flex-row">
+        <form action={addAdminNote} className={styles.inlineForm}>
           <input type="hidden" name="userId" value={userId} />
-          <input
-            name="note"
-            required
-            maxLength={1000}
-            placeholder="Add a note — why accepted, background, anything worth remembering"
-            className={`${inputCls} flex-1`}
-          />
-          <button
-            type="submit"
-            className={`${btnCls} shrink-0 border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/15`}
-          >
-            Add note
-          </button>
+          <input name="note" required maxLength={1000} placeholder="Add a note: why accepted, background, anything worth keeping" className={styles.input} aria-label="Note" />
+          <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Add note</button>
         </form>
       </div>
     </details>

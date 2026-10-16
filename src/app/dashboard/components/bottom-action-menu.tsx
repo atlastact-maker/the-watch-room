@@ -2973,6 +2973,7 @@ function BigBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      data-tip={title}
       className={
         "flex items-center justify-between gap-3 rounded-sm border px-3 py-2 text-left text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
         cls

@@ -22,13 +22,7 @@ export const metadata = { title: "Profile — The Watch Room" };
 
 type Grade = "A" | "B" | "C" | "D" | "F";
 const GRADE_ORDER: Grade[] = ["A", "B", "C", "D", "F"];
-const GRADE_TONE: Record<Grade, string> = {
-  A: "bg-(--color-ok)",
-  B: "bg-(--color-ok)/70",
-  C: "bg-(--color-amber)",
-  D: "bg-(--color-amber-dim)",
-  F: "bg-(--color-critical)",
-};
+const GRADE_FILL: Record<Grade, string> = { A: "#4fc16d", B: "#6fcf8a", C: "#e6b65c", D: "#d8a955", F: "#e5736a" };
 
 type StatsRow = {
   user_id: string;
@@ -220,50 +214,6 @@ function typeLabel(code: string): string {
   return label && label !== code ? label : code.replace(/[_-]+/g, " ");
 }
 
-const btnCls = "rounded-sm border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors";
-const inputCls = "rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-2 font-mono text-[12px] text-(--color-text) placeholder:text-(--color-text-dim) focus:border-(--color-amber) focus:outline-none";
-
-function Chip({ children, tone = "dim", title }: { children: React.ReactNode; tone?: "ok" | "amber" | "info" | "critical" | "dim"; title?: string }) {
-  const cls =
-    tone === "ok" ? "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)"
-      : tone === "amber" ? "border-(--color-amber)/60 bg-(--color-amber)/10 text-(--color-amber)"
-        : tone === "info" ? "border-(--color-info)/60 bg-(--color-info)/10 text-(--color-info)"
-          : tone === "critical" ? "border-(--color-critical)/60 bg-(--color-critical)/10 text-(--color-critical)"
-            : "border-(--color-border) text-(--color-text-dim)";
-  return <span title={title} className={`rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ${cls}`}>{children}</span>;
-}
-
-function Tile({ n, label, sub }: { n: string; label: string; sub?: string }) {
-  return (
-    <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/50 px-3 py-2.5">
-      <div className="text-xl font-semibold tabular-nums text-(--color-text)">{n}</div>
-      <div className="text-[10px] uppercase tracking-widest text-(--color-text-dim)">{label}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-(--color-text-muted)">{sub}</div>}
-    </div>
-  );
-}
-
-function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">{title}</h2>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Fact({ k, v }: { k: string; v: React.ReactNode }) {
-  return (
-    <div className="flex gap-3 text-[12px]">
-      <span className="w-28 shrink-0 font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">{k}</span>
-      <span className="min-w-0 text-(--color-text-muted)">{v}</span>
-    </div>
-  );
-}
-
 export default async function AdminUserPage({ searchParams }: { searchParams: Promise<{ id?: string | string[]; e?: string | string[] }> }) {
   const { id: idParam, e: eParam } = await searchParams;
   const id = typeof idParam === "string" && /^[0-9a-f-]{36}$/i.test(idParam) ? idParam : null;
@@ -283,12 +233,14 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
   if (!p) {
     return (
       <ConsoleShell {...consoleUser(session)} active="admin" title="Account profile">
-        <div className={`${styles.legacy} space-y-4 font-mono`}>
-          <Link href="/admin?tab=users" className="text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)">← Administration</Link>
-          <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
-            No account found for {email ?? id}.{missing025 ? " Run supabase/migrations/025_admin_user_profile.sql so profiles can be opened by account id alone." : ""}
-          </p>
-        </div>
+        <header className={styles.pageHead}>
+          <div>
+            <p className={styles.eyebrow}>Account profile · administration</p>
+            <h1 className={styles.pageTitle}>No account found</h1>
+            <p className={styles.lede}>Nothing matches {email ?? id}.{missing025 ? " Run supabase/migrations/025_admin_user_profile.sql so profiles can be opened by account id alone." : ""}</p>
+          </div>
+        </header>
+        <div className={styles.actions}><Link href="/admin?tab=users" className={styles.button}>Registered users</Link></div>
       </ConsoleShell>
     );
   }
@@ -306,250 +258,225 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
   const insignia = adv ? serviceKeyFor(adv.service) : null;
   const topics = Array.isArray(adv?.topics) ? (adv!.topics as string[]).filter((t) => typeof t === "string" && t.trim()) : [];
   const app = p.application;
-  const appTone = app?.status === "accepted" ? "ok" : app?.status === "declined" ? "critical" : "amber";
+  const appChip = app?.status === "accepted" ? styles.chipOk : app?.status === "declined" ? styles.chipStop : styles.chipAmber;
+  const gradeClass: Record<Grade, string> = { A: styles.gradeA, B: styles.gradeB, C: styles.gradeC, D: styles.gradeD, F: styles.gradeF };
 
   return (
     <ConsoleShell {...consoleUser(session)} active="admin" title="Account profile">
-      <div className={`${styles.legacy} space-y-8 font-mono`}>
-        {/* Header */}
-        <div className="space-y-3 border-b border-(--color-border-subtle) pb-4">
-          <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-            <Link href="/admin?tab=users" className="hover:text-(--color-amber)">← Administration</Link>
-            <span className="text-(--color-border)">/</span>
-            <span>Account profile</span>
+      <header className={styles.pageHead}>
+        <div>
+          <p className={styles.eyebrow}><Link href="/admin?tab=users" className={styles.textLink}>Administration</Link> · account profile</p>
+          <h1 className={styles.pageTitle}>{p.callsign ? p.callsign.toUpperCase() : "(no callsign)"}</h1>
+          <p className={styles.lede}>{p.email}{p.discord ? ` · @${p.discord}` : ""}</p>
+          <div className={styles.headMeta} style={{ justifyContent: "flex-start", marginTop: 12 }}>
+            {p.banned && <span className={`${styles.chip} ${styles.chipStop}`}>Banned</span>}
+            {p.assigned_role && <span className={`${styles.chip} ${styles.chipOk}`} title={p.role_note || undefined}>{p.assigned_role}{p.role_icon ? ` · ${p.role_icon}` : ""}</span>}
+            {advisorStanding === "applicant" && <span className={`${styles.chip} ${styles.chipInfo}`} title="Has filed the advisor questionnaire; awaiting review">Advisor applicant</span>}
+            {advisorStanding === "declined" && <span className={styles.chip} title="Advisor application declined">Advisor · declined</span>}
+            {p.tester && <span className={`${styles.chip} ${styles.chipAmber}`}>Tester</span>}
+            {app && !p.tester && <span className={`${styles.chip} ${appChip}`}>Pre-alpha · {app.status}</span>}
+            {p.newsletter && <span className={styles.chip} title="Newsletter opt-in">Newsletter</span>}
           </div>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="text-xl font-semibold tracking-wide text-(--color-text)">{p.callsign ? p.callsign.toUpperCase() : "(no callsign)"}</h1>
-                <span className="break-all text-[12px] text-(--color-text-dim)">{p.email}</span>
-                {p.discord && <span className="text-[12px] text-(--color-info)">@{p.discord}</span>}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {p.banned && <Chip tone="critical">Banned</Chip>}
-                {p.assigned_role && <Chip tone="ok" title={p.role_note || undefined}>{p.assigned_role}{p.role_icon ? ` · ${p.role_icon}` : ""}</Chip>}
-                {advisorStanding === "applicant" && <Chip tone="info" title="Has filed the advisor questionnaire — awaiting review">Advisor applicant</Chip>}
-                {advisorStanding === "declined" && <Chip title="Advisor application declined">Advisor · declined</Chip>}
-                {p.tester && <Chip tone="amber">Tester</Chip>}
-                {app && !p.tester && <Chip tone={appTone}>Pre-alpha · {app.status}</Chip>}
-                {p.newsletter && <Chip title="Newsletter opt-in">✉ newsletter</Chip>}
-              </div>
-            </div>
-            {insignia && (
-              <div className="shrink-0">
-                <ServiceBadge service={insignia} role={advisorStanding === "accepted" ? "ADVISOR" : "APPLICANT"} />
-              </div>
-            )}
-          </div>
-          <div className="grid gap-1 sm:grid-cols-2">
-            <Fact k="Account" v={<>created {fmtDate(p.created_at)}{p.created_at ? ` · ${ago(p.created_at)}` : ""}</>} />
-            <Fact k="Last sign-in" v={missing025 ? <span className="text-(--color-text-dim)">needs migration 025</span> : <>{fmtWhen(p.last_sign_in_at)}{p.last_sign_in_at ? ` · ${ago(p.last_sign_in_at)}` : ""}</>} />
-            <Fact k="Email" v={missing025 ? <span className="text-(--color-text-dim)">confirmation needs migration 025</span> : p.email_confirmed_at ? `confirmed ${fmtDate(p.email_confirmed_at)}` : <span className="text-(--color-amber)">not confirmed</span>} />
-            <Fact k="Last played" v={s ? <>{fmtWhen(s.updated_at)} · {ago(s.updated_at)}</> : <span className="text-(--color-text-dim)">never taken a shift</span>} />
-          </div>
-          {missing025 && (
-            <p className="rounded-sm border border-(--color-amber)/60 bg-(--color-amber)/10 px-3 py-2 text-[11px] text-(--color-amber)">
-              Run supabase/migrations/025_admin_user_profile.sql once in the Supabase SQL editor for last sign-in and email confirmation. Everything else on this page is live.
-            </p>
-          )}
         </div>
+        {insignia && <div className={styles.legacy}><ServiceBadge service={insignia} role={advisorStanding === "accepted" ? "ADVISOR" : "APPLICANT"} /></div>}
+      </header>
 
-        {/* Service record */}
-        <Section
-          title="Service record"
-          right={s ? <span className="text-[11px] uppercase tracking-widest text-(--color-text-dim)">{p.rank ? `#${p.rank} of ${p.players} on the leaderboard` : ""}</span> : undefined}
-        >
-          {!s ? (
-            <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
-              No service record yet — the row appears after their first shift syncs.
-            </p>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Tile n={String(s.score)} label="Command points" sub={gradedTotal ? `${gradedTotal} graded incidents` : undefined} />
-                <Tile n={String(s.calls_answered)} label="Calls answered" />
-                <Tile n={String(s.incidents_resolved)} label="Incidents resolved" />
-                <Tile n={String(s.resources_allocated)} label="Units mobilised" />
-                <Tile n={fmtDuration(avgFirstAlloc)} label="Call to first mobilisation" sub={s.first_alloc_count ? `over ${s.first_alloc_count} incidents` : undefined} />
-                <Tile n={targetPct === null ? "—" : `${targetPct}%`} label="Dispatch targets met" sub={s.targets_total ? `${s.targets_met} of ${s.targets_total}` : undefined} />
-                <Tile n={String(s.casualties_saved)} label="Casualties to hospital" />
-                <Tile n={String(s.casualties_lost)} label="Casualties lost" />
+      <section className={styles.panel}>
+        <div className={styles.panelHead}><h2>Account</h2></div>
+        <div className={styles.facts2} style={{ marginTop: 0 }}>
+          <div className={styles.factRow}><span>Created</span><span>{fmtDate(p.created_at)}{p.created_at ? ` · ${ago(p.created_at)}` : ""}</span></div>
+          <div className={styles.factRow}><span>Last sign-in</span><span>{missing025 ? "needs migration 025" : <>{fmtWhen(p.last_sign_in_at)}{p.last_sign_in_at ? ` · ${ago(p.last_sign_in_at)}` : ""}</>}</span></div>
+          <div className={styles.factRow}><span>Email</span><span>{missing025 ? "confirmation needs migration 025" : p.email_confirmed_at ? `confirmed ${fmtDate(p.email_confirmed_at)}` : <span style={{ color: "var(--amber)" }}>not confirmed</span>}</span></div>
+          <div className={styles.factRow}><span>Last played</span><span>{s ? <>{fmtWhen(s.updated_at)} · {ago(s.updated_at)}</> : "never taken a shift"}</span></div>
+        </div>
+        {missing025 && <p className={styles.formStatus} style={{ color: "var(--amber)" }}>Run supabase/migrations/025_admin_user_profile.sql once in the Supabase SQL editor for last sign-in and email confirmation. Everything else on this page is live.</p>}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHead}>
+          <h2>Service record</h2>
+          {s && p.rank ? <span className={styles.chip}>#{p.rank} of {p.players} on the leaderboard</span> : null}
+        </div>
+        {!s ? (
+          <p className={styles.muted}>No service record yet. The row appears after their first shift syncs.</p>
+        ) : (
+          <>
+            <div className={styles.stats}>
+              <div><strong>{s.score}</strong><span>Command points</span></div>
+              <div><strong>{s.calls_answered}</strong><span>Calls handled</span></div>
+              <div><strong>{s.incidents_resolved}</strong><span>Incidents resolved</span></div>
+              <div><strong>{s.resources_allocated}</strong><span>Resources mobilised</span></div>
+              <div><strong>{fmtDuration(avgFirstAlloc)}</strong><span>Mean time to first mobilisation</span></div>
+              <div><strong>{targetPct === null ? "—" : `${targetPct}%`}</strong><span>Standards met{s.targets_total ? ` · ${s.targets_met} of ${s.targets_total}` : ""}</span></div>
+              <div><strong>{s.casualties_saved}</strong><span>Casualties conveyed</span></div>
+              <div><strong>{s.casualties_lost}</strong><span>Casualties deceased</span></div>
+            </div>
+            <div className={styles.twoCol} style={{ marginTop: 16 }}>
+              <div>
+                <p className={styles.eyebrow}>Grade distribution · {gradedTotal} graded</p>
+                <ul className={styles.bars}>
+                  {GRADE_ORDER.map((g) => (
+                    <li key={g}>
+                      <span className={`${styles.gradeBadge} ${gradeClass[g]}`}>{g}</span>
+                      <span className={styles.track}><span className={styles.fill} style={{ width: `${Math.round((grades[g] / gradeMax) * 100)}%`, background: GRADE_FILL[g] }} /></span>
+                      <em>{grades[g]}</em>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/40 p-3">
-                  <div className="mb-2 text-[10px] uppercase tracking-widest text-(--color-text-dim)">Dispatch grades</div>
-                  <div className="space-y-1.5">
-                    {GRADE_ORDER.map((g) => (
-                      <div key={g} className="flex items-center gap-2 text-[11px]">
-                        <span className="w-4 font-semibold text-(--color-text)">{g}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-sm bg-(--color-bg)">
-                          <div className={`h-full ${GRADE_TONE[g]}`} style={{ width: `${Math.round((grades[g] / gradeMax) * 100)}%` }} />
-                        </div>
-                        <span className="w-8 text-right tabular-nums text-(--color-text-muted)">{grades[g]}</span>
-                      </div>
+              <div>
+                <p className={styles.eyebrow}>Incident types · most frequent</p>
+                {busiest.length === 0 ? (
+                  <p className={styles.muted}>No incidents on record.</p>
+                ) : (
+                  <ul className={styles.bars}>
+                    {busiest.map(([code, n]) => (
+                      <li key={code} style={{ gridTemplateColumns: "minmax(0, 150px) minmax(0, 1fr) 36px" }}>
+                        <span className={styles.email} style={{ color: "var(--text)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={code}>{typeLabel(code)}</span>
+                        <span className={styles.track}><span className={styles.fill} style={{ width: `${Math.round((n / busiestMax) * 100)}%`, background: "#6aa6e8" }} /></span>
+                        <em>{n}</em>
+                      </li>
                     ))}
-                  </div>
-                </div>
-                <div className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/40 p-3">
-                  <div className="mb-2 text-[10px] uppercase tracking-widest text-(--color-text-dim)">Busiest incident types</div>
-                  {busiest.length === 0 ? (
-                    <p className="text-[11px] text-(--color-text-dim)">Nothing answered yet.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {busiest.map(([code, n]) => (
-                        <div key={code} className="flex items-center gap-2 text-[11px]">
-                          <span className="w-40 truncate text-(--color-text)" title={code}>{typeLabel(code)}</span>
-                          <div className="h-2 flex-1 overflow-hidden rounded-sm bg-(--color-bg)">
-                            <div className="h-full bg-(--color-info)" style={{ width: `${Math.round((n / busiestMax) * 100)}%` }} />
-                          </div>
-                          <span className="w-8 text-right tabular-nums text-(--color-text-muted)">{n}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </Section>
-
-        {/* Pre-alpha */}
-        <Section title="Pre-alpha" right={<span className="text-[11px] uppercase tracking-widest text-(--color-text-dim)">{p.tester ? "on the tester list" : "not a tester"}</span>}>
-          <div className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4">
-            {app ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Chip tone={appTone}>{app.status}</Chip>
-                    <span className="text-[11px] text-(--color-text-dim)">
-                      Requested {fmtDate(app.created_at)}{app.decided_at ? ` · decided ${fmtDate(app.decided_at)}` : ""}
-                      {[app.hours, app.platform].filter(Boolean).length > 0 ? ` · ${[app.hours, app.platform].filter(Boolean).join(" · ")}` : ""}
-                    </span>
-                  </div>
-                  {app.background && <Fact k="Background" v={app.background} />}
-                  {app.why && <Fact k="Why" v={app.why} />}
-                  {app.note && <Fact k="Note" v={<span className="text-(--color-amber)">{app.note}</span>} />}
-                </div>
-                <form action={decideTesterApplication} className="flex shrink-0 flex-col gap-2 sm:w-56">
-                  <input type="hidden" name="userId" value={p.user_id} />
-                  <input type="hidden" name="email" value={p.email} />
-                  <input name="note" placeholder="Note (optional)" defaultValue={app.note} className={`${inputCls} w-full`} />
-                  <div className="flex flex-wrap gap-2">
-                    {app.status !== "accepted" && <button type="submit" name="status" value="accepted" className={`${btnCls} border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10`}>Accept</button>}
-                    {app.status !== "declined" && <button type="submit" name="status" value="declined" className={`${btnCls} border-(--color-critical)/60 text-(--color-critical) hover:bg-(--color-critical)/10`}>Decline</button>}
-                    {app.status !== "pending" && <button type="submit" name="status" value="pending" className={btnCls}>Back to waiting</button>}
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[12px] text-(--color-text-dim)">No pre-alpha request filed.</p>
-                {p.assigned_role !== "admin" && (
-                  <form action={setTester}>
-                    <input type="hidden" name="email" value={p.email} />
-                    <input type="hidden" name="tester" value={p.tester ? "false" : "true"} />
-                    <button type="submit" className={`${btnCls} ${p.tester ? "border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/10" : "border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10"}`}>
-                      {p.tester ? "Remove from the tester list" : "Add to the tester list"}
-                    </button>
-                  </form>
+                  </ul>
                 )}
               </div>
-            )}
-          </div>
-        </Section>
-
-        {/* Advisor */}
-        <Section
-          title="Advisor programme"
-          right={adv ? <Link href="/admin" className="text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)">Applications tab →</Link> : undefined}
-        >
-          {!adv ? (
-            <p className="border border-(--color-border-subtle) px-4 py-4 text-[12px] text-(--color-text-dim)">Has not filed the advisor questionnaire.</p>
-          ) : (
-            <div className="space-y-2 rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {advisorStanding === "accepted" ? <Chip tone="ok">Advisor</Chip> : advisorStanding === "declined" ? <Chip tone="critical">Declined</Chip> : <Chip tone="amber">Awaiting review</Chip>}
-                <span className="text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-                  {adv.service}{adv.status ? ` · ${adv.status}` : ""}{adv.force_area ? ` · ${adv.force_area}` : ""}{adv.involvement ? ` · ${adv.involvement}` : ""} · applied {fmtDate(adv.created_at)}
-                </span>
-              </div>
-              {topics.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {topics.map((t) => <span key={t} className="rounded-sm border border-(--color-border) px-1.5 py-0.5 text-[10px] text-(--color-text-dim)">{t}</span>)}
-                </div>
-              )}
-              {adv.background && <Fact k="Background" v={<span className="whitespace-pre-wrap">{adv.background}</span>} />}
-              {adv.notes && <Fact k="Notes" v={<span className="whitespace-pre-wrap">{adv.notes}</span>} />}
-              <Fact k="Contact" v={adv.contact_ok ? `happy to be contacted${adv.discord ? ` · @${adv.discord}` : ""}` : "asked not to be contacted"} />
             </div>
-          )}
-        </Section>
+          </>
+        )}
+      </section>
 
-        {/* Notes */}
-        <Section title="Admin notes" right={<span className="text-[11px] uppercase tracking-widest text-(--color-text-dim)">{p.notes.length}</span>}>
-          <div className="space-y-2">
-            {p.notes.map((n) => (
-              <div key={n.id} className="flex items-start justify-between gap-3 rounded-sm border border-(--color-border-subtle) bg-(--color-surface)/40 px-3 py-2 text-[12px]">
-                <div className="min-w-0">
-                  <p className="whitespace-pre-wrap text-(--color-text-muted)">{n.note}</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-widest text-(--color-text-dim)">{n.author_email} · {fmtWhen(n.created_at)}</p>
-                </div>
-                <form action={deleteAdminNote}>
-                  <input type="hidden" name="noteId" value={n.id} />
-                  <button type="submit" className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)`}>Remove</button>
-                </form>
+      <section className={styles.panel}>
+        <div className={styles.panelHead}>
+          <h2>Pre-alpha</h2>
+          <span className={`${styles.chip} ${p.tester ? styles.chipAmber : ""}`}>{p.tester ? "On the tester list" : "Not a tester"}</span>
+        </div>
+        {app ? (
+          <div className={styles.card} style={{ padding: 0, border: 0, background: "none" }}>
+            <div>
+              <div className={styles.cardHead}>
+                <span className={`${styles.chip} ${appChip}`}>{app.status}</span>
+                <span className={styles.email}>Requested {fmtDate(app.created_at)}{app.decided_at ? ` · decided ${fmtDate(app.decided_at)}` : ""}{[app.hours, app.platform].filter(Boolean).length > 0 ? ` · ${[app.hours, app.platform].filter(Boolean).join(" · ")}` : ""}</span>
               </div>
-            ))}
-            <form action={addAdminNote} className="flex flex-col gap-2 sm:flex-row">
+              {app.background && <div className={styles.factRow} style={{ marginTop: 10 }}><span>Background</span><span>{app.background}</span></div>}
+              {app.why && <div className={styles.factRow} style={{ marginTop: 6 }}><span>Why</span><span>{app.why}</span></div>}
+              {app.note && <div className={styles.factRow} style={{ marginTop: 6 }}><span>Note</span><span style={{ color: "var(--amber)" }}>{app.note}</span></div>}
+            </div>
+            <form action={decideTesterApplication} className={styles.cardForm}>
               <input type="hidden" name="userId" value={p.user_id} />
-              <input name="note" required placeholder="Add a note about this person" className={`${inputCls} flex-1`} />
-              <button type="submit" className={`${btnCls} border-(--color-amber)/60 text-(--color-amber) hover:bg-(--color-amber)/15`}>Add note</button>
+              <input type="hidden" name="email" value={p.email} />
+              <input name="note" placeholder="Note (optional)" defaultValue={app.note} className={styles.input} aria-label="Note on this request" />
+              <div className={styles.actions}>
+                {app.status !== "accepted" && <button type="submit" name="status" value="accepted" className={`${styles.primary} ${styles.small}`}>Accept</button>}
+                {app.status !== "declined" && <button type="submit" name="status" value="declined" className={`${styles.button} ${styles.small} ${styles.danger}`}>Decline</button>}
+                {app.status !== "pending" && <button type="submit" name="status" value="pending" className={`${styles.button} ${styles.small}`}>Back to pending</button>}
+              </div>
             </form>
           </div>
-        </Section>
-
-        {/* Bug reports */}
-        <Section title="Bug reports" right={<span className="text-[11px] uppercase tracking-widest text-(--color-text-dim)">{p.bugs.length}</span>}>
-          {p.bugs.length === 0 ? (
-            <p className="border border-(--color-border-subtle) px-4 py-4 text-[12px] text-(--color-text-dim)">None filed.</p>
-          ) : (
-            <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
-              {p.bugs.map((b) => (
-                <div key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[12px]">
-                  <Chip tone={b.status === "fixed" || b.status === "closed" ? "ok" : b.status === "looking" ? "amber" : "critical"}>{b.status}</Chip>
-                  <span className="text-(--color-text)">{b.summary}</span>
-                  <span className="ml-auto text-[10px] uppercase tracking-widest text-(--color-text-dim)">{b.category} · {b.severity} · {fmtDate(b.created_at)}</span>
-                </div>
-              ))}
-              <div className="px-3 py-2 text-right">
-                <Link href="/admin?tab=bugs" className="text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)">Bugs tab →</Link>
-              </div>
-            </div>
-          )}
-        </Section>
-
-        {/* Account actions */}
-        {p.assigned_role !== "admin" && p.user_id !== user.id && (
-          <Section title="Account">
-            <div className="flex flex-wrap items-center gap-2">
-              <form action={setBan}>
-                <input type="hidden" name="userId" value={p.user_id} />
-                <input type="hidden" name="banned" value={p.banned ? "false" : "true"} />
-                <button type="submit" className={`${btnCls} ${p.banned ? "border-(--color-ok)/60 text-(--color-ok) hover:bg-(--color-ok)/10" : "border-(--color-critical)/60 text-(--color-critical) hover:bg-(--color-critical)/10"}`}>
-                  {p.banned ? "Lift the ban" : "Ban this account"}
-                </button>
+        ) : (
+          <div className={styles.switchRow}>
+            <p className={styles.muted}>No pre-alpha request filed.</p>
+            {p.assigned_role !== "admin" && (
+              <form action={setTester}>
+                <input type="hidden" name="email" value={p.email} />
+                <input type="hidden" name="tester" value={p.tester ? "false" : "true"} />
+                <button type="submit" className={`${styles.button} ${styles.small} ${p.tester ? styles.danger : styles.okBtn}`}>{p.tester ? "Remove from the tester list" : "Add to the tester list"}</button>
               </form>
-              {app && (
-                <form action={setTester}>
-                  <input type="hidden" name="email" value={p.email} />
-                  <input type="hidden" name="tester" value={p.tester ? "false" : "true"} />
-                  <button type="submit" className={btnCls}>{p.tester ? "Remove from the tester list" : "Add to the tester list"}</button>
-                </form>
-              )}
-            </div>
-          </Section>
+            )}
+          </div>
         )}
-      </div>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHead}>
+          <h2>Advisor programme</h2>
+          {adv && <Link href="/admin" className={styles.textLink} style={{ fontSize: 12 }}>Applications tab</Link>}
+        </div>
+        {!adv ? (
+          <p className={styles.muted}>Has not filed the advisor questionnaire.</p>
+        ) : (
+          <>
+            <div className={styles.cardHead}>
+              {advisorStanding === "accepted" ? <span className={`${styles.chip} ${styles.chipOk}`}>Advisor</span> : advisorStanding === "declined" ? <span className={`${styles.chip} ${styles.chipStop}`}>Declined</span> : <span className={`${styles.chip} ${styles.chipAmber}`}>Awaiting review</span>}
+              <span className={styles.email}>{adv.service}{adv.status ? ` · ${adv.status}` : ""}{adv.force_area ? ` · ${adv.force_area}` : ""}{adv.involvement ? ` · ${adv.involvement}` : ""} · applied {fmtDate(adv.created_at)}</span>
+            </div>
+            {topics.length > 0 && <div className={styles.tags}>{topics.map((t) => <span key={t}>{t}</span>)}</div>}
+            {adv.background && <div className={styles.factRow} style={{ marginTop: 10 }}><span>Background</span><span className={styles.pre} style={{ marginTop: 0 }}>{adv.background}</span></div>}
+            {adv.notes && <div className={styles.factRow} style={{ marginTop: 6 }}><span>Notes</span><span className={styles.pre} style={{ marginTop: 0 }}>{adv.notes}</span></div>}
+            <div className={styles.factRow} style={{ marginTop: 6 }}><span>Contact</span><span>{adv.contact_ok ? `permitted${adv.discord ? ` · @${adv.discord}` : ""}` : "asked not to be contacted"}</span></div>
+          </>
+        )}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHead}>
+          <h2>Admin notes</h2>
+          <span className={styles.chip}>{p.notes.length}</span>
+        </div>
+        <p className={styles.formStatus} style={{ marginTop: 0 }}>Admin only · never shown to the user</p>
+        {p.notes.length > 0 && (
+          <ul className={styles.kv}>
+            {p.notes.map((n) => (
+              <li key={n.id}>
+                <span>
+                  <span style={{ color: "var(--text)", whiteSpace: "pre-wrap" }}>{n.note}</span>
+                  <span className={styles.cardMeta} style={{ display: "block" }}>{n.author_email} · {fmtWhen(n.created_at)}</span>
+                </span>
+                <form action={deleteAdminNote}>
+                  <input type="hidden" name="noteId" value={n.id} />
+                  <button type="submit" className={`${styles.button} ${styles.small} ${styles.danger}`}>Remove</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form action={addAdminNote} className={styles.inlineForm}>
+          <input type="hidden" name="userId" value={p.user_id} />
+          <input name="note" required placeholder="Add a note about this account" className={styles.input} aria-label="New note" />
+          <button type="submit" className={`${styles.button} ${styles.small} ${styles.okBtn}`}>Add note</button>
+        </form>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHead}>
+          <h2>Bug reports</h2>
+          <span className={styles.chip}>{p.bugs.length}</span>
+        </div>
+        {p.bugs.length === 0 ? (
+          <p className={styles.muted}>None filed.</p>
+        ) : (
+          <>
+            <ul className={styles.kv}>
+              {p.bugs.map((b) => (
+                <li key={b.id}>
+                  <span><span className={`${styles.chip} ${b.status === "fixed" || b.status === "closed" ? styles.chipOk : b.status === "looking" ? styles.chipInfo : styles.chipAmber}`} style={{ marginRight: 8 }}>{b.status}</span>{b.summary}</span>
+                  <span>{b.category} · {b.severity} · {fmtDate(b.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className={styles.formStatus}><Link href="/admin?tab=bugs" className={styles.textLink}>Bug reports tab</Link></p>
+          </>
+        )}
+      </section>
+
+      {p.assigned_role !== "admin" && p.user_id !== user.id && (
+        <section className={styles.panel}>
+          <div className={styles.panelHead}><h2>Account actions</h2></div>
+          <div className={styles.actions} style={{ marginTop: 0 }}>
+            <form action={setBan}>
+              <input type="hidden" name="userId" value={p.user_id} />
+              <input type="hidden" name="banned" value={p.banned ? "false" : "true"} />
+              <button type="submit" className={`${styles.button} ${styles.small} ${p.banned ? styles.okBtn : styles.danger}`}>{p.banned ? "Lift the ban" : "Ban this account"}</button>
+            </form>
+            {app && (
+              <form action={setTester}>
+                <input type="hidden" name="email" value={p.email} />
+                <input type="hidden" name="tester" value={p.tester ? "false" : "true"} />
+                <button type="submit" className={`${styles.button} ${styles.small}`}>{p.tester ? "Remove from the tester list" : "Add to the tester list"}</button>
+              </form>
+            )}
+          </div>
+        </section>
+      )}
     </ConsoleShell>
   );
 }

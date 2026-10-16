@@ -58,6 +58,7 @@ import { isExtractionRequired, type ResolvedDeployment } from "../components/inc
 import type { CasualtyStage } from "@/lib/sim/incident_sim";
 import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
 import { hasCrewWith } from "@/lib/sim/crew_assign";
+import { useDeskPrefs } from "@/lib/desk-prefs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -278,6 +279,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
 
   // ---- Instruments (the monitor keeps its own record) --------------------
   const monitorState = useMonitorState(casualtyId);
+  // Inline help shows every option's explanation in full; otherwise it is
+  // one clipped line, with the full text on hover or keyboard focus.
+  const [{ inlineHelp }] = useDeskPrefs();
   const { alarming } = monitorPicture(treatment, resus, now, monitorState);
 
   // ---- Oxygen ----------------------------------------------------------------
@@ -351,9 +355,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     const disabled = state.kind !== "ready" || (opts.gate !== false && !canAct);
     return (
       <div key={key} className={`cc-iv ${state.kind}${opts.dim ? " dim" : ""}`}>
-        <div className="cc-iv-name"><strong>{label}</strong>{hint && <small title={hint}>{hint}</small>}</div>
+        <div className="cc-iv-name"><strong>{label}</strong>{hint && <small className={inlineHelp ? "inline-help" : undefined} title={hint}>{hint}</small>}</div>
         <div className={`cc-iv-status ${s.tone}`} title={s.text}><i />{s.text}</div>
-        <button type="button" className="cc-iv-do" disabled={disabled} onClick={onClick} aria-label={state.kind === "done" ? `${label} done` : `${opts.verb ?? "Apply"} ${label}`}>
+        <button type="button" className="cc-iv-do" disabled={disabled} onClick={onClick} data-tip={hint ? `${label}: ${hint}` : undefined} data-tip-pos="left" aria-description={hint} aria-label={state.kind === "done" ? `${label} done` : `${opts.verb ?? "Apply"} ${label}`}>
           {state.kind === "done" ? "✓" : opts.verb ?? "Apply"}
         </button>
       </div>
@@ -365,9 +369,9 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   function choiceRow(key: string, title: string, desc: string | undefined, status: { text: string; tone: string }, verb: string, disabled: boolean, onClick: () => void, cls = "") {
     return (
       <div key={key} className={`cc-iv ${cls}`}>
-        <div className="cc-iv-name"><strong>{title}</strong>{desc && <small title={desc}>{desc}</small>}</div>
+        <div className="cc-iv-name"><strong>{title}</strong>{desc && <small className={inlineHelp ? "inline-help" : undefined} title={desc}>{desc}</small>}</div>
         <div className={`cc-iv-status ${status.tone}`} title={status.text}><i />{status.text}</div>
-        <button type="button" className="cc-iv-do" disabled={disabled} onClick={onClick}>{verb}</button>
+        <button type="button" className="cc-iv-do" disabled={disabled} onClick={onClick} data-tip={desc ? `${title}: ${desc}` : undefined} data-tip-pos="left" aria-description={desc} aria-label={`${verb} ${title}`}>{verb}</button>
       </div>
     );
   }

@@ -47,7 +47,7 @@ export function IncomingCallModal({
   }[scenario.severity];
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="incoming-call-title" aria-describedby="incoming-call-type">
       <style>{`
         @keyframes ring-shake { 0%, 100% { transform: rotate(0deg); } 10%, 30%, 50%, 70%, 90% { transform: rotate(-12deg); } 20%, 40%, 60%, 80% { transform: rotate(12deg); } }
         @keyframes ring-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.7); } 50% { box-shadow: 0 0 0 16px rgba(52,211,153,0); } }
@@ -60,7 +60,7 @@ export function IncomingCallModal({
         <header className="flex items-center justify-between gap-3 border-b border-(--color-amber)/40 bg-(--color-amber)/10 px-5 py-3">
           <div className="flex items-center gap-3">
             <span className="dot-live size-2 rounded-full bg-(--color-critical)" />
-            <span className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
+            <span id="incoming-call-title" className="font-mono text-[11px] uppercase tracking-widest text-(--color-amber)">
               Incoming {CHANNEL_LABEL[channelOf(scenario)]} call
             </span>
           </div>
@@ -80,7 +80,7 @@ export function IncomingCallModal({
             <dt className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
               Type
             </dt>
-            <dd className="text-(--color-text)">
+            <dd className="text-(--color-text)" id="incoming-call-type">
               {scenario.title}
               <span className="ml-2 rounded-sm border border-(--color-critical)/50 bg-(--color-critical)/10 px-1.5 py-0 font-mono text-[9px] uppercase tracking-widest text-(--color-critical)">
                 {severityLabel}

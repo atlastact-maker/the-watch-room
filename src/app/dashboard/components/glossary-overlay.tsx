@@ -20,6 +20,18 @@ export type GlossarySection = {
 
 export const GLOSSARY: GlossarySection[] = [
   {
+    title: "Keyboard and screen reader",
+    entries: [
+      { term: "F2 · F3 · F4 · F5 · F6", def: "Dispatch, Calls, Mobilising, Ground, Resources" },
+      { term: "F9", def: "Open the MDT on the incident ground; show or hide it once open" },
+      { term: "?", def: "This reference. Esc closes it" },
+      { term: "Enter or A · Esc or D", def: "Incoming call: answer, or decline" },
+      { term: "Tab · Shift+Tab", def: "Move between controls. Every control is reachable and the focused one is outlined; hold on a control for its explanation" },
+      { term: "Esc", def: "Close the open menu or dialog" },
+      { term: "Alerts", def: "Events (a new call, a unit on scene, a patient change) are shown as cards, read to a screen reader and sounded. Each channel is switched in Help → Alerts and in Settings" },
+    ],
+  },
+  {
     title: "Mobilising status codes",
     entries: [
       { term: "Status 1", def: "Mobile to incident — appliance is responding" },

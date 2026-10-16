@@ -8,6 +8,7 @@
 import { useActionState, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isMuted, setMuted, unlockAudio } from "@/lib/audio/sim-audio";
+import { useDeskPrefs } from "@/lib/desk-prefs";
 import { clearCareerRecord } from "@/lib/sim/stats";
 import { saveAdvisorProfile } from "@/lib/auth/actions";
 import { AdvisorQuestions, type AdvisorDefaults } from "@/app/components/advisor-questions";
@@ -33,6 +34,7 @@ export function SettingsView() {
   const [saveMsg, setSaveMsg] = useState("");
   const [, bump] = useState(0);
   const muted = useSyncExternalStore(noSubscribe, isMuted, () => false);
+  const [deskPrefs, setDeskPrefs] = useDeskPrefs();
   const [resetDone, setResetDone] = useState(false);
   const [advisorMeta, setAdvisorMeta] = useState<(AdvisorDefaults & { advisor: boolean }) | null>(null);
   const [advisorOpen, setAdvisorOpen] = useState(false);
@@ -194,11 +196,25 @@ export function SettingsView() {
           </section>
 
           <section className={styles.panel}>
-            <p className={styles.eyebrow}>03 / Console audio</p>
-            <div className={styles.switchRow}>
-              <span><strong>Console audio</strong><small>Dispatch tones, incoming-call alerts and warnings during a shift.</small></span>
+            <p className={styles.eyebrow}>03 / Alerts and assistance</p>
+            <h2 className={styles.panelTitle}>How the desk gets your attention</h2>
+            <p className={styles.muted}>Every event on the desk (a new call, a unit on scene, a patient change) can be sounded, shown as a card and read to a screen reader. Switch on whichever you need; each works alone.</p>
+            <div className={styles.switchRow} style={{ marginTop: 18 }}>
+              <span><strong>Console audio</strong><small>Dispatch tones, incoming-call ring and warning tones.</small></span>
               <button type="button" className={styles.button} onClick={toggleSound} aria-pressed={!muted}>{muted ? <Icon.play /> : <Icon.pause />}{muted ? "Muted" : "Audio on"}</button>
             </div>
+            <label className={styles.switchRow} style={{ marginTop: 14 }}>
+              <span><strong>Visual alerts</strong><small>Event cards in the top right of the desk, each with the time.</small></span>
+              <input type="checkbox" checked={deskPrefs.visualCues} onChange={(e) => setDeskPrefs({ visualCues: e.target.checked })} />
+            </label>
+            <label className={styles.switchRow} style={{ marginTop: 14 }}>
+              <span><strong>Screen reader announcements</strong><small>The same events read into a live region. Urgent events, such as a 999 call, interrupt.</small></span>
+              <input type="checkbox" checked={deskPrefs.announce} onChange={(e) => setDeskPrefs({ announce: e.target.checked })} />
+            </label>
+            <label className={styles.switchRow} style={{ marginTop: 14 }}>
+              <span><strong>Inline help</strong><small>Show every option&apos;s explanation on the treatment and tasking screens, not only on hover or focus.</small></span>
+              <input type="checkbox" checked={deskPrefs.inlineHelp} onChange={(e) => setDeskPrefs({ inlineHelp: e.target.checked })} />
+            </label>
           </section>
 
           <section className={styles.panel}>

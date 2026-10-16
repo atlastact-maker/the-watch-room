@@ -275,7 +275,7 @@ export function RtcStage(props: RtcStageProps) {
           <small>{st.state === "done" ? doneMessage : a.detail ?? ""}</small>
           <span className="meta">{st.state === "done" ? `Done ${wall(st.task.completesAt ?? st.task.startedAt)}` : st.state === "active" ? `${callsignOf(st.task.applianceId)} · ${mmss(Math.max(0, (st.task.completesAt ?? now) - now))} to go` : hint}</span>
         </div>
-        {st.state === "ready" && <button type="button" className="pc-mini" disabled={disabled} title={hint} onClick={() => startCrs(veh, a, doneMessage)}>Start</button>}
+        {st.state === "ready" && <button type="button" className="pc-mini" disabled={disabled} data-tip={hint} aria-description={hint} onClick={() => startCrs(veh, a, doneMessage)}>Start</button>}
         {st.state === "active" && <button type="button" className="pc-mini" onClick={() => props.onAbortTask?.(st.task.id)}>Abort</button>}
         {st.state === "done" && <span className="fc-rtc-tick">✓</span>}
       </div>
