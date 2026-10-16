@@ -11,7 +11,9 @@ import { commandScore } from "@/lib/sim/stats";
 import type { ServiceCode } from "@/lib/sim/types";
 import { CountyPlate, SERVICE_TINT, type PlateStation } from "./county-plate";
 import { Icon } from "./icons";
-import { COMMUNITY, LIFECYCLE, intensityName, serviceName, viewHref, type CountyFacts } from "./menu-types";
+import { COMMUNITY, LIFECYCLE, intensityName, serviceName, viewHref, type CountyFacts, type SystemsStatus } from "./menu-types";
+import { InductionPanel } from "./induction-panel";
+import { SystemsStrip } from "./systems-strip";
 import type { usePlayerRecord } from "./use-player-record";
 import styles from "./watch-menu.module.css";
 
@@ -22,7 +24,7 @@ const GRADE_TONE: Record<string, string> = { A: styles.gradeA, B: styles.gradeB,
 const unitsWord = (service: ServiceCode) => (service === "Fire" ? "appliances" : service === "Ambulance" ? "vehicles" : "units");
 const shiftStatus = (record: PlayerRecord) => (!record.loaded ? "Reading shift status…" : record.save ? "Shift in progress" : "No shift in progress");
 
-export function OverviewView({ record, callsign, facts, stations }: { record: PlayerRecord; callsign: string; facts: CountyFacts; stations: PlateStation[] }) {
+export function OverviewView({ record, callsign, discord, facts, stations, systems }: { record: PlayerRecord; callsign: string; discord: string; facts: CountyFacts; stations: PlateStation[]; systems: SystemsStatus | null }) {
   const savedAgo = record.save ? Math.max(0, Math.round((record.now - record.save.savedAt) / 60000)) : 0;
   const career = record.career;
   const played = !!career && (career.callsAnswered > 0 || career.incidentsResolved > 0);
@@ -45,6 +47,9 @@ export function OverviewView({ record, callsign, facts, stations }: { record: Pl
           <span className={`${styles.chip} ${styles.chipAmber}`}>Closed Pre-Alpha</span>
         </div>
       </header>
+
+      {systems && <SystemsStrip systems={systems} />}
+      {record.loaded && <InductionPanel callsign={callsign} discord={discord} played={played} started={!!record.save} />}
 
       <section className={styles.hero}>
         <div className={styles.heroCopy}>

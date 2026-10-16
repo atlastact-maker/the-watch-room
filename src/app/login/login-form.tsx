@@ -12,7 +12,7 @@ export function LoginForm({ next }: { next?: string }) {
     <form action={action} className={styles.feedback}>
       {next && <input type="hidden" name="next" value={next} />}
       <label htmlFor="email">Email address</label>
-      <input id="email" name="email" type="email" autoComplete="email" required />
+      <input id="email" name="email" type="email" autoComplete="email" required autoFocus />
       {state?.errors?.email?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
       <label htmlFor="password">Password</label>
       <input id="password" name="password" type="password" autoComplete="current-password" required />

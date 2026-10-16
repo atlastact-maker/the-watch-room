@@ -119,5 +119,5 @@ export default function MenuHarness() {
       </ConsoleShell>
     );
   }
-  return <WatchMenu key={opts.view} view={opts.view} userId="dev-user" {...user} facts={facts} stations={stations} />;
+  return <WatchMenu key={opts.view} view={opts.view} userId="dev-user" {...user} discord={param("nodiscord") === "1" ? "" : user.discord} facts={facts} stations={stations} systems={{ routing: "own", routingHost: "osrm.thewtchroom.co.uk", mapData: "loaded", mapKinds: ["roads", "hydrants"], account: false, doorsOpen: true, released: 7 }} />;
 }

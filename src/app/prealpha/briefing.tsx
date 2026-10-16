@@ -16,6 +16,7 @@ import { COMMUNITY, SERVICE_TINT, serviceName } from "@/app/menu/menu-types";
 import styles from "@/app/menu/watch-menu.module.css";
 import type { ServiceCode } from "@/lib/sim/types";
 import { RequestPreAlphaButton } from "./request-button";
+import { MarkInduction } from "@/app/menu/mark-induction";
 
 export type BriefingJob = { id: string; title: string; service: ServiceCode };
 
@@ -53,6 +54,7 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
   const { accepted, waiting, operator, invited, standing, signedIn, signups, tableMissing, appliedOn, openJobs } = data;
   return (
     <>
+      <MarkInduction step="briefing" />
       <header className={styles.pageHead}>
         <div>
           <p className={styles.eyebrow}>{accepted ? "Pre-Alpha briefing · tester" : "Closed Pre-Alpha · programme"}</p>

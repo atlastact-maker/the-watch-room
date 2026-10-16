@@ -35,3 +35,19 @@ export const LIFECYCLE = [
   { n: "03", title: "Incident command", body: "Open the incident ground, task crews and manage the fireground, the patient or the scene.", anchor: "the-ground" },
   { n: "04", title: "Stand-down and debrief", body: "Stop message, resources returned, cover restored. Every incident is assessed against the performance standards.", anchor: "the-debrief" },
 ] as const;
+
+/** The console's own health, read on the server for the overview's systems strip. */
+export type SystemsStatus = {
+  /** Own router answering, configured but not answering, or the public services. */
+  routing: "own" | "degraded" | "public";
+  routingHost?: string;
+  /** Roads and hydrants loaded into the database, tables empty, or not set up. */
+  mapData: "loaded" | "empty" | "unavailable";
+  mapKinds: string[];
+  /** The account service (Supabase) is configured for this build. */
+  account: boolean;
+  /** The Pre-Alpha doors; null when the setting cannot be read. */
+  doorsOpen: boolean | null;
+  /** Scenarios released to testers; null when the table cannot be read. */
+  released: number | null;
+};

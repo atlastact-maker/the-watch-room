@@ -611,3 +611,27 @@
 @media (prefers-reduced-motion: reduce) {
   .shell * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+/* overview: systems strip and operator induction */
+.shell .systems, .plain .systems { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: -6px 0 20px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); list-style: none; font: 500 10px/1.2 var(--font-geist-mono), monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.systems li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.systems i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); flex-shrink: 0; }
+.systems li.ok i { background: var(--ok); }
+.systems li.amber i { background: var(--amber); }
+.systems li.stop i { background: var(--stop); }
+.systems b { color: var(--text); font-weight: 600; }
+.systems span { overflow-wrap: anywhere; }
+.induction { margin-bottom: 20px; }
+.induction .textButton { background: none; border: 0; padding: 0; color: var(--amber); font: inherit; font-size: 11.5px; cursor: pointer; }
+.induction .textButton:hover { color: var(--amber-2); text-decoration: underline; }
+.induction .track { margin: 0 0 6px; }
+.inductionList { list-style: none; margin: 0; padding: 0; }
+.inductionList li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.inductionList li:last-child { border-bottom: 0; }
+.inductionList strong { display: block; font-weight: 600; }
+.inductionList small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+.inductionList li.done strong, .inductionList li.done small { color: var(--dim); }
+@media (max-width: 760px) {
+  .inductionList li { grid-template-columns: 20px minmax(0, 1fr); }
+  .inductionList li > a { grid-column: 2; justify-self: start; }
+}

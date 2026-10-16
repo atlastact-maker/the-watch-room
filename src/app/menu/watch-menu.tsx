@@ -7,7 +7,7 @@
 import { ConsoleShell, type ConsoleUser } from "./console-shell";
 import type { PlateStation } from "./county-plate";
 import { GuideView } from "./guide-view";
-import { TITLES, type CountyFacts, type MenuView } from "./menu-types";
+import { TITLES, type CountyFacts, type MenuView, type SystemsStatus } from "./menu-types";
 import { OverviewView } from "./overview-view";
 import { ShiftView } from "./shift-view";
 import { UpdatesView } from "./updates-view";
@@ -20,13 +20,14 @@ type Props = ConsoleUser & {
   view: MenuView;
   facts: CountyFacts;
   stations: PlateStation[];
+  systems?: SystemsStatus | null;
 };
 
-export function WatchMenu({ userId, view, facts, stations, ...user }: Props) {
+export function WatchMenu({ userId, view, facts, stations, systems = null, ...user }: Props) {
   const record = usePlayerRecord();
   return (
     <ConsoleShell {...user} active={view} title={TITLES[view]}>
-      {view === "overview" && <OverviewView record={record} callsign={user.callsign} facts={facts} stations={stations} />}
+      {view === "overview" && <OverviewView record={record} callsign={user.callsign} discord={user.discord} facts={facts} stations={stations} systems={systems} />}
       {view === "shift" && <ShiftView hasSave={!!record.save} ready={record.loaded && !record.unavailable} />}
       {view === "guide" && <GuideView />}
       {view === "updates" && <UpdatesView userId={userId} />}
