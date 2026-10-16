@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ownOsrmStatus } from "@/lib/map/osrm";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
+import { CopyEmails } from "./copy-emails";
 import {
   setRole,
   setTester,
@@ -330,6 +331,13 @@ export default async function AdminPage({
   const pending = advisors.filter(
     (a) => a.assigned_role === null && !a.declined_at,
   );
+  // Advisors on the programme (granted advisor, or promoted to operator)
+  // with no Discord handle on record: the closed advisor room cannot be
+  // given to them until there is one, so they are chased from here.
+  const noDiscord = advisors.filter(
+    (a) => (a.assigned_role === "advisor" || a.assigned_role === "operator") && !a.discord?.trim(),
+  );
+  const noDiscordEmails = noDiscord.map((a) => a.email);
   // Advisors by account, for the mark on the pre-alpha list: someone who
   // has filed the advisor questionnaire is who the programme wants in
   // first, so they are flagged and sorted to the top of the waiting.
@@ -431,6 +439,31 @@ export default async function AdminPage({
               {pending.length} awaiting review · {advisors.length} total
             </span>
           </div>
+
+          {noDiscord.length > 0 && (
+            <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-(--color-info)">Discord handle outstanding · {noDiscord.length}</p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-(--color-text-muted)">Accepted advisors with no handle on record. The closed advisor room cannot be given to them until there is one; the list below is ready for a BCC field.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <CopyEmails emails={noDiscordEmails} className={`${btnCls} border-(--color-info)/60 text-(--color-info) hover:bg-(--color-info)/15`} />
+                  <a href={`mailto:?bcc=${encodeURIComponent(noDiscordEmails.join(","))}&subject=${encodeURIComponent("The Watch Room advisor programme: your Discord handle")}`} className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-info) hover:text-(--color-info)`}>Email all</a>
+                </div>
+              </div>
+              <ul className="mt-3 grid gap-1 sm:grid-cols-2">
+                {noDiscord.map((a) => (
+                  <li key={a.user_id} className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
+                    <Link href={profileHref(a.user_id, a.email)} className="font-semibold text-(--color-text) hover:text-(--color-amber)">{a.callsign || "(no callsign)"}</Link>
+                    <span className="break-all text-(--color-text-dim)">{a.email}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-(--color-text-dim)">{a.assigned_role}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 select-all break-all font-mono text-[11px] text-(--color-text-dim)">{noDiscordEmails.join(", ")}</p>
+            </div>
+          )}
 
           {advisors.length === 0 ? (
             <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
