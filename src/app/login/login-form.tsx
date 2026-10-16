@@ -1,89 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { login } from "@/lib/auth/actions";
+import { Icon } from "@/app/menu/icons";
+import styles from "@/app/menu/watch-menu.module.css";
 
 export function LoginForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(login, undefined);
-
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className={styles.feedback}>
       {next && <input type="hidden" name="next" value={next} />}
-      <Field
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        errors={state?.errors?.email}
-      />
-      <Field
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        errors={state?.errors?.password}
-      />
-
-      <div className="text-right">
-        <a
-          href="/forgot-password"
-          className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)"
-        >
-          Forgot password?
-        </a>
+      <label htmlFor="email">Email address</label>
+      <input id="email" name="email" type="email" autoComplete="email" required />
+      {state?.errors?.email?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
+      <label htmlFor="password">Password</label>
+      <input id="password" name="password" type="password" autoComplete="current-password" required />
+      {state?.errors?.password?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
+      {state?.errors?.form?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
+      <div className={styles.actions}>
+        <button type="submit" className={`${styles.primary} ${styles.fullWidth}`} disabled={pending}>{pending ? "Signing in…" : "Log in"} <Icon.arrow /></button>
       </div>
-
-      {state?.errors?.form?.map((msg) => (
-        <p key={msg} className="text-sm text-(--color-critical)">
-          {msg}
-        </p>
-      ))}
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {pending ? "Authenticating…" : "Log in"}
-      </button>
+      <p className={styles.formStatus}><Link className={styles.textLink} href="/forgot-password">Forgotten password?</Link></p>
     </form>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  autoComplete,
-  errors,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  autoComplete: string;
-  errors?: string[];
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={name}
-        className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)"
-      >
-        {label}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required
-        className="block w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 py-2.5 text-sm text-(--color-text) outline-none transition-colors focus:border-(--color-amber)"
-      />
-      {errors?.map((msg) => (
-        <p key={msg} className="mt-1 text-xs text-(--color-critical)">
-          {msg}
-        </p>
-      ))}
-    </div>
   );
 }

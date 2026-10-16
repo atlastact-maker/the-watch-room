@@ -1,192 +1,82 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { signup } from "@/lib/auth/actions";
 import { AdvisorQuestions } from "@/app/components/advisor-questions";
 import { Notice } from "@/app/components/notice";
+import { Icon } from "@/app/menu/icons";
+import styles from "@/app/menu/watch-menu.module.css";
 
-export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false, prealphaCloses = "", prealphaOpen = true }: { defaultAdvisorOpen?: boolean; defaultPrealpha?: boolean; prealphaCloses?: string; /** Sign-ups for the pre-alpha are being taken; else the tick is greyed out. */ prealphaOpen?: boolean }) {
+export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false, prealphaCloses = "", prealphaOpen = true }: {
+  defaultAdvisorOpen?: boolean;
+  defaultPrealpha?: boolean;
+  prealphaCloses?: string;
+  /** Sign-ups for the pre-alpha are being taken; otherwise the request is greyed out. */
+  prealphaOpen?: boolean;
+}) {
   const [state, action, pending] = useActionState(signup, undefined);
   const [advisorOpen, setAdvisorOpen] = useState(defaultAdvisorOpen);
 
-  // Email confirmation enabled server-side — the account exists but needs
+  // Email confirmation enabled server-side: the account exists but needs
   // the inbox link before login works.
   if (state?.needsConfirmation) {
     return (
-      <Notice tone="ok" title="Check your inbox">
-        <p>
-          We have sent a confirmation link to the address you gave. Click it and your account is live; then log in.
-        </p>
-        <p>Nothing after a couple of minutes? Check your spam folder.</p>
+      <Notice tone="ok" title="Confirm the email address">
+        <p>A confirmation link has been sent to the address given. Open it and the account is live; then log in.</p>
+        <p>Nothing after a couple of minutes? Check the spam folder.</p>
       </Notice>
     );
   }
 
+  const errs = (list?: string[]) => list?.map((m) => <p key={m} className={styles.warning}>{m}</p>);
+
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <Field
-        label="Callsign (username)"
-        name="callsign"
-        type="text"
-        autoComplete="username"
-        placeholder="OSCAR-21"
-        hint="Shown in the ops room. 2–24 characters."
-        errors={state?.errors?.callsign}
-      />
-      <Field
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        placeholder="you@example.com"
-        errors={state?.errors?.email}
-      />
-      <Field
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        hint="Min 8 chars · letter + number"
-        errors={state?.errors?.password}
-      />
+    <form action={action} className={styles.feedback}>
+      <label htmlFor="callsign">Callsign</label>
+      <input id="callsign" name="callsign" type="text" autoComplete="username" placeholder="e.g. OSCAR 21" required />
+      {state?.errors?.callsign?.length ? errs(state.errors.callsign) : <small className={styles.hint}>Shown on the console and the service record. 2 to 24 characters.</small>}
+      <label htmlFor="email">Email address</label>
+      <input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />
+      {errs(state?.errors?.email)}
+      <label htmlFor="password">Password</label>
+      <input id="password" name="password" type="password" autoComplete="new-password" required />
+      {state?.errors?.password?.length ? errs(state.errors.password) : <small className={styles.hint}>Minimum 8 characters, including a letter and a number.</small>}
 
-      <div className="mt-0.5 flex flex-col gap-2.5">
-        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
-          <input
-            type="checkbox"
-            name="acceptTerms"
-            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) sm:size-4"
-          />
-          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-muted)">
-            I accept the{" "}
-            <a
-              href="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-(--color-amber) underline underline-offset-2 hover:text-amber-400"
-            >
-              terms &amp; conditions
-            </a>
+      <div className={`${styles.checks} ${styles.checksStack}`}>
+        <label>
+          <input type="checkbox" name="acceptTerms" />
+          <span>I accept the <Link href="/terms" target="_blank" rel="noopener noreferrer">terms and conditions</Link>.</span>
+        </label>
+        <label aria-disabled={!prealphaOpen}>
+          <input type="checkbox" name="prealpha" defaultChecked={prealphaOpen && defaultPrealpha} disabled={!prealphaOpen} />
+          <span>
+            Join the pre-alpha
+            <small>{prealphaOpen ? `Requests access to the closed test. Granted by hand; an email is sent when the desk is open to the account.${prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}` : "Sign-ups for the pre-alpha are closed. A wider test follows, and this account will be ready for it."}</small>
           </span>
         </label>
-        {state?.errors?.acceptTerms?.map((msg) => (
-          <p key={msg} className="text-xs normal-case tracking-normal text-(--color-critical)">
-            {msg}
-          </p>
-        ))}
-        <label className={`flex items-start gap-2.5 py-1 select-none ${prealphaOpen ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`} aria-disabled={!prealphaOpen}>
-          <input
-            type="checkbox"
-            name="prealpha"
-            defaultChecked={prealphaOpen && defaultPrealpha}
-            disabled={!prealphaOpen}
-            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) disabled:cursor-not-allowed sm:size-4"
-          />
-          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-muted)">
-            <span className={prealphaOpen ? "text-(--color-amber)" : "text-(--color-text-dim)"}>Join the pre-alpha</span>
-            <span className="mt-0.5 block normal-case tracking-normal text-(--color-text-dim)">
-              {prealphaOpen
-                ? `Requests access to the closed test. Granted by hand; you get an email when the desk is open to you.${prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}`
-                : "Sign-ups for the pre-alpha are closed. There will be a wider test after it, and this account will be ready for that."}
-            </span>
-          </span>
+        <label>
+          <input type="checkbox" name="newsletter" />
+          <span>Send development updates to this address.</span>
         </label>
-        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
-          <input
-            type="checkbox"
-            name="newsletter"
-            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-amber) sm:size-4"
-          />
-          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-dim)">
-            Send me updates &amp; newsletters
-          </span>
-        </label>
-
-        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
-          <input
-            type="checkbox"
-            name="advisor"
-            checked={advisorOpen}
-            onChange={(e) => setAdvisorOpen(e.target.checked)}
-            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info) sm:size-4"
-          />
-          <span className="text-[11px] uppercase tracking-[0.08em] sm:tracking-[0.15em] text-(--color-text-dim)">
-            Part of the emergency services —{" "}
-            <span className="text-(--color-info)">register me as a development advisor</span>
-          </span>
+        <label>
+          <input type="checkbox" name="advisor" checked={advisorOpen} onChange={(e) => setAdvisorOpen(e.target.checked)} />
+          <span>Serving or former emergency services: register as a development advisor.<small>Opens the advisor questionnaire below.</small></span>
         </label>
       </div>
+      {errs(state?.errors?.acceptTerms)}
 
       {advisorOpen && (
-        <div className="rounded-sm border border-(--color-info)/40 bg-(--color-info)/5 p-3 sm:p-4">
+        <div className={styles.subPanel}>
           <AdvisorQuestions errors={state?.errors} />
         </div>
       )}
 
-      {state?.errors?.form?.map((msg) => (
-        <p key={msg} className="text-sm text-(--color-critical)">
-          {msg}
-        </p>
-      ))}
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-1 inline-flex h-12 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-[0.25em] text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {pending ? "Registering…" : "▸ Register"}
-      </button>
-
-      <p className="text-center font-mono text-[9px] uppercase tracking-widest leading-relaxed text-(--color-text-dim)/70">
-        Your email is used for login — and updates only if you opted in.
-      </p>
+      {errs(state?.errors?.form)}
+      <div className={styles.actions}>
+        <button type="submit" className={`${styles.primary} ${styles.fullWidth}`} disabled={pending}>{pending ? "Creating account…" : "Create account"} <Icon.arrow /></button>
+      </div>
+      <p className={styles.formStatus}>The email address is used to sign in, and for development updates only where selected.</p>
     </form>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type,
-  autoComplete,
-  placeholder,
-  hint,
-  errors,
-}: {
-  label: string;
-  name: string;
-  type: string;
-  autoComplete: string;
-  placeholder?: string;
-  hint?: string;
-  errors?: string[];
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={name}
-        className="text-[11px] uppercase tracking-[0.25em] text-(--color-text-dim)"
-      >
-        {label}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        required
-        className="h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-base text-(--color-text) outline-none transition-colors placeholder:text-(--color-text-dim)/60 focus:border-(--color-amber) sm:text-sm"
-        style={{ caretColor: "var(--color-amber)" }}
-      />
-      {hint && !errors?.length && (
-        <p className="text-[11px] text-(--color-text-dim)">{hint}</p>
-      )}
-      {errors?.map((msg) => (
-        <p key={msg} className="text-xs text-(--color-critical)">
-          {msg}
-        </p>
-      ))}
-    </div>
   );
 }

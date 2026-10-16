@@ -11,20 +11,13 @@ import { commandScore } from "@/lib/sim/stats";
 import type { ServiceCode } from "@/lib/sim/types";
 import { CountyPlate, SERVICE_TINT, type PlateStation } from "./county-plate";
 import { Icon } from "./icons";
-import { COMMUNITY, intensityName, serviceName, viewHref, type CountyFacts } from "./menu-types";
+import { COMMUNITY, LIFECYCLE, intensityName, serviceName, viewHref, type CountyFacts } from "./menu-types";
 import type { usePlayerRecord } from "./use-player-record";
 import styles from "./watch-menu.module.css";
 
 type PlayerRecord = ReturnType<typeof usePlayerRecord>;
 
 const GRADE_TONE: Record<string, string> = { A: styles.gradeA, B: styles.gradeB, C: styles.gradeC, D: styles.gradeD, F: styles.gradeF };
-
-const STEPS = [
-  { n: "01", title: "Call handling", body: "Receive the call, obtain the key information, assign the opening code and grade, and mobilise.", anchor: "the-call" },
-  { n: "02", title: "Mobilising", body: "Complete the attendance from the station network, maintain county cover and position standby resources.", anchor: "the-desk" },
-  { n: "03", title: "Incident command", body: "Open the incident ground, task crews and manage the fireground, the patient or the scene.", anchor: "the-ground" },
-  { n: "04", title: "Stand-down and debrief", body: "Stop message, resources returned, cover restored. Every incident is assessed against the performance standards.", anchor: "the-debrief" },
-];
 
 const unitsWord = (service: ServiceCode) => (service === "Fire" ? "appliances" : service === "Ambulance" ? "vehicles" : "units");
 const shiftStatus = (record: PlayerRecord) => (!record.loaded ? "Reading shift status…" : record.save ? "Shift in progress" : "No shift in progress");
@@ -157,7 +150,7 @@ export function OverviewView({ record, callsign, facts, stations }: { record: Pl
               <Link href={viewHref("guide")}>Operator guide <Icon.arrow /></Link>
             </div>
             <ol className={styles.steps}>
-              {STEPS.map((s) => (
+              {LIFECYCLE.map((s) => (
                 <li key={s.n}>
                   <Link href={`${viewHref("guide")}#${s.anchor}`}>
                     <span className={styles.stepNo}>{s.n}</span>

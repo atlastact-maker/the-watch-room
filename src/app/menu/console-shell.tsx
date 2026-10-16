@@ -100,27 +100,45 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
   );
 }
 
-/** The same surface without the sidebar, for pages an account without
- *  shift access may reach: their own settings, the pre-alpha briefing
- *  before the doors open. */
-export function PlainShell({ title, chip, back, children }: { title: string; chip?: string; back?: { href: string; label: string }; children: React.ReactNode }) {
+/** The same surface without the sidebar, for everyone the console is not
+ *  open to: visitors on the landing page and the registration and login
+ *  flow, and signed-in accounts without shift access on their own pages
+ *  (standing by, settings, the briefing before the doors open). */
+export type PublicLink = { href: string; label: string; primary?: boolean; button?: boolean; external?: boolean };
+
+export function PublicShell({ brandLine = "Incident management simulator", chip, links = [], actions, width = "page", children }: {
+  brandLine?: string;
+  chip?: string;
+  links?: PublicLink[];
+  /** Extra controls on the right of the top bar, such as a log-out form. */
+  actions?: React.ReactNode;
+  width?: "narrow" | "page" | "wide";
+  children: React.ReactNode;
+}) {
+  const cls = width === "narrow" ? styles.plainNarrow : width === "wide" ? styles.plainWide : "";
   return (
     <div className={styles.plain}>
       <div className={styles.plainTop}>
         <Link href="/" className={styles.brand} aria-label="The Watch Room home">
           <Image src="/email-logo.png" width={42} height={32} alt="" />
-          <span>The Watch Room<small>{title}</small></span>
+          <span>The Watch Room<small>{brandLine}</small></span>
         </Link>
-        <div className={styles.plainRight}>
+        <nav className={styles.plainNav} aria-label="Site">
           {chip && <span className={`${styles.chip} ${styles.chipAmber}`}>{chip}</span>}
-          {back && <Link href={back.href} className={styles.button}>{back.label}</Link>}
-        </div>
+          {links.map((l) => {
+            const c = l.primary ? styles.primary : l.button ? styles.button : undefined;
+            return l.external
+              ? <a key={l.href} href={l.href} className={c} target="_blank" rel="noreferrer">{l.label}</a>
+              : <Link key={l.href} href={l.href} className={c}>{l.label}</Link>;
+          })}
+          {actions}
+        </nav>
       </div>
-      <div className={styles.plainMain}>
+      <div className={`${styles.plainMain} ${cls}`}>
         {children}
         <footer className={styles.footer}>
           <span>The Watch Room · Emergency services incident management simulator · Not affiliated with any emergency service</span>
-          <span><Link href="/">Home</Link> · <Link href="/terms">Terms</Link></span>
+          <span className={styles.footLinks}><a href={COMMUNITY} target="_blank" rel="noreferrer">Discord</a><Link href="/prealpha">Pre-alpha</Link><Link href="/terms">Terms</Link></span>
         </footer>
       </div>
     </div>

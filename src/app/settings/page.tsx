@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { ConsoleShell, PlainShell } from "@/app/menu/console-shell";
+import { ConsoleShell, PublicShell } from "@/app/menu/console-shell";
 import { consoleSessionIfSignedIn, consoleUser } from "@/app/menu/console-session";
 import { SettingsView } from "./settings-view";
 
@@ -14,9 +14,9 @@ export default async function SettingsPage() {
   if (!session) redirect("/login");
   if (!session.hasShift) {
     return (
-      <PlainShell title="Account settings" chip="Closed pre-alpha" back={{ href: "/standby", label: "Your standing" }}>
+      <PublicShell brandLine="Account settings" chip="Closed pre-alpha" links={[{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/standby", label: "Your standing", button: true }]}>
         <SettingsView />
-      </PlainShell>
+      </PublicShell>
     );
   }
   return (

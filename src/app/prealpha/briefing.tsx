@@ -10,6 +10,7 @@
 // component renders the same from the server page and the dev harness.
 
 import Link from "next/link";
+import { Notice } from "@/app/components/notice";
 import { Icon } from "@/app/menu/icons";
 import { COMMUNITY, SERVICE_TINT, serviceName } from "@/app/menu/menu-types";
 import styles from "@/app/menu/watch-menu.module.css";
@@ -48,11 +49,6 @@ const PROCEDURE = [
   "Defects: Help → Report a problem, from any screen. The report carries the incident and the last minute of the log.",
 ];
 
-function Notice({ tone, title, children }: { tone: "ok" | "amber" | "stop"; title: string; children: React.ReactNode }) {
-  const cls = tone === "ok" ? styles.noticeOk : tone === "amber" ? styles.noticeAmber : styles.noticeStop;
-  return <div className={`${styles.notice} ${cls}`}><strong>{title}</strong><p>{children}</p></div>;
-}
-
 export function PreAlphaBriefing({ data }: { data: BriefingData }) {
   const { accepted, waiting, operator, invited, standing, signedIn, signups, tableMissing, appliedOn, openJobs } = data;
   return (
@@ -74,10 +70,10 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
       </header>
 
       {accepted && invited && (
-        <Notice tone="ok" title="Invitation accepted">{waiting ? "This account is on the tester list. Read the briefing below; the desk opens when the doors do." : "The desk is open to this account. Read the briefing below, then open the console."}</Notice>
+        <Notice tone="ok" title="Invitation accepted"><p>{waiting ? "This account is on the tester list. Read the briefing below; the desk opens when the doors do." : "The desk is open to this account. Read the briefing below, then open the console."}</p></Notice>
       )}
       {waiting && (
-        <Notice tone="amber" title="Doors not yet open">This account is on the tester list. The desk opens to every tester at once, and an email is sent when it does. Until then this page is the briefing.</Notice>
+        <Notice tone="amber" title="Doors not yet open"><p>This account is on the tester list. The desk opens to every tester at once, and an email is sent when it does. Until then this page is the briefing.</p></Notice>
       )}
       {accepted && (
         <div className={styles.actions}>
@@ -158,11 +154,11 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
           ) : standing === "declined" ? (
             <p className={styles.muted}>Reviewed and not accepted for this round. The pre-alpha is deliberately small; a wider test follows, and this account is ready for it.</p>
           ) : standing === "pending" ? (
-            <Notice tone="amber" title="Request received">Submitted {appliedOn ?? "recently"}. Access is granted by hand, so there is a short wait. An email is sent when the account is on the list, and another when the doors open.</Notice>
+            <Notice tone="amber" title="Request received"><p>Submitted {appliedOn ?? "recently"}. Access is granted by hand, so there is a short wait. An email is sent when the account is on the list, and another when the doors open.</p></Notice>
           ) : (
             <>
               {signups.closes && <p className={styles.muted}>Sign-ups close on <strong>{signups.closes}</strong>.</p>}
-              <RequestPreAlphaButton variant="console" />
+              <RequestPreAlphaButton />
             </>
           )}
         </section>

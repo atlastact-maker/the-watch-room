@@ -1,31 +1,24 @@
-// The one notice. Every "done", "received", "not yet" and "that didn't
+// The one notice. Every "done", "received", "not yet" and "that did not
 // work" on the account pages is this: a coloured rule down the left, a
-// plain heading, a sentence or two. Same shape whether it is a form's
-// success state or a standing panel, so the site reads as one voice.
+// plain heading, a sentence or two. The same shape whether it is a
+// form's success state or a standing panel, so the site reads as one
+// voice. Styled by the console's stylesheet so it matches the console.
+
+import styles from "@/app/menu/watch-menu.module.css";
 
 const TONES = {
-  ok: "border-(--color-ok) bg-(--color-ok)/8",
-  amber: "border-(--color-amber) bg-(--color-amber)/8",
-  critical: "border-(--color-critical) bg-(--color-critical)/8",
-  info: "border-(--color-info) bg-(--color-info)/8",
-  neutral: "border-(--color-border) bg-(--color-surface)/60",
+  ok: styles.noticeOk,
+  amber: styles.noticeAmber,
+  critical: styles.noticeStop,
+  info: styles.noticeInfo,
+  neutral: "",
 } as const;
 
-export function Notice({
-  tone = "neutral",
-  title,
-  children,
-  className = "",
-}: {
-  tone?: keyof typeof TONES;
-  title: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
+export function Notice({ tone = "neutral", title, children, className = "" }: { tone?: keyof typeof TONES; title: string; children?: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-r-sm border-l-2 px-4 py-3 ${TONES[tone]} ${className}`}>
-      <p className="text-sm font-semibold text-(--color-text)">{title}</p>
-      {children && <div className="mt-1 space-y-2 text-sm leading-relaxed text-(--color-text-muted)">{children}</div>}
+    <div className={`${styles.notice} ${TONES[tone]} ${className}`.trim()} role={tone === "critical" ? "alert" : "status"}>
+      <strong>{title}</strong>
+      {children && <div>{children}</div>}
     </div>
   );
 }

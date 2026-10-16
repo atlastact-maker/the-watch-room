@@ -27,3 +27,11 @@ export const SERVICE_TINT: Record<ServiceCode, string> = { Fire: "#f08a3e", Ambu
 
 /** What a service calls its vehicles. */
 export const unitsWord = (service: ServiceCode) => (service === "Fire" ? "appliances" : service === "Ambulance" ? "vehicles" : "units");
+
+/** The incident lifecycle as the console teaches it, with the guide chapter each step opens. */
+export const LIFECYCLE = [
+  { n: "01", title: "Call handling", body: "Receive the call, obtain the key information, assign the opening code and grade, and mobilise.", anchor: "the-call" },
+  { n: "02", title: "Mobilising", body: "Complete the attendance from the station network, maintain county cover and position standby resources.", anchor: "the-desk" },
+  { n: "03", title: "Incident command", body: "Open the incident ground, task crews and manage the fireground, the patient or the scene.", anchor: "the-ground" },
+  { n: "04", title: "Stand-down and debrief", body: "Stop message, resources returned, cover restored. Every incident is assessed against the performance standards.", anchor: "the-debrief" },
+] as const;

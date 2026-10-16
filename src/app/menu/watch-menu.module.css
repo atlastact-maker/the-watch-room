@@ -107,8 +107,8 @@
 .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: linear-gradient(135deg, #171d1f, #121719); min-height: 440px; }
 .heroCopy { padding: 36px 32px 30px; display: flex; flex-direction: column; align-items: flex-start; border-right: 1px solid var(--line); }
 .brandLine { display: flex; gap: 9px; align-items: center; color: var(--amber); font: 500 10px var(--font-geist-mono), monospace; letter-spacing: .2em; text-transform: uppercase; }
-.hero h2 { font-size: clamp(34px, 3.2vw, 48px); font-weight: 600; line-height: 1.05; letter-spacing: -.03em; margin: 22px 0 18px; }
-.hero h2 span { color: #a9b6b2; font-weight: 500; }
+.hero h1, .hero h2 { font-size: clamp(34px, 3.2vw, 48px); font-weight: 600; line-height: 1.05; letter-spacing: -.03em; margin: 22px 0 18px; }
+.hero h1 span, .hero h2 span { color: #a9b6b2; font-weight: 500; }
 .heroCopy > p:not(.brandLine) { font-size: 14px; line-height: 1.75; color: var(--muted); max-width: 40ch; }
 .serviceRow { display: flex; gap: 14px; flex-wrap: wrap; margin-top: auto; padding-top: 32px; font: 500 10px var(--font-geist-mono), monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
 .serviceRow li { display: flex; align-items: center; gap: 7px; }
@@ -376,6 +376,50 @@
 .section > .panel + .panel { margin-top: 16px; }
 .pageHead .actions { margin-top: 0; }
 
+
+/* ---- public pages: landing, registration and login, terms, standing by ---- */
+.plainNav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.plainNav > a:not(.primary):not(.button), .plainNav .textButton { padding: 8px 10px; border-radius: var(--radius); color: var(--muted); font-size: 12.5px; font-weight: 500; background: none; border: 0; }
+.plainNav > a:not(.primary):not(.button):hover, .plainNav .textButton:hover { color: var(--text); background: #1a2123; }
+.plainNav .primary, .plainNav .button { padding: 8px 12px; font-size: 12px !important; }
+.plainNarrow { max-width: 560px; }
+.plainWide { max-width: 1360px; }
+.footLinks { display: flex; gap: 14px; white-space: nowrap; }
+.fullWidth { width: 100%; }
+.hint { display: block; margin-top: 6px; font-size: 11.5px; color: var(--dim); }
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.checksStack { grid-template-columns: 1fr; margin-top: 18px; }
+.checks label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--panel-2); font-size: 12.5px; line-height: 1.5; cursor: pointer; }
+.checks label:has(input:checked) { border-color: var(--amber); background: var(--amber-tint); }
+.checks label:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.checks label { margin: 0; }
+.checks input, .feedback .checks input, .questions .checks input { width: 16px; height: 16px; margin: 3px 0 0; padding: 0; border: 0; background: none; accent-color: var(--amber); flex-shrink: 0; }
+.checks small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.checks a { color: var(--amber); }
+.questions { display: grid; gap: 14px; }
+.questions > p { font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.questions label > span, .questions .qLabel { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 6px; }
+.questions .qLabel em { font-style: normal; color: var(--dim); }
+.questions select, .questions input[type="text"], .questions textarea { width: 100%; background: #111718; color: var(--text); border: 1px solid var(--line-2); padding: 10px; border-radius: var(--radius); font-size: 13px; }
+.questions select:focus, .questions input:focus, .questions textarea:focus { border-color: var(--amber); outline: none; }
+.questions textarea { min-height: 90px; resize: vertical; }
+.questions .checks { margin-top: 0; }
+.subPanel { margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.pillars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.pillars li { padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.pillars strong { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 6px; }
+.pillars p { font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+.clauses li { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.clauses li:first-child { padding-top: 4px; }
+.clauses li:last-child { border-bottom: 0; padding-bottom: 4px; }
+.clauses li > span { font: 600 11px var(--font-geist-mono), monospace; letter-spacing: .14em; color: var(--amber); padding-top: 3px; }
+.clauses h2 { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
+.clauses p { grid-column: 2; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.noticeInfo { border-left-color: #6aa6e8; }
+.notice > div { display: grid; gap: 6px; }
+.notice a { color: var(--amber); }
+.standingRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
 @media (max-width: 1240px) {
   .shell { grid-template-columns: 208px minmax(0, 1fr); }
   .content { padding: 28px; }
@@ -458,10 +502,17 @@
   .jobs li { grid-template-columns: 1fr; gap: 2px; }
   .inlineForm { flex-direction: column; }
   .inlineForm .button, .inlineForm .primary { width: 100%; }
-  .plainTop { padding: 10px 16px; }
+  .plainTop { padding: 10px 16px; flex-wrap: wrap; }
+  .plainNav { justify-content: flex-start; width: 100%; }
+  .pillars { grid-template-columns: 1fr 1fr; }
+  .checks { grid-template-columns: 1fr; }
+  .clauses li { grid-template-columns: 1fr; row-gap: 4px; }
+  .clauses p { grid-column: 1; }
+  .footLinks { white-space: normal; }
   .plainMain { padding: 24px 16px 36px; }
 }
 @media (max-width: 420px) {
+  .pillars { grid-template-columns: 1fr; }
   .facts { grid-template-columns: 1fr; }
   .stats { grid-template-columns: 1fr 1fr; }
   .primary, .button { padding: 10px 13px; font-size: 12px !important; }

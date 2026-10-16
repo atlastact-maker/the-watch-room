@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
 import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpensLabel, prealphaSignups } from "@/lib/prealpha";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
-import { ConsoleShell, PlainShell } from "@/app/menu/console-shell";
+import { ConsoleShell, PublicShell } from "@/app/menu/console-shell";
 import { consoleSession, consoleUser } from "@/app/menu/console-session";
 import { PreAlphaBriefing, type BriefingData } from "./briefing";
 
@@ -65,8 +65,8 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
     );
   }
   return (
-    <PlainShell title={accepted ? "Pre-alpha briefing" : "Closed pre-alpha"} chip="Closed pre-alpha" back={user ? { href: "/standby", label: "Your standing" } : { href: "/login", label: "Log in" }}>
+    <PublicShell brandLine="Closed pre-alpha" chip="Closed pre-alpha" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }]}>
       <PreAlphaBriefing data={data} />
-    </PlainShell>
+    </PublicShell>
   );
 }

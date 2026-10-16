@@ -3,55 +3,23 @@
 import { useActionState } from "react";
 import { requestPasswordReset } from "@/lib/auth/actions";
 import { Notice } from "@/app/components/notice";
+import { Icon } from "@/app/menu/icons";
+import styles from "@/app/menu/watch-menu.module.css";
 
 export function ForgotPasswordForm() {
   const [state, action, pending] = useActionState(requestPasswordReset, undefined);
-
   if (state?.ok && state.message) {
-    return (
-      <Notice tone="ok" title="Check your inbox">
-        <p>{state.message}</p>
-      </Notice>
-    );
+    return <Notice tone="ok" title="Check the inbox" className={styles.section}><p>{state.message}</p></Notice>;
   }
-
   return (
-    <form action={action} className="space-y-4">
-      <div>
-        <label
-          htmlFor="email"
-          className="mb-1 block font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)"
-        >
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="h-11 w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 text-sm text-(--color-text) outline-none focus:border-(--color-amber)"
-        />
-        {state?.errors?.email?.map((msg) => (
-          <p key={msg} className="mt-1 text-sm text-(--color-critical)">
-            {msg}
-          </p>
-        ))}
+    <form action={action} className={styles.feedback}>
+      <label htmlFor="email">Account email address</label>
+      <input id="email" name="email" type="email" autoComplete="email" required />
+      {state?.errors?.email?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
+      {state?.errors?.form?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
+      <div className={styles.actions}>
+        <button type="submit" className={`${styles.primary} ${styles.fullWidth}`} disabled={pending}>{pending ? "Sending…" : "Send reset link"} <Icon.arrow /></button>
       </div>
-
-      {state?.errors?.form?.map((msg) => (
-        <p key={msg} className="text-sm text-(--color-critical)">
-          {msg}
-        </p>
-      ))}
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-sm bg-(--color-amber) font-mono text-sm font-medium uppercase tracking-widest text-black transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {pending ? "Sending…" : "Send reset link"}
-      </button>
     </form>
   );
 }

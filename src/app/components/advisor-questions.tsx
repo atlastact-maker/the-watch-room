@@ -1,16 +1,11 @@
 "use client";
 
-// Advisor questionnaire — the shared field set used by the signup form
-// and the Settings advisor card. Renders inputs only (the parent owns
-// the <form>); every field name matches AdvisorSchema.
+// Advisor questionnaire: the shared field set used by the registration
+// form and the Settings advisor panel. Renders inputs only (the parent
+// owns the <form>); every field name matches AdvisorSchema.
 
-import {
-  ADVISOR_INVOLVEMENT,
-  ADVISOR_SERVICES,
-  ADVISOR_STATUSES,
-  ADVISOR_TOPICS,
-  type AuthFormState,
-} from "@/lib/auth/schemas";
+import { ADVISOR_INVOLVEMENT, ADVISOR_SERVICES, ADVISOR_STATUSES, ADVISOR_TOPICS, type AuthFormState } from "@/lib/auth/schemas";
+import styles from "@/app/menu/watch-menu.module.css";
 
 export type AdvisorDefaults = {
   service?: string;
@@ -24,200 +19,89 @@ export type AdvisorDefaults = {
   discord?: string;
 };
 
-export function AdvisorQuestions({
-  defaults = {},
-  errors,
-}: {
-  defaults?: AdvisorDefaults;
-  errors?: NonNullable<AuthFormState>["errors"];
-}) {
+export function AdvisorQuestions({ defaults = {}, errors }: { defaults?: AdvisorDefaults; errors?: NonNullable<AuthFormState>["errors"] }) {
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-[10px] uppercase tracking-[0.2em] leading-relaxed text-(--color-info)">
-        Advisor programme — help keep The Watch Room authentic
-      </p>
+    <div className={styles.questions}>
+      <p className={styles.eyebrow}>Advisor programme · authenticity review</p>
+      <p>For serving and former emergency services personnel. The answers tell the team which parts of the simulation to put in front of you.</p>
 
-      {/* 1 · Service */}
-      <Q label="Which service are you with?">
-        <select
-          name="advisorService"
-          defaultValue={defaults.service ?? ""}
-          className={selectCls}
-        >
-          <option value="" disabled>
-            Select your service…
-          </option>
-          {ADVISOR_SERVICES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
+      <label>
+        <span>Service</span>
+        <select name="advisorService" defaultValue={defaults.service ?? ""}>
+          <option value="" disabled>Select a service</option>
+          {ADVISOR_SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <Errs msgs={errors?.advisorService} />
-      </Q>
+      </label>
 
-      {/* 2 · Status */}
-      <Q label="Your status">
-        <select
-          name="advisorStatus"
-          defaultValue={defaults.status ?? ""}
-          className={selectCls}
-        >
-          <option value="" disabled>
-            Select…
-          </option>
-          {ADVISOR_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
+      <label>
+        <span>Status</span>
+        <select name="advisorStatus" defaultValue={defaults.status ?? ""}>
+          <option value="" disabled>Select</option>
+          {ADVISOR_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <Errs msgs={errors?.advisorStatus} />
-      </Q>
+      </label>
 
-      {/* 3 · Role & background */}
-      <Q label="Role & background">
-        <input
-          name="advisorBackground"
-          type="text"
-          defaultValue={defaults.background ?? ""}
-          placeholder="e.g. Crew Manager · 12 yrs"
-          className={inputCls}
-        />
+      <label>
+        <span>Role and background</span>
+        <input name="advisorBackground" type="text" defaultValue={defaults.background ?? ""} placeholder="e.g. Crew Manager · 12 years" />
         <Errs msgs={errors?.advisorBackground} />
-      </Q>
+      </label>
 
-      {/* 4 · Force / trust */}
-      <Q label="Force / trust / brigade" optional>
-        <input
-          name="advisorForce"
-          type="text"
-          defaultValue={defaults.force ?? ""}
-          placeholder="e.g. GMFRS or NWAS"
-          className={inputCls}
-        />
+      <label>
+        <span>Force, trust or brigade <em>(optional)</em></span>
+        <input name="advisorForce" type="text" defaultValue={defaults.force ?? ""} placeholder="e.g. GMFRS or NWAS" />
         <Errs msgs={errors?.advisorForce} />
-      </Q>
+      </label>
 
-      {/* 5 · Topics */}
-      <Q label="What can you advise on? (pick all that apply)">
-        <div className="grid gap-1.5 sm:grid-cols-2">
+      <div>
+        <span className={styles.qLabel}>Areas you can advise on <em>(select all that apply)</em></span>
+        <div className={styles.checks}>
           {ADVISOR_TOPICS.map((t) => (
-            <label
-              key={t}
-              className="flex cursor-pointer items-start gap-2.5 rounded-sm border border-(--color-border-subtle) bg-(--color-bg)/50 px-2.5 py-2.5 select-none hover:border-(--color-info)/50 sm:items-center sm:py-1.5"
-            >
-              <input
-                type="checkbox"
-                name="advisorTopics"
-                value={t}
-                defaultChecked={defaults.topics?.includes(t) ?? false}
-                className="mt-px size-4.5 shrink-0 cursor-pointer accent-(--color-info) sm:mt-0 sm:size-3.5"
-              />
-              <span className="text-[11px] leading-snug text-(--color-text-muted)">{t}</span>
+            <label key={t}>
+              <input type="checkbox" name="advisorTopics" value={t} defaultChecked={defaults.topics?.includes(t) ?? false} />
+              <span>{t}</span>
             </label>
           ))}
         </div>
         <Errs msgs={errors?.advisorTopics} />
-      </Q>
+      </div>
 
-      {/* 6 · Involvement */}
-      <Q label="How involved would you like to be?">
-        <select
-          name="advisorInvolvement"
-          defaultValue={defaults.involvement ?? ""}
-          className={selectCls}
-        >
-          <option value="" disabled>
-            Select…
-          </option>
-          {ADVISOR_INVOLVEMENT.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
+      <label>
+        <span>Level of involvement</span>
+        <select name="advisorInvolvement" defaultValue={defaults.involvement ?? ""}>
+          <option value="" disabled>Select</option>
+          {ADVISOR_INVOLVEMENT.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <Errs msgs={errors?.advisorInvolvement} />
-      </Q>
+      </label>
 
-      {/* 7 · Notes */}
-      <Q label="Anything in the sim you've already spotted?" optional>
-        <textarea
-          name="advisorNotes"
-          rows={3}
-          defaultValue={defaults.notes ?? ""}
-          placeholder="Procedures, mobilising, kit, control-room reality — anything worth fixing or checking."
-          className={inputCls + " py-2.5 h-auto"}
-        />
+      <label>
+        <span>Observations on the simulation so far <em>(optional)</em></span>
+        <textarea name="advisorNotes" rows={3} defaultValue={defaults.notes ?? ""} placeholder="Procedures, mobilising, equipment, control-room practice: anything worth correcting or checking." />
         <Errs msgs={errors?.advisorNotes} />
-      </Q>
+      </label>
 
-      {/* 8 · Contact */}
-      <div className="flex flex-col gap-2.5">
-        <label className="flex cursor-pointer items-start gap-2.5 py-1 select-none">
-          <input
-            type="checkbox"
-            name="advisorContactOk"
-            defaultChecked={defaults.contactOk ?? true}
-            className="mt-px size-5 shrink-0 cursor-pointer rounded-[2px] accent-(--color-info) sm:size-4"
-          />
-          <span className="text-[11px] uppercase tracking-[0.08em] text-(--color-text-dim) sm:tracking-[0.15em]">
-            OK to contact me on my account email about development
-          </span>
+      <div className={`${styles.checks} ${styles.checksStack}`} style={{ marginTop: 0 }}>
+        <label>
+          <input type="checkbox" name="advisorContactOk" defaultChecked={defaults.contactOk ?? true} />
+          <span>The team may contact this account&apos;s email address about development.</span>
         </label>
-        <Q label="Discord handle" optional>
-          {/* Keyed on the value so that saving the handle from the
-              account section above re-seeds this uncontrolled input
-              instead of leaving it holding the old one — without
-              resetting any other answer on the form. */}
-          <input
-            key={defaults.discord ?? ""}
-            name="advisorDiscord"
-            type="text"
-            defaultValue={defaults.discord ?? ""}
-            placeholder="e.g. watchroomfan"
-            className={inputCls}
-          />
-          <Errs msgs={errors?.advisorDiscord} />
-        </Q>
       </div>
-    </div>
-  );
-}
 
-const inputCls =
-  "h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3.5 font-mono text-base text-(--color-text) outline-none placeholder:text-(--color-text-dim)/60 focus:border-(--color-info) sm:text-sm";
-const selectCls =
-  "h-[46px] w-full rounded-sm border border-(--color-border) bg-(--color-bg) px-3 font-mono text-base text-(--color-text) outline-none focus:border-(--color-info) sm:text-sm";
-
-function Q({
-  label,
-  optional,
-  children,
-}: {
-  label: string;
-  optional?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-[0.12em] text-(--color-text-dim) sm:tracking-[0.25em]">
-        {label}
-        {optional && <span className="normal-case tracking-normal"> (optional)</span>}
-      </span>
-      {children}
+      <label>
+        <span>Discord handle <em>(optional)</em></span>
+        {/* Keyed on the value so that saving the handle from the account
+            panel re-seeds this uncontrolled input instead of leaving it
+            holding the old one, without resetting any other answer. */}
+        <input key={defaults.discord ?? ""} name="advisorDiscord" type="text" defaultValue={defaults.discord ?? ""} placeholder="e.g. watchroom" />
+        <Errs msgs={errors?.advisorDiscord} />
+      </label>
     </div>
   );
 }
 
 function Errs({ msgs }: { msgs?: string[] }) {
-  return (
-    <>
-      {msgs?.map((m) => (
-        <p key={m} className="text-xs text-(--color-critical)">
-          {m}
-        </p>
-      ))}
-    </>
-  );
+  return <>{msgs?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}</>;
 }
