@@ -13,10 +13,12 @@ export function advisorDeclinedEmail(): { subject: string; html: string } {
     subject: "Your advisor application — The Watch Room",
     html: emailShell({
       programme: "Development advisor programme",
+      eyebrow: "Advisor programme · Application",
       heading: "Your application has been reviewed",
+      preheader: "Thank you for offering to advise on The Watch Room.",
       paragraphs: [
-        "Thank you for offering to advise on The Watch Room. We are not taking your application forward onto the programme at this stage.",
-        "That is a decision about how many advisors the programme can work with properly while it is small, and which areas it needs covered right now. It is not a judgement on your experience. We keep applications on file, and the picture changes as development moves on.",
+        "Thank you for offering to advise on The Watch Room. Your application is not being taken forward onto the programme at this stage.",
+        "That is a decision about how many advisors the programme can work with properly while it is small, and which areas it needs covered now. It is not a judgement on your experience. Applications are kept on file, and the picture changes as development moves on.",
         "Your account stays exactly as it is, and the pre-alpha is open to you like anyone else.",
       ],
       cta: { label: "Read the pre-alpha briefing", href: `${SITE}/prealpha` },

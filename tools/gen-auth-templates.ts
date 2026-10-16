@@ -27,27 +27,31 @@ const confirm = emailShell({
   site: SITE,
   siteLabel: "thewtchroom.co.uk",
   programme: "Your account",
+  eyebrow: "Account · Registration",
   heading: "Confirm your email address",
+  preheader: "Confirm this address and your account is live.",
   paragraphs: [
-    "Thanks for registering with The Watch Room. Confirm this address and your account is live.",
-    "If you asked to join the pre-alpha or applied to the advisor programme, that is filed at the same moment, and your account page shows where it stands.",
+    "Thank you for registering with The Watch Room. Confirm this address and your account is live.",
+    "If you asked to join the pre-alpha or applied to the advisor programme, that is filed at the same moment, and your standby page shows where it stands.",
   ],
   cta: { label: "Confirm email", href: `${SITE}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/standby` },
   showLink: true,
-  note: "Didn't register with The Watch Room? Ignore this email. No account is created until the address is confirmed.",
+  note: "Did not register with The Watch Room? Ignore this message. No account is created until the address is confirmed.",
 });
 
 const reset = emailShell({
   site: SITE,
   siteLabel: "thewtchroom.co.uk",
   programme: "Your account",
+  eyebrow: "Account · Security",
   heading: "Set a new password",
+  preheader: "Use the link once to choose a new password.",
   paragraphs: [
-    "Someone asked to reset the password for this account. Use the button below to choose a new one. The link can only be used once.",
+    "A password reset was requested for this account. Use the button below to choose a new one. The link can be used once.",
   ],
   cta: { label: "Set new password", href: `${SITE}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password` },
   showLink: true,
-  note: "Didn't ask for this? Ignore this email. Your password stays as it is until the link above is used.",
+  note: "Did not request this? Ignore this message. Your password stays as it is until the link above is used.",
 });
 
 fs.writeFileSync(path.join(out, "confirm-signup.html"), header("Confirm signup") + confirm + "\n");

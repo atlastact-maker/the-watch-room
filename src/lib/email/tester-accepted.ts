@@ -1,29 +1,40 @@
 // The email an operator gets when their pre-alpha access request has been
-// accepted. What it promises depends on the doors: open, the desk is
+// approved. What it promises depends on the doors: open, the desk is
 // theirs now; closed, they are on the list and will hear when it opens.
 
-import { SITE, emailShell } from "./layout";
+import { COMMUNITY_URL, SITE, emailLink, emailShell } from "./layout";
 
 export function testerAcceptedEmail(opts: { doorsOpen?: boolean } = {}): { subject: string; html: string } {
   const doorsOpen = opts.doorsOpen !== false;
+  const discord = `Not on the Discord yet? ${emailLink(COMMUNITY_URL, "Join here")} and you will be added to the tester channel.`;
   return {
-    subject: "You are on the pre-alpha — The Watch Room",
+    subject: "Pre-alpha access approved — The Watch Room",
     html: emailShell({
       programme: "Closed pre-alpha",
-      heading: "You are on the pre-alpha",
+      eyebrow: "Closed pre-alpha · Access request",
+      heading: "Pre-alpha access approved",
       stamp: { text: "Accepted", tone: "ok" },
+      preheader: doorsOpen
+        ? "Your account can open the operator console and take a shift."
+        : "Your account is on the tester list. The desk opens to every tester at once.",
       paragraphs: doorsOpen
         ? [
-            "Your account can open the operator console and take a shift now. Start with the briefing: it says what is open, what is not, and how to report what breaks.",
-            `Not on the Discord yet? <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;">Join here</a> and we will add you to the tester room.`,
+            "Your request for pre-alpha access has been approved. Your account can open the operator console and take a shift from now.",
+            "Start with the briefing: it states what is released, what is not, and how to report faults.",
+            discord,
           ]
         : [
-            "You are on the tester list. The desk is not open yet: it opens to every tester at once, and you will get an email the moment it does.",
-            "Until then the briefing says what is coming, what is not, and how a shift will run.",
-            `Not on the Discord yet? <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;">Join here</a> and we will add you to the tester room.`,
+            "Your request for pre-alpha access has been approved and your account is on the tester list.",
+            "The desk is not open yet. It opens to every tester at the same time, and a notice is sent to this address the moment it does. Until then the briefing sets out what is coming, what is not, and how a shift runs.",
+            discord,
           ],
+      facts: [
+        { label: "Standing", value: "Pre-alpha tester" },
+        { label: "Desk", value: doorsOpen ? "Open to testers" : "Closed. Opens to every tester at once." },
+        { label: "First step", value: "Read the pre-alpha briefing" },
+      ],
       cta: { label: "Read the briefing", href: `${SITE}/prealpha` },
-      note: "Keep it in the room: no public footage or write-ups until the doors are open. Everything else, say on the Discord.",
+      callout: { title: "Programme confidentiality", body: "No public footage or write-ups until the doors are open. Everything else, raise in the tester channel." },
     }),
   };
 }

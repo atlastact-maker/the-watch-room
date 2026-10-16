@@ -1,5 +1,5 @@
 // The email an account gets when an admin invites it to the pre-alpha:
-// one link, and clicking it while logged in as that account puts them
+// one link, and opening it while signed in as that account puts them
 // on the list, or opens the desk to them if the doors are already open.
 
 import { SITE, emailShell } from "./layout";
@@ -8,19 +8,29 @@ export function testerInvitedEmail(token: string, opts: { doorsOpen?: boolean } 
   const doorsOpen = opts.doorsOpen !== false;
   const link = `${SITE}/prealpha/invite/${encodeURIComponent(token)}`;
   return {
-    subject: "You are invited to the pre-alpha — The Watch Room",
+    subject: "Invitation to the closed pre-alpha — The Watch Room",
     html: emailShell({
       programme: "Closed pre-alpha",
+      eyebrow: "Closed pre-alpha · Invitation",
       heading: "You are invited to the pre-alpha",
       stamp: { text: "Invited", tone: "amber" },
+      preheader: doorsOpen
+        ? "Accept while signed in and the operator console opens to your account."
+        : "Accept while signed in and your account joins the tester list.",
       paragraphs: [
+        "An administrator has invited this account to the closed pre-alpha of The Watch Room, the emergency services incident management simulator.",
         doorsOpen
-          ? "Press the button while logged in to your Watch Room account and the desk opens to you: the live jobs, the whole desk from the 999 call to the debrief, and the tester room on the Discord."
-          : "Press the button while logged in to your Watch Room account and you are on the tester list. The desk opens to every tester at once, and you will get an email the moment it does.",
-        "The link works for thirty days and only for the account this email was sent to.",
+          ? "Accept while signed in to this account and the operator console opens to you at once: live incidents, the whole desk from the 999 call to the debrief, and the tester channel on Discord."
+          : "Accept while signed in to this account and it joins the tester list. The console opens to every tester at the same time, and a notice is sent to this address the moment it does.",
+      ],
+      facts: [
+        { label: "Valid for", value: "30 days from the date of this message" },
+        { label: "Issued to", value: "This account only. The link does not work for any other." },
+        { label: "Desk", value: doorsOpen ? "Open to testers" : "Closed. Opens to every tester at once." },
       ],
       cta: { label: "Accept the invitation", href: link },
-      note: "Keep it in the room: no public footage or write-ups until the doors are open. Everything else, say on the Discord.",
+      showLink: true,
+      callout: { title: "Programme confidentiality", body: "No public footage or write-ups until the doors are open. Everything else, raise in the tester channel." },
     }),
   };
 }

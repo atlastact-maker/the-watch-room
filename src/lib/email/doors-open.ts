@@ -1,22 +1,29 @@
 // The email every tester gets when the pre-alpha doors open: the desk is
 // theirs now, and where to start.
 
-import { SITE, emailShell } from "./layout";
+import { COMMUNITY_URL, SITE, emailLink, emailShell } from "./layout";
 
 export function doorsOpenEmail(): { subject: string; html: string } {
   return {
-    subject: "The doors are open — The Watch Room",
+    subject: "The pre-alpha desk is open — The Watch Room",
     html: emailShell({
       programme: "Closed pre-alpha",
-      heading: "The doors are open",
+      eyebrow: "Closed pre-alpha · Doors open",
+      heading: "The pre-alpha desk is open",
       stamp: { text: "Open", tone: "ok" },
+      preheader: "The operator console is open to every tester from now.",
       paragraphs: [
-        "The pre-alpha desk is open to you from now. Log in, read the briefing once, then open the operator console and take a shift.",
-        "Report what breaks from Help on the desk, and say what you expected instead. That is the whole job.",
-        `The tester room is on the <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;">Discord</a>; builds and fixes are announced there.`,
+        "The operator console is open to every tester from now. Sign in, read the briefing once, then start a shift.",
+        "Report faults from Help on the desk, stating what happened and what you expected instead. That is the whole of the job.",
+        `Builds and fixes are announced in the tester channel on the ${emailLink(COMMUNITY_URL, "Discord")}.`,
+      ],
+      facts: [
+        { label: "Status", value: "Doors open" },
+        { label: "Start", value: "Pre-alpha briefing, then Start shift on the operator console" },
+        { label: "Faults", value: "Help, then Report a problem, on the desk" },
       ],
       cta: { label: "Open the operator console", href: `${SITE}/menu` },
-      note: "Keep it in the room: no public footage or write-ups until we say the doors are open to everyone.",
+      callout: { title: "Programme confidentiality", body: "No public footage or write-ups until the doors are open to everyone. Everything else, raise in the tester channel." },
     }),
   };
 }

@@ -24,9 +24,11 @@ to a default template will not break anything.
 
 ## Dark, and the logo
 
-Both emails are dark, using the site's own tokens from `globals.css`, so
-the logo reads as designed — its frame and panes are light, and on a
-white background all that survives is the single amber pane.
+Both emails are dark, using the operator console's own tokens (the
+colours in `src/app/menu/watch-menu.module.css`, written out as literals
+because mail clients ignore custom properties), so the logo reads as
+designed — its frame is light, and on a white background all that
+survives is the single amber pane.
 
 `bgcolor` attributes sit alongside the inline `style` backgrounds on
 purpose. Outlook on Windows ignores CSS backgrounds on table cells, and
@@ -40,17 +42,11 @@ it, because most clients block remote images by default and the header
 still has to say who sent the mail. The `img` carries an empty `alt` for
 the same reason — the text beside it already does.
 
-The panes are not white — they carry the header band's colour
-(`#111114`), so the mark reads as a window frame with one lit pane, the
-way it does against white. That couples the file to the header: change
-the header background and the panes need regenerating to match, or they
-show as a slightly-off rectangle behind the frame.
-
-> The PNG was rebuilt from a screenshot of the logo rather than exported
-> from the original artwork. Geometry and colours match what was
-> supplied, but if the source file exists, replacing `public/email-logo.png`
-> with a 360×240 export of it is the better answer — panes knocked out to
-> the header colour, or transparent.
+The panes are transparent and the lit pane is the console's amber, so
+the one PNG sits on the console sidebar, the public pages and the email
+header alike, whatever their background. The `?v=2` on the email's
+image address is a cache-buster for mail proxies that hold on to the
+old file; bump it if the PNG changes again.
 
 The asset stays reachable despite the site being closed to
 non-administrators because `proxy.ts`'s matcher excludes image
