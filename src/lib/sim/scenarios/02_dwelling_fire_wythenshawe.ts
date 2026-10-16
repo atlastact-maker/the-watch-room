@@ -108,10 +108,14 @@ export const scenario02: Scenario = {
     targets: [
       { metric: "Time-to-mobilise first pump", target: "< 90 seconds" },
       { metric: "First pump in attendance", target: "< 10 minutes" },
-      { metric: "BA in to property", target: "< 14 minutes for survivable casualty" },
+      // The engine's own line, not a round number: unfound in a smoke-
+      // logged bedroom the boy is lost at sixteen minutes, and a search
+      // through that smoke takes the team two and a half. In by twelve
+      // finds him with a grade in hand; in by fourteen finds him too late.
+      { metric: "BA in to property", target: "< 12 minutes for survivable casualty" },
     ],
     lesson:
-      "The canonical pressure call. Tests time-to-BA and PDA discipline. Persons-reported makes 4-pump make-up usually correct.",
+      "The canonical pressure call. Tests time-to-BA and PDA discipline: a BA team through the door inside twelve minutes finds the child alive, and the hall is cut by the kitchen door going at fifteen. Persons-reported makes 4-pump make-up usually correct.",
   },
 
   // Top-down ground-view scene. Schematic — 80m × 60m viewport centred on the
@@ -266,18 +270,26 @@ export const scenario02: Scenario = {
         material: "electrical",
       },
       {
+        // The parents' room, empty since they got out, door pulled to:
+        // shut up and starving at a few hundred degrees, a backdraught
+        // waiting for the first door a BA team opens on the landing. Not
+        // the boy's room — a fire that starts beside him with a three-
+        // minute head start has killed him before the call is answered,
+        // and the caller would not be describing him at the window.
         probability: 0.2,
-        label: "Upstairs bedroom — cigarette",
-        pos: { x: 1, y: -4 },
-        compartmentId: "bed-back",
+        label: "Front bedroom — cigarette",
+        pos: { x: -1.5, y: 1.5 },
+        compartmentId: "bed-front",
         material: "structural",
         radiusM: 2,
         growthRateMpm: 0.22,
       },
     ],
-    // The attached semi at no. 287 — the fire is through the party wall
-    // once it reaches ~6 m (about 19 unsuppressed minutes from the
-    // kitchen seat). Breaching it is a scored failure.
+    // The attached semi at no. 287. In the room-by-room model the party
+    // walls hold an hour against a developed fire next to them, so the
+    // neighbour is the threat the crews must see and cover rather than a
+    // timer that runs out in the first half hour. Breaching it is a
+    // scored failure.
     exposureRisk: { atRadiusM: 6, label: "No. 287 (attached neighbour)" },
     hazards: [
       {
@@ -321,18 +333,21 @@ export const scenario02: Scenario = {
         discoverAfterMinOnScene: 2,
       },
     ],
-    // Persons reality (per the approved brief): ~33% of runs the whole
-    // family is out on the pavement; ~67% the boy is still in the back
-    // bedroom; and on slow responses his father may go back in after him
-    // (the second-casualty beat reveals cas-2). Roughly 33 / 37 / 30
-    // across all-out / one-inside / two-inside.
+    // Persons reality: the run variants below take half the draws (Ella in
+    // the loft a quarter, Dan back in for Theo a quarter); on the other
+    // half the boy is in the back bedroom two times in three and the whole
+    // family is out on the pavement the third time. On a slow attendance
+    // his father may go back in after him (the second-casualty beat
+    // reveals cas-2). Roughly 17 / 58 / 25 across all-out / one-inside /
+    // two-inside before that beat.
     casualties: [
       {
         // "serious" on the sim's clock, not the vitals: the engine drops a
-        // grade every 600 s from the call (480 s while he is unfound in
-        // the smoke), so a critical five-year-old is lost before the
-        // 14-minute BA target the job sets. Serious keeps him survivable
-        // to a BA team that is in on time and an ambulance paired with him.
+        // grade every 600 s from the call, shortened by up to a third while
+        // he is unfound in the smoke, so a critical five-year-old is lost
+        // before any team could reach him. Serious keeps him survivable to
+        // a BA team through the door by twelve minutes and an ambulance
+        // paired with him.
         id: "cas-1",
         pos: { x: 2, y: -4 },
         compartmentId: "bed-back",
@@ -359,7 +374,10 @@ export const scenario02: Scenario = {
         pos: { x: 1.2, y: -0.5 },
         compartmentId: "hall",
         severity: "serious",
-        discoverAfterMinBa: 7,
+        // Down in the hall a few feet inside the front door: the first
+        // team through it is on top of him. Seven minutes here left him
+        // unfindable before the hall's own clock ran out.
+        discoverAfterMinBa: 1,
         // Only exists when the "second-casualty" beat fires — the father
         // going back in for his son on a slow response — or from the call
         // on the "back-in" run, which forces him present.
@@ -440,7 +458,7 @@ export const scenario02: Scenario = {
       id: "child-upstairs",
       atSec: 25,
       requiresCasualtyIds: ["cas-1"],
-      text: "Kelly's here — she's got Ella, and Dan's out with her, they got out the back. But Theo's still upstairs, in the back bedroom. Nobody can get back in — the hallway's black with smoke.",
+      text: "Kelly's here — she's got Ella, and Dan's out with her. But Theo's still upstairs, in the back bedroom. Nobody can get back in — the hallway's black with smoke.",
       tone: "critical",
     },
     {
@@ -700,7 +718,11 @@ export const scenario02: Scenario = {
       {
         id: "flag",
         text: "When you hear them, stand where they can see you and wave them in to 285. Tell them who's out and who's still in, and where.",
-        reply: "I will. Four in — Kelly and Dan at the front, Theo at the back, Ella in the loft. I'll tell them. I'll be stood right here.",
+        reply: "I will. I'll tell them who's out here with me and who isn't — Theo's room is at the back, over the kitchen, and Ella's is the loft. I'll be stood right here.",
+        replyByVariant: {
+          loft: "I will. Kelly, Dan and Theo are out here with me — it's Ella, she's still up in the loft. I'll tell them. I'll be stood right here.",
+          "back-in": "I will. Kelly and Ella are with me. Dan's gone back in for Theo — Theo's room is at the back, over the kitchen. I'll tell them. I'll be stood right here.",
+        },
         effect: { state: "anxious" },
       },
     ],
