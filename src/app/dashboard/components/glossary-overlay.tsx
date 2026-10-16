@@ -187,122 +187,71 @@ function GlossaryPanel({
 
   return (
     <div
+      className="vec-scrim"
       role="dialog"
       aria-modal="true"
-      aria-label="Glossary and quick reference"
-      className="fixed inset-0 z-[3000] flex items-start justify-center overflow-y-auto bg-(--color-bg)/95 backdrop-blur-sm"
+      aria-labelledby="glossary-title"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={"my-8 w-full px-6 py-6 " + (view === "resources" ? "max-w-5xl" : "max-w-3xl")}>
-        <header className="rounded-sm border border-(--color-amber)/60 bg-(--color-surface) p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                Quick reference
-              </div>
-              <h1 className="mt-1 text-xl font-semibold tracking-tight text-(--color-text)">
-                Glossary &amp; training mode
-              </h1>
-              <p className="mt-1 font-mono text-[11px] leading-relaxed text-(--color-text-muted)">
-                UK codes, acronyms, and procedural frameworks used throughout
-                the sim. Press{" "}
-                <kbd className="rounded border border-(--color-border) bg-(--color-bg) px-1 text-[10px]">?</kbd>
-                {" "}to toggle this at any time, or{" "}
-                <kbd className="rounded border border-(--color-border) bg-(--color-bg) px-1 text-[10px]">Esc</kbd>
-                {" "}to close.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-sm border border-(--color-border) px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:border-(--color-critical) hover:text-(--color-critical)"
-              aria-label="Close glossary"
-            >
-              ✕
-            </button>
-          </div>
-          <label className="mt-3 flex items-center gap-2 rounded-sm border border-(--color-border) bg-(--color-bg) px-2 py-1">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-(--color-text-dim)">
-              Filter
-            </span>
+      <div className={`vec-dialog${view === "resources" ? " wide" : ""}`}>
+        <div className="vec-dialog-bar">
+          <span id="glossary-title">Reference · Glossary and training mode</span>
+          <span className="spacer" />
+          <span className="meta">? toggles · Esc closes</span>
+          <button type="button" className="vec-dialog-x" onClick={onClose} aria-label="Close glossary">✕</button>
+        </div>
+        <div className="vec-dialog-body">
+          <div className="vec-gl-filter">
+            <label className="lbl" htmlFor="glossary-filter">Filter</label>
             <input
+              id="glossary-filter"
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="e.g. STEMI, RVP, Status 4, HEMS"
-              className="w-full bg-transparent font-mono text-[12px] text-(--color-text) outline-none placeholder:text-(--color-text-dim)"
               autoFocus
             />
-          </label>
-          {stations && stations.length > 0 && (
-            <div className="mt-3 flex gap-2">
-              {(
-                [
-                  { key: "glossary", label: "Glossary" },
-                  { key: "resources", label: "Resource directory" },
-                ] as const
-              ).map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setView(t.key)}
-                  className={
-                    "rounded-sm border px-3 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors " +
-                    (view === t.key
-                      ? "border-(--color-amber) bg-(--color-amber)/10 text-(--color-amber)"
-                      : "border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber-dim) hover:text-(--color-text)")
-                  }
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </header>
-
-        {view === "resources" && stations && (
-          <ResourceDirectory stations={stations} filter={filter} />
-        )}
-        {view === "glossary" && (
-        <>
-
-        {sections.length === 0 ? (
-          <p className="mt-6 text-center font-mono text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-            No matches for &quot;{filter}&quot;
-          </p>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            {sections.map((s) => (
-              <section
-                key={s.title}
-                className="rounded-sm border border-(--color-border-subtle) bg-(--color-surface) p-3"
-              >
-                <h2 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">
-                  {s.title}
-                </h2>
-                <dl className="space-y-1.5">
-                  {s.entries.map((e, i) => (
-                    <div
-                      key={`${e.term}-${i}`}
-                      className="grid grid-cols-[6.5rem_1fr] items-baseline gap-2 border-b border-(--color-border-subtle)/50 pb-1 last:border-b-0"
-                    >
-                      <dt className="font-mono text-[11px] text-(--color-text)">
-                        {e.term}
-                      </dt>
-                      <dd className="text-[12px] leading-snug text-(--color-text-muted)">
-                        {e.def}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ))}
+            {stations && stations.length > 0 && (
+              <div className="tabs">
+                {(
+                  [
+                    { key: "glossary", label: "Glossary" },
+                    { key: "resources", label: "Resource directory" },
+                  ] as const
+                ).map((t) => (
+                  <button key={t.key} type="button" className="vec-btn mini" aria-pressed={view === t.key} onClick={() => setView(t.key)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-        </>
-        )}
+          <p className="lead">UK codes, acronyms and procedural frameworks used throughout the desk. Hold on any control for its explanation; the keyboard section lists every shortcut.</p>
+
+          {view === "resources" && stations && <ResourceDirectory stations={stations} filter={filter} />}
+          {view === "glossary" &&
+            (sections.length === 0 ? (
+              <p className="vec-tile-empty">No matches for &quot;{filter}&quot;</p>
+            ) : (
+              <div className="vec-gl-grid">
+                {sections.map((s) => (
+                  <section key={s.title} className="vec-gl-sect" aria-label={s.title}>
+                    <h2>{s.title}</h2>
+                    <dl>
+                      {s.entries.map((e, i) => (
+                        <div key={`${e.term}-${i}`}>
+                          <dt>{e.term}</dt>
+                          <dd>{e.def}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+                ))}
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   );

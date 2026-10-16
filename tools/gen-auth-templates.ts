@@ -54,6 +54,26 @@ const reset = emailShell({
   note: "Did not request this? Ignore this message. Your password stays as it is until the link above is used.",
 });
 
+const changeEmail = emailShell({
+  site: SITE,
+  siteLabel: "thewtchroom.co.uk",
+  programme: "Your account",
+  eyebrow: "Account · Email address",
+  heading: "Confirm your new email address",
+  preheader: "Confirm the change of address on your account.",
+  paragraphs: [
+    "A change of email address was requested for your Watch Room account. Confirm it and the new address takes over for signing in and for every message the site sends. With secure email change on, both the current and the new address receive this message and both must confirm.",
+  ],
+  facts: [
+    { label: "Current", value: "{{ .Email }}" },
+    { label: "New", value: "{{ .NewEmail }}" },
+  ],
+  cta: { label: "Confirm new address", href: `${SITE}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/settings` },
+  showLink: true,
+  note: "Did not request this? Ignore this message and the address stays as it is. If you are concerned, set a new password from Settings.",
+});
+
 fs.writeFileSync(path.join(out, "confirm-signup.html"), header("Confirm signup") + confirm + "\n");
 fs.writeFileSync(path.join(out, "reset-password.html"), header("Reset password") + reset + "\n");
-console.log("wrote supabase/templates/confirm-signup.html and reset-password.html");
+fs.writeFileSync(path.join(out, "change-email.html"), header("Change Email Address") + changeEmail + "\n");
+console.log("wrote supabase/templates/confirm-signup.html, reset-password.html and change-email.html");

@@ -1,6 +1,6 @@
 # Auth email templates
 
-The two auth emails. Generated from the same shell as every other email
+The three auth emails. Generated from the same shell as every other email
 the site sends (`src/lib/email/layout.ts`) by `npm run email:templates`,
 so the inbox sees one sender; edit the shell or the copy in
 `tools/gen-auth-templates.ts`, regenerate, and paste. Supabase does not
@@ -15,6 +15,7 @@ template, paste the file's contents into *Message body*, save.
 | --- | --- | --- |
 | `confirm-signup.html` | Confirm signup | Confirm your email — The Watch Room |
 | `reset-password.html` | Reset password | Set a new password — The Watch Room |
+| `change-email.html` | Change Email Address | Confirm your new email — The Watch Room |
 
 Both use the `token_hash` link style, which calls `/auth/confirm` on the
 site directly instead of bouncing through Supabase's verify endpoint

@@ -6018,3 +6018,84 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .cad-application [data-tip][data-tip-pos="left"]:hover::after, .cad-application [data-tip][data-tip-pos="left"]:focus-visible::after { left: auto; right: calc(100% + 8px); bottom: auto; top: 50%; transform: translateY(-50%); }
 .cad-application .cc-iv-name small.inline-help { display: block; white-space: normal; overflow: visible; }
 @media (prefers-reduced-motion: reduce) { .cad-application .vec-alert { animation: none; } }
+
+/* ==========================================================================
+   Dialogs: the glossary, Report a problem and the incoming 999 call. One
+   window chrome for all three, drawn in the desk's own tokens, so a dialog
+   reads as a window of the CAD rather than a page from the site.
+   ========================================================================== */
+.cad-application .vec-scrim { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 16px; background: rgba(8, 14, 20, 0.62); backdrop-filter: blur(2px); }
+.cad-application .vec-scrim.center { align-items: center; }
+.cad-application .vec-scrim.top { z-index: 3100; }
+.cad-application .vec-dialog { width: 100%; max-width: 760px; min-width: 0; display: flex; flex-direction: column; background: var(--vec-surface); color: var(--vec-text); border: 1px solid var(--vec-border-strong); border-radius: 3px; box-shadow: 0 24px 60px #0008; font-family: var(--vec-sans); font-size: 12px; margin: 0; }
+.cad-application .vec-dialog.narrow { max-width: 560px; }
+.cad-application .vec-dialog.wide { max-width: 1040px; }
+.cad-application .vec-dialog-bar { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 12px; background: var(--vec-bar); color: var(--vec-bar-text, #fff); font: 700 11px var(--vec-mono); letter-spacing: 0.08em; text-transform: uppercase; border-radius: 2px 2px 0 0; }
+.cad-application .vec-dialog-bar .spacer { flex: 1; }
+.cad-application .vec-dialog-bar .meta { font-weight: 400; color: #b9c9d6; letter-spacing: 0.06em; white-space: nowrap; }
+.cad-application .vec-dialog-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vec-stop); box-shadow: 0 0 0 3px #ed827a33; animation: vec-ring-dot 1.2s ease-in-out infinite; flex-shrink: 0; }
+.cad-application .vec-dialog-x { width: 24px; height: 22px; padding: 0; border: 1px solid #ffffff33; border-radius: 2px; background: transparent; color: var(--vec-bar-text, #fff); font: 700 12px var(--vec-sans); cursor: pointer; }
+.cad-application .vec-dialog-x:hover, .cad-application .vec-dialog-x:focus-visible { background: var(--vec-stop); border-color: var(--vec-stop); outline: none; }
+.cad-application .vec-dialog-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.cad-application .vec-dialog .lead { margin: 0; font-size: 12px; line-height: 1.55; color: var(--vec-text-dim); max-width: 72ch; }
+.cad-application .vec-dialog .lbl { display: block; margin: 0 0 4px; font: 700 10px var(--vec-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--vec-text-muted); }
+.cad-application .vec-dialog input:not([type="checkbox"]):not([type="radio"]), .cad-application .vec-dialog select, .cad-application .vec-dialog textarea { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--vec-border); border-radius: 2px; background: var(--vec-surface); color: var(--vec-text); font: 12px var(--vec-sans); }
+.cad-application .vec-dialog textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+.cad-application .vec-dialog input:focus, .cad-application .vec-dialog select:focus, .cad-application .vec-dialog textarea:focus { outline: none; border-color: var(--vec-work); box-shadow: 0 0 0 2px color-mix(in srgb, var(--vec-work) 28%, transparent); }
+.cad-application .vec-dialog .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cad-application .vec-dialog .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 14px; margin: 0; padding: 8px 10px; border: 1px solid var(--vec-border-subtle); border-radius: 2px; background: var(--vec-surface-raised); font: 11px var(--vec-mono); }
+.cad-application .vec-dialog .facts dt { color: var(--vec-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; line-height: 17px; }
+.cad-application .vec-dialog .facts dd { margin: 0; color: var(--vec-text); overflow-wrap: anywhere; line-height: 17px; }
+.cad-application .vec-dialog .facts dd .pc { color: var(--vec-text-muted); margin-left: 6px; }
+.cad-application .vec-dialog .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.cad-application .vec-dialog .status { font: 11px var(--vec-mono); }
+.cad-application .vec-dialog .status.go { color: var(--vec-go); }
+.cad-application .vec-dialog .status.stop { color: var(--vec-stop); }
+.cad-application .vec-dialog .tabs { display: flex; gap: 6px; flex-shrink: 0; }
+.cad-application .vec-dialog .tabs button[aria-pressed="true"] { background: #1b4d8f; border-color: #1b4d8f; color: #fff; }
+/* glossary */
+.cad-application .vec-gl-filter { display: flex; align-items: center; gap: 10px; }
+.cad-application .vec-gl-filter .lbl { margin: 0; }
+.cad-application .vec-gl-filter input { flex: 1; }
+.cad-application .vec-gl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.cad-application .vec-gl-sect { border: 1px solid var(--vec-border); border-radius: 2px; background: var(--vec-surface); overflow: hidden; }
+.cad-application .vec-gl-sect > h2 { margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--vec-border); background: var(--vec-surface-raised); font: 700 10px var(--vec-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--vec-text-dim); }
+.cad-application .vec-gl-sect dl { margin: 0; }
+.cad-application .vec-gl-sect dl > div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--vec-border-subtle); }
+.cad-application .vec-gl-sect dl > div:last-child { border-bottom: 0; }
+.cad-application .vec-gl-sect dt { font: 700 11px var(--vec-mono); color: var(--vec-work); overflow-wrap: anywhere; line-height: 1.45; }
+.cad-application .vec-gl-sect dd { margin: 0; font-size: 12px; line-height: 1.45; color: var(--vec-text-dim); }
+/* incoming call */
+.cad-application .vec-call .quote { margin: 0; padding: 10px 12px; border-left: 3px solid var(--vec-work); border-radius: 0 2px 2px 0; background: var(--vec-surface-tint); font-size: 13px; line-height: 1.5; font-style: italic; color: var(--vec-text); }
+.cad-application .vec-call .sev { display: inline-block; margin-left: 8px; padding: 1px 6px; border: 1px solid var(--vec-stop); border-radius: 2px; color: var(--vec-stop); font: 700 9.5px var(--vec-mono); letter-spacing: 0.1em; text-transform: uppercase; vertical-align: 1px; }
+.cad-application .vec-call .sev.low { border-color: var(--vec-go); color: var(--vec-go); }
+.cad-application .vec-call .sev.moderate { border-color: var(--vec-warn); color: var(--vec-warn); }
+.cad-application .vec-call .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px; }
+.cad-application .vec-call .buttons button { padding: 12px 14px; font: 700 13px var(--vec-sans); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.cad-application .vec-call .buttons button small { font: 500 10px var(--vec-mono); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+.cad-application .vec-call .buttons button:focus-visible { outline: 2px solid var(--vec-work); outline-offset: 2px; }
+@keyframes vec-ring-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@media (max-width: 760px) {
+  .cad-application .vec-scrim { padding: 12px 8px; }
+  .cad-application .vec-gl-grid, .cad-application .vec-dialog .grid2, .cad-application .vec-call .buttons { grid-template-columns: 1fr; }
+  .cad-application .vec-gl-sect dl > div { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .cad-application .vec-dialog-bar .dot { animation: none; } }
+/* resource directory (the glossary's second tab) */
+.cad-application .vec-dir { display: flex; flex-direction: column; gap: 14px; }
+.cad-application .vec-dir h2 { margin: 0 0 8px; font: 700 10px var(--vec-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--vec-text-dim); }
+.cad-application .vec-dir h2.fire { color: var(--vec-stop); }
+.cad-application .vec-dir h2.ambulance { color: var(--vec-go); }
+.cad-application .vec-dir h2.police { color: var(--vec-work); }
+.cad-application .vec-dir-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cad-application .vec-dir-card { display: flex; gap: 10px; padding: 10px; border: 1px solid var(--vec-border); border-radius: 2px; background: var(--vec-surface); min-width: 0; }
+.cad-application .vec-dir-sprite { width: 64px; height: 96px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 4px; border: 1px solid var(--vec-border-subtle); border-radius: 2px; background: var(--vec-surface-raised); }
+.cad-application .vec-dir-sprite.pending { border-style: dashed; text-align: center; font: 700 8px/1.4 var(--vec-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--vec-text-muted); }
+.cad-application .vec-dir-body { flex: 1; min-width: 0; }
+.cad-application .vec-dir-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cad-application .vec-dir-head h3 { margin: 0; font: 700 13px var(--vec-sans); color: var(--vec-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cad-application .vec-dir-head .n { flex-shrink: 0; font: 700 10px var(--vec-mono); color: var(--vec-text-muted); }
+.cad-application .vec-dir-meta { margin: 2px 0 0; font: 10px var(--vec-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--vec-text-muted); overflow-wrap: anywhere; }
+.cad-application .vec-dir-kit { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.cad-application .vec-dir-kit span { padding: 1px 6px; border: 1px solid var(--vec-border-subtle); border-radius: 2px; background: var(--vec-surface-raised); font-size: 10px; line-height: 1.5; color: var(--vec-text-dim); }
+@media (max-width: 760px) { .cad-application .vec-dir-grid { grid-template-columns: 1fr; } }
