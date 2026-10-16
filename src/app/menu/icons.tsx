@@ -24,6 +24,7 @@ export const Icon = {
   play: (p: P) => <svg {...base} {...p}><path d="M5 3.5v9L12 8z" fill="currentColor" stroke="none" /></svg>,
   clock: (p: P) => <svg {...base} {...p}><circle cx="8" cy="8" r="5.5" /><path d="M8 4.8V8l2.2 1.4" /></svg>,
   check: (p: P) => <svg {...base} {...p}><path d="m3.5 8.5 3 3 6-7" /></svg>,
+  eye: (p: P) => <svg {...base} {...p}><path d="M1.8 8s2.3-4.2 6.2-4.2S14.2 8 14.2 8s-2.3 4.2-6.2 4.2S1.8 8 1.8 8z" /><circle cx="8" cy="8" r="2" /></svg>,
   warn: (p: P) => <svg {...base} {...p}><path d="M8 2.8 14 13H2z" /><path d="M8 6.5v3M8 11.3v.2" /></svg>,
 };
 

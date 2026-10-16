@@ -66,6 +66,14 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
           <p>Account</p>
           {isAdmin && nav("admin", "/admin", "admin", "Administration")}
           {nav("settings", "/settings", "settings", "Settings")}
+          {/* On phones the account block is a single row with no room for
+              the switch, so it rides in the nav strip there instead. */}
+          {viewAs && (
+            <form action={setViewAs} className={`${styles.navSwitch} ${viewAs === "tester" ? styles.navSwitchOn : ""}`}>
+              <input type="hidden" name="mode" value={viewAs === "tester" ? "admin" : "tester"} />
+              <button type="submit" title={viewAs === "tester" ? "Return to the administrator view" : "View the console and the desk as a tester"}><Icon.eye /><span>{viewAs === "tester" ? "Admin view" : "View as tester"}</span></button>
+            </form>
+          )}
         </nav>
         <div className={styles.account}>
           <Link href="/settings" title={email} className={styles.who}>
