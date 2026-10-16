@@ -3,7 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
 import { viewingAsTester } from "@/lib/auth/view-as";
 import { AdvisorSync } from "@/app/components/advisor-sync";
-import { WatchMenu, type MenuView } from "./watch-menu";
+import { WatchMenu } from "./watch-menu";
+import { countyFacts, plateStations } from "./county-facts";
+import type { MenuView } from "./menu-types";
 
 export default async function MenuPage({
   searchParams,
@@ -33,6 +35,8 @@ export default async function MenuPage({
       discord={typeof metadata.advisor_discord === "string" ? metadata.advisor_discord : ""}
       isAdmin={isAdmin}
       viewAs={realAdmin ? (asTester ? "tester" : "admin") : null}
+      facts={countyFacts()}
+      stations={plateStations()}
     />
   </>;
 }
