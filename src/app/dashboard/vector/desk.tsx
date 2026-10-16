@@ -31,7 +31,6 @@ import {
   HospitalsTile,
   IncidentDetailsTile,
   LiveIncidentsTile,
-  SceneUnitsTile,
   StandbyTile,
 } from "./dispatch-tiles";
 import { CallScreen, type CallSummary } from "./call-screen";
@@ -46,13 +45,12 @@ import { BasemapSegments } from "./map-controls";
 export type TilesState = Partial<Record<TileId, boolean>>;
 export type PopProps = { popped: boolean; onPopOut: () => void; onDock: () => void };
 
-export const DEFAULT_TILES: TilesState = { calls: true, live: true, units: true };
+export const DEFAULT_TILES: TilesState = { calls: true, live: true };
 
 const TILE_BUTTONS: { id: TileId; label: string; needsIncident?: boolean }[] = [
   { id: "live", label: "Live incidents" },
   { id: "calls", label: "Calls" },
   { id: "incident", label: "Incident details", needsIncident: true },
-  { id: "units", label: "Scene units", needsIncident: true },
   { id: "patients", label: "Casualties", needsIncident: true },
   { id: "tasking", label: "Unit tasking", needsIncident: true },
   { id: "subject", label: "Subject vehicle", needsIncident: true },
@@ -103,7 +101,6 @@ export function VectorDesk(props: {
   onMobilise: (applianceId: string, stationId: string, incidentId?: string) => void;
   onStandDown: (applianceId: string) => void;
   onPickAppliance: (applianceId: string) => void;
-  onPlaceUnit: (applianceId: string) => void;
   onFillRemaining: () => void;
   onSendStandby: (id: string) => void;
   onMoveToStandby: (applianceId: string, stationId: string) => void;
@@ -295,9 +292,6 @@ export function VectorDesk(props: {
               )}
               {tiles.incident && hasIncident && (
                 <IncidentDetailsTile {...pop("incident")} layout={layout} area={area} detail={model.detail} onClose={() => toggleTile("incident")} onOpenLog={() => show("log")} />
-              )}
-              {tiles.units && hasIncident && (
-                <SceneUnitsTile {...pop("units")} layout={layout} area={area} rows={model.sceneUnits} onPick={props.onPickAppliance} onPlace={props.onPlaceUnit} onClose={() => toggleTile("units")} groundAvailable={props.groundAvailable} />
               )}
               {tiles.log && props.logTile(area, pop("log"))}
               {tiles.patients && hasIncident && props.patientsTile?.(area, pop("patients"))}

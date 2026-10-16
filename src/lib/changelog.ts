@@ -28,6 +28,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Wythenshawe: the cigarette fire starts in the parents' room, not the boy's, the father down in the hall is found as soon as a team is through the door, and the BA target reads the twelve minutes the fire actually allows.",
       "The reference library is parked for the Pre-Alpha. The operator guide's reference chapter and the desk's own Reference window carry what a shift needs.",
       "The alerts strip in the desk's menu bar, with Test call on it, is back in the bar where it belongs; the alert cards float over the desk on their own.",
+      "The Scene units window is gone: the tablet's Resourcing tab lists the committed units and places them, and did the same job better.",
     ],
   },
   {

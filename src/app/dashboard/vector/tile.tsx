@@ -15,7 +15,6 @@ export type TileId =
   | "calls"
   | "live"
   | "incident"
-  | "units"
   | "log"
   | "attendance"
   | "available"
@@ -71,7 +70,6 @@ export function presetRect(
   }
   if (id === "calls") return { x: g, y: g, w: col, h: (h - 3 * g) / 2 };
   if (id === "live") return { x: g, y: (h + g) / 2, w: col, h: (h - 3 * g) / 2 };
-  if (id === "units") return { x: Math.max(g, w - col - g), y: g, w: col, h: Math.min(h - 2 * g, 360) };
   if (id === "incident") return { x: Math.max(g, w - 400 - g), y: g, w: 400, h: Math.min(h - 2 * g, 300) };
   if (id === "log") return { x: g, y: Math.max(g, h - 260 - g), w: col, h: 260 };
   if (id === "attendance") return { x: col + 2 * g, y: Math.max(g, h - 300 - g), w: Math.max(400, w - 2 * col - 4 * g), h: 300 };

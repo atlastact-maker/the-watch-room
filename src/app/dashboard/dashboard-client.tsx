@@ -7426,12 +7426,6 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     });
   }
 
-  function placeUnit(applianceId: string) {
-    if (!groundAvailable) return;
-    setPlacePendingApplianceId(applianceId);
-    pickScreen("ground");
-  }
-
   function queueTestCall() {
     const pool = openScenarios.filter(
       (s) => scenarioCovered(s, coveredServices) && !incidents.some((i) => i.scenarioId === s.id && !runtimes[i.id]?.outcome) && !pendingCalls.some((c) => c.scenario.id === s.id),
@@ -7578,7 +7572,6 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           { id: "calls", label: "Calls", open: !!tiles.calls },
           { id: "live", label: "Live incidents", open: !!tiles.live },
           { id: "incident", label: "Incident details", open: !!tiles.incident && !!activeIncident },
-          { id: "units", label: "Scene units", open: !!tiles.units && !!activeIncident },
           { id: "patients", label: "Casualties", open: !!tiles.patients && !!activeIncident },
           { id: "tasking", label: "Unit tasking", open: !!tiles.tasking && !!activeIncident },
           { id: "subject", label: "Subject vehicle", open: !!tiles.subject && !!activeIncident },
@@ -7745,7 +7738,6 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       onMobilise={(applianceId, stationId, incidentId) => mobiliseTo(applianceId, stationId, incidentId)}
       onStandDown={(applianceId) => void standDownAppliance(applianceId)}
       onPickAppliance={setSelectedApplianceId}
-      onPlaceUnit={placeUnit}
       onFillRemaining={fillRemaining}
       onSendStandby={sendStandby}
       onMoveToStandby={(applianceId, stationId) => beginStandby(applianceId, stationId)}

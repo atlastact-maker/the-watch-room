@@ -16,7 +16,7 @@ import { haversineMeters, rescaleBlueLightSeconds } from "@/lib/sim/eta";
 import type { StationWithAppliances } from "../page";
 import type { Eta } from "../components/deployment-board";
 import type { PendingCall } from "../components/call-stack";
-import type { CallRow, CoverRow, HospitalRow, IncidentDetail, IncidentRow, PdaRow, ResourceCard, SceneUnitRow, StandbyRow } from "./dispatch-tiles";
+import type { CallRow, CoverRow, HospitalRow, IncidentDetail, IncidentRow, PdaRow, ResourceCard, StandbyRow } from "./dispatch-tiles";
 import type { BayRow, MobHead, TurnoutRow } from "./mob-screen";
 import { gradeShort, impliedGrade, incidentRef, scenarioService, shortAddress, typeChip, waitState } from "./model";
 import { openingCodeLabel } from "@/lib/sim/opening_codes";
@@ -185,25 +185,6 @@ export function useDeskModel(input: DeskInput) {
       })()
     : null;
 
-  /* ---- scene units ---- */
-  const sceneUnits: SceneUnitRow[] = selected
-    ? deployments
-        .filter((d) => d.incidentId === selected.id && !d.returnStartedAt)
-        .map((d) => {
-          const a = applianceById.get(d.applianceId);
-          const onScene = now >= d.arrivesAt && !d.hospitalLegStartedAt;
-          return {
-            applianceId: d.applianceId,
-            callsign: a?.callsign ?? d.applianceId,
-            service: a?.service ?? "Fire",
-            status: (a?.status ?? 1) as StatusCode,
-            state: STATUS_LABELS[(a?.status ?? 1) as StatusCode],
-            placed: !!d.parkingPos,
-            etaSec: Math.max(0, Math.round((d.arrivesAt - now) / 1000)),
-            onScene,
-          };
-        })
-    : [];
 
   /* ---- resource cards ---- */
   const unfilledSlots = selected ? coverage(selected).filter((c) => !c.applianceId).map((c) => c.slot) : [];
@@ -414,7 +395,6 @@ export function useDeskModel(input: DeskInput) {
     calls,
     incidentRows,
     detail,
-    sceneUnits,
     pda: pdaRowsFor(selected),
     pdaRowsFor,
     cards,
