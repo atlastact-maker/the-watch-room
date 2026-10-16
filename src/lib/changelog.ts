@@ -37,6 +37,11 @@ export const CHANGELOG: ChangelogEntry[] = [
       "The scene shows the work: a cannula sliding into the back of the hand, a dose pushed through the port or into the thigh, a tablet or spray to the mouth, a nebuliser misting, and the right pouch of the kit bag open while it happens.",
       "The docked tablet keeps its labels: at the narrow width the bottom bars show every button with its name, not icons alone.",
       "Signing in with an emailed code takes the eight digits the message carries.",
+      "Starting CPR is in reach: the NO COMPRESSIONS alert on the stage names who can take the chest, and the Crew panel's Compressions group puts someone on it or fits the LUCAS.",
+      "Nobody compresses until told to: a crew arriving at an arrest kneels and assesses until the operator puts someone on the chest; the hands pause for the rhythm check and carry on after it.",
+      "ROSC keeps the compressor with the chest; a re-arrest puts them straight back on it.",
+      "Loading the patient: the board slides under a log-rolled patient, and the trolley, carry chair, carry sheet or vacuum mattress comes in beside them for the lift, then stays under them to the vehicle.",
+      "Companion tablet: Windows → Companion tablet… shows a code. On a tablet or another screen, sign in, open /mdt and enter it, and the desk's MDT is on that device, live — everything pressed on it happens on the desk.",
     ],
   },
   {

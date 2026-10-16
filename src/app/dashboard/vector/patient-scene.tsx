@@ -19,6 +19,7 @@ import {
 import { kitLayers, KitDefs, Monitor, MONITOR_W, KitBag, O2Cylinder, DripBag } from "./scene/plan-kit";
 import { CrewTop, crewWearOf, crewHeadAt, type CrewWear } from "./scene/plan-crew";
 import { Acts, actSite } from "./scene/plan-acts";
+import { Conveyance } from "./scene/plan-convey";
 import { GROUNDS, GroundDefs, GroundClips, Weather, WeatherDefs, type Ambient, type GroundCtx } from "./scene/plan-ground";
 
 export type SceneCrew = {
@@ -199,9 +200,17 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   // The crew: where they kneel and what their hands are doing.
   const arrangement = spec.crew ?? "sides";
   const side = r.chestW + 0.3;
-  const compressorIx = look.arrest && !look.kit.lucas
+  // Someone kneels at the chest only once the record puts them there; the
+  // hands move only while the clock runs. A crew arriving at an arrest
+  // assesses — nobody compresses on their own initiative.
+  const someoneOnChest = look.arrest && !!look.compressor && !look.kit.lucas;
+  const compressorIx = someoneOnChest
     ? Math.max(0, crew.findIndex((c) => !!look.compressor && (c.callsign === look.compressor || look.compressor.startsWith(c.callsign) || (!!c.name && look.compressor.includes(c.name)))))
     : -1;
+  const cprArms = look.compressing ? "ps-arms cpr" : "ps-arms";
+  // Being lifted onto the trolley or into the chair: hands at the head and the feet.
+  const transfer = look.fx.transfer;
+  const lifting = !!transfer?.loading && transfer.action !== "walked";
   const slots: Slot[] = [];
   // The bag-valve-mask: the valve sits on the mask over the nose and mouth
   // (or on the i-gel or tube at the mouth), the bag runs up and away over
@@ -218,15 +227,19 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   const needsAirway = look.kit.oxygen === "bvm" && !onVent;
   const holdHead = (look.kit.collar || look.kit.board) && !needsAirway;
   if (arrangement === "sides" || arrangement === "ledge") {
-    const compressor: Slot = { at: [-(r.chestW + 0.2), r.chestY + 0.04], facing: [1, 0], kneeling: true, hands: cprHands, armsClass: "ps-arms cpr", grip: "cpr" };
+    const compressor: Slot = { at: [-(r.chestW + 0.2), r.chestY + 0.04], facing: [1, 0], kneeling: true, hands: cprHands, armsClass: cprArms, grip: "cpr" };
     const airway: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: maskHand, right: bvmHand }, handClass: { right: "squeeze" } };
     const headHold: Slot = { at: [0, -(r.headL + 0.28)], facing: [0, 1], kneeling: true, hands: { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } };
     const lead: Slot = { at: [side, r.chestY + 0.2], facing: [-1, 0], kneeling: true, hands: { left: [A.leftWrist[0] + 0.01, A.leftWrist[1] + 0.02], right: [A.leftUpperChest[0] + 0.04, A.leftUpperChest[1] - 0.02] } };
     const second: Slot = { at: [-side, r.hipY + 0.15], facing: [1, 0], kneeling: true, hands: { right: [A.rightWrist[0] - 0.01, A.rightWrist[1] + 0.02], left: [A.rightThigh[0] - 0.04, A.rightThigh[1]] } };
     const feet: Slot = { at: [side - 0.05, r.bottom + 0.2], facing: [-0.6, -0.8], kneeling: true, hands: { left: [A.leftKnee[0] + 0.02, A.leftKnee[1] + 0.02], right: [A.rightKnee[0] + 0.06, A.rightKnee[1] + 0.04] } };
     if (arrangement === "ledge") { second.at = [side, r.hipY + 0.55]; second.facing = [-1, 0]; second.hands = { left: [A.leftWrist[0] + 0.01, A.leftWrist[1] + 0.02], right: [A.leftThigh[0] + 0.02, A.leftThigh[1]] }; }
+    const liftHead: Slot = { ...headHold, hands: { left: [A.earL[0] + 0.1, A.earL[1] + 0.06], right: [A.earR[0] - 0.1, A.earR[1] + 0.06] } };
+    const liftFeet: Slot = { at: [0, r.bottom + 0.3], facing: [0, -1], kneeling: true, hands: { left: [A.leftKnee[0] + 0.04, A.leftKnee[1] + 0.16], right: [A.rightKnee[0] - 0.04, A.rightKnee[1] + 0.16] } };
     crew.slice(0, 3).forEach((c, i) => {
-      if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
+      if (lifting && !slots.includes(liftHead)) { slots.push(liftHead); return; }
+      if (lifting && !slots.includes(liftFeet)) { slots.push(liftFeet); return; }
+      if (someoneOnChest && i === compressorIx) { slots.push(compressor); return; }
       if (needsAirway && !slots.includes(airway)) { slots.push(airway); return; }
       if (holdHead && !slots.includes(headHold)) { slots.push(headHold); return; }
       if (!slots.includes(lead)) { slots.push(lead); return; }
@@ -237,9 +250,9 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     const leftSide: Slot = { at: [-(r.chestW + 0.38), r.chestY + 0.1], facing: [1, 0], kneeling: false, hands: { right: [A.rightWrist[0] - 0.02, A.rightWrist[1]], left: [A.rightUpperChest[0] - 0.06, A.rightUpperChest[1] - 0.02] } };
     const rightSide: Slot = { at: [r.chestW + 0.38, r.chestY + 0.3], facing: [-1, 0], kneeling: false, hands: { left: [A.leftWrist[0] + 0.02, A.leftWrist[1]], right: [A.leftForearm[0] + 0.04, A.leftForearm[1]] } };
     const headEnd: Slot = { at: [0, -(r.headL + 0.26)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
-    const compressor: Slot = { ...leftSide, hands: cprHands, armsClass: "ps-arms cpr", grip: "cpr" };
+    const compressor: Slot = { ...leftSide, hands: cprHands, armsClass: cprArms, grip: "cpr" };
     crew.slice(0, 3).forEach((c, i) => {
-      if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
+      if (someoneOnChest && i === compressorIx) { slots.push(compressor); return; }
       if (needsAirway && !slots.includes(headEnd)) { slots.push(headEnd); return; }
       if (!slots.includes(rightSide)) { slots.push(rightSide); return; }
       if (!slots.includes(leftSide) && !slots.includes(compressor)) { slots.push(leftSide); return; }
@@ -252,9 +265,9 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     const attendant: Slot = { at: [0.1, -(r.headL + 0.3)], facing: [0, 1], kneeling: false, hands: needsAirway ? { left: maskHand, right: bvmHand } : onVent ? { left: [A.mouth[0] + 0.06, A.mouth[1] - 0.03], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] } : { left: [A.earL[0] + 0.03, A.earL[1] - 0.02], right: [A.earR[0] - 0.03, A.earR[1] - 0.02] }, handClass: needsAirway ? { right: "squeeze" } : undefined };
     const side: Slot = { at: [r.chestW + 0.42, r.chestY + 0.12], facing: [-1, 0], kneeling: false, hands: { left: [A.leftWrist[0] + 0.02, A.leftWrist[1]], right: [A.leftUpperChest[0] + 0.06, A.leftUpperChest[1] - 0.02] } };
     const foot: Slot = { at: [r.chestW + 0.42, r.hipY + 0.5], facing: [-1, 0], kneeling: false, hands: { left: [A.leftKnee[0] + 0.03, A.leftKnee[1] - 0.06], right: [A.leftThigh[0] + 0.05, A.leftThigh[1]] } };
-    const compressor: Slot = { ...side, hands: cprHands, armsClass: "ps-arms cpr", grip: "cpr" };
+    const compressor: Slot = { ...side, hands: cprHands, armsClass: cprArms, grip: "cpr" };
     crew.slice(0, 3).forEach((c, i) => {
-      if (look.arrest && !look.kit.lucas && i === (compressorIx === -1 ? 0 : compressorIx)) { slots.push(compressor); return; }
+      if (someoneOnChest && i === compressorIx) { slots.push(compressor); return; }
       if ((needsAirway || onVent) && !slots.includes(attendant)) { slots.push(attendant); return; }
       if (!slots.includes(side) && !slots.includes(compressor)) { slots.push(side); return; }
       if (!slots.includes(foot)) { slots.push(foot); return; }
@@ -295,7 +308,8 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase(), lucas: look.kit.lucas, vent: onVent };
   const breath = look.breathing === "none" ? 0 : 60 / Math.max(6, look.rr);
   const chestStyle = breath ? ({ "--ps-breath": `${breath.toFixed(2)}s` } as CSSProperties) : undefined;
-  const chestClass = `ps-chest${breath ? " breathe" : ""}${look.compressor ? " cpr" : ""}${look.breathing === "laboured" ? " laboured" : ""}`;
+  const chestClass = `ps-chest${breath ? " breathe" : ""}${look.compressing ? " cpr" : ""}${look.breathing === "laboured" ? " laboured" : ""}`;
+  const patientClass = `ps-patient${look.seizing ? " seizing" : ""}${look.fx.fresh.includes("board") ? " logroll" : ""}${lifting ? " lifted" : ""}`;
   const monitored = look.kit.leads || look.kit.pads || look.kit.probe || look.kit.cuff;
   const tagFor = (c: SceneCrew | undefined, i: number) => (c ? (i > 0 && crew[i - 1]?.callsign === c.callsign && c.name ? c.name.toUpperCase() : c.callsign) : "");
 
@@ -312,8 +326,9 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
         <g transform={`translate(${ox} ${oy}) scale(${s.toFixed(2)})`}>
           {spec.ground(gctx)}
           {spec.under?.(gctx)}
+          {transfer && !spec.under && <Conveyance action={transfer.action} r={r} loading={transfer.loading} />}
           {kit.under}
-          <g className={look.seizing ? "ps-patient seizing" : "ps-patient"}>
+          <g className={patientClass}>
             <PlanFigure rig={r} w={wear} chestClass={chestClass} chestStyle={chestStyle} onChest={kit.onChest} over={kit.over} shadow={pose !== "floating"} />
           </g>
           {spec.over?.(gctx)}

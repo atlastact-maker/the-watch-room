@@ -5,8 +5,9 @@
 // treatment record and the casualty, so the picture changes as the crew
 // work, and a seven-year-old is not drawn as a man of fifty.
 
-import type { DrugName, PackagingAction, PatientTreatmentState } from "./incident_types";
-import { DRUG_LABEL } from "./incident_types";
+import type { DrugName, EgressAction, PackagingAction, PatientTreatmentState } from "./incident_types";
+import { DRUG_LABEL, EGRESS_SECONDS } from "./incident_types";
+import { isAnalysing } from "./resus";
 import type { PatientRedFlag, SceneCasualty } from "./scene";
 import type { ResusState } from "./resus";
 import type { BodyRegion } from "./body_regions";
@@ -72,8 +73,11 @@ export type PatientLook = {
     splint: boolean;
     lucas: boolean;
   };
-  /** Whose hands are on the chest, when someone's are. */
+  /** Who has the chest in an arrest — a crew member by name, or "LUCAS" —
+   *  whether or not they are pressing at this moment. */
   compressor?: string;
+  /** The hands are moving: the clock runs and the monitor is not analysing. */
+  compressing: boolean;
   arrest: boolean;
   appearance: Appearance;
   /** Short words for the caption: "sat on the stairs · pale, sweaty · breathing fast". */
@@ -104,6 +108,17 @@ export type SceneFx = {
   pouches: { airway: boolean; circ: boolean; drugs: boolean };
   /** Kit that has just gone on, drawn settling into place. */
   fresh: (keyof PatientLook["kit"])[];
+  /** The patient is being moved to the vehicle: on what, since when, and
+   *  whether the crew are still lifting them onto it. */
+  transfer?: { action: EgressAction; startedAt: number; endsAt: number; loading: boolean };
+};
+
+/** Lifting the patient onto the trolley or into the chair takes this long. */
+const LOAD_MS = 3500;
+
+const CONVEY_WORDS: Record<EgressAction, string> = {
+  walked: "walking out", carry_chair: "in the carry chair", carry_sheet: "on the carry sheet", manual_carry: "being carried",
+  trolley: "on the trolley", vacuum_mattress: "in the vacuum mattress", wheelchair: "in a wheelchair",
 };
 
 /** How long each thing takes to show. A cannula slides in and is dressed;
@@ -173,7 +188,12 @@ function sceneFx(tx: PatientTreatmentState | null | undefined, kit: PatientLook[
       }
     }
   }
-  return { acts, pouches, fresh: [...fresh] };
+  let transfer: SceneFx["transfer"];
+  if (tx && now !== undefined && tx.moveEndsAt !== undefined && now < tx.moveEndsAt && tx.moveAction) {
+    const startedAt = tx.egress[tx.moveAction] ?? tx.moveEndsAt - EGRESS_SECONDS[tx.moveAction] * 1000;
+    transfer = { action: tx.moveAction, startedAt, endsAt: tx.moveEndsAt, loading: now - startedAt < LOAD_MS };
+  }
+  return { acts, pouches, fresh: [...fresh], transfer };
 }
 
 function hash(s: string): number {
@@ -249,10 +269,12 @@ function appearanceOf(c: SceneCasualty, tx: PatientTreatmentState | null | undef
   };
 }
 
-function postureOf(c: SceneCasualty, gcs: number, arrest: boolean, flags: Set<PatientRedFlag>, landed: boolean): Posture {
+function postureOf(c: SceneCasualty, gcs: number, arrest: boolean, flags: Set<PatientRedFlag>, landed: boolean, seated: boolean): Posture {
   if (c.inWater && !landed) return "in_water";
   if (c.atHeight && !landed) return "at_height";
   if (c.trappedUntilExtricated && !landed) return "in_vehicle";
+  // In the carry chair they sit, whatever they were doing on the floor.
+  if (seated && !arrest) return "sitting";
   if (arrest || gcs < 9) return "supine";
   const l = (c.label ?? "").toLowerCase();
   if (/\b(sat|sitting|seated|chair|sofa|bench|stairs|propped|choking|upright)\b/.test(l)) return "sitting";
@@ -333,9 +355,16 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
     splint: !!pk.traction_splint,
     lucas: resus?.lucasFittedAt !== undefined,
   };
-  const compressor = arrest && resus?.cyclePausedAt === undefined ? (resus?.lucasFittedAt !== undefined ? "LUCAS" : resus?.compressorName ?? "crew") : undefined;
+  // The chest: who has it, and whether they are pressing right now. Nobody
+  // compresses until the record names them — a crew arriving at an arrest
+  // kneels and assesses; the operator puts someone on the chest.
+  const handsOn = !!resus && (resus.lucasFittedAt !== undefined || resus.compressorCrewId !== undefined);
+  const compressor = arrest && resus && handsOn ? (resus.lucasFittedAt !== undefined ? "LUCAS" : resus.compressorName ?? "crew") : undefined;
+  const compressing = compressor !== undefined && !!resus && resus.cyclePausedAt === undefined && !(opts.now !== undefined && isAnalysing(resus, opts.now));
 
-  const posture = postureOf(c, gcs, arrest, flags, landed);
+  const fx = sceneFx(tx, kit, opts.now);
+  const onChair = fx.transfer !== undefined && (fx.transfer.action === "carry_chair" || fx.transfer.action === "wheelchair");
+  const posture = postureOf(c, gcs, arrest, flags, landed, onChair);
   const pregnant = !!tx?.profile?.pregnant || /pregnan|weeks|second stage|labour/.test(label);
   const cue = cueOf(c, flags, eyes, posture, hurt, pregnant, breathing);
   const appearance = appearanceOf(c, tx, cue);
@@ -353,6 +382,7 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
   }
   if (bleeding) words.push("bleeding");
   if (tx?.physio?.seizing) words.push("fitting");
+  if (fx.transfer) words.push(`${CONVEY_WORDS[fx.transfer.action]} · ${fx.transfer.loading ? "being loaded" : "to the vehicle"}`);
 
-  return { posture, skin, sweating, breathing, rr, eyes, hurt: [...hurt], bleeding, seizing: !!tx?.physio?.seizing, kit, compressor, arrest, appearance, words, fx: sceneFx(tx, kit, opts.now) };
+  return { posture, skin, sweating, breathing, rr, eyes, hurt: [...hurt], bleeding, seizing: !!tx?.physio?.seizing, kit, compressor, compressing, arrest, appearance, words, fx };
 }

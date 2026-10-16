@@ -26,6 +26,18 @@ import { alertTone } from "@/lib/audio/sim-audio";
 import { AIRWAY_LABEL, BREATHING_LABEL, CIRC_LABEL, EGRESS_LABEL, PACKAGING_LABEL, RED_FLAG_LABEL } from "../components/treatment-tab";
 import { PatientScene, VitalsCard, type SceneCrew } from "./patient-scene";
 
+/** In an arrest: who can take the chest, so the alert can put them on it. */
+export type ChestControls = {
+  candidates: { id: string; name: string; role: string }[];
+  /** A LUCAS is with the patient and not yet fitted. */
+  lucas: boolean;
+  current?: string;
+  onSetCompressor: (c: { id: string; name: string; role: string }) => void;
+  onFitLucas: () => void;
+};
+
+type AlertAction = { label: string; onClick: () => void; title?: string };
+
 export type PatientBoardProps = {
   casualty: SceneCasualty;
   treatment: PatientTreatmentState | null;
@@ -45,6 +57,7 @@ export type PatientBoardProps = {
   compact?: boolean;
   /** The scene fills the box and the rest floats over it: the stage layout. */
   hero?: boolean;
+  chest?: ChestControls;
 };
 
 // The trend window: five minutes to start, so the first readings are
@@ -147,7 +160,7 @@ function settingOf(label: string | undefined): string | undefined {
   return /\b(sat|sitting|lying|stood|standing|slumped|trapped|collapsed|found|in|on|at|under|behind|beside|by)\s+(the|a|an|his|her|their|front|back|rear)\b/i.test(last) ? last.charAt(0).toUpperCase() + last.slice(1).toLowerCase() : undefined;
 }
 
-export function PatientBoard({ casualty, treatment, resus, progression, scenario, landed, ambient, crew, now, compact, hero }: PatientBoardProps) {
+export function PatientBoard({ casualty, treatment, resus, progression, scenario, landed, ambient, crew, now, compact, hero, chest }: PatientBoardProps) {
   const tx = treatment;
   const vitals = tx?.liveVitals ?? tx?.revealedVitals;
   const surveyDone = !!tx?.surveyCompletedAt;
@@ -185,13 +198,21 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   // Alerts: what the patient is doing right now that needs a hand, and
   // the red flags nobody has dealt with yet.
   const cues = events.filter((e): e is Extract<TreatmentEvent, { kind: "physio" }> => e.kind === "physio" && (e.tone === "critical" || e.tone === "warn") && now - e.at < ALERT_MS).slice(0, 2);
-  const resusAlerts: { key: string; tone: Tone; title: string; text: string; fresh: boolean }[] = [];
+  const resusAlerts: { key: string; tone: Tone; title: string; text: string; fresh: boolean; actions?: AlertAction[] }[] = [];
   if (inArrest && resus) {
-    if (resus.cyclePausedAt !== undefined) resusAlerts.push({ key: "r-noone", tone: "stop", title: "NO COMPRESSIONS", text: `Nobody on the chest for ${mmss(now - resus.cyclePausedAt)} — put someone on it or fit the LUCAS`, fresh: true });
+    if (resus.cyclePausedAt !== undefined) {
+      const hands: AlertAction[] = chest
+        ? [
+            ...chest.candidates.map((c) => ({ label: `${c.name} on the chest`, title: `${c.role} — they will tire after about two minutes`, onClick: () => chest.onSetCompressor(c) })),
+            ...(chest.lucas ? [{ label: "Fit LUCAS", title: "About 20 s to fit, then it holds quality and frees a pair of hands", onClick: chest.onFitLucas }] : []),
+          ]
+        : [];
+      resusAlerts.push({ key: "r-noone", tone: "stop", title: "NO COMPRESSIONS", text: `Nobody on the chest for ${mmss(now - resus.cyclePausedAt)} — ${hands.length ? "put someone on it" : chest ? "nobody is at the patient's side yet" : "put someone on it or fit the LUCAS"}`, fresh: true, actions: hands });
+    }
     if (!look.kit.pads) resusAlerts.push({ key: "r-pads", tone: "stop", title: "PADS NOT ON", text: "No rhythm, no shock until the pads are on the chest", fresh: false });
     if (look.kit.airway === "none" && look.kit.oxygen !== "bvm") resusAlerts.push({ key: "r-airway", tone: "warn", title: "NO AIRWAY", text: "Bag-valve-mask or an i-gel — nothing is ventilating them", fresh: false });
   }
-  const alerts: { key: string; tone: Tone; title: string; text: string; fresh: boolean }[] = [
+  const alerts: { key: string; tone: Tone; title: string; text: string; fresh: boolean; actions?: AlertAction[] }[] = [
     ...resusAlerts,
     ...cues.map((e) => ({ key: `c-${e.at}`, tone: (e.tone === "critical" ? "stop" : "warn") as Tone, title: e.tone === "critical" ? "PATIENT" : "WATCH", text: e.text, fresh: now - e.at < 20_000 })),
     ...openFlags.filter((r) => !inArrest || r.f !== "cardiac_arrest").slice(0, 2).map((r) => ({ key: `f-${r.f}`, tone: "stop" as Tone, title: r.label.toUpperCase(), text: FLAG_ASK[r.f] ?? "Not yet dealt with", fresh: false })),
@@ -268,7 +289,12 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   );
   const alertsNode = alerts.length > 0 ? (
     <div className="pb-alerts">
-      {alerts.map((a) => <div key={a.key} className={`pb-alert ${a.tone}${a.fresh ? " pulse" : ""}`}><b>{a.title}</b><span>{a.text}</span></div>)}
+      {alerts.map((a) => (
+        <div key={a.key} className={`pb-alert ${a.tone}${a.fresh ? " pulse" : ""}`}>
+          <b>{a.title}</b><span>{a.text}</span>
+          {a.actions && a.actions.length > 0 && <div className="pb-alert-actions">{a.actions.map((x) => <button key={x.label} type="button" title={x.title} onClick={x.onClick}>{x.label}</button>)}</div>}
+        </div>
+      ))}
     </div>
   ) : null;
   const trends = (

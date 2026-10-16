@@ -292,6 +292,8 @@ import { BugReportDialog } from "./components/bug-report-dialog";
 import { setViewAs } from "@/app/actions/view-as";
 import { LATEST as LATEST_RELEASE } from "@/lib/changelog";
 import "./vector/vector.css";
+import { CompanionDialog, useCompanionHost } from "./components/companion-host";
+import { COMPANION_CODE_KEY, newCode } from "@/lib/companion/protocol";
 
 const PATCH_STORAGE_KEY = "watch-room.patch";
 const INTENSITY_STORAGE_KEY = "watch-room.intensity";
@@ -581,6 +583,20 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // Armed map placement — set by the Place / LZ button on a unit's row
   // in the MDT; the ground map performs the two-click flow and clears it.
   const [placePendingApplianceId, setPlacePendingApplianceId] = useState<string | null>(null);
+  // The companion tablet: another device joins this desk's MDT by a code.
+  // The code lives for the browser session, so a reload keeps the pairing.
+  const [companionCode, setCompanionCode] = useState<string | null>(() => {
+    try { return typeof window !== "undefined" ? window.sessionStorage.getItem(COMPANION_CODE_KEY) : null; } catch { return null; }
+  });
+  const [companionOpen, setCompanionOpen] = useState(false);
+  const companion = useCompanionHost(companionCode);
+  function rememberCompanionCode(c: string | null) {
+    try {
+      if (c) window.sessionStorage.setItem(COMPANION_CODE_KEY, c);
+      else window.sessionStorage.removeItem(COMPANION_CODE_KEY);
+    } catch { /* best-effort */ }
+    setCompanionCode(c);
+  }
 
   // Per-casualty clinical treatment state. Keyed by casualty id so it
   // survives ambulance hand-off. Grows as the operator runs a primary
@@ -1512,17 +1528,23 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             const issues = postRoscIssues(s, treatmentRef.current[cid]?.liveVitals);
             if (rollBeat(reArrestChancePerMin(s, nowMs, issues))) {
               reArrested.push(cid);
+              // The pause since ROSC was not no-flow — the heart was beating.
+              // Hands still with the chest go straight back on, fresh;
+              // otherwise the no-flow clock starts now.
+              const back = s.lucasFittedAt !== undefined ? "LUCAS restarted" : s.compressorName ? `${s.compressorName} straight back on the chest` : "nobody on the chest";
               s = {
                 ...s,
                 roscAt: undefined,
                 reArrests: s.reArrests + 1,
                 cycle: 0,
                 cycleStartedAt: nowMs,
+                cyclePausedAt: handsOnChest(s) ? undefined : nowMs,
+                compressorSinceAt: s.compressorCrewId !== undefined ? nowMs : s.compressorSinceAt,
                 rhythm: Math.random() < 0.35 ? "vf" : "pea",
                 lastPostRoscCheckAt: undefined,
                 events: [
                   ...s.events,
-                  { at: nowMs, text: "RE-ARREST — output lost again", tone: "critical" },
+                  { at: nowMs, text: `RE-ARREST — output lost again, ${back}`, tone: "critical" },
                 ],
               };
             } else {
@@ -1575,21 +1597,18 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           s = { ...s, analysingSince: undefined, analyseSec: undefined };
           if (rollBeat(roscChance(s, nowMs))) {
             achieved.push(cid);
-            // Output back: the compressor comes off the chest and the LUCAS
-            // pauses. A re-arrest finds nobody on the chest, which is the
-            // truth of it — someone has to start again.
+            // Output back: hands off the chest and the LUCAS pauses, but
+            // whoever was compressing stays with the chest — if the output
+            // goes again they are straight back on it.
             s = {
               ...s,
               roscAt: nowMs,
               cycle: s.cycle + 1,
               cycleStartedAt: nowMs,
-              compressorCrewId: undefined,
-              compressorName: undefined,
-              compressorSinceAt: undefined,
               cyclePausedAt: nowMs,
               events: [
                 ...s.events,
-                { at: nowMs, text: "ROSC — output restored. Compressions stopped, hands off the chest", tone: "good" },
+                { at: nowMs, text: `ROSC — output restored. Compressions stopped, hands off the chest${s.compressorName ? `; ${s.compressorName} standing by on it` : ""}`, tone: "good" },
               ],
             };
           } else {
@@ -7610,6 +7629,16 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           act: () => setPopped({}),
           disabled: !Object.values(popped).some(Boolean),
         });
+        items.push({ sep: true });
+        items.push({
+          label: "Companion tablet…",
+          hint: companionCode ? (companion.tablets ? `${companion.tablets} joined` : "sharing") : "",
+          title: "Open this desk's MDT on a tablet or another screen, joined by a code",
+          act: () => {
+            if (!companionCode) rememberCompanionCode(newCode());
+            setCompanionOpen(true);
+          },
+        });
         return items;
       })(),
     },
@@ -7673,6 +7702,119 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+  // The MDT, built once: the desk draws it, and the companion tablet is
+  // sent its props after every render.
+  const mdtEl = activeIncident ? (
+    <DraggableIncidentMdt
+      incident={activeIncident}
+      stations={allDeployableStations}
+      deployments={incidentDeployments}
+      log={log}
+      outcome={outcome}
+      onDeploy={deployAppliance}
+      onStandDownForWelfare={standDownForWelfare}
+      onResolve={resolveIncident}
+      onDismiss={dismissIncident}
+      onClose={() => setIncidentPanelVisible(false)}
+      sim={incidentSim}
+      tasks={tasks}
+      now={now}
+      informantLog={informantLog}
+      informantOnCall={informantOnCall}
+      treatmentByCasualtyId={treatmentByCasualtyId}
+      onSetTreatingCasualty={setTreatingCasualty}
+      onAssignCrewToCasualty={assignCrewToCasualty}
+      onStartPatientSurvey={startPatientSurvey}
+      onApplyAirway={applyAirway}
+      onApplyBreathing={applyBreathing}
+      onApplyCirculation={applyCirculation}
+      resusByCasualtyId={resusByCasualtyId}
+      onSetOxygen={setOxygen}
+      onSetResusAirway={setResusAirway}
+      onAttachMonitor={attachMonitor}
+      onAttachMonitoring={attachMonitoring}
+      onToggleCapnography={toggleCapnography}
+      onSetCompressor={setCompressor}
+      onFitLucas={fitLucas}
+      onDeliverShock={deliverShock}
+      onMovePads={movePads}
+      onArrestAdrenaline={giveArrestAdrenaline}
+      onAmiodarone={giveAmiodarone}
+      onSuspectReversible={suspectReversible}
+      onTreatReversible={treatReversible}
+      onStopResus={stopResus}
+      onAdministerDrug={administerDrug}
+      onApplyPackaging={applyPackaging}
+      onApplyEgress={applyEgress}
+      onRequestClinician={requestClinician}
+      hemsFlyable={hemsAvailable(weather)}
+      ambient={ambient}
+      onSetTreatmentDestination={setTreatmentDestination}
+      onSendAtmistPrealert={sendAtmistPrealert}
+      onConveyCasualtyVia={conveyCasualtyVia}
+      onUpdateBaRemarks={updateBaRemarks}
+      onUpdateBaEntryPoint={updateBaEntryPoint}
+      onAbortTask={abortTask}
+      etas={etas}
+      patch={patch}
+      onStandDown={standDownAppliance}
+      onSetPreCommitBaCrew={setPreCommitBaCrew}
+      sceneCommanderApplianceId={sceneCommanderApplianceId}
+      crewAir={crewAir}
+      busyCrewIds={busyCrewIds}
+      vehicleGauges={vehicleGauges}
+      onStartTask={startTask}
+      onSetLightState={setLightState}
+      onSetPumpRunning={setPumpRunning}
+      onSetPumpOperator={setPumpOperator}
+      onSetFastAttackDeployed={setFastAttackDeployed}
+      onToggleCrewEquipment={toggleCrewEquipment}
+      onSetCrewLoadout={setCrewLoadout}
+      tacticalMode={tacticalMode}
+      fatigueByApplianceId={fatigueByApplianceId}
+      onBeginRoadClosure={(applianceId, kind, crewIds) =>
+        setPendingClosure({ applianceId, kind, crewIds })
+      }
+      onRequestRotate={setRotatePendingApplianceId}
+      onArmPlacement={setPlacePendingApplianceId}
+      unitId={mdtUnitId}
+      onSetUnitId={setMdtUnitId}
+      onSendMessage={(callsign, text) => {
+        logAnnotation(`${callsign} → CONTROL: ${text}`);
+        setStatusMsg(`${callsign} message logged`);
+      }}
+      onConfirmAllergies={confirmAllergies}
+      onRecordObservation={recordObservation}
+      onCompleteTask={completeTask}
+      onSetTaskCrew={setTaskCrew}
+      onNote={(text) => logAnnotation(text)}
+      recordIndex={recordIndex}
+      ledsChecks={ledsChecks}
+      onLedsCheck={recordLedsCheck}
+      onOpenLeds={(query, kind) => {
+        if (query !== undefined) {
+          setLedsPrefillKind(kind ?? "vehicle");
+          setLedsPrefill(query);
+        }
+        setShowLeds(true);
+      }}
+      onOpenAnpr={() => setShowAnpr(true)}
+      onRequestSupport={requestPoliceSupport}
+      policePage={mdtPolicePage}
+      commanderApplianceId={handover?.applianceId ?? null}
+      subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
+      onPursuitDecision={decidePursuit}
+      onDeclareTacticalMode={declareTacticalMode}
+      structural={activeIncident ? { integrity: 100 - (runtimes[activeIncident.id]?.structuralDamage ?? 0), collapsedAt: runtimes[activeIncident.id]?.collapsedAt ?? null, evacuatedAt: runtimes[activeIncident.id]?.evacuatedAt ?? null, injured: runtimes[activeIncident.id]?.injuredCrewIds.length ?? 0 } : undefined}
+      onEvacuate={evacuateFireground}
+      waterClock={waterClock}
+    />
+  ) : null;
+  const publishMdt = companion.publish;
+  useEffect(() => {
+    publishMdt(mdtEl ? (mdtEl.props as Record<string, unknown>) : null);
+  });
+
   if (pendingSave) {
     return (
       <ResumePrompt
@@ -8278,112 +8420,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
               }}
             />
             {/* Rugged MDT tablet — ground view's incident terminal. */}
-            {incidentPanelVisible && (
-              <DraggableIncidentMdt
-                incident={activeIncident}
-                stations={allDeployableStations}
-                deployments={incidentDeployments}
-                log={log}
-                outcome={outcome}
-                onDeploy={deployAppliance}
-                onStandDownForWelfare={standDownForWelfare}
-                onResolve={resolveIncident}
-                onDismiss={dismissIncident}
-                onClose={() => setIncidentPanelVisible(false)}
-                sim={incidentSim}
-                tasks={tasks}
-                now={now}
-                informantLog={informantLog}
-                informantOnCall={informantOnCall}
-                treatmentByCasualtyId={treatmentByCasualtyId}
-                onSetTreatingCasualty={setTreatingCasualty}
-                onAssignCrewToCasualty={assignCrewToCasualty}
-                onStartPatientSurvey={startPatientSurvey}
-                onApplyAirway={applyAirway}
-                onApplyBreathing={applyBreathing}
-                onApplyCirculation={applyCirculation}
-                resusByCasualtyId={resusByCasualtyId}
-                onSetOxygen={setOxygen}
-                onSetResusAirway={setResusAirway}
-                onAttachMonitor={attachMonitor}
-                onAttachMonitoring={attachMonitoring}
-                onToggleCapnography={toggleCapnography}
-                onSetCompressor={setCompressor}
-                onFitLucas={fitLucas}
-                onDeliverShock={deliverShock}
-                onMovePads={movePads}
-                onArrestAdrenaline={giveArrestAdrenaline}
-                onAmiodarone={giveAmiodarone}
-                onSuspectReversible={suspectReversible}
-                onTreatReversible={treatReversible}
-                onStopResus={stopResus}
-                onAdministerDrug={administerDrug}
-                onApplyPackaging={applyPackaging}
-                onApplyEgress={applyEgress}
-                onRequestClinician={requestClinician}
-                hemsFlyable={hemsAvailable(weather)}
-                ambient={ambient}
-                onSetTreatmentDestination={setTreatmentDestination}
-                onSendAtmistPrealert={sendAtmistPrealert}
-                onConveyCasualtyVia={conveyCasualtyVia}
-                onUpdateBaRemarks={updateBaRemarks}
-                onUpdateBaEntryPoint={updateBaEntryPoint}
-                onAbortTask={abortTask}
-                etas={etas}
-                patch={patch}
-                onStandDown={standDownAppliance}
-                onSetPreCommitBaCrew={setPreCommitBaCrew}
-                sceneCommanderApplianceId={sceneCommanderApplianceId}
-                crewAir={crewAir}
-                busyCrewIds={busyCrewIds}
-                vehicleGauges={vehicleGauges}
-                onStartTask={startTask}
-                onSetLightState={setLightState}
-                onSetPumpRunning={setPumpRunning}
-                onSetPumpOperator={setPumpOperator}
-                onSetFastAttackDeployed={setFastAttackDeployed}
-                onToggleCrewEquipment={toggleCrewEquipment}
-                onSetCrewLoadout={setCrewLoadout}
-                tacticalMode={tacticalMode}
-                fatigueByApplianceId={fatigueByApplianceId}
-                onBeginRoadClosure={(applianceId, kind, crewIds) =>
-                  setPendingClosure({ applianceId, kind, crewIds })
-                }
-                onRequestRotate={setRotatePendingApplianceId}
-                onArmPlacement={setPlacePendingApplianceId}
-                unitId={mdtUnitId}
-                onSetUnitId={setMdtUnitId}
-                onSendMessage={(callsign, text) => {
-                  logAnnotation(`${callsign} → CONTROL: ${text}`);
-                  setStatusMsg(`${callsign} message logged`);
-                }}
-                onConfirmAllergies={confirmAllergies}
-                onRecordObservation={recordObservation}
-                onCompleteTask={completeTask}
-                onSetTaskCrew={setTaskCrew}
-                onNote={(text) => logAnnotation(text)}
-                recordIndex={recordIndex}
-                ledsChecks={ledsChecks}
-                onLedsCheck={recordLedsCheck}
-                onOpenLeds={(query, kind) => {
-                  if (query !== undefined) {
-                    setLedsPrefillKind(kind ?? "vehicle");
-                    setLedsPrefill(query);
-                  }
-                  setShowLeds(true);
-                }}
-                onOpenAnpr={() => setShowAnpr(true)}
-                onRequestSupport={requestPoliceSupport}
-                policePage={mdtPolicePage}
-                commanderApplianceId={handover?.applianceId ?? null}
-                subject={activeIncident ? subjects[activeIncident.id] ?? null : null}
-                onPursuitDecision={decidePursuit}
-                onDeclareTacticalMode={declareTacticalMode}
-                structural={activeIncident ? { integrity: 100 - (runtimes[activeIncident.id]?.structuralDamage ?? 0), collapsedAt: runtimes[activeIncident.id]?.collapsedAt ?? null, evacuatedAt: runtimes[activeIncident.id]?.evacuatedAt ?? null, injured: runtimes[activeIncident.id]?.injuredCrewIds.length ?? 0 } : undefined}
-                onEvacuate={evacuateFireground}
-                waterClock={waterClock}
-              />
-            )}
+            {incidentPanelVisible && mdtEl}
           </>
         ) : null
       }
@@ -8398,6 +8435,15 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
                 triggerScenario(s);
               }}
               onDecline={() => setPendingCall(null)}
+            />
+          )}
+          {companionOpen && (
+            <CompanionDialog
+              code={companionCode}
+              host={companion}
+              onNewCode={() => rememberCompanionCode(newCode())}
+              onStop={() => rememberCompanionCode(null)}
+              onClose={() => setCompanionOpen(false)}
             />
           )}
           <GlossaryOverlay

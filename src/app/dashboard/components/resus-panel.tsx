@@ -394,7 +394,7 @@ export function ResusPanel({
                   />
                 </div>
               )}
-              {quality < 0.9 && state.compressorName && (
+              {quality > 0 && quality < 0.9 && state.compressorName && (
                 <Note tone="amber">
                   {state.compressorName} is tiring. Swap the compressor — the
                   guidance says every two minutes for a reason.

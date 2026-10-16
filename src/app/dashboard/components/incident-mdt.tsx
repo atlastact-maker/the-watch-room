@@ -195,6 +195,9 @@ type Props = {
   /** The car the job is chasing, when there is one. */
   subject?: SubjectVehicle | null;
   onPursuitDecision?: (incidentId: string, decision: "authorise" | "refuse" | "discontinue", reason?: string) => void;
+  /** The companion tablet: the MDT fills the window it is in — no
+   *  dragging, pop-out, minimise or close. */
+  fixed?: boolean;
 };
 
 // Remembered tablet frame — survives the MDT being collapsed/reopened
@@ -301,7 +304,9 @@ export function DraggableIncidentMdt(props: Props) {
   const [internalUnitId, setInternalUnitId] = useState<string | null>(null);
   const unitId = unitIdProp !== undefined ? unitIdProp : internalUnitId;
   const setUnitId = onSetUnitId ?? setInternalUnitId;
+  const fixed = !!props.fixed;
   const [initialFrame] = useState<MdtFrame>(() => {
+    if (props.fixed && typeof window !== "undefined") return { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
     const size = presetMdtSize();
     return (
       loadMdtFrame() ?? {
@@ -517,12 +522,12 @@ export function DraggableIncidentMdt(props: Props) {
         <span className="vec-mdt-brand">{MDT_BRAND}</span>
         <i className="vec-mdt-cam" aria-hidden="true" />
         <div className="vec-mdt-handle-btns">
-          {popped ? (
+          {!fixed && (popped ? (
             <button type="button" title="Dock the MDT back on the desk" aria-label="Dock" onClick={() => setPopped(false)}>⤶</button>
           ) : (
             <button type="button" title="Pop out into its own window" aria-label="Pop out" onClick={() => setPopped(true)}>↗</button>
-          )}
-          <button type="button" title="Close MDT" aria-label="Close" onClick={onClose}>×</button>
+          ))}
+          {!fixed && <button type="button" title="Close MDT" aria-label="Close" onClick={onClose}>×</button>}
         </div>
       </header>
       <div className="vec-mdt-screen" style={zoom !== 1 ? { zoom } : undefined}>
@@ -855,8 +860,8 @@ export function DraggableIncidentMdt(props: Props) {
         </div>
         <button type="button" className="key power" title={asleep ? "Wake the screen" : "Screen off"} aria-pressed={asleep} onClick={() => setAsleep((v) => !v)}>⏻</button>
         <button type="button" className="key" title="P1 · Notebook" aria-pressed={notepad} onClick={() => setNotepad((v) => !v)}>P1</button>
-        <button type="button" className="key" title={sizeMode === "compact" ? "P2 · Full-size tablet — three columns without scrolling" : "P2 · Compact tablet — keeps the ground map in view"} aria-pressed={sizeMode === "full"} onClick={toggleSize} disabled={popped}>P2</button>
-        <button type="button" className="key" title="Minimise to the desk" aria-label="Minimise" onClick={() => setMinimised(true)} disabled={popped}>⊞</button>
+        <button type="button" className="key" title={sizeMode === "compact" ? "P2 · Full-size tablet — three columns without scrolling" : "P2 · Compact tablet — keeps the ground map in view"} aria-pressed={sizeMode === "full"} onClick={toggleSize} disabled={popped || fixed}>P2</button>
+        <button type="button" className="key" title="Minimise to the desk" aria-label="Minimise" onClick={() => setMinimised(true)} disabled={popped || fixed}>⊞</button>
         <button type="button" className="key" title="Larger" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(1.2, Math.round((z + 0.05) * 100) / 100))}>+</button>
         <button type="button" className="key" title="Smaller" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.8, Math.round((z - 0.05) * 100) / 100))}>−</button>
         <i className="vec-mdt-rocker" aria-hidden="true" />
@@ -869,6 +874,8 @@ export function DraggableIncidentMdt(props: Props) {
       <MdtNotepad key={incident.id} incidentId={incident.id} incidentRef={ref} unitCallsign={unitCallsign} open={notepad} onClose={() => setNotepad(false)} onNote={props.onNote} />
     </section>
   );
+
+  if (fixed) return <div className="vec-mdt-fixed">{tablet}</div>;
 
   return (
     <>

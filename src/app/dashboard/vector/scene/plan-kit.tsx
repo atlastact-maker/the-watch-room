@@ -154,7 +154,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const under = (
     <g>
       {kit.board && (
-        <g className={fx("board")}>
+        <g className={freshKit.has("board") ? "ps-board-in" : undefined}>
           <rect x={-r.shoulderW * 1.2} y={-0.1 * k} width={r.shoulderW * 2.4} height={r.bottom + 0.2 * k} rx={0.12 * k} fill="#e8731f" {...line} />
           {[0.15, 0.5, 0.85].map((t) => (
             <g key={t}>
@@ -264,7 +264,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
           <circle cx={0.02 * k} cy={r.chestY - 0.118 * k} r={0.013 * k} fill="#e03a3a" />
           <circle cx={0.055 * k} cy={r.chestY - 0.118 * k} r={0.01 * k} fill="#9aa0a6" />
           <text x={0} y={r.chestY + 0.035 * k} textAnchor="middle" fontSize={0.022 * k} fontWeight={800} fill="#1b1b1b" fontFamily="Arial, sans-serif" opacity={0.8}>CPR</text>
-          <circle cx={A.sternum[0]} cy={A.sternum[1] + 0.02 * k} r={0.05 * k} className="ps-plunger cpr" fill="#1b1b1b" />
+          <circle cx={A.sternum[0]} cy={A.sternum[1] + 0.02 * k} r={0.05 * k} className={`ps-plunger${look.compressing ? " cpr" : ""}`} fill="#1b1b1b" />
           <circle cx={A.sternum[0]} cy={A.sternum[1] + 0.02 * k} r={0.03 * k} fill="#3a4046" />
         </g>
       )}

@@ -22,8 +22,9 @@
 // the screens that read them back — the RTC stage's picture — can be
 // watched without a shift.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import "../../dashboard/vector/vector.css";
+import { useCompanionHost } from "../../dashboard/components/companion-host";
 import { PATCH } from "@/lib/sim/areas";
 import { DraggableIncidentMdt } from "../../dashboard/components/incident-mdt";
 import { GroundSceneMap } from "../../dashboard/components/ground-scene-map";
@@ -35,7 +36,7 @@ import { simulateIncident } from "@/lib/sim/incident_sim";
 import { busyOn, withCrewAssignment } from "@/lib/sim/crew_assign";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
 import { calibrate, generateProfile, initialPhysio } from "@/lib/sim/physiology";
-import type { PatientTreatmentState, TreatmentEvent } from "@/lib/sim/incident_types";
+import type { EgressAction, PatientTreatmentState, TreatmentEvent } from "@/lib/sim/incident_types";
 import { newResusState, type ResusState } from "@/lib/sim/resus";
 import type { StationWithAppliances } from "../../dashboard/page";
 import type { Deployment, Incident, LogEntry, Task } from "@/lib/sim/incident_types";
@@ -244,13 +245,20 @@ function buildWorld(scenarioId: string, minutesIn: number) {
         : act === "neb" ? [{ kind: "drug", drug: "salbutamol_neb", at, by }]
         : act === "igel" ? [{ kind: "airway", action: "igel", at, by }]
         : act === "pads" ? [{ kind: "monitoring", at, by, device: "defib_pads" }]
+        : act === "board" ? [{ kind: "packaging", action: "spine_board", at, by }]
         : [];
+      // ?act=trolley|chair|sheet|vac: the move to the vehicle has just begun.
+      const egressAct: EgressAction | undefined = act === "trolley" ? "trolley" : act === "chair" ? "carry_chair" : act === "sheet" ? "carry_sheet" : act === "vac" ? "vacuum_mattress" : undefined;
       treatment = {
         ...treatment,
         circulation: act === "iv" ? { ...treatment.circulation, iv_access: at } : treatment.circulation,
         airway: act === "igel" ? { ...treatment.airway, igel: at } : treatment.airway,
         monitoring: act === "pads" ? { ...treatment.monitoring, defib_pads: at } : treatment.monitoring,
-        events: [...treatment.events, ...ev],
+        packaging: act === "board" ? { ...treatment.packaging, spine_board: at } : treatment.packaging,
+        egress: egressAct ? { ...treatment.egress, [egressAct]: at } : treatment.egress,
+        moveEndsAt: egressAct ? at + 180_000 : treatment.moveEndsAt,
+        moveAction: egressAct ?? treatment.moveAction,
+        events: [...treatment.events, ...ev, ...(egressAct ? [{ kind: "egress" as const, action: egressAct, at, by }] : [])],
       };
     }
   }
@@ -298,6 +306,17 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const vehicleGauges = Object.fromEntries([p1, p2, p3, dca].filter(Boolean).map((a) => [a!.id, { fuelPct: 82, waterPct: a!.service === "Fire" ? 58 : 100, conditionPct: 96 }]));
 
   return { incident, stations, deployments, tasks, crewAir, log, informantLog, etas, vehicleGauges, busyCrewIds: new Set<string>([ba1, ba2, j1, j2]), commanderId: p1.id, unitId: careMode ? dca!.id : unitParam === "rpu" && rpu ? rpu.id : p1.id, rpuId: rpu?.id ?? null, baCrews: { [p1.id]: 2 }, treatment, resus };
+}
+
+/** The harness's MDT, shared to /dev/companion over this browser when
+ *  ?pair=1 — the companion end to end without a Supabase project. */
+function HarnessMdt({ pair, ...p }: ComponentProps<typeof DraggableIncidentMdt> & { pair: boolean }) {
+  const host = useCompanionHost(pair ? "DEVTESTA" : null, { local: true });
+  const publish = host.publish;
+  useEffect(() => {
+    publish(p as unknown as Record<string, unknown>);
+  });
+  return <DraggableIncidentMdt {...p} />;
 }
 
 export default function MdtHarnessPage() {
@@ -386,7 +405,8 @@ export default function MdtHarnessPage() {
   return (
     <div className="cad-application" style={{ position: "fixed", inset: 0, background: "#0b1118" }}>
       <div style={{ position: "absolute", left: 24, top: 16, width: 1180, height: 820 }}>
-        <DraggableIncidentMdt
+        <HarnessMdt
+          pair={!!param("pair")}
           incident={world.incident}
           stations={world.stations}
           deployments={deployments}

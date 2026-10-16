@@ -264,7 +264,10 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const atHospital = !!convoy && convoy.deployment.hospitalArrivesAt !== undefined && now >= convoy.deployment.hospitalArrivesAt;
   // The crew are with the patient once the walk from the vehicle is
   // done — the same clock the ground map draws them by.
-  const atVehicleNow = patientAtVehicle(casualty, stage, tasks);
+  // Carried to the vehicle by the crew: once the move is done the patient
+  // is at the back doors, whatever the incident's own stage says.
+  const egressDone = treatment?.moveEndsAt !== undefined && now >= treatment.moveEndsAt;
+  const atVehicleNow = patientAtVehicle(casualty, stage, tasks) || egressDone;
   const withPatientAt = paired.length ? Math.min(...paired.map((p) => crewWithPatientAt(p.deployment, casualty, incident.scenario.location.coords, { atVehicle: atVehicleNow }))) : null;
   const crewHere = withPatientAt !== null && now >= withPatientAt;
   const walkLeftSec = withPatientAt !== null && !crewHere ? Math.ceil((withPatientAt - now) / 1000) : 0;
@@ -285,6 +288,12 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const crewMembersHere = assignRows.flatMap((r) => r.members.filter((m) => m.status === "here").map((m) => ({ ...m, applianceId: r.applianceId, arrived: memberArrived(r.applianceId, m.id) })));
   const hereCount = crewMembersHere.filter((m) => m.arrived).length;
   const walkingCount = crewMembersHere.length - hereCount;
+  // The chest, in an arrest: who can take it (anyone at the patient's side),
+  // whether a LUCAS is with the patient, and whether anyone has it now.
+  const arrestNow = !!resus && resus.roscAt === undefined && resus.roleAt === undefined;
+  const chestCandidates = crewMembersHere.filter((m) => m.arrived).map((m) => ({ id: m.id, name: m.name, role: m.role }));
+  const lucasHere = paired.some(({ appliance }) => appliance.kit.some((k) => /mechanical cpr/i.test(k)));
+  const chestTaken = !!resus && (resus.lucasFittedAt !== undefined || resus.compressorCrewId !== undefined);
   const canAct = !extractionRequired && paired.length > 0 && crewHere && !!treatment && !conveying && !resus?.roleAt;
 
   // ---- Clinical picture ----------------------------------------------
@@ -606,6 +615,33 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   // among those at the patient's side is the clinical lead.
   const crewPanelBody = (
     <>
+      {arrestNow && (
+        <Group title="Compressions" extra={<span className={`cc-pill ${chestTaken ? "go" : "stop"}`}>{resus?.lucasFittedAt !== undefined ? "LUCAS on the chest" : resus?.compressorName ? `${resus.compressorName} on the chest` : "Nobody on the chest"}</span>}>
+          {ivList([
+            ...chestCandidates.map((c) => choiceRow(
+              `chest-${c.id}`,
+              c.name,
+              c.role,
+              resus?.compressorCrewId === c.id ? { text: "On the chest", tone: "go" } : { text: "Hands free", tone: "ready" },
+              resus?.compressorCrewId === c.id ? "On it" : "Chest",
+              resus?.compressorCrewId === c.id || !props.onSetCompressor || resus?.lucasFittedAt !== undefined,
+              () => props.onSetCompressor?.(casualtyId, c),
+              "crew",
+            )),
+            choiceRow(
+              "chest-lucas",
+              "LUCAS",
+              lucasHere ? "Mechanical CPR — about 20 s to fit, then it holds quality and frees a pair of hands" : "No mechanical CPR device with this patient",
+              resus?.lucasFittedAt !== undefined ? { text: "Fitted", tone: "go" } : lucasHere ? { text: "On the vehicle", tone: "ready" } : { text: "Not on scene", tone: "muted" },
+              "Fit",
+              !lucasHere || resus?.lucasFittedAt !== undefined || !props.onFitLucas,
+              () => props.onFitLucas?.(casualtyId),
+              "crew",
+            ),
+          ], false)}
+          {chestCandidates.length === 0 && <p className="cc-line">Nobody is with the patient yet — send someone below.</p>}
+        </Group>
+      )}
       {assignRows.length === 0 && (
         <p className="cc-line">No ambulance crew on scene yet.{inbound.length > 0 ? ` ${inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ")}.` : ""}</p>
       )}
@@ -1008,7 +1044,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     });
   // Brought out: landed from the water, recovered off the face, cut out of
   // the car, carried out of the building — the scene moves to the vehicle.
-  const landed = stage === "extricated" || stage === "conveying" || stage === "at_hospital"
+  const landed = stage === "extricated" || stage === "conveying" || stage === "at_hospital" || egressDone
     || tasks.some((t) => t.state === "completed" && ((t.kind === "extract_casualty" && t.casualtyId === casualtyId) || t.kind === "water_rescue" || t.kind === "rope_rescue" || t.kind === "rtc_extrication"));
 
   const monitorBody = (
@@ -1069,7 +1105,10 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         </div>
       </header>
       <div className="cc-stage-body">
-        <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} landed={landed} ambient={props.ambient} crew={sceneCrew} now={now} compact={tablet} hero />
+        <PatientBoard
+          casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} landed={landed} ambient={props.ambient} crew={sceneCrew} now={now} compact={tablet} hero
+          chest={arrestNow ? { candidates: chestCandidates, lucas: lucasHere && resus?.lucasFittedAt === undefined, current: resus?.compressorCrewId, onSetCompressor: (c) => props.onSetCompressor?.(casualtyId, c), onFitLucas: () => props.onFitLucas?.(casualtyId) } : undefined}
+        />
         {panel === "monitor" ? (
           // The monitor is the device itself: the LIFEPAK 15 the scene
           // draws on the ground, its face filling the panel.
@@ -1098,7 +1137,7 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       <footer className="cc-stage-bar" aria-label="Care actions">
         <div className="grp">
           {barButton("patient", "Patient", <Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" />)}
-          {barButton("crew", "Crew", <Icon d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a7 7 0 0 1 14 0m1-1a5 5 0 0 1 5 1" />, { count: String(hereCount), tone: hereCount ? (walkingCount ? "warn" : "go") : "stop" })}
+          {barButton("crew", "Crew", <Icon d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a7 7 0 0 1 14 0m1-1a5 5 0 0 1 5 1" />, { count: String(hereCount), tone: arrestNow && !chestTaken ? "stop" : hereCount ? (walkingCount ? "warn" : "go") : "stop" })}
         </div>
         <i className="sep" />
         <div className="grp">{TABS.map((t) => barButton(t.key, t.label, t.icon, sections[t.key]))}</div>

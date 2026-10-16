@@ -538,7 +538,7 @@ const STRYKER = "#f0b90b";
  *  foot-end control handle with the power buttons, the IV pole folded along
  *  the rail, and the four castors at the corners. `x, y` is the patient's
  *  crown. */
-const Trolley = ({ x, y }: { x: number; y: number }) => {
+export const Trolley = ({ x, y }: { x: number; y: number }) => {
   const W = 0.62, top = y - 0.3, bottom = y + 1.86;
   const L = x - W / 2;
   return (
