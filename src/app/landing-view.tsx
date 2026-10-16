@@ -40,7 +40,7 @@ export function LandingView({ data }: { data: LandingData }) {
           <p>Receive the 999 call, mobilise from Greater Manchester&apos;s real station network and take command of the incident ground. Fire &amp; rescue, ambulance and police operations from a single operator position.</p>
           <div className={styles.actions}>
             {open ? <Link className={styles.primary} href="/signup?prealpha=1">Create an account <Icon.arrow /></Link> : <span className={styles.chip}>Registration opens {opensOn}</span>}
-            <Link className={styles.button} href="/login">Log in</Link>
+            <Link className={styles.button} href="/login">Sign in</Link>
           </div>
           <div className={styles.headMeta} style={{ justifyContent: "flex-start", marginTop: 14 }}>
             <span className={`${styles.chip} ${styles.chipAmber}`}>Closed Pre-Alpha</span>

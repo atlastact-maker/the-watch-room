@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Terms and conditions · The Watch Ro
 
 export default function TermsPage() {
   return (
-    <PublicShell brandLine="Terms and conditions" links={[{ href: "/login", label: "Log in" }, { href: "/signup", label: "Create an account", button: true }]}>
+    <PublicShell brandLine="Terms and conditions" links={[{ href: "/login", label: "Sign in" }, { href: "/signup", label: "Create an account", button: true }]}>
       <TermsView />
     </PublicShell>
   );

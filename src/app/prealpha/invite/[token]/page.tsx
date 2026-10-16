@@ -4,10 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { PublicShell } from "@/app/menu/console-shell";
 import { InviteView, type InviteOutcome } from "./invite-view";
 
-// The invitation link. Logged in as the invited account, the visit is
+// The invitation link. Signed in as the invited account, the visit is
 // the acceptance: the RPC ticks them as a tester and sends them on to
-// the briefing. Logged out, it says what the link is and sends them to
-// log in with the link as the way back.
+// the briefing. Signed out, it says what the link is and sends them to
+// sign in with the link as the way back.
 
 export const metadata: Metadata = { title: "Invitation · The Watch Room" };
 
@@ -33,7 +33,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <PublicShell brandLine="Closed Pre-Alpha" chip="Closed Pre-Alpha" width="narrow" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }]}>
+    <PublicShell brandLine="Closed Pre-Alpha" chip="Closed Pre-Alpha" width="narrow" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }]}>
       <InviteView outcome={outcome} here={`/prealpha/invite/${encodeURIComponent(token)}`} />
     </PublicShell>
   );

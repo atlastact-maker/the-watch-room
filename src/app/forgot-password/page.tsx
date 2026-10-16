@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Reset password · The Watch Room" };
 
 export default function ForgotPasswordPage() {
   return (
-    <PublicShell brandLine="Operator access" width="narrow" links={[{ href: "/login", label: "Log in", button: true }]}>
+    <PublicShell brandLine="Operator access" width="narrow" links={[{ href: "/login", label: "Sign in", button: true }]}>
       <ForgotView />
     </PublicShell>
   );

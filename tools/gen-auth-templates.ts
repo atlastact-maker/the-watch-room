@@ -73,7 +73,24 @@ const changeEmail = emailShell({
   note: "Did not request this? Ignore this message and the address stays as it is. If you are concerned, set a new password from Settings.",
 });
 
+const code = emailShell({
+  site: SITE,
+  siteLabel: "thewtchroom.co.uk",
+  programme: "Your account",
+  eyebrow: "Account · Sign-in code",
+  heading: "Your sign-in code",
+  preheader: "Your one-time sign-in code for The Watch Room.",
+  paragraphs: [
+    "Enter this code on the sign-in page. It can be used once and expires within the hour.",
+    "The button below signs you in directly on the device that opens it.",
+  ],
+  code: "{{ .Token }}",
+  cta: { label: "Sign in", href: `${SITE}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/menu` },
+  note: "Did not request a code? Ignore this message. Nobody can sign in without it, and the account is unchanged.",
+});
+
 fs.writeFileSync(path.join(out, "confirm-signup.html"), header("Confirm signup") + confirm + "\n");
 fs.writeFileSync(path.join(out, "reset-password.html"), header("Reset password") + reset + "\n");
 fs.writeFileSync(path.join(out, "change-email.html"), header("Change Email Address") + changeEmail + "\n");
-console.log("wrote supabase/templates/confirm-signup.html, reset-password.html and change-email.html");
+fs.writeFileSync(path.join(out, "magic-link.html"), header("Magic Link") + code + "\n");
+console.log("wrote supabase/templates/confirm-signup.html, reset-password.html, change-email.html and magic-link.html");

@@ -7,9 +7,9 @@ export type InviteOutcome = "invalid" | "expired" | "wrong_account" | "not_ready
 export function InviteView({ outcome, here }: { outcome: InviteOutcome; here: string }) {
   const content =
     outcome === null
-      ? { title: "Invitation to the Pre-Alpha", body: "This link opens the Pre-Alpha to the account it was sent to. Log in and the invitation is accepted; the briefing is on the other side.", actions: <><Link className={styles.primary} href={`/login?next=${encodeURIComponent(here)}`}>Log in to accept <Icon.arrow /></Link><Link className={styles.button} href="/prealpha">About the Pre-Alpha</Link></> }
+      ? { title: "Invitation to the Pre-Alpha", body: "This link opens the Pre-Alpha to the account it was sent to. Sign in and the invitation is accepted; the briefing is on the other side.", actions: <><Link className={styles.primary} href={`/login?next=${encodeURIComponent(here)}`}>Sign in to accept <Icon.arrow /></Link><Link className={styles.button} href="/prealpha">About the Pre-Alpha</Link></> }
       : outcome === "wrong_account"
-        ? { title: "Wrong account", body: "This invitation was sent to a different email address. Log out, log in as the account the email went to, and open the link again.", actions: <Link className={styles.button} href="/standby">Back to your account</Link> }
+        ? { title: "Wrong account", body: "This invitation was sent to a different email address. Sign out, sign in as the account the email went to, and open the link again.", actions: <Link className={styles.button} href="/standby">Back to your account</Link> }
         : outcome === "expired"
           ? { title: "This link has expired", body: "Invitations last thirty days. Ask on the Discord, or request access from your standing page, and a fresh one will be sent.", actions: <Link className={styles.primary} href="/standby">Request access <Icon.arrow /></Link> }
           : outcome === "not_ready"

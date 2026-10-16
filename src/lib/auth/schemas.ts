@@ -88,6 +88,15 @@ export const AdvisorSchema = z.object({
 
 export type AdvisorAnswers = z.infer<typeof AdvisorSchema>;
 
+export const CodeRequestSchema = z.object({
+  email: z.email({ error: "Enter a valid email." }).trim(),
+});
+
+export const CodeVerifySchema = z.object({
+  email: z.email({ error: "Enter a valid email." }).trim(),
+  token: z.string().trim().regex(/^[0-9]{6}$/, { error: "Enter the six-digit code from the message." }),
+});
+
 export const ForgotPasswordSchema = z.object({
   email: z.email({ error: "Enter a valid email." }).trim(),
 });
@@ -113,6 +122,10 @@ export type AuthFormState =
       needsConfirmation?: boolean;
       /** Positive feedback line (e.g. reset email sent). */
       message?: string;
+      /** Sign-in refused because this address has not confirmed its email. */
+      unconfirmed?: string;
+      /** A sign-in code has been requested for this address. */
+      codeSent?: string;
       errors?: {
         callsign?: string[];
         email?: string[];
@@ -127,6 +140,7 @@ export type AuthFormState =
         advisorInvolvement?: string[];
         advisorNotes?: string[];
         advisorDiscord?: string[];
+        token?: string[];
         form?: string[];
       };
     }

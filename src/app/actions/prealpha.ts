@@ -16,7 +16,7 @@ export async function requestPreAlphaAccess(): Promise<PreAlphaFormState> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, message: "Log in first." };
+  if (!user) return { ok: false, message: "Sign in first." };
   const result = await filePreAlphaRequest(supabase, user);
   if (!result.ok) return { ok: false, message: result.message };
   // Remember the ask on the account too, so a row that goes missing (a

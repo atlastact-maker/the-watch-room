@@ -18,7 +18,7 @@ export function ResetPasswordForm() {
       {state?.errors?.confirm?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
       {state?.errors?.form?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
       <div className={styles.actions}>
-        <button type="submit" className={`${styles.primary} ${styles.fullWidth}`} disabled={pending}>{pending ? "Saving…" : "Set password and log in"} <Icon.arrow /></button>
+        <button type="submit" className={`${styles.primary} ${styles.fullWidth}`} disabled={pending}>{pending ? "Saving…" : "Set password and sign in"} <Icon.arrow /></button>
       </div>
     </form>
   );

@@ -75,7 +75,7 @@ export const prealphaDoors = cache(async function prealphaDoors(
 
 /** The sign-ups switch (migration 024): closed or open ahead of the
  *  calendar, or empty to follow it. Flipped from /admin; read once per
- *  request. Logged out, the key reads through its own policy; before
+ *  request. Signed out, the key reads through its own policy; before
  *  the migration a logged-out read sees nothing and follows the
  *  calendar, which is what the site did. */
 export const PREALPHA_SIGNUPS_KEY = "prealpha_signups";
@@ -173,7 +173,7 @@ export async function filePreAlphaRequest(
   const signups = await prealphaSignups(supabase);
   if (signups.closed) return { ok: false, message: signups.closes ? `Sign-ups closed on ${signups.closes}.` : "Sign-ups for the Pre-Alpha are closed." };
   if (!signups.open) return { ok: false, message: "Sign-ups are not open yet." };
-  if (!user.email) return { ok: false, message: "Log in first." };
+  if (!user.email) return { ok: false, message: "Sign in first." };
   const meta = (user.user_metadata ?? {}) as { callsign?: unknown; advisor_discord?: unknown };
   const row = {
     user_id: user.id,

@@ -23,7 +23,7 @@ export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false
   if (state?.needsConfirmation) {
     return (
       <Notice tone="ok" title="Confirm the email address">
-        <p>A confirmation link has been sent to the address given. Open it and the account is live; then log in.</p>
+        <p>A confirmation link has been sent to the address given. Open it and the account is live; then sign in.</p>
         <p>Nothing after a couple of minutes? Check the spam folder.</p>
       </Notice>
     );

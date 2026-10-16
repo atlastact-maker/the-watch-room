@@ -15,6 +15,8 @@ import { AdvisorQuestions, type AdvisorDefaults } from "@/app/components/advisor
 import { advisorStanding, type AdvisorStanding } from "@/lib/auth/advisor-standing";
 import { Icon } from "@/app/menu/icons";
 import styles from "@/app/menu/watch-menu.module.css";
+import { connectDiscord } from "@/lib/auth/actions";
+import { Notice } from "@/app/components/notice";
 
 const configured = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SAVE_FAILED = "Could not save. Try again.";
@@ -23,7 +25,7 @@ const SAVE_FAILED = "Could not save. Try again.";
 // toggle bumps a counter to re-read it. The server render says "on".
 const noSubscribe = () => () => {};
 
-export function SettingsView() {
+export function SettingsView({ discordEnabled = false, discordNotice }: { discordEnabled?: boolean; discordNotice?: "linked" | "failed" } = {}) {
   const [callsign, setCallsign] = useState("");
   const [initialCallsign, setInitialCallsign] = useState<string | null>(null);
   const [discord, setDiscord] = useState("");
@@ -193,6 +195,16 @@ export function SettingsView() {
               <button type="button" className={styles.primary} onClick={saveDiscord} disabled={!configured || savingDiscord || discord.trim() === (initialDiscord ?? "")}>{savingDiscord ? "Saving…" : "Save"}</button>
             </div>
             <p className={styles.formStatus} role="status">{discordMsg}</p>
+            {discordEnabled && (
+              <>
+                <p className={styles.hint}>Or connect the Discord account itself: the handle is read from Discord and this account can then sign in with Discord.</p>
+                <form action={connectDiscord} className={styles.actions}>
+                  <button type="submit" className={`${styles.button} ${styles.small}`}>Connect Discord</button>
+                </form>
+              </>
+            )}
+            {discordNotice === "linked" && <Notice tone="ok" title="Discord connected"><p>The Discord account is linked and its handle is on record.</p></Notice>}
+            {discordNotice === "failed" && <Notice tone="critical" title="Discord could not be connected"><p>Discord did not complete the connection, or connecting accounts is not switched on for this site yet. The handle can be typed above instead.</p></Notice>}
           </section>
 
           <section className={styles.panel}>

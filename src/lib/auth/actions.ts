@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { filePreAlphaRequest, prealphaSignups } from "@/lib/prealpha";
 import {
   AdvisorSchema,
+  CodeRequestSchema,
+  CodeVerifySchema,
   ForgotPasswordSchema,
   LoginSchema,
   ResetPasswordSchema,
@@ -26,16 +28,100 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    return { errors: { form: [error.message] } };
+    // An unconfirmed address gets its own answer, with the way out.
+    if (error.code === "email_not_confirmed" || /not confirmed/i.test(error.message)) {
+      return { unconfirmed: parsed.data.email };
+    }
+    return { errors: { form: [friendlyAuthError(error.message)] } };
   }
+  redirect(safeNext(formData.get("next")));
+}
 
-  // A link that needed a session first (a Pre-Alpha invitation, say)
-  // comes back here as ?next=. Only a path on this site is honoured.
-  const next = formData.get("next");
-  if (typeof next === "string" && /^\/(?!\/)[\w\-./?=&%]*$/.test(next)) {
-    redirect(next);
-  }
-  redirect("/menu");
+/** A link that needed a session first (a Pre-Alpha invitation, say)
+ *  comes back as ?next=. Only a path on this site is honoured. */
+function safeNext(next: FormDataEntryValue | null): string {
+  return typeof next === "string" && /^\/(?!\/)[\w\-./?=&%]*$/.test(next) ? next : "/menu";
+}
+
+/** Supabase's error text in the console's own words. The sign-in error
+ *  does not say which of the address or the password was wrong. */
+function friendlyAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login credentials") || m.includes("invalid_credentials")) return "The email address or password is not recognised. Check both and try again.";
+  if (m.includes("rate limit") || m.includes("too many requests") || m.includes("security purposes")) return "Too many attempts in a short time. Wait a minute and try again.";
+  if (m.includes("fetch failed") || m.includes("network") || m.includes("econnrefused") || m.includes("url and key are required")) return "The account service could not be reached. Try again in a moment.";
+  if (m.includes("not enabled") || m.includes("unsupported provider") || m.includes("provider is not")) return "That sign-in method is not switched on for this site yet.";
+  if (m.includes("manual linking")) return "Connecting an account is not switched on for this site yet.";
+  return /[.!?]$/.test(message) ? message : `${message}.`;
+}
+
+/** Sends the confirmation message again for an address that has not
+ *  confirmed. The reply is the same whatever the address, so it does not
+ *  say which addresses hold accounts. */
+export async function resendConfirmation(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const parsed = CodeRequestSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+  const supabase = await createClient();
+  const origin = await siteOrigin();
+  const { error } = await supabase.auth.resend({ type: "signup", email: parsed.data.email, options: { emailRedirectTo: `${origin}/auth/confirm` } });
+  if (error && !/already confirmed|not found/i.test(error.message)) return { errors: { form: [friendlyAuthError(error.message)] } };
+  return { ok: true, message: `If ${parsed.data.email} holds an unconfirmed account, a new confirmation message has been sent to it.` };
+}
+
+/** Sign in by emailed code: step one, the code. An address with no
+ *  account gets the same answer as one with. */
+export async function requestSignInCode(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const parsed = CodeRequestSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
+  const supabase = await createClient();
+  const origin = await siteOrigin();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: parsed.data.email,
+    options: { shouldCreateUser: false, emailRedirectTo: `${origin}/auth/confirm?next=/menu` },
+  });
+  if (error && !/signups not allowed|not found/i.test(error.message)) return { errors: { form: [friendlyAuthError(error.message)] } };
+  return { codeSent: parsed.data.email };
+}
+
+/** Sign in by emailed code: step two, the six digits. */
+export async function verifySignInCode(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
+  const email = String(formData.get("email") ?? "");
+  const parsed = CodeVerifySchema.safeParse({ email, token: formData.get("token") });
+  if (!parsed.success) return { codeSent: email, errors: parsed.error.flatten().fieldErrors };
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({ email: parsed.data.email, token: parsed.data.token, type: "email" });
+  if (error) return { codeSent: email, errors: { token: ["That code is not valid or has expired. Request another and try again."] } };
+  redirect(safeNext(formData.get("next")));
+}
+
+/** "Continue with Discord": hands the browser to Discord; Supabase brings
+ *  it back to /auth/confirm with a code to exchange. Needs the Discord
+ *  provider enabled on the Supabase project. */
+export async function signInWithDiscord(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const origin = await siteOrigin();
+  const next = safeNext(formData.get("next"));
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "discord",
+    options: { redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}`, skipBrowserRedirect: true, scopes: "identify email" },
+  });
+  if (error || !data.url) redirect("/login?error=discord_unavailable");
+  redirect(data.url);
+}
+
+/** "Connect Discord" from Settings: links the Discord identity to the
+ *  signed-in account, so the handle is read from Discord itself and the
+ *  account can sign in with it. Needs manual linking enabled on the
+ *  Supabase project. */
+export async function connectDiscord(): Promise<void> {
+  const supabase = await createClient();
+  const origin = await siteOrigin();
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider: "discord",
+    options: { redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent("/settings?discord=linked")}`, skipBrowserRedirect: true, scopes: "identify email" },
+  });
+  if (error || !data.url) redirect("/settings?discord=failed");
+  redirect(data.url);
 }
 
 export async function signup(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -132,7 +218,7 @@ export async function saveAdvisorProfile(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { errors: { form: ["Log in to register as an advisor."] } };
+    return { errors: { form: ["Sign in to register as an advisor."] } };
   }
 
   const callsign =

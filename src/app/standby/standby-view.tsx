@@ -54,7 +54,7 @@ export function StandbyView({ data }: { data: StandbyData }) {
         <h2 className={styles.panelTitle}>Tester access</h2>
         {listed ? (
           <Notice tone="ok" title="This account is on the Pre-Alpha">
-            <p>{doorsOpen ? "The desk is open to this account. If the operator console does not open, log out and back in." : "The doors are not open yet. They open to every tester at once, and an email is sent the moment they do. The briefing covers what is coming and how a shift runs."}</p>
+            <p>{doorsOpen ? "The desk is open to this account. If the operator console does not open, sign out and back in." : "The doors are not open yet. They open to every tester at once, and an email is sent the moment they do. The briefing covers what is coming and how a shift runs."}</p>
           </Notice>
         ) : prealpha.standing === "pending" ? (
           <Notice tone="amber" title="Request received">

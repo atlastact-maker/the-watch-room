@@ -23,7 +23,7 @@ export function ResetView({ email }: { email: string | null }) {
           <Notice tone="critical" title="This reset link is invalid or has expired"><p>Request a new link and open it from the email within the hour.</p></Notice>
           <div className={styles.actions}>
             <Link className={styles.primary} href="/forgot-password">Request a new link <Icon.arrow /></Link>
-            <Link className={styles.button} href="/login">Log in</Link>
+            <Link className={styles.button} href="/login">Sign in</Link>
           </div>
         </>
       )}

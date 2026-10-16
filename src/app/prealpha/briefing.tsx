@@ -146,11 +146,11 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
             <p className={styles.muted}>Pre-Alpha access is being set up. Try again shortly.</p>
           ) : !signedIn ? (
             <>
-              <p className={styles.muted}>Create an account and select <strong>Join the Pre-Alpha</strong> at registration. With an existing account, log in and request access. Access is granted by hand; the request&apos;s standing shows here and an email is sent when the desk is open to the account.</p>
+              <p className={styles.muted}>Create an account and select <strong>Join the Pre-Alpha</strong> at registration. With an existing account, sign in and request access. Access is granted by hand; the request&apos;s standing shows here and an email is sent when the desk is open to the account.</p>
               {signups.closes && <p className={styles.formStatus}>Sign-ups close on {signups.closes}.</p>}
               <div className={styles.actions}>
                 <Link href="/signup?prealpha=1" className={styles.primary}>Create an account <Icon.arrow /></Link>
-                <Link href="/login" className={styles.button}>Log in</Link>
+                <Link href="/login" className={styles.button}>Sign in</Link>
               </div>
             </>
           ) : standing === "declined" ? (

@@ -19,7 +19,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return (
-    <PublicShell brandLine="Operator access" width="narrow" links={[{ href: "/login", label: "Log in", button: true }]}>
+    <PublicShell brandLine="Operator access" width="narrow" links={[{ href: "/login", label: "Sign in", button: true }]}>
       <ResetView email={user?.email ?? null} />
     </PublicShell>
   );

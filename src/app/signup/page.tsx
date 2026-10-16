@@ -12,7 +12,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const open = signupOpen();
   const signups = await prealphaSignups(await createClient());
   return (
-    <PublicShell brandLine="Operator registration" width="narrow" links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }]}>
+    <PublicShell brandLine="Operator registration" width="narrow" links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }]}>
       <SignupView
         data={{
           open,

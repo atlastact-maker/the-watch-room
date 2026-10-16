@@ -59,6 +59,8 @@ export type EmailSpec = {
   paragraphs: string[];
   /** Label and value rows in a panel, the way the console states facts. */
   facts?: { label: string; value: string }[];
+  /** A one-time code, set large. */
+  code?: string;
   cta?: { label: string; href: string };
   /** Print the button's address under it, for clients that strip links. */
   showLink?: boolean;
@@ -117,6 +119,16 @@ export function emailShell(spec: EmailSpec): string {
               </tr>`,
                 )
                 .join("\n              ")}
+            </table>`
+    : "";
+
+  const code = spec.code
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="${C.panel2}" style="background:${C.panel2};border:1px solid ${C.line};border-radius:4px;margin:4px 0 18px;">
+              <tr>
+                <td align="center" style="padding:18px 16px;">
+                  <span style="font-family:${MONO};font-size:30px;line-height:1;letter-spacing:10px;font-weight:600;color:${C.text};">${spec.code}</span>
+                </td>
+              </tr>
             </table>`
     : "";
 
@@ -189,7 +201,7 @@ export function emailShell(spec: EmailSpec): string {
             <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;letter-spacing:3px;text-transform:uppercase;color:${C.amber};">${spec.eyebrow ?? spec.programme}</p>
             <h1 style="margin:0 0 12px;font-family:${SANS};font-size:23px;line-height:1.3;color:${C.text};font-weight:600;letter-spacing:-0.01em;">${spec.heading}</h1>
             ${stamp}${lede}${spec.paragraphs.map((x, i) => p(x, i === spec.paragraphs.length - 1 ? 16 : 14)).join("\n            ")}
-            ${facts}
+            ${facts}${code}
           </td>
         </tr>
         ${cta}

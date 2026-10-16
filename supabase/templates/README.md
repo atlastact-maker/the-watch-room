@@ -1,6 +1,6 @@
 # Auth email templates
 
-The three auth emails. Generated from the same shell as every other email
+The four auth emails. Generated from the same shell as every other email
 the site sends (`src/lib/email/layout.ts`) by `npm run email:templates`,
 so the inbox sees one sender; edit the shell or the copy in
 `tools/gen-auth-templates.ts`, regenerate, and paste. Supabase does not
@@ -16,8 +16,14 @@ template, paste the file's contents into *Message body*, save.
 | `confirm-signup.html` | Confirm signup | Confirm your email — The Watch Room |
 | `reset-password.html` | Reset password | Set a new password — The Watch Room |
 | `change-email.html` | Change Email Address | Confirm your new email — The Watch Room |
+| `magic-link.html` | Magic Link | Your sign-in code — The Watch Room |
 
-Both use the `token_hash` link style, which calls `/auth/confirm` on the
+The Magic Link template carries `{{ .Token }}`, so Supabase sends a
+six-digit code for the sign-in page's "emailed code" option as well as
+the direct sign-in button; the code's lifetime is the project's OTP
+expiry setting (Authentication → Sign In / Providers → Email).
+
+All of them use the `token_hash` link style, which calls `/auth/confirm` on the
 site directly instead of bouncing through Supabase's verify endpoint
 first. One hop, and it does not depend on the Redirect URLs allowlist.
 `/auth/confirm` also still accepts the `?code=` style, so switching back

@@ -31,7 +31,7 @@ export type ConsoleUser = {
 
 function LogoutButton() {
   const { pending } = useFormStatus();
-  return <button className={styles.logout} disabled={pending} type="submit">{pending ? "Signing out…" : "Log out"}</button>;
+  return <button className={styles.logout} disabled={pending} type="submit">{pending ? "Signing out…" : "Sign out"}</button>;
 }
 
 export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active, title, children }: ConsoleUser & { active: NavKey; title: string; children: React.ReactNode }) {

@@ -54,17 +54,17 @@ const CONSOLE: Record<ConsolePage, { title: string; nav: NavKey }> = {
   settings: { title: "Settings", nav: "settings" },
   briefing: { title: "Pre-Alpha briefing", nav: "briefing" },
 };
-const AUTH_LINKS: PublicLink[] = [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }];
+const AUTH_LINKS: PublicLink[] = [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }];
 const PUBLIC: Record<PublicPage, { brandLine: string; width: "narrow" | "page" | "wide"; links: PublicLink[]; chip?: string }> = {
-  landing: { brandLine: "Incident management simulator", width: "wide", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
+  landing: { brandLine: "Incident management simulator", width: "wide", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
   login: { brandLine: "Operator access", width: "narrow", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
   signup: { brandLine: "Operator registration", width: "narrow", links: AUTH_LINKS },
-  forgot: { brandLine: "Operator access", width: "narrow", links: [{ href: "/login", label: "Log in", button: true }] },
-  reset: { brandLine: "Operator access", width: "narrow", links: [{ href: "/login", label: "Log in", button: true }] },
-  terms: { brandLine: "Terms and conditions", width: "page", links: [{ href: "/login", label: "Log in" }, { href: "/signup", label: "Create an account", button: true }] },
+  forgot: { brandLine: "Operator access", width: "narrow", links: [{ href: "/login", label: "Sign in", button: true }] },
+  reset: { brandLine: "Operator access", width: "narrow", links: [{ href: "/login", label: "Sign in", button: true }] },
+  terms: { brandLine: "Terms and conditions", width: "page", links: [{ href: "/login", label: "Sign in" }, { href: "/signup", label: "Create an account", button: true }] },
   standby: { brandLine: "Standing by", width: "page", chip: "Closed Pre-Alpha", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/settings", label: "Account settings", button: true }] },
   invite: { brandLine: "Closed Pre-Alpha", width: "narrow", chip: "Closed Pre-Alpha", links: AUTH_LINKS },
-  "briefing-visitor": { brandLine: "Closed Pre-Alpha", width: "page", links: [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
+  "briefing-visitor": { brandLine: "Closed Pre-Alpha", width: "page", links: [{ href: "/login", label: "Sign in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
   "briefing-waiting": { brandLine: "Closed Pre-Alpha", width: "page", links: [{ href: "/standby", label: "Your standing", button: true }] },
 };
 const isConsole = (v: string | null): v is ConsolePage => v !== null && v in CONSOLE;
@@ -95,7 +95,7 @@ export default function MenuHarness() {
     return (
       <PublicShell brandLine={shell.brandLine} width={shell.width} links={shell.links} chip={shell.chip}>
         {page === "landing" && <LandingView data={{ open: true, opensOn: "1 September", signups: SIGNUPS, facts, stations }} />}
-        {page === "login" && <LoginView error={param("error") ?? undefined} />}
+        {page === "login" && <LoginView error={param("error") ?? undefined} discordEnabled={param("discord") === "1"} />}
         {page === "signup" && <SignupView data={{ open: true, opensOn: "Tuesday 1 September", prealpha: true, advisor: param("advisor") === "1", signups: { open: true, closes: SIGNUPS.closes } }} />}
         {page === "forgot" && <ForgotView />}
         {page === "reset" && <ResetView email={param("expired") === "1" ? null : "operator@example.test"} />}

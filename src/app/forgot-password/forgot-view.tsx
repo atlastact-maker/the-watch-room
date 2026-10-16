@@ -15,7 +15,7 @@ export function ForgotView() {
       <section className={`${styles.panel} ${styles.section}`}>
         <ForgotPasswordForm />
       </section>
-      <p className={`${styles.muted} ${styles.section}`}>Password remembered? <Link className={styles.textLink} href="/login">Log in</Link>.</p>
+      <p className={`${styles.muted} ${styles.section}`}>Password remembered? <Link className={styles.textLink} href="/login">Sign in</Link>.</p>
     </>
   );
 }

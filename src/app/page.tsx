@@ -36,7 +36,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
   return (
     <PublicShell
       width="wide"
-      links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }, ...(open ? [{ href: "/signup?prealpha=1", label: "Create an account", primary: true }] : [])]}
+      links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }, ...(open ? [{ href: "/signup?prealpha=1", label: "Create an account", primary: true }] : [])]}
     >
       <LandingView
         data={{

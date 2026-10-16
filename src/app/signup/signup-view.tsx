@@ -37,7 +37,7 @@ export function SignupView({ data }: { data: SignupData }) {
           <p className={styles.muted}>Until then, development continues in the open on the <a className={styles.textLink} href={COMMUNITY} target="_blank" rel="noreferrer">Discord</a>.</p>
         )}
       </section>
-      <p className={`${styles.muted} ${styles.section}`}>Existing account? <Link className={styles.textLink} href="/login">Log in</Link>.</p>
+      <p className={`${styles.muted} ${styles.section}`}>Existing account? <Link className={styles.textLink} href="/login">Sign in</Link>.</p>
     </>
   );
 }
