@@ -101,7 +101,7 @@ export default function MenuHarness() {
         {page === "forgot" && <ForgotView />}
         {page === "reset" && <ResetView email={param("expired") === "1" ? null : "operator@example.test"} />}
         {page === "terms" && <TermsView />}
-        {page === "standby" && <StandbyView data={{ callsign: "OSCAR 21", advisor: (param("advisor") as "pending" | "accepted" | "none" | null) ?? "pending", listed: param("listed") === "1", doorsOpen: false, prealpha: { standing: param("listed") === "1" ? "accepted" : "none", tableMissing: false }, signups: SIGNUPS, insignia: "fire", programmeOpen: true, opensOn: "Tuesday 1 September" }} />}
+        {page === "standby" && <StandbyView data={{ callsign: "OSCAR 21", advisor: (param("advisor") as "pending" | "accepted" | "none" | null) ?? "pending", listed: param("listed") === "1" || param("viewas") === "1", doorsOpen: false, prealpha: { standing: param("listed") === "1" || param("viewas") === "1" ? "accepted" : "none", tableMissing: false }, signups: SIGNUPS, insignia: "fire", programmeOpen: true, opensOn: "Tuesday 1 September", testerView: param("viewas") === "1" }} />}
         {page === "invite" && <InviteView outcome={null} here="/prealpha/invite/00000000-0000-0000-0000-000000000000" />}
         {page === "briefing-visitor" && <PreAlphaBriefing data={{ ...BRIEFING, accepted: false, waiting: false, operator: false, standing: "none", signedIn: false, openJobs: [] }} />}
         {page === "briefing-waiting" && <PreAlphaBriefing data={{ ...BRIEFING, accepted: true, waiting: true, operator: false, invited: param("invited") === "1", standing: "accepted", signedIn: true }} />}

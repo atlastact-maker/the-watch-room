@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
-import { viewingAsTester } from "@/lib/auth/view-as";
+import { effectiveShiftAccess } from "@/lib/auth/view-as";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import type { Appliance, AreaCode, Station } from "@/lib/sim/types";
 import { DashboardClient } from "./dashboard-client";
@@ -13,15 +12,15 @@ export default async function DashboardPage() {
   // same answer, not a second round trip.
   const { supabase, user } = await currentUser();
   if (!user) redirect("/login");
-  // Same lock as the menu — the dashboard is the shift, so it holds too.
-  if (!(await hasShiftAccess(supabase, user.email))) redirect("/standby");
+  // Same lock as the menu — the dashboard is the shift, so it holds too,
+  // and an admin viewing as a tester meets the tester's door.
+  const { hasShift, realAdmin, asTester } = await effectiveShiftAccess(supabase, user.email);
+  if (!hasShift) redirect("/standby");
 
   // A tester's desk only draws from the released scenarios; an admin's
   // draws from all of them. Before migration 018 the table is missing and
   // the query errors, which reads as "nothing released" for a tester —
   // the safe way round.
-  const realAdmin = await hasAdminAccess(supabase, user.email);
-  const asTester = realAdmin && (await viewingAsTester());
   const admin = realAdmin && !asTester;
   let releasedScenarioIds: string[] | null = null;
   if (!admin) {

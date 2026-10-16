@@ -24,6 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Pre-arrival advice is scored: the key instructions, compressions and the defibrillator on an arrest, count on the debrief alongside the key questions.",
       "A patient whose output came back before the crew arrived is post-ROSC from the first look: the stage says so and the care screen shows the post-ROSC targets.",
       "Hough End: the coach names the same players the records hold.",
+      "View as tester shows the closed door too: while the doors are shut it lands on the standing-by page as a tester does, with Admin view to return.",
     ],
   },
   {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
+import { isTester } from "@/lib/auth/operator-access";
+import { effectiveShiftAccess } from "@/lib/auth/view-as";
 import { ensurePreAlphaRequest, prealphaOpensLabel, prealphaSignups, programmeClock } from "@/lib/prealpha";
 import { PREALPHA_ACCESS_STEPS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_KEY_DATES, PREALPHA_NOT_YET, PREALPHA_OPENING_SCENARIOS, PREALPHA_RELEASE_AT, PREALPHA_RELEASE_LABEL } from "@/lib/prealpha-programme";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
@@ -23,10 +24,14 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
   const { data: { user } } = await supabase.auth.getUser();
   const signups = await prealphaSignups(supabase);
   const { standing, application, tableMissing } = await ensurePreAlphaRequest(supabase, user);
-  const inAlready = user ? await hasShiftAccess(supabase, user.email) : false;
-  const admin = user ? await hasAdminAccess(supabase, user.email) : false;
+  // An admin viewing as a tester reads the briefing as an accepted
+  // tester does: on the list, and through the door only when it is open.
+  const access = user ? await effectiveShiftAccess(supabase, user.email) : null;
+  const asTester = access?.asTester ?? false;
+  const inAlready = access?.hasShift ?? false;
+  const admin = (access?.realAdmin ?? false) && !asTester;
   const onList = user ? (await isTester(supabase, user.email)).tester : false;
-  const accepted = standing === "accepted" || onList || inAlready || admin;
+  const accepted = standing === "accepted" || onList || inAlready || admin || asTester;
   const operator = inAlready || admin;
   // On the list, but the doors are closed: the briefing without the door.
   const waiting = accepted && !operator;

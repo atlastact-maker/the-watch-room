@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { hasAdminAccess, hasShiftAccess } from "./operator-access";
+import { hasAdminAccess } from "./operator-access";
+import { effectiveShiftAccess } from "./view-as";
 
 // Closed site: the advisor programme is the only thing open. Everything
 // that is not the landing page, the signup/auth flow, or a signed-in
@@ -41,9 +42,10 @@ export async function requireSession(): Promise<void> {
 // This is the gate for the parts of the site that belong to the game
 // rather than to the account: the sim, its reference material, and the
 // service record. An advisor who follows a link to one lands back on
-// their own standing rather than on an error.
+// their own standing rather than on an error. An admin viewing as a
+// tester meets the tester's door here too.
 export async function requireShift(): Promise<void> {
   const { supabase, user } = await currentUser();
   if (!user) redirect("/login");
-  if (!(await hasShiftAccess(supabase, user.email))) redirect("/standby");
+  if (!(await effectiveShiftAccess(supabase, user.email)).hasShift) redirect("/standby");
 }

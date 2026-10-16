@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/lib/auth/actions";
+import { setViewAs } from "@/app/actions/view-as";
+import { effectiveShiftAccess } from "@/lib/auth/view-as";
 import { accessProfile, isTester, resolveInsignia } from "@/lib/auth/operator-access";
 import { advisorStanding } from "@/lib/auth/advisor-standing";
 import { SIGNUP_OPENS_AT, signupOpen } from "@/lib/auth/signup-window";
@@ -33,7 +35,7 @@ export default async function StandbyPage() {
   const standing = await advisorStanding(supabase, user, role);
   const prealpha = await ensurePreAlphaRequest(supabase, user);
   const signups = await prealphaSignups(supabase);
-  const [{ tester: onList }, doors] = await Promise.all([isTester(supabase, user.email), prealphaDoors(supabase)]);
+  const [{ tester: onList }, doors, { asTester }] = await Promise.all([isTester(supabase, user.email), prealphaDoors(supabase), effectiveShiftAccess(supabase, user.email)]);
   const metadata = user.user_metadata ?? {};
   const callsign = typeof metadata.callsign === "string" ? metadata.callsign : "";
   // Accepted advisors wear the insignia of the service off their
@@ -45,7 +47,16 @@ export default async function StandbyPage() {
       brandLine="Standing by"
       chip="Closed Pre-Alpha"
       links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/settings", label: "Account settings", button: true }]}
-      actions={<form action={logout}><button type="submit" className={styles.textButton}>Sign out</button></form>}
+      actions={<>
+        {asTester && (
+          <form action={setViewAs}>
+            <input type="hidden" name="mode" value="admin" />
+            <input type="hidden" name="next" value="/menu" />
+            <button type="submit" className={styles.textButton} title="Return to the administrator view">Admin view</button>
+          </form>
+        )}
+        <form action={logout}><button type="submit" className={styles.textButton}>Sign out</button></form>
+      </>}
     >
       {/* Files an application that only ever reached user_metadata: applicants are held here, so this is where it has to run. */}
       {standing === "unfiled" && <AdvisorSync />}
@@ -53,9 +64,11 @@ export default async function StandbyPage() {
         data={{
           callsign,
           advisor: standing,
-          listed: onList || prealpha.standing === "accepted",
+          // An admin viewing as a tester stands here as an accepted tester does.
+          listed: asTester || onList || prealpha.standing === "accepted",
           doorsOpen: doors.open,
-          prealpha: { standing: prealpha.standing, tableMissing: prealpha.tableMissing },
+          prealpha: { standing: asTester ? "accepted" : prealpha.standing, tableMissing: prealpha.tableMissing },
+          testerView: asTester,
           signups: { open: signups.open, closed: signups.closed, closes: signups.closes, opens: signups.opens || prealphaOpensLabel() },
           insignia,
           programmeOpen: signupOpen(),

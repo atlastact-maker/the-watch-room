@@ -27,6 +27,8 @@ export type StandbyData = {
   /** The advisor programme is taking applications. */
   programmeOpen: boolean;
   opensOn: string;
+  /** A real admin looking at this page as a tester would. */
+  testerView?: boolean;
 };
 
 const ADVISOR_CHIP: Record<AdvisorStanding, { text: string; cls: string } | null> = {
@@ -38,10 +40,17 @@ const ADVISOR_CHIP: Record<AdvisorStanding, { text: string; cls: string } | null
 };
 
 export function StandbyView({ data }: { data: StandbyData }) {
-  const { callsign, advisor, listed, doorsOpen, prealpha, signups, insignia, programmeOpen, opensOn } = data;
+  const { callsign, advisor, listed, doorsOpen, prealpha, signups, insignia, programmeOpen, opensOn, testerView } = data;
   const chip = ADVISOR_CHIP[advisor];
   return (
     <>
+      {testerView && (
+        <div style={{ marginBottom: 20 }}>
+          <Notice tone="amber" title="Tester view">
+            <p>This is what an accepted tester sees while the doors are closed: this page, the briefing and account settings, and no desk. Admin view in the top bar returns to the console.</p>
+          </Notice>
+        </div>
+      )}
       <header className={styles.pageHead}>
         <div>
           <p className={styles.eyebrow}>Account standing · closed Pre-Alpha</p>

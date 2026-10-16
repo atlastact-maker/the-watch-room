@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
-import { hasAdminAccess, hasShiftAccess } from "@/lib/auth/operator-access";
-import { viewingAsTester } from "@/lib/auth/view-as";
+import { effectiveShiftAccess } from "@/lib/auth/view-as";
 import type { ConsoleUser } from "./console-shell";
 
 // Who is sitting at the console, resolved once for every page of it:
@@ -14,13 +13,9 @@ export type ConsoleSession = ConsoleUser & { userId: string; hasShift: boolean; 
 export async function consoleSessionIfSignedIn(): Promise<ConsoleSession | null> {
   const { supabase, user } = await currentUser();
   if (!user) return null;
-  const [hasShift, realAdmin, testerCookie] = await Promise.all([
-    hasShiftAccess(supabase, user.email),
-    hasAdminAccess(supabase, user.email),
-    viewingAsTester(),
-  ]);
-  // A real admin may be looking at the place as a tester would.
-  const asTester = realAdmin && testerCookie;
+  // A real admin may be looking at the place as a tester would — and
+  // then meets the tester's door: no shift while the doors are closed.
+  const { hasShift, realAdmin, asTester } = await effectiveShiftAccess(supabase, user.email);
   const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
   return {
     userId: user.id,
@@ -35,8 +30,9 @@ export async function consoleSessionIfSignedIn(): Promise<ConsoleSession | null>
 }
 
 /** The console's gate: a signed-in account with shift access. Anyone
- *  else lands on the login page or their own standing. Advisor
- *  acceptance alone never admits a player to the console. */
+ *  else lands on the login page or their own standing — an admin viewing
+ *  as a tester included, while the doors are closed. Advisor acceptance
+ *  alone never admits a player to the console. */
 export async function consoleSession(): Promise<ConsoleSession> {
   const session = await consoleSessionIfSignedIn();
   if (!session) redirect("/login");

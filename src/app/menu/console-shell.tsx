@@ -70,7 +70,7 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
               the switch, so it rides in the nav strip there instead. */}
           {viewAs && (
             <form action={setViewAs} className={`${styles.navSwitch} ${viewAs === "tester" ? styles.navSwitchOn : ""}`}>
-              <input type="hidden" name="mode" value={viewAs === "tester" ? "admin" : "tester"} />
+              <input type="hidden" name="mode" value={viewAs === "tester" ? "admin" : "tester"} />{viewAs !== "tester" && <input type="hidden" name="next" value="/menu" />}
               <button type="submit" title={viewAs === "tester" ? "Return to the administrator view" : "View the console and the desk as a tester"}><Icon.eye /><span>{viewAs === "tester" ? "Admin view" : "View as tester"}</span></button>
             </form>
           )}
@@ -82,7 +82,7 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
           </Link>
           {viewAs && (
             <form action={setViewAs}>
-              <input type="hidden" name="mode" value={viewAs === "tester" ? "admin" : "tester"} />
+              <input type="hidden" name="mode" value={viewAs === "tester" ? "admin" : "tester"} />{viewAs !== "tester" && <input type="hidden" name="next" value="/menu" />}
               <button className={styles.button} type="submit" title={viewAs === "tester" ? "Return to the administrator view" : "View the console and the desk as a tester"}>{viewAs === "tester" ? "Return to admin view" : "View as tester"}</button>
             </form>
           )}
