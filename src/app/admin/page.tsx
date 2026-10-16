@@ -182,6 +182,11 @@ function AdminTabLink({
   );
 }
 
+/** The person's page: their account, standing and service record. */
+function profileHref(userId: string, email?: string): string {
+  return `/admin/user?id=${encodeURIComponent(userId)}${email ? `&e=${encodeURIComponent(email)}` : ""}`;
+}
+
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
@@ -321,6 +326,23 @@ export default async function AdminPage({
   const pending = advisors.filter(
     (a) => a.assigned_role === null && !a.declined_at,
   );
+  // Advisors by account, for the mark on the pre-alpha list: someone who
+  // has filed the advisor questionnaire is who the programme wants in
+  // first, so they are flagged and sorted to the top of the waiting.
+  const advisorByUser = new Map(advisors.map((a) => [a.user_id, a]));
+  const advisorByEmail = new Map(advisors.map((a) => [a.email.toLowerCase(), a]));
+  const advisorOf = (a: { user_id: string; email: string }) => advisorByUser.get(a.user_id) ?? advisorByEmail.get(a.email.toLowerCase());
+  const advisorStanding = (adv: AdvisorRow | undefined): "accepted" | "declined" | "applicant" | null =>
+    !adv ? null : adv.assigned_role === "advisor" || adv.assigned_role === "admin" ? "accepted" : adv.declined_at ? "declined" : "applicant";
+  const sortedTesterApps = [...testerApps].sort((x, y) => {
+    const pendX = x.status === "pending" ? 1 : 0, pendY = y.status === "pending" ? 1 : 0;
+    if (pendX !== pendY) return pendY - pendX;
+    const advX = advisorStanding(advisorOf(x)) && advisorStanding(advisorOf(x)) !== "declined" ? 1 : 0;
+    const advY = advisorStanding(advisorOf(y)) && advisorStanding(advisorOf(y)) !== "declined" ? 1 : 0;
+    if (advX !== advY) return advY - advX;
+    return Date.parse(y.created_at) - Date.parse(x.created_at);
+  });
+  const advisorsWaiting = testerApps.filter((a) => a.status === "pending" && advisorStanding(advisorOf(a)) && advisorStanding(advisorOf(a)) !== "declined").length;
 
   return (
     <div className="relative z-10 min-h-[100dvh] px-4 py-6 font-mono sm:px-6 sm:py-8">
@@ -434,9 +456,9 @@ export default async function AdminPage({
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                          <span className="text-[14px] font-semibold text-(--color-text)">
+                          <Link href={profileHref(a.user_id, a.email)} className="text-[14px] font-semibold text-(--color-text) underline-offset-4 hover:text-(--color-amber) hover:underline" title="Open their profile and service record">
                             {a.callsign || "(no callsign)"}
-                          </span>
+                          </Link>
                           <span className="break-all text-[12px] text-(--color-text-dim)">
                             {a.email}
                           </span>
@@ -662,7 +684,7 @@ export default async function AdminPage({
               <h2 className="text-[12px] uppercase tracking-[0.25em] text-(--color-text)">
                 Pre-alpha access requests
                 <span className="ml-2 font-mono text-[10px] tracking-widest text-(--color-text-dim)">
-                  {pendingTesterApps} waiting · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} in all
+                  {pendingTesterApps} waiting{advisorsWaiting > 0 ? ` (${advisorsWaiting} advisor${advisorsWaiting === 1 ? "" : "s"})` : ""} · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} in all
                 </span>
               </h2>
               {pendingTesterApps > 0 && (
@@ -773,17 +795,34 @@ export default async function AdminPage({
               </p>
             ) : (
               <div className="space-y-3">
-                {testerApps.map((a) => {
+                {sortedTesterApps.map((a) => {
                   const tone = a.status === "accepted" ? "text-(--color-ok)" : a.status === "declined" ? "text-(--color-critical)" : "text-(--color-amber)";
+                  const adv = advisorOf(a);
+                  const standing = advisorStanding(adv);
+                  const advTone = standing === "accepted"
+                    ? "border-(--color-ok)/60 bg-(--color-ok)/10 text-(--color-ok)"
+                    : standing === "applicant"
+                      ? "border-(--color-info)/60 bg-(--color-info)/10 text-(--color-info)"
+                      : "border-(--color-border) text-(--color-text-dim)";
                   return (
-                    <div key={a.user_id} className="rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4">
+                    <div key={a.user_id} className={`rounded-sm border border-(--color-border) bg-(--color-surface)/60 p-4 ${standing && standing !== "declined" ? "border-l-2 border-l-(--color-info)" : ""}`}>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 space-y-1">
                           <div className="flex flex-wrap items-baseline gap-2">
-                            <span className="font-mono text-sm text-(--color-text)">{a.callsign || "(no callsign)"}</span>
+                            <Link href={profileHref(a.user_id, a.email)} className="font-mono text-sm text-(--color-text) underline-offset-4 hover:text-(--color-amber) hover:underline" title="Open their profile and service record">{a.callsign || "(no callsign)"}</Link>
                             <span className="text-[11px] text-(--color-text-dim)">{a.email}</span>
                             {a.discord && <span className="text-[11px] text-(--color-info)">@{a.discord}</span>}
                             <span className={`font-mono text-[10px] uppercase tracking-widest ${tone}`}>{a.status}{a.tester ? " · tester" : ""}</span>
+                            {adv && standing && (
+                              <span
+                                className={`rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest ${advTone}`}
+                                title={standing === "accepted" ? "Holds the advisor role" : standing === "applicant" ? "Has filed the advisor questionnaire — awaiting review on the Applications tab" : "Advisor application declined"}
+                              >
+                                {standing === "accepted" ? "Advisor" : standing === "applicant" ? "Advisor applicant" : "Advisor · declined"}
+                                {adv.service ? ` · ${adv.service}` : ""}
+                                {adv.status ? ` · ${adv.status}` : ""}
+                              </span>
+                            )}
                           </div>
                           <p className="text-[11px] text-(--color-text-dim)">
                             Requested {fmtDate(a.created_at)}{a.decided_at ? ` · decided ${fmtDate(a.decided_at)}` : ""}
@@ -1060,9 +1099,9 @@ export default async function AdminPage({
               {users.map((u) => (
                 <div key={u.user_id} className="px-3 py-2.5 text-[12px]">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-semibold text-(--color-text)">
+                    <Link href={profileHref(u.user_id, u.email)} className="font-semibold text-(--color-text) underline-offset-4 hover:text-(--color-amber) hover:underline" title="Open their profile and service record">
                       {u.callsign ? u.callsign.toUpperCase() : "—"}
-                    </span>
+                    </Link>
                     <span className="break-all text-(--color-text-dim)">{u.email}</span>
                     {u.discord && (
                       <span

@@ -191,6 +191,7 @@ export async function setTester(formData: FormData): Promise<void> {
   }
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
+  revalidatePath("/admin/user");
 }
 
 /** Open or close a scenario to testers. */
@@ -235,6 +236,7 @@ export async function decideTesterApplication(formData: FormData): Promise<void>
     if (!result.sent) console.error(`tester acceptance email not sent to ${email}: ${result.reason}`);
   }
   revalidatePath("/admin");
+  revalidatePath("/admin/user");
   revalidatePath("/prealpha");
 }
 
@@ -377,6 +379,7 @@ export async function setBan(formData: FormData): Promise<void> {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
+  revalidatePath("/admin/user");
 }
 
 /** Permanently remove an account. Cascades take the advisor application
@@ -405,6 +408,7 @@ export async function addAdminNote(formData: FormData): Promise<void> {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
+  revalidatePath("/admin/user");
 }
 
 /** Remove a note. Any admin can delete any note — this is a shared
@@ -419,4 +423,5 @@ export async function deleteAdminNote(formData: FormData): Promise<void> {
   });
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
+  revalidatePath("/admin/user");
 }
