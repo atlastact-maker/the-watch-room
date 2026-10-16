@@ -1,22 +1,20 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { STATIONS, getStationAppliances } from "@/lib/sim/data";
+import type { Metadata } from "next";
 import type { StationWithAppliances } from "@/app/dashboard/page";
-import { GlossaryPageView } from "./glossary-page-view";
+import { ConsoleShell } from "@/app/menu/console-shell";
+import { consoleSession, consoleUser } from "@/app/menu/console-session";
+import { STATIONS, getStationAppliances } from "@/lib/sim/data";
+import { LibraryView } from "./library-view";
+
+export const metadata: Metadata = { title: "Reference library · The Watch Room" };
 
 export default async function GlossaryPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  // Same server-side fleet build as the dashboard, so the Resource
-  // directory tab shows the exact modelled fleet.
-  const stations: StationWithAppliances[] = STATIONS.map((s) => ({
-    ...s,
-    appliances: getStationAppliances(s.id),
-  }));
-
-  return <GlossaryPageView stations={stations} />;
+  const session = await consoleSession();
+  // The same server-side fleet build as the dashboard, so the resource
+  // directory shows the exact modelled fleet.
+  const stations: StationWithAppliances[] = STATIONS.map((s) => ({ ...s, appliances: getStationAppliances(s.id) }));
+  return (
+    <ConsoleShell {...consoleUser(session)} active="library" title="Reference library">
+      <LibraryView stations={stations} />
+    </ConsoleShell>
+  );
 }

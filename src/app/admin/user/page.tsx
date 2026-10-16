@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { ConsoleShell } from "@/app/menu/console-shell";
+import { consoleSession, consoleUser } from "@/app/menu/console-session";
+import styles from "@/app/menu/watch-menu.module.css";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
@@ -273,19 +276,20 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
+  const session = await consoleSession();
 
   const { profile: p, missing025 } = await loadProfile(supabase, id, email);
 
   if (!p) {
     return (
-      <div className="relative z-10 min-h-[100dvh] px-4 py-6 font-mono sm:px-6 sm:py-8">
-        <div className="mx-auto w-full max-w-4xl space-y-4">
-          <Link href="/admin?tab=users" className="text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)">← Admin</Link>
+      <ConsoleShell {...consoleUser(session)} active="admin" title="Account profile">
+        <div className={`${styles.legacy} space-y-4 font-mono`}>
+          <Link href="/admin?tab=users" className="text-[11px] uppercase tracking-widest text-(--color-text-dim) hover:text-(--color-amber)">← Administration</Link>
           <p className="border border-(--color-border-subtle) px-4 py-6 text-center text-[12px] text-(--color-text-dim)">
             No account found for {email ?? id}.{missing025 ? " Run supabase/migrations/025_admin_user_profile.sql so profiles can be opened by account id alone." : ""}
           </p>
         </div>
-      </div>
+      </ConsoleShell>
     );
   }
 
@@ -305,14 +309,14 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
   const appTone = app?.status === "accepted" ? "ok" : app?.status === "declined" ? "critical" : "amber";
 
   return (
-    <div className="relative z-10 min-h-[100dvh] px-4 py-6 font-mono sm:px-6 sm:py-8">
-      <div className="mx-auto w-full max-w-5xl space-y-8">
+    <ConsoleShell {...consoleUser(session)} active="admin" title="Account profile">
+      <div className={`${styles.legacy} space-y-8 font-mono`}>
         {/* Header */}
         <div className="space-y-3 border-b border-(--color-border-subtle) pb-4">
           <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-widest text-(--color-text-dim)">
-            <Link href="/admin?tab=users" className="hover:text-(--color-amber)">← Admin</Link>
+            <Link href="/admin?tab=users" className="hover:text-(--color-amber)">← Administration</Link>
             <span className="text-(--color-border)">/</span>
-            <span>Profile</span>
+            <span>Account profile</span>
           </div>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 space-y-1.5">
@@ -546,6 +550,6 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
           </Section>
         )}
       </div>
-    </div>
+    </ConsoleShell>
   );
 }

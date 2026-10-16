@@ -14,7 +14,7 @@ export function testerAcceptedEmail(opts: { doorsOpen?: boolean } = {}): { subje
       stamp: { text: "Accepted", tone: "ok" },
       paragraphs: doorsOpen
         ? [
-            "Your account can open the Ops Centre and take a shift now. Start with the briefing: it says what is open, what is not, and how to report what breaks.",
+            "Your account can open the operator console and take a shift now. Start with the briefing: it says what is open, what is not, and how to report what breaks.",
             `Not on the Discord yet? <a href="https://discord.gg/YBN3sbphs3" style="color:#60a5fa;">Join here</a> and we will add you to the tester room.`,
           ]
         : [

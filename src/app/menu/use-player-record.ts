@@ -10,7 +10,7 @@ import { SHIFT_SAVE_KEY } from "@/lib/sim/save";
 import { menuPlayerState } from "@/lib/sim/menu-state";
 import { emptyStats, type CareerStats, type Grade } from "@/lib/sim/stats";
 
-const CAREER_KEY = "twr:career-stats:v1";
+export const CAREER_KEY = "twr:career-stats:v1";
 
 function subscribe(callback: () => void) {
   window.addEventListener("storage", callback);

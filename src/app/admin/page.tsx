@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { ConsoleShell } from "@/app/menu/console-shell";
+import { consoleSession, consoleUser } from "@/app/menu/console-session";
+import styles from "@/app/menu/watch-menu.module.css";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -245,6 +248,7 @@ export default async function AdminPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
   if (!(await hasAdminAccess(supabase, user.email))) redirect("/menu");
+  const session = await consoleSession();
 
   const [advisorsRes, rolesRes, overviewRes, usersResNew, notesRes, bugsRes, releasedRes, mapRes, routing, testerAppsRes, invitesRes, countRes] = await Promise.all([
     supabase.rpc("admin_list_advisors"),
@@ -345,25 +349,15 @@ export default async function AdminPage({
   const advisorsWaiting = testerApps.filter((a) => a.status === "pending" && advisorStanding(advisorOf(a)) && advisorStanding(advisorOf(a)) !== "declined").length;
 
   return (
-    <div className="relative z-10 min-h-[100dvh] px-4 py-6 font-mono sm:px-6 sm:py-8">
-      <div className="mx-auto w-full max-w-6xl space-y-8">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-(--color-border-subtle) pb-4">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.3em] text-(--color-amber-dim)">
-              The Watch Room
-            </div>
-            <h1 className="mt-1 text-xl uppercase tracking-[0.15em] text-(--color-text)">
-              Administration
-            </h1>
-          </div>
-          <Link
-            href="/menu"
-            className={`${btnCls} border-(--color-border) text-(--color-text-dim) hover:border-(--color-amber) hover:text-(--color-amber)`}
-          >
-            Ops Centre
-          </Link>
+    <ConsoleShell {...consoleUser(session)} active="admin" title="Administration">
+      <header className={styles.pageHead}>
+        <div>
+          <p className={styles.eyebrow}>Administration · programme and accounts</p>
+          <h1 className={styles.pageTitle}>Administration</h1>
+          <p className={styles.lede}>Pre-alpha applications, advisor applications, access roles, released scenarios, reports and accounts.</p>
         </div>
+      </header>
+      <div className={`${styles.legacy} space-y-8 font-mono`}>
 
         {(firstError || missing015 || missing016 || rolesLackTick || usersLackTester) && (
           <div className="rounded-sm border border-(--color-critical)/60 bg-(--color-critical)/10 px-4 py-3 text-[12px] text-(--color-critical)">
@@ -707,7 +701,7 @@ export default async function AdminPage({
                     {doors.tableMissing
                       ? "Migration 022 (site settings) has not been run, so the doors cannot be closed: every tester can open the desk. Run supabase/migrations/022_site_settings.sql, which starts them closed."
                       : doors.open
-                        ? "Every account on the tester list can open the Ops Centre and take a shift."
+                        ? "Every account on the tester list can open the operator console and take a shift."
                         : "Sign-ups, requests, accepts and invites all work and testers see they are in, but nobody on the list can open the desk until you open the doors. Admins and operators are not held."}
                   </p>
                 </div>
@@ -865,7 +859,7 @@ export default async function AdminPage({
               </div>
             )}
             {!missingBugs && bugs.length === 0 && (
-              <p className="text-[12px] text-(--color-text-dim)">Nothing filed yet. Testers file from Help → Report a problem on the desk, or from the feedback view on the ops centre.</p>
+              <p className="text-[12px] text-(--color-text-dim)">Nothing filed yet. Testers file from Help → Report a problem on the desk, or from Release notes & feedback on the operator console.</p>
             )}
             <div className="divide-y divide-(--color-border-subtle)/50 rounded-sm border border-(--color-border-subtle)">
               {bugs.map((b) => {
@@ -1251,7 +1245,7 @@ export default async function AdminPage({
           </section>
         )}
       </div>
-    </div>
+    </ConsoleShell>
   );
 }
 

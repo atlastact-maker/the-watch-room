@@ -21,7 +21,7 @@ const SERVICE_TONE: Record<ServiceCode, string> = {
   Police: "text-(--color-info)",
 };
 
-type TypeDigest = {
+export type TypeDigest = {
   type: string;
   typeName: string;
   service: ServiceCode;
@@ -33,7 +33,7 @@ type TypeDigest = {
   kit: string[];
 };
 
-function digestFleet(stations: StationWithAppliances[]): TypeDigest[] {
+export function digestFleet(stations: StationWithAppliances[]): TypeDigest[] {
   const byType = new Map<string, TypeDigest & { _kitBest: number }>();
   for (const s of stations) {
     for (const a of s.appliances as Appliance[]) {

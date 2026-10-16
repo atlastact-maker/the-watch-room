@@ -13,12 +13,12 @@ import { ResourceDirectory } from "./resource-directory";
  * tactical modes. Closes on Esc or any click outside the panel.
  */
 
-type Section = {
+export type GlossarySection = {
   title: string;
   entries: { term: string; def: string }[];
 };
 
-const GLOSSARY: Section[] = [
+export const GLOSSARY: GlossarySection[] = [
   {
     title: "Mobilising status codes",
     entries: [

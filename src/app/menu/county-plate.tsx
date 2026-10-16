@@ -11,11 +11,12 @@ import { useEffect, useRef, useState } from "react";
 import boundaries from "@/lib/sim/patch_boundaries.json";
 import type { ServiceCode } from "@/lib/sim/types";
 import { Icon } from "./icons";
+import { SERVICE_TINT } from "./menu-types";
 import styles from "./watch-menu.module.css";
 
 export type PlateStation = { lat: number; lng: number; service: ServiceCode };
 
-export const SERVICE_TINT: Record<ServiceCode, string> = { Fire: "#f08a3e", Ambulance: "#4fc16d", Police: "#4f9ff2" };
+export { SERVICE_TINT };
 
 const W = 800, H = 560, PAD = 34;
 

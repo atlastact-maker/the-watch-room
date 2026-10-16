@@ -99,7 +99,7 @@ export default async function StandbyPage() {
               <p className="mt-1.5 text-sm font-semibold text-(--color-ok)">You&apos;re on the pre-alpha</p>
               <p className="mt-1 text-sm leading-relaxed text-(--color-text-muted)">
                 {doors.open
-                  ? "The desk is open to you. If the Ops Centre does not open, log out and back in."
+                  ? "The desk is open to you. If the operator console does not open, log out and back in."
                   : "The doors aren't open yet. They open to every tester at once, and you will get an email the moment they do. The briefing says what is coming and how a shift will run."}
               </p>
             </>

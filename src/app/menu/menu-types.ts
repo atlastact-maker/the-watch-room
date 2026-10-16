@@ -20,3 +20,10 @@ export type CountyFacts = {
   services: { service: ServiceCode; stations: number; appliances: number }[];
   scenarios: number;
 };
+
+/** The one tint per service, used wherever a service is meant: the
+ *  plate's station dots, the fact tiles, the directory headings. */
+export const SERVICE_TINT: Record<ServiceCode, string> = { Fire: "#f08a3e", Ambulance: "#4fc16d", Police: "#4f9ff2" };
+
+/** What a service calls its vehicles. */
+export const unitsWord = (service: ServiceCode) => (service === "Fire" ? "appliances" : service === "Ambulance" ? "vehicles" : "units");
