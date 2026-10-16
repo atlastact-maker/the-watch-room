@@ -19,10 +19,10 @@ export const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://thewtchroom.co.
 /** The programme's Discord. */
 export const COMMUNITY_URL = "https://discord.gg/YBN3sbphs3";
 
-const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+export const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+export const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 
-const C = {
+export const C = {
   bg: "#0f1214",
   panel: "#151a1c",
   panel2: "#191f21",
@@ -35,7 +35,7 @@ const C = {
   ink: "#1b1d17",
 } as const;
 
-const TONES = {
+export const TONES = {
   ok: { fg: "#4fc16d", bg: "#152118", line: "#2f6a41" },
   amber: { fg: "#e6b65c", bg: "#2a2519", line: "#5a4a26" },
   critical: { fg: "#e5736a", bg: "#2a1a18", line: "#6b3a36" },

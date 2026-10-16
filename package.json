@@ -14,7 +14,8 @@
     "check:runtime": "node tools/sim-check/run.cjs runtime",
     "check:meta": "node tools/sim-check/run.cjs meta",
     "scenarios:meta": "node tools/gen-scenario-meta.cjs",
-    "email:templates": "npx esbuild tools/gen-auth-templates.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=node_modules/.cache/gen-auth-templates.cjs --log-level=error && node node_modules/.cache/gen-auth-templates.cjs"
+    "email:templates": "npx esbuild tools/gen-auth-templates.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=node_modules/.cache/gen-auth-templates.cjs --log-level=error && node node_modules/.cache/gen-auth-templates.cjs",
+    "newsletter": "node tools/newsletters/build.mjs"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",
