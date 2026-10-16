@@ -98,7 +98,7 @@ export function BugReportDialog({ open, onClose, context }: Props) {
         <div className="rounded-sm border border-(--color-amber)/60 bg-(--color-surface) p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">Pre-alpha</div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-(--color-amber)">Pre-Alpha</div>
               <h1 className="mt-1 text-xl font-semibold tracking-tight text-(--color-text)">Report a problem</h1>
               <p className="mt-1 font-mono text-[11px] leading-relaxed text-(--color-text-muted)">
                 Goes straight to the team with what the desk knows about this moment. Say what you did, what happened, and what you expected.

@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   if (!session) redirect("/login");
   if (!session.hasShift) {
     return (
-      <PublicShell brandLine="Account settings" chip="Closed pre-alpha" links={[{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/standby", label: "Your standing", button: true }]}>
+      <PublicShell brandLine="Account settings" chip="Closed Pre-Alpha" links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/standby", label: "Your standing", button: true }]}>
         <SettingsView />
       </PublicShell>
     );

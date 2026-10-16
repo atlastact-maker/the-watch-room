@@ -43,8 +43,8 @@ export default async function StandbyPage() {
   return (
     <PublicShell
       brandLine="Standing by"
-      chip="Closed pre-alpha"
-      links={[{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/settings", label: "Account settings", button: true }]}
+      chip="Closed Pre-Alpha"
+      links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/settings", label: "Account settings", button: true }]}
       actions={<form action={logout}><button type="submit" className={styles.textButton}>Log out</button></form>}
     >
       {/* Files an application that only ever reached user_metadata: applicants are held here, so this is where it has to run. */}

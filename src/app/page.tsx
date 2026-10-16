@@ -12,7 +12,7 @@ import { LandingView } from "./landing-view";
 
 export const metadata: Metadata = {
   title: "The Watch Room — Emergency Services Incident Management Simulator",
-  description: "Command fire, ambulance and police from one operator position. Real stations, real resources, real roads. Now in closed pre-alpha.",
+  description: "Command fire, ambulance and police from one operator position. Real stations, real resources, real roads. Now in closed Pre-Alpha.",
 };
 
 export default async function LandingPage({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
@@ -36,7 +36,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
   return (
     <PublicShell
       width="wide"
-      links={[{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/login", label: "Log in", button: true }, ...(open ? [{ href: "/signup?prealpha=1", label: "Create an account", primary: true }] : [])]}
+      links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }, ...(open ? [{ href: "/signup?prealpha=1", label: "Create an account", primary: true }] : [])]}
     >
       <LandingView
         data={{

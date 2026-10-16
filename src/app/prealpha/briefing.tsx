@@ -1,4 +1,4 @@
-// The pre-alpha briefing as the console presents it. What the reader
+// The Pre-Alpha briefing as the console presents it. What the reader
 // sees depends on who they are:
 //
 //   visitor    — what the programme is, what testers get, how to apply.
@@ -55,17 +55,17 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
     <>
       <header className={styles.pageHead}>
         <div>
-          <p className={styles.eyebrow}>{accepted ? "Pre-alpha briefing · tester" : "Closed pre-alpha · programme"}</p>
-          <h1 className={styles.pageTitle}>{waiting ? "Accepted. The desk opens shortly." : accepted ? "Pre-alpha briefing" : "Closed pre-alpha programme"}</h1>
+          <p className={styles.eyebrow}>{accepted ? "Pre-Alpha briefing · tester" : "Closed Pre-Alpha · programme"}</p>
+          <h1 className={styles.pageTitle}>{waiting ? "Accepted. The desk opens shortly." : accepted ? "Pre-Alpha briefing" : "Closed Pre-Alpha programme"}</h1>
           <p className={styles.lede}>
             {accepted
               ? "Scope of the current build, the shift procedure and the reporting route. The operator guide and the reference library cover the console itself."
-              : "The Watch Room is an emergency services incident management simulator: a single operator receiving the 999 call, mobilising across Greater Manchester's real station network and taking command of the incident ground. The pre-alpha is the first release outside the team: small by design, unfinished by definition, and run with people who have done the job for real."}
+              : "The Watch Room is an emergency services incident management simulator: a single operator receiving the 999 call, mobilising across Greater Manchester's real station network and taking command of the incident ground. The Pre-Alpha is the first release outside the team: small by design, unfinished by definition, and run with people who have done the job for real."}
           </p>
         </div>
         <div className={styles.headMeta}>
           {accepted && <span className={`${styles.chip} ${styles.chipOk}`}>Tester</span>}
-          <span className={`${styles.chip} ${styles.chipAmber}`}>Closed pre-alpha</span>
+          <span className={`${styles.chip} ${styles.chipAmber}`}>Closed Pre-Alpha</span>
         </div>
       </header>
 
@@ -137,14 +137,14 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
         <section className={`${styles.panel} ${styles.section}`}>
           <div className={styles.panelHead}><h2>{standing === "none" ? "Access requests" : "Your request"}</h2></div>
           {signups.closed ? (
-            <p className={styles.muted}>Sign-ups for the pre-alpha {signups.closes ? <>closed on <strong>{signups.closes}</strong></> : "are closed"}. A wider test follows; an account created now is ready for it.</p>
+            <p className={styles.muted}>Sign-ups for the Pre-Alpha {signups.closes ? <>closed on <strong>{signups.closes}</strong></> : "are closed"}. A wider test follows; an account created now is ready for it.</p>
           ) : !signups.open ? (
             <p className={styles.muted}>Access requests open on <strong>{signups.opens}</strong>. Create an account now and request access the moment they do.</p>
           ) : tableMissing ? (
-            <p className={styles.muted}>Pre-alpha access is being set up. Try again shortly.</p>
+            <p className={styles.muted}>Pre-Alpha access is being set up. Try again shortly.</p>
           ) : !signedIn ? (
             <>
-              <p className={styles.muted}>Create an account and select <strong>Join the pre-alpha</strong> at registration. With an existing account, log in and request access. Access is granted by hand; the request&apos;s standing shows here and an email is sent when the desk is open to the account.</p>
+              <p className={styles.muted}>Create an account and select <strong>Join the Pre-Alpha</strong> at registration. With an existing account, log in and request access. Access is granted by hand; the request&apos;s standing shows here and an email is sent when the desk is open to the account.</p>
               {signups.closes && <p className={styles.formStatus}>Sign-ups close on {signups.closes}.</p>}
               <div className={styles.actions}>
                 <Link href="/signup?prealpha=1" className={styles.primary}>Create an account <Icon.arrow /></Link>
@@ -152,7 +152,7 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
               </div>
             </>
           ) : standing === "declined" ? (
-            <p className={styles.muted}>Reviewed and not accepted for this round. The pre-alpha is deliberately small; a wider test follows, and this account is ready for it.</p>
+            <p className={styles.muted}>Reviewed and not accepted for this round. The Pre-Alpha is deliberately small; a wider test follows, and this account is ready for it.</p>
           ) : standing === "pending" ? (
             <Notice tone="amber" title="Request received"><p>Submitted {appliedOn ?? "recently"}. Access is granted by hand, so there is a short wait. An email is sent when the account is on the list, and another when the doors open.</p></Notice>
           ) : (

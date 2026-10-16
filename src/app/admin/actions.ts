@@ -174,7 +174,7 @@ export async function setDiscordGranted(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
-/** Tick or untick someone as a closed pre-alpha tester. A ticked account
+/** Tick or untick someone as a closed Pre-Alpha tester. A ticked account
  *  can open the game without holding a role; the admin area stays
  *  admin-only. */
 export async function setTester(formData: FormData): Promise<void> {
@@ -211,7 +211,7 @@ export async function setScenarioReleased(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
-/** Decide a pre-alpha application. Accepting ticks the tester row in
+/** Decide a Pre-Alpha application. Accepting ticks the tester row in
  *  the database function and emails the applicant once — the function
  *  says whether the status actually changed. */
 export async function decideTesterApplication(formData: FormData): Promise<void> {
@@ -240,7 +240,7 @@ export async function decideTesterApplication(formData: FormData): Promise<void>
   revalidatePath("/prealpha");
 }
 
-/** Invite an account to the pre-alpha: mint (or re-use) the token and
+/** Invite an account to the Pre-Alpha: mint (or re-use) the token and
  *  email the link. The link is the grant; see migration 021. */
 export async function inviteTester(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "").trim();
@@ -259,7 +259,7 @@ export async function inviteTester(formData: FormData): Promise<void> {
   redirect(`/admin?tab=users&invited=${encodeURIComponent(email)}${result.sent ? "" : "&mail=0"}`);
 }
 
-/** Grant every pending pre-alpha request in one go: the same decision
+/** Grant every pending Pre-Alpha request in one go: the same decision
  *  RPC per row, so the tester rows and the emails behave exactly as a
  *  single Accept would. */
 export async function acceptAllPendingTesterApplications(): Promise<void> {
@@ -289,7 +289,7 @@ export async function acceptAllPendingTesterApplications(): Promise<void> {
   revalidatePath("/standby");
 }
 
-/** Close or reopen pre-alpha sign-ups ahead of the calendar, or hand
+/** Close or reopen Pre-Alpha sign-ups ahead of the calendar, or hand
  *  them back to it (migration 024 for the logged-out pages). Closed: the
  *  tick at signup and the request button are greyed out and the server
  *  files nothing; accounts already on the list are untouched. */
@@ -306,7 +306,7 @@ export async function setPrealphaSignups(formData: FormData): Promise<void> {
   redirect("/admin?tab=prealpha");
 }
 
-/** Open or close the pre-alpha doors (migration 022). Closed: testers
+/** Open or close the Pre-Alpha doors (migration 022). Closed: testers
  *  stay on standby, told they are in. Open: the desk. */
 export async function setPrealphaDoors(formData: FormData): Promise<void> {
   const value = String(formData.get("doors") ?? "") === "open" ? "open" : "closed";

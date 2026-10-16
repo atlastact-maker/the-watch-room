@@ -1,15 +1,15 @@
-// The email every tester gets when the pre-alpha doors open: the desk is
+// The email every tester gets when the Pre-Alpha doors open: the desk is
 // theirs now, and where to start.
 
 import { COMMUNITY_URL, SITE, emailLink, emailShell } from "./layout";
 
 export function doorsOpenEmail(): { subject: string; html: string } {
   return {
-    subject: "The pre-alpha desk is open — The Watch Room",
+    subject: "The Pre-Alpha desk is open — The Watch Room",
     html: emailShell({
-      programme: "Closed pre-alpha",
-      eyebrow: "Closed pre-alpha · Doors open",
-      heading: "The pre-alpha desk is open",
+      programme: "Closed Pre-Alpha",
+      eyebrow: "Closed Pre-Alpha · Doors open",
+      heading: "The Pre-Alpha desk is open",
       stamp: { text: "Open", tone: "ok" },
       preheader: "The operator console is open to every tester from now.",
       paragraphs: [
@@ -19,7 +19,7 @@ export function doorsOpenEmail(): { subject: string; html: string } {
       ],
       facts: [
         { label: "Status", value: "Doors open" },
-        { label: "Start", value: "Pre-alpha briefing, then Start shift on the operator console" },
+        { label: "Start", value: "Pre-Alpha briefing, then Start shift on the operator console" },
         { label: "Faults", value: "Help, then Report a problem, on the desk" },
       ],
       cta: { label: "Open the operator console", href: `${SITE}/menu` },

@@ -59,7 +59,7 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
           {nav("record", "/stats", "record", "Service record")}
           {nav("guide", viewHref("guide"), "guide", TITLES.guide)}
           {nav("library", "/glossary", "library", "Reference library")}
-          {nav("briefing", "/prealpha", "briefing", "Pre-alpha briefing")}
+          {nav("briefing", "/prealpha", "briefing", "Pre-Alpha briefing")}
           <p>Programme</p>
           {ext(COMMUNITY, "discord", "Tester channel")}
           {nav("updates", viewHref("updates"), "updates", TITLES.updates)}
@@ -87,7 +87,7 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
             </form>
           )}
           <form action={logout}><LogoutButton /></form>
-          <p>Greater Manchester<br />Closed pre-alpha · Build {LATEST.version}</p>
+          <p>Greater Manchester<br />Closed Pre-Alpha · Build {LATEST.version}</p>
         </div>
       </aside>
 
@@ -146,7 +146,7 @@ export function PublicShell({ brandLine = "Incident management simulator", chip,
         {children}
         <footer className={styles.footer}>
           <span>The Watch Room · Emergency services incident management simulator · Not affiliated with any emergency service</span>
-          <span className={styles.footLinks}><a href={COMMUNITY} target="_blank" rel="noreferrer">Discord</a><Link href="/prealpha">Pre-alpha</Link><Link href="/terms">Terms</Link></span>
+          <span className={styles.footLinks}><a href={COMMUNITY} target="_blank" rel="noreferrer">Discord</a><Link href="/prealpha">Pre-Alpha</Link><Link href="/terms">Terms</Link></span>
         </footer>
       </div>
     </div>

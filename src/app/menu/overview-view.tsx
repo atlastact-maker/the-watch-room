@@ -42,7 +42,7 @@ export function OverviewView({ record, callsign, facts, stations }: { record: Pl
         </div>
         <div className={styles.headMeta}>
           <span className={styles.chip}>Build {LATEST.version}</span>
-          <span className={`${styles.chip} ${styles.chipAmber}`}>Closed pre-alpha</span>
+          <span className={`${styles.chip} ${styles.chipAmber}`}>Closed Pre-Alpha</span>
         </div>
       </header>
 
@@ -179,7 +179,7 @@ export function OverviewView({ record, callsign, facts, stations }: { record: Pl
               <ul className={styles.linkList}>
                 <li><a href={COMMUNITY} target="_blank" rel="noreferrer"><Icon.discord /><span><strong>Tester channel on Discord</strong><small>Build announcements and feedback discussion.</small></span><Icon.external /></a></li>
                 <li><Link href={viewHref("updates")}><Icon.updates /><span><strong>Submit a report</strong><small>Defects and suggestions, filed with the build version.</small></span><Icon.arrow /></Link></li>
-                <li><Link href="/prealpha"><Icon.briefing /><span><strong>Pre-alpha briefing</strong><small>Scope of the current build and tester requirements.</small></span><Icon.arrow /></Link></li>
+                <li><Link href="/prealpha"><Icon.briefing /><span><strong>Pre-Alpha briefing</strong><small>Scope of the current build and tester requirements.</small></span><Icon.arrow /></Link></li>
               </ul>
             </section>
           </div>

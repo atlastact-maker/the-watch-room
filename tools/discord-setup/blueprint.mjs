@@ -57,7 +57,7 @@ export const CATEGORIES = [
       { name: 'announcements', type: 'announcement', topic: 'Dev posts only. Crosspost-enabled (followable).' },
       { name: 'dev-diary', topic: 'Weekly build notes, every Friday. Screenshot + 3 bullets minimum.' },
       { name: 'roadmap', topic: 'Pinned roadmap graphic. Updated per phase.' },
-      { name: 'faq', topic: 'What is TWR, platforms, pre-alpha dates, how to become an advisor.' },
+      { name: 'faq', topic: 'What is TWR, platforms, Pre-Alpha dates, how to become an advisor.' },
       { name: 'rules-of-the-watch', topic: 'Rules of the Watch. Linked from onboarding.' },
     ],
   },
@@ -173,7 +173,7 @@ export const RULES_MESSAGE = `**Rules of the Watch**
 1. Respect the floor. No abuse, discrimination or harassment — instant removal.
 2. Real incidents stay confidential. Share experience, never identifiable jobs, patients or casework.
 3. This is a simulation community. Nothing here is operational advice, and Discord is not a way to reach emergency services.
-4. No leaks. Pre-alpha and advisory material stays in its wing until we publish it.
+4. No leaks. Pre-Alpha and advisory material stays in its wing until we publish it.
 5. Keep it on patch — promo and invite links need a Supervisor's nod first.
 6. Listen to The Duty Officer. Automated calls are final unless a Supervisor overrules.`;
 
@@ -184,7 +184,7 @@ Read #rules-of-the-watch, then hit ✅ to check in and take your seat on the flo
 // Posted below the check-in message; Carl-bot reaction roles bind to it.
 export const PINGS_MESSAGE = `**Optional pings.** React to choose what reaches you:
 🔔 — Dev diary
-🧪 — Pre-alpha news
+🧪 — Pre-Alpha news
 📅 — Events`;
 
 export const PINGS_REACTIONS = ['🔔', '🧪', '📅'];
@@ -218,7 +218,7 @@ export const ONBOARDING_PROMPTS = [
     singleSelect: false,
     options: [
       { title: 'Dev diary', roles: ['Dev Diary Pings'] },
-      { title: 'Pre-alpha news', roles: ['Pre-Alpha News'] },
+      { title: 'Pre-Alpha news', roles: ['Pre-Alpha News'] },
       { title: 'Events', roles: ['Events'] },
     ],
   },

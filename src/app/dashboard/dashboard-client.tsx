@@ -366,7 +366,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }, []);
   // Glossary / training overlay — toggled with `?`, shown as a modal.
   const [glossaryOpen, setGlossaryOpen] = useState(false);
-  // "Report a problem" — the pre-alpha's bug report, filed with what the
+  // "Report a problem" — the Pre-Alpha's bug report, filed with what the
   // desk knows about the moment.
   const [bugOpen, setBugOpen] = useState(false);
   // How the desk gets the operator's attention: cards and the live

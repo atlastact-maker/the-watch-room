@@ -7,13 +7,13 @@ import { ConsoleShell, PublicShell } from "@/app/menu/console-shell";
 import { consoleSession, consoleUser } from "@/app/menu/console-session";
 import { PreAlphaBriefing, type BriefingData } from "./briefing";
 
-// The pre-alpha, explained once for everyone. Operators and
+// The Pre-Alpha, explained once for everyone. Operators and
 // administrators read it inside the console; visitors, applicants and
 // testers waiting for the doors get the same page without the sidebar.
 
 export const metadata: Metadata = {
-  title: "Pre-alpha briefing · The Watch Room",
-  description: "The Watch Room's closed pre-alpha: live incidents across fire, ambulance and police, one operator, one county. Request access to test it.",
+  title: "Pre-Alpha briefing · The Watch Room",
+  description: "The Watch Room's closed Pre-Alpha: live incidents across fire, ambulance and police, one operator, one county. Request access to test it.",
 };
 
 export default async function PreAlphaPage({ searchParams }: { searchParams: Promise<{ invited?: string }> }) {
@@ -59,13 +59,13 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
   if (operator) {
     const session = await consoleSession();
     return (
-      <ConsoleShell {...consoleUser(session)} active="briefing" title="Pre-alpha briefing">
+      <ConsoleShell {...consoleUser(session)} active="briefing" title="Pre-Alpha briefing">
         <PreAlphaBriefing data={data} />
       </ConsoleShell>
     );
   }
   return (
-    <PublicShell brandLine="Closed pre-alpha" chip="Closed pre-alpha" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }]}>
+    <PublicShell brandLine="Closed Pre-Alpha" chip="Closed Pre-Alpha" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }]}>
       <PreAlphaBriefing data={data} />
     </PublicShell>
   );

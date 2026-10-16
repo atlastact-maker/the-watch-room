@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// The closed pre-alpha: when it opens, who is in it, and where an
+// The closed Pre-Alpha: when it opens, who is in it, and where an
 // account stands with it. One place, so the front door, the standby
 // page, the application page and the admin tab all agree.
 //
@@ -153,7 +153,7 @@ export async function preAlphaApplication(
   }
 }
 
-/** Whether the account asked to join the pre-alpha when it signed up.
+/** Whether the account asked to join the Pre-Alpha when it signed up.
  *  The tick rides in user_metadata across the email-confirmation gap
  *  (there is no session to write a row with until the link is clicked);
  *  ensurePreAlphaRequest turns it into the row on the first signed-in
@@ -164,14 +164,14 @@ export function prealphaRequested(meta: unknown): boolean {
 
 type MinimalUser = { id: string; email?: string | null; user_metadata?: unknown };
 
-/** File the account's request for pre-alpha access: one pending row,
+/** File the account's request for Pre-Alpha access: one pending row,
  *  from the account's own details. Nothing to fill in. */
 export async function filePreAlphaRequest(
   supabase: SupabaseClient,
   user: MinimalUser,
 ): Promise<{ ok: true } | { ok: false; message: string; tableMissing?: boolean }> {
   const signups = await prealphaSignups(supabase);
-  if (signups.closed) return { ok: false, message: signups.closes ? `Sign-ups closed on ${signups.closes}.` : "Sign-ups for the pre-alpha are closed." };
+  if (signups.closed) return { ok: false, message: signups.closes ? `Sign-ups closed on ${signups.closes}.` : "Sign-ups for the Pre-Alpha are closed." };
   if (!signups.open) return { ok: false, message: "Sign-ups are not open yet." };
   if (!user.email) return { ok: false, message: "Log in first." };
   const meta = (user.user_metadata ?? {}) as { callsign?: unknown; advisor_discord?: unknown };
@@ -187,7 +187,7 @@ export async function filePreAlphaRequest(
   const { error } = await supabase.from("tester_applications").upsert(row, { onConflict: "user_id", ignoreDuplicates: true });
   if (error) {
     if (/tester_applications/.test(error.message) || error.code === "42P01") {
-      return { ok: false, message: "Pre-alpha access is not set up on the server yet — try again later.", tableMissing: true };
+      return { ok: false, message: "Pre-Alpha access is not set up on the server yet — try again later.", tableMissing: true };
     }
     return { ok: false, message: error.message };
   }
@@ -216,10 +216,10 @@ export const PREALPHA_ACCESS = [
   { title: "The whole desk", body: "The 999 call, opening codes and grading, the county board and mobilising, the ground map with crews on foot, the mobile data terminal, casualty care, and the debrief." },
   { title: "A bug report a click away", body: "Help → Report a problem on the desk files straight to the team with the screen, the job and the last minute of the log attached." },
   { title: "The tester room on Discord", body: "A private channel with the developer and the advisors, where the builds are announced and the suggestions get argued over." },
-  { title: "Your name on the record", body: "The service record keeps every shift; pre-alpha testers keep theirs when the doors open, with the tester mark against the callsign." },
+  { title: "Your name on the record", body: "The service record keeps every shift; Pre-Alpha testers keep theirs when the doors open, with the tester mark against the callsign." },
 ] as const;
 
-/** What is in the pre-alpha, by part of the desk, and what we most want
+/** What is in the Pre-Alpha, by part of the desk, and what we most want
  *  tested in each. The briefing lists it; the trailer says the same. */
 export const PREALPHA_FOCUS = [
   {

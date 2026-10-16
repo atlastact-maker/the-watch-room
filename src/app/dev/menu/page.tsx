@@ -52,18 +52,18 @@ const CONSOLE: Record<ConsolePage, { title: string; nav: NavKey }> = {
   library: { title: "Reference library", nav: "library" },
   releases: { title: "Release notes", nav: "updates" },
   settings: { title: "Settings", nav: "settings" },
-  briefing: { title: "Pre-alpha briefing", nav: "briefing" },
+  briefing: { title: "Pre-Alpha briefing", nav: "briefing" },
 };
-const AUTH_LINKS: PublicLink[] = [{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/login", label: "Log in", button: true }];
+const AUTH_LINKS: PublicLink[] = [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }];
 const PUBLIC: Record<PublicPage, { brandLine: string; width: "narrow" | "page" | "wide"; links: PublicLink[]; chip?: string }> = {
-  landing: { brandLine: "Incident management simulator", width: "wide", links: [{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/login", label: "Log in", button: true }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
-  login: { brandLine: "Operator access", width: "narrow", links: [{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
+  landing: { brandLine: "Incident management simulator", width: "wide", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
+  login: { brandLine: "Operator access", width: "narrow", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
   signup: { brandLine: "Operator registration", width: "narrow", links: AUTH_LINKS },
   forgot: { brandLine: "Operator access", width: "narrow", links: [{ href: "/login", label: "Log in", button: true }] },
   reset: { brandLine: "Operator access", width: "narrow", links: [{ href: "/login", label: "Log in", button: true }] },
   terms: { brandLine: "Terms and conditions", width: "page", links: [{ href: "/login", label: "Log in" }, { href: "/signup", label: "Create an account", button: true }] },
-  standby: { brandLine: "Standing by", width: "page", chip: "Closed pre-alpha", links: [{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/settings", label: "Account settings", button: true }] },
-  invite: { brandLine: "Closed pre-alpha", width: "narrow", chip: "Closed pre-alpha", links: AUTH_LINKS },
+  standby: { brandLine: "Standing by", width: "page", chip: "Closed Pre-Alpha", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/settings", label: "Account settings", button: true }] },
+  invite: { brandLine: "Closed Pre-Alpha", width: "narrow", chip: "Closed Pre-Alpha", links: AUTH_LINKS },
 };
 const isConsole = (v: string | null): v is ConsolePage => v !== null && v in CONSOLE;
 const isPublic = (v: string | null): v is PublicPage => v !== null && v in PUBLIC;

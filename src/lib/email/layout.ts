@@ -201,7 +201,7 @@ export function emailShell(spec: EmailSpec): string {
         <tr>
           <td bgcolor="${C.bg}" style="padding:16px 28px 18px;background:${C.bg};border-top:1px solid ${C.line};border-radius:0 0 6px 6px;">
             ${spec.note ? `<p style="margin:0 0 10px;font-family:${SANS};font-size:12px;line-height:1.6;color:${C.muted};">${spec.note}</p>` : ""}
-            <p style="margin:0 0 6px;font-family:${MONO};font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:${C.dim};">The Watch Room &middot; Closed pre-alpha &middot; Greater Manchester</p>
+            <p style="margin:0 0 6px;font-family:${MONO};font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:${C.dim};">The Watch Room &middot; Closed Pre-Alpha &middot; Greater Manchester</p>
             <p style="margin:0;font-family:${SANS};font-size:11px;line-height:1.6;color:${C.dim};">Sent to this address because an account at The Watch Room uses it. <a href="${site}" style="color:${C.muted};">${domain}</a></p>
           </td>
         </tr>

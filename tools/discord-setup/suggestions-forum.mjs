@@ -24,7 +24,7 @@ One idea per thread — give it a clear title, tag it, and say what you'd want a
 
 Every suggestion gets read. The ones that land get tagged **📌 Planned**, and **✅ Shipped** when they're in the build — so you can see where your idea got to.
 
-This isn't the place for bugs — those go to the pre-alpha wing once you're testing.`;
+This isn't the place for bugs — those go to the Pre-Alpha wing once you're testing.`;
 
 const TAGS = [
   // Topic tags — anyone can apply

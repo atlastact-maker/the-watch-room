@@ -29,7 +29,7 @@ export async function login(_state: AuthFormState, formData: FormData): Promise<
     return { errors: { form: [error.message] } };
   }
 
-  // A link that needed a session first (a pre-alpha invitation, say)
+  // A link that needed a session first (a Pre-Alpha invitation, say)
   // comes back here as ?next=. Only a path on this site is honoured.
   const next = formData.get("next");
   if (typeof next === "string" && /^\/(?!\/)[\w\-./?=&%]*$/.test(next)) {
@@ -66,7 +66,7 @@ export async function signup(_state: AuthFormState, formData: FormData): Promise
     advisor = adv.data;
   }
 
-  // "Join the pre-alpha": a tick, not a form. It rides in user_metadata
+  // "Join the Pre-Alpha": a tick, not a form. It rides in user_metadata
   // like the advisor answers, and becomes the request row on the first
   // signed-in visit (lib/prealpha ensurePreAlphaRequest), or right away
   // below when a session exists.

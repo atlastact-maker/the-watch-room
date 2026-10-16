@@ -1,6 +1,6 @@
 // Where a signed-in account lands when it cannot open the desk: a new
 // account, a tester with the doors closed, an advisor. The account's own
-// page, so the pre-alpha comes first (that is what most accounts are here
+// page, so the Pre-Alpha comes first (that is what most accounts are here
 // for), and the advisor programme is shown where the account has applied
 // to it, and only offered, in a line, where it has not.
 
@@ -43,17 +43,17 @@ export function StandbyView({ data }: { data: StandbyData }) {
     <>
       <header className={styles.pageHead}>
         <div>
-          <p className={styles.eyebrow}>Account standing · closed pre-alpha</p>
+          <p className={styles.eyebrow}>Account standing · closed Pre-Alpha</p>
           <h1 className={styles.pageTitle}>{callsign ? `Standing by, ${callsign}` : "Standing by"}</h1>
-          <p className={styles.lede}>The account is registered. The Watch Room is in closed pre-alpha: the desk opens to testers when the doors do.</p>
+          <p className={styles.lede}>The account is registered. The Watch Room is in closed Pre-Alpha: the desk opens to testers when the doors do.</p>
         </div>
       </header>
 
       <section className={styles.panel}>
-        <p className={styles.eyebrow}>Closed pre-alpha</p>
+        <p className={styles.eyebrow}>Closed Pre-Alpha</p>
         <h2 className={styles.panelTitle}>Tester access</h2>
         {listed ? (
-          <Notice tone="ok" title="This account is on the pre-alpha">
+          <Notice tone="ok" title="This account is on the Pre-Alpha">
             <p>{doorsOpen ? "The desk is open to this account. If the operator console does not open, log out and back in." : "The doors are not open yet. They open to every tester at once, and an email is sent the moment they do. The briefing covers what is coming and how a shift runs."}</p>
           </Notice>
         ) : prealpha.standing === "pending" ? (
@@ -61,13 +61,13 @@ export function StandbyView({ data }: { data: StandbyData }) {
             <p>Access is granted by hand. An email is sent when the account is on the list, and another when the doors open.</p>
           </Notice>
         ) : prealpha.standing === "declined" ? (
-          <p className={styles.muted}>Reviewed and not accepted for this round. A wider test follows the pre-alpha.</p>
+          <p className={styles.muted}>Reviewed and not accepted for this round. A wider test follows the Pre-Alpha.</p>
         ) : signups.closed ? (
-          <p className={styles.muted}>Sign-ups for this round {signups.closes ? `closed on ${signups.closes}` : "are closed"}. A wider test follows the pre-alpha, and this account is ready for it.</p>
+          <p className={styles.muted}>Sign-ups for this round {signups.closes ? `closed on ${signups.closes}` : "are closed"}. A wider test follows the Pre-Alpha, and this account is ready for it.</p>
         ) : !signups.open ? (
           <p className={styles.muted}>Access requests open {signups.opens}.</p>
         ) : prealpha.tableMissing ? (
-          <p className={styles.muted}>Pre-alpha access is being set up. Try again shortly.</p>
+          <p className={styles.muted}>Pre-Alpha access is being set up. Try again shortly.</p>
         ) : (
           <>
             <p className={styles.muted}>Fire &amp; rescue, ambulance and police incidents, the complete console, and a tester channel on Discord. One request for access.{signups.closes ? ` Sign-ups close on ${signups.closes}.` : ""}</p>
@@ -75,7 +75,7 @@ export function StandbyView({ data }: { data: StandbyData }) {
           </>
         )}
         <div className={styles.actions}>
-          <Link className={styles.button} href="/prealpha">{listed ? "Pre-alpha briefing" : prealpha.standing === "pending" ? "Your request" : "About the pre-alpha"} <Icon.arrow /></Link>
+          <Link className={styles.button} href="/prealpha">{listed ? "Pre-Alpha briefing" : prealpha.standing === "pending" ? "Your request" : "About the Pre-Alpha"} <Icon.arrow /></Link>
         </div>
       </section>
 
@@ -95,7 +95,7 @@ export function StandbyView({ data }: { data: StandbyData }) {
               </>
             )}
             {advisor === "pending" && <p className={styles.muted}>The application has been received. Applications are reviewed individually; the standing changes here and an email is sent when it has been reviewed. A member of the team may make contact to verify the position held.</p>}
-            {advisor === "declined" && <p className={styles.muted}>Reviewed and not taken forward onto the programme at this stage. The account is unaffected, and the pre-alpha above is open to it like any other.</p>}
+            {advisor === "declined" && <p className={styles.muted}>Reviewed and not taken forward onto the programme at this stage. The account is unaffected, and the Pre-Alpha above is open to it like any other.</p>}
             {advisor === "unfiled" && <p className={styles.muted}>The application is being filed now; give it a moment and this will read received. If it does not, the answers are safe on the account: open <Link className={styles.textLink} href="/settings">Settings → Advisor programme</Link> and save them again.</p>}
           </div>
         </section>

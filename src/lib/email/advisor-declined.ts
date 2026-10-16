@@ -19,9 +19,9 @@ export function advisorDeclinedEmail(): { subject: string; html: string } {
       paragraphs: [
         "Thank you for offering to advise on The Watch Room. Your application is not being taken forward onto the programme at this stage.",
         "That is a decision about how many advisors the programme can work with properly while it is small, and which areas it needs covered now. It is not a judgement on your experience. Applications are kept on file, and the picture changes as development moves on.",
-        "Your account stays exactly as it is, and the pre-alpha is open to you like anyone else.",
+        "Your account stays exactly as it is, and the Pre-Alpha is open to you like anyone else.",
       ],
-      cta: { label: "Read the pre-alpha briefing", href: `${SITE}/prealpha` },
+      cta: { label: "Read the Pre-Alpha briefing", href: `${SITE}/prealpha` },
       note: "Thank you again for the offer. It is appreciated.",
     }),
   };

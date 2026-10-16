@@ -43,7 +43,7 @@ export function LandingView({ data }: { data: LandingData }) {
             <Link className={styles.button} href="/login">Log in</Link>
           </div>
           <div className={styles.headMeta} style={{ justifyContent: "flex-start", marginTop: 14 }}>
-            <span className={`${styles.chip} ${styles.chipAmber}`}>Closed pre-alpha</span>
+            <span className={`${styles.chip} ${styles.chipAmber}`}>Closed Pre-Alpha</span>
             <span className={styles.chip}>{signupLine}</span>
           </div>
           <ul className={styles.serviceRow} aria-label="Services modelled">
@@ -56,7 +56,7 @@ export function LandingView({ data }: { data: LandingData }) {
       <section className={styles.block}>
         <div className={styles.blockHead}>
           <h2>The county</h2>
-          <Link href="/prealpha">Pre-alpha briefing <Icon.arrow /></Link>
+          <Link href="/prealpha">Pre-Alpha briefing <Icon.arrow /></Link>
         </div>
         <div className={styles.facts}>
           {facts.services.map((s) => (
@@ -85,23 +85,23 @@ export function LandingView({ data }: { data: LandingData }) {
 
       <div className={`${styles.twoUp} ${styles.section}`}>
         <section className={styles.panel}>
-          <p className={styles.eyebrow}>Closed pre-alpha · tester programme</p>
+          <p className={styles.eyebrow}>Closed Pre-Alpha · tester programme</p>
           <h2 className={styles.panelTitle}>Test the complete console.</h2>
           <p className={styles.muted}>Fire &amp; rescue, ambulance and police incidents, each with variant outcomes between runs. Testers have the console from call receipt to debrief, in-game defect reporting, and a private tester channel on Discord with the development team and the advisors.</p>
           <p className={styles.muted} style={{ marginTop: 10 }}>
             {signups.closed
-              ? "Sign-ups for this round have closed. A wider test follows the pre-alpha, and an account created now is ready for it."
-              : `Select "Join the pre-alpha" at registration, or request access from an existing account. Access is granted by hand and an email is sent when the desk is open to you.${signups.closes ? ` Sign-ups close on ${signups.closes}.` : ""}`}
+              ? "Sign-ups for this round have closed. A wider test follows the Pre-Alpha, and an account created now is ready for it."
+              : `Select "Join the Pre-Alpha" at registration, or request access from an existing account. Access is granted by hand and an email is sent when the desk is open to you.${signups.closes ? ` Sign-ups close on ${signups.closes}.` : ""}`}
           </p>
           <div className={styles.actions}>
             {open && !signups.closed && <Link className={styles.primary} href="/signup?prealpha=1">Create an account <Icon.arrow /></Link>}
-            <Link className={styles.button} href="/prealpha">Pre-alpha briefing</Link>
+            <Link className={styles.button} href="/prealpha">Pre-Alpha briefing</Link>
           </div>
         </section>
         <section className={styles.panel}>
           <p className={styles.eyebrow}>Development advisor programme</p>
           <h2 className={styles.panelTitle}>Served in fire, ambulance, police or a control room?</h2>
-          <p className={styles.muted}>Serving and former personnel keep the simulation authentic: the occasional question, or reviewing features as they are built. Unpaid and informal, with a say in how the job is portrayed and the advisor mark against the callsign. Advisors test the pre-alpha too.</p>
+          <p className={styles.muted}>Serving and former personnel keep the simulation authentic: the occasional question, or reviewing features as they are built. Unpaid and informal, with a say in how the job is portrayed and the advisor mark against the callsign. Advisors test the Pre-Alpha too.</p>
           <div className={styles.actions}>
             {open ? <Link className={styles.button} href="/signup?advisor=1">Apply to the advisor programme <Icon.arrow /></Link> : <span className={styles.chip}>Applications open {opensOn}</span>}
           </div>

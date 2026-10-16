@@ -32,7 +32,7 @@ const confirm = emailShell({
   preheader: "Confirm this address and your account is live.",
   paragraphs: [
     "Thank you for registering with The Watch Room. Confirm this address and your account is live.",
-    "If you asked to join the pre-alpha or applied to the advisor programme, that is filed at the same moment, and your standby page shows where it stands.",
+    "If you asked to join the Pre-Alpha or applied to the advisor programme, that is filed at the same moment, and your standby page shows where it stands.",
   ],
   cta: { label: "Confirm email", href: `${SITE}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/standby` },
   showLink: true,

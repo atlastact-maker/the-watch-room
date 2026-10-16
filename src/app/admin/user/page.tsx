@@ -12,7 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { addAdminNote, decideTesterApplication, deleteAdminNote, setBan, setTester } from "../actions";
 
 // One person, for the admin: the account and its standing, the advisor
-// application and the pre-alpha request they filed, their service record
+// application and the Pre-Alpha request they filed, their service record
 // with its place on the leaderboard, the notes on them and the bugs they
 // reported. Reached from any name on the admin lists. Read in one call
 // (migration 025); before that function exists the page composes the
@@ -274,7 +274,7 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
             {advisorStanding === "applicant" && <span className={`${styles.chip} ${styles.chipInfo}`} title="Has filed the advisor questionnaire; awaiting review">Advisor applicant</span>}
             {advisorStanding === "declined" && <span className={styles.chip} title="Advisor application declined">Advisor · declined</span>}
             {p.tester && <span className={`${styles.chip} ${styles.chipAmber}`}>Tester</span>}
-            {app && !p.tester && <span className={`${styles.chip} ${appChip}`}>Pre-alpha · {app.status}</span>}
+            {app && !p.tester && <span className={`${styles.chip} ${appChip}`}>Pre-Alpha · {app.status}</span>}
             {p.newsletter && <span className={styles.chip} title="Newsletter opt-in">Newsletter</span>}
           </div>
         </div>
@@ -347,7 +347,7 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
 
       <section className={styles.panel}>
         <div className={styles.panelHead}>
-          <h2>Pre-alpha</h2>
+          <h2>Pre-Alpha</h2>
           <span className={`${styles.chip} ${p.tester ? styles.chipAmber : ""}`}>{p.tester ? "On the tester list" : "Not a tester"}</span>
         </div>
         {app ? (
@@ -374,7 +374,7 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
           </div>
         ) : (
           <div className={styles.switchRow}>
-            <p className={styles.muted}>No pre-alpha request filed.</p>
+            <p className={styles.muted}>No Pre-Alpha request filed.</p>
             {p.assigned_role !== "admin" && (
               <form action={setTester}>
                 <input type="hidden" name="email" value={p.email} />

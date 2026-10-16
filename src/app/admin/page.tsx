@@ -119,7 +119,7 @@ type UserRow = {
   is_advisor_applicant: boolean;
   assigned_role: "admin" | "operator" | "advisor" | null;
   banned: boolean;
-  /** On the closed pre-alpha tester list. Undefined until migration 016
+  /** On the closed Pre-Alpha tester list. Undefined until migration 016
    *  is run, which the control treats as false. */
   tester?: boolean;
 };
@@ -277,7 +277,7 @@ export default async function AdminPage({
     (a) => (a.assigned_role === "advisor" || a.assigned_role === "operator") && !a.discord?.trim(),
   );
   const noDiscordEmails = noDiscord.map((a) => a.email);
-  // Advisors by account, for the mark on the pre-alpha list: someone who
+  // Advisors by account, for the mark on the Pre-Alpha list: someone who
   // has filed the advisor questionnaire is who the programme wants in
   // first, so they are flagged and sorted to the top of the waiting.
   const advisorByUser = new Map(advisors.map((a) => [a.user_id, a]));
@@ -320,7 +320,7 @@ export default async function AdminPage({
         <div>
           <p className={styles.eyebrow}>Administration · programme and accounts</p>
           <h1 className={styles.pageTitle}>Administration</h1>
-          <p className={styles.lede}>Pre-alpha access, advisor applications, access roles, released scenarios, bug reports and accounts.</p>
+          <p className={styles.lede}>Pre-Alpha access, advisor applications, access roles, released scenarios, bug reports and accounts.</p>
         </div>
         <div className={styles.headMeta}>
           <span className={`${styles.chip} ${doors.open ? styles.chipOk : styles.chipAmber}`}>Doors {doors.open ? "open" : "closed"}</span>
@@ -356,7 +356,7 @@ export default async function AdminPage({
       {/* One list at a time, so nothing needs scrolling for. */}
       <nav className={`${styles.tabs} ${styles.section}`} aria-label="Administration sections">
         <TabLink tab="applications" current={tab} label="Advisor applications" count={pending.length} hot={pending.length > 0} />
-        <TabLink tab="prealpha" current={tab} label="Pre-alpha" count={pendingTesterApps} hot={pendingTesterApps > 0} />
+        <TabLink tab="prealpha" current={tab} label="Pre-Alpha" count={pendingTesterApps} hot={pendingTesterApps > 0} />
         <TabLink tab="bugs" current={tab} label="Bug reports" count={openBugs} hot={openBugs > 0} />
         <TabLink tab="users" current={tab} label="Accounts" count={usersTotal} />
         <TabLink tab="advisors" current={tab} label="Access roles" count={roles.length} />
@@ -585,11 +585,11 @@ export default async function AdminPage({
         </section>
       )}
 
-      {/* Pre-alpha: the doors, the sign-up switch and the requests. */}
+      {/* Pre-Alpha: the doors, the sign-up switch and the requests. */}
       {tab === "prealpha" && (
         <section className={styles.section} aria-labelledby="tab-prealpha">
           <div className={styles.blockHead}>
-            <h2 id="tab-prealpha">Pre-alpha access</h2>
+            <h2 id="tab-prealpha">Pre-Alpha access</h2>
             <span className={styles.chip}>
               {pendingTesterApps} awaiting decision{advisorsWaiting > 0 ? ` (${advisorsWaiting} advisor${advisorsWaiting === 1 ? "" : "s"})` : ""} · {testerApps.filter((a) => a.status === "accepted").length} accepted · {testerApps.length} filed
             </span>
@@ -645,8 +645,8 @@ export default async function AdminPage({
                 </p>
                 <p className={styles.panelText}>
                   {signups.open
-                    ? "Anyone can create an account with Join the pre-alpha ticked, or press Request pre-alpha access from their standby page."
-                    : "The pre-alpha tick at sign-up and the request button on standby are off. Accounts can still be created and invited by hand."}
+                    ? "Anyone can create an account with Join the Pre-Alpha ticked, or press Request Pre-Alpha access from their standby page."
+                    : "The Pre-Alpha tick at sign-up and the request button on standby are off. Accounts can still be created and invited by hand."}
                 </p>
                 <div className={styles.actions}>
                   {signups.open ? (
@@ -676,7 +676,7 @@ export default async function AdminPage({
               </Notice>
             )}
             {(missing020 || missingTesterApps) && (
-              <Notice tone="critical" title="Migration 020 (pre-alpha applications) has not reached the app">
+              <Notice tone="critical" title="Migration 020 (Pre-Alpha applications) has not reached the app">
                 <p>Run supabase/migrations/020_prealpha_applications.sql in the Supabase SQL editor, then reload. If it has been run, run <code>notify pgrst, &apos;reload schema&apos;;</code> and reload this page.</p>
               </Notice>
             )}
@@ -691,7 +691,7 @@ export default async function AdminPage({
             </div>
             {testerApps.length === 0 && !missingTesterApps ? (
               <Notice title="No requests filed">
-                <p>Requests are filed when an account ticks Join the pre-alpha at sign-up, or presses Request pre-alpha access from its standby page.</p>
+                <p>Requests are filed when an account ticks Join the Pre-Alpha at sign-up, or presses Request Pre-Alpha access from its standby page.</p>
               </Notice>
             ) : (
               <div className={styles.cards}>
@@ -959,7 +959,7 @@ export default async function AdminPage({
               </Notice>
             )}
             {(missing021 || missingInvites) && (
-              <Notice tone="amber" title="Migration 021 (pre-alpha invitations) has not reached the app">
+              <Notice tone="amber" title="Migration 021 (Pre-Alpha invitations) has not reached the app">
                 <p>Run supabase/migrations/021_tester_invites.sql in the Supabase SQL editor, then reload. Until then Invite will not work; the Tester tick still does.</p>
               </Notice>
             )}
@@ -994,7 +994,7 @@ export default async function AdminPage({
                         </div>
                         {u.assigned_role !== "admin" && (
                           <div className={styles.cardTools}>
-                            {/* The pre-alpha list: one tick, and they can open
+                            {/* The Pre-Alpha list: one tick, and they can open
                                 the desk without holding a role. */}
                             <form action={setTester} className={styles.tickLabel}>
                               <input type="hidden" name="email" value={u.email} />
@@ -1003,8 +1003,8 @@ export default async function AdminPage({
                                 type="submit"
                                 role="checkbox"
                                 aria-checked={!!u.tester}
-                                aria-label="Pre-alpha tester"
-                                title={u.tester ? "On the tester list. Select to remove." : "Not a tester. Select to add to the pre-alpha."}
+                                aria-label="Pre-Alpha tester"
+                                title={u.tester ? "On the tester list. Select to remove." : "Not a tester. Select to add to the Pre-Alpha."}
                                 className={`${styles.tick} ${styles.tickAmber} ${u.tester ? styles.tickOn : ""}`}
                               >
                                 ✓
@@ -1020,9 +1020,9 @@ export default async function AdminPage({
                                 <button
                                   type="submit"
                                   className={`${styles.button} ${styles.small}`}
-                                  title={invite ? "Send the invitation again" : "Email them a link that opens the pre-alpha to this account"}
+                                  title={invite ? "Send the invitation again" : "Email them a link that opens the Pre-Alpha to this account"}
                                 >
-                                  {invite ? "Re-send invitation" : "Invite to pre-alpha"}
+                                  {invite ? "Re-send invitation" : "Invite to Pre-Alpha"}
                                 </button>
                               </form>
                             )}

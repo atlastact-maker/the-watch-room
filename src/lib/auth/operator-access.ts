@@ -116,7 +116,7 @@ export async function resolveInsignia(
   }
 }
 
-/** Whether this account is on the closed pre-alpha tester list
+/** Whether this account is on the closed Pre-Alpha tester list
  *  (migration 016). Read with the caller's own session, so RLS limits it
  *  to their own row. A missing table or a failed query reads as "not a
  *  tester" with the failure flagged, the same as the role lookup. */
@@ -163,7 +163,7 @@ export async function shiftAccess(
     isTester(supabase, email),
     prealphaDoors(supabase),
   ]);
-  // A tester is admitted only while the pre-alpha doors are open; a
+  // A tester is admitted only while the Pre-Alpha doors are open; a
   // role holder always. See lib/prealpha prealphaDoors.
   return {
     allowed: role === "admin" || role === "operator" || (tester.tester && doors.open),

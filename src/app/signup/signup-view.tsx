@@ -7,7 +7,7 @@ export type SignupData = {
   /** Registration is open (the announced date has passed). */
   open: boolean;
   opensOn: string;
-  /** Arrived from a pre-alpha or advisor link: pre-select the matching box. */
+  /** Arrived from a Pre-Alpha or advisor link: pre-select the matching box. */
   prealpha: boolean;
   advisor: boolean;
   signups: { open: boolean; closes: string };
@@ -19,14 +19,14 @@ export function SignupView({ data }: { data: SignupData }) {
     <>
       <header className={styles.pageHead}>
         <div>
-          <p className={styles.eyebrow}>Operator registration · closed pre-alpha</p>
+          <p className={styles.eyebrow}>Operator registration · closed Pre-Alpha</p>
           <h1 className={styles.pageTitle}>Create an account</h1>
           <p className={styles.lede}>
             {!open
               ? `Registration opens ${opensOn}, alongside the development advisor programme for anyone who has served in fire, ambulance, police or a control room.`
               : prealpha && signups.open
-                ? "Joining the pre-alpha: the access request below is pre-selected. Create the account and confirm the email address; the request is filed on confirmation."
-                : "An account saves progress and carries the service record between devices. The pre-alpha is a closed test; select the request below to apply for access."}
+                ? "Joining the Pre-Alpha: the access request below is pre-selected. Create the account and confirm the email address; the request is filed on confirmation."
+                : "An account saves progress and carries the service record between devices. The Pre-Alpha is a closed test; select the request below to apply for access."}
           </p>
         </div>
       </header>

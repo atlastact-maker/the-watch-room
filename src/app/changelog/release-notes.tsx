@@ -14,7 +14,7 @@ export function ReleaseNotes() {
         <div>
           <p className={styles.eyebrow}>Release notes · all builds</p>
           <h1 className={styles.pageTitle}>Release notes</h1>
-          <p className={styles.lede}>Every build of The Watch Room, most recent first. Items may change again while the pre-alpha runs.</p>
+          <p className={styles.lede}>Every build of The Watch Room, most recent first. Items may change again while the Pre-Alpha runs.</p>
         </div>
         <div className={styles.headMeta}>
           <span className={styles.chip}>{CHANGELOG.length} builds</span>

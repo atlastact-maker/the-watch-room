@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { filePreAlphaRequest } from "@/lib/prealpha";
 
-// One press: "Request pre-alpha access". The row is the account's own
+// One press: "Request Pre-Alpha access". The row is the account's own
 // (RLS keeps it that way) and stays pending until an admin grants it.
 // There is nothing to fill in; the account already has the callsign and
 // email, and the Discord handle comes from settings if it is there.

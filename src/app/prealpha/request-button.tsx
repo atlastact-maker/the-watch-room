@@ -22,9 +22,9 @@ export function RequestPreAlphaButton() {
   return (
     <form action={action}>
       <div className={styles.actions}>
-        <button type="submit" disabled={pending} className={styles.primary}>{pending ? "Submitting…" : "Request pre-alpha access"} <Icon.arrow /></button>
+        <button type="submit" disabled={pending} className={styles.primary}>{pending ? "Submitting…" : "Request Pre-Alpha access"} <Icon.arrow /></button>
       </div>
-      <p className={styles.formStatus}>By requesting access you agree to keep the pre-alpha within the programme: defects through the in-game form, discussion on the tester channel, and no public footage, screenshots or write-ups until the team confirms the doors are open.</p>
+      <p className={styles.formStatus}>By requesting access you agree to keep the Pre-Alpha within the programme: defects through the in-game form, discussion on the tester channel, and no public footage, screenshots or write-ups until the team confirms the doors are open.</p>
       {state && !state.ok && <p className={styles.warning}>{state.message}</p>}
     </form>
   );

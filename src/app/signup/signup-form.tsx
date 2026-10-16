@@ -12,7 +12,7 @@ export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false
   defaultAdvisorOpen?: boolean;
   defaultPrealpha?: boolean;
   prealphaCloses?: string;
-  /** Sign-ups for the pre-alpha are being taken; otherwise the request is greyed out. */
+  /** Sign-ups for the Pre-Alpha are being taken; otherwise the request is greyed out. */
   prealphaOpen?: boolean;
 }) {
   const [state, action, pending] = useActionState(signup, undefined);
@@ -51,8 +51,8 @@ export function SignupForm({ defaultAdvisorOpen = false, defaultPrealpha = false
         <label aria-disabled={!prealphaOpen}>
           <input type="checkbox" name="prealpha" defaultChecked={prealphaOpen && defaultPrealpha} disabled={!prealphaOpen} />
           <span>
-            Join the pre-alpha
-            <small>{prealphaOpen ? `Requests access to the closed test. Granted by hand; an email is sent when the desk is open to the account.${prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}` : "Sign-ups for the pre-alpha are closed. A wider test follows, and this account will be ready for it."}</small>
+            Join the Pre-Alpha
+            <small>{prealphaOpen ? `Requests access to the closed test. Granted by hand; an email is sent when the desk is open to the account.${prealphaCloses ? ` Sign-ups close on ${prealphaCloses}.` : ""}` : "Sign-ups for the Pre-Alpha are closed. A wider test follows, and this account will be ready for it."}</small>
           </span>
         </label>
         <label>

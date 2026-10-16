@@ -96,7 +96,7 @@ export function UpdatesView({ userId }: { userId: string }) {
         <div>
           <p className={styles.eyebrow}>Release notes and feedback</p>
           <h1 className={styles.pageTitle}>Release notes and reporting.</h1>
-          <p className={styles.lede}>Changes in the current and recent builds, and the reporting form for defects and observations. The pre-alpha is run with advisors who have done the job for real; an observation on realism carries the same weight as a defect.</p>
+          <p className={styles.lede}>Changes in the current and recent builds, and the reporting form for defects and observations. The Pre-Alpha is run with advisors who have done the job for real; an observation on realism carries the same weight as a defect.</p>
         </div>
       </header>
       <div className={styles.pageGrid}>

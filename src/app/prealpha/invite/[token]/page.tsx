@@ -33,7 +33,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <PublicShell brandLine="Closed pre-alpha" chip="Closed pre-alpha" width="narrow" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/prealpha", label: "Pre-alpha briefing" }, { href: "/login", label: "Log in", button: true }]}>
+    <PublicShell brandLine="Closed Pre-Alpha" chip="Closed Pre-Alpha" width="narrow" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Log in", button: true }]}>
       <InviteView outcome={outcome} here={`/prealpha/invite/${encodeURIComponent(token)}`} />
     </PublicShell>
   );
