@@ -49,7 +49,7 @@ export function OverviewView({ record, callsign, facts, stations }: { record: Pl
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className={styles.brandLine}><span className={styles.liveDot} aria-hidden="true" />Incident management simulator</p>
-          <h2>Command and control<br /><span>for a county.</span></h2>
+          <h2>You&apos;re in<br /><span>command and control.</span></h2>
           <p>Receive the emergency call, mobilise from Greater Manchester&apos;s real station network and assume command of the incident ground. Fire &amp; rescue, ambulance and police operations from a single operator position.</p>
           <div className={styles.actions}>
             {!record.loaded ? (

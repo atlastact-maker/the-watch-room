@@ -36,7 +36,7 @@ export function LandingView({ data }: { data: LandingData }) {
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className={styles.brandLine}><span className={styles.liveDot} aria-hidden="true" />Emergency services incident management simulator</p>
-          <h1>Command and control<br /><span>for a county.</span></h1>
+          <h1>You&apos;re in<br /><span>command and control.</span></h1>
           <p>Receive the 999 call, mobilise from Greater Manchester&apos;s real station network and take command of the incident ground. Fire &amp; rescue, ambulance and police operations from a single operator position.</p>
           <div className={styles.actions}>
             {open ? <Link className={styles.primary} href="/signup?prealpha=1">Create an account <Icon.arrow /></Link> : <span className={styles.chip}>Registration opens {opensOn}</span>}
