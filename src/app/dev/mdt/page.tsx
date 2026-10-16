@@ -131,7 +131,12 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   let treatment: PatientTreatmentState | null = null;
   let resus: ResusState | null = null;
   if (careMode && casualty) {
-    const clinical = casualty.clinical ?? { vitals: { rr: 20, spo2: 95, hr: 98, bpSys: 128, bpDia: 80, gcs: 15, temp: 36.6, bm: 5.8 }, presumedCondition: "Unwell", redFlags: [], preferredDestination: "nearest_a_e" as const, criticalInterventions: [] };
+    const clinical: NonNullable<typeof casualty.clinical> = casualty.clinical ?? { vitals: { rr: 20, spo2: 95, hr: 98, bpSys: 128, bpDia: 80, gcs: 15, temp: 36.6, bm: 5.8 }, presumedCondition: "Unwell", redFlags: [], preferredDestination: "nearest_a_e" as const, criticalInterventions: [] };
+    // An authored arrest has had no output since before the call: no oral
+    // aspirin, no nasal cannula — the crew bag him — and the board is open
+    // before anything else, the way live play opens it the moment the
+    // survey finds no output.
+    const authoredArrest = clinical.redFlags.includes("cardiac_arrest");
     const seed = `DEV-1:${casualty.id}`;
     const profile = generateProfile(seed, casualty, casualty.clinical);
     const by = dca!.callsign;
@@ -152,12 +157,12 @@ function buildWorld(scenarioId: string, minutesIn: number) {
       activeRedFlags: [...clinical.redFlags],
       allergiesConfirmedAt: t0 + 30_000,
       monitoring: { ecg_leads: t0 + 60_000, spo2_probe: t0 + 50_000 },
-      oxygen: { device: "nasal_cannula", flowLpm: 2, at: t0 + 90_000 },
+      oxygen: authoredArrest ? { device: "bvm", flowLpm: 15, at: t0 + 60_000 } : { device: "nasal_cannula", flowLpm: 2, at: t0 + 90_000 },
       airway: {},
-      breathing: { oxygen_15l: t0 + 90_000 },
+      breathing: authoredArrest ? { bvm: t0 + 60_000 } : { oxygen_15l: t0 + 90_000 },
       circulation: { iv_access: t0 + 150_000 },
-      drugs: { aspirin_300: t0 + 120_000 },
-      doses: [{ drug: "aspirin_300", at: t0 + 120_000, by }],
+      drugs: authoredArrest ? {} : { aspirin_300: t0 + 120_000 },
+      doses: authoredArrest ? [] : [{ drug: "aspirin_300", at: t0 + 120_000, by }],
       packaging: {},
       egress: {},
       events: [
@@ -166,12 +171,21 @@ function buildWorld(scenarioId: string, minutesIn: number) {
         { kind: "allergies_confirmed", at: t0 + 30_000, by, text: profile.allergies.length ? profile.allergies.map((a) => a.agent).join(", ") : "NKDA" },
         { kind: "monitoring", at: t0 + 50_000, by, device: "spo2_probe" },
         { kind: "monitoring", at: t0 + 60_000, by, device: "ecg_leads" },
-        { kind: "breathing", action: "oxygen_15l", at: t0 + 90_000, by },
-        { kind: "drug", drug: "aspirin_300", at: t0 + 120_000, by },
+        ...(authoredArrest
+          ? [{ kind: "breathing" as const, action: "bvm" as const, at: t0 + 60_000, by }]
+          : [
+              { kind: "breathing" as const, action: "oxygen_15l" as const, at: t0 + 90_000, by },
+              { kind: "drug" as const, drug: "aspirin_300" as const, at: t0 + 120_000, by },
+            ]),
         { kind: "circulation", action: "iv_access", at: t0 + 150_000, by },
       ],
     };
     treatment = { ...base, physio: calibrate(base, initialPhysio(clinical, profile, seed), clinical.vitals, nowMs) };
+    if (authoredArrest && !param("look")) {
+      // Board open and monitored off the leads, nobody on the chest yet;
+      // the downtime clock runs from the call, as it does in live play.
+      resus = { ...newResusState(casualty.id, t0 - 2 * 60_000, clinical.arrestRhythmHint === "non_shockable" ? "asystole" : "vf"), monitor: "lead_3" };
+    }
     // ?look=arrest: the same patient four minutes into a resuscitation —
     // on the floor, pads and an i-gel on, a crew member on the chest.
     if (param("look") === "arrest") {
@@ -179,8 +193,8 @@ function buildWorld(scenarioId: string, minutesIn: number) {
       treatment = {
         ...treatment,
         liveVitals: { ...clinical.vitals, hr: 0, bpSys: 0, bpDia: 0, spo2: 70, rr: 0, gcs: 3 },
-        activeRedFlags: [...clinical.redFlags, "cardiac_arrest"],
-        revealedRedFlags: [...clinical.redFlags, "cardiac_arrest"],
+        activeRedFlags: authoredArrest ? [...clinical.redFlags] : [...clinical.redFlags, "cardiac_arrest"],
+        revealedRedFlags: authoredArrest ? [...clinical.redFlags] : [...clinical.redFlags, "cardiac_arrest"],
         monitoring: { ...base.monitoring, defib_pads: a0 + 30_000 },
         airway: { igel: a0 + 90_000 },
         breathing: { bvm: a0 + 40_000 },

@@ -645,20 +645,20 @@ export const scenario12: Scenario = {
         id: "aed",
         text: "Send someone running to the pavilion, the Hough End Centre, for a defibrillator — there'll be one on the wall or at the desk. Bring it back, open it, and do exactly what it says. It won't shock him if he doesn't need it.",
         key: true,
-        reply: "SAM — the pavilion, the defib, the green box by reception, RUN! — He's gone. He's quick, he'll be two minutes.",
+        reply: "MAREK — the pavilion, the defib, the green box by reception, RUN! — He's gone. He's quick, he'll be two minutes.",
       },
       {
         id: "swap",
         text: "Whoever's pushing swaps out every couple of minutes so it stays hard and fast — straight swap, no gap. Keep counting.",
-        reply: "Right. Two minutes then Kyle's on. I'll count them. One, two, three, four —",
+        reply: "Right. Two minutes then Sam's on. I'll count them. One, two, three, four —",
         replyByVariant: {
-          "no-cpr": "If I can get anyone on him at all. Kyle — Kyle, come here, listen to me —",
+          "no-cpr": "If I can get anyone on him at all. Sam — Sam, come here, listen to me —",
         },
       },
       {
         id: "gate",
         text: "Get someone up to the car park gate to wave the crew through and run them down the path to pitch eleven. They'll have bags — someone to carry.",
-        reply: "The ref's going. He knows the way. He'll bring them down.",
+        reply: "Two of the subs are going up now — they know the way, they'll bring them down.",
       },
       {
         id: "crowd",
