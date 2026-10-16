@@ -46,7 +46,7 @@ const USER = { callsign: "M2 CONTROL", email: "dev@example.test", discord: "watc
 const SIGNUPS = { open: true, closed: false, closes: "16 October", opens: "" };
 
 type ConsolePage = "record" | "library" | "releases" | "settings" | "briefing";
-type PublicPage = "landing" | "login" | "signup" | "forgot" | "reset" | "terms" | "standby" | "invite";
+type PublicPage = "landing" | "login" | "signup" | "forgot" | "reset" | "terms" | "standby" | "invite" | "briefing-visitor" | "briefing-waiting";
 const CONSOLE: Record<ConsolePage, { title: string; nav: NavKey }> = {
   record: { title: "Service record", nav: "record" },
   library: { title: "Reference library", nav: "library" },
@@ -64,6 +64,8 @@ const PUBLIC: Record<PublicPage, { brandLine: string; width: "narrow" | "page" |
   terms: { brandLine: "Terms and conditions", width: "page", links: [{ href: "/login", label: "Log in" }, { href: "/signup", label: "Create an account", button: true }] },
   standby: { brandLine: "Standing by", width: "page", chip: "Closed Pre-Alpha", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/settings", label: "Account settings", button: true }] },
   invite: { brandLine: "Closed Pre-Alpha", width: "narrow", chip: "Closed Pre-Alpha", links: AUTH_LINKS },
+  "briefing-visitor": { brandLine: "Closed Pre-Alpha", width: "page", links: [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
+  "briefing-waiting": { brandLine: "Closed Pre-Alpha", width: "page", links: [{ href: "/standby", label: "Your standing", button: true }] },
 };
 const isConsole = (v: string | null): v is ConsolePage => v !== null && v in CONSOLE;
 const isPublic = (v: string | null): v is PublicPage => v !== null && v in PUBLIC;
@@ -100,6 +102,8 @@ export default function MenuHarness() {
         {page === "terms" && <TermsView />}
         {page === "standby" && <StandbyView data={{ callsign: "OSCAR 21", advisor: (param("advisor") as "pending" | "accepted" | "none" | null) ?? "pending", listed: param("listed") === "1", doorsOpen: false, prealpha: { standing: param("listed") === "1" ? "accepted" : "none", tableMissing: false }, signups: SIGNUPS, insignia: "fire", programmeOpen: true, opensOn: "Tuesday 1 September" }} />}
         {page === "invite" && <InviteView outcome={null} here="/prealpha/invite/00000000-0000-0000-0000-000000000000" />}
+        {page === "briefing-visitor" && <PreAlphaBriefing data={{ ...BRIEFING, accepted: false, waiting: false, operator: false, standing: "none", signedIn: false, openJobs: [] }} />}
+        {page === "briefing-waiting" && <PreAlphaBriefing data={{ ...BRIEFING, accepted: true, waiting: true, operator: false, invited: param("invited") === "1", standing: "accepted", signedIn: true }} />}
       </PublicShell>
     );
   }

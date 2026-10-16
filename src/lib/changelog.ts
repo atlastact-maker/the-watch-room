@@ -16,6 +16,52 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.0",
+    date: "2026-10-16",
+    title: "The operator console",
+    items: [
+      "The console, the front door, the account pages and administration share one operator-console design: sidebar navigation, the live county plate, and the same panels, chips and type throughout.",
+      "Alerts on the desk: a new call, a unit in attendance on the open incident, a patient deteriorating and the stop message are sounded, shown as cards and read to a screen reader. Each channel switches in Help and in Settings.",
+      "Keyboard and screen-reader support: a skip link, every control reachable by Tab with its explanation shown on focus, Inline help that writes every hint under its row, and a keyboard section in the reference.",
+      "Closed carriageways: the closed section shows on the county map, authorised units approach against the flow, and other incidents divert around the queue.",
+      "The incoming call, the reference and Report a problem are windows of the CAD, and every email the site sends is in the console's design.",
+    ],
+  },
+  {
+    version: "0.6.3",
+    date: "2026-10-15",
+    title: "Fire dynamics and the live carriageway",
+    items: [
+      "The fire burns room by room: growth, ventilation and the water applied decide what is tenable and for how long, and the fireground board shows it.",
+      "The RTC carriageway is the operator's job: lane closures and the full block with roads policing, the cordon, and Highways for the diversion. The scene is drawn from above on the junction's aerial photograph.",
+      "Crews are modelled figures: they jog in, walk between tasks and leave when nothing follows. The HEMS doctor carries the response pack.",
+      "Dynamic deployment: a Resources screen, standby moves that are carried out, and a resourcing page before the shift begins.",
+      "Calls arrive on 111, 101 and community lines as well as 999, each with the opening codes to match, and a PNC names enquiry takes the descriptors the real one does.",
+    ],
+  },
+  {
+    version: "0.6.2",
+    date: "2026-10-14",
+    title: "Casualty care, drawn from life",
+    items: [
+      "The patient scene is drawn from above as a person: kit placed where it goes, ECG leads for the lead set in use, a bag-valve-mask over the face, the LIFEPAK 15 and the Stryker stretcher.",
+      "The back of a UK ambulance: stretcher on the nearside, the LUCAS, the ventilator and suction in the saloon. An intubated patient goes on the ventilator.",
+      "The crew kneel to the patient, dressed as the ambulance service dresses.",
+    ],
+  },
+  {
+    version: "0.6.1",
+    date: "2026-10-03",
+    title: "Crews on the ground and the tablet",
+    items: [
+      "The mobile data terminal is a rugged field tablet that boots to a desktop of apps.",
+      "Casualty care has a patient board with NEWS2 and trends, the care record, and a patient you can see on the ground the incident is on. Nothing starts until the crew have walked to them.",
+      "BA crews walk in through the door and the building shows who is inside; hose lays from the appliance; officers on foot walk to their work.",
+      "Mobilising: drag a unit into the attendance slots, with a response map of the units on their way.",
+      "SVT and VT with a pulse join the casualty engine. The arrest board needs leads for a rhythm and a compressor for a clock.",
+    ],
+  },
+  {
     version: "0.6.0",
     date: "2026-08-25",
     title: "Crash Recovery System",

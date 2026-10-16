@@ -42,11 +42,11 @@ export type BriefingData = {
 };
 
 const PROCEDURE = [
-  "Operator console → Start shift. Select the services under command and the call volume; the clock starts after the resourcing page.",
+  "Operations overview, then Start shift. Select the services under command and the call volume; the clock starts once the resourcing page is complete.",
   "Receive the call: confirm the location, obtain the key information, assign the opening code and grade, and mobilise. Pre-arrival advice is read while resources are en route.",
   "Complete the attendance from the county board, then open the incident. Position each resource on the incident ground as it arrives.",
-  "Command from the MDT: task crews, manage patients, monitor the log. The debrief assesses the incident at the stop message.",
-  "Defects: Help → Report a problem, from any screen. The report carries the incident and the last minute of the log.",
+  "Command from the mobile data terminal: task crews, manage patients, monitor the log. The debrief assesses the incident at the stop message.",
+  "Defects: Help, then Report a problem, from any screen. The report carries the incident reference and the last minute of the log.",
 ];
 
 export function PreAlphaBriefing({ data }: { data: BriefingData }) {
@@ -56,7 +56,7 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
       <header className={styles.pageHead}>
         <div>
           <p className={styles.eyebrow}>{accepted ? "Pre-Alpha briefing · tester" : "Closed Pre-Alpha · programme"}</p>
-          <h1 className={styles.pageTitle}>{waiting ? "Accepted. The desk opens shortly." : accepted ? "Pre-Alpha briefing" : "Closed Pre-Alpha programme"}</h1>
+          <h1 className={styles.pageTitle}>{waiting ? "Access approved. The desk opens shortly." : accepted ? "Pre-Alpha briefing" : "Closed Pre-Alpha programme"}</h1>
           <p className={styles.lede}>
             {accepted
               ? "Scope of the current build, the shift procedure and the reporting route. The operator guide and the reference library cover the console itself."
@@ -95,7 +95,7 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
               {openJobs.map((j) => <li key={j.id}><span style={{ color: SERVICE_TINT[j.service] }}>{serviceName(j.service)}</span><span>{j.title}</span></li>)}
             </ul>
           )}
-          <p className={styles.formStatus}>Each scenario varies between runs: who is home, where the fire is seated, whether the driver stops. Run each more than once.</p>
+          <p className={styles.formStatus}>Each scenario varies between runs: who is at home, where the fire is seated, whether the driver stops. Run each more than once.</p>
         </section>
       )}
 

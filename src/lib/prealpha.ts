@@ -212,58 +212,58 @@ export async function ensurePreAlphaRequest(
 /** What a tester gets and what we ask — the briefing, in one place so
  *  the public page, the accepted view and the email tell the same story. */
 export const PREALPHA_ACCESS = [
-  { title: "Live jobs across all three services", body: "Fire, ambulance and police jobs, each with several ways it can play out, so no two shifts are the same. The briefing lists what is open; more open as they are signed off." },
-  { title: "The whole desk", body: "The 999 call, opening codes and grading, the county board and mobilising, the ground map with crews on foot, the mobile data terminal, casualty care, and the debrief." },
-  { title: "A bug report a click away", body: "Help → Report a problem on the desk files straight to the team with the screen, the job and the last minute of the log attached." },
-  { title: "The tester room on Discord", body: "A private channel with the developer and the advisors, where the builds are announced and the suggestions get argued over." },
-  { title: "Your name on the record", body: "The service record keeps every shift; Pre-Alpha testers keep theirs when the doors open, with the tester mark against the callsign." },
+  { title: "Incidents across all three services", body: "Fire, ambulance and police incidents, each with variant outcomes between runs. The briefing lists the scenarios released; further scenarios are released as they are signed off." },
+  { title: "The complete desk", body: "Call handling with opening codes and grading, the county board and mobilising, the incident ground with crews on foot, the mobile data terminal, casualty care and the debrief." },
+  { title: "In-console defect reporting", body: "Help, then Report a problem, files directly to the development team with the screen, the incident reference and the last minute of the log attached." },
+  { title: "The tester channel on Discord", body: "A private channel with the developer and the advisor group, where builds are announced and findings are discussed." },
+  { title: "A standing service record", body: "The service record keeps every shift. Pre-Alpha testers keep theirs when the doors open, with the tester mark against the callsign." },
 ] as const;
 
-/** What is in the Pre-Alpha, by part of the desk, and what we most want
+/** What is in the Pre-Alpha, by part of the desk, and what is to be
  *  tested in each. The briefing lists it; the trailer says the same. */
 export const PREALPHA_FOCUS = [
   {
-    title: "The 999 call",
-    body: "Scripted callers who answer what you ask, opening codes (NICL, IRS and AMPDS), grading, and pre-arrival advice read while the crews run.",
-    test: "Does the call feel like a call? Are the right questions there, and does the grade land where it should?",
+    title: "Call handling",
+    body: "Scripted callers who answer what is asked, opening codes (NICL, IRS and AMPDS), grading, and pre-arrival advice read while resources are en route.",
+    test: "Whether the call reads as a genuine call: the questions available, and whether the grade reached is the correct one.",
   },
   {
     title: "Fire ground control",
-    body: "Sectors, BA board and entry control, water from hydrants and relays, jets, tactical mode, informative and stop messages, casualties found and brought out.",
-    test: "Does the fireground behave like one? Timings for BA, water and rescue; whether the messages read as they would on the radio.",
+    body: "Sectors, BA board and entry control, water from hydrants and relays, jets, tactical mode, informative and stop messages, casualties located and brought out.",
+    test: "Whether the fireground behaves as one: BA, water and rescue timings, and whether the messages read as they would over the radio.",
   },
   {
     title: "Casualty care",
     body: "Vitals monitor, triage sieve, airway and breathing, oxygen and medication orders, packaging, hospital pre-alert and conveyance.",
-    test: "Does the patient respond like a patient? Is the care pathway clear, and do the vitals move the way a clinician would expect?",
+    test: "Whether the patient responds as a patient would: the clarity of the care pathway, and whether the vitals move as a clinician would expect.",
   },
   {
     title: "Police ground control",
     body: "Containment and cordons, arrest, search, PNC and LEDS checks on people and vehicles, domestic risk, custody and transport.",
-    test: "Does the job run like a job? Are the checks and the options the ones an officer would want, in the order they would want them?",
+    test: "Whether the incident runs as one would: the checks and options an officer would expect, in the order they would expect them.",
   },
   {
     title: "Mobilising and the map",
-    body: "The county board with real stations and appliances, routing on real roads, park spots, crews on foot at the scene.",
-    test: "Are the attendances right for the call? Do the drive times feel right for Greater Manchester?",
+    body: "The county board with real stations and appliances, routing on real roads, parking positions, crews on foot at the scene.",
+    test: "Whether the attendances are correct for the call, and whether the drive times are credible for Greater Manchester.",
   },
   {
     title: "The debrief and the record",
-    body: "Every shift scored against the standard: mobilise time, attendance, advice given, decisions on the ground. A service record that keeps every shift.",
-    test: "Is the score fair? Does it tell you why?",
+    body: "Every shift assessed against the performance standards: time to mobilise, attendance, advice given, decisions on the ground. A service record that keeps every shift.",
+    test: "Whether the assessment is fair, and whether it explains itself.",
   },
 ] as const;
 
 export const PREALPHA_ASKS = [
-  "A couple of shifts a week if you can, one if you can't — a shift is twenty minutes to an hour.",
-  "Report what breaks through the in-game form, and say what you expected instead.",
-  "Keep it in the room: no public footage, screenshots or write-ups until we say the doors are open. Talk about it all you like on the Discord.",
-  "Be honest. \"This felt wrong\" from someone who has done the job is worth more than a bug.",
+  "Two shifts a week where possible, one at minimum. A shift runs twenty minutes to an hour.",
+  "Report defects through the in-console form, stating what you expected instead.",
+  "Programme confidentiality: no public footage, screenshots or write-ups until the doors are declared open. Discussion in the tester channel is unrestricted.",
+  "Candour. A judgement that something is not how it is done, from someone who has done the job, carries more weight than any defect report.",
 ] as const;
 
 export const PREALPHA_NOT_YET = [
-  "Every scenario. A small set is open; the rest are being reviewed one at a time.",
-  "Multiplayer. One operator, one county, for now.",
-  "Mobile. The desk needs a laptop or a desktop screen; the tablet views are for a second screen, not a phone.",
-  "Balance. Timings and grades will move as the advisors weigh in. That is the point of you being here.",
+  "The full scenario set. A small set is released; the remainder are reviewed and released one at a time.",
+  "Multiplayer. One operator, one county, for this build.",
+  "Mobile. The desk requires a laptop or desktop display; the tablet views are for a second screen, not a phone.",
+  "Balance. Timings and grading will move as the advisor group reports. That is the purpose of the Pre-Alpha.",
 ] as const;

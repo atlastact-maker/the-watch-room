@@ -150,6 +150,7 @@
 .panelTitle { display: block; font-size: 17px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 8px; }
 .twoCol { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; margin-top: 28px; align-items: start; }
 .twoUp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.twoUp > .panel + .panel, .twoCol > .panel + .panel { margin-top: 0; }
 
 /* ---- county facts ---- */
 .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }

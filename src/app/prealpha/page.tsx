@@ -65,7 +65,7 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
     );
   }
   return (
-    <PublicShell brandLine="Closed Pre-Alpha" chip="Closed Pre-Alpha" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }]}>
+    <PublicShell brandLine="Closed Pre-Alpha" links={user ? [{ href: "/standby", label: "Your standing", button: true }] : [{ href: "/login", label: "Log in" }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }]}>
       <PreAlphaBriefing data={data} />
     </PublicShell>
   );
