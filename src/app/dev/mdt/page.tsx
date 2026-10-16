@@ -29,6 +29,7 @@ import { DraggableIncidentMdt } from "../../dashboard/components/incident-mdt";
 import { GroundSceneMap } from "../../dashboard/components/ground-scene-map";
 import { resolveDeployments } from "../../dashboard/components/incident-view";
 import { SCENARIOS } from "@/lib/sim/scenarios";
+import { applyVariant } from "@/lib/sim/scene";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import { simulateIncident } from "@/lib/sim/incident_sim";
 import { busyOn, withCrewAssignment } from "@/lib/sim/crew_assign";
@@ -63,11 +64,15 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   };
   const placeWord = PLACE_WORDS[param("place") ?? ""];
   const poseWord = param("pose") === "sitting" ? "sat up" : param("pose") === "supine" ? "collapsed on the floor" : "";
-  const first = scenario.scene?.casualties?.[0];
+  // ?variant=<id> plays tonight's run as that scene variant: the casualty
+  // the crew find is the variant's, not the base.
+  const variantId = param("variant");
+  const scenarioTonight = variantId && scenario.scene ? { ...scenario, scene: applyVariant(scenario.scene, variantId).scene } : scenario;
+  const first = scenarioTonight.scene?.casualties?.[0];
   const casualty = first && (placeWord || poseWord) ? { ...first, label: `${first.label ?? "Patient"}, ${[poseWord, placeWord].filter(Boolean).join(", ")}` } : first;
-  const scenarioForWorld = casualty && first && casualty !== first && scenario.scene
-    ? { ...scenario, scene: { ...scenario.scene, casualties: scenario.scene.casualties?.map((c) => (c.id === casualty.id ? casualty : c)) } }
-    : scenario;
+  const scenarioForWorld = casualty && first && casualty !== first && scenarioTonight.scene
+    ? { ...scenarioTonight, scene: { ...scenarioTonight.scene, casualties: scenarioTonight.scene.casualties?.map((c) => (c.id === casualty.id ? casualty : c)) } }
+    : scenarioTonight;
   const nowMs = Date.now();
   const receivedAt = nowMs - minutesIn * 60_000;
   const stations: StationWithAppliances[] = STATIONS.map((s) => ({ ...s, appliances: getStationAppliances(s.id) }));
@@ -137,6 +142,9 @@ function buildWorld(scenarioId: string, minutesIn: number) {
     // before anything else, the way live play opens it the moment the
     // survey finds no output.
     const authoredArrest = clinical.redFlags.includes("cardiac_arrest");
+    // Nobody unresponsive swallows a tablet: a GCS below 9 gets a
+    // non-rebreather rather than a cannula, and no aspirin.
+    const cannotSwallow = authoredArrest || clinical.vitals.gcs < 9;
     const seed = `DEV-1:${casualty.id}`;
     const profile = generateProfile(seed, casualty, casualty.clinical);
     const by = dca!.callsign;
@@ -150,6 +158,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
       revealedCondition: clinical.presumedCondition,
       revealedRedFlags: clinical.redFlags,
       preferredDestination: clinical.preferredDestination,
+      postRosc: clinical.postRosc,
       liveVitals: { ...clinical.vitals },
       prevLiveVitals: { ...clinical.vitals },
       prevLiveVitalsAt: nowMs,
@@ -157,12 +166,12 @@ function buildWorld(scenarioId: string, minutesIn: number) {
       activeRedFlags: [...clinical.redFlags],
       allergiesConfirmedAt: t0 + 30_000,
       monitoring: { ecg_leads: t0 + 60_000, spo2_probe: t0 + 50_000 },
-      oxygen: authoredArrest ? { device: "bvm", flowLpm: 15, at: t0 + 60_000 } : { device: "nasal_cannula", flowLpm: 2, at: t0 + 90_000 },
+      oxygen: authoredArrest ? { device: "bvm", flowLpm: 15, at: t0 + 60_000 } : cannotSwallow ? { device: "nrb", flowLpm: 15, at: t0 + 90_000 } : { device: "nasal_cannula", flowLpm: 2, at: t0 + 90_000 },
       airway: {},
       breathing: authoredArrest ? { bvm: t0 + 60_000 } : { oxygen_15l: t0 + 90_000 },
       circulation: { iv_access: t0 + 150_000 },
-      drugs: authoredArrest ? {} : { aspirin_300: t0 + 120_000 },
-      doses: authoredArrest ? [] : [{ drug: "aspirin_300", at: t0 + 120_000, by }],
+      drugs: cannotSwallow ? {} : { aspirin_300: t0 + 120_000 },
+      doses: cannotSwallow ? [] : [{ drug: "aspirin_300", at: t0 + 120_000, by }],
       packaging: {},
       egress: {},
       events: [
@@ -173,10 +182,12 @@ function buildWorld(scenarioId: string, minutesIn: number) {
         { kind: "monitoring", at: t0 + 60_000, by, device: "ecg_leads" },
         ...(authoredArrest
           ? [{ kind: "breathing" as const, action: "bvm" as const, at: t0 + 60_000, by }]
-          : [
-              { kind: "breathing" as const, action: "oxygen_15l" as const, at: t0 + 90_000, by },
-              { kind: "drug" as const, drug: "aspirin_300" as const, at: t0 + 120_000, by },
-            ]),
+          : cannotSwallow
+            ? [{ kind: "breathing" as const, action: "oxygen_15l" as const, at: t0 + 90_000, by }]
+            : [
+                { kind: "breathing" as const, action: "oxygen_15l" as const, at: t0 + 90_000, by },
+                { kind: "drug" as const, drug: "aspirin_300" as const, at: t0 + 120_000, by },
+              ]),
         { kind: "circulation", action: "iv_access", at: t0 + 150_000, by },
       ],
     };

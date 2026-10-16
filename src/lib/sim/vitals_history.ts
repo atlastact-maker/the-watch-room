@@ -2,6 +2,11 @@
 // board's trends. Sampled every five seconds at most, forty minutes kept.
 // Recorded wherever the vitals are ticked so the trends are there whenever
 // the board is opened, not only while it is on screen.
+//
+// In arrest the pulse oximeter has no pulse to read and the cuff cannot
+// measure, so those samples are recorded as gaps (NaN), not as the
+// numbers the compressions make inside the model. Respiration is
+// impedance across the leads and is kept.
 
 import type { PatientClinical } from "./scene";
 
@@ -11,7 +16,7 @@ const HISTORY = new Map<string, VitalsSample[]>();
 const EVERY_MS = 5000;
 const KEEP = (40 * 60 * 1000) / EVERY_MS;
 
-export function recordVitals(casualtyId: string, now: number, v: PatientClinical["vitals"]): void {
+export function recordVitals(casualtyId: string, now: number, v: PatientClinical["vitals"], noOutput = false): void {
   let hist = HISTORY.get(casualtyId);
   if (!hist) {
     hist = [];
@@ -19,7 +24,7 @@ export function recordVitals(casualtyId: string, now: number, v: PatientClinical
   }
   const last = hist[hist.length - 1];
   if (last && now - last.t < EVERY_MS) return;
-  hist.push({ t: now, hr: v.hr, spo2: v.spo2, bpSys: v.bpSys, rr: v.rr });
+  hist.push({ t: now, hr: noOutput ? NaN : v.hr, spo2: noOutput ? NaN : v.spo2, bpSys: noOutput ? NaN : v.bpSys, rr: v.rr });
   if (hist.length > KEEP) hist.splice(0, hist.length - KEEP);
 }
 

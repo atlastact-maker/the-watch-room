@@ -16,6 +16,17 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.1",
+    date: "2026-10-16",
+    title: "The cardiac arrest, as the crew find it",
+    items: [
+      "A patient in arrest reads as one: the airway shows unprotected until an adjunct is in, breathing shows the bag, and no saturation or pressure is quoted where there is no pulse to read.",
+      "Pre-arrival advice is scored: the key instructions, compressions and the defibrillator on an arrest, count on the debrief alongside the key questions.",
+      "A patient whose output came back before the crew arrived is post-ROSC from the first look: the stage says so and the care screen shows the post-ROSC targets.",
+      "Hough End: the coach names the same players the records hold.",
+    ],
+  },
+  {
     version: "0.7.0",
     date: "2026-10-16",
     title: "The operator console",

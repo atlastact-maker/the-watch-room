@@ -85,9 +85,10 @@ const FLAG_ASK: Partial<Record<PatientRedFlag, string>> = {
   tachycardia_unstable: "Vagal, adenosine or amiodarone, else a synchronised shock",
 };
 
-function Trend({ label, unit, hist, pick, lo, hi, alarmLow, alarmHigh, now, span, colour }: { label: string; unit: string; hist: readonly VitalsSample[]; pick: (s: VitalsSample) => number; lo: number; hi: number; alarmLow?: number; alarmHigh?: number; now: number; span: number; colour: string }) {
+function Trend({ label, unit, hist, pick, lo, hi, alarmLow, alarmHigh, now, span, colour, off }: { label: string; unit: string; hist: readonly VitalsSample[]; pick: (s: VitalsSample) => number; lo: number; hi: number; alarmLow?: number; alarmHigh?: number; now: number; span: number; colour: string; /** Why the tile shows nothing right now ("no output") instead of a number. */ off?: string }) {
   const from = now - span;
-  const pts = hist.filter((p) => p.t >= from);
+  // Samples the monitor could not have taken are gaps in the line.
+  const pts = hist.filter((p) => p.t >= from && Number.isFinite(pick(p)));
   const W = 240;
   const H = 44;
   const x = (t: number) => ((t - from) / span) * W;
@@ -102,12 +103,12 @@ function Trend({ label, unit, hist, pick, lo, hi, alarmLow, alarmHigh, now, span
   const range = vals.length > 1 ? (lo1 === hi1 ? `${lo1}` : `${lo1}–${hi1}`) : null;
   return (
     <div className="pb-trend">
-      <div className="hd"><span style={{ color: colour }}>{label}</span><b>{range ?? "—"}{range && <small>{unit}</small>}</b><em className={pts.length < 2 ? "wait" : delta > 0 ? "up" : delta < 0 ? "down" : ""}>{pts.length > 1 ? (delta > 0 ? `▲ ${delta}` : delta < 0 ? `▼ ${-delta}` : "steady") : "collecting"}</em></div>
+      <div className="hd"><span style={{ color: colour }}>{label}</span><b>{off ? "—" : range ?? "—"}{!off && range && <small>{unit}</small>}</b><em className={off || pts.length < 2 ? "wait" : delta > 0 ? "up" : delta < 0 ? "down" : ""}>{off ? off : pts.length > 1 ? (delta > 0 ? `▲ ${delta}` : delta < 0 ? `▼ ${-delta}` : "steady") : "collecting"}</em></div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
         {alarmLow !== undefined && <line x1="0" x2={W} y1={y(alarmLow)} y2={y(alarmLow)} className="alarm" />}
         {alarmHigh !== undefined && <line x1="0" x2={W} y1={y(alarmHigh)} y2={y(alarmHigh)} className="alarm" />}
-        {pts.length > 1 && <path d={line} style={{ stroke: colour }} />}
-        {last && <circle cx={x(last.t)} cy={y(pick(last))} r="2.4" style={{ fill: colour }} />}
+        {!off && pts.length > 1 && <path d={line} style={{ stroke: colour }} />}
+        {!off && last && <circle cx={x(last.t)} cy={y(pick(last))} r="2.4" style={{ fill: colour }} />}
       </svg>
     </div>
   );
@@ -153,7 +154,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   const inArrest = !!resus && !resus.roscAt && !resus.roleAt;
   const flags = tx?.activeRedFlags ?? tx?.revealedRedFlags ?? [];
   const revealed = tx?.revealedRedFlags ?? [];
-  if (vitals && surveyDone) recordVitals(casualty.id, now, vitals);
+  if (vitals && surveyDone) recordVitals(casualty.id, now, vitals, inArrest || flags.includes("cardiac_arrest"));
   const hist = vitalsHistory(casualty.id);
   const span = Math.min(SPAN_MAX_MS, Math.max(SPAN_MIN_MS, hist.length ? now - hist[0].t : 0));
   const spanMin = Math.round(span / 60_000);
@@ -163,7 +164,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   const score = vitals && surveyDone && !inArrest ? scoreOf(vitals) : null;
   // The score five minutes ago, from the sampled trend (temperature and
   // consciousness are taken as now — neither moves fast).
-  const before = hist.find((s) => s.t >= now - 5 * 60_000 - 10_000 && s.t <= now - 5 * 60_000 + 10_000);
+  const before = hist.find((s) => s.t >= now - 5 * 60_000 - 10_000 && s.t <= now - 5 * 60_000 + 10_000 && Number.isFinite(s.hr) && Number.isFinite(s.spo2) && Number.isFinite(s.bpSys));
   const scoreBefore = before ? scoreOf(before)?.total ?? null : null;
   const scoreTone: Tone = inArrest ? "stop" : score ? BAND_TONE[score.band] : "";
   const inCare = tx?.surveyStartedAt ? now - tx.surveyStartedAt : null;
@@ -272,9 +273,9 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   ) : null;
   const trends = (
     <div className="pb-trends">
-      <Trend label="HR" unit="bpm" hist={hist} pick={(s) => s.hr} lo={30} hi={180} alarmLow={50} alarmHigh={120} now={now} span={span} colour="#2fd17a" />
-      <Trend label="SpO₂" unit="%" hist={hist} pick={(s) => s.spo2} lo={70} hi={100} alarmLow={90} now={now} span={span} colour="#3fd0ea" />
-      <Trend label="Sys BP" unit="mmHg" hist={hist} pick={(s) => s.bpSys} lo={50} hi={220} alarmLow={90} now={now} span={span} colour="#ff6b6b" />
+      <Trend label="HR" unit="bpm" hist={hist} pick={(s) => s.hr} lo={30} hi={180} alarmLow={50} alarmHigh={120} now={now} span={span} colour="#2fd17a" off={inArrest ? "no output" : undefined} />
+      <Trend label="SpO₂" unit="%" hist={hist} pick={(s) => s.spo2} lo={70} hi={100} alarmLow={90} now={now} span={span} colour="#3fd0ea" off={inArrest ? "no output" : undefined} />
+      <Trend label="Sys BP" unit="mmHg" hist={hist} pick={(s) => s.bpSys} lo={50} hi={220} alarmLow={90} now={now} span={span} colour="#ff6b6b" off={inArrest ? "no output" : undefined} />
       <Trend label="RR" unit="/min" hist={hist} pick={(s) => s.rr} lo={0} hi={50} alarmHigh={30} now={now} span={span} colour="#f3d35a" />
       <div className="pb-axis"><span>{spanMin} min ago</span><span>{Math.round(spanMin / 2)}</span><span>now</span></div>
     </div>

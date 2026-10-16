@@ -2655,6 +2655,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         // An authored arrest carries its own rhythm hint; a patient who
         // arrests later keeps whatever the physiology decides.
         arrestRhythmHint: clinical.arrestRhythmHint ?? p.arrestRhythmHint,
+        // Output back before any crew arrived: no resus record exists, so
+        // the clinical says it and the stage reads post-ROSC from here.
+        postRosc: clinical.postRosc ?? p.postRosc,
         events: [...p.events, { kind: "survey_completed", at: completedAt }],
       }));
       // Seed the hidden physiology and calibrate it to the authored
@@ -5070,7 +5073,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // And the patient board's trends: every surveyed patient's numbers.
   useEffect(() => {
     for (const tx of Object.values(treatmentByCasualtyId)) {
-      if (tx.liveVitals && tx.surveyCompletedAt) recordVitals(tx.casualtyId, now, tx.liveVitals);
+      if (tx.liveVitals && tx.surveyCompletedAt) recordVitals(tx.casualtyId, now, tx.liveVitals, (tx.activeRedFlags ?? []).includes("cardiac_arrest"));
     }
   }, [treatmentByCasualtyId, now]);
 

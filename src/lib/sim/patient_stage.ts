@@ -60,6 +60,9 @@ const idx = (k: PatientStageKey) => PATIENT_TRACK.findIndex((s) => s.key === k);
 export function patientStage(i: PatientStageInput): PatientStage {
   const { tx, resus, progression, score } = i;
   const arrestOn = !!resus && resus.roscAt === undefined && resus.roleAt === undefined;
+  // Post-ROSC either way: the board got him back, or he was back before
+  // any crew arrived and the clinical says so.
+  const postRosc = resus?.roscAt !== undefined || !!tx?.postRosc;
 
   if (progression === "expectant" || resus?.roleAt !== undefined) {
     return { key: "life_extinct", label: "Life extinct", detail: resus?.roleAt !== undefined ? "Resuscitation stopped — the scene is the police's now" : "Expectant — beyond what the scene can do", tone: "stop", index: -1 };
@@ -70,13 +73,13 @@ export function patientStage(i: PatientStageInput): PatientStage {
     return { key: "arrest", label: "Cardiac arrest", detail: noOne ? `Cycle ${cycle} · nobody on the chest` : `Cycle ${cycle} · ${resus!.shocks} shock${resus!.shocks === 1 ? "" : "s"} · ${resus!.adrenalineDoses} adrenaline`, tone: "stop", index: idx("arrest") };
   }
   if (progression === "at_hospital") return { key: "handed_over", label: "Handed over", detail: tx?.chosenDestination ? `At ${tx.chosenDestination.name}` : "At hospital", tone: "go", index: PATIENT_TRACK.length };
-  if (progression === "conveying") return { key: "en_route", label: "En route", detail: tx?.chosenDestination ? `To ${tx.chosenDestination.name}${tx.atmistSentAt ? " · pre-alerted" : " · no pre-alert"}` : "Destination not recorded", tone: resus?.roscAt !== undefined ? "warn" : "go", index: idx("en_route") };
+  if (progression === "conveying") return { key: "en_route", label: "En route", detail: tx?.chosenDestination ? `To ${tx.chosenDestination.name}${tx.atmistSentAt ? " · pre-alerted" : " · no pre-alert"}` : "Destination not recorded", tone: postRosc ? "warn" : "go", index: idx("en_route") };
 
   const packaged = progression === "extricated" || (tx && Object.keys(tx.egress).length > 0) || (tx?.moveEndsAt !== undefined && i.now < tx.moveEndsAt);
-  if (packaged) return { key: "packaged", label: tx?.moveEndsAt !== undefined && i.now < tx.moveEndsAt ? "On the move" : "Packaged", detail: tx?.chosenDestination ? `For ${tx.chosenDestination.name}` : "Choose a destination and pre-alert", tone: resus?.roscAt !== undefined || (score && score.band === "high") ? "warn" : "go", index: idx("packaged") };
+  if (packaged) return { key: "packaged", label: tx?.moveEndsAt !== undefined && i.now < tx.moveEndsAt ? "On the move" : "Packaged", detail: tx?.chosenDestination ? `For ${tx.chosenDestination.name}` : "Choose a destination and pre-alert", tone: postRosc || (score && score.band === "high") ? "warn" : "go", index: idx("packaged") };
 
-  if (resus?.roscAt !== undefined) {
-    return { key: "rosc", label: "ROSC", detail: `Output back ${Math.max(0, Math.round((i.now - resus.roscAt) / 60000))} min ago · twelve-lead, airway, sats 94–98 %, then move`, tone: "warn", index: idx("rosc") };
+  if (postRosc) {
+    return { key: "rosc", label: "ROSC", detail: resus?.roscAt !== undefined ? `Output back ${Math.max(0, Math.round((i.now - resus.roscAt) / 60000))} min ago · twelve-lead, airway, sats 94–98 %, then move` : "Output back before the crew arrived · twelve-lead, airway, sats 94–98 %, then move", tone: "warn", index: idx("rosc") };
   }
   if (!tx?.surveyCompletedAt || !score) {
     return { key: "unassessed", label: "Not yet assessed", detail: tx?.surveyStartedAt ? "Primary survey under way" : "Primary survey first", tone: "", index: -1 };

@@ -374,6 +374,7 @@ export const scenario12: Scenario = {
             redFlags: ["airway_compromise"],
             criticalInterventions: ["oxygen", "iv_access"],
             arrestRhythmHint: "shockable",
+            postRosc: true,
           },
         },
       },

@@ -416,6 +416,21 @@ export function scoreIncident(
         passed: missed.length === 0 ? true : missed.length === 1 ? "partial" : false,
       });
     }
+    // Pre-arrival advice: the instructions the handler reads once help is
+    // on its way — compressions and the defib on an arrest, out and stay
+    // out on a fire. The call screen logs each key step not read as its
+    // own setback; here they are counted, on any call that recorded
+    // advice at all.
+    const adviceGiven = log.some((e) => e.id.startsWith("call-advice:"));
+    const adviceMissed = log.filter((e) => e.id.startsWith("call-advice-missed:"));
+    if (adviceGiven || adviceMissed.length > 0) {
+      metrics.push({
+        label: "Pre-arrival advice",
+        target: "Every key instruction read before the phone went down",
+        actual: adviceMissed.length === 0 ? "All key advice given" : `${adviceMissed.length} not given: ${adviceMissed.map((m) => m.message.replace(/^.*advice not given: /, "")).join("; ")}`,
+        passed: adviceMissed.length === 0 ? true : adviceMissed.length === 1 ? "partial" : false,
+      });
+    }
   }
 
   // 5b. Exposure protection — did the fire get into the attached

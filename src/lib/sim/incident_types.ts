@@ -1001,6 +1001,10 @@ export type PatientTreatmentState = {
   physio?: import("./physiology").PhysioState;
   /** How the physiology says this patient arrested, for the rhythm roll. */
   arrestRhythmHint?: "shockable" | "non_shockable";
+  /** Authored post-ROSC presentation: output was back before the crew
+   *  arrived, so there is no resus record to read it from. Copied from
+   *  the clinical when the survey completes. */
+  postRosc?: boolean;
 };
 
 /** A single scripted update the informant gives while waiting for crews

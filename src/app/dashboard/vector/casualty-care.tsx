@@ -32,7 +32,7 @@ import { CIRC_MIN_SCOPE,
 import { MonitorMeta, VitalMonitorPanel, monitorPicture, useMonitorState } from "./vital-monitor";
 import { OXYGEN_DEVICE_LABEL, OXYGEN_FLOWS, OXYGEN_HINT, oxygenLabel, oxygenVerdict, type OxygenDevice } from "@/lib/sim/oxygen";
 import { PHARMACOLOGY, canGiveDrug, dosesOf, pacingCapturing } from "@/lib/sim/physiology";
-import { postRoscIssues, type ResusState, type ReversibleCause, type MonitorMode, type AirwayState } from "@/lib/sim/resus";
+import { POST_ROSC, postRoscIssues, postRoscVitalIssues, type ResusState, type ReversibleCause, type MonitorMode, type AirwayState } from "@/lib/sim/resus";
 import { isMoving, movingRisks } from "@/lib/sim/moving";
 import {
   AIRWAY_HINT,
@@ -288,7 +288,11 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const currentO2 = treatment?.oxygen;
   const flows = device ? OXYGEN_FLOWS[device] : [];
   const flow = flows[Math.min(flowIx, Math.max(0, flows.length - 1))] ?? 0;
-  const o2Verdict = oxygenVerdict(vitals?.spo2, treatment?.profile?.copdRisk);
+  // In arrest there is no pulse for the probe to read: the verdict is
+  // about ventilating, not a saturation nobody can measure.
+  const o2Verdict = inArrest
+    ? { text: "No output — nothing for the probe to read. Ventilate on the bag at 15 L/min.", tone: "warn" as const }
+    : oxygenVerdict(vitals?.spo2, treatment?.profile?.copdRisk);
 
   // ---- Drugs ----------------------------------------------------------------
   const drugs = (Object.keys(DRUG_LABEL) as DrugName[]).filter((d) => drugRelevantFor(d, revealedFlags));
@@ -310,9 +314,34 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const movingNow = isMoving(treatment ?? undefined, now);
 
   // ---- Pieces ----------------------------------------------------------------
+  // The airway row names what is holding the airway. A patient who cannot
+  // protect their own — GCS below 9, or no output — is unprotected until an
+  // adjunct goes in; a compromised airway outranks both.
+  const aw = treatment?.airway ?? {};
+  const ventilated = treatment?.breathing.bvm !== undefined || aw.igel !== undefined || aw.rsi !== undefined;
+  const airwayRow = ((): { status: string; tone: "go" | "warn" | "stop" | "off" } => {
+    if (!surveyDone) return na(surveyRunning);
+    const compromised = flags.includes("airway_compromise");
+    if (aw.rsi !== undefined) return { status: "Intubated", tone: "go" };
+    if (aw.igel !== undefined) return { status: compromised ? "i-gel in · still compromised" : "i-gel in", tone: compromised ? "warn" : "go" };
+    if (compromised) return { status: "Compromised", tone: "stop" };
+    if (inArrest || (!!vitals && vitals.gcs < 9)) {
+      const gcs = vitals ? Math.round(vitals.gcs) : 3;
+      if (aw.opa !== undefined || aw.npa !== undefined) return { status: `${aw.opa !== undefined ? "OPA" : "NPA"} in · GCS ${gcs}`, tone: "warn" };
+      return { status: `Unprotected · GCS ${gcs}`, tone: "stop" };
+    }
+    return { status: "Patent", tone: "go" };
+  })();
+  // Breathing in arrest is whatever the crew are doing with the bag; the
+  // saturation is not a number anyone has.
+  const breathingRow = ((): { status: string; tone: "go" | "warn" | "stop" | "off" } => {
+    if (!surveyDone || !vitals) return na(surveyRunning);
+    if (inArrest) return { status: ventilated ? "No output · ventilated on the bag" : "No output · not breathing — start bagging", tone: "stop" };
+    return { status: `RR ${Math.round(vitals.rr)} · SpO₂ ${Math.round(vitals.spo2)}%`, tone: vitals.spo2 < 92 || vitals.rr > 25 || vitals.rr < 10 ? "stop" : vitals.spo2 < 95 ? "warn" : "go" };
+  })();
   const surveyRows: { k: string; label: string; status: string; tone: "go" | "warn" | "stop" | "off"; tab: CareTab }[] = [
-    { k: "A", label: "Airway", tab: "airway", ...(!surveyDone ? na(surveyRunning) : flags.includes("airway_compromise") ? { status: "Compromised", tone: "stop" } : { status: "Patent", tone: "go" }) },
-    { k: "B", label: "Breathing", tab: "breathing", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `RR ${Math.round(vitals.rr)} · SpO₂ ${Math.round(vitals.spo2)}%`, tone: vitals.spo2 < 92 || vitals.rr > 25 || vitals.rr < 10 ? "stop" : vitals.spo2 < 95 ? "warn" : "go" }) },
+    { k: "A", label: "Airway", tab: "airway", ...airwayRow },
+    { k: "B", label: "Breathing", tab: "breathing", ...breathingRow },
     { k: "C", label: "Circulation", tab: "circulation", ...(!surveyDone || !vitals ? na(surveyRunning) : inArrest ? { status: "Cardiac arrest", tone: "stop" } : { status: `HR ${Math.round(vitals.hr)} · BP ${Math.round(vitals.bpSys)}/${Math.round(vitals.bpDia)}`, tone: vitals.bpSys < 90 ? "stop" : vitals.hr > 110 || vitals.bpSys < 100 ? "warn" : "go" }) },
     { k: "D", label: "Disability", tab: "assess", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `GCS ${Math.round(vitals.gcs)} · BM ${vitals.bm.toFixed(1)}`, tone: vitals.gcs < 9 ? "stop" : vitals.gcs < 13 ? "warn" : "go" }) },
     { k: "E", label: "Exposure", tab: "immobilise", ...(!surveyDone || !vitals ? na(surveyRunning) : { status: `${vitals.temp.toFixed(1)} °C${flags.includes("major_haemorrhage") ? " · haemorrhage" : ""}`, tone: flags.includes("major_haemorrhage") ? "stop" : "go" }) },
@@ -726,6 +755,19 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       case "circulation":
         return (
           <>
+            {!resus && treatment?.postRosc && (() => {
+              // Output back before any crew arrived: no resus record, but the
+              // post-ROSC targets are the same and so is the risk.
+              const issues = postRoscVitalIssues(vitals);
+              return (
+                <Group title="Post-ROSC" extra={<span className={`cc-pill ${issues.length ? "warn" : "go"}`}>ROSC before arrival</span>}>
+                  <p className="cc-line">Output was back before the crew arrived. Getting it back is not the end of the job: airway, oxygen to {POST_ROSC.spo2Min}–{POST_ROSC.spo2Max} %, a twelve-lead, and the PPCI centre pre-alerted — a patient who has just been got back can lose output again.</p>
+                  {issues.length === 0
+                    ? <p className="cc-line">Targets met — SpO₂ {POST_ROSC.spo2Min}–{POST_ROSC.spo2Max} %, systolic over {POST_ROSC.bpSysMin}. Twelve-lead, then pre-alert.</p>
+                    : issues.map((i) => <div key={i.key} className="cc-banner warn"><b>!</b><div><strong>{i.text}</strong><p>{i.fix}</p></div></div>)}
+                </Group>
+              );
+            })()}
             {resus && (
               <Group title={inArrest ? "Resuscitation · ALS" : resus.roscAt ? "Post-ROSC" : "Resuscitation ended"} extra={<span className={`cc-pill ${inArrest ? "stop" : "go"}`}>{inArrest ? "In arrest" : resus.roscAt ? "ROSC" : "Ended"}</span>}>
                 <div className="cc-legacy">

@@ -193,6 +193,11 @@ export type PatientClinical = {
    *  is VF until proven otherwise; a drowning or an overdose is not.
    *  Absent means the population default. */
   arrestRhythmHint?: "shockable" | "non_shockable";
+  /** Output came back before any crew arrived — bystander CPR and a
+   *  community defib did the work. There is no resuscitation record to
+   *  read ROSC from, so this says it: the stage reads post-ROSC, the care
+   *  screen shows the post-ROSC targets, and a re-arrest is a real risk. */
+  postRosc?: boolean;
   /** What the GM supplementary Pathfinder splits on — penetrating and
    *  thoraco-abdominal trauma go to MRI, cranial to Salford. Absent means
    *  blunt or not applicable. */

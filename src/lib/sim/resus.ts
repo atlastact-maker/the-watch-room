@@ -465,13 +465,10 @@ export type PostRoscIssue = {
   fix: string;
 };
 
-/** What is currently wrong with the post-ROSC patient, in the order a
- *  crew would care about it. Empty means they are being managed well. */
-export function postRoscIssues(
-  s: ResusState,
-  vitals: { spo2: number; bpSys: number } | undefined,
-): PostRoscIssue[] {
-  if (s.roscAt === undefined) return [];
+/** The saturation and pressure targets on their own — shared with a
+ *  patient whose output came back before any crew arrived, who has no
+ *  resuscitation record to hang the capnography on. */
+export function postRoscVitalIssues(vitals: { spo2: number; bpSys: number } | undefined): PostRoscIssue[] {
   const out: PostRoscIssue[] = [];
   if (vitals) {
     if (vitals.spo2 < POST_ROSC.spo2Min)
@@ -493,6 +490,17 @@ export function postRoscIssues(
         fix: "Fluids, and a vasopressor if it will not come up",
       });
   }
+  return out;
+}
+
+/** What is currently wrong with the post-ROSC patient, in the order a
+ *  crew would care about it. Empty means they are being managed well. */
+export function postRoscIssues(
+  s: ResusState,
+  vitals: { spo2: number; bpSys: number } | undefined,
+): PostRoscIssue[] {
+  if (s.roscAt === undefined) return [];
+  const out: PostRoscIssue[] = postRoscVitalIssues(vitals);
   if (s.capnographyOn) {
     if (s.etco2 < POST_ROSC.etco2MinKpa)
       out.push({
