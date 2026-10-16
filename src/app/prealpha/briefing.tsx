@@ -79,7 +79,7 @@ export function PreAlphaBriefing({ data }: { data: BriefingData }) {
           <h1 className={styles.pageTitle}>{waiting ? "Access approved. The desk opens shortly." : accepted ? "Pre-Alpha briefing" : "Closed Pre-Alpha programme"}</h1>
           <p className={styles.lede}>
             {accepted
-              ? "The key dates, the scenarios released, the shift procedure and the reporting route. The operator guide and the reference library cover the console itself."
+              ? "The key dates, the scenarios released, the shift procedure and the reporting route. The operator guide covers the console itself."
               : "The Watch Room is an emergency services incident management simulator: a single operator receiving the 999 call, mobilising across Greater Manchester's real station network and taking command of the incident ground. The Pre-Alpha is the first release outside the team: small by design, unfinished by definition, and run with people who have done the job for real."}
           </p>
         </div>

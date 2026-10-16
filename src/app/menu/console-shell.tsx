@@ -58,7 +58,6 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
           {nav("shift", viewHref("shift"), "shift", "Start shift")}
           {nav("record", "/stats", "record", "Service record")}
           {nav("guide", viewHref("guide"), "guide", TITLES.guide)}
-          {nav("library", "/glossary", "library", "Reference library")}
           {nav("briefing", "/prealpha", "briefing", "Pre-Alpha briefing")}
           <p>Programme</p>
           {ext(COMMUNITY, "discord", "Tester channel")}

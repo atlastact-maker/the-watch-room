@@ -91,7 +91,6 @@ export function OverviewView({ record, callsign, discord, facts, stations, syste
       <section className={styles.block}>
         <div className={styles.blockHead}>
           <h2>Resource picture</h2>
-          <Link href="/glossary">Reference library <Icon.arrow /></Link>
         </div>
         <div className={styles.facts}>
           {facts.services.map((s) => (

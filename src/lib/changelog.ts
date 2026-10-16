@@ -26,6 +26,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Hough End: the coach names the same players the records hold.",
       "View as tester shows the closed door too: while the doors are shut it lands on the standing-by page as a tester does, with Admin view to return.",
       "Wythenshawe: the cigarette fire starts in the parents' room, not the boy's, the father down in the hall is found as soon as a team is through the door, and the BA target reads the twelve minutes the fire actually allows.",
+      "The reference library is parked for the Pre-Alpha. The operator guide's reference chapter and the desk's own Reference window carry what a shift needs.",
     ],
   },
   {

@@ -1,20 +1,9 @@
-import type { Metadata } from "next";
-import type { StationWithAppliances } from "@/app/dashboard/page";
-import { ConsoleShell } from "@/app/menu/console-shell";
-import { consoleSession, consoleUser } from "@/app/menu/console-session";
-import { STATIONS, getStationAppliances } from "@/lib/sim/data";
-import { LibraryView } from "./library-view";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Reference library · The Watch Room" };
-
-export default async function GlossaryPage() {
-  const session = await consoleSession();
-  // The same server-side fleet build as the dashboard, so the resource
-  // directory shows the exact modelled fleet.
-  const stations: StationWithAppliances[] = STATIONS.map((s) => ({ ...s, appliances: getStationAppliances(s.id) }));
-  return (
-    <ConsoleShell {...consoleUser(session)} active="library" title="Reference library">
-      <LibraryView stations={stations} />
-    </ConsoleShell>
-  );
+// Parked for the Pre-Alpha: the reference library is not in this build.
+// The view and the fleet directory stay in the tree (the dev harness
+// still renders them) for when it returns; anyone following an old link
+// lands on the operator guide, which carries the reference chapter.
+export default function GlossaryPage() {
+  redirect("/menu?view=guide");
 }

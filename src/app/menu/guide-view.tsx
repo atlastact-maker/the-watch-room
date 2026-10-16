@@ -98,7 +98,6 @@ export function GuideView() {
         </ol>
         <div className={styles.tocFoot}>
           <Link className={styles.primary} href={viewHref("shift")}>Start shift <Icon.arrow /></Link>
-          <Link className={styles.button} href="/glossary">Reference library</Link>
         </div>
       </nav>
 
@@ -215,14 +214,13 @@ export function GuideView() {
           <dl className={styles.terms}>
             {TERMS.map(([term, body]) => <div key={term}><dt>{term}</dt><dd>{body}</dd></div>)}
           </dl>
-          <p>The reference library holds the remainder: every station, every appliance type and its inventory, callsigns and procedures.</p>
+          <p>The remainder is on the desk itself during a shift: the resource directory for every station and appliance, and the Reference window for codes and procedures.</p>
           <h3>Current build limitations</h3>
           <ul className={styles.bullets}>{LIMITS.map((l) => <li key={l}>{l}</li>)}</ul>
         </section>
 
         <footer className={styles.docFoot}>
           <Link className={styles.primary} href={viewHref("shift")}>Start shift <Icon.arrow /></Link>
-          <Link className={styles.button} href="/glossary">Reference library</Link>
           <a className={styles.button} href={COMMUNITY} target="_blank" rel="noreferrer">Tester channel <Icon.external /></a>
         </footer>
       </article>
