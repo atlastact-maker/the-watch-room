@@ -88,7 +88,7 @@ function CodeForm({ next, onPassword }: { next?: string; onPassword: () => void 
   if (!sentTo) {
     return (
       <form action={requestAction} className={styles.feedback}>
-        <p className={styles.muted}>A six-digit code is emailed to the address on the account. It can be used once and expires within the hour.</p>
+        <p className={styles.muted}>An eight-digit code is emailed to the address on the account. It can be used once and expires within the hour.</p>
         <label htmlFor="code-email">Email address</label>
         <input id="code-email" name="email" type="email" autoComplete="email" required autoFocus />
         {req?.errors?.email?.map((m) => <p key={m} className={styles.warning}>{m}</p>)}
@@ -103,13 +103,13 @@ function CodeForm({ next, onPassword }: { next?: string; onPassword: () => void 
   return (
     <>
       <Notice tone="ok" title="Code sent">
-        <p>If an account uses {sentTo}, a six-digit code has been sent to it. Enter the code below; the message also carries a button that signs you in directly on the device that opens it.</p>
+        <p>If an account uses {sentTo}, an eight-digit code has been sent to it. Enter the code below; the message also carries a button that signs you in directly on the device that opens it.</p>
       </Notice>
       <form action={verifyAction} className={styles.feedback}>
         <input type="hidden" name="email" value={sentTo} />
         {next && <input type="hidden" name="next" value={next} />}
         <label htmlFor="code">Sign-in code</label>
-        <input id="code" name="token" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus className={styles.codeInput} placeholder="000000" />
+        <input id="code" name="token" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,8}" maxLength={8} required autoFocus className={styles.codeInput} placeholder="00000000" />
         {ver?.errors?.token?.map((m) => <p key={m} className={styles.warning} role="alert">{m}</p>)}
         {ver?.errors?.form?.map((m) => <p key={m} className={styles.warning} role="alert">{m}</p>)}
         <div className={styles.actions}>

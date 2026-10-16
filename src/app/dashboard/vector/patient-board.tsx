@@ -169,7 +169,7 @@ export function PatientBoard({ casualty, treatment, resus, progression, scenario
   const scoreTone: Tone = inArrest ? "stop" : score ? BAND_TONE[score.band] : "";
   const inCare = tx?.surveyStartedAt ? now - tx.surveyStartedAt : null;
   const stage = patientStage({ tx, resus, progression, score, scoreBefore, now });
-  const look = patientLook(casualty, tx, resus, { landed });
+  const look = patientLook(casualty, tx, resus, { landed, now });
 
   // Flags: the ones still active, with whether the record shows them dealt
   // with; a flag that has cleared counts as handled.

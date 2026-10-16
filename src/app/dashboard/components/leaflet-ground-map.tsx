@@ -1983,10 +1983,13 @@ export function LeafletGroundMap({
   }
 
   // Cancel any in-progress parking workflow if the appliance got placed by
-  // another route or was never committed.
+  // another route or was never committed. A flow the MDT armed for a unit
+  // that already has a spot — "Move", or re-placing a unit still driving —
+  // runs on until the operator picks the new one.
   useEffect(() => {
     if (parking.phase === "idle" || parking.phase === "rotate") return;
-    const stillAwaiting = awaitingPlacement.some((a) => a.applianceId === parking.applianceId);
+    const stillAwaiting = awaitingPlacement.some((a) => a.applianceId === parking.applianceId)
+      || (placePendingApplianceId === parking.applianceId && resolved.some((x) => x.appliance.id === parking.applianceId && !x.deployment.hospitalLegStartedAt));
     if (!stillAwaiting) {
       setParking({ phase: "idle" });
       onClearPlacePending?.();
@@ -2005,7 +2008,7 @@ export function LeafletGroundMap({
       return;
     }
     const r = resolved.find((x) => x.appliance.id === placePendingApplianceId);
-    if (!r || r.deployment.parkingPos) {
+    if (!r || r.deployment.hospitalLegStartedAt) {
       onClearPlacePending?.();
       return;
     }

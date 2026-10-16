@@ -56,8 +56,9 @@ import { ResusPanel, type CompressorOption } from "../components/resus-panel";
 import { PatientBoard } from "./patient-board";
 import { isExtractionRequired, type ResolvedDeployment } from "../components/incident-view";
 import type { CasualtyStage } from "@/lib/sim/incident_sim";
-import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
-import { hasCrewWith } from "@/lib/sim/crew_assign";
+import { crewWithPatientAt, memberWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
+import { busyOn, crewSentTo, hasCrewWith } from "@/lib/sim/crew_assign";
+import { assignRowsFor, casualtyShortLabel } from "../components/crew-assign-menu";
 import { useDeskPrefs } from "@/lib/desk-prefs";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,8 @@ import { useDeskPrefs } from "@/lib/desk-prefs";
 
 export type CareCallbacks = {
   onSetTreatingCasualty?: (applianceId: string, casualtyId: string | null) => void;
+  /** Send one named clinician to this patient, from any vehicle on scene, or stand them down. */
+  onAssignCrewToCasualty?: (applianceId: string, crewId: string, casualtyId: string | null) => void;
   onStartPatientSurvey?: (casualtyId: string) => void;
   onApplyAirway?: (casualtyId: string, action: AirwayAction, by: string) => void;
   onApplyBreathing?: (casualtyId: string, action: BreathingAction, by: string) => void;
@@ -127,7 +130,7 @@ export type CasualtyCareProps = CareCallbacks & {
 
 type CareTab = "assess" | "airway" | "breathing" | "circulation" | "immobilise" | "handover";
 /** What the bottom bar can open over the stage. */
-type Panel = CareTab | "patient" | "monitor";
+type Panel = CareTab | "patient" | "monitor" | "crew";
 
 // Standard adult doses shown on the medication card. The sim records the
 // drug and who gave it; the numbers are the JRCALC figures a crew would
@@ -261,9 +264,27 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
   const atHospital = !!convoy && convoy.deployment.hospitalArrivesAt !== undefined && now >= convoy.deployment.hospitalArrivesAt;
   // The crew are with the patient once the walk from the vehicle is
   // done — the same clock the ground map draws them by.
-  const withPatientAt = paired.length ? Math.min(...paired.map((p) => crewWithPatientAt(p.deployment, casualty, incident.scenario.location.coords, { atVehicle: patientAtVehicle(casualty, stage, tasks) }))) : null;
+  const atVehicleNow = patientAtVehicle(casualty, stage, tasks);
+  const withPatientAt = paired.length ? Math.min(...paired.map((p) => crewWithPatientAt(p.deployment, casualty, incident.scenario.location.coords, { atVehicle: atVehicleNow }))) : null;
   const crewHere = withPatientAt !== null && now >= withPatientAt;
   const walkLeftSec = withPatientAt !== null && !crewHere ? Math.ceil((withPatientAt - now) / 1000) : 0;
+  // One named clinician's own arrival at the patient, from when they were sent.
+  const arrivedAt = (d: Deployment, since: number) => memberWithPatientAt(d, since, casualty, incident.scenario.location.coords, { atVehicle: atVehicleNow });
+  // Every ambulance clinician on scene, by vehicle, and what they are on:
+  // with this patient (walking over, or at their side), free, with another
+  // patient, or busy on a job. The Crew panel sends and stands them down by
+  // name, from any vehicle, so several can be with one patient.
+  const casualtyLabelOf = (id: string) => casualtyShortLabel(incident.scenario.scene?.casualties?.find((c) => c.id === id)?.label, id);
+  const assignRows = assignRowsFor(resolved.filter((r) => r.phase === "at_incident").map((r) => ({ deployment: r.deployment, appliance: r.appliance })), tasks, casualtyId, casualtyLabelOf);
+  const memberArrived = (applianceId: string, crewId: string): boolean => {
+    const p = pairedAll.find((x) => x.appliance.id === applianceId);
+    if (!p) return false;
+    const since = crewSentTo(p.deployment, p.appliance.crewMembers, casualtyId, busyOn(tasks, applianceId)).find((s) => s.member.id === crewId)?.since;
+    return since !== undefined && now >= arrivedAt(p.deployment, since);
+  };
+  const crewMembersHere = assignRows.flatMap((r) => r.members.filter((m) => m.status === "here").map((m) => ({ ...m, applianceId: r.applianceId, arrived: memberArrived(r.applianceId, m.id) })));
+  const hereCount = crewMembersHere.filter((m) => m.arrived).length;
+  const walkingCount = crewMembersHere.length - hereCount;
   const canAct = !extractionRequired && paired.length > 0 && crewHere && !!treatment && !conveying && !resus?.roleAt;
 
   // ---- Clinical picture ----------------------------------------------
@@ -573,53 +594,57 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         {onSceneMedical.length > 0 && ivList(onSceneMedical.map((r) => {
           const onOther = !!r.deployment.treatingCasualtyId && r.deployment.treatingCasualtyId !== casualtyId;
           return choiceRow(r.appliance.id, r.appliance.callsign, SCOPE_LABEL[scopeOfApplianceType(r.appliance.type)], onOther ? { text: "With another patient", tone: "warn" } : { text: "On scene", tone: "ready" }, "Assign", !props.onSetTreatingCasualty, () => props.onSetTreatingCasualty?.(r.appliance.id, casualtyId));
-        }), false)}
+        }).concat([choiceRow("crew-open-banner", "Send clinicians by name", "Any crew member on scene, from any vehicle — the Crew panel.", { text: `${assignRows.length} vehicle${assignRows.length === 1 ? "" : "s"} on scene`, tone: "ready" }, "Open", false, () => setPanel("crew"))]), false)}
       </div>
     </div>
   ) : null;
 
   // ---- Who is on the patient ----------------------------------------------
-  // Every clinical resource with the patient, the most senior as clinical
-  // lead — their formulary and interventions are what the screen unlocks —
-  // and the rest assisting. Anyone else on scene can be added; a senior
-  // arrival takes the lead the moment they are assigned.
-  const crewGroup = paired.length > 0 ? (
-    <Group title="Crew with patient" extra={<span className="cc-pill go">Lead · {by} · {SCOPE_LABEL[scope]}</span>}>
+  // The Crew panel: every clinician on scene by vehicle, one click to send
+  // them or stand them down — from any vehicle, so a car's paramedic and
+  // an ambulance's crew can all be with one patient. The senior scope
+  // among those at the patient's side is the clinical lead.
+  const crewPanelBody = (
+    <>
+      {assignRows.length === 0 && (
+        <p className="cc-line">No ambulance crew on scene yet.{inbound.length > 0 ? ` ${inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ")}.` : ""}</p>
+      )}
+      {assignRows.map((r) => {
+        const isLead = lead?.appliance.id === r.applianceId;
+        return (
+          <Group key={r.applianceId} title={`${r.callsign} · ${r.scope.toUpperCase()}`} extra={isLead ? <span className="cc-pill go">Clinical lead</span> : undefined}>
+            {ivList(r.members.map((m) => {
+              const here = m.status === "here";
+              const arrived = here && memberArrived(r.applianceId, m.id);
+              const status = here
+                ? arrived ? { text: "With the patient", tone: "go" } : { text: "Walking to the patient", tone: "warn" }
+                : m.status === "other" ? { text: `With ${m.where}`, tone: "warn" }
+                : m.status === "busy" ? { text: `Busy · ${m.where}`, tone: "muted" }
+                : { text: "Free · on scene", tone: "ready" };
+              return choiceRow(
+                `crew-${r.applianceId}-${m.id}`,
+                m.name,
+                m.role,
+                status,
+                here ? "Stand down" : m.status === "busy" ? "Busy" : m.status === "other" ? "Move here" : "Send",
+                !props.onAssignCrewToCasualty || conveying || m.status === "busy",
+                () => props.onAssignCrewToCasualty?.(r.applianceId, m.id, here ? null : casualtyId),
+                here && arrived ? "crew done" : "crew",
+              );
+            }), false)}
+          </Group>
+        );
+      })}
+      {inbound.length > 0 && assignRows.length > 0 && <p className="cc-line">{inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ")}</p>}
+    </>
+  );
+  const crewGroup = (
+    <Group title="Crew with patient" extra={<span className={`cc-pill ${hereCount ? "go" : walkingCount ? "warn" : "stop"}`}>{hereCount ? `${hereCount} with the patient · Lead ${by}` : walkingCount ? `${walkingCount} walking to the patient` : "Nobody with the patient"}</span>}>
       {ivList([
-        ...paired.map((p) => {
-          const s = scopeOfApplianceType(p.appliance.type);
-          const isLead = lead?.appliance.id === p.appliance.id;
-          return choiceRow(
-            `crew-${p.appliance.id}`,
-            p.appliance.callsign,
-            isLead ? "Clinical lead — the most senior scope on the patient. Their interventions and drugs are the ones unlocked." : "Assisting — hands for compressions, kit and the carry; their vehicle can convey.",
-            { text: isLead ? `Clinical lead · ${SCOPE_LABEL[s]}` : `Assisting · ${SCOPE_LABEL[s]}`, tone: isLead ? "go" : "ready" },
-            "Release",
-            !props.onSetTreatingCasualty || conveying,
-            () => props.onSetTreatingCasualty?.(p.appliance.id, null),
-            isLead ? "done" : "",
-          );
-        }),
-        ...onSceneMedical
-          .filter((r) => !paired.some((p) => p.appliance.id === r.appliance.id))
-          .map((r) => {
-            const s = scopeOfApplianceType(r.appliance.type);
-            const onOther = !!r.deployment.treatingCasualtyId && r.deployment.treatingCasualtyId !== casualtyId;
-            const senior = SCOPE_LEVEL[s] > scopeLvl;
-            return choiceRow(
-              `join-${r.appliance.id}`,
-              r.appliance.callsign,
-              senior ? `${SCOPE_LABEL[s]} — would take clinical lead and unlock their interventions.` : `${SCOPE_LABEL[s]} — more hands on the patient.`,
-              onOther ? { text: "With another patient", tone: "warn" } : { text: "On scene · not assigned", tone: "muted" },
-              "Assign",
-              !props.onSetTreatingCasualty || conveying,
-              () => props.onSetTreatingCasualty?.(r.appliance.id, casualtyId),
-            );
-          }),
+        choiceRow("crew-open", "Send or stand down clinicians", "Every ambulance crew member on scene, by vehicle. More than one can be with this patient, from different vehicles.", { text: `${hereCount} here · ${walkingCount} walking`, tone: hereCount ? "go" : "warn" }, "Open", false, () => setPanel("crew")),
       ], false)}
-      {inbound.length > 0 && <p className="cc-line">{inbound.map((p) => `${p.appliance.callsign} running · ETA ${clock(p.deployment.arrivesAt - now)}`).join(" · ")}</p>}
     </Group>
-  ) : null;
+  );
 
   // ---- Order strips: oxygen and medication ----------------------------------
   const o2On = !!currentO2 && currentO2.device !== "none";
@@ -962,21 +987,23 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
     </>
   );
 
-  // Everyone at the patient: a double-crewed ambulance is two people, a
-  // car is one, an air ambulance a doctor and a paramedic.
+  // Everyone at the patient's side: the clinicians each vehicle has sent
+  // to this patient, by name, and only once their walk from the vehicle is
+  // done — nobody is drawn kneeling at a patient they are still crossing
+  // the ground to reach.
   const sceneCrew = paired
     .slice()
     .sort((a, b) => (a.appliance.id === lead?.appliance.id ? -1 : b.appliance.id === lead?.appliance.id ? 1 : 0))
     .flatMap((p) => {
       const scope = scopeOfApplianceType(p.appliance.type);
-      const members = p.appliance.crewMembers.slice(0, Math.min(2, Math.max(1, p.appliance.crewMembers.length)));
-      return members.map((m, i) => ({
+      const here = crewSentTo(p.deployment, p.appliance.crewMembers, casualtyId, busyOn(tasks, p.appliance.id)).filter((s) => now >= arrivedAt(p.deployment, s.since));
+      return here.map((s, i) => ({
         callsign: p.appliance.callsign,
-        role: i === 0 ? SCOPE_LABEL[scope] : m.role,
+        role: i === 0 ? SCOPE_LABEL[scope] : s.member.role,
         lead: lead?.appliance.id === p.appliance.id && i === 0,
         service: p.appliance.service,
         scope,
-        name: m.name,
+        name: s.member.name,
       }));
     });
   // Brought out: landed from the water, recovered off the face, cut out of
@@ -989,29 +1016,32 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       casualtyId={casualtyId}
       treatment={treatment}
       resus={resus}
-      paired={paired.length}
+      paired={crewHere ? paired.length : 0}
       now={now}
       by={by}
       onRecordObservation={props.onRecordObservation}
       onAttachMonitor={props.onAttachMonitor}
       onAttachMonitoring={props.onAttachMonitoring}
+      frame="lp15"
     />
   );
 
   // ---- The stage: the patient fills the screen, the panels float over it ---
-  const panelTitle = panel === "patient" ? "PATIENT" : panel === "monitor" ? "VITAL SIGNS MONITOR" : panel ? TABS.find((t) => t.key === panel)?.label.toUpperCase() : "";
-  const panelSubtitle: ReactNode = panel === "patient" ? (casualty.label ?? "") : panel === "monitor" ? <MonitorMeta casualtyId={casualtyId} now={now} /> : panel ? sections[panel].subtitle : "";
+  const panelTitle = panel === "patient" ? "PATIENT" : panel === "monitor" ? "VITAL SIGNS MONITOR" : panel === "crew" ? "CREW WITH PATIENT" : panel ? TABS.find((t) => t.key === panel)?.label.toUpperCase() : "";
+  const panelSubtitle: ReactNode = panel === "patient" ? (casualty.label ?? "") : panel === "monitor" ? <MonitorMeta casualtyId={casualtyId} now={now} /> : panel === "crew" ? `${hereCount} with the patient · ${walkingCount} walking · lead ${by}` : panel ? sections[panel].subtitle : "";
   const panelBody: ReactNode = panel === "patient"
     ? patientBody
     : panel === "monitor"
       ? monitorBody
+      : panel === "crew"
+        ? crewPanelBody
       : panel === "assess"
         ? <><Group title="Primary survey">{surveyBody}</Group>{paneBody()}</>
         : panel
           ? paneBody()
           : null;
   const barButton = (key: Panel, label: string, icon: ReactNode, badge?: { count?: string; tone: string }) => (
-    <button key={key} type="button" aria-pressed={panel === key} onClick={() => (panel === key ? setPanel(null) : key === "patient" || key === "monitor" ? setPanel(key) : openTab(key))}>
+    <button key={key} type="button" aria-pressed={panel === key} onClick={() => (panel === key ? setPanel(null) : key === "patient" || key === "monitor" || key === "crew" ? setPanel(key) : openTab(key))}>
       <i className="ic">{icon}{badge?.count && <small className={badge.tone}>{badge.count}</small>}</i>
       <span>{label}</span>
     </button>
@@ -1040,7 +1070,21 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
       </header>
       <div className="cc-stage-body">
         <PatientBoard casualty={casualty} treatment={treatment} resus={resus} progression={stage} scenario={incident.scenario} landed={landed} ambient={props.ambient} crew={sceneCrew} now={now} compact={tablet} hero />
-        {panel && (
+        {panel === "monitor" ? (
+          // The monitor is the device itself: the LIFEPAK 15 the scene
+          // draws on the ground, its face filling the panel.
+          <aside className="cc-stage-panel lp15" aria-label="Vital signs monitor">
+            {(["tl", "tr", "bl", "br"] as const).map((c) => <i key={c} className={`lp-bump ${c}`} aria-hidden="true" />)}
+            <div className="lp-handle" aria-hidden="true"><i /></div>
+            <header className="lp-top">
+              <div className="lp-brand"><b>LIFEPAK</b><span>15</span><small>MONITOR / DEFIBRILLATOR</small></div>
+              <MonitorMeta casualtyId={casualtyId} now={now} compact />
+              <div className="lp-printer" aria-hidden="true"><i /></div>
+              <button type="button" className="cc-close" onClick={() => setPanel(null)} aria-label="Close the monitor">✕</button>
+            </header>
+            <div className="cc-pane-body lp-pane">{panelBody}</div>
+          </aside>
+        ) : panel && (
           <aside className="cc-stage-panel" aria-label={panelTitle}>
             <header className="cc-pane-head">
               <h2>{panelTitle}</h2>
@@ -1052,7 +1096,10 @@ export function CasualtyCareScreen(props: CasualtyCareProps) {
         )}
       </div>
       <footer className="cc-stage-bar" aria-label="Care actions">
-        <div className="grp">{barButton("patient", "Patient", <Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" />)}</div>
+        <div className="grp">
+          {barButton("patient", "Patient", <Icon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 9a7 7 0 0 1 14 0" />)}
+          {barButton("crew", "Crew", <Icon d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20a7 7 0 0 1 14 0m1-1a5 5 0 0 1 5 1" />, { count: String(hereCount), tone: hereCount ? (walkingCount ? "warn" : "go") : "stop" })}
+        </div>
         <i className="sep" />
         <div className="grp">{TABS.map((t) => barButton(t.key, t.label, t.icon, sections[t.key]))}</div>
         <i className="sep" />

@@ -1575,14 +1575,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           s = { ...s, analysingSince: undefined, analyseSec: undefined };
           if (rollBeat(roscChance(s, nowMs))) {
             achieved.push(cid);
+            // Output back: the compressor comes off the chest and the LUCAS
+            // pauses. A re-arrest finds nobody on the chest, which is the
+            // truth of it — someone has to start again.
             s = {
               ...s,
               roscAt: nowMs,
               cycle: s.cycle + 1,
               cycleStartedAt: nowMs,
+              compressorCrewId: undefined,
+              compressorName: undefined,
+              compressorSinceAt: undefined,
+              cyclePausedAt: nowMs,
               events: [
                 ...s.events,
-                { at: nowMs, text: "ROSC — output restored", tone: "good" },
+                { at: nowMs, text: "ROSC — output restored. Compressions stopped, hands off the chest", tone: "good" },
               ],
             };
           } else {

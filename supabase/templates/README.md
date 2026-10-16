@@ -19,7 +19,7 @@ template, paste the file's contents into *Message body*, save.
 | `magic-link.html` | Magic Link | Your sign-in code — The Watch Room |
 
 The Magic Link template carries `{{ .Token }}`, so Supabase sends a
-six-digit code for the sign-in page's "emailed code" option as well as
+code (eight digits, the length set under Authentication → Sign In / Providers → Email on the project) for the sign-in page's "emailed code" option as well as
 the direct sign-in button; the code's lifetime is the project's OTP
 expiry setting (Authentication → Sign In / Providers → Email).
 

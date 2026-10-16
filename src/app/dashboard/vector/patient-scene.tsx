@@ -18,6 +18,7 @@ import {
 } from "./scene/plan-figure";
 import { kitLayers, KitDefs, Monitor, MONITOR_W, KitBag, O2Cylinder, DripBag } from "./scene/plan-kit";
 import { CrewTop, crewWearOf, crewHeadAt, type CrewWear } from "./scene/plan-crew";
+import { Acts, actSite } from "./scene/plan-acts";
 import { GROUNDS, GroundDefs, GroundClips, Weather, WeatherDefs, type Ambient, type GroundCtx } from "./scene/plan-ground";
 
 export type SceneCrew = {
@@ -138,6 +139,9 @@ function roleWord(c: SceneCrew | undefined): string {
   if (/pilot/.test(r)) return "PILOT";
   return c.role.toUpperCase().slice(0, 12);
 }
+
+/** Upper case for a tag, keeping the µ of a microgram dose (whose upper case is a Greek capital). */
+const shout = (s: string) => s.toUpperCase().replace(/\u039cG\b/g, "µg");
 
 const hhmm = (hour: number) => `${String(Math.floor(hour) % 24).padStart(2, "0")}:${String(Math.floor((hour % 1) * 60)).padStart(2, "0")}`;
 
@@ -266,9 +270,13 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
     const left: Slot = { at: [-(r.chestW + 0.4), r.chestY + 0.2], facing: [1, 0], kneeling: false, hands: { right: [A.rightUpperChest[0] - 0.08, A.rightUpperChest[1] - 0.02], left: [A.rightWrist[0] - 0.05, A.rightWrist[1] - 0.1] }, wear: dry };
     crew.slice(0, 2).forEach((c, i) => slots.push(i === 0 ? right : left));
   }
+  // While the cannula is going in, the kit layer leaves the site to the
+  // act being drawn over it; the dressed cannula and its line follow.
+  const cannulating = look.fx.acts.some((a) => a.kind === "cannula");
+  const kitLook = cannulating ? { ...look, kit: { ...look.kit, iv: false } } : look;
   // Someone holds the drip up: a free hand on the side crew, else a stand, else it lies by the arm.
   let ivAt: Pt | undefined;
-  if (look.kit.iv) {
+  if (kitLook.kit.iv) {
     if (setting === "ward") ivAt = [-0.95, -0.42];
     else if (/^ambulance/.test(setting)) ivAt = [0.46, -0.3];
     else {
@@ -282,7 +290,7 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
   }
   // Cables run round the crew's hands, not under them.
   const avoid: Pt[] = slots.flatMap((sl) => [sl.hands.left, sl.hands.right].filter((h): h is Pt => !!h));
-  const kit = kitLayers(look, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt, avoid, ventAt: onVent ? spec.vent : undefined });
+  const kit = kitLayers(kitLook, r, { monitorPort: port, o2At, bvmHand: needsAirway ? bvmHand : undefined, ivAt, avoid, ventAt: onVent ? spec.vent : undefined });
 
   const gctx: GroundCtx = { r, k, amb, title: ctx?.title ?? "", type: ctx?.type ?? "", seated: pose === "seated", label: (label ?? "").toLowerCase(), lucas: look.kit.lucas, vent: onVent };
   const breath = look.breathing === "none" ? 0 : 60 / Math.max(6, look.rr);
@@ -310,13 +318,14 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
           </g>
           {spec.over?.(gctx)}
           {monitored && <Monitor at={monitorAt} arrest={look.arrest} portSide={monitorAt[0] < 0 ? 1 : -1} />}
-          {crew.length > 0 && arrangement !== "water" && <KitBag at={bagAt} />}
+          {crew.length > 0 && arrangement !== "water" && <KitBag at={bagAt} pouches={look.fx.pouches} />}
           {look.kit.oxygen !== "none" && arrangement !== "water" && <O2Cylinder at={o2At} angle={spec.o2 ? 90 : 78} />}
           {kit.lines}
           {slots.map((sl, i) => (
             <CrewTop key={i} at={sl.at} facing={sl.facing} hands={sl.hands} kneeling={sl.kneeling} armsClass={sl.armsClass} handClass={sl.handClass} grip={sl.grip} style={{ animationDelay: `${((i * 1.7) % 4.4).toFixed(1)}s` }} wear={{ ...crewWearOf(crew[i]?.service ?? "Ambulance", crew[i]?.scope, hash(crew[i]?.callsign ?? "x") + i * 977, { jacket: JACKET_SETTINGS.has(setting) || (spec.outdoor && amb.night), role: roleWord(crew[i]) }), ...sl.wear }} />
           ))}
-          {look.kit.iv && ivAt && <DripBag at={ivAt} />}
+          {kitLook.kit.iv && ivAt && <DripBag at={ivAt} />}
+          <Acts look={look} r={r} />
           <Weather amb={amb} outdoor={spec.outdoor} centre={[0, r.chestY]} k={k} />
         </g>
         {amb.rain && spec.outdoor && (
@@ -329,6 +338,10 @@ export function PatientScene({ look, crew, setting, caption, hour, rain, ctx, la
           const dx = sl.facing[0] !== 0 ? -sl.facing[0] * 34 : 0;
           const dy = sl.facing[0] !== 0 ? -4 : -28;
           return <text key={i} x={h[0] + dx} y={h[1] + dy} textAnchor="middle" className={crew[i]?.lead ? "ps-tag lead" : "ps-tag"}>{tagFor(crew[i], i)}</text>;
+        })}
+        {look.fx.acts.map((a) => {
+          const p = px(actSite(r, a));
+          return <text key={`${a.kind}-${a.at}`} x={p[0]} y={p[1] - 22} textAnchor="middle" className="ps-tag act">{shout(a.label)}</text>;
         })}
         {crew.length === 0 && <text x={W / 2} y={H - 46} textAnchor="middle" className="ps-empty">NO CREW WITH THE PATIENT</text>}
       </svg>

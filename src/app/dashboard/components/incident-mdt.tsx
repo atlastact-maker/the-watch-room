@@ -34,6 +34,7 @@ import { RtcGround } from "../vector/scene/ground-rtc";
 import { groundViewFor } from "../vector/scene/ground-views";
 import { GroundBar, GroundPanel, groundBadges, type GroundPanelKey } from "./ground-bar";
 import { scopeOfApplianceType } from "@/lib/sim/incident_types";
+import { crewWithPatientAt, patientAtVehicle } from "@/lib/sim/crew_walk";
 import { serviceMarker, unitMarkerHtml, type MarkerStatusKey } from "./unit-chip";
 import type { RecordIndex } from "@/lib/sim/records";
 import type { LedsCheck } from "@/lib/sim/leds";
@@ -406,8 +407,16 @@ export function DraggableIncidentMdt(props: Props) {
   const unitCasualtyIds = unitAppliance ? assignedCasualtyIds(unitAppliance.id, deployments, tasks ?? []) : new Set<string>();
   const stripCasualtyId = openCasualtyId && sim?.foundCasualties.some((c) => c.id === openCasualtyId) ? openCasualtyId : [...unitCasualtyIds][0] ?? null;
   const stripCasualty = stripCasualtyId ? sim?.foundCasualties.find((c) => c.id === stripCasualtyId) ?? null : null;
-  const stripPaired = stripCasualtyId
-    ? deployments.filter((d) => d.treatingCasualtyId === stripCasualtyId && nowMs >= d.arrivesAt && scopeOfApplianceType(resolvedDeps.find((r) => r.appliance.id === d.applianceId)?.appliance.type ?? "Police_Response") !== "none").length
+  // Clinicians with the pinned patient: arrived, and across the ground
+  // from the vehicle to the patient's side — the monitor's buttons stay
+  // dark until someone is actually kneeling there.
+  const stripPaired = stripCasualtyId && stripCasualty
+    ? deployments.filter((d) => {
+        if (d.treatingCasualtyId !== stripCasualtyId || nowMs < d.arrivesAt) return false;
+        if (scopeOfApplianceType(resolvedDeps.find((r) => r.appliance.id === d.applianceId)?.appliance.type ?? "Police_Response") === "none") return false;
+        const stage = sim?.casualtyProgression?.[stripCasualtyId]?.stage ?? "located";
+        return nowMs >= crewWithPatientAt(d, stripCasualty, incident.scenario.location.coords, { atVehicle: patientAtVehicle(stripCasualty, stage, tasks ?? []) });
+      }).length
     : 0;
   // From the Ground page's menus into the modules: this patient's care
   // screen, the Fire module on a page, the Police module on a page.
@@ -756,6 +765,7 @@ export function DraggableIncidentMdt(props: Props) {
             resusByCasualtyId={props.resusByCasualtyId}
             ambient={props.ambient}
             onSetTreatingCasualty={props.onSetTreatingCasualty}
+            onAssignCrewToCasualty={props.onAssignCrewToCasualty}
             onStartPatientSurvey={props.onStartPatientSurvey}
             onApplyAirway={props.onApplyAirway}
             onApplyBreathing={props.onApplyBreathing}

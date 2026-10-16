@@ -94,7 +94,10 @@ export const CodeRequestSchema = z.object({
 
 export const CodeVerifySchema = z.object({
   email: z.email({ error: "Enter a valid email." }).trim(),
-  token: z.string().trim().regex(/^[0-9]{6}$/, { error: "Enter the six-digit code from the message." }),
+  // Supabase issues the code at the length the project is set to (eight
+  // digits here; six is its default), so both are taken. Spaces typed
+  // between groups of digits are dropped.
+  token: z.preprocess((v) => (typeof v === "string" ? v.replace(/\s+/g, "") : v), z.string().regex(/^[0-9]{6,8}$/, { error: "Enter the digits of the code from the message." })),
 });
 
 export const ForgotPasswordSchema = z.object({

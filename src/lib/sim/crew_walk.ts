@@ -36,7 +36,19 @@ export function crewWithPatientAt(
   incidentCoords: { lat: number; lng: number },
   opts: { atVehicle?: boolean } = {},
 ): number {
-  const start = crewStepsOutAt(d, casualty.id);
+  return memberWithPatientAt(d, crewStepsOutAt(d, casualty.id), casualty, incidentCoords, opts);
+}
+
+/** When one named crew member, sent at `since`, is at the patient's side:
+ *  the walk from where the vehicle stands, never before it arrived. */
+export function memberWithPatientAt(
+  d: Deployment,
+  since: number,
+  casualty: SceneCasualty,
+  incidentCoords: { lat: number; lng: number },
+  opts: { atVehicle?: boolean } = {},
+): number {
+  const start = Math.max(d.arrivesAt, since);
   if (opts.atVehicle || !d.parkingPos) return start + WALK_MIN_MS;
   const where = metresToLatLng(incidentCoords, casualty.pos);
   const o = latLngToMetres(d.parkingPos, where);

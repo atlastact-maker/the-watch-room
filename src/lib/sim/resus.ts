@@ -236,6 +236,9 @@ export function shockJoules(shockNumber: number): number {
  * five, which is exactly why the guidance says swap every cycle.
  */
 export function compressionQuality(s: ResusState, now: number): number {
+  // Output back: hands off the chest. Compressions on a beating heart are
+  // the one thing the guidance is unambiguous about; the LUCAS pauses too.
+  if (s.roscAt !== undefined) return 0;
   // Hands off during a rhythm check — that is what a rhythm check IS.
   // The end-tidal sags while it happens, which is the honest cost of a
   // long analysis and the reason the guidance wants the pause short.

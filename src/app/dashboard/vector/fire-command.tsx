@@ -1384,11 +1384,11 @@ export function FireCommandScreen(props: FireCommandProps) {
       </main>
 
       <footer className="fc-foot pc-foot">
-        <button type="button" aria-pressed={page === "actions"} onClick={() => setPage("actions")}>{I.note}<span>Resource actions</span>{mine.length > 0 && <em>{mine.length}</em>}</button>
-        <button type="button" aria-pressed={page === "command"} onClick={() => setPage("command")}>{I.command}<span>Fire command</span>{reviewOverdue && <em>!</em>}</button>
-        <button type="button" aria-pressed={page === "ba"} onClick={() => setPage("ba")}>{I.ba}<span>BA control</span>{baTasks.length > 0 && <em>{baTasks.length}</em>}</button>
-        <button type="button" aria-pressed={false} onClick={() => setPage("rtc")}>{I.car}<span>RTC</span>{crsRunningHere > 0 && <em>{crsRunningHere}</em>}</button>
-        <button type="button" aria-pressed={page === "log"} onClick={() => setPage("log")}>{I.clockI}<span>Log</span></button>
+        <button type="button" title="Resource actions" aria-pressed={page === "actions"} onClick={() => setPage("actions")}>{I.note}<span>Resource actions</span>{mine.length > 0 && <em>{mine.length}</em>}</button>
+        <button type="button" title="Fire command" aria-pressed={page === "command"} onClick={() => setPage("command")}>{I.command}<span>Fire command</span>{reviewOverdue && <em>!</em>}</button>
+        <button type="button" title="BA control" aria-pressed={page === "ba"} onClick={() => setPage("ba")}>{I.ba}<span>BA control</span>{baTasks.length > 0 && <em>{baTasks.length}</em>}</button>
+        <button type="button" title="RTC" aria-pressed={false} onClick={() => setPage("rtc")}>{I.car}<span>RTC</span>{crsRunningHere > 0 && <em>{crsRunningHere}</em>}</button>
+        <button type="button" title="Log" aria-pressed={page === "log"} onClick={() => setPage("log")}>{I.clockI}<span>Log</span></button>
       </footer>
       </>
       )}

@@ -35,7 +35,7 @@ import { simulateIncident } from "@/lib/sim/incident_sim";
 import { busyOn, withCrewAssignment } from "@/lib/sim/crew_assign";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
 import { calibrate, generateProfile, initialPhysio } from "@/lib/sim/physiology";
-import type { PatientTreatmentState } from "@/lib/sim/incident_types";
+import type { PatientTreatmentState, TreatmentEvent } from "@/lib/sim/incident_types";
 import { newResusState, type ResusState } from "@/lib/sim/resus";
 import type { StationWithAppliances } from "../../dashboard/page";
 import type { Deployment, Incident, LogEntry, Task } from "@/lib/sim/incident_types";
@@ -132,7 +132,7 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   // a probe on, oxygen running, aspirin given.
   const unitParam = param("unit");
   const careMode = unitParam === "dca" && !!dca && !!casualty;
-  if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, road ? park(27, 10.5) : park(-10, 26), careMode || (road && casualty) ? { treatingCasualtyId: casualty!.id, treatingSince: nowMs - 5 * 60_000 } : {}));
+  if (dca) deployments.push(mk(dca.id, 9 * 60, 6 * 60, road ? park(27, 10.5) : park(-10, 26), careMode || (road && casualty) ? { treatingCasualtyId: casualty!.id, treatingSince: param("walk") ? nowMs - 1000 : nowMs - 5 * 60_000 } : {}));
   let treatment: PatientTreatmentState | null = null;
   let resus: ResusState | null = null;
   if (careMode && casualty) {
@@ -227,6 +227,30 @@ function buildWorld(scenarioId: string, minutesIn: number) {
         ...treatment,
         monitoring: { ...treatment.monitoring, ecg_12: t0 + 200_000 },
         events: [...treatment.events, { kind: "monitoring", at: t0 + 200_000, by, device: "ecg_12" }, { kind: "observation", at: t0 + 200_000, by, text: "12-lead ECG · Sinus rhythm · ST elevation II, III, aVF — inferior STEMI" }],
+      };
+    }
+    // ?act=iv|drug|im|oral|spray|neb|igel|pads: something done a moment
+    // ago, so the scene's animation for it is running when the page opens.
+    const act = param("act");
+    if (act) {
+      // ?actIn=<ms> dates it that far ahead instead, for a capture to catch.
+      const at = nowMs - 400 + Number(param("actIn") ?? 0);
+      const ev: TreatmentEvent[] =
+        act === "iv" ? [{ kind: "circulation", action: "iv_access", at, by }]
+        : act === "drug" ? [{ kind: "drug", drug: "morphine", at, by }]
+        : act === "im" ? [{ kind: "drug", drug: "adrenaline_im_anaphylaxis", at, by }]
+        : act === "oral" ? [{ kind: "drug", drug: "aspirin_300", at, by }]
+        : act === "spray" ? [{ kind: "drug", drug: "gtn_spray", at, by }]
+        : act === "neb" ? [{ kind: "drug", drug: "salbutamol_neb", at, by }]
+        : act === "igel" ? [{ kind: "airway", action: "igel", at, by }]
+        : act === "pads" ? [{ kind: "monitoring", at, by, device: "defib_pads" }]
+        : [];
+      treatment = {
+        ...treatment,
+        circulation: act === "iv" ? { ...treatment.circulation, iv_access: at } : treatment.circulation,
+        airway: act === "igel" ? { ...treatment.airway, igel: at } : treatment.airway,
+        monitoring: act === "pads" ? { ...treatment.monitoring, defib_pads: at } : treatment.monitoring,
+        events: [...treatment.events, ...ev],
       };
     }
   }

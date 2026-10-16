@@ -424,6 +424,10 @@ export type VitalMonitorPanelProps = {
   onAttachMonitor?: (casualtyId: string, mode: MonitorMode) => void;
   /** Put a lead, probe, cuff or pads on the patient. */
   onAttachMonitoring?: (casualtyId: string, device: MonitoringDevice, by: string) => void;
+  /** "lp15": laid out as the face of the LIFEPAK 15 — ON and the
+   *  connection keys down the left, the screen in its bezel, the therapy
+   *  panel down the right, the soft keys and the speed dial below. */
+  frame?: "lp15";
 };
 
 export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
@@ -498,78 +502,131 @@ export function VitalMonitorPanel(props: VitalMonitorPanelProps) {
   const setEcg12 = (v: Ecg12 | null) => set((m) => ({ ...m, ecg12: v }));
   const setSilencedUntil = (v: number) => set((m) => ({ ...m, silencedUntil: v }));
 
-  return (
-    <>
-      <div className={`cc-monitor${alarming ? " alarm" : ""}${compact ? " compact" : ""}`}>
-        <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={measurable && anyOn} ecgOn={ecgOn} plethOn={probeOn} respOn={leadsOn} compact={compact} />
-        <div className="cc-numbers">
-          <div className={`hr${breaches.some((b) => b.startsWith("HR")) && !silenced ? " alarm" : ""}`}><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
-          <div className={`spo2${breaches.some((b) => b.startsWith("SpO")) && !silenced ? " alarm" : ""}`}><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
-          <div className={`rr${breaches.some((b) => b.startsWith("RR")) && !silenced ? " alarm" : ""}`}><span>RR</span><strong>{rrShown ?? "--"}</strong><small>/min</small></div>
-        </div>
-        {(!live || !anyOn || paired === 0) && (
-          <div className="cc-mon-overlay">{paired === 0 ? "NO CLINICIAN WITH PATIENT" : !anyOn ? "NOTHING ATTACHED — LEADS, PROBE OR PADS" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY"}</div>
-        )}
-        {alarmPanel && (
-          <div className="cc-alarm-panel">
-            <strong>ALARM LIMITS</strong>
-            <label><span>Alarms</span><button type="button" className="cc-mini" aria-pressed={alarmCfg.on} onClick={() => setAlarmCfg((c) => ({ ...c, on: !c.on }))}>{alarmCfg.on ? "On" : "Off"}</button></label>
-            {([["hrLow", "HR low"], ["hrHigh", "HR high"], ["spo2Low", "SpO₂ low"], ["rrHigh", "RR high"], ["sysLow", "Systolic low"]] as const).map(([k, label]) => (
-              <label key={k}>
-                <span>{label}</span>
-                <span className="cc-stepper small">
-                  <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] - (k === "spo2Low" ? 1 : 5) }))}>−</button>
-                  <output>{alarmCfg[k]}</output>
-                  <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] + (k === "spo2Low" ? 1 : 5) }))}>+</button>
-                </span>
-              </label>
-            ))}
-            <label><span>NIBP auto-cycle</span>
-              <span className="cc-segs">
-                {([0, 2, 3, 5] as const).map((m) => (
-                  <button key={m} type="button" aria-pressed={nibpAuto === m} onClick={() => setNibpAuto(m)}>{m === 0 ? "Off" : `${m} min`}</button>
-                ))}
+  const framed = props.frame === "lp15";
+  const INERT = "Not used in the simulation";
+  const screen = (
+    <div className={`cc-monitor${alarming ? " alarm" : ""}${compact ? " compact" : ""}${framed ? " framed" : ""}`}>
+      <VitalsMonitor rhythm={rhythm} hr={vitals?.hr ?? 0} spo2={vitals?.spo2 ?? 0} rr={vitals?.rr ?? 0} compressions={compressions} active={measurable && anyOn} ecgOn={ecgOn} plethOn={probeOn} respOn={leadsOn} compact={compact} />
+      <div className="cc-numbers">
+        <div className={`hr${breaches.some((b) => b.startsWith("HR")) && !silenced ? " alarm" : ""}`}><span>HR <i>♥</i></span><strong>{hrShown ?? "--"}</strong><small>bpm</small></div>
+        <div className={`spo2${breaches.some((b) => b.startsWith("SpO")) && !silenced ? " alarm" : ""}`}><span>SpO₂</span><strong>{spo2Shown ?? "--"}</strong><small>%</small></div>
+        <div className={`rr${breaches.some((b) => b.startsWith("RR")) && !silenced ? " alarm" : ""}`}><span>RR</span><strong>{rrShown ?? "--"}</strong><small>/min</small></div>
+      </div>
+      {(!live || !anyOn || paired === 0) && (
+        <div className="cc-mon-overlay">{paired === 0 ? "NO CLINICIAN WITH PATIENT" : !anyOn ? "NOTHING ATTACHED — LEADS, PROBE OR PADS" : surveyRunning ? "PRIMARY SURVEY IN PROGRESS" : "START THE PRIMARY SURVEY"}</div>
+      )}
+      {alarmPanel && (
+        <div className="cc-alarm-panel">
+          <strong>ALARM LIMITS</strong>
+          <label><span>Alarms</span><button type="button" className="cc-mini" aria-pressed={alarmCfg.on} onClick={() => setAlarmCfg((c) => ({ ...c, on: !c.on }))}>{alarmCfg.on ? "On" : "Off"}</button></label>
+          {([["hrLow", "HR low"], ["hrHigh", "HR high"], ["spo2Low", "SpO₂ low"], ["rrHigh", "RR high"], ["sysLow", "Systolic low"]] as const).map(([k, label]) => (
+            <label key={k}>
+              <span>{label}</span>
+              <span className="cc-stepper small">
+                <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] - (k === "spo2Low" ? 1 : 5) }))}>−</button>
+                <output>{alarmCfg[k]}</output>
+                <button type="button" onClick={() => setAlarmCfg((c) => ({ ...c, [k]: c[k] + (k === "spo2Low" ? 1 : 5) }))}>+</button>
               </span>
             </label>
-            <div className="cc-alarm-actions">
-              <button type="button" className="cc-mini" onClick={() => setSilencedUntil(now + 120000)}>Silence 2 min</button>
-              <button type="button" className="cc-mini" onClick={() => setAlarmCfg(() => DEFAULT_ALARMS)}>Defaults</button>
-              <button type="button" className="cc-mini" onClick={() => setAlarmPanel(false)}>Done</button>
+          ))}
+          <label><span>NIBP auto-cycle</span>
+            <span className="cc-segs">
+              {([0, 2, 3, 5] as const).map((m) => (
+                <button key={m} type="button" aria-pressed={nibpAuto === m} onClick={() => setNibpAuto(m)}>{m === 0 ? "Off" : `${m} min`}</button>
+              ))}
+            </span>
+          </label>
+          <div className="cc-alarm-actions">
+            <button type="button" className="cc-mini" onClick={() => setSilencedUntil(now + 120000)}>Silence 2 min</button>
+            <button type="button" className="cc-mini" onClick={() => setAlarmCfg(() => DEFAULT_ALARMS)}>Defaults</button>
+            <button type="button" className="cc-mini" onClick={() => setAlarmPanel(false)}>Done</button>
+          </div>
+        </div>
+      )}
+      {ecg12 && (
+        <div className="cc-ecg12">
+          <strong>12-LEAD ECG · {wall(ecg12.at)}</strong>
+          <p className="rhythm">{ecg12.rhythm}</p>
+          <ul>{ecg12.findings.map((f) => <li key={f}>{f}</li>)}</ul>
+          <p className="impression">{ecg12.impression}</p>
+          <button type="button" className="cc-mini" onClick={() => setEcg12(null)}>Close</button>
+        </div>
+      )}
+    </div>
+  );
+  const nibpRow = (
+    <div className="cc-nibp">
+      <div className={breaches.some((b) => b.startsWith("Systolic")) && !silenced ? "alarm" : ""}><span>NIBP</span><strong>{measuring ? "· · ·" : nibpShown ? `${nibpShown.sys} / ${nibpShown.dia}` : "-- / --"}</strong><small>mmHg{nibpAuto ? ` · auto ${nibpAuto} min` : ""}</small></div>
+      <div className="map"><span>MAP</span><strong>{measuring ? "··" : nibpMap ?? "--"}</strong></div>
+      <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
+      <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
+    </div>
+  );
+  // What goes on the patient. On the device face these are the four
+  // connection keys down the left of the screen.
+  const LP_KEY: Partial<Record<MonitoringDevice, string>> = { ecg_leads: "ECG", spo2_probe: "SpO₂", defib_pads: "Pads", capnography: "CO₂" };
+  const equipButtons = (["ecg_leads", "spo2_probe", "defib_pads", "capnography"] as MonitoringDevice[]).map((d) => {
+    const on = treatment?.monitoring?.[d] !== undefined;
+    return (
+      <button key={d} type="button" className={framed ? `lp-key${on ? " lit" : ""}` : undefined} aria-pressed={on} disabled={!connected || on || !onAttachMonitoring} title={MONITORING_HINT[d]} onClick={() => onAttachMonitoring?.(casualtyId, d, by)}>
+        {framed ? <>{LP_KEY[d]}<i /></> : <>{on ? "✓ " : "+ "}{MONITORING_LABEL[d]}</>}
+      </button>
+    );
+  });
+  const keyCls = framed ? "lp-key" : undefined;
+  const actionButtons = (
+    <>
+      <button type="button" className={keyCls} disabled={!measurable || !leadsOn} title={leadsOn ? "Acquire and read a 12-lead" : "Attach the ECG leads first"} onClick={takeEcg}>{framed ? "12-lead" : "12-lead ECG"}</button>
+      <button type="button" className={keyCls} disabled={!measurable || measuring || (!cuffOn && !onAttachMonitoring)} title={cuffOn ? "Cycle the cuff" : "Puts the cuff on and takes a pressure"} onClick={() => { if (!cuffOn) onAttachMonitoring?.(casualtyId, "nibp_cuff", by); setMeasuringSince(now); }}>{measuring ? (framed ? "NIBP…" : "Measuring…") : cuffOn ? (framed ? "NIBP" : "Measure BP") : framed ? "Cuff · NIBP" : "Cuff on · measure"}</button>
+      <button type="button" className={keyCls} aria-pressed={alarmPanel} onClick={() => setAlarmPanel(!alarmPanel)}>{alarming ? (framed ? "Alarm" : `Alarm · ${breaches[0]}`) : silenced ? (framed ? "Silenced" : "Alarms silenced") : framed ? "Alarms" : "Alarm settings"}</button>
+    </>
+  );
+  if (framed) {
+    return (
+      <div className={`lp15-face${connected ? " on" : ""}${alarming ? " alarm" : ""}`}>
+        <div className="lp-face">
+          <div className="lp-left">
+            <div className="lp-on" title={connected ? "Monitor on" : "The monitor is off until a clinician is with the patient"}><i /><span>ON</span></div>
+            <div className="lp-speaker" aria-hidden="true" />
+            <div className="lp-keycol">{equipButtons}</div>
+          </div>
+          <div className="lp-well">
+            <div className="lp-bezel">{screen}<div className="lp-screen-foot">{nibpRow}</div></div>
+            <div className="lp-softkeys">
+              {actionButtons}
+              <span className="lp-key inert" title={INERT}>Options</span>
+              <span className="lp-key inert" title={INERT}>Event</span>
+              <span className="lp-key inert" title={INERT}>Print</span>
             </div>
           </div>
-        )}
-        {ecg12 && (
-          <div className="cc-ecg12">
-            <strong>12-LEAD ECG · {wall(ecg12.at)}</strong>
-            <p className="rhythm">{ecg12.rhythm}</p>
-            <ul>{ecg12.findings.map((f) => <li key={f}>{f}</li>)}</ul>
-            <p className="impression">{ecg12.impression}</p>
-            <button type="button" className="cc-mini" onClick={() => setEcg12(null)}>Close</button>
+          <div className="lp-therapy" title="Defibrillation, pacing and cardioversion are run from the arrest board and the Circulation tab">
+            <b>Energy select</b>
+            <output className="lp-energy">{treatment?.monitoring?.defib_pads !== undefined || resus ? "200 J" : "--"}</output>
+            <div className="lp-updown"><span className="lp-key inert">▲</span><span className="lp-key inert">▼</span></div>
+            <b>Charge</b><span className="lp-charge" />
+            <b>Shock</b><span className="lp-shock"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="#fff" /></svg></span>
+            <div className="lp-row"><span className="lp-key inert green">Analyze</span><span className="lp-key inert">Sync</span></div>
+            <span className="lp-key inert wide">Pacer</span>
           </div>
-        )}
+        </div>
+        <div className="lp-foot">
+          <div className="lp-footkeys">
+            <span className="lp-key inert" title={INERT}>Home screen</span>
+            <span className="lp-key inert" title={INERT}>Transmit</span>
+            <span className="lp-key inert" title={INERT}>Code summary</span>
+          </div>
+          <div className="lp-dial" aria-hidden="true"><i /><small>SPEED DIAL</small></div>
+        </div>
       </div>
+    );
+  }
+  return (
+    <>
+      {screen}
       <div className={`cc-mon-strip${compact ? " compact" : ""}`}>
-        <div className="cc-nibp">
-          <div className={breaches.some((b) => b.startsWith("Systolic")) && !silenced ? "alarm" : ""}><span>NIBP</span><strong>{measuring ? "· · ·" : nibpShown ? `${nibpShown.sys} / ${nibpShown.dia}` : "-- / --"}</strong><small>mmHg{nibpAuto ? ` · auto ${nibpAuto} min` : ""}</small></div>
-          <div className="map"><span>MAP</span><strong>{measuring ? "··" : nibpMap ?? "--"}</strong></div>
-          <div><span>TEMP</span><strong>{vitals && surveyDone ? vitals.temp.toFixed(1) : "--"}</strong><small>°C</small></div>
-          <div className="upd"><span>{measuring ? "Cuff inflating" : "NIBP taken"}</span><strong>{measuring ? "measuring…" : nibpShown ? wall(nibpShown.at) : updatedAt ? wall(updatedAt) : "--:--:--"}</strong></div>
-        </div>
-        <div className={`cc-mon-equip${compact ? " compact" : ""}`}>
-          {(["ecg_leads", "spo2_probe", "defib_pads", "capnography"] as MonitoringDevice[]).map((d) => {
-            const on = treatment?.monitoring?.[d] !== undefined;
-            return (
-              <button key={d} type="button" aria-pressed={on} disabled={!connected || on || !onAttachMonitoring} title={MONITORING_HINT[d]} onClick={() => onAttachMonitoring?.(casualtyId, d, by)}>
-                {on ? "✓ " : "+ "}{MONITORING_LABEL[d]}
-              </button>
-            );
-          })}
-        </div>
-        <div className="cc-mon-buttons">
-          <button type="button" disabled={!measurable || !leadsOn} title={leadsOn ? "Acquire and read a 12-lead" : "Attach the ECG leads first"} onClick={takeEcg}>12-lead ECG</button>
-          <button type="button" disabled={!measurable || measuring || (!cuffOn && !onAttachMonitoring)} title={cuffOn ? "Cycle the cuff" : "Puts the cuff on and takes a pressure"} onClick={() => { if (!cuffOn) onAttachMonitoring?.(casualtyId, "nibp_cuff", by); setMeasuringSince(now); }}>{measuring ? "Measuring…" : cuffOn ? "Measure BP" : "Cuff on · measure"}</button>
-          <button type="button" aria-pressed={alarmPanel} onClick={() => setAlarmPanel(!alarmPanel)}>{alarming ? `Alarm · ${breaches[0]}` : silenced ? "Alarms silenced" : "Alarm settings"}</button>
-        </div>
+        {nibpRow}
+        <div className={`cc-mon-equip${compact ? " compact" : ""}`}>{equipButtons}</div>
+        <div className="cc-mon-buttons">{actionButtons}</div>
       </div>
     </>
   );

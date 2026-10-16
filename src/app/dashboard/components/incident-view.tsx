@@ -290,13 +290,13 @@ export function IncidentView({
                   <button type="button" className="unit" aria-pressed={selected} onClick={() => onVehicleSelect?.(selected ? null : id)} title={selected ? "Deselect" : "Select this unit"}>
                     <strong>{r.appliance.callsign}</strong>
                     <span>{r.appliance.typeName}</span>
-                    <small>{onScene ? (placed ? "On the ground" : "Arrived · not placed") : "Mobile"}</small>
+                    <small>{onScene ? (placed ? "On the ground" : "Arrived · not placed") : placed ? "Mobile · placed ahead" : "Mobile"}</small>
                   </button>
                   <button
                     type="button"
                     className={placePendingApplianceId === id ? "act armed" : "act"}
-                    disabled={!onScene || !onArmPlacement}
-                    title={onScene ? (placed ? "Move this unit on the ground" : "Place this unit on the ground") : "Places on arrival"}
+                    disabled={!onArmPlacement}
+                    title={onScene ? (placed ? "Move this unit on the ground" : "Place this unit on the ground") : placed ? "Change where this unit will stand when it arrives" : "Choose where this unit will stand when it arrives — its route follows"}
                     onClick={() => (placePendingApplianceId === id ? onClearPlacePending?.() : onArmPlacement?.(id))}
                   >
                     {placePendingApplianceId === id ? "Cancel" : placed ? "Move" : "Place"}

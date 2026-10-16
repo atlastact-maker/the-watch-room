@@ -5,7 +5,8 @@
 // treatment record and the casualty, so the picture changes as the crew
 // work, and a seven-year-old is not drawn as a man of fifty.
 
-import type { PatientTreatmentState } from "./incident_types";
+import type { DrugName, PackagingAction, PatientTreatmentState } from "./incident_types";
+import { DRUG_LABEL } from "./incident_types";
 import type { PatientRedFlag, SceneCasualty } from "./scene";
 import type { ResusState } from "./resus";
 import type { BodyRegion } from "./body_regions";
@@ -77,12 +78,103 @@ export type PatientLook = {
   appearance: Appearance;
   /** Short words for the caption: "sat on the stairs · pale, sweaty · breathing fast". */
   words: string[];
+  /** What is being done to the patient at this moment, for the scene to animate. */
+  fx: SceneFx;
 };
 
 export type LookOpts = {
   /** Out of the water, off the face, out of the car: at the vehicle now. */
   landed?: boolean;
+  /** The clock. Without it the look has no "right now": nothing animates. */
+  now?: number;
 };
+
+/** One thing a clinician is doing at this moment, and where on the patient. */
+export type SceneAct = {
+  kind: "cannula" | "syringe" | "tablet" | "spray" | "neb";
+  /** The cannula site on the back of the hand, the thigh for an intramuscular dose, the mouth. */
+  site: "iv" | "thigh" | "mouth";
+  at: number;
+  label: string;
+};
+
+export type SceneFx = {
+  acts: SceneAct[];
+  /** The pouches of the kit bag that are open, by what is being got out of them. */
+  pouches: { airway: boolean; circ: boolean; drugs: boolean };
+  /** Kit that has just gone on, drawn settling into place. */
+  fresh: (keyof PatientLook["kit"])[];
+};
+
+/** How long each thing takes to show. A cannula slides in and is dressed;
+ *  a dose is pushed; a pouch stays open while the crew have their hands in it. */
+const ACT_MS = 4500;
+const CANNULA_MS = 5200;
+const POUCH_MS = 7000;
+const FRESH_MS = 2500;
+
+const IM_DRUGS = new Set<DrugName>(["adrenaline_im_anaphylaxis", "midazolam_im", "glucagon_im"]);
+const ORAL_DRUGS = new Set<DrugName>(["paracetamol", "aspirin_300"]);
+const NEB_DRUGS = new Set<DrugName>(["salbutamol_neb", "ipratropium_neb", "entonox"]);
+const MONITOR_KIT = { ecg_leads: "leads", ecg_12: "ecg12", spo2_probe: "probe", nibp_cuff: "cuff", defib_pads: "pads", capnography: "capno" } as const;
+const PACKAGING_KIT: Partial<Record<PackagingAction, keyof PatientLook["kit"]>> = {
+  warming: "blanket", spine_board: "board", scoop_stretcher: "board", ked: "collar", pelvic_binder: "pelvicBinder",
+  tourniquet: "tourniquet", traction_splint: "splint", dressings: "dressing", wound_pack: "dressing",
+};
+
+/** What the last few seconds of the record say is happening to the patient. */
+function sceneFx(tx: PatientTreatmentState | null | undefined, kit: PatientLook["kit"], now: number | undefined): SceneFx {
+  const acts: SceneAct[] = [];
+  const pouches = { airway: false, circ: false, drugs: false };
+  const fresh = new Set<keyof PatientLook["kit"]>();
+  if (tx && now !== undefined) {
+    // The record is chronological: only its tail can be this recent.
+    for (let i = tx.events.length - 1; i >= 0; i--) {
+      const e = tx.events[i];
+      const age = now - e.at;
+      if (age > POUCH_MS) break;
+      if (age < 0) continue;
+      switch (e.kind) {
+        case "circulation":
+          if (e.action === "iv_access" || e.action === "io_access") {
+            pouches.circ = true;
+            if (age <= CANNULA_MS) acts.push({ kind: "cannula", site: "iv", at: e.at, label: e.action === "io_access" ? "IO access" : "Cannula" });
+            if (age <= FRESH_MS) fresh.add("iv");
+          }
+          break;
+        case "drug": {
+          pouches.drugs = true;
+          if (age > ACT_MS) break;
+          const label = DRUG_LABEL[e.drug];
+          if (ORAL_DRUGS.has(e.drug)) acts.push({ kind: "tablet", site: "mouth", at: e.at, label });
+          else if (e.drug === "gtn_spray") acts.push({ kind: "spray", site: "mouth", at: e.at, label });
+          else if (NEB_DRUGS.has(e.drug)) acts.push({ kind: "neb", site: "mouth", at: e.at, label });
+          else if (IM_DRUGS.has(e.drug) || !kit.iv) acts.push({ kind: "syringe", site: "thigh", at: e.at, label });
+          else acts.push({ kind: "syringe", site: "iv", at: e.at, label });
+          break;
+        }
+        case "airway":
+          if (e.action !== "position" && e.action !== "back_blows" && e.action !== "abdominal_thrusts") pouches.airway = true;
+          if (age <= FRESH_MS && (e.action === "opa" || e.action === "npa" || e.action === "igel" || e.action === "rsi")) fresh.add("airway");
+          break;
+        case "breathing":
+          if (e.action === "bvm") pouches.airway = true;
+          if (age <= FRESH_MS && (e.action === "bvm" || e.action === "oxygen_15l")) fresh.add("oxygen");
+          break;
+        case "monitoring":
+          if (age <= FRESH_MS && !e.off) fresh.add(MONITOR_KIT[e.device]);
+          break;
+        case "packaging": {
+          if (e.action === "dressings" || e.action === "wound_pack" || e.action === "tourniquet") pouches.circ = true;
+          const key = PACKAGING_KIT[e.action];
+          if (key && age <= FRESH_MS) fresh.add(key);
+          break;
+        }
+      }
+    }
+  }
+  return { acts, pouches, fresh: [...fresh] };
+}
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -262,5 +354,5 @@ export function patientLook(c: SceneCasualty, tx: PatientTreatmentState | null |
   if (bleeding) words.push("bleeding");
   if (tx?.physio?.seizing) words.push("fitting");
 
-  return { posture, skin, sweating, breathing, rr, eyes, hurt: [...hurt], bleeding, seizing: !!tx?.physio?.seizing, kit, compressor, arrest, appearance, words };
+  return { posture, skin, sweating, breathing, rr, eyes, hurt: [...hurt], bleeding, seizing: !!tx?.physio?.seizing, kit, compressor, arrest, appearance, words, fx: sceneFx(tx, kit, opts.now) };
 }

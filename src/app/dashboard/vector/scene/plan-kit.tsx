@@ -85,6 +85,9 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const k = r.k;
   const A = anchors(r);
   const kit = look.kit;
+  // Kit that has just gone on settles into place rather than snapping in.
+  const freshKit = new Set<keyof PatientLook["kit"]>(look.fx.fresh);
+  const fx = (key: keyof PatientLook["kit"]) => (freshKit.has(key) ? "ps-fresh" : undefined);
   const port = place.monitorPort ?? ([-0.95, 0.9] as Pt);
   const o2 = place.o2At ?? ([0.7, 0.15] as Pt);
   const hurt = new Set<BodyRegion>(look.hurt);
@@ -151,7 +154,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const under = (
     <g>
       {kit.board && (
-        <g>
+        <g className={fx("board")}>
           <rect x={-r.shoulderW * 1.2} y={-0.1 * k} width={r.shoulderW * 2.4} height={r.bottom + 0.2 * k} rx={0.12 * k} fill="#e8731f" {...line} />
           {[0.15, 0.5, 0.85].map((t) => (
             <g key={t}>
@@ -215,7 +218,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const onChest = (
     <g>
       {kit.pads && (
-        <g>
+        <g className={fx("pads")}>
           {pad(padR, [0.55, 1], "padR")}
           {pad(padL, [0, 1], "padL")}
           <rect x={apexEdge} y={apexY - 0.072 * k} width={padL[0] + 0.0525 * k - apexEdge} height={0.144 * k} fill="url(#ps-slope-l)" opacity={0.85} />
@@ -223,19 +226,19 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.leads && (
-        <g>
+        <g className={fx("leads")}>
           {[...limb, ...chest].map((e) => electrode(e.at, e.colour, deg(sub(bow(e.at, e.to, e.sag), e.at)), e.key))}
         </g>
       )}
       {kit.dressing && (
-        <g>
+        <g className={fx("dressing")}>
           <rect x={dressingAt[0] - 0.07 * k} y={dressingAt[1] - 0.055 * k} width={0.14 * k} height={0.11 * k} rx={0.012 * k} fill="url(#pk-gauze)" stroke="#c9c4b4" strokeWidth={0.7} {...SW} />
           <ellipse cx={dressingAt[0] + 0.01 * k} cy={dressingAt[1] + 0.005 * k} rx={0.035 * k} ry={0.025 * k} fill="#a82a2a" opacity={0.55} />
           {[-1, 1].map((s) => <rect key={s} x={dressingAt[0] + s * 0.07 * k - 0.012 * k} y={dressingAt[1] - 0.075 * k} width={0.024 * k} height={0.15 * k} rx={0.004 * k} fill="#f3e4c6" opacity={0.9} />)}
         </g>
       )}
       {kit.pelvicBinder && (
-        <g filter="url(#pk-drop-sm)">
+        <g className={fx("pelvicBinder")} filter="url(#pk-drop-sm)">
           <rect x={-r.hipW * 1.35} y={A.hips[1] - 0.1 * k} width={r.hipW * 2.7} height={0.2 * k} rx={0.03 * k} fill="#e8731f" stroke="#7a3a0c" strokeWidth={0.9} {...SW} />
           <rect x={-r.hipW * 1.35} y={A.hips[1] - 0.1 * k} width={r.hipW * 2.7} height={0.2 * k} rx={0.03 * k} fill="url(#pk-gloss)" />
           <rect x={-r.hipW * 1.3} y={A.hips[1] - 0.03 * k} width={r.hipW * 2.6} height={0.06 * k} fill="#1b1b1b" opacity={0.9} />
@@ -335,7 +338,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const over = (
     <g>
       {kit.collar && (
-        <g filter="url(#pk-drop-sm)">
+        <g className={fx("collar")} filter="url(#pk-drop-sm)">
           {/* The strap round the back, the grey shell with its foam padding, the chin piece, the trachea opening, the sizing dial. */}
           <rect x={-r.neckW * 2.0} y={A.neck[1] - 0.03 * k} width={r.neckW * 4.0} height={0.06 * k} rx={0.01 * k} fill="#1b1f23" />
           <rect x={-r.neckW * 2.0} y={A.neck[1] - 0.03 * k} width={r.neckW * 4.0} height={0.06 * k} rx={0.01 * k} fill="url(#pk-velcro)" />
@@ -357,7 +360,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.cuff && (
-        <g filter="url(#pk-drop-sm)">
+        <g className={fx("cuff")} filter="url(#pk-drop-sm)">
           {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "#1f3a5f", stroke: "#0e1a2b", strokeWidth: 0.8, ...SW }, 0.015 * k)}
           {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "url(#pk-weave)" }, 0.015 * k)}
           {slab(cuffArm, cuffAlong, 0.15 * k, r.armW[0] * 2.9, { fill: "url(#ps-round)", opacity: 0.6 }, 0.015 * k)}
@@ -370,7 +373,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.probe && (
-        <g>
+        <g className={fx("probe")}>
           <rect x={A.leftFinger[0] - 0.02 * k} y={A.leftFinger[1] - 0.045 * k} width={0.04 * k} height={0.07 * k} rx={0.012 * k} fill="#3b4a5a" stroke="#1b2733" strokeWidth={0.6} {...SW} />
           <rect x={A.leftFinger[0] - 0.02 * k} y={A.leftFinger[1] - 0.045 * k} width={0.04 * k} height={0.07 * k} rx={0.012 * k} fill="url(#pk-gloss)" />
           <rect x={A.leftFinger[0] - 0.012 * k} y={A.leftFinger[1] - 0.038 * k} width={0.024 * k} height={0.02 * k} rx={0.004 * k} fill="#2f6fd6" opacity={0.9} />
@@ -378,7 +381,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.iv && (
-        <g>
+        <g className={fx("iv")}>
           {slab(ivHand, ivAlong, 0.09 * k, 0.07 * k, { fill: "#ffffff", opacity: 0.5, stroke: "#dfe8ef", strokeWidth: 0.5, ...SW }, 0.008 * k)}
           {slab(add(ivHand, mul(unit(ivAlong), -0.02 * k)), perp(ivAlong), 0.04 * k, 0.014 * k, { fill: "#e07aa0", stroke: "#1b2733", strokeWidth: 0.5, strokeOpacity: 0.6, ...SW }, 0.004 * k)}
           {slab(add(ivHand, mul(unit(ivAlong), -0.02 * k)), ivAlong, 0.03 * k, 0.012 * k, { fill: "#f4f6f8", stroke: "#9aa0a6", strokeWidth: 0.5, ...SW }, 0.004 * k)}
@@ -387,7 +390,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.splint && (
-        <g filter="url(#pk-drop-sm)">
+        <g className={fx("splint")} filter="url(#pk-drop-sm)">
           {slab(lerp(thighA, legC, 0.55), sub(legC, thighA), len(sub(legC, thighA)) * 1.05, r.legW[0] * 2.7, { fill: "#8a98a8", stroke: "#3e4a56", strokeWidth: 0.9, ...SW }, 0.02 * k)}
           {slab(lerp(thighA, legC, 0.55), sub(legC, thighA), len(sub(legC, thighA)) * 1.0, r.legW[0] * 1.9, { fill: "#6f7d8c", stroke: "#3e4a56", strokeWidth: 0.5, strokeOpacity: 0.5, ...SW }, 0.02 * k)}
           {slab(lerp(thighA, legC, 0.55), sub(legC, thighA), len(sub(legC, thighA)) * 1.05, r.legW[0] * 2.7, { fill: "url(#pk-gloss)" }, 0.02 * k)}
@@ -395,7 +398,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.tourniquet && (
-        <g>
+        <g className={fx("tourniquet")}>
           {slab(lerp(legA, legB, 0.25), sub(legB, legA), 0.065 * k, r.legW[0] * 2.5, { fill: "#1b1b1b", stroke: "#000", strokeWidth: 0.7, ...SW }, 0.006 * k)}
           {slab(lerp(legA, legB, 0.25), sub(legB, legA), 0.065 * k, r.legW[0] * 2.5, { fill: "url(#ps-round)", opacity: 0.5 }, 0.006 * k)}
           <path d={`M${P(add(lerp(legA, legB, 0.25), [legSide * r.legW[0] * 1.15, 0]))} l${n2(legSide * 0.15 * k)} ${n2(-0.03 * k)}`} stroke="#1b1b1b" strokeWidth={0.022 * k} strokeLinecap="round" />
@@ -406,7 +409,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {kit.blanket && (
-        <g>
+        <g className={fx("blanket")}>
           <path d={`M${n2(-r.hipW * 1.55)} ${n2(r.chestY + 0.06 * k)} Q0 ${n2(r.chestY - 0.02 * k)} ${n2(r.hipW * 1.55)} ${n2(r.chestY + 0.06 * k)} L${n2(r.hipW * 1.6)} ${n2(r.bottom + 0.12 * k)} H${n2(-r.hipW * 1.6)} Z`} fill="url(#pk-cellular)" stroke="#7a2f14" strokeWidth={0.9} {...SW} />
           <path d={`M${n2(-r.hipW * 1.55)} ${n2(r.chestY + 0.06 * k)} Q0 ${n2(r.chestY - 0.02 * k)} ${n2(r.hipW * 1.55)} ${n2(r.chestY + 0.06 * k)} L${n2(r.hipW * 1.6)} ${n2(r.bottom + 0.12 * k)} H${n2(-r.hipW * 1.6)} Z`} fill="url(#ps-round)" opacity={0.35} />
           <path d={`M${n2(-r.hipW * 1.52)} ${n2(r.chestY + 0.085 * k)} Q0 ${n2(r.chestY + 0.005 * k)} ${n2(r.hipW * 1.52)} ${n2(r.chestY + 0.085 * k)}`} fill="none" stroke="#e8a27c" strokeWidth={0.03 * k} opacity={0.9} />
@@ -423,7 +426,7 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
         </g>
       )}
       {(kit.oxygen === "mask" || kit.oxygen === "nrb") && (
-        <g>
+        <g className={fx("oxygen")}>
           {maskElastic}
           {mask(kit.oxygen === "nrb" ? "nrb" : "simple")}
           {kit.oxygen === "nrb" && <ellipse cx={0} cy={hl * 1.14} rx={0.045 * k} ry={0.11 * k} fill="url(#pk-clear)" stroke="#8fb0c7" strokeWidth={0.8} className="ps-bag-nrb" {...SW} />}
@@ -500,14 +503,14 @@ export function kitLayers(look: PatientLook, r: Rig, place: KitPlacement): KitLa
   const lines = (
     <g>
       {kit.pads && (
-        <g>
+        <g className={fx("pads")}>
           <Cable d={route([add(padR, [0.02 * k, 0.06 * k]), bow(add(padR, [0.02 * k, 0.06 * k]), padJunction, 0.05 * k), padJunction], avoid)} className="ps-wire-pad" />
           <Cable d={route([add(padL, [0.02 * k, 0.06 * k]), bow(add(padL, [0.02 * k, 0.06 * k]), padJunction, -0.02 * k), padJunction], avoid)} className="ps-wire-pad" />
           <Cable d={toPort(padJunction, 0.08 * k)} className="ps-wire-pad" />
         </g>
       )}
       {kit.leads && (
-        <g>
+        <g className={fx("leads")}>
           {limb.map((e) => <Cable key={e.key} d={leadPath(e)} className="ps-lead" colour={e.colour} />)}
           {chest.map((e) => <Cable key={e.key} d={leadPath(e)} className="ps-lead-v" colour={e.colour} />)}
           {chest.length > 0 && (
@@ -882,7 +885,57 @@ export function Monitor({ at, k = 1, arrest = false, portSide = -1 }: { at: Pt; 
 
 /** The response rucksack, open on the ground: a green bag with webbing and
  *  a reflective band, the lid thrown back, colour-coded modules inside. */
-export function KitBag({ at, k = 1, open = true }: { at: Pt; k?: number; open?: boolean; colour?: string }) {
+export type Pouches = { airway?: boolean; circ?: boolean; drugs?: boolean };
+
+/** Inside the airway pouch: an i-gel, an OPA, an NPA, a mask in its packet, a suction catheter. */
+function airwayItems(px: number, py: number): ReactNode {
+  return (
+    <g>
+      <rect x={px + 0.014} y={py + 0.016} width={0.052} height={0.02} rx={0.009} fill="#f7d04b" stroke="#1b2733" strokeWidth={0.5} {...SW} />
+      <rect x={px + 0.014} y={py + 0.044} width={0.04} height={0.012} rx={0.006} fill="#35a24a" stroke="#1b2733" strokeWidth={0.5} {...SW} />
+      <rect x={px + 0.014} y={py + 0.064} width={0.05} height={0.009} rx={0.0045} fill="#e8c9b2" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+      <rect x={px + 0.078} y={py + 0.016} width={0.058} height={0.028} rx={0.004} fill="rgba(255,255,255,0.85)" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+      <path d={`M${n2(px + 0.08)} ${n2(py + 0.09)} H${n2(px + 0.136)}`} stroke="#f4f6f8" strokeWidth={1} {...SW} />
+    </g>
+  );
+}
+
+/** Inside the circulation pouch: cannula packs by gauge, a tourniquet, tape, a dressing. */
+function circItems(px: number, py: number): ReactNode {
+  return (
+    <g>
+      {(["#e07aa0", "#35a24a", "#2f6fd6"] as const).map((col, i) => (
+        <g key={col}>
+          <rect x={px + 0.014 + i * 0.034} y={py + 0.014} width={0.028} height={0.05} rx={0.003} fill="rgba(255,255,255,0.88)" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+          <rect x={px + 0.014 + i * 0.034} y={py + 0.014} width={0.028} height={0.01} rx={0.003} fill={col} />
+        </g>
+      ))}
+      <rect x={px + 0.118} y={py + 0.014} width={0.02} height={0.05} rx={0.004} fill="#2f3e4e" />
+      <circle cx={px + 0.04} cy={py + 0.085} r={0.014} fill="#f1efe8" stroke="#9aa0a6" strokeWidth={0.5} {...SW} />
+      <circle cx={px + 0.04} cy={py + 0.085} r={0.006} fill="#0d1610" />
+      <rect x={px + 0.07} y={py + 0.074} width={0.06} height={0.022} rx={0.003} fill="#f4f6f8" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+    </g>
+  );
+}
+
+/** Inside the drugs pouch: ampoules with their coloured rings, and a syringe. */
+function drugItems(px: number, py: number): ReactNode {
+  return (
+    <g>
+      {(["#c0392b", "#2f6fd6", "#35a24a", "#f2c230", "#8e44ad"] as const).map((col, i) => (
+        <g key={col}>
+          <rect x={px + 0.014 + i * 0.024} y={py + 0.014} width={0.014} height={0.04} rx={0.004} fill="rgba(255,255,255,0.8)" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+          <rect x={px + 0.014 + i * 0.024} y={py + 0.026} width={0.014} height={0.005} fill={col} />
+        </g>
+      ))}
+      <rect x={px + 0.014} y={py + 0.066} width={0.08} height={0.014} rx={0.003} fill="rgba(255,255,255,0.88)" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
+      <rect x={px + 0.094} y={py + 0.062} width={0.006} height={0.022} rx={0.002} fill="#3b6fb0" />
+      <path d={`M${n2(px + 0.1)} ${n2(py + 0.073)} H${n2(px + 0.13)}`} stroke="#3b6fb0" strokeWidth={1.4} {...SW} />
+    </g>
+  );
+}
+
+export function KitBag({ at, k = 1, open = true, pouches }: { at: Pt; k?: number; open?: boolean; colour?: string; pouches?: Pouches }) {
   void k;
   const [x, y] = at;
   const W = 0.6, H = 0.44, L = x - W / 2, T = y - H / 2;
@@ -896,7 +949,10 @@ export function KitBag({ at, k = 1, open = true }: { at: Pt; k?: number; open?: 
       <rect x={rx + 0.011} y={ry + 0.011} width={rw - 0.022} height={rh - 0.022} rx={Math.max(0, rr - 0.009)} fill="none" stroke="#dfe8ef" strokeWidth={0.0008} strokeOpacity={0.45} strokeDasharray="0.003 0.002" />
     </g>
   );
-  const pouch = (px: number, py: number, pw: number, ph: number, c: string, label: string) => (
+  // A pouch is a zipped top half over a Velcro label strip. Open, the top
+  // half is thrown back over the pouch's top edge and what is kept in it
+  // shows in the lining: the crew have their hands in this one.
+  const pouch = (px: number, py: number, pw: number, ph: number, c: string, label: string, isOpen = false, items: ReactNode = null) => (
     <g>
       <rect x={px + 0.004} y={py + 0.006} width={pw} height={ph} rx={0.014} fill="#000" opacity={0.4} filter="url(#pk-blur)" />
       <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill={c} stroke="#0e1114" strokeWidth={0.6} strokeOpacity={0.7} {...SW} />
@@ -904,7 +960,21 @@ export function KitBag({ at, k = 1, open = true }: { at: Pt; k?: number; open?: 
       <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill="url(#pk-vinyl)" opacity={0.8} />
       <rect x={px} y={py} width={pw} height={ph} rx={0.014} fill="url(#ps-grain)" />
       <Bevel x={px} y={py} w={pw} h={ph} rx={0.014} d={0.0025} light={0.35} dark={0.45} />
-      <Zip a={[px + 0.014, py + 0.022]} b={[px + pw - 0.014, py + 0.022]} />
+      {isOpen ? (
+        <g>
+          <rect x={px + 0.006} y={py + 0.006} width={pw - 0.012} height={ph * 0.5 - 0.006} rx={0.01} fill="#0d1610" />
+          <rect x={px + 0.006} y={py + 0.006} width={pw - 0.012} height={ph * 0.5 - 0.006} rx={0.01} fill="url(#pk-weave)" />
+          <g className="ps-pouch-items">{items}</g>
+          <g className="ps-flap">
+            <rect x={px} y={py} width={pw} height={ph * 0.5} rx={0.014} fill={c} stroke="#0e1114" strokeWidth={0.6} strokeOpacity={0.7} {...SW} />
+            <rect x={px} y={py} width={pw} height={ph * 0.5} rx={0.014} fill="url(#pk-weave)" />
+            <rect x={px} y={py} width={pw} height={ph * 0.5} rx={0.014} fill="url(#pk-vinyl)" opacity={0.8} />
+            <Zip a={[px + 0.014, py + 0.022]} b={[px + pw - 0.014, py + 0.022]} />
+          </g>
+        </g>
+      ) : (
+        <Zip a={[px + 0.014, py + 0.022]} b={[px + pw - 0.014, py + 0.022]} />
+      )}
       <rect x={px + 0.02} y={py + ph * 0.5} width={pw - 0.04} height={0.034} rx={0.003} fill="#f4f6f8" stroke="#9aa0a6" strokeWidth={0.4} {...SW} />
       <rect x={px + 0.02} y={py + ph * 0.5} width={pw - 0.04} height={0.034} rx={0.003} fill="url(#pk-velcro)" />
       <text x={px + pw / 2} y={py + ph * 0.5 + 0.024} textAnchor="middle" fontSize={0.016} fontWeight={800} fill="#1b2733" fontFamily="Arial, sans-serif">{label}</text>
@@ -954,9 +1024,9 @@ export function KitBag({ at, k = 1, open = true }: { at: Pt; k?: number; open?: 
           <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={H - 0.15} rx={0.025} fill="#0d1610" />
           <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={H - 0.15} rx={0.025} fill="url(#pk-weave)" />
           <rect x={L + 0.045} y={T + 0.04} width={W - 0.09} height={0.03} rx={0.01} fill="#000" opacity={0.5} filter="url(#pk-blur)" />
-          {pouch(L + 0.06, T + 0.055, 0.15, 0.22, "#c0392b", "AIRWAY")}
-          {pouch(L + 0.225, T + 0.055, 0.15, 0.22, "#2f6fd6", "CIRC")}
-          {pouch(L + 0.39, T + 0.055, 0.15, 0.22, "#e0b321", "DRUGS")}
+          {pouch(L + 0.06, T + 0.055, 0.15, 0.22, "#c0392b", "AIRWAY", !!pouches?.airway, airwayItems(L + 0.06, T + 0.055))}
+          {pouch(L + 0.225, T + 0.055, 0.15, 0.22, "#2f6fd6", "CIRC", !!pouches?.circ, circItems(L + 0.225, T + 0.055))}
+          {pouch(L + 0.39, T + 0.055, 0.15, 0.22, "#e0b321", "DRUGS", !!pouches?.drugs, drugItems(L + 0.39, T + 0.055))}
           <g transform={`rotate(-28 ${n2(L + 0.12)} ${n2(T + H - 0.13)})`}>
             <rect x={L + 0.06} y={T + H - 0.138} width={0.07} height={0.016} rx={0.004} fill="url(#pk-steel-h)" stroke="#5f666d" strokeWidth={0.4} {...SW} />
             <rect x={L + 0.125} y={T + H - 0.142} width={0.05} height={0.012} rx={0.005} fill="#1f2326" stroke="#0e1114" strokeWidth={0.4} {...SW} />

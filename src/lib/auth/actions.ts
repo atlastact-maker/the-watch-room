@@ -83,7 +83,7 @@ export async function requestSignInCode(_state: AuthFormState, formData: FormDat
   return { codeSent: parsed.data.email };
 }
 
-/** Sign in by emailed code: step two, the six digits. */
+/** Sign in by emailed code: step two, the digits from the message. */
 export async function verifySignInCode(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "");
   const parsed = CodeVerifySchema.safeParse({ email, token: formData.get("token") });
