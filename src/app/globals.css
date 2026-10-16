@@ -170,8 +170,8 @@ body::before {
   .veh .lt { animation: none !important; }
 }
 
-/* Dispatcher map markers (area view) — pulsing 999 ring + blinking
-   unassigned-incident triangle from the marker pack. */
+/* Dispatcher map markers (area view) — the halo pulsing out from a new
+   job's pin, and the pin itself breathing until somebody is sent. */
 .mk-999 {
   transform-box: fill-box;
   transform-origin: center;
@@ -182,11 +182,11 @@ body::before {
   100% { transform: scale(2.4); opacity: 0; }
 }
 .mk-inc {
-  animation: mkinc-blink 1s steps(2, start) infinite;
+  animation: mkinc-breathe 1.6s ease-in-out infinite;
 }
-@keyframes mkinc-blink {
+@keyframes mkinc-breathe {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 }
 
 /* Aerial base map — dim and desaturate the photography only, so vehicle
@@ -197,9 +197,8 @@ body::before {
   filter: brightness(0.72) saturate(0.85);
 }
 
-/* 999-run pulse for the HTML unit markers. The SVG incident triangles keep
-   .mk-999 above — that pack is unchanged, and its keyframes start from a
-   different scale. */
+/* 999-run pulse for the HTML unit markers. The SVG incident pin keeps
+   .mk-999 above, whose keyframes start from a different scale. */
 .mk-999-box {
   transform-origin: center;
   animation: mk999-box-pulse 1.4s ease-out infinite;

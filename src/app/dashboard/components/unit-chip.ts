@@ -8,10 +8,9 @@
 // No vehicle artwork, which is what a real mobilising screen shows and
 // what keeps the whole fleet covered without new art per type.
 //
-// Incident triangles are unchanged from the original pack
-// (assets/map-markers) and are still SVG, anchored at (40,48) in an
-// 80×66 viewBox. The mk-999 / mk-inc animation classes live in
-// globals.css; the HTML markers use mk-999-box.
+// The incident pin is SVG too (map-markers.ts), its tip on the point.
+// The mk-999 / mk-inc animation classes live in globals.css; the HTML
+// markers use mk-999-box.
 
 import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 

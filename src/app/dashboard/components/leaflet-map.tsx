@@ -27,6 +27,7 @@ import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 import { type Patch } from "@/lib/sim/areas";
 import {
   chipServiceColour,
+  INCIDENT_PIN,
   incidentMarkerSvg,
   serviceMarker,
   unitDivIcon,
@@ -41,6 +42,7 @@ import {
 } from "./basemap-controls";
 import { VectorBasemap } from "./vector-basemap";
 import { STREET } from "@/lib/map-basemaps";
+import { scenarioService } from "../vector/model";
 
 /** The zoom at which scene detail takes over from patch furniture. One
  *  number shared by both maps: the incident map swaps its layers here,
@@ -104,21 +106,23 @@ function hemsTrailTo(
 // Marker icons
 // ---------------------------------------------------------------------------
 
-/** The incident triangle animates (mk-999 pulse, mk-inc breathe), so it
- *  gets the same treatment as the unit markers: one icon per kind, ever,
- *  or the 250ms clock restarts the animation from frame zero each tick. */
-const INCIDENT_ICONS = new Map<IncidentMarkerKind, L.DivIcon>();
-function incidentIcon(kind: IncidentMarkerKind): L.DivIcon {
-  let icon = INCIDENT_ICONS.get(kind);
+/** The incident pin animates (mk-999 halo, mk-inc breathe), so it gets
+ *  the same treatment as the unit markers: one icon per kind and service,
+ *  ever, or the 250ms clock restarts the animation from frame zero each
+ *  tick. */
+const INCIDENT_ICONS = new Map<string, L.DivIcon>();
+function incidentIcon(kind: IncidentMarkerKind, service: ServiceCode): L.DivIcon {
+  const key = `${kind}:${service}`;
+  let icon = INCIDENT_ICONS.get(key);
   if (!icon) {
     icon = L.divIcon({
       className: "",
-      iconSize: [80, 66],
-      iconAnchor: [40, 48],
-      popupAnchor: [0, -36],
-      html: incidentMarkerSvg(kind),
+      iconSize: INCIDENT_PIN.size,
+      iconAnchor: INCIDENT_PIN.anchor,
+      popupAnchor: INCIDENT_PIN.popup,
+      html: incidentMarkerSvg(kind, service),
     });
-    INCIDENT_ICONS.set(kind, icon);
+    INCIDENT_ICONS.set(key, icon);
   }
   return icon;
 }
@@ -278,7 +282,7 @@ type Props = {
    *  continues from wherever the operator was looking. */
   onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
   /** The incident map turns this off above the detail threshold, where
-   *  its own crosshair address marker takes over from the triangle.
+   *  its own crosshair address marker takes over from the pin.
    *  Stations, movers and trails are NOT gated — a responding unit must
    *  stay visible the whole way in, not vanish at a zoom boundary. */
   showIncidentMarker?: boolean;
@@ -989,6 +993,7 @@ export function PatchLayers({
               : deployments.length > 0
                 ? "assigned"
                 : "unassigned",
+            scenarioService(activeIncident.scenario),
           )}
         >
           <Popup>
