@@ -30,7 +30,7 @@ import { SignupView } from "@/app/signup/signup-view";
 import { StandbyView } from "@/app/standby/standby-view";
 import { StatsView } from "@/app/stats/stats-view";
 import { TermsView } from "@/app/terms/terms-view";
-import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_NOT_YET } from "@/lib/prealpha";
+import { PREALPHA_ACCESS_STEPS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_KEY_DATES, PREALPHA_NOT_YET, PREALPHA_OPENING_SCENARIOS, PREALPHA_RELEASE_AT, PREALPHA_RELEASE_LABEL } from "@/lib/prealpha-programme";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 
@@ -73,8 +73,9 @@ const isPublic = (v: string | null): v is PublicPage => v !== null && v in PUBLI
 const BRIEFING: BriefingData = {
   accepted: true, waiting: false, operator: true, invited: false, standing: "accepted", signedIn: true,
   signups: SIGNUPS, tableMissing: false, appliedOn: null,
-  openJobs: SCENARIO_META.slice(0, 5).map((s) => ({ id: s.id, title: s.title, service: s.pda[0]?.service ?? "Fire" })),
-  access: PREALPHA_ACCESS, focus: PREALPHA_FOCUS, asks: PREALPHA_ASKS, notYet: PREALPHA_NOT_YET,
+  openJobs: SCENARIO_META.filter((s) => /Wythenshawe$|Hough End|wanted driver, Sale/.test(s.title)).map((s) => ({ id: s.id, title: s.title, service: s.pda[0]?.service ?? "Fire" })),
+  keyDates: PREALPHA_KEY_DATES, accessSteps: PREALPHA_ACCESS_STEPS, opening: PREALPHA_OPENING_SCENARIOS, releaseLabel: PREALPHA_RELEASE_LABEL, releaseAt: PREALPHA_RELEASE_AT, now: Date.parse("2026-10-16T12:00:00Z"),
+  focus: PREALPHA_FOCUS, asks: PREALPHA_ASKS, notYet: PREALPHA_NOT_YET,
 };
 
 export default function MenuHarness() {

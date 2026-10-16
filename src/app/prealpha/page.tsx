@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { hasAdminAccess, hasShiftAccess, isTester } from "@/lib/auth/operator-access";
-import { PREALPHA_ACCESS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_NOT_YET, ensurePreAlphaRequest, prealphaOpensLabel, prealphaSignups } from "@/lib/prealpha";
+import { ensurePreAlphaRequest, prealphaOpensLabel, prealphaSignups, programmeClock } from "@/lib/prealpha";
+import { PREALPHA_ACCESS_STEPS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_KEY_DATES, PREALPHA_NOT_YET, PREALPHA_OPENING_SCENARIOS, PREALPHA_RELEASE_AT, PREALPHA_RELEASE_LABEL } from "@/lib/prealpha-programme";
 import { SCENARIO_META } from "@/lib/sim/scenarios/meta";
 import { ConsoleShell, PublicShell } from "@/app/menu/console-shell";
 import { consoleSession, consoleUser } from "@/app/menu/console-session";
@@ -50,7 +51,12 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
     tableMissing,
     appliedOn: application ? new Date(application.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : null,
     openJobs,
-    access: PREALPHA_ACCESS,
+    keyDates: PREALPHA_KEY_DATES,
+    accessSteps: PREALPHA_ACCESS_STEPS,
+    opening: PREALPHA_OPENING_SCENARIOS,
+    releaseLabel: PREALPHA_RELEASE_LABEL,
+    releaseAt: PREALPHA_RELEASE_AT,
+    now: programmeClock(),
     focus: PREALPHA_FOCUS,
     asks: PREALPHA_ASKS,
     notYet: PREALPHA_NOT_YET,

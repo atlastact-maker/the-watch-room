@@ -3,6 +3,7 @@
 // on the list, or opens the desk to them if the doors are already open.
 
 import { SITE, emailShell } from "./layout";
+import { PREALPHA_RELEASE_LABEL } from "@/lib/prealpha-programme";
 
 export function testerInvitedEmail(token: string, opts: { doorsOpen?: boolean } = {}): { subject: string; html: string } {
   const doorsOpen = opts.doorsOpen !== false;
@@ -21,12 +22,12 @@ export function testerInvitedEmail(token: string, opts: { doorsOpen?: boolean } 
         "An administrator has invited this account to the closed Pre-Alpha of The Watch Room, the emergency services incident management simulator.",
         doorsOpen
           ? "Accept while signed in to this account and the operator console opens to you at once: live incidents, the whole desk from the 999 call to the debrief, and the tester channel on Discord."
-          : "Accept while signed in to this account and it joins the tester list. The console opens to every tester at the same time, and a notice is sent to this address the moment it does.",
+          : `Accept while signed in to this account and it joins the tester list. Access opens to every accepted tester at the same time on ${PREALPHA_RELEASE_LABEL}, and a notice is sent to this address the moment it does.`,
       ],
       facts: [
         { label: "Valid for", value: "30 days from the date of this message" },
         { label: "Issued to", value: "This account only. The link does not work for any other." },
-        { label: "Desk", value: doorsOpen ? "Open to testers" : "Closed. Opens to every tester at once." },
+        { label: "Desk", value: doorsOpen ? "Open to testers" : `Closed. Opens to every accepted tester on ${PREALPHA_RELEASE_LABEL}.` },
       ],
       cta: { label: "Accept the invitation", href: link },
       showLink: true,

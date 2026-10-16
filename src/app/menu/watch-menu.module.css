@@ -648,3 +648,29 @@
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .feedback .codeInput { font: 600 24px var(--font-geist-mono), monospace; letter-spacing: .45em; text-align: center; }
 .feedback .codeInput::placeholder { color: var(--line-2); }
+
+/* Pre-Alpha briefing: key dates, opening scenarios, titled lists */
+.timeline { list-style: none; margin: 4px 0 0; padding: 0; }
+.timeline li { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.6; color: var(--muted); }
+.timeline li:last-child { border-bottom: 0; }
+.timeline .when { display: flex; align-items: center; gap: 9px; font: 500 10.5px/1.6 var(--font-geist-mono), monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.timeline .when i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-2); flex-shrink: 0; }
+.timeline li.current .when { color: var(--amber); }
+.timeline li.current .when i { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-tint); }
+.timeline li.current { color: var(--text); }
+.timeline li.past { color: var(--dim); }
+.timeline li.past .when i { background: var(--ok); }
+.openingGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.opening { position: relative; padding: 14px 16px 16px; border: 1px solid var(--line); border-left: 3px solid var(--tint, var(--amber)); border-radius: var(--radius); background: var(--panel-2); min-width: 0; }
+.opening .openingService { font: 500 10px/1.5 var(--font-geist-mono), monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--tint, var(--amber)); }
+.opening h3 { margin: 6px 0 8px !important; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.opening p { font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+.opening .focusTest { margin-top: 10px; }
+.opening .chip { position: absolute; top: 12px; right: 12px; }
+.titled { list-style: none; margin: 6px 0 0; padding: 0; }
+.titled li { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.titled li:last-child { border-bottom: 0; padding-bottom: 0; }
+.titled strong { display: block; font-size: 13px; font-weight: 600; }
+.titled span { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+@media (max-width: 1000px) { .openingGrid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .timeline li { grid-template-columns: 1fr; gap: 4px; } }

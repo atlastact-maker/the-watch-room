@@ -9,6 +9,7 @@ import { Notice } from "@/app/components/notice";
 import { ServiceBadge, type ServiceKey } from "@/app/components/service-insignia";
 import { Icon } from "@/app/menu/icons";
 import { COMMUNITY } from "@/app/menu/menu-types";
+import { PREALPHA_RELEASE_LABEL } from "@/lib/prealpha-programme";
 import styles from "@/app/menu/watch-menu.module.css";
 import type { AdvisorStanding } from "@/lib/auth/advisor-standing";
 import type { PreAlphaStanding } from "@/lib/prealpha";
@@ -54,7 +55,7 @@ export function StandbyView({ data }: { data: StandbyData }) {
         <h2 className={styles.panelTitle}>Tester access</h2>
         {listed ? (
           <Notice tone="ok" title="This account is on the Pre-Alpha">
-            <p>{doorsOpen ? "The desk is open to this account. If the operator console does not open, sign out and back in." : "The doors are not open yet. They open to every tester at once, and an email is sent the moment they do. The briefing covers what is coming and how a shift runs."}</p>
+            <p>{doorsOpen ? "The desk is open to this account. If the operator console does not open, sign out and back in." : `The doors are not open yet. Access opens to every accepted tester at the same time on ${PREALPHA_RELEASE_LABEL}, and an email is sent the moment it does. The briefing covers what is coming and how a shift runs.`}</p>
           </Notice>
         ) : prealpha.standing === "pending" ? (
           <Notice tone="amber" title="Request received">
