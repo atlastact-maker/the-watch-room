@@ -27,12 +27,10 @@ import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 import { type Patch } from "@/lib/sim/areas";
 import {
   chipServiceColour,
-  INCIDENT_PIN,
-  incidentMarkerSvg,
+  incidentDivIcon,
   serviceMarker,
   unitDivIcon,
   type ChipOpts,
-  type IncidentMarkerKind,
 } from "./map-markers";
 import type { StationWithAppliances } from "../page";
 import {
@@ -105,27 +103,6 @@ function hemsTrailTo(
 // ---------------------------------------------------------------------------
 // Marker icons
 // ---------------------------------------------------------------------------
-
-/** The incident pin animates (mk-999 halo, mk-inc breathe), so it gets
- *  the same treatment as the unit markers: one icon per kind and service,
- *  ever, or the 250ms clock restarts the animation from frame zero each
- *  tick. */
-const INCIDENT_ICONS = new Map<string, L.DivIcon>();
-function incidentIcon(kind: IncidentMarkerKind, service: ServiceCode): L.DivIcon {
-  const key = `${kind}:${service}`;
-  let icon = INCIDENT_ICONS.get(key);
-  if (!icon) {
-    icon = L.divIcon({
-      className: "",
-      iconSize: INCIDENT_PIN.size,
-      iconAnchor: INCIDENT_PIN.anchor,
-      popupAnchor: INCIDENT_PIN.popup,
-      html: incidentMarkerSvg(kind, service),
-    });
-    INCIDENT_ICONS.set(key, icon);
-  }
-  return icon;
-}
 
 /** The marker's width is set by its callsign plate, so the box is left to
  *  size itself and only the anchor is pinned. Cached by inputs - see
@@ -282,7 +259,7 @@ type Props = {
    *  continues from wherever the operator was looking. */
   onZoomIntoGround?: (view: { lat: number; lng: number; zoom: number }) => void;
   /** The incident map turns this off above the detail threshold, where
-   *  its own crosshair address marker takes over from the pin.
+   *  its own crosshair address marker takes over from the box.
    *  Stations, movers and trails are NOT gated — a responding unit must
    *  stay visible the whole way in, not vanish at a zoom boundary. */
   showIncidentMarker?: boolean;
@@ -987,13 +964,14 @@ export function PatchLayers({
             activeIncident.scenario.location.coords.lat,
             activeIncident.scenario.location.coords.lng,
           ]}
-          icon={incidentIcon(
+          icon={incidentDivIcon(
             activeIncident.resolvedAt
               ? "closed"
               : deployments.length > 0
                 ? "assigned"
                 : "unassigned",
             scenarioService(activeIncident.scenario),
+            zoom,
           )}
         >
           <Popup>

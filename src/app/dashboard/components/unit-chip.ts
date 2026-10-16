@@ -8,9 +8,10 @@
 // No vehicle artwork, which is what a real mobilising screen shows and
 // what keeps the whole fleet covered without new art per type.
 //
-// The incident pin is SVG too (map-markers.ts), its tip on the point.
-// The mk-999 / mk-inc animation classes live in globals.css; the HTML
-// markers use mk-999-box.
+// The incident is a box in the same language (incidentMarkerHtml below):
+// the square in the job's state colour, the service's symbol in white,
+// the leader and dot on the point. The mk-999-box pulse lives in
+// globals.css.
 
 import type { ApplianceTypeCode, ServiceCode } from "@/lib/sim/types";
 
@@ -249,5 +250,60 @@ export function unitMarkerHtml(o: ChipOpts): UnitMarker {
   ${leader}${dot}
 </div>`;
 
+  return { html, anchor: [anchorX, anchorY] };
+}
+
+/* ---- the incident box ---- */
+
+export type IncidentMarkerKind = "unassigned" | "assigned" | "closed";
+
+/** The job's state colours: red until somebody is sent, amber once units
+ *  are assigned, grey when it is closed. */
+export const INCIDENT_STATE: Record<IncidentMarkerKind, string> = {
+  unassigned: "#dc2626",
+  assigned: "#b45309",
+  closed: "#6b7280",
+};
+
+/** The service's symbol in white, in a 16-unit box: a flame, the star of
+ *  life, a shield; an exclamation when the job names no service; a tick
+ *  once it is closed. Paths, not text, so it reads the same everywhere. */
+function incidentGlyphSvg(kind: IncidentMarkerKind, service: ServiceCode | undefined, px: number, ground: string): string {
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${px}" height="${px}" style="display:block">`;
+  let body: string;
+  if (kind === "closed") {
+    body = `<path d="M3.2 8.4 L6.6 11.7 L12.8 4.8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  } else if (service === "Fire") {
+    body = `<path d="M8 0.6 C9.6 3.4 13.4 5.7 13.4 9.7 C13.4 12.8 11 15.2 8 15.2 C5 15.2 2.6 12.8 2.6 9.7 C2.6 8 3.3 6.6 4.4 5.5 C4.5 7.1 5.3 8.1 6.4 8.3 C5.9 5.5 6.7 3 8 0.6 Z" fill="#fff"/><path d="M8 8.2 C8.9 9.4 10.2 10.2 10.2 11.6 C10.2 12.9 9.2 13.8 8 13.8 C6.8 13.8 5.8 12.9 5.8 11.6 C5.8 10.6 6.4 9.9 7 9.4 C7.1 10 7.4 10.4 7.8 10.5 C7.6 9.6 7.7 9 8 8.2 Z" fill="${ground}"/>`;
+  } else if (service === "Ambulance") {
+    body = `<g transform="translate(8 8)" fill="#fff"><rect x="-1.3" y="-7.2" width="2.6" height="14.4" rx="1.3"/><rect x="-1.3" y="-7.2" width="2.6" height="14.4" rx="1.3" transform="rotate(60)"/><rect x="-1.3" y="-7.2" width="2.6" height="14.4" rx="1.3" transform="rotate(120)"/><circle r="2.5"/><circle r="1.1" fill="${ground}"/></g>`;
+  } else if (service === "Police") {
+    body = `<path d="M8 0.4 L14.4 2.7 V7.4 C14.4 11.5 11.8 14.4 8 15.8 C4.2 14.4 1.6 11.5 1.6 7.4 V2.7 Z" fill="#fff"/><path d="M4.8 7.8 L7.1 10.1 L11.5 5.3" fill="none" stroke="${ground}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`;
+  } else {
+    body = `<rect x="6.6" y="0.8" width="2.8" height="8.8" rx="1.4" fill="#fff"/><circle cx="8" cy="13.2" r="1.7" fill="#fff"/>`;
+  }
+  return `${open}${body}</svg>`;
+}
+
+/**
+ * The incident box: the same square as a unit symbol, in the job's state
+ * colour, carrying the service's symbol in white, with the leader and
+ * dot below on the exact position. A new job wears the same 999 ring the
+ * responding units do until somebody is sent.
+ */
+export function incidentMarkerHtml(o: { kind: IncidentMarkerKind; service?: ServiceCode; zoom: number }): UnitMarker {
+  const t = TIERS[markerTierForZoom(o.zoom)];
+  const colour = INCIDENT_STATE[o.kind];
+  const anchorX = t.sym / 2;
+  const leaderTop = t.sym;
+  const anchorY = leaderTop + LEADER_H + DOT / 2;
+  const ring = o.kind === "unassigned"
+    ? `<div class="mk-999-box" style="position:absolute;left:0;top:0;width:${t.sym}px;height:${t.sym}px;border:2px solid ${colour};border-radius:3px;"></div>`
+    : "";
+  const glyph = incidentGlyphSvg(o.kind, o.service, Math.round(t.sym * 0.6), colour);
+  const symbol = `<div style="position:relative;width:${t.sym}px;height:${t.sym}px;background:${colour};border:${t.border}px solid #fff;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,0.45);box-sizing:border-box;display:flex;align-items:center;justify-content:center;">${glyph}</div>`;
+  const leader = `<div style="position:absolute;left:${anchorX - 0.5}px;top:${leaderTop}px;width:1px;height:${LEADER_H}px;background:${colour};"></div>`;
+  const dot = `<div style="position:absolute;left:${anchorX - DOT / 2}px;top:${leaderTop + LEADER_H}px;width:${DOT}px;height:${DOT}px;border-radius:50%;background:${colour};border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.3);box-sizing:border-box;"></div>`;
+  const html = `<div data-incident="${o.kind}" style="position:relative;width:${t.sym}px;">${ring}${symbol}${leader}${dot}</div>`;
   return { html, anchor: [anchorX, anchorY] };
 }
