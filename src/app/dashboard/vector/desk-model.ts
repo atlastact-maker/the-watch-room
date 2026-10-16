@@ -5,7 +5,7 @@
 // on the board is derived from a deployment, a station or a call.
 
 import { useMemo } from "react";
-import type { Deployment, Incident, IncidentOutcome, LogEntry, PdaSlot, Scenario } from "@/lib/sim/incident_types";
+import type { Deployment, Incident, IncidentOutcome, LogEntry, PdaSlot, Scenario, Task } from "@/lib/sim/incident_types";
 import type { Appliance, ApplianceTypeCode, AreaCode, ServiceCode, StatusCode } from "@/lib/sim/types";
 import { STATUS_LABELS } from "@/lib/sim/types";
 import type { Handover } from "@/lib/sim/handover";
@@ -22,6 +22,9 @@ import { gradeShort, impliedGrade, incidentRef, scenarioService, shortAddress, t
 import { openingCodeLabel } from "@/lib/sim/opening_codes";
 import { standbyPosition, type StandbyMove } from "@/lib/sim/standby";
 import { buildResourcePicture } from "./resources-model";
+import { trafficState } from "@/lib/sim/traffic";
+import { isStopped, minutesBlocked, planApproach, type ClosedSection, type StationApproach } from "@/lib/sim/road_closure";
+import type { MobRoad } from "./mob-screen";
 
 export type RuntimeLike = {
   outcome: IncidentOutcome | null;
@@ -29,6 +32,10 @@ export type RuntimeLike = {
   informantLog: { id: string; text: string; tone: "info" | "urgent" | "critical"; firedAt: number }[];
   informantOnCall: boolean;
   gradeOverride?: { grade: string; basis: string; atMs: number } | null;
+  /** The jobs on the ground, for what runs past a carriageway scene. */
+  tasks?: Task[];
+  highways?: { requestedAt: number; by: string } | null;
+  contraflow?: { authorisedAt: number; by: string; safe: boolean } | null;
 };
 
 export type DeskInput = {
@@ -47,6 +54,10 @@ export type DeskInput = {
   standbyMoves: Record<string, StandbyMove>;
   /** When each empty station emptied, as the desk has been counting. */
   coverSince: Record<string, number>;
+  /** Closed sections on carriageway jobs, by incident. */
+  closedSections: Record<string, ClosedSection>;
+  /** Which way each station comes in to the selected job, from the sweep. */
+  approaches: Record<string, StationApproach>;
   commandOptionsFor: (incidentId: string) => { applianceId: string; callsign: string; typeName: string; advice?: string; comfortable?: boolean }[];
   /** Attendance slots added by assistance messages, by incident. */
   extraSlots?: Record<string, PdaSlot[]>;
@@ -65,7 +76,7 @@ function isFree(a: Appliance): boolean {
 }
 
 export function useDeskModel(input: DeskInput) {
-  const { incidents, selectedIncidentId, runtimes, deployments, applianceById, stations, etas, now, pendingCalls, log, coveredServices, standbyMoves, coverSince, commandOptionsFor, extraSlots } = input;
+  const { incidents, selectedIncidentId, runtimes, deployments, applianceById, stations, etas, now, pendingCalls, log, coveredServices, standbyMoves, coverSince, closedSections, approaches, commandOptionsFor, extraSlots } = input;
 
   const stationById = useMemo(() => new Map(stations.map((s) => [s.id, s])), [stations]);
   const stationOf = (a: Appliance) => stationById.get(a.stationId);
@@ -204,6 +215,14 @@ export function useDeskModel(input: DeskInput) {
   /* ---- the county's resources, counted ---- */
   const resources = buildResourcePicture({ stations, deployments, standbyMoves, now, coverSince, positionOf: (m) => standbyPosition(m, now) });
 
+  /* ---- the road the selected job is on ---- */
+  const selectedRt = selected ? runtimes[selected.id] : undefined;
+  const selectedCw = selected?.scenario.scene?.carriageway;
+  const selectedSection = selected ? closedSections[selected.id] : undefined;
+  const selectedTraffic = selected && selectedCw && selectedSection ? trafficState(selectedCw, selectedRt?.tasks ?? [], now, selectedRt?.highways?.requestedAt ?? null) : null;
+  const contraflowOn = !!selectedRt?.contraflow;
+  const blockedMin = selected ? minutesBlocked(selected.receivedAt, now) : 0;
+
   const cards: ResourceCard[] = [];
   for (const st of stations) {
     const stationFreePumps = st.appliances.filter((a) => PUMP_TYPES.includes(a.type) && isFree(a) && !deployments.some((d) => d.applianceId === a.id)).length;
@@ -229,7 +248,26 @@ export function useDeskModel(input: DeskInput) {
       const eta = standingAt ? etas[`sb:${a.id}`] : etas[st.id];
       // Before the router answers, a crow-fly estimate — flagged as such.
       const baseSec = eta ? eta.seconds : selected ? (haversineMeters(standingAt ?? st.coords, selected.scenario.location.coords) * 1.3) / 13.4 * 0.65 : null;
-      const etaSec = baseSec !== null ? Math.round(rescaleBlueLightSeconds(baseSec, a.type)) : null;
+      const legalSec = baseSec !== null ? Math.round(rescaleBlueLightSeconds(baseSec, a.type)) : null;
+      // On a carriageway job: which way in, and what it costs or saves.
+      let etaSec = legalSec;
+      let approach: ResourceCard["approach"];
+      if (legalSec !== null && selectedTraffic && selectedSection && a.type !== "HEMS" && a.type !== "Police_NPAS") {
+        const known = approaches[standingAt ? `sb:${a.id}` : st.id];
+        const plan = planApproach({
+          legalSec,
+          toDownstreamSec: known ? rescaleBlueLightSeconds(known.toDownstreamSec, a.type) : null,
+          fromDownstream: known?.fromDownstream ?? false,
+          section: selectedSection,
+          traffic: selectedTraffic,
+          authorised: contraflowOn,
+          minutesSinceBlocked: blockedMin,
+        });
+        if (plan.kind !== "direct") {
+          etaSec = Math.round(plan.etaSec);
+          approach = { kind: plan.kind, chip: plan.chip, tone: plan.tone, detail: plan.detail };
+        }
+      }
       const pump = PUMP_TYPES.includes(a.type);
       const cost: ResourceCard["cost"] =
         pump && stationFreePumps === 1 && !dep && isFree(a)
@@ -256,6 +294,7 @@ export function useDeskModel(input: DeskInput) {
         compatibleSlotIds: unfilledSlots.filter((s) => s.requiredApplianceTypes.includes(a.type)).map((s) => s.id),
         cost,
         deployed: onThis,
+        approach,
       });
     }
   }
@@ -323,6 +362,21 @@ export function useDeskModel(input: DeskInput) {
         typeLabel: labelForType(selected.scenario.type),
       }
     : null;
+  const mobRoad: MobRoad | null = selected && selectedCw && selectedSection && selectedTraffic
+    ? {
+        name: selectedCw.name,
+        headline: selectedTraffic.headline,
+        detail: selectedTraffic.detail,
+        level: selectedTraffic.level,
+        stopped: isStopped(selectedTraffic),
+        upstream: selectedCw.upstream,
+        downstream: selectedCw.downstream,
+        authorised: contraflowOn,
+        authorisedBy: selectedRt?.contraflow?.by ?? null,
+        offers: cards.filter((c) => !c.blocked && (c.approach?.kind === "contraflow_offer" || c.approach?.kind === "contraflow")).length,
+        using: deployments.filter((d) => d.incidentId === selected.id && d.approach?.kind === "contraflow" && d.arrivesAt > now).length,
+      }
+    : null;
   const turnouts: TurnoutRow[] = selected
     ? deployments
         .filter((d) => d.incidentId === selected.id && !d.returnStartedAt)
@@ -369,6 +423,7 @@ export function useDeskModel(input: DeskInput) {
     standby,
     hospitals,
     mobHead,
+    mobRoad,
     turnouts,
     bays,
     resources,

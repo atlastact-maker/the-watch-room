@@ -297,8 +297,36 @@ type Props = {
     routeCoords?: [number, number][];
     selected?: boolean;
   }[];
+  /** Carriageways closed on the jobs on the board. */
+  closures?: MapClosure[];
   now?: number;
 };
+
+/** A carriageway closed on a job: the road in from the junction behind
+ *  the scene and on to the junction ahead, as the router drew it. */
+export type MapClosure = {
+  id: string;
+  name: string;
+  level: "live" | "fend_off" | "lanes_closed" | "held" | "closed";
+  /** Nothing passing the scene: the carriageway ahead of it is empty. */
+  stopped: boolean;
+  approach: [number, number][] | null;
+  exit: [number, number][] | null;
+  upstream: { name: string; lat: number; lng: number };
+  downstream: { name: string; lat: number; lng: number };
+  /** Units may come in from the junction ahead against the flow. */
+  contraflow: boolean;
+  headline: string;
+};
+
+function junctionIcon(text: string, tone: "stop" | "warn" | "go" | "flow"): L.DivIcon {
+  const bg = tone === "stop" ? "#b91c1c" : tone === "warn" ? "#b45309" : tone === "go" ? "#15803d" : "#0e7490";
+  return L.divIcon({
+    className: "",
+    iconAnchor: [0, 10],
+    html: `<div style="display:inline-block;transform:translateX(-50%);padding:2px 7px;border-radius:3px;background:${bg};color:#fff;font:700 10px/1.4 ui-monospace,monospace;letter-spacing:.04em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.35);pointer-events:none;">${text}</div>`,
+  });
+}
 
 export function LeafletMap({
   stations,
@@ -307,6 +335,7 @@ export function LeafletMap({
   patrols,
   patrolRoutes,
   standbyUnits,
+  closures,
   filter,
   patch,
   onSelectAppliance,
@@ -391,6 +420,7 @@ export function LeafletMap({
         patrols={patrols}
         patrolRoutes={patrolRoutes}
         standbyUnits={standbyUnits}
+        closures={closures}
         filter={filter}
         patch={patch}
         onSelectAppliance={onSelectAppliance}
@@ -418,6 +448,7 @@ export function PatchLayers({
   patrols,
   patrolRoutes,
   standbyUnits,
+  closures,
   filter,
   patch,
   onSelectAppliance,
@@ -768,6 +799,36 @@ export function PatchLayers({
           </Tooltip>
         </Marker>
       ))}
+
+      {/* Closed carriageways: the road in from the junction behind the
+          scene, red once nothing passes the wreck and amber while a lane
+          still runs; the empty road on to the junction ahead, and the way
+          in against the flow once the desk has authorised it. */}
+      {(closures ?? []).map((c) => {
+        const approachColour = c.stopped ? "#b91c1c" : "#d97706";
+        const upText = c.level === "closed" ? `${c.upstream.name} · CLOSED` : c.level === "held" ? `${c.upstream.name} · ROLLING BLOCK` : `${c.upstream.name} · ${c.name.toUpperCase()} BLOCKED AHEAD`;
+        const downText = c.contraflow ? `${c.downstream.name} · IN AGAINST THE FLOW` : c.stopped ? `${c.downstream.name} · CARRIAGEWAY EMPTY TO HERE` : null;
+        return (
+          <Fragment key={`closure-${c.id}`}>
+            {c.approach && c.approach.length >= 2 && (
+              <Polyline positions={c.approach} pathOptions={{ color: approachColour, weight: 7, opacity: 0.55, dashArray: c.stopped ? undefined : "10 8", lineCap: "butt" }}>
+                <Tooltip sticky opacity={1}>
+                  <span className="font-mono text-[11px]">{c.name} — {c.headline}</span>
+                </Tooltip>
+              </Polyline>
+            )}
+            {c.exit && c.exit.length >= 2 && (c.stopped || c.contraflow) && (
+              <Polyline positions={c.exit} pathOptions={{ color: c.contraflow ? "#0e7490" : "#b91c1c", weight: c.contraflow ? 6 : 5, opacity: c.contraflow ? 0.75 : 0.35, dashArray: c.contraflow ? "14 8" : "2 8", lineCap: "butt" }}>
+                <Tooltip sticky opacity={1}>
+                  <span className="font-mono text-[11px]">{c.name} — {c.contraflow ? `units coming in from ${c.downstream.name} against the flow` : `nothing passing the scene; empty to ${c.downstream.name}`}</span>
+                </Tooltip>
+              </Polyline>
+            )}
+            <Marker position={[c.upstream.lat, c.upstream.lng]} icon={junctionIcon(upText, c.stopped ? "stop" : "warn")} interactive={false} zIndexOffset={90} />
+            {downText && <Marker position={[c.downstream.lat, c.downstream.lng]} icon={junctionIcon(downText, c.contraflow ? "flow" : "stop")} interactive={false} zIndexOffset={90} />}
+          </Fragment>
+        );
+      })}
 
       {/* Cover moves: on the road to a standby point, holding at it, or on the way home. */}
       {(standbyUnits ?? []).filter((u) => shown(u.service)).map((u) => {

@@ -29,6 +29,7 @@ import { patientLook } from "@/lib/sim/patient_look";
 import { RtcScene, WALK_OFF_MS } from "./scene/plan-rtc";
 import { rtcJobs } from "./rtc-state";
 import { trafficState, laneLabel } from "@/lib/sim/traffic";
+import { approachSummary, contraflowFromLog } from "@/lib/sim/road_closure";
 import type { SceneCrew } from "./patient-scene";
 
 export type RtcPanel = "vehicle" | "road" | "safe" | "glass" | "space" | "extricate" | "hazards" | "casualties" | "log";
@@ -186,6 +187,7 @@ export function RtcStage(props: RtcStageProps) {
   const carriageway = sc.scene?.carriageway ?? null;
   const highwaysAskedAt = carriageway ? log.filter((e) => e.id.startsWith(`hw-ask:${incident.id}:`)).map((e) => e.timestamp)[0] ?? null : null;
   const traffic = carriageway ? trafficState(carriageway, tasks, now, highwaysAskedAt) : null;
+  const contraflow = contraflowFromLog(log, incident.id);
   const policeOnScene = onScene.filter((r) => r.appliance.service === "Police");
   const myFendOff = tasks.find((t) => t.kind === "fend_off" && t.applianceId === appliance.id && t.state !== "aborted") ?? null;
   const trafficJobs = tasks.filter((t) => (t.kind === "fend_off" || t.kind === "lane_closure" || t.kind === "rolling_road_block" || t.kind === "carriageway_closure") && t.state !== "aborted");
@@ -357,6 +359,7 @@ export function RtcStage(props: RtcStageProps) {
           <dt>Setting up</dt><dd>{trafficJobs.filter((t) => t.state === "active").map((t) => `${trafficJobLabel(t)} · ${mmss(Math.max(0, (t.completesAt ?? now) - now))}`).join(" · ") || "—"}</dd>
           <dt>Police</dt><dd className={policeOnScene.length ? "" : "warn"}>{policeOnScene.length ? policeOnScene.map((r) => r.appliance.callsign).join(" · ") : "none on scene"}</dd>
           <dt>Highways</dt><dd className={traffic.highways === "none" ? "warn" : "go"}>{traffic.highways === "none" ? "not asked" : traffic.highways === "requested" ? "asked — signals to follow" : traffic.highways === "signals" ? `signals set · traffic officers due ${traffic.highwaysDueAt ? wall(traffic.highwaysDueAt) : "soon"}` : traffic.closedAtJunction ? `holding ${carriageway.upstream}` : `on scene at ${carriageway.upstream}`}</dd>
+          <dt>Approach</dt><dd className={contraflow.on ? (traffic.live.length ? "warn" : "go") : traffic.live.length ? "" : "go"}>{approachSummary(traffic, contraflow.on)}</dd>
         </dl>
       </Group>
       <Group title={`${appliance.callsign} on the road`}>

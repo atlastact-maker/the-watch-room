@@ -106,13 +106,39 @@ import { rollBasicsResponse, type BasicsResponder } from "@/lib/sim/basics";
 import type { HospitalDestinationType } from "@/lib/sim/scene";
 import {
   blueLight,
+  blueLightFactorFor,
   blueLightFor,
   haversineMeters,
   rescaleBlueLightSeconds,
   routeEta,
+  routeEtaAvoiding,
   routeEtaRouted,
   routeMatrix,
 } from "@/lib/sim/eta";
+import {
+  CONTRAFLOW_LIVE_NEAR_MISS_PER_MIN,
+  CONTRAFLOW_MARGIN_SEC,
+  DIVERSION_FALLBACK_SEC,
+  comesFromDownstream,
+  approachLegMeters,
+  comesFromDownstreamByPosition,
+  contraflowLegSec,
+  contraflowNearMissWording,
+  directPlan,
+  exitLegMeters,
+  isStopped,
+  minutesBlocked,
+  newSection,
+  planApproach,
+  queuePenaltySec,
+  reverseLine,
+  routeRunsAlong,
+  sectionAvoidPolygons,
+  type ApproachPlan,
+  type ClosedSection,
+  type StationApproach,
+} from "@/lib/sim/road_closure";
+import type { MapClosure } from "./components/leaflet-map";
 import { pagerDelaySec } from "@/lib/sim/turnout";
 import { scoreIncident } from "@/lib/sim/scoring";
 import { rollPreShiftStates, type PreShiftState, type ShiftIntensity } from "@/lib/sim/shift";
@@ -442,6 +468,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
      *  signals a couple of minutes on, the traffic officers land later and
      *  take the junction. See traffic.ts. */
     highways?: { requestedAt: number; by: string } | null;
+    /** Approaches against the flow authorised on a closed carriageway:
+     *  units from the far side come in from the junction ahead rather
+     *  than round by the junction behind. `safe` records whether the road
+     *  was stopped when it was given. See road_closure.ts. */
+    contraflow?: { authorisedAt: number; by: string; safe: boolean } | null;
   };
   const emptyRuntime = (): IncidentRuntime => ({
     tasks: [],
@@ -845,6 +876,57 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // opens and shared between the incident panel + the ground-view deployment
   // board.
   const [etas, setEtas] = useState<Record<string, import("./components/deployment-board").Eta>>({});
+  /** The road geometry the router has handed back for each carriageway
+   *  job: in from the junction behind the scene, on to the junction ahead,
+   *  and the legal way round from that junction. */
+  const [sectionGeometry, setSectionGeometry] = useState<Record<string, Partial<Pick<ClosedSection, "approach" | "approachMeters" | "exit" | "exitMeters" | "legalFromDownstreamSec">>>>({});
+  /** The closed section on each carriageway job: its junctions and scene
+   *  from the scenario, its road lines from the router once they arrive. */
+  const closedSections = useMemo<Record<string, ClosedSection>>(() => {
+    const out: Record<string, ClosedSection> = {};
+    for (const inc of incidents) {
+      const cw = inc.scenario.scene?.carriageway;
+      const seed = cw ? newSection(inc.id, cw, inc.scenario.location.coords) : null;
+      if (seed) out[inc.id] = { ...seed, ...sectionGeometry[inc.id] };
+    }
+    return out;
+  }, [incidents, sectionGeometry]);
+  const closedSectionsRef = useRef<Record<string, ClosedSection>>({});
+  const closureFetchRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    closedSectionsRef.current = closedSections;
+  }, [closedSections]);
+  /** Which way each station comes in to the selected job, from the sweep. */
+  const [approaches, setApproaches] = useState<Record<string, StationApproach>>({});
+
+  // The closed section's geography, asked for once per carriageway job.
+  useEffect(() => {
+    for (const inc of incidents) {
+      const cw = inc.scenario.scene?.carriageway;
+      if (!cw || closureFetchRef.current.has(inc.id)) continue;
+      const seed = newSection(inc.id, cw, inc.scenario.location.coords);
+      if (!seed) continue;
+      closureFetchRef.current.add(inc.id);
+      const patch = (fix: Partial<ClosedSection>) => setSectionGeometry((prev) => ({ ...prev, [inc.id]: { ...prev[inc.id], ...fix } }));
+      void routeEtaRouted(seed.upstream, seed.scene)
+        .then((r) => {
+          const coords = r.coords;
+          if (coords && coords.length >= 2) patch({ approach: coords, approachMeters: r.meters });
+        })
+        .catch(() => {});
+      void routeEtaRouted(seed.scene, seed.downstream)
+        .then((r) => {
+          const coords = r.coords;
+          if (coords && coords.length >= 2) patch({ exit: coords, exitMeters: r.meters });
+        })
+        .catch(() => {});
+      void routeEta(seed.downstream, seed.scene)
+        .then((r) => {
+          if (r.source !== "fallback") patch({ legalFromDownstreamSec: r.seconds });
+        })
+        .catch(() => {});
+    }
+  }, [incidents]);
 
   // If a shift save was found on mount, hold it here until the operator
   // picks Resume or Discard via the ResumePrompt modal.
@@ -1904,6 +1986,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     setCoverSince({});
     setCoverStats({ moves: 0, gapMinutes: 0 });
     coverFlaggedRef.current = new Set();
+    setSectionGeometry({});
+    setApproaches({});
+    closureFetchRef.current = new Set();
     clearIncidentState();
   }
 
@@ -3653,6 +3738,69 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     ]);
   }
 
+  /** Which way a unit comes in to a carriageway job, priced for that
+   *  unit: the sweep's answer for its station or standby point when the
+   *  job is the one on screen, else worked out from where it stands. */
+  function approachPlanFor(inc: Incident, type: ApplianceTypeCode | undefined, key: string, legalSecIn: number, from: { lat: number; lng: number } | null): ApproachPlan {
+    const cw = inc.scenario.scene?.carriageway;
+    const section = closedSections[inc.id];
+    if (!cw || !section) return directPlan(legalSecIn);
+    const rt = runtimes[inc.id];
+    const at = Date.now();
+    const traffic = trafficState(cw, rt?.tasks ?? [], at, rt?.highways?.requestedAt ?? null);
+    const known = inc.id === selectedIncidentId ? approaches[key] : undefined;
+    let legalSec = legalSecIn;
+    let toDownstreamSec: number | null = null;
+    let fromDownstream = false;
+    if (known) {
+      toDownstreamSec = rescaleBlueLightSeconds(known.toDownstreamSec, type);
+      fromDownstream = known.fromDownstream;
+    } else if (from) {
+      // Crow-fly guesses, priced like the crow-fly legal ETA they are set
+      // against. A unit on the far side cannot drive the crow-fly line to
+      // the scene: its legal way is round by the junction behind.
+      const crow = (meters: number) => rescaleBlueLightSeconds((meters * 1.3 / 13.4) * BLUE_LIGHT_FACTOR, type);
+      toDownstreamSec = crow(haversineMeters(from, section.downstream));
+      fromDownstream = comesFromDownstreamByPosition(from, section);
+      if (fromDownstream) legalSec = Math.max(legalSec, toDownstreamSec + crow(haversineMeters(section.downstream, section.upstream) + approachLegMeters(section) / 1.3));
+    }
+    return planApproach({ legalSec, toDownstreamSec, fromDownstream, section, traffic, authorised: !!rt?.contraflow, minutesSinceBlocked: minutesBlocked(inc.receivedAt, at) });
+  }
+
+  /** A fresh route for a unit checked against the carriageways closed on
+   *  other jobs. The router plots the way round a closed one when it can;
+   *  otherwise the unit pays for the signed diversion, or for the queue
+   *  where the road still runs. Null when the way is clear. */
+  async function divertRoundClosures(
+    jobId: string,
+    type: ApplianceTypeCode | undefined,
+    from: { lat: number; lng: number },
+    target: { lat: number; lng: number },
+    route: { coords: [number, number][]; meters: number; seconds: number },
+  ): Promise<{ coords: [number, number][]; meters: number; extraSec: number; note: string; label: string } | null> {
+    const hits = Object.values(closedSectionsRef.current).filter((x) => x.incidentId !== jobId && routeRunsAlong(route.coords, x) >= 250);
+    for (const x of hits) {
+      const inc = incidents.find((i) => i.id === x.incidentId);
+      const rt = runtimes[x.incidentId];
+      const cw = inc?.scenario.scene?.carriageway;
+      if (!inc || !cw || !rt || rt.outcome || inc.resolvedAt) continue;
+      const at = Date.now();
+      const st = trafficState(cw, rt.tasks, at, rt.highways?.requestedAt ?? null);
+      const label = `${x.name} ${x.upstream.name}–${x.downstream.name}`;
+      const envMult = blueLightFactorFor(type) * etaTrafficMultiplier(weather.hourOfDay) * etaPrecipMultiplier(weather.precip);
+      if (st.held || st.closedAtJunction) {
+        const alt = await routeEtaAvoiding(from, target, sectionAvoidPolygons(x));
+        if (alt?.coords && alt.coords.length >= 2 && routeRunsAlong(alt.coords, x) < 250) {
+          return { coords: alt.coords, meters: alt.meters, extraSec: Math.max(0, Math.round((alt.seconds - route.seconds) * envMult)), note: `diverted round ${label}, closed for the ${inc.scenario.title}`, label };
+        }
+        return { coords: route.coords, meters: route.meters, extraSec: DIVERSION_FALLBACK_SEC, note: `diversion round ${label}, closed for the ${inc.scenario.title} — following the signed route`, label };
+      }
+      const q = queuePenaltySec(st, minutesBlocked(inc.receivedAt, at));
+      if (q >= 60) return { coords: route.coords, meters: route.meters, extraSec: q, note: `through the queue on ${x.name} at the ${inc.scenario.title}`, label };
+    }
+    return null;
+  }
+
   function deployAppliance(args: {
     applianceId: string;
     slotId: string;
@@ -3668,6 +3816,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
      *  stack names it explicitly, because a unit dropped on a row is
      *  meant for that row whatever happens to be selected. */
     incidentId?: string;
+    /** The sweep's key for where the unit is priced from — its station,
+     *  or sb:<id> on a cover move — for the approach on a carriageway job. */
+    approachKey?: string;
   }) {
     const incident = args.incidentId
       ? incidents.find((i) => i.id === args.incidentId) ?? null
@@ -3760,6 +3911,32 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     const pagerSec = pagerDelaySec(mobStation?.staffing, mobilisedAt, appliance?.id);
     if (pagerSec > 0) etaSeconds += pagerSec;
 
+    // On a carriageway job, which way in: against the flow from the
+    // junction ahead when the desk has authorised it and it pays, through
+    // the block or closure behind the scene, or up the queue behind the
+    // wreck. Priced for this unit, the way its card was.
+    let approach: Deployment["approach"];
+    if (!isAircraft) {
+      const plan = approachPlanFor(incident, appliance?.type, args.approachKey ?? mobStation?.id ?? "", etaSeconds, origin ?? mobStation?.coords ?? null);
+      if (plan.kind === "contraflow" || plan.kind === "through_closure" || plan.kind === "queue") {
+        etaSeconds = plan.etaSec;
+        const section = closedSections[incident.id];
+        approach = {
+          kind: plan.kind,
+          junction: plan.junction,
+          extraSec: plan.extraSec > 0 ? Math.round(plan.extraSec) : undefined,
+          savesSec: plan.kind === "contraflow" ? Math.round(plan.savesSec) : undefined,
+          via: plan.kind === "contraflow" && section ? { lat: section.downstream.lat, lng: section.downstream.lng } : undefined,
+          unsafe: plan.kind === "contraflow" && !plan.safe ? true : undefined,
+        };
+        if (plan.kind === "contraflow") {
+          // The legal route is not the one driven.
+          routeCoords = undefined;
+          routeMeters = undefined;
+        }
+      }
+    }
+
     // Aircraft fly direct — never hand them the road polyline the station
     // ETA sweep priced. Replace route + timing with the flight model, and
     // for HEMS gate arrival on the operator confirming a landing zone.
@@ -3801,6 +3978,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         routeMeters,
         routeCoords,
         origin,
+        approach,
         lightState: "999",
         crewEquipment,
         selectedPodType: args.selectedPodType,
@@ -3821,9 +3999,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           pagerSec > 0
             ? ` — day-crewed station, crew responding on alerters (+${fmtSec(pagerSec)} turnout)`
             : ""
-        }`,
+        }${approachNote(approach)}`,
       },
     ]);
+    if (approach?.kind === "contraflow" && approach.unsafe) {
+      logAnnotation(`${applianceLabel(args.applianceId)} sent in from ${approach.junction} against the flow with lanes still running past the scene`, "setback", "contraflow-live");
+    }
 
     // Just-in-time road geometry. The station-wide ETA sweep degrades to
     // straight-line estimates when the routing provider rate-limits, so a
@@ -3835,17 +4016,41 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     if (!isAircraft && (!routeCoords || routeCoords.length < 2)) {
       const from = origin ?? findStationForAppliance(args.applianceId)?.coords;
       const target = incident.scenario.location.coords;
-      if (from) {
-        void routeEtaRouted(from, target)
+      const patchRoute = (fix: Partial<Deployment>) =>
+        setDeployments((prev) => prev.map((d) => (d.applianceId === args.applianceId && d.mobilisedAt === mobilisedAt ? { ...d, ...fix } : d)));
+      if (from && approach?.kind === "contraflow" && approach.via) {
+        // By road to the junction ahead, then back up the closed carriageway.
+        const via = approach.via;
+        void routeEtaRouted(from, via)
           .then((r) => {
-            if (!r.coords || r.coords.length < 2) return;
+            const coords = r.coords;
+            if (!coords || coords.length < 2) return;
+            const section = closedSectionsRef.current[incident.id];
+            const back: [number, number][] = section?.exit && section.exit.length >= 2 ? reverseLine(section.exit) : [[via.lat, via.lng], [target.lat, target.lng]];
+            patchRoute({ routeCoords: [...coords, ...back], routeMeters: r.meters + (section ? exitLegMeters(section) : haversineMeters(via, target)) });
+          })
+          .catch(() => {});
+      } else if (from) {
+        void routeEtaRouted(from, target)
+          .then(async (r) => {
+            const coords = r.coords;
+            if (!coords || coords.length < 2) return;
+            // Round a carriageway closed on another job: the router plots
+            // the way round when it can, else the unit pays for the signed
+            // diversion; through the queue where the road still runs.
+            const div = await divertRoundClosures(incident.id, appliance?.type, from, target, { coords, meters: r.meters, seconds: r.seconds });
+            if (!div) {
+              patchRoute({ routeCoords: coords, routeMeters: r.meters });
+              return;
+            }
             setDeployments((prev) =>
               prev.map((d) =>
                 d.applianceId === args.applianceId && d.mobilisedAt === mobilisedAt
-                  ? { ...d, routeCoords: r.coords!, routeMeters: r.meters }
+                  ? { ...d, routeCoords: div.coords, routeMeters: div.meters, etaSeconds: d.etaSeconds + div.extraSec, arrivesAt: d.arrivesAt + div.extraSec * 1000, approach: { kind: "diverted", junction: div.label, extraSec: div.extraSec } }
                   : d,
               ),
             );
+            logAnnotation(`${applianceLabel(args.applianceId)} — ${div.note} · +${fmtSec(div.extraSec)} on the ETA`, "annotation", "diversion");
           })
           .catch(() => {});
       }
@@ -4503,6 +4708,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
    *  Built from what is actually drawn — a filter offering to hide a DIM
    *  when no DIM is out is noise, and one that silently omits something
    *  that IS out is worse. */
+  /** Closed sections for the map: each carriageway job's road in from the
+   *  junction behind the scene and on to the junction ahead, coloured by
+   *  what runs on it, and whether units may come in against the flow. */
+  const mapClosures = useMemo<MapClosure[]>(
+    () =>
+      incidents.flatMap((inc) => {
+        const s = closedSections[inc.id];
+        const cw = inc.scenario.scene?.carriageway;
+        const rt = runtimes[inc.id];
+        if (!s || !cw || !rt || rt.outcome || inc.resolvedAt) return [];
+        const st = trafficState(cw, rt.tasks, now, rt.highways?.requestedAt ?? null);
+        return [{ id: inc.id, name: s.name, level: st.level, stopped: isStopped(st), approach: s.approach, exit: s.exit, upstream: s.upstream, downstream: s.downstream, contraflow: !!rt.contraflow, headline: st.headline }];
+      }),
+    [incidents, closedSections, runtimes, now],
+  );
   const mapContents = useMemo(() => {
     const byType = new Map<string, { label: string; count: number }>();
     const byService: Record<string, number> = { Fire: 0, Ambulance: 0, Police: 0 };
@@ -4907,9 +5127,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   // Includes out-of-patch specialist stations so the operator can see their
   // realistic blue-light response time when mobilising. Blue-light base
   // plus weather/time-of-day multipliers (rush hour + precipitation).
+  const sectionLegalLeg = activeIncident ? closedSections[activeIncident.id]?.legalFromDownstreamSec ?? null : null;
   useEffect(() => {
     if (!activeIncident) {
       setEtas({});
+      setApproaches({});
       return;
     }
     const ctrl = new AbortController();
@@ -4922,8 +5144,20 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     // and every unit sent after that drove a straight line. The road line
     // for the unit actually sent is fetched when it is mobilised.
     const stations = allDeployableStations;
-    routeMatrix(stations.map((s) => s.coords), target, ctrl.signal)
-      .then((rows) => {
+    // On a carriageway job the sweep also prices the junction ahead of the
+    // scene, so the desk knows which units come in the long way round and
+    // what each would save against the flow once the road is stopped.
+    const cw = activeIncident.scenario.scene?.carriageway;
+    const section = cw ? newSection(activeIncident.id, cw, target) : null;
+    const downstream = section?.downstream ?? null;
+    const legalLeg = sectionLegalLeg !== null ? sectionLegalLeg * BLUE_LIGHT_FACTOR * envMult : null;
+    const classify = (from: { lat: number; lng: number }, toScene: number, toDown: number, guessed: boolean): boolean =>
+      !section ? false : legalLeg !== null && !guessed ? comesFromDownstream(toScene, toDown, legalLeg) : comesFromDownstreamByPosition(from, section);
+    Promise.all([
+      routeMatrix(stations.map((s) => s.coords), target, ctrl.signal),
+      downstream ? routeMatrix(stations.map((s) => s.coords), downstream, ctrl.signal) : Promise.resolve(null),
+    ])
+      .then(([rows, downRows]) => {
         setEtas(
           Object.fromEntries(
             rows.map((raw, i) => {
@@ -4932,19 +5166,38 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             }),
           ),
         );
+        if (!downRows) {
+          setApproaches({});
+          return;
+        }
+        setApproaches(
+          Object.fromEntries(
+            rows.map((raw, i) => {
+              const toScene = raw.seconds * BLUE_LIGHT_FACTOR * envMult;
+              const toDown = downRows[i].seconds * BLUE_LIGHT_FACTOR * envMult;
+              const guessed = raw.source === "fallback" || downRows[i].source === "fallback";
+              return [stations[i].id, { toDownstreamSec: toDown, fromDownstream: classify(stations[i].coords, toScene, toDown, guessed) }];
+            }),
+          ),
+        );
       })
       .catch(() => {});
     // Units on cover moves are priced from where they stand.
     for (const m of activeStandby(standbyMoves, Date.now())) {
-      routeEta(standbyPosition(m, Date.now()), target, ctrl.signal)
-        .then((raw) => {
+      const pos = standbyPosition(m, Date.now());
+      Promise.all([routeEta(pos, target, ctrl.signal), downstream ? routeEta(pos, downstream, ctrl.signal) : Promise.resolve(null)])
+        .then(([raw, down]) => {
           const r = blueLight(raw);
           setEtas((prev) => ({ ...prev, [`sb:${m.applianceId}`]: { stationId: `sb:${m.applianceId}`, ...r, seconds: r.seconds * envMult } }));
+          if (!down) return;
+          const toDown = down.seconds * BLUE_LIGHT_FACTOR * envMult;
+          const guessed = raw.source === "fallback" || down.source === "fallback";
+          setApproaches((prev) => ({ ...prev, [`sb:${m.applianceId}`]: { toDownstreamSec: toDown, fromDownstream: classify(pos, r.seconds * envMult, toDown, guessed) } }));
         })
         .catch(() => {});
     }
     return () => ctrl.abort();
-  }, [activeIncident, allDeployableStations, weather.hourOfDay, weather.precip, standbyMoves]);
+  }, [activeIncident, allDeployableStations, weather.hourOfDay, weather.precip, standbyMoves, sectionLegalLeg]);
 
   // Water rescue milestones: the boat in, the casualty reached, the
   // landing, or the weir. Each is logged once as the clock passes it.
@@ -5157,6 +5410,16 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         mem.lastNearMissAt = now;
         logOnce(`nearmiss:${inc.id}:${now}`, now, "setback", nearMissWording(st, Math.random()));
         alertTone("med");
+      }
+      // A unit coming in against the flow while a lane still runs past the
+      // scene is driving at whatever comes through.
+      if (rt.contraflow && !isStopped(st) && dtMin > 0 && now - mem.lastNearMissAt > 3 * 60_000) {
+        const coming = deployments.filter((d) => d.incidentId === inc.id && d.approach?.kind === "contraflow" && d.mobilisedAt <= now && now < d.arrivesAt);
+        if (coming.length && Math.random() < CONTRAFLOW_LIVE_NEAR_MISS_PER_MIN * dtMin) {
+          mem.lastNearMissAt = now;
+          logOnce(`nearmiss-contra:${inc.id}:${now}`, now, "setback", contraflowNearMissWording(applianceLabel(coming[0].applianceId), st, Math.random()));
+          alertTone("high");
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6501,6 +6764,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     coveredServices,
     standbyMoves,
     coverSince,
+    closedSections,
+    approaches,
     commandOptionsFor,
     extraSlots: Object.fromEntries(Object.entries(runtimes).map(([id, r]) => [id, r?.extraSlots ?? []])),
   });
@@ -6540,6 +6805,75 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     pickScreen("dispatch");
     if (page === "pnc") setShowLeds(true);
     else setShowAnpr(true);
+  }
+
+  /** Approaches against the flow on a carriageway job: authorised or
+   *  withdrawn by the desk, or declared by the roads unit on the ground.
+   *  Safe only once nothing passes the scene; given with a lane still
+   *  running it goes down as a setback, and the units it sends in meet
+   *  what comes through. Units already on the long way round turn in at
+   *  the junction ahead. */
+  function setContraflow(incidentId: string, on: boolean, by: string) {
+    const inc = incidents.find((i) => i.id === incidentId);
+    const cw = inc?.scenario.scene?.carriageway;
+    const section = closedSections[incidentId];
+    if (!inc || !cw || !section) return;
+    const at = Date.now();
+    const rt = runtimes[incidentId];
+    const st = trafficState(cw, rt?.tasks ?? [], at, rt?.highways?.requestedAt ?? null);
+    const stopped = isStopped(st);
+    if (on) {
+      updateRuntime(incidentId, (r) => ({ ...r, contraflow: { authorisedAt: at, by, safe: stopped } }));
+      setLog((prev) => [
+        ...prev,
+        {
+          id: `contraflow:on:${incidentId}:${at}`,
+          timestamp: at,
+          kind: stopped ? "hazard_mitigated" : "setback",
+          message: stopped
+            ? `APPROACH AGAINST THE FLOW AUTHORISED by ${by} — nothing passing the scene on ${cw.name}: units can come in from ${cw.downstream} on the closed carriageway`
+            : `APPROACH AGAINST THE FLOW AUTHORISED by ${by} with ${laneLabel(st.live)} still running past the scene — units coming in from ${cw.downstream} will meet live traffic`,
+        },
+      ]);
+      setStatusMsg(stopped ? `Approach from ${cw.downstream} against the flow authorised` : `Authorised against the flow — ${laneLabel(st.live)} still running`);
+      alertTone(stopped ? "low" : "high");
+      replanContraflow(inc, section, at);
+    } else {
+      updateRuntime(incidentId, (r) => ({ ...r, contraflow: null }));
+      setLog((prev) => [...prev, { id: `contraflow:off:${incidentId}:${at}`, timestamp: at, kind: "annotation", message: `Approach against the flow WITHDRAWN by ${by} — units come in with the flow from ${cw.upstream} only` }]);
+      setStatusMsg("Approach against the flow withdrawn");
+    }
+  }
+
+  /** Units on the long way round when the approach is authorised turn in
+   *  at the junction ahead, if that gets them there sooner. */
+  function replanContraflow(inc: Incident, section: ClosedSection, at: number) {
+    const envMult = etaTrafficMultiplier(weather.hourOfDay) * etaPrecipMultiplier(weather.precip);
+    for (const d of deployments) {
+      if (d.incidentId !== inc.id || d.arrivesAt <= at || d.airborneAt !== undefined || d.approach?.kind === "contraflow" || d.returnStartedAt) continue;
+      const ap = applianceById.get(d.applianceId);
+      if (!ap || ap.type === "HEMS" || ap.type === "Police_NPAS") continue;
+      const pos = unitPosAt(d, at);
+      if (!pos || !comesFromDownstreamByPosition(pos, section)) continue;
+      const remaining = (d.arrivesAt - at) / 1000;
+      void routeEta(pos, section.downstream)
+        .then((r) => {
+          const toDown = blueLightFor(r, ap.type).seconds * envMult;
+          const contra = toDown + contraflowLegSec(section);
+          if (contra + CONTRAFLOW_MARGIN_SEC >= remaining) return;
+          const back: [number, number][] = section.exit && section.exit.length >= 2 ? reverseLine(section.exit) : [[section.downstream.lat, section.downstream.lng], [section.scene.lat, section.scene.lng]];
+          const coords = r.coords && r.coords.length >= 2 ? [...r.coords, ...back] : undefined;
+          setDeployments((prev) =>
+            prev.map((x) =>
+              x.applianceId === d.applianceId && x.mobilisedAt === d.mobilisedAt
+                ? { ...x, origin: pos, mobilisedAt: at, etaSeconds: contra, arrivesAt: at + contra * 1000, routeCoords: coords, routeMeters: r.meters + exitLegMeters(section), approach: { kind: "contraflow", junction: section.downstream.name, savesSec: Math.round(remaining - contra), via: { lat: section.downstream.lat, lng: section.downstream.lng } } }
+                : x,
+            ),
+          );
+          logAnnotation(`${ap.callsign} turning in at ${section.downstream.name} — against the flow on the closed carriageway, ETA ${fmtSec(contra)} instead of ${fmtSec(remaining)} round by ${section.upstream.name}`, "annotation", "contraflow-replan");
+        })
+        .catch(() => {});
+    }
   }
 
   /** A crew asks control for something from the tablet: it goes on the
@@ -6591,6 +6925,20 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       return;
     }
     const carriagewayHere = inc?.scenario.scene?.carriageway;
+    if (kind === "contraflow") {
+      if (!inc || !carriagewayHere || !closedSections[inc.id]) {
+        logAnnotation(`${cs} → CONTROL: nothing to declare — this job is not on a dual carriageway with its junctions known`);
+        setStatusMsg("No carriageway to declare clear");
+        return;
+      }
+      if (runtimes[inc.id]?.contraflow) {
+        setStatusMsg("Approach against the flow already authorised");
+        return;
+      }
+      logAnnotation(`${cs} → CONTROL: ${carriagewayHere.name} clear past the scene — units can come in from ${carriagewayHere.downstream} against the flow`);
+      setContraflow(inc.id, true, cs);
+      return;
+    }
     if (kind === "highways" && inc && carriagewayHere) {
       const at = Date.now();
       const rt = runtimes[inc.id];
@@ -6954,6 +7302,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       routeMeters: eta.meters,
       routeCoords: eta.coords ?? undefined,
       origin: sbPos ?? undefined,
+      approachKey: sbPos ? `sb:${applianceId}` : stationId,
     });
     if (ap) setStatusMsg(`${ap.callsign} mobilised${open ? ` — ${open.label}` : " — extra attendance"}`);
   }
@@ -7344,6 +7693,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       onMoveToStandby={(applianceId, stationId) => beginStandby(applianceId, stationId)}
       onRecallStandby={recallStandby}
       coverStats={coverStats}
+      onSetContraflow={(incidentId, on) => setContraflow(incidentId, on, "the desk")}
       onOpenBays={setBayStationId}
       tiles={tiles}
       setTiles={setTiles}
@@ -7510,6 +7860,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
               selected: m.applianceId === selectedApplianceId,
             };
           })}
+          closures={mapClosures}
           filter={mapFilter}
           patch={patch ?? null}
           onSelectAppliance={setSelectedApplianceId}
@@ -8518,6 +8869,15 @@ function kitLabel(k: import("@/lib/sim/incident_types").KitKind): string {
     case "trauma": return "Trauma bag";
     case "extinguisher": return "Fire extinguisher";
   }
+}
+
+/** The approach on a carriageway job, for the mobilising line. */
+function approachNote(a: Deployment["approach"]): string {
+  if (!a) return "";
+  if (a.kind === "contraflow") return ` — in from ${a.junction} against the flow on the closed carriageway${a.unsafe ? ", LANES STILL RUNNING PAST THE SCENE" : ""}${a.savesSec ? ` (saves ${fmtSec(a.savesSec)})` : ""}`;
+  if (a.kind === "through_closure") return ` — through the closure at ${a.junction}, empty road to the scene`;
+  if (a.kind === "queue") return ` — queuing back from the scene, +${fmtSec(a.extraSec ?? 0)}`;
+  return ` — diverted round ${a.junction}`;
 }
 
 function fmtSec(s: number): string {

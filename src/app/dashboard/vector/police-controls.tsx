@@ -23,6 +23,7 @@ import { useState, type ReactNode } from "react";
 import type { Appliance } from "@/lib/sim/types";
 import type { Incident, LogEntry, Task, TaskKind } from "@/lib/sim/incident_types";
 import { trafficState, laneLabel } from "@/lib/sim/traffic";
+import { approachSummary, contraflowFromLog, isStopped } from "@/lib/sim/road_closure";
 import { TASK_MIN_CREW } from "@/lib/sim/incident_types";
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { dobDisplay, dobOf, type PersonRecord, type RecordIndex, type VehicleRecord } from "@/lib/sim/records";
@@ -167,6 +168,7 @@ const DIRECTIONS = ["Both directions", "Northbound", "Southbound", "Eastbound", 
 const SUPPORT: { kind: SupportKind; label: string; icon: ReactNode; wording: string }[] = [
   { kind: "roads", label: "Roads policing", icon: I.car, wording: "requests a roads policing unit" },
   { kind: "highways", label: "Highways", icon: I.lane, wording: "requests Highways to attend" },
+  { kind: "contraflow", label: "Clear for approach against the flow", icon: I.road, wording: "declares the carriageway clear past the scene — units can come in from the junction ahead against the flow" },
   { kind: "recovery", label: "Vehicle recovery", icon: I.tow, wording: "requests vehicle recovery" },
   { kind: "unit", label: "Additional unit", icon: I.car, wording: "requests an additional unit" },
   { kind: "supervisor", label: "Supervisor", icon: I.person, wording: "requests a supervisor to attend" },
@@ -178,7 +180,7 @@ const SUPPORT: { kind: SupportKind; label: string; icon: ReactNode; wording: str
 ];
 
 const GENERAL_SUPPORT: SupportKind[] = ["unit", "supervisor", "ambulance", "custody"];
-const TRAFFIC_SUPPORT: SupportKind[] = ["roads", "highways", "recovery", "unit"];
+const TRAFFIC_SUPPORT: SupportKind[] = ["roads", "highways", "contraflow", "recovery", "unit"];
 const MORE_SUPPORT: SupportKind[] = ["arv", "dog", "npas"];
 
 const OFFENCES = ["Theft from shop", "Robbery", "Burglary", "Assault", "Affray / public order", "Possession of an offensive weapon", "Possession of drugs", "Drink / drug driving", "Fail to stop", "Taking a vehicle without consent", "Breach of the peace", "On warrant", "Section 136 — mental health"];
@@ -491,6 +493,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const carriageway = sc.scene?.carriageway ?? null;
   const highwaysAskedAt = carriageway ? log.filter((e) => e.id.startsWith(`hw-ask:${incident.id}:`)).map((e) => e.timestamp)[0] ?? null : null;
   const traffic = carriageway ? trafficState(carriageway, tasks, now, highwaysAskedAt) : null;
+  const contraflow = contraflowFromLog(log, incident.id);
   const roadsUnit = appliance.type === "Police_RPU" || appliance.type === "Police_TraffMot";
   const trafficJobs = tasks.filter((t) => (t.kind === "fend_off" || t.kind === "lane_closure" || t.kind === "rolling_road_block" || t.kind === "carriageway_closure") && t.state !== "aborted");
   const trafficJobLabel = (t: Task) => t.kind === "fend_off" ? "Fend-off" : t.kind === "lane_closure" ? `${laneLabel(t.lanes ?? [])} closed` : t.kind === "rolling_road_block" ? `Rolling block from ${t.junction ?? "the junction"}` : `Carriageway closed at ${t.junction ?? "the junction"}`;
@@ -948,7 +951,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           {carriageway && traffic && (
             <section className={`pc-group pc-carriageway ${traffic.protected ? "go" : "stop"}`}>
               <header>{I.lane}<span>LIVE CARRIAGEWAY · {carriageway.name.toUpperCase()}</span></header>
-              <div className="pc-cw-head"><b>{traffic.headline}</b><span>{traffic.detail}</span></div>
+              <div className="pc-cw-head"><b>{traffic.headline}</b><span>{traffic.detail}</span><span className={contraflow.on && !isStopped(traffic) ? "pc-cw-warn" : undefined}>Approach: {approachSummary(traffic, contraflow.on)}</span></div>
               <div className="pc-cw-lanes">
                 {carriageway.hardShoulder && <i className="hs">HS<small>shoulder</small></i>}
                 {Array.from({ length: carriageway.lanes }, (_, i) => i + 1).map((l) => {
@@ -1118,11 +1121,18 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     <Card title="Request support" icon="☎">
       <div className="pc-support">
         {kinds.map((k) => {
+          if (k === "contraflow" && !carriageway) return null;
           const s = SUPPORT.find((x) => x.kind === k)!;
           const last = lastSupport(k);
+          // The road is declared clear for an approach against the flow
+          // only once nothing passes the scene, and only once.
+          const contraBlocked = k === "contraflow" && (!traffic || !isStopped(traffic) || contraflow.on);
+          const small = k === "contraflow"
+            ? contraflow.on ? `Authorised ${contraflow.at ? wall(contraflow.at) : ""}`.trim() : traffic && !isStopped(traffic) ? `${laneLabel(traffic.live)} still running` : "Tell control the road is stopped"
+            : last ? `Requested ${wall(last.at)}` : "Ask control";
           return (
-            <button key={k} type="button" className={`pc-action${last ? " done" : ""}`} disabled={resolvedIncident || (k === "custody" && !persons.some(isArrested))} onClick={() => requestSupport(k)}>
-              {s.icon}<span><strong>{s.label}</strong><small>{last ? `Requested ${wall(last.at)}` : "Ask control"}</small></span>
+            <button key={k} type="button" className={`pc-action${last || (k === "contraflow" && contraflow.on) ? " done" : ""}`} disabled={resolvedIncident || contraBlocked || (k === "custody" && !persons.some(isArrested))} onClick={() => requestSupport(k)}>
+              {s.icon}<span><strong>{s.label}</strong><small>{small}</small></span>
             </button>
           );
         })}

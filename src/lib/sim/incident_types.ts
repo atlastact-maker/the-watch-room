@@ -1125,6 +1125,23 @@ export type Deployment = {
    *  a roads unit on patrol, else its station. The outbound leg is drawn
    *  from here until the router hands back the road line. */
   origin?: { lat: number; lng: number };
+  /** How the unit comes in when a carriageway is closed: against the
+   *  flow from the junction ahead of the scene, through the police block
+   *  or closure behind it, up the queue that has built, or round a
+   *  closure on some other job. See road_closure.ts. */
+  approach?: {
+    kind: "contraflow" | "through_closure" | "queue" | "diverted";
+    /** The junction named in the log line. */
+    junction: string;
+    /** Seconds the approach added over the plain route. */
+    extraSec?: number;
+    /** Seconds it saved over the legal way round. */
+    savesSec?: number;
+    /** Against the flow: the junction the unit turns in at. */
+    via?: { lat: number; lng: number };
+    /** Against the flow with lanes still running past the scene. */
+    unsafe?: boolean;
+  };
 
   /** A unit sent to hold or search a point on the patch rather than the
    *  incident address — an ANPR site ahead of a subject vehicle, a

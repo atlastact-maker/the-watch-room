@@ -112,7 +112,9 @@ export const scenario15: Scenario = {
     compassNorth: "up",
     // Two running lanes northbound, the car on the hard shoulder. Lane 1
     // beside the crew has to be shut before anyone gets off the appliance.
-    carriageway: { name: "A627(M) northbound", lanes: 2, hardShoulder: true, blocked: [], mustClose: [1], upstream: "J1", downstream: "J2", flow: "moderate", highwaysEtaMin: 20 },
+    // J1 is the Elk Mill roundabout at Broadway, the Chadderton end the
+    // caller describes; J2 the Rochdale Road junction to the north.
+    carriageway: { name: "A627(M) northbound", lanes: 2, hardShoulder: true, blocked: [], mustClose: [1], upstream: "J1", downstream: "J2", flow: "moderate", highwaysEtaMin: 20, upstreamCoords: { lat: 53.5455, lng: -2.1248 }, downstreamCoords: { lat: 53.5665, lng: -2.1225 } },
     buildings: [],
     roads: [
       { shape: { x: -70, y: -22, w: 140, h: 12 }, kind: "road", label: "A627(M) southbound" },

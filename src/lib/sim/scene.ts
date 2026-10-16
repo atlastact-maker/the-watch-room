@@ -489,6 +489,12 @@ export type SceneCarriageway = {
   flow: "light" | "moderate" | "heavy";
   /** Minutes for National Highways traffic officers to reach the scene once control asks. */
   highwaysEtaMin?: number;
+  /** Where the junctions are. With these the desk can draw the closed
+   *  section along the real carriageway, price an approach against the
+   *  flow from the junction ahead and route everything else round the
+   *  closure. Anchors only — the router snaps them to the road. */
+  upstreamCoords?: { lat: number; lng: number };
+  downstreamCoords?: { lat: number; lng: number };
 };
 
 export type Scene = {

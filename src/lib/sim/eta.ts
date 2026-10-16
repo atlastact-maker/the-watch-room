@@ -207,6 +207,41 @@ export async function routeEta(
 }
 
 /**
+ * A route that keeps off the given areas — a carriageway closed on some
+ * other job. Only a router that understands avoid areas answers; null
+ * when none did or the request failed, so the caller can price a
+ * diversion of its own instead of being handed a straight line.
+ */
+export async function routeEtaAvoiding(
+  from: Coords,
+  to: Coords,
+  avoid: [number, number][][],
+  signal?: AbortSignal,
+): Promise<EtaResult | null> {
+  if (avoid.length === 0) return null;
+  const rings = avoid.map((ring) => ring.map(([lat, lng]) => [Number(lat.toFixed(5)), Number(lng.toFixed(5))] as [number, number]));
+  const encoded = JSON.stringify(rings);
+  const k = `avoid|${key(from, to)}|${encoded.length}:${rings[0]?.[0]?.join(",") ?? ""}`;
+  const cached = cache.get(k);
+  if (cached) return cached;
+  const url =
+    `/api/route-eta?fromLat=${from.lat}&fromLng=${from.lng}` +
+    `&toLat=${to.lat}&toLng=${to.lng}&mode=driving&avoid=${encodeURIComponent(encoded)}`;
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { meters?: number; seconds?: number; coords?: [number, number][] };
+    if (typeof body.meters !== "number" || typeof body.seconds !== "number" || !Array.isArray(body.coords) || body.coords.length < 2) return null;
+    const result: EtaResult = { meters: body.meters, seconds: body.seconds, coords: body.coords, source: "ors" };
+    cache.set(k, result);
+    return result;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") throw err;
+    return null;
+  }
+}
+
+/**
  * A route with road geometry, or the last answer once the retries are
  * spent. The routers rate-limit in bursts, and a unit drawn on a straight
  * line stays on it unless somebody asks again.

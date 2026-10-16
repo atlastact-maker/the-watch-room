@@ -23,6 +23,7 @@ export function EmbeddedMap({
   patrols,
   patrolRoutes,
   standbyUnits,
+  closures,
   filter,
   patch,
   onSelectAppliance,
@@ -61,6 +62,8 @@ export function EmbeddedMap({
     routeCoords?: [number, number][];
     selected?: boolean;
   }[];
+  /** Carriageways closed on the jobs on the board. */
+  closures?: import("./leaflet-map").MapClosure[];
   /** What the operator has chosen to see. */
   filter?: import("./map-filters").MapFilter;
   patch: Patch | null;
@@ -83,6 +86,7 @@ export function EmbeddedMap({
         patrols={patrols}
         patrolRoutes={patrolRoutes}
         standbyUnits={standbyUnits}
+        closures={closures}
         filter={filter}
         patch={patch}
         onSelectAppliance={onSelectAppliance}

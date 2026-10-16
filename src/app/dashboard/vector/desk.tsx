@@ -110,6 +110,8 @@ export function VectorDesk(props: {
   onRecallStandby: (applianceId: string) => void;
   /** This shift's cover record, for the Resources screen. */
   coverStats: { moves: number; gapMinutes: number };
+  /** Authorise or withdraw approaches against the flow on a carriageway job. */
+  onSetContraflow: (incidentId: string, on: boolean) => void;
   onOpenBays: (stationId: string) => void;
   tiles: TilesState;
   setTiles: (next: TilesState | ((t: TilesState) => TilesState)) => void;
@@ -382,6 +384,8 @@ export function VectorDesk(props: {
           onOpenBays={props.onOpenBays}
           onTrack={() => props.onScreen("dispatch")}
           units={props.mobUnits}
+          road={model.mobRoad}
+          onSetContraflow={(on) => { if (model.selected) props.onSetContraflow(model.selected.id, on); }}
         />
       )}
 

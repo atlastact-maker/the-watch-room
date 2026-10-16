@@ -47,6 +47,24 @@ export type TurnoutRow = {
   turnoutSec: number | null;
 };
 
+/** The carriageway the selected job is on, for the banner over the cards. */
+export type MobRoad = {
+  name: string;
+  headline: string;
+  detail: string;
+  level: "live" | "fend_off" | "lanes_closed" | "held" | "closed";
+  /** Nothing passing the scene: the carriageway ahead of it is empty. */
+  stopped: boolean;
+  upstream: string;
+  downstream: string;
+  authorised: boolean;
+  authorisedBy: string | null;
+  /** Free units that come in against the flow, or would if it were authorised. */
+  offers: number;
+  /** Units on their way in against the flow now. */
+  using: number;
+};
+
 export type BayRow = {
   stationId: string;
   id: string;
@@ -74,6 +92,8 @@ export function MobScreen({
   onOpenBays,
   onTrack,
   units = [],
+  road = null,
+  onSetContraflow,
 }: {
   head: MobHead | null;
   pda: PdaRow[];
@@ -92,6 +112,8 @@ export function MobScreen({
   onTrack: () => void;
   /** Units on the road to this incident, or on scene, for the response map. */
   units?: CallMapUnit[];
+  road?: MobRoad | null;
+  onSetContraflow?: (on: boolean) => void;
 }) {
   // Drag target state lives above the early return — hooks run in order.
   const [dropHot, setDropHot] = useState(false);
@@ -291,6 +313,31 @@ export function MobScreen({
                 Still required: {still.join(" · ")}
               </div>
             )}
+            {road && (
+              <div className={`vec-road-banner ${road.authorised ? (road.stopped ? "go" : "stop") : road.stopped ? "ready" : "live"}`} title={road.detail}>
+                <div className="txt">
+                  <b>{road.headline.toUpperCase().startsWith(road.name.toUpperCase()) ? road.headline : `${road.name.toUpperCase()} · ${road.headline}`}</b>
+                  <span>
+                    {road.authorised
+                      ? road.stopped
+                        ? `Approach against the flow from ${road.downstream} authorised${road.authorisedBy ? ` by ${road.authorisedBy}` : ""} — ${road.using ? `${road.using} unit${road.using === 1 ? "" : "s"} coming in on the closed carriageway` : road.offers ? `${road.offers} free unit${road.offers === 1 ? "" : "s"} priced in from ${road.downstream}` : "units from the far side come in on the closed carriageway"}`
+                        : `AUTHORISED AGAINST THE FLOW WITH LANES STILL RUNNING PAST THE SCENE — withdraw it, or get the road stopped`
+                      : road.stopped
+                        ? `Nothing passing the scene — ${road.offers ? `${road.offers} suitable unit${road.offers === 1 ? "" : "s"} would come in from ${road.downstream} against the flow instead of round by ${road.upstream}` : `units from the far side could come in from ${road.downstream} against the flow`}`
+                        : `Lanes still running past the scene — units come in with the flow from ${road.upstream}; stop the road and the far side can come in from ${road.downstream}`}
+                  </span>
+                </div>
+                {onSetContraflow && (
+                  road.authorised ? (
+                    <button type="button" className="vec-btn mini" onClick={() => onSetContraflow(false)}>Withdraw</button>
+                  ) : (
+                    <button type="button" className={`vec-btn mini ${road.stopped ? "go" : "stop"}`} onClick={() => onSetContraflow(true)} title={road.stopped ? "Units from the far side come in from the junction ahead on the empty carriageway" : "Not safe yet — a lane still runs past the scene"}>
+                      {road.stopped ? `Authorise approach from ${road.downstream}` : "Authorise anyway"}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
             <div className="vec-cards">
               {shown.map((c) => (
                 <div key={c.applianceId} className={`vec-card ${c.blocked ? "blocked" : ""} ${c.deployed ? "deployed" : ""}`} draggable={!c.blocked && !c.deployed} onDragStart={!c.blocked && !c.deployed ? dragUnit(c.applianceId, c.stationId) : undefined} title={!c.blocked && !c.deployed ? "Drag into the attendance slots to allocate and send" : undefined}>
@@ -304,6 +351,7 @@ export function MobScreen({
                   <div className="stn">{c.station}</div>
                   <div />
                   <div className={`why ${c.blocked ? "" : "ok"}`}>{c.blocked || c.fit}</div>
+                  {c.approach && <div className={`appr ${c.approach.tone}`} title={c.approach.detail}>{c.approach.chip}</div>}
                   <div className="foot">
                     <span className={`cost ${c.cost.tone === "off" ? "" : c.cost.tone}`}>{c.cost.text}</span>
                     {c.deployed ? (

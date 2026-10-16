@@ -556,6 +556,10 @@ export type ResourceCard = {
   compatibleSlotIds: string[];
   cost: { text: string; tone: "off" | "warn" | "stop" };
   deployed: boolean;
+  /** On a carriageway job: which way this unit comes in — against the
+   *  flow from the junction ahead, through the closure, up the queue —
+   *  and what that does to its ETA. See road_closure.ts. */
+  approach?: { kind: "queue" | "through_closure" | "contraflow" | "contraflow_offer"; chip: string; tone: "go" | "warn" | "stop" | "off"; detail: string };
 };
 
 export function AvailableTile({ layout, area, cards, hasIncident, incidents = [], onMobilise, onPick, onClose, id = "available", title = "Resources", ...pop }: Pop & { layout: TileLayout; area: Area; cards: ResourceCard[]; hasIncident: boolean; /** Live jobs the picker offers when Mobilise is pressed. */ incidents?: IncidentRow[]; onMobilise: (applianceId: string, stationId: string, incidentId?: string) => void; onPick: (applianceId: string) => void; onClose: () => void; id?: "available" | "resources"; title?: string }) {

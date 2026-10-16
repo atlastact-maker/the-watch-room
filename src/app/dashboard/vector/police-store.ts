@@ -8,7 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export type SupportKind = "unit" | "supervisor" | "ambulance" | "custody" | "arv" | "dog" | "npas" | "recovery" | "roads" | "highways";
+export type SupportKind = "unit" | "supervisor" | "ambulance" | "custody" | "arv" | "dog" | "npas" | "recovery" | "roads" | "highways" | "contraflow";
 
 export type WelfareOutcome = "ok" | "concern" | "medical";
 

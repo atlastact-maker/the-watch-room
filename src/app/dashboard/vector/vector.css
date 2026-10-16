@@ -5949,3 +5949,44 @@ html[data-cad-theme="dark"] .vec-card .go-btn:disabled {
 .vec-brief .vec-screen-head .vec-btn { margin-left: 6px; }
 .vec-brief .vec-bays .unit { cursor: default; }
 .vec-brief .vec-bays .unit.out { text-decoration: none; }
+
+/* ---- the road a job is on: the banner over the cards and the approach chip ---- */
+.vec-road-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vec-border);
+  background: var(--vec-surface-raised);
+  font-size: 12px;
+}
+.vec-road-banner .txt { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.vec-road-banner .txt b { font: 700 11px var(--vec-mono); letter-spacing: 0.04em; }
+.vec-road-banner .txt span { color: var(--vec-text-dim); line-height: 1.3; }
+.vec-road-banner.live { background: var(--vec-stop-tint, rgba(214, 60, 60, 0.1)); }
+.vec-road-banner.live .txt b { color: var(--vec-stop); }
+.vec-road-banner.ready { background: var(--vec-warn-tint); }
+.vec-road-banner.ready .txt b { color: var(--vec-warn); }
+.vec-road-banner.go { background: var(--vec-go-tint, rgba(60, 180, 100, 0.12)); }
+.vec-road-banner.go .txt b { color: var(--vec-go); }
+.vec-road-banner.stop { background: var(--vec-stop-tint, rgba(214, 60, 60, 0.14)); }
+.vec-road-banner.stop .txt b,
+.vec-road-banner.stop .txt span { color: var(--vec-stop); font-weight: 700; }
+.vec-road-banner .vec-btn { white-space: nowrap; }
+.vec-card .appr {
+  grid-column: 1 / -1;
+  font: 700 10px var(--vec-mono);
+  letter-spacing: 0.03em;
+  padding: 3px 7px;
+  border-radius: 3px;
+  border: 1px solid var(--vec-border);
+  color: var(--vec-text-dim);
+  background: var(--vec-surface-raised);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vec-card .appr.go { color: var(--vec-go); border-color: var(--vec-go); }
+.vec-card .appr.warn { color: var(--vec-warn); border-color: var(--vec-warn); }
+.vec-card .appr.stop { color: var(--vec-stop); border-color: var(--vec-stop); }
+.pc-cw-head .pc-cw-warn { color: var(--vec-stop); font-weight: 700; }

@@ -51,6 +51,25 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 
+  // Areas to keep off — a carriageway closed on another job. Only
+  // OpenRouteService takes them; without it the caller prices its own
+  // diversion rather than being handed a route through the closure.
+  const avoid = parseAvoid(sp.get("avoid"));
+  if (avoid === "bad") {
+    return NextResponse.json({ error: "invalid avoid areas", source: "ors" } satisfies Failure, { status: 400 });
+  }
+  if (avoid) {
+    const key = process.env.ORS_API_KEY;
+    if (key) {
+      const ors = await fetchOrsAvoiding(key, profile, fromLat, fromLng, toLat, toLng, avoid);
+      if (ors) return NextResponse.json(ors);
+    }
+    return NextResponse.json(
+      { error: "no routing upstream can avoid areas", source: "ors" } satisfies Failure,
+      { status: 501 },
+    );
+  }
+
   // First: our own router, when the deployment has one.
   const own = ownOsrmBase();
   if (own) {
@@ -124,6 +143,70 @@ async function fetchOrs(
       coords: raw.map(([lng, lat]) => [lat, lng] as [number, number]),
       source: "ors",
     };
+  } catch {
+    return null;
+  }
+}
+
+/** Up to eight rings of up to 200 [lat, lng] points, as the client sends them. */
+function parseAvoid(raw: string | null): [number, number][][] | null | "bad" {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 8) return "bad";
+    const rings: [number, number][][] = [];
+    for (const ring of parsed) {
+      if (!Array.isArray(ring) || ring.length < 4 || ring.length > 200) return "bad";
+      const pts: [number, number][] = [];
+      for (const p of ring) {
+        if (!Array.isArray(p) || p.length !== 2 || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return "bad";
+        pts.push([Number(p[0]), Number(p[1])]);
+      }
+      rings.push(pts);
+    }
+    return rings;
+  } catch {
+    return "bad";
+  }
+}
+
+async function fetchOrsAvoiding(
+  key: string,
+  profile: string,
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+  avoid: [number, number][][],
+): Promise<Success | null> {
+  try {
+    const res = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
+      method: "POST",
+      headers: { Authorization: key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        coordinates: [[fromLng, fromLat], [toLng, toLat]],
+        options: {
+          avoid_polygons: {
+            type: "MultiPolygon",
+            coordinates: avoid.map((ring) => [ring.map(([lat, lng]) => [lng, lat])]),
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      features?: {
+        geometry?: { coordinates?: [number, number][] };
+        properties?: { summary?: { distance?: number; duration?: number } };
+      }[];
+    };
+    const feature = body?.features?.[0];
+    const raw = feature?.geometry?.coordinates;
+    const meters = feature?.properties?.summary?.distance;
+    const seconds = feature?.properties?.summary?.duration;
+    if (!Array.isArray(raw) || raw.length < 2 || typeof meters !== "number" || typeof seconds !== "number") return null;
+    return { meters, seconds, coords: raw.map(([lng, lat]) => [lat, lng] as [number, number]), source: "ors" };
   } catch {
     return null;
   }

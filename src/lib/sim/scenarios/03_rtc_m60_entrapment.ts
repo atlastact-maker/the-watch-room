@@ -487,7 +487,11 @@ export const scenario03: Scenario = {
     // Three running lanes eastbound. The wreck sits across lanes 2 and 3;
     // lane 1 runs past it until the police shut it, block the carriageway
     // from J17 or National Highways close it at the junction.
-    carriageway: { name: "M60 eastbound", lanes: 3, hardShoulder: true, blocked: [2, 3], mustClose: [1], upstream: "J17", downstream: "J18", flow: "moderate", highwaysEtaMin: 15 },
+    // J17 is the Whitefield interchange with the A56, J18 Simister Island.
+    // Once the road is stopped past the wreck, a unit coming in from the
+    // east need not go round by J17: it can come down the empty eastbound
+    // carriageway from J18 against the flow.
+    carriageway: { name: "M60 eastbound", lanes: 3, hardShoulder: true, blocked: [2, 3], mustClose: [1], upstream: "J17", downstream: "J18", flow: "moderate", highwaysEtaMin: 15, upstreamCoords: { lat: 53.5478, lng: -2.2962 }, downstreamCoords: { lat: 53.5436, lng: -2.259 } },
     buildings: [
       // The junction's eastern overbridge — the roundabout's carriageway
       // over the motorway, just upstream of the wreck.

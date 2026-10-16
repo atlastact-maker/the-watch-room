@@ -12,6 +12,7 @@ import type { Incident, LogEntry, PatientTreatmentState, Task } from "@/lib/sim/
 import type { IncidentSimState } from "@/lib/sim/incident_sim";
 import { busyOn, crewSent } from "@/lib/sim/crew_assign";
 import { trafficState } from "@/lib/sim/traffic";
+import { approachSummary, contraflowFromLog, isStopped } from "@/lib/sim/road_closure";
 import type { ResolvedDeployment } from "./incident-view";
 import { assignRowsFor, casualtyShortLabel, type AssignCrewFn } from "./crew-assign-menu";
 import { rtcJobs } from "../vector/rtc-state";
@@ -323,6 +324,7 @@ function FireMenu(p: GroundPanelProps) {
 const SUPPORT: { kind: SupportKind; label: string; wording: string }[] = [
   { kind: "roads", label: "Roads policing", wording: "requests a roads policing unit" },
   { kind: "highways", label: "Highways", wording: "requests Highways to attend" },
+  { kind: "contraflow", label: "Clear for approach against the flow", wording: "declares the road stopped past the scene — units can come in from the junction ahead" },
   { kind: "recovery", label: "Vehicle recovery", wording: "requests vehicle recovery" },
   { kind: "unit", label: "Additional unit", wording: "requests an additional unit" },
   { kind: "supervisor", label: "Supervisor", wording: "requests a supervisor to attend" },
@@ -347,6 +349,7 @@ function PoliceMenu(p: GroundPanelProps & { support: { kind: SupportKind; at: nu
   }
   const cw = p.incident.scenario.scene?.carriageway;
   const traffic = cw ? trafficState(cw, p.tasks, p.now) : null;
+  const contraflow = contraflowFromLog(p.log, p.incident.id);
   const last = (kind: SupportKind) => [...p.support].reverse().find((r) => r.kind === kind);
   const request = (kind: SupportKind) => {
     const def = SUPPORT.find((s) => s.kind === kind)!;
@@ -369,14 +372,22 @@ function PoliceMenu(p: GroundPanelProps & { support: { kind: SupportKind; at: nu
               action="Manage"
               onAction={() => p.onOpenPolice({ page: "actions", tab: "traffic" })}
             />
+            <Row
+              title="Approach"
+              sub={approachSummary(traffic, contraflow.on)}
+              status={contraflow.on ? "authorised" : isStopped(traffic) ? "road stopped" : "lanes running"}
+              tone={contraflow.on ? (isStopped(traffic) ? "go" : "warn") : isStopped(traffic) ? "go" : ""}
+            />
           </div>
         </Group>
       )}
       <Group title={`Request · ${unit.appliance.callsign}`}>
         <div className="cc-iv-list">
           {SUPPORT.map((s) => {
+            if (s.kind === "contraflow" && (!traffic || contraflow.on)) return null;
             const l = last(s.kind);
-            return <Row key={s.kind} title={s.label} sub={s.wording} status={l ? `asked ${wall(l.at)}` : undefined} tone={l ? "go" : ""} action="Request" onAction={() => request(s.kind)} />;
+            const stoppedOnly = s.kind === "contraflow" && traffic && !isStopped(traffic);
+            return <Row key={s.kind} title={s.label} sub={stoppedOnly ? "Not yet — a lane still runs past the scene" : s.wording} status={l ? `asked ${wall(l.at)}` : undefined} tone={l ? "go" : ""} action={stoppedOnly ? undefined : "Request"} onAction={stoppedOnly ? undefined : () => request(s.kind)} />;
           })}
         </div>
       </Group>
