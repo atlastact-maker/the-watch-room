@@ -2,6 +2,8 @@ import Link from "next/link";
 import { COMMUNITY } from "@/app/menu/menu-types";
 import styles from "@/app/menu/watch-menu.module.css";
 import { SignupForm } from "./signup-form";
+import { signInWithDiscord } from "@/lib/auth/actions";
+import { Icon } from "@/app/menu/icons";
 
 export type SignupData = {
   /** Registration is open (the announced date has passed). */
@@ -11,10 +13,12 @@ export type SignupData = {
   prealpha: boolean;
   advisor: boolean;
   signups: { open: boolean; closes: string };
+  /** Continue with Discord is on offer: the Supabase project has the provider on. */
+  discord: boolean;
 };
 
 export function SignupView({ data }: { data: SignupData }) {
-  const { open, opensOn, prealpha, advisor, signups } = data;
+  const { open, opensOn, prealpha, advisor, signups, discord } = data;
   return (
     <>
       <header className={styles.pageHead}>
@@ -31,6 +35,16 @@ export function SignupView({ data }: { data: SignupData }) {
         </div>
       </header>
       <section className={`${styles.panel} ${styles.section}`}>
+        {open && discord && (
+          <>
+            <form action={signInWithDiscord}>
+              <input type="hidden" name="next" value="/standby" />
+              <button type="submit" className={`${styles.button} ${styles.fullWidth}`}><Icon.discord /> Continue with Discord</button>
+            </form>
+            <p className={styles.hint}>The account is made from the Discord profile, with the Discord username as its callsign until one is chosen in Settings. The Pre-Alpha request is one press on the standing page afterwards.</p>
+            <p className={styles.divider}><span>or</span></p>
+          </>
+        )}
         {open ? (
           <SignupForm defaultAdvisorOpen={advisor} defaultPrealpha={prealpha && signups.open} prealphaCloses={signups.open ? signups.closes : ""} prealphaOpen={signups.open} />
         ) : (

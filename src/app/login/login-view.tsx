@@ -18,6 +18,11 @@ export function LoginView({ error, next, discordEnabled = false }: { error?: str
           <p>It may have expired or already been used. Sign in below, or obtain a fresh link by <Link href="/signup">registering</Link> or <Link href="/forgot-password">resetting the password</Link>.</p>
         </Notice>
       )}
+      {error === "discord_denied" && (
+        <Notice tone="critical" title="Discord sign-in did not complete">
+          <p>Discord reported that the sign-in was cancelled or refused. Try again, or sign in with your email address below.</p>
+        </Notice>
+      )}
       {error === "discord_unavailable" && (
         <Notice tone="critical" title="Discord sign-in is not available">
           <p>Discord could not be reached, or sign-in with Discord is not switched on for this site yet. Sign in with your email address below.</p>

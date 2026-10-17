@@ -4,6 +4,7 @@ import { SIGNUP_OPENS_AT, signupOpen } from "@/lib/auth/signup-window";
 import { prealphaSignups } from "@/lib/prealpha";
 import { PublicShell } from "@/app/menu/console-shell";
 import { SignupView } from "./signup-view";
+import { discordSignInEnabled } from "@/lib/auth/discord";
 
 export const metadata: Metadata = { title: "Create an account · The Watch Room" };
 
@@ -11,6 +12,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const { advisor, prealpha } = await searchParams;
   const open = signupOpen();
   const signups = await prealphaSignups(await createClient());
+  const discord = await discordSignInEnabled();
   return (
     <PublicShell brandLine="Operator registration" width="narrow" links={[{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }]}>
       <SignupView
@@ -20,6 +22,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           prealpha: prealpha === "1",
           advisor: advisor === "1",
           signups: { open: signups.open, closes: signups.closes },
+          discord,
         }}
       />
     </PublicShell>

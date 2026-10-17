@@ -9,6 +9,7 @@ import { advisorStanding } from "@/lib/auth/advisor-standing";
 import { SIGNUP_OPENS_AT, signupOpen } from "@/lib/auth/signup-window";
 import { ensurePreAlphaRequest, prealphaDoors, prealphaOpensLabel, prealphaSignups } from "@/lib/prealpha";
 import { AdvisorSync } from "@/app/components/advisor-sync";
+import { ensureDiscordRoles } from "@/lib/discord/roles";
 import { PublicShell } from "@/app/menu/console-shell";
 import styles from "@/app/menu/watch-menu.module.css";
 import { StandbyView } from "./standby-view";
@@ -36,6 +37,8 @@ export default async function StandbyPage() {
   const prealpha = await ensurePreAlphaRequest(supabase, user);
   const signups = await prealphaSignups(supabase);
   const [{ tester: onList }, doors, { asTester }] = await Promise.all([isTester(supabase, user.email), prealphaDoors(supabase), effectiveShiftAccess(supabase, user.email)]);
+  // A linked Discord account on the list gets its role in the server, once.
+  await ensureDiscordRoles(supabase, user);
   const metadata = user.user_metadata ?? {};
   const callsign = typeof metadata.callsign === "string" ? metadata.callsign : "";
   // Accepted advisors wear the insignia of the service off their

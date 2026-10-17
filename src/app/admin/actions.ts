@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { grantDiscordRoles } from "@/lib/discord/guild";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { isBugStatus } from "@/lib/bug-reports";
 import { sendEmail } from "@/lib/email/send";
@@ -257,6 +258,21 @@ export async function inviteTester(formData: FormData): Promise<void> {
   if (!result.sent) console.error(`tester invite email not sent to ${email}: ${result.reason}`);
   revalidatePath("/admin");
   redirect(`/admin?tab=users&invited=${encodeURIComponent(email)}${result.sent ? "" : "&mail=0"}`);
+}
+
+/** Put a linked account's Discord in the server's role now — what the
+ *  site does by itself when the bot is configured, on demand. */
+export async function grantDiscordRole(formData: FormData): Promise<void> {
+  await adminClient();
+  const discordId = String(formData.get("discordId") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const role = String(formData.get("role") ?? "") === "advisor" ? "advisor" : "tester";
+  if (!/^\d{5,25}$/.test(discordId)) {
+    redirect(`/admin?tab=users&roled=${encodeURIComponent(email)}&roleok=0&why=${encodeURIComponent("no Discord id on the account")}`);
+  }
+  const result = await grantDiscordRoles(discordId, [role]);
+  const ok = result.granted.includes(role);
+  redirect(`/admin?tab=users&roled=${encodeURIComponent(email)}&roleok=${ok ? "1" : "0"}${ok ? "" : `&why=${encodeURIComponent(result.reason ?? "Discord refused the change")}`}`);
 }
 
 /** Grant every pending Pre-Alpha request in one go: the same decision

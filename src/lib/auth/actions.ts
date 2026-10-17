@@ -4,6 +4,7 @@ import { signupOpen } from "./signup-window";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { discordBotConfigured } from "@/lib/discord/guild";
 import { filePreAlphaRequest, prealphaSignups } from "@/lib/prealpha";
 import {
   AdvisorSchema,
@@ -94,6 +95,12 @@ export async function verifySignInCode(_state: AuthFormState, formData: FormData
   redirect(safeNext(formData.get("next")));
 }
 
+/** What Discord is asked for: who they are and their address, and, when
+ *  the site's bot can put them in the server, leave to do that. */
+function discordScopes(): string {
+  return discordBotConfigured() ? "identify email guilds.join" : "identify email";
+}
+
 /** "Continue with Discord": hands the browser to Discord; Supabase brings
  *  it back to /auth/confirm with a code to exchange. Needs the Discord
  *  provider enabled on the Supabase project. */
@@ -103,7 +110,7 @@ export async function signInWithDiscord(formData: FormData): Promise<void> {
   const next = safeNext(formData.get("next"));
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "discord",
-    options: { redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}`, skipBrowserRedirect: true, scopes: "identify email" },
+    options: { redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}`, skipBrowserRedirect: true, scopes: discordScopes() },
   });
   if (error || !data.url) redirect("/login?error=discord_unavailable");
   redirect(data.url);
@@ -112,16 +119,39 @@ export async function signInWithDiscord(formData: FormData): Promise<void> {
 /** "Connect Discord" from Settings: links the Discord identity to the
  *  signed-in account, so the handle is read from Discord itself and the
  *  account can sign in with it. Needs manual linking enabled on the
- *  Supabase project. */
+ *  Supabase project; the reason comes back to Settings when it is not. */
 export async function connectDiscord(): Promise<void> {
   const supabase = await createClient();
   const origin = await siteOrigin();
   const { data, error } = await supabase.auth.linkIdentity({
     provider: "discord",
-    options: { redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent("/settings?discord=linked")}`, skipBrowserRedirect: true, scopes: "identify email" },
+    options: { redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent("/settings?discord=linked")}`, skipBrowserRedirect: true, scopes: discordScopes() },
   });
-  if (error || !data.url) redirect("/settings?discord=failed");
+  if (error || !data.url) redirect(`/settings?discord=failed&reason=${encodeURIComponent(error?.code ?? "no_url")}`);
   redirect(data.url);
+}
+
+/** "Disconnect Discord": the identity comes off the account, and with it
+ *  the handle and the id that were read from it. Refused while Discord
+ *  is the only way into the account. */
+export async function disconnectDiscord(): Promise<void> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUserIdentities();
+  const identities = data?.identities ?? [];
+  const identity = identities.find((i) => i.provider === "discord");
+  if (error || !identity) redirect("/settings?discord=failed&reason=identity_not_found");
+  if (identities.length < 2) redirect("/settings?discord=failed&reason=single_identity_not_deletable");
+  const { error: unlinkError } = await supabase.auth.unlinkIdentity(identity);
+  if (unlinkError) redirect(`/settings?discord=failed&reason=${encodeURIComponent(unlinkError.code ?? "unlink_failed")}`);
+  const { data: { user } } = await supabase.auth.getUser();
+  const meta = (user?.user_metadata ?? {}) as { discord_handle_source?: unknown };
+  await supabase.auth.updateUser({
+    data: {
+      discord_id: null, discord_username: null, discord_display: null, discord_avatar: null, discord_linked_at: null, discord_roles: null, discord_roles_attempted_at: null,
+      ...(meta.discord_handle_source === "discord" ? { advisor_discord: "", discord_handle_source: null } : {}),
+    },
+  });
+  redirect("/settings?discord=unlinked");
 }
 
 export async function signup(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {

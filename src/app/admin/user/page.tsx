@@ -82,6 +82,9 @@ type Profile = {
   email: string;
   callsign: string;
   discord: string;
+  /** The linked Discord account, when there is one (migration 027). */
+  discord_id?: string | null;
+  discord_verified?: boolean;
   created_at: string;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
@@ -267,7 +270,7 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
         <div>
           <p className={styles.eyebrow}><Link href="/admin?tab=users" className={styles.textLink}>Administration</Link> · account profile</p>
           <h1 className={styles.pageTitle}>{p.callsign ? p.callsign.toUpperCase() : "(no callsign)"}</h1>
-          <p className={styles.lede}>{p.email}{p.discord ? ` · @${p.discord}` : ""}</p>
+          <p className={styles.lede}>{p.email}{p.discord ? ` · @${p.discord}${p.discord_verified ? " ✓ linked Discord account" : ""}` : ""}{p.discord_verified && p.discord_id ? <small> · Discord id {p.discord_id}</small> : null}</p>
           <div className={styles.headMeta} style={{ justifyContent: "flex-start", marginTop: 12 }}>
             {p.banned && <span className={`${styles.chip} ${styles.chipStop}`}>Banned</span>}
             {p.assigned_role && <span className={`${styles.chip} ${styles.chipOk}`} title={p.role_note || undefined}>{p.assigned_role}{p.role_icon ? ` · ${p.role_icon}` : ""}</span>}

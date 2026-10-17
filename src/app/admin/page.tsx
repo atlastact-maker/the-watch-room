@@ -23,12 +23,14 @@ import {
   addAdminNote,
   deleteAdminNote,
   setDiscordGranted,
+  grantDiscordRole,
   acceptAllPendingTesterApplications,
   decideTesterApplication,
   inviteTester,
   notifyTestersDoorsOpen,
   setPrealphaDoors, setPrealphaSignups,
 } from "./actions";
+import { discordBotConfigured } from "@/lib/discord/guild";
 import { type TesterApplication, prealphaClosed, prealphaClosesLabel, prealphaDoors, prealphaOpen, prealphaOpensLabel, prealphaSignupSwitch, prealphaSignups } from "@/lib/prealpha";
 
 // The admin area — overview numbers, advisor applications, access roles
@@ -122,6 +124,9 @@ type UserRow = {
   /** On the closed Pre-Alpha tester list. Undefined until migration 016
    *  is run, which the control treats as false. */
   tester?: boolean;
+  /** The linked Discord account, when there is one (migration 027). */
+  discord_id?: string | null;
+  discord_verified?: boolean;
 };
 
 type AdminTab = "applications" | "users" | "advisors" | "bugs" | "scenarios" | "prealpha";
@@ -155,12 +160,12 @@ function fmtDate(iso: string): string {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[]; notified?: string | string[]; of?: string | string[]; q?: string | string[]; page?: string | string[] }>;
+  searchParams: Promise<{ missing?: string | string[]; tab?: string | string[]; invited?: string | string[]; mail?: string | string[]; notified?: string | string[]; of?: string | string[]; q?: string | string[]; page?: string | string[]; roled?: string | string[]; roleok?: string | string[]; why?: string | string[] }>;
 }) {
   // A write action that hit a missing database function sends us back
   // here with the migration number, so it can be reported the same way
   // a missing list function is.
-  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam, notified: notifiedParam, of: ofParam, q: qParam, page: pageParam } = await searchParams;
+  const { missing, tab: tabParam, invited: invitedParam, mail: mailParam, notified: notifiedParam, of: ofParam, q: qParam, page: pageParam, roled: roledParam, roleok: roleokParam, why: whyParam } = await searchParams;
   // The Users tab: a search and a page (migration 023).
   const USERS_PAGE = 100;
   const userQuery = typeof qParam === "string" ? qParam.trim().slice(0, 80) : "";
@@ -176,6 +181,11 @@ export default async function AdminPage({
   const notified = typeof notifiedParam === "string" ? `${notifiedParam} of ${typeof ofParam === "string" ? ofParam : "?"}` : null;
   const justInvited = typeof invitedParam === "string" ? invitedParam : null;
   const inviteMailFailed = mailParam === "0";
+  // A Discord role granted by hand from the Accounts tab, and how it went.
+  const roled = typeof roledParam === "string" ? roledParam : null;
+  const roleOk = roleokParam === "1";
+  const roleWhy = typeof whyParam === "string" ? whyParam : "";
+  const botOn = discordBotConfigured();
   // Which of the three lists is on screen. Applications first: it is the
   // one with decisions waiting in it.
   const tab: AdminTab =
@@ -972,6 +982,12 @@ export default async function AdminPage({
                 </p>
               </Notice>
             )}
+            {roled && (
+              <Notice tone={roleOk ? "ok" : "critical"} title={roleOk ? "Discord role granted" : "Discord role not granted"}>
+                <p>{roleOk ? `${roled} has the role in the server.` : `${roled}: ${roleWhy || "Discord refused the change."}`}</p>
+              </Notice>
+            )}
+            <p className={styles.cardMeta}>{botOn ? "Discord bot connected: a linked account on the list is put in the server and given its role by itself; Grant Discord role does it on demand." : "Discord bot not configured: roles in the server are handed out by hand. See docs/discord.md."}</p>
             {users.length === 0 && <Notice title={userQuery ? "No accounts match" : "No accounts yet"} />}
             {users.length > 0 && (
               <div className={styles.cards}>
@@ -983,7 +999,7 @@ export default async function AdminPage({
                         <div className={styles.cardHead}>
                           <Link href={profileHref(u.user_id, u.email)} title="Open their profile and service record"><strong>{u.callsign ? u.callsign.toUpperCase() : "No callsign"}</strong></Link>
                           <span className={styles.email}>{u.email}</span>
-                          {u.discord && <span className={`${styles.chip} ${styles.chipInfo}`} title="Discord handle, from their advisor application">@{u.discord}</span>}
+                          {u.discord && <span className={`${styles.chip} ${styles.chipInfo}`} title={u.discord_verified ? `Linked Discord account${u.discord_id ? ` · id ${u.discord_id}` : ""}` : "Discord handle, as typed on the advisor application"}>@{u.discord}{u.discord_verified ? " ✓" : ""}</span>}
                           {u.banned && <span className={`${styles.chip} ${styles.chipStop}`}>Banned</span>}
                           {u.is_advisor_applicant && <span className={`${styles.chip} ${styles.chipInfo}`}>Advisor applicant</span>}
                           {u.assigned_role && <span className={`${styles.chip} ${styles.chipOk}`}>{u.assigned_role}</span>}
@@ -1024,6 +1040,14 @@ export default async function AdminPage({
                                 >
                                   {invite ? "Re-send invitation" : "Invite to Pre-Alpha"}
                                 </button>
+                              </form>
+                            )}
+                            {botOn && u.discord_id && (u.tester || u.assigned_role === "advisor") && (
+                              <form action={grantDiscordRole}>
+                                <input type="hidden" name="discordId" value={u.discord_id} />
+                                <input type="hidden" name="email" value={u.email} />
+                                <input type="hidden" name="role" value={u.assigned_role === "advisor" ? "advisor" : "tester"} />
+                                <button type="submit" className={`${styles.button} ${styles.small}`} title="Put this account's Discord in the server's role now">Grant Discord role</button>
                               </form>
                             )}
                             {!u.assigned_role && (

@@ -97,7 +97,7 @@ export default function MenuHarness() {
       <PublicShell brandLine={shell.brandLine} width={shell.width} links={shell.links} chip={shell.chip}>
         {page === "landing" && <LandingView data={{ open: true, opensOn: "1 September", signups: SIGNUPS, facts, stations }} />}
         {page === "login" && <LoginView error={param("error") ?? undefined} discordEnabled={param("discord") === "1"} />}
-        {page === "signup" && <SignupView data={{ open: true, opensOn: "Tuesday 1 September", prealpha: true, advisor: param("advisor") === "1", signups: { open: true, closes: SIGNUPS.closes } }} />}
+        {page === "signup" && <SignupView data={{ open: true, opensOn: "Tuesday 1 September", prealpha: true, advisor: param("advisor") === "1", signups: { open: true, closes: SIGNUPS.closes }, discord: param("discord") !== "0" }} />}
         {page === "forgot" && <ForgotView />}
         {page === "reset" && <ResetView email={param("expired") === "1" ? null : "operator@example.test"} />}
         {page === "terms" && <TermsView />}
@@ -115,7 +115,7 @@ export default function MenuHarness() {
         {page === "record" && <StatsView />}
         {page === "library" && <LibraryView stations={fleet} />}
         {page === "releases" && <ReleaseNotes />}
-        {page === "settings" && <SettingsView />}
+        {page === "settings" && <SettingsView discordEnabled={param("discord") !== "0"} discordNotice={(["linked", "failed", "unlinked"].includes(param("notice") ?? "") ? param("notice") : undefined) as "linked" | "failed" | "unlinked" | undefined} discordReason={param("reason") ?? undefined} />}
         {page === "briefing" && <PreAlphaBriefing data={BRIEFING} />}
       </ConsoleShell>
     );

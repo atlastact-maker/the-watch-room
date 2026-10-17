@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { ensureDiscordRoles } from "@/lib/discord/roles";
 import { isTester } from "@/lib/auth/operator-access";
 import { effectiveShiftAccess } from "@/lib/auth/view-as";
 import { ensurePreAlphaRequest, prealphaOpensLabel, prealphaSignups, programmeClock } from "@/lib/prealpha";
@@ -31,6 +32,7 @@ export default async function PreAlphaPage({ searchParams }: { searchParams: Pro
   const inAlready = access?.hasShift ?? false;
   const admin = (access?.realAdmin ?? false) && !asTester;
   const onList = user ? (await isTester(supabase, user.email)).tester : false;
+  if (user) await ensureDiscordRoles(supabase, user);
   const accepted = standing === "accepted" || onList || inAlready || admin || asTester;
   const operator = inAlready || admin;
   // On the list, but the doors are closed: the briefing without the door.

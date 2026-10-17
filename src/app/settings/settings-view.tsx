@@ -15,8 +15,25 @@ import { AdvisorQuestions, type AdvisorDefaults } from "@/app/components/advisor
 import { advisorStanding, type AdvisorStanding } from "@/lib/auth/advisor-standing";
 import { Icon } from "@/app/menu/icons";
 import styles from "@/app/menu/watch-menu.module.css";
-import { connectDiscord } from "@/lib/auth/actions";
+import { connectDiscord, disconnectDiscord } from "@/lib/auth/actions";
 import { Notice } from "@/app/components/notice";
+
+/** The Discord account connected to this one, as the identity carries it. */
+type DiscordIdentity = { username: string; display: string; avatar: string; only: boolean };
+
+/** Why a connection came back without connecting, in the person's words. */
+const FAIL_REASON: Record<string, string> = {
+  manual_linking_disabled: "Connecting an existing account to Discord is not switched on for this site yet. The handle can be typed in meanwhile, and the team have been told.",
+  identity_already_exists: "That Discord account is already connected to another Watch Room account. Sign in with Discord to use that one, or disconnect it there first.",
+  identity_not_found: "No Discord account is connected to this one.",
+  single_identity_not_deletable: "Discord is the only way into this account. Set a password first — Forgotten password on the sign-in page sends a link — then disconnect.",
+  access_denied: "Discord reported that the connection was cancelled before it finished.",
+  email_exists: "Discord returned an email address that already belongs to another account.",
+  provider_email_needs_verification: "Discord returned an email address that is not verified on Discord. Verify it there and try again.",
+};
+function failReason(code?: string): string {
+  return (code && FAIL_REASON[code]) || "Discord did not complete the connection. Try again; if it keeps happening, the handle can be typed in instead.";
+}
 
 const configured = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SAVE_FAILED = "Could not save. Try again.";
@@ -25,8 +42,9 @@ const SAVE_FAILED = "Could not save. Try again.";
 // toggle bumps a counter to re-read it. The server render says "on".
 const noSubscribe = () => () => {};
 
-export function SettingsView({ discordEnabled = false, discordNotice }: { discordEnabled?: boolean; discordNotice?: "linked" | "failed" } = {}) {
+export function SettingsView({ discordEnabled = false, discordNotice, discordReason }: { discordEnabled?: boolean; discordNotice?: "linked" | "failed" | "unlinked"; discordReason?: string } = {}) {
   const [callsign, setCallsign] = useState("");
+  const [identity, setIdentity] = useState<DiscordIdentity | null | undefined>(undefined);
   const [initialCallsign, setInitialCallsign] = useState<string | null>(null);
   const [discord, setDiscord] = useState("");
   const [initialDiscord, setInitialDiscord] = useState<string | null>(null);
@@ -87,6 +105,16 @@ export function SettingsView({ discordEnabled = false, discordNotice }: { discor
       setAdvisorOpen(isAdvisor);
       // Standing is read once the account is known, in the same callback.
       return refreshStanding();
+    });
+    // The Discord account connected to this one, from the identity itself.
+    void supabase.auth.getUserIdentities().then(({ data: ids }) => {
+      const list = ids?.identities ?? [];
+      const d = list.find((i) => i.provider === "discord");
+      const info = (d?.identity_data ?? {}) as Record<string, unknown>;
+      const claims = (typeof info.custom_claims === "object" && info.custom_claims ? info.custom_claims : {}) as Record<string, unknown>;
+      const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
+      const username = (str(info.preferred_username) || str(info.name) || str(info.full_name)).replace(/#0$/, "");
+      setIdentity(d ? { username, display: str(claims.global_name) || str(info.full_name) || username, avatar: str(info.avatar_url) || str(info.picture), only: list.length < 2 } : null);
     });
   }, [refreshStanding]);
 
@@ -188,23 +216,46 @@ export function SettingsView({ discordEnabled = false, discordNotice }: { discor
 
           <section className={styles.panel}>
             <p className={styles.eyebrow}>02 / Programme contact</p>
-            <h2 className={styles.panelTitle}>Discord handle</h2>
-            <p className={styles.muted}>Your handle on the tester channel, so reports and feedback can be matched to this account. Optional; clear it to remove it.</p>
-            <div className={`${styles.feedback} ${styles.inlineForm}`}>
-              <input value={discord} onChange={(e) => setDiscord(e.target.value.slice(0, 40))} placeholder="e.g. watchroom" aria-label="Discord handle" disabled={!configured} />
-              <button type="button" className={styles.primary} onClick={saveDiscord} disabled={!configured || savingDiscord || discord.trim() === (initialDiscord ?? "")}>{savingDiscord ? "Saving…" : "Save"}</button>
-            </div>
-            <p className={styles.formStatus} role="status">{discordMsg}</p>
-            {discordEnabled && (
+            <h2 className={styles.panelTitle}>Discord</h2>
+            {identity ? (
               <>
-                <p className={styles.hint}>Or connect the Discord account itself: the handle is read from Discord and this account can then sign in with Discord.</p>
-                <form action={connectDiscord} className={styles.actions}>
-                  <button type="submit" className={`${styles.button} ${styles.small}`}>Connect Discord</button>
+                <p className={styles.muted}>This account is connected to a Discord account. The handle is read from Discord, and the account can sign in with Discord.</p>
+                <div className={styles.identityRow}>
+                  {identity.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className={styles.identityAvatar} src={identity.avatar} alt="" width={40} height={40} />
+                  ) : (
+                    <span className={styles.avatar} aria-hidden="true">DC</span>
+                  )}
+                  <span className={styles.identityName}><strong>@{identity.username || "discord"}</strong>{identity.display && identity.display !== identity.username ? <small>{identity.display}</small> : null}</span>
+                  <span className={`${styles.chip} ${styles.chipOk}`}>Connected</span>
+                </div>
+                <form action={disconnectDiscord} className={styles.actions}>
+                  <button type="submit" className={`${styles.button} ${styles.small}`} disabled={identity.only} title={identity.only ? "Discord is the only way into this account — set a password first" : "Remove the Discord account from this one"}>Disconnect Discord</button>
                 </form>
+                {identity.only && <p className={styles.hint}>Discord is the only way into this account. To disconnect it, set a password first: Forgotten password on the sign-in page sends a link to this address.</p>}
+              </>
+            ) : (
+              <>
+                <p className={styles.muted}>Your handle on the tester channel, so reports and feedback can be matched to this account. Optional; clear it to remove it.</p>
+                <div className={`${styles.feedback} ${styles.inlineForm}`}>
+                  <input value={discord} onChange={(e) => setDiscord(e.target.value.slice(0, 40))} placeholder="e.g. watchroom" aria-label="Discord handle" disabled={!configured} />
+                  <button type="button" className={styles.primary} onClick={saveDiscord} disabled={!configured || savingDiscord || discord.trim() === (initialDiscord ?? "")}>{savingDiscord ? "Saving…" : "Save"}</button>
+                </div>
+                <p className={styles.formStatus} role="status">{discordMsg}</p>
+                {discordEnabled && (
+                  <>
+                    <p className={styles.hint}>Or connect the Discord account itself: the handle is read from Discord, this account can then sign in with Discord, and the tester channel can be opened to it without anyone matching names.</p>
+                    <form action={connectDiscord} className={styles.actions}>
+                      <button type="submit" className={`${styles.button} ${styles.small}`} disabled={!configured}><Icon.discord /> Connect Discord</button>
+                    </form>
+                  </>
+                )}
               </>
             )}
-            {discordNotice === "linked" && <Notice tone="ok" title="Discord connected"><p>The Discord account is linked and its handle is on record.</p></Notice>}
-            {discordNotice === "failed" && <Notice tone="critical" title="Discord could not be connected"><p>Discord did not complete the connection, or connecting accounts is not switched on for this site yet. The handle can be typed above instead.</p></Notice>}
+            {discordNotice === "linked" && <Notice tone="ok" title="Discord connected"><p>The Discord account is linked: its handle is on record and this account can sign in with Discord.</p></Notice>}
+            {discordNotice === "unlinked" && <Notice tone="ok" title="Discord disconnected"><p>The Discord account has been removed from this one.</p></Notice>}
+            {discordNotice === "failed" && <Notice tone="critical" title="Discord could not be connected"><p>{failReason(discordReason)}</p></Notice>}
           </section>
 
           <section className={styles.panel}>
