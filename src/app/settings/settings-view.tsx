@@ -5,6 +5,7 @@
 // write to Supabase user metadata (the same fields signup collects);
 // audio and the record are device-local.
 
+import Link from "next/link";
 import { useActionState, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isMuted, setMuted, unlockAudio } from "@/lib/audio/sim-audio";
@@ -20,6 +21,14 @@ import { Notice } from "@/app/components/notice";
 
 /** The Discord account connected to this one, as the identity carries it. */
 type DiscordIdentity = { username: string; display: string; avatar: string; only: boolean };
+
+/** Who may open the service record on the public profile (migration 028). */
+type ProfileVisibility = "open" | "colleagues" | "private";
+const VISIBILITY: [ProfileVisibility, string, string][] = [
+  ["open", "Open", "Any signed-in operator can see your service record."],
+  ["colleagues", "Colleagues only", "Your record is for colleagues. Others see your callsign, standing and honours, and can send you a request."],
+  ["private", "Private", "Your record is yours alone, and nobody can send you a colleague request."],
+];
 
 /** Why a connection came back without connecting, in the person's words. */
 const FAIL_REASON: Record<string, string> = {
@@ -52,6 +61,8 @@ export function SettingsView({ discordEnabled = false, discordNotice, discordRea
   const [discordMsg, setDiscordMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const [visibility, setVisibility] = useState<ProfileVisibility>("open");
+  const [visMsg, setVisMsg] = useState("");
   const [, bump] = useState(0);
   const muted = useSyncExternalStore(noSubscribe, isMuted, () => false);
   const [deskPrefs, setDeskPrefs] = useDeskPrefs();
@@ -82,10 +93,12 @@ export function SettingsView({ discordEnabled = false, discordNotice, discordRea
       const meta = data.user?.user_metadata as {
         callsign?: string; advisor?: boolean; advisor_service?: string; advisor_status?: string; advisor_background?: string;
         advisor_force?: string; advisor_topics?: string[]; advisor_involvement?: string; advisor_notes?: string; advisor_contact_ok?: boolean; advisor_discord?: string;
+        profile_visibility?: string;
       } | null;
       const cs = meta?.callsign ?? "";
       setCallsign(cs);
       setInitialCallsign(cs);
+      setVisibility(meta?.profile_visibility === "colleagues" || meta?.profile_visibility === "private" ? meta.profile_visibility : "open");
       const dc = meta?.advisor_discord ?? "";
       setDiscord(dc);
       setInitialDiscord(dc);
@@ -171,6 +184,16 @@ export function SettingsView({ discordEnabled = false, discordNotice, discordRea
     setInitialDiscord(trimmed);
     setAdvisorMeta((m) => (m ? { ...m, discord: trimmed } : m));
     setDiscordMsg(trimmed ? "Discord handle updated." : "Discord handle removed.");
+  }
+
+  async function saveVisibility(v: ProfileVisibility) {
+    setVisibility(v);
+    if (!configured) return;
+    const { error } = await createClient().auth.updateUser({ data: { profile_visibility: v } });
+    setVisMsg(error ? "The change could not be saved. Try again in a moment."
+      : v === "open" ? "Saved. Any signed-in operator can see your record."
+        : v === "colleagues" ? "Saved. Your record is for colleagues; others see your callsign, standing and honours."
+          : "Saved. Your record is yours alone, and nobody can send you a colleague request.");
   }
 
   function toggleSound() {
@@ -303,6 +326,22 @@ export function SettingsView({ discordEnabled = false, discordNotice, discordRea
         </div>
 
         <div>
+          <section className={styles.panel}>
+            <p className={styles.eyebrow}>Profile</p>
+            <h2 className={styles.panelTitle}>Who sees your record</h2>
+            <p className={styles.muted}>Every operator has a profile the others can open from the leaderboard and the Colleagues page: callsign, standing and honours always; the service record as you choose here.</p>
+            <div className={styles.visibilityList} role="radiogroup" aria-label="Who sees your service record">
+              {VISIBILITY.map(([v, label, body]) => (
+                <label key={v}>
+                  <input type="radio" name="visibility" value={v} checked={visibility === v} onChange={() => saveVisibility(v)} disabled={!configured} />
+                  <div><strong>{label}</strong><span>{body}</span></div>
+                </label>
+              ))}
+            </div>
+            <p className={styles.formStatus} role="status">{visMsg}</p>
+            <p className={styles.formStatus}><Link href="/colleagues" className={styles.textLink}>Colleagues</Link></p>
+          </section>
+
           <section className={styles.panel}>
             <p className={styles.eyebrow}>Device record</p>
             <h2 className={styles.panelTitle}>Reset service record</h2>

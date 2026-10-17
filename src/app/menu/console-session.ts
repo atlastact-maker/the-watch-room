@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/supabase/server";
 import { effectiveShiftAccess } from "@/lib/auth/view-as";
+import { pendingColleagueCount } from "@/lib/operators";
 import type { ConsoleUser } from "./console-shell";
 
 // Who is sitting at the console, resolved once for every page of it:
@@ -15,12 +16,18 @@ export async function consoleSessionIfSignedIn(): Promise<ConsoleSession | null>
   if (!user) return null;
   // A real admin may be looking at the place as a tester would — and
   // then meets the tester's door: no shift while the doors are closed.
-  const { hasShift, realAdmin, asTester } = await effectiveShiftAccess(supabase, user.email);
+  // The colleague requests waiting on them ride along with the access
+  // check rather than after it, so the sidebar's count costs no extra wait.
+  const [{ hasShift, realAdmin, asTester }, pending] = await Promise.all([
+    effectiveShiftAccess(supabase, user.email),
+    pendingColleagueCount(supabase, user.id),
+  ]);
   const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
   return {
     userId: user.id,
     hasShift,
     realAdmin,
+    pending,
     callsign: typeof metadata.callsign === "string" ? metadata.callsign : "",
     email: user.email ?? "",
     discord: typeof metadata.advisor_discord === "string" ? metadata.advisor_discord : "",
@@ -41,6 +48,6 @@ export async function consoleSession(): Promise<ConsoleSession> {
 }
 
 /** Just the fields the frame renders. */
-export function consoleUser({ callsign, email, discord, isAdmin, viewAs }: ConsoleSession): ConsoleUser {
-  return { callsign, email, discord, isAdmin, viewAs };
+export function consoleUser({ callsign, email, discord, isAdmin, viewAs, pending }: ConsoleSession): ConsoleUser {
+  return { callsign, email, discord, isAdmin, viewAs, pending };
 }

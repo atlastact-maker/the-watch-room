@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { grantDiscordRoles } from "@/lib/discord/guild";
 import { hasAdminAccess } from "@/lib/auth/operator-access";
 import { isBugStatus } from "@/lib/bug-reports";
+import { AWARD_BY_KEY, isAwardKey } from "@/lib/awards";
 import { sendEmail } from "@/lib/email/send";
 import { advisorAcceptedEmail } from "@/lib/email/advisor-accepted";
 import { advisorDeclinedEmail } from "@/lib/email/advisor-declined";
@@ -440,4 +441,31 @@ export async function deleteAdminNote(formData: FormData): Promise<void> {
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
   revalidatePath("/admin/user");
+}
+
+/** Grant an honour by hand: one of the grantable awards, with the
+ *  citation that is shown on the profile (migration 028). */
+export async function grantAward(formData: FormData): Promise<void> {
+  const userId = String(formData.get("userId") ?? "").trim();
+  const award = String(formData.get("award") ?? "").trim();
+  const citation = String(formData.get("citation") ?? "").trim().slice(0, 280);
+  if (!/^[0-9a-f-]{36}$/i.test(userId) || !isAwardKey(award) || !AWARD_BY_KEY[award].grantable) return;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_grant_award", { p_user_id: userId, p_award_key: award, p_citation: citation });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/user");
+  revalidatePath(`/operators/${userId}`);
+  revalidatePath("/stats");
+}
+
+/** Take an honour back. */
+export async function revokeAward(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  const supabase = await adminClient();
+  const { error } = await supabase.rpc("admin_revoke_award", { p_id: id });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/user");
+  if (/^[0-9a-f-]{36}$/i.test(userId)) revalidatePath(`/operators/${userId}`);
 }

@@ -18,7 +18,7 @@ import styles from "./watch-menu.module.css";
 
 /** Where in the console a page sits: one of the menu's views, or one of
  *  the pages the sidebar links to. Decides which nav item is lit. */
-export type NavKey = MenuView | "record" | "library" | "briefing" | "admin" | "settings";
+export type NavKey = MenuView | "record" | "colleagues" | "library" | "briefing" | "admin" | "settings";
 
 /** The signed-in operator as the frame shows them. */
 export type ConsoleUser = {
@@ -27,6 +27,8 @@ export type ConsoleUser = {
   discord: string;
   isAdmin: boolean;
   viewAs: "admin" | "tester" | null;
+  /** Colleague requests waiting for an answer, for the sidebar's count. */
+  pending?: number;
 };
 
 function LogoutButton() {
@@ -34,11 +36,11 @@ function LogoutButton() {
   return <button className={styles.logout} disabled={pending} type="submit">{pending ? "Signing out…" : "Sign out"}</button>;
 }
 
-export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active, title, children }: ConsoleUser & { active: NavKey; title: string; children: React.ReactNode }) {
-  const nav = (key: NavKey, href: string, icon: IconName, label: string) => {
+export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, pending = 0, active, title, children }: ConsoleUser & { active: NavKey; title: string; children: React.ReactNode }) {
+  const nav = (key: NavKey, href: string, icon: IconName, label: string, count = 0) => {
     const I = Icon[icon];
     const current = active === key;
-    return <Link className={current ? styles.active : undefined} href={href} aria-current={current ? "page" : undefined}><I /><span>{label}</span></Link>;
+    return <Link className={current ? styles.active : undefined} href={href} aria-current={current ? "page" : undefined}><I /><span>{label}</span>{count > 0 && <span className={styles.navBadge} aria-label={`${count} waiting`}>{count}</span>}</Link>;
   };
   const ext = (href: string, icon: IconName, label: string) => {
     const I = Icon[icon];
@@ -57,6 +59,7 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, active
           {nav("overview", viewHref("overview"), "home", TITLES.overview)}
           {nav("shift", viewHref("shift"), "shift", "Start shift")}
           {nav("record", "/stats", "record", "Service record")}
+          {nav("colleagues", "/colleagues", "colleagues", "Colleagues", pending)}
           {nav("guide", viewHref("guide"), "guide", TITLES.guide)}
           {nav("briefing", "/prealpha", "briefing", "Pre-Alpha briefing")}
           <p>Programme</p>

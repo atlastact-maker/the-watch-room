@@ -26,6 +26,7 @@ export const Icon = {
   check: (p: P) => <svg {...base} {...p}><path d="m3.5 8.5 3 3 6-7" /></svg>,
   eye: (p: P) => <svg {...base} {...p}><path d="M1.8 8s2.3-4.2 6.2-4.2S14.2 8 14.2 8s-2.3 4.2-6.2 4.2S1.8 8 1.8 8z" /><circle cx="8" cy="8" r="2" /></svg>,
   warn: (p: P) => <svg {...base} {...p}><path d="M8 2.8 14 13H2z" /><path d="M8 6.5v3M8 11.3v.2" /></svg>,
+  colleagues: (p: P) => <svg {...base} {...p}><circle cx="6" cy="5.8" r="2.3" /><circle cx="11.2" cy="6.4" r="1.8" /><path d="M2.3 13.2c.2-2.4 1.8-3.9 3.7-3.9s3.5 1.5 3.7 3.9" /><path d="M10.2 12.6c.2-1.6 1.1-2.6 2.3-2.6 1 0 1.8.6 2.2 1.6" /></svg>,
 };
 
 export type IconName = keyof typeof Icon;

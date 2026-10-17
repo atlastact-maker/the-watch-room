@@ -141,6 +141,8 @@ export async function syncCareerStats(): Promise<CareerStats> {
 
 export type LeaderboardRow = {
   rank: number;
+  /** The account, for its public profile. */
+  userId: string;
   callsign: string;
   score: number;
   incidentsResolved: number;
@@ -165,6 +167,7 @@ export async function fetchLeaderboard(limit = 20): Promise<LeaderboardRow[] | n
     if (error || !data) return null;
     return data.map((r, i) => ({
       rank: i + 1,
+      userId: String(r.user_id),
       callsign: (r.callsign as string) || "OPERATOR",
       score: (r.score as number) ?? 0,
       incidentsResolved: (r.incidents_resolved as number) ?? 0,

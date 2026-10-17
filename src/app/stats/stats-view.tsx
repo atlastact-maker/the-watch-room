@@ -13,6 +13,9 @@ import { fetchLeaderboard, syncCareerStats, type LeaderboardRow } from "@/lib/si
 import { Icon } from "@/app/menu/icons";
 import { CAREER_KEY } from "@/app/menu/use-player-record";
 import { SERVICE_TINT, viewHref } from "@/app/menu/menu-types";
+import { EMPTY_FACTS, evaluateHonours, type HonourFacts } from "@/lib/awards";
+import { HonourList, RibbonRack } from "@/app/components/ribbon-rack";
+import type { OperatorProfile } from "@/lib/operators";
 import styles from "@/app/menu/watch-menu.module.css";
 
 const GRADES: Grade[] = ["A", "B", "C", "D", "F"];
@@ -49,7 +52,39 @@ function Tile({ value, label, hint, tint }: { value: string; label: string; hint
   );
 }
 
-export function StatsView() {
+/** The honours' figures as the device's record has them. */
+function factsFromStats(s: CareerStats): HonourFacts {
+  return {
+    ...EMPTY_FACTS,
+    incidentsResolved: s.incidentsResolved,
+    casualtiesSaved: s.casualtiesSaved,
+    gradeA: s.grades.A ?? 0,
+    graded: GRADES.reduce((t, g) => t + (s.grades[g] ?? 0), 0),
+    meanFirstAllocSec: s.firstAllocCount > 0 ? s.firstAllocSumSec / s.firstAllocCount : null,
+    targetsMet: s.targetsMet,
+    targetsTotal: s.targetsTotal,
+    distinctTypes: Object.keys(s.byType).length,
+  };
+}
+
+/** The account's standing from the server; the counters from whichever
+ *  side is further on, so a shift not yet synced still counts. */
+function mergeFacts(account: HonourFacts, local: HonourFacts): HonourFacts {
+  const ahead = local.incidentsResolved > account.incidentsResolved;
+  return {
+    ...account,
+    incidentsResolved: Math.max(account.incidentsResolved, local.incidentsResolved),
+    casualtiesSaved: Math.max(account.casualtiesSaved, local.casualtiesSaved),
+    gradeA: Math.max(account.gradeA, local.gradeA),
+    graded: Math.max(account.graded, local.graded),
+    meanFirstAllocSec: ahead ? local.meanFirstAllocSec : account.meanFirstAllocSec ?? local.meanFirstAllocSec,
+    targetsMet: local.targetsTotal > account.targetsTotal ? local.targetsMet : account.targetsMet,
+    targetsTotal: Math.max(account.targetsTotal, local.targetsTotal),
+    distinctTypes: Math.max(account.distinctTypes, local.distinctTypes),
+  };
+}
+
+export function StatsView({ profile = null, userId }: { profile?: OperatorProfile | null; userId?: string } = {}) {
   const raw = useSyncExternalStore(subscribe, getSnapshot, serverSnapshot);
   // raw is only a change signal; the parsed, defaulted record comes from the library.
   const stats = useMemo<CareerStats | null>(() => (raw === null ? null : loadCareerStats()), [raw]);
@@ -73,6 +108,14 @@ export function StatsView() {
   const busiest = stats ? Object.entries(stats.byType).sort((a, b) => b[1] - a[1]).slice(0, 6) : [];
   const score = stats ? commandScore(stats) : 0;
   const n = (v: number | undefined) => (stats ? String(v ?? 0) : "—");
+  // The rack: the account's standing from the server, the counters
+  // brought up to the device's record where a shift has not synced yet.
+  const honours = useMemo(() => {
+    const local = stats ? factsFromStats(stats) : null;
+    if (!profile && !local) return [];
+    const base = profile ? profile.facts : EMPTY_FACTS;
+    return evaluateHonours(local ? mergeFacts(base, local) : base, profile?.awards ?? []);
+  }, [profile, stats]);
 
   return (
     <>
@@ -87,6 +130,24 @@ export function StatsView() {
           <span className={styles.chip}>{configured ? "Account sync" : "Local record"}</span>
         </div>
       </header>
+
+      <section className={styles.panel} style={{ marginBottom: 24 }}>
+        <div className={styles.panelHead}>
+          <h2>Honours</h2>
+          <span className={styles.headMeta} style={{ paddingTop: 0 }}>
+            {userId && <Link href={`/operators/${userId}`} className={`${styles.button} ${styles.small}`}>Public profile <Icon.arrow /></Link>}
+            <Link href="/colleagues" className={`${styles.button} ${styles.small}`}>Colleagues</Link>
+          </span>
+        </div>
+        {honours.length === 0 ? (
+          <p className={styles.muted}>Nothing on the rack yet. The first incident closed with a stop message brings the first ribbon; thirty days on the books, the second.</p>
+        ) : (
+          <div className={styles.rackWrap}>
+            <RibbonRack honours={honours} width={76} />
+            <HonourList honours={honours} />
+          </div>
+        )}
+      </section>
 
       {stats && !played ? (
         <section className={`${styles.panel} ${styles.empty}`}>
@@ -162,7 +223,7 @@ export function StatsView() {
               {board.map((r) => (
                 <tr key={r.rank} className={r.isYou ? styles.you : undefined}>
                   <td>{String(r.rank).padStart(2, "0")}</td>
-                  <td>{r.callsign}{r.isYou ? " · this account" : ""}</td>
+                  <td><Link href={`/operators/${r.userId}`} className={styles.textLink}>{r.callsign}</Link>{r.isYou ? " · this account" : ""}</td>
                   <td className={styles.num}>{r.incidentsResolved}</td>
                   <td className={styles.num}>{r.casualtiesSaved}</td>
                   <td className={styles.num}>{r.score}</td>

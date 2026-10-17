@@ -6,6 +6,7 @@
 //
 //   ?view=overview|shift|guide|updates                 a menu view (default overview)
 //   ?page=record|library|releases|settings|briefing    another console page instead
+//   ?page=profile|colleagues                           the operator profile (&rel=none|colleague|requested|pending|self, &hidden=1) and the colleagues page
 //   ?page=landing|login|signup|forgot|reset|terms|standby|invite   a public page
 //   ?admin=1                                           show the administrator items
 //
@@ -29,6 +30,10 @@ import { SettingsView } from "@/app/settings/settings-view";
 import { SignupView } from "@/app/signup/signup-view";
 import { StandbyView } from "@/app/standby/standby-view";
 import { StatsView } from "@/app/stats/stats-view";
+import { ColleaguesView } from "@/app/colleagues/colleagues-view";
+import { ProfileView } from "@/app/operators/[id]/profile-view";
+import { evaluateHonours } from "@/lib/awards";
+import type { ColleagueRow, OperatorHit, OperatorProfile } from "@/lib/operators";
 import { TermsView } from "@/app/terms/terms-view";
 import { PREALPHA_ACCESS_STEPS, PREALPHA_ASKS, PREALPHA_FOCUS, PREALPHA_KEY_DATES, PREALPHA_NOT_YET, PREALPHA_OPENING_SCENARIOS, PREALPHA_RELEASE_AT, PREALPHA_RELEASE_LABEL } from "@/lib/prealpha-programme";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
@@ -45,7 +50,7 @@ const fleet: StationWithAppliances[] = STATIONS.map((s) => ({ ...s, appliances: 
 const USER = { callsign: "M2 CONTROL", email: "dev@example.test", discord: "watchroom" };
 const SIGNUPS = { open: true, closed: false, closes: "16 October", opens: "" };
 
-type ConsolePage = "record" | "library" | "releases" | "settings" | "briefing";
+type ConsolePage = "record" | "library" | "releases" | "settings" | "briefing" | "profile" | "colleagues";
 type PublicPage = "landing" | "login" | "signup" | "forgot" | "reset" | "terms" | "standby" | "invite" | "briefing-visitor" | "briefing-waiting";
 const CONSOLE: Record<ConsolePage, { title: string; nav: NavKey }> = {
   record: { title: "Service record", nav: "record" },
@@ -53,7 +58,35 @@ const CONSOLE: Record<ConsolePage, { title: string; nav: NavKey }> = {
   releases: { title: "Release notes", nav: "updates" },
   settings: { title: "Settings", nav: "settings" },
   briefing: { title: "Pre-Alpha briefing", nav: "briefing" },
+  profile: { title: "OSCAR 21", nav: "colleagues" },
+  colleagues: { title: "Colleagues", nav: "colleagues" },
 };
+
+const NOW = Date.parse("2026-10-17T12:00:00Z");
+const MOCK_PROFILE: OperatorProfile = {
+  userId: "00000000-0000-4000-8000-000000000001", callsign: "OSCAR 21", joinedAt: "2026-09-02T09:00:00Z", role: "operator", insignia: "fire", advisor: false, tester: true,
+  visibility: "open", relation: "none", visible: true,
+  stats: {
+    score: 212, calls_answered: 61, incidents_resolved: 54, grades: { A: 22, B: 18, C: 9, D: 4, F: 1 }, resources_allocated: 203, first_alloc_sum_sec: 2964, first_alloc_count: 54,
+    targets_met: 141, targets_total: 162, casualties_saved: 31, casualties_lost: 3,
+    by_type: { dwelling_fire_persons_reported: 14, rtc_entrapment: 9, cardiac_arrest: 8, automatic_fire_alarm: 7, pursuit: 5, vehicle_stop: 4, assault: 3, flooding: 2, missing_person: 2 }, updated_at: "2026-10-17T10:40:00Z",
+  },
+  rank: 3, players: 48, colleagues: 6,
+  awards: [{ id: "a1", key: "commendation", citation: "For the Hough End arrest, worked as a crew would work it.", grantedAt: "2026-10-10T18:00:00Z" }],
+  discord: null, lastActive: "2026-10-17T10:40:00Z",
+  facts: { joinedAt: "2026-09-02T09:00:00Z", tester: true, advisor: false, bugReports: 6, incidentsResolved: 54, casualtiesSaved: 31, gradeA: 22, graded: 54, meanFirstAllocSec: 54.9, targetsMet: 141, targetsTotal: 162, distinctTypes: 9 },
+};
+const MOCK_COLLEAGUES: ColleagueRow[] = [
+  { userId: "00000000-0000-4000-8000-000000000002", callsign: "BRAVO 4", relation: "pending", since: "2026-10-17T09:12:00Z", insignia: "police", role: null, score: 44, incidentsResolved: 12, lastActive: "2026-10-16T21:00:00Z" },
+  { userId: "00000000-0000-4000-8000-000000000003", callsign: "NWAS 1", relation: "colleague", since: "2026-10-02T12:00:00Z", insignia: "ambulance", role: "advisor", score: 158, incidentsResolved: 40, lastActive: "2026-10-17T08:30:00Z" },
+  { userId: "00000000-0000-4000-8000-000000000004", callsign: "M2 CONTROL", relation: "colleague", since: "2026-10-05T12:00:00Z", insignia: "control", role: "admin", score: 301, incidentsResolved: 77, lastActive: "2026-10-17T11:55:00Z" },
+  { userId: "00000000-0000-4000-8000-000000000005", callsign: "ECHO 9", relation: "requested", since: "2026-10-15T12:00:00Z", insignia: null, role: null, score: 0, incidentsResolved: 0, lastActive: null },
+];
+const MOCK_FOUND: OperatorHit[] = [
+  { userId: "00000000-0000-4000-8000-000000000006", callsign: "TANGO 7", relation: "none", insignia: null, role: null, tester: true, score: 25, incidentsResolved: 7, lastActive: "2026-10-17T11:00:00Z" },
+  { userId: "00000000-0000-4000-8000-000000000003", callsign: "NWAS 1", relation: "colleague", insignia: "ambulance", role: "advisor", tester: true, score: 158, incidentsResolved: 40, lastActive: "2026-10-17T08:30:00Z" },
+  { userId: "00000000-0000-4000-8000-000000000007", callsign: "KILO 2", relation: "none", insignia: "fire", role: null, tester: false, score: 12, incidentsResolved: 3, lastActive: "2026-10-16T19:00:00Z" },
+];
 const AUTH_LINKS: PublicLink[] = [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }];
 const PUBLIC: Record<PublicPage, { brandLine: string; width: "narrow" | "page" | "wide"; links: PublicLink[]; chip?: string }> = {
   landing: { brandLine: "Incident management simulator", width: "wide", links: [{ href: "/prealpha", label: "Pre-Alpha briefing" }, { href: "/login", label: "Sign in", button: true }, { href: "/signup?prealpha=1", label: "Create an account", primary: true }] },
@@ -88,7 +121,7 @@ export default function MenuHarness() {
     return () => clearTimeout(t);
   }, []);
   if (!opts) return null;
-  const user = { ...USER, isAdmin: opts.admin, viewAs: opts.admin ? ("admin" as const) : null };
+  const user = { ...USER, isAdmin: opts.admin, viewAs: opts.admin ? ("admin" as const) : null, pending: Number(param("pending") ?? 0) || 0 };
   const { page } = opts;
 
   if (isPublic(page)) {
@@ -112,7 +145,9 @@ export default function MenuHarness() {
     const { title, nav } = CONSOLE[page];
     return (
       <ConsoleShell {...user} active={nav} title={title}>
-        {page === "record" && <StatsView />}
+        {page === "record" && <StatsView profile={param("rack") === "1" ? MOCK_PROFILE : null} userId={param("rack") === "1" ? MOCK_PROFILE.userId : undefined} />}
+        {page === "profile" && <ProfileView profile={{ ...MOCK_PROFILE, relation: (param("rel") as OperatorProfile["relation"] | null) ?? "none", visible: param("hidden") !== "1", visibility: param("hidden") === "1" ? "colleagues" : "open" }} honours={evaluateHonours(MOCK_PROFILE.facts, MOCK_PROFILE.awards, NOW)} notice={param("notice") ?? undefined} />}
+        {page === "colleagues" && <ColleaguesView rows={MOCK_COLLEAGUES} found={MOCK_FOUND} query={param("q") ?? ""} notice={param("notice") ?? undefined} />}
         {page === "library" && <LibraryView stations={fleet} />}
         {page === "releases" && <ReleaseNotes />}
         {page === "settings" && <SettingsView discordEnabled={param("discord") !== "0"} discordNotice={(["linked", "failed", "unlinked"].includes(param("notice") ?? "") ? param("notice") : undefined) as "linked" | "failed" | "unlinked" | undefined} discordReason={param("reason") ?? undefined} />}

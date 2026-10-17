@@ -9,7 +9,9 @@ import { ServiceBadge, serviceKeyFor } from "@/app/components/service-insignia";
 import { labelForType } from "@/lib/sim/pda";
 import type { IncidentTypeCode } from "@/lib/sim/incident_types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addAdminNote, decideTesterApplication, deleteAdminNote, setBan, setTester } from "../actions";
+import { addAdminNote, decideTesterApplication, deleteAdminNote, grantAward, revokeAward, setBan, setTester } from "../actions";
+import { AWARD_BY_KEY, GRANTABLE } from "@/lib/awards";
+import { Ribbon } from "@/app/components/ribbon-rack";
 
 // One person, for the admin: the account and its standing, the advisor
 // application and the Pre-Alpha request they filed, their service record
@@ -249,6 +251,11 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
   }
 
   const s = p.stats;
+  // Honours granted by hand (migration 028); the table may not be there yet.
+  type AwardRow = { id: string; award_key: string; citation: string; granted_by: string; created_at: string };
+  const awardsRes = await supabase.from("user_awards").select("id, award_key, citation, granted_by, created_at").eq("user_id", p.user_id).order("created_at");
+  const honoursOn = !awardsRes.error;
+  const awards = (honoursOn ? awardsRes.data ?? [] : []) as AwardRow[];
   const grades: Record<Grade, number> = { A: 0, B: 0, C: 0, D: 0, F: 0, ...(s?.grades ?? {}) };
   const gradeMax = Math.max(1, ...GRADE_ORDER.map((g) => grades[g]));
   const gradedTotal = GRADE_ORDER.reduce((n, g) => n + grades[g], 0);
@@ -346,6 +353,51 @@ export default async function AdminUserPage({ searchParams }: { searchParams: Pr
             </div>
           </>
         )}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHead}>
+          <h2>Honours</h2>
+          <span className={styles.chip}>{awards.length} granted by hand</span>
+        </div>
+        {!honoursOn ? (
+          <p className={styles.muted}>Run supabase/migrations/028_colleagues_and_honours.sql once in the Supabase SQL editor for honours, profiles and colleagues.</p>
+        ) : (
+          <>
+            {awards.length === 0 ? (
+              <p className={styles.muted}>Nothing granted by hand. The honours earned from the record appear on the profile by themselves.</p>
+            ) : (
+              <ul className={styles.kv}>
+                {awards.map((a) => (
+                  <li key={a.id}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      {AWARD_BY_KEY[a.award_key] && <Ribbon award={AWARD_BY_KEY[a.award_key]} width={40} />}
+                      {AWARD_BY_KEY[a.award_key]?.name ?? a.award_key}
+                      {a.citation ? <em style={{ color: "var(--muted)" }}>&ldquo;{a.citation}&rdquo;</em> : null}
+                    </span>
+                    <span>
+                      {fmtDate(a.created_at)}{a.granted_by ? ` · ${a.granted_by}` : ""}
+                      <form action={revokeAward} style={{ display: "inline", marginLeft: 10 }}>
+                        <input type="hidden" name="id" value={a.id} />
+                        <input type="hidden" name="userId" value={p.user_id} />
+                        <button type="submit" className={styles.textButton}>Revoke</button>
+                      </form>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form action={grantAward} className={`${styles.feedback} ${styles.inlineForm}`}>
+              <input type="hidden" name="userId" value={p.user_id} />
+              <select name="award" aria-label="Honour" defaultValue="commendation">
+                {GRANTABLE.map((a) => <option key={a.key} value={a.key}>{a.name}</option>)}
+              </select>
+              <input name="citation" placeholder="Citation, shown on the profile" maxLength={280} aria-label="Citation" />
+              <button type="submit" className={`${styles.button} ${styles.small}`}>Grant</button>
+            </form>
+          </>
+        )}
+        <p className={styles.formStatus}><Link href={`/operators/${p.user_id}`} className={styles.textLink}>Public profile, as operators see it</Link></p>
       </section>
 
       <section className={styles.panel}>
