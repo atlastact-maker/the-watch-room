@@ -717,6 +717,38 @@
 
 @media (max-width: 760px) {
   .rackWrap { grid-template-columns: 1fr; }
-  .rack { width: 100%; }
+  .rack { width: 100%; padding: 10px; }
+  .rackRow { justify-content: center; }
+  .rack .ribbon { width: calc((100% - 9px) / 4); max-width: 76px; height: auto; }
   .people { grid-template-columns: 1fr; }
 }
+
+/* ---- the bell: count, panel, pop-up --------------------------------------- */
+.bellWrap { position: relative; display: inline-flex; margin-right: 14px; }
+.bell { position: relative; display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line-2); border-radius: var(--radius); background: #141a1c; color: #aab4b1; cursor: pointer; }
+.bell:hover { color: var(--text); background: #1a2123; }
+.bellLive { color: var(--amber); border-color: #5a4a26; }
+.bellCount { position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--amber); color: var(--ink); font: 700 9.5px/16px var(--font-geist-mono), monospace; text-align: center; }
+.bellPanel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); box-shadow: 0 18px 40px rgba(0, 0, 0, .55); text-align: left; font: 400 13px/1.5 var(--font-geist-sans), system-ui, sans-serif; text-transform: none; letter-spacing: normal; color: var(--text); }
+.bellHead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.bellHead strong { font-size: 13.5px; }
+.bellHead .textButton { font-size: 12px; }
+.bellList { list-style: none; margin: 0; padding: 0; display: grid; }
+.bellList li { border-top: 1px solid var(--line); }
+.bellList li:first-child { border-top: 0; }
+.bellList a { display: grid; gap: 3px; padding: 10px 8px; margin: 0 -8px; border-radius: var(--radius); color: var(--text); text-decoration: none; }
+.bellList a:hover { background: var(--panel-2); }
+.bellList strong { font-size: 13px; font-weight: 600; }
+.bellList span { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.bellList small { font: 500 10px var(--font-geist-mono), monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.bellUnread a { position: relative; padding-left: 18px; }
+.bellUnread a::before { content: ""; position: absolute; left: 6px; top: 16px; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; width: min(380px, calc(100vw - 32px)); padding: 12px 12px 12px 14px; border: 1px solid #5a4a26; border-left: 3px solid var(--amber); border-radius: 6px; background: var(--panel); box-shadow: 0 18px 40px rgba(0, 0, 0, .55); animation: toastIn .25s ease-out; font: 400 13px/1.5 var(--font-geist-sans), system-ui, sans-serif; text-transform: none; letter-spacing: normal; color: var(--text); text-align: left; }
+.toast a { flex: 1 1 auto; display: grid; gap: 3px; color: var(--text); text-decoration: none; min-width: 0; }
+.toast strong { font-size: 13.5px; font-weight: 600; }
+.toast span { font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.toastClose { flex: 0 0 auto; width: 26px; height: 26px; border: 1px solid var(--line-2); border-radius: var(--radius); background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.toastClose:hover { color: var(--text); }
+@keyframes toastIn { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media (max-width: 760px) { .toast { right: 12px; left: 12px; bottom: 12px; width: auto; } }

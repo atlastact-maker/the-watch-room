@@ -104,7 +104,7 @@ function CodeForm({ next, onPassword }: { next?: string; onPassword: () => void 
     <>
       <Notice tone="ok" title="Code sent">
         <p>An eight-digit code has been sent to {sentTo}. Enter it below; the message also carries a button that signs you in directly on the device that opens it.</p>
-        <p>Nothing within a minute or two? Look in the junk folder for a message titled &ldquo;Your sign-in code&rdquo;. Only the newest code works: if you send another, use that one.</p>
+        <p>Nothing within a minute or two? Look in the junk folder for a message titled &ldquo;Your sign-in code&rdquo;. Only the newest code works: if you send another, use that one. An account that has never confirmed its address gets a confirmation link instead of a code; follow it and you are in.</p>
       </Notice>
       <form action={verifyAction} className={styles.feedback}>
         <input type="hidden" name="email" value={sentTo} />

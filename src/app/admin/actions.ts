@@ -451,7 +451,12 @@ export async function grantAward(formData: FormData): Promise<void> {
   const citation = String(formData.get("citation") ?? "").trim().slice(0, 280);
   if (!/^[0-9a-f-]{36}$/i.test(userId) || !isAwardKey(award) || !AWARD_BY_KEY[award].grantable) return;
   const supabase = await adminClient();
-  const { error } = await supabase.rpc("admin_grant_award", { p_user_id: userId, p_award_key: award, p_citation: citation });
+  // Migration 029 adds the honour's name for the recipient's notification;
+  // before it the three-argument function is what exists.
+  let { error } = await supabase.rpc("admin_grant_award", { p_user_id: userId, p_award_key: award, p_citation: citation, p_award_name: AWARD_BY_KEY[award].name });
+  if (error && /admin_grant_award|schema cache/i.test(error.message)) {
+    ({ error } = await supabase.rpc("admin_grant_award", { p_user_id: userId, p_award_key: award, p_citation: citation }));
+  }
   if (error) throw new Error(error.message);
   revalidatePath("/admin/user");
   revalidatePath(`/operators/${userId}`);

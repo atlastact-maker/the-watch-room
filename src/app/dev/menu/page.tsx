@@ -121,7 +121,11 @@ export default function MenuHarness() {
     return () => clearTimeout(t);
   }, []);
   if (!opts) return null;
-  const user = { ...USER, isAdmin: opts.admin, viewAs: opts.admin ? ("admin" as const) : null, pending: Number(param("pending") ?? 0) || 0 };
+  const user = {
+    ...USER, isAdmin: opts.admin, viewAs: opts.admin ? ("admin" as const) : null, pending: Number(param("pending") ?? 0) || 0,
+    userId: MOCK_PROFILE.userId, unread: Number(param("unread") ?? 0) || 0,
+    demoToast: param("toast") === "1" ? { id: "t1", kind: "colleague_request" as const, title: "BRAVO 4 asked to be your colleague", body: "Accept or decline on the Colleagues page.", href: "/colleagues", created_at: new Date(NOW).toISOString(), read_at: null } : null,
+  };
   const { page } = opts;
 
   if (isPublic(page)) {
@@ -155,5 +159,5 @@ export default function MenuHarness() {
       </ConsoleShell>
     );
   }
-  return <WatchMenu key={opts.view} view={opts.view} userId="dev-user" {...user} discord={param("nodiscord") === "1" ? "" : user.discord} facts={facts} stations={stations} systems={{ routing: "own", routingHost: "osrm.thewtchroom.co.uk", mapData: "loaded", mapKinds: ["roads", "hydrants"], account: false, doorsOpen: true, released: 7 }} />;
+  return <WatchMenu key={opts.view} view={opts.view} {...user} discord={param("nodiscord") === "1" ? "" : user.discord} facts={facts} stations={stations} systems={{ routing: "own", routingHost: "osrm.thewtchroom.co.uk", mapData: "loaded", mapKinds: ["roads", "hydrants"], account: false, doorsOpen: true, released: 7 }} />;
 }

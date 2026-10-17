@@ -26,8 +26,8 @@ type Props = ConsoleUser & {
 export function WatchMenu({ userId, view, facts, stations, systems = null, ...user }: Props) {
   const record = usePlayerRecord();
   return (
-    <ConsoleShell {...user} active={view} title={TITLES[view]}>
-      {view === "overview" && <OverviewView record={record} callsign={user.callsign} discord={user.discord} facts={facts} stations={stations} systems={systems} />}
+    <ConsoleShell {...user} userId={userId} active={view} title={TITLES[view]}>
+      {view === "overview" && <OverviewView record={record} callsign={user.callsign} discord={user.discord} facts={facts} stations={stations} systems={systems} pending={user.pending ?? 0} />}
       {view === "shift" && <ShiftView hasSave={!!record.save} ready={record.loaded && !record.unavailable} />}
       {view === "guide" && <GuideView />}
       {view === "updates" && <UpdatesView userId={userId} />}

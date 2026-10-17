@@ -21,7 +21,7 @@ empty to follow the project.
    Discord: enable it and paste the Client ID and Secret.
 3. **Supabase dashboard** → Authentication → URL Configuration: the Site
    URL is `https://thewtchroom.co.uk` and the redirect allow list carries
-   `https://thewtchroom.co.uk/auth/confirm` (and the Vercel preview
+   `https://thewtchroom.co.uk/auth/confirm (the www host redirects to the bare domain, so no second entry is needed)` (and the Vercel preview
    pattern if previews should work).
 4. For **Connect Discord** on an existing account, also turn on
    Authentication → Sign In / Providers → *Allow manual linking*. Without

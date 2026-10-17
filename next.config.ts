@@ -19,6 +19,20 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // One host. The site answered on www as well as the bare domain, and a
+  // session is per host: a tester who signed in on one was signed out on
+  // the other, and the buttons in the auth emails point at the bare
+  // domain. Everything on www goes to the bare domain for good.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.thewtchroom.co.uk" }],
+        destination: "https://thewtchroom.co.uk/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

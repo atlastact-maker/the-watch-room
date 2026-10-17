@@ -68,7 +68,9 @@ matcher and the logo becomes a broken image in every email already sent.
   links from `{{ .SiteURL }}`, so if this is wrong (a `localhost:3000`
   left over from development, say) every link in every email points at a
   machine that is not the website.
-- **Redirect URLs** — include `https://thewtchroom.co.uk/**`.
+- **Redirect URLs** — include `https://thewtchroom.co.uk/**`. The www
+  host redirects to the bare domain (next.config.ts), so that one entry
+  covers every link.
 
 ## Sending from your own address
 

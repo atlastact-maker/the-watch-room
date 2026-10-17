@@ -24,7 +24,7 @@ const GRADE_TONE: Record<string, string> = { A: styles.gradeA, B: styles.gradeB,
 const unitsWord = (service: ServiceCode) => (service === "Fire" ? "appliances" : service === "Ambulance" ? "vehicles" : "units");
 const shiftStatus = (record: PlayerRecord) => (!record.loaded ? "Reading shift status…" : record.save ? "Shift in progress" : "No shift in progress");
 
-export function OverviewView({ record, callsign, discord, facts, stations, systems }: { record: PlayerRecord; callsign: string; discord: string; facts: CountyFacts; stations: PlateStation[]; systems: SystemsStatus | null }) {
+export function OverviewView({ record, callsign, discord, facts, stations, systems, pending = 0 }: { record: PlayerRecord; callsign: string; discord: string; facts: CountyFacts; stations: PlateStation[]; systems: SystemsStatus | null; pending?: number }) {
   const savedAgo = record.save ? Math.max(0, Math.round((record.now - record.save.savedAt) / 60000)) : 0;
   const career = record.career;
   const played = !!career && (career.callsAnswered > 0 || career.incidentsResolved > 0);
@@ -114,7 +114,10 @@ export function OverviewView({ record, callsign, discord, facts, stations, syste
         <section className={styles.panel}>
           <div className={styles.panelHead}>
             <h2>Service record</h2>
-            <Link href="/stats">Full record and leaderboard <Icon.arrow /></Link>
+            <span className={styles.headMeta} style={{ paddingTop: 0 }}>
+              <Link href="/colleagues">Colleagues{pending > 0 ? ` · ${pending} waiting` : ""}</Link>
+              <Link href="/stats">Full record and leaderboard <Icon.arrow /></Link>
+            </span>
           </div>
           {!record.loaded ? (
             <p className={styles.muted}>Reading the service record…</p>

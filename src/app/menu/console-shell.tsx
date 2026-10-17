@@ -13,6 +13,8 @@ import { logout } from "@/lib/auth/actions";
 import { LATEST } from "@/lib/changelog";
 import { setViewAs } from "@/app/actions/view-as";
 import { Icon, type IconName } from "./icons";
+import { NotificationBell } from "@/app/components/notification-bell";
+import type { NotificationRow } from "@/lib/notifications";
 import { COMMUNITY, TITLES, viewHref, type MenuView } from "./menu-types";
 import styles from "./watch-menu.module.css";
 
@@ -29,6 +31,12 @@ export type ConsoleUser = {
   viewAs: "admin" | "tester" | null;
   /** Colleague requests waiting for an answer, for the sidebar's count. */
   pending?: number;
+  /** The account id, for the bell's subscription and the profile link. */
+  userId?: string;
+  /** Unread notifications, for the bell's count. */
+  unread?: number;
+  /** A pop-up to show on load (the dev harness). */
+  demoToast?: NotificationRow | null;
 };
 
 function LogoutButton() {
@@ -36,7 +44,7 @@ function LogoutButton() {
   return <button className={styles.logout} disabled={pending} type="submit">{pending ? "Signing out…" : "Sign out"}</button>;
 }
 
-export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, pending = 0, active, title, children }: ConsoleUser & { active: NavKey; title: string; children: React.ReactNode }) {
+export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, pending = 0, userId, unread = 0, demoToast, active, title, children }: ConsoleUser & { active: NavKey; title: string; children: React.ReactNode }) {
   const nav = (key: NavKey, href: string, icon: IconName, label: string, count = 0) => {
     const I = Icon[icon];
     const current = active === key;
@@ -78,7 +86,7 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, pendin
           )}
         </nav>
         <div className={styles.account}>
-          <Link href="/settings" title={email} className={styles.who}>
+          <Link href={userId ? `/operators/${userId}` : "/settings"} title={userId ? "Your profile, as other operators see it" : email} className={styles.who}>
             <span className={styles.avatar} aria-hidden="true">{(callsign || email || "?").slice(0, 2).toUpperCase()}</span>
             <span><strong>{callsign || "Operator account"}</strong><small>{viewAs === "tester" ? "Administrator · viewing as tester" : isAdmin ? "Administrator" : "Operator"}</small></span>
           </Link>
@@ -96,7 +104,10 @@ export function ConsoleShell({ callsign, email, discord, isAdmin, viewAs, pendin
       <main className={styles.main}>
         <div className={styles.topbar}>
           <span>Operator console <i>/</i> <strong>{title}</strong></span>
-          <span className={styles.topbarRight}><span className={styles.liveDot} aria-hidden="true" />Greater Manchester</span>
+          <span className={styles.topbarRight}>
+            {userId && <NotificationBell userId={userId} initialUnread={unread} demo={demoToast} />}
+            <span className={styles.liveDot} aria-hidden="true" />Greater Manchester
+          </span>
         </div>
         <div className={styles.content}>
           {children}

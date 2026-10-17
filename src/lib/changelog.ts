@@ -38,6 +38,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Admins see the linked Discord account on the Accounts list, the advisor list and the profile, marked as verified, with the id (migration 027).",
       "With the site's bot in the server, a linked account on the Pre-Alpha list is put in the server and given the tester role by itself, and an accepted advisor the advisor role; Admin shows the bot's status and can grant a role by hand.",
       "Admins grant and revoke honours from the account profile and open any account's public profile from there (migration 028).",
+      "The bell: a notification centre on the console's top bar. A colleague request, an acceptance or an honour added to the rack lands there with a count, and while the console is open it arrives as a pop-up as well (migration 029). The desk is left alone.",
+      "One host: www now goes to the bare domain, so a sign-in on one is a sign-in on the other and every link in the emails lands signed in.",
+      "The account card in the sidebar opens your own profile, the overview links to Colleagues with the requests waiting, and the Code sent notice says what an unconfirmed account gets instead of a code.",
     ],
   },
   {
