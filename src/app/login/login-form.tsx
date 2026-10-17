@@ -103,7 +103,8 @@ function CodeForm({ next, onPassword }: { next?: string; onPassword: () => void 
   return (
     <>
       <Notice tone="ok" title="Code sent">
-        <p>If an account uses {sentTo}, an eight-digit code has been sent to it. Enter the code below; the message also carries a button that signs you in directly on the device that opens it.</p>
+        <p>An eight-digit code has been sent to {sentTo}. Enter it below; the message also carries a button that signs you in directly on the device that opens it.</p>
+        <p>Nothing within a minute or two? Look in the junk folder for a message titled &ldquo;Your sign-in code&rdquo;. Only the newest code works: if you send another, use that one.</p>
       </Notice>
       <form action={verifyAction} className={styles.feedback}>
         <input type="hidden" name="email" value={sentTo} />

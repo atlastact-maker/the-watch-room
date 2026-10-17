@@ -70,7 +70,11 @@ export async function resendConfirmation(_state: AuthFormState, formData: FormDa
 }
 
 /** Sign in by emailed code: step one, the code. An address with no
- *  account gets the same answer as one with. */
+ *  account is told so. Supabase refuses the request for an unknown
+ *  address (shouldCreateUser is off), and the page used to show "Code
+ *  sent" regardless so as not to say which addresses hold accounts;
+ *  on a closed programme that left people waiting for a code that was
+ *  never sent, most often after a slip in the address. */
 export async function requestSignInCode(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const parsed = CodeRequestSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
@@ -80,7 +84,12 @@ export async function requestSignInCode(_state: AuthFormState, formData: FormDat
     email: parsed.data.email,
     options: { shouldCreateUser: false, emailRedirectTo: `${origin}/auth/confirm?next=/menu` },
   });
-  if (error && !/signups not allowed|not found/i.test(error.message)) return { errors: { form: [friendlyAuthError(error.message)] } };
+  if (error) {
+    if (error.code === "otp_disabled" || /signups not allowed|not found/i.test(error.message)) {
+      return { errors: { email: [`No account is registered with ${parsed.data.email}. Check the address, or use the one the account was registered with. New here? Register first.`] } };
+    }
+    return { errors: { form: [friendlyAuthError(error.message)] } };
+  }
   return { codeSent: parsed.data.email };
 }
 

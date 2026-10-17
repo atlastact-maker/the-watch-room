@@ -18,7 +18,8 @@ export const discordSignInEnabled = cache(async function discordSignInEnabled():
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return false;
   try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/auth/v1/settings`, { headers: { apikey: key }, next: { revalidate: 300 } });
+    // Bounded: the sign-in page must never wait on this call.
+    const res = await fetch(`${url.replace(/\/$/, "")}/auth/v1/settings`, { headers: { apikey: key }, next: { revalidate: 300 }, signal: AbortSignal.timeout(2500) });
     if (!res.ok) return false;
     const body = (await res.json()) as { external?: Record<string, boolean> };
     return body.external?.discord === true;
