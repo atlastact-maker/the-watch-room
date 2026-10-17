@@ -42,6 +42,16 @@ export type SubjectSpec = {
    *  rather than a resource on the board. It holds the track until a
    *  real unit takes over or the desk calls it off. */
   initialUnitCallsign?: string;
+  /** Points the road is driven through, in order, before the destination
+   *  — a pursuit that loops round the estate rather than running straight
+   *  out of the area in eighty seconds. */
+  via?: LatLng[];
+  /** How the run ends if the car reaches the end of its road with nobody
+   *  having stopped it: it pulls over, it goes into something, or it is
+   *  dumped with the occupants away on foot. Absent, it is parked up and
+   *  gone — a decamp if it was being chased at the time, otherwise just
+   *  beyond the cameras. */
+  ending?: "stops" | "crash" | "decamp";
 };
 
 /** The pursuit as the control room sees it. Authority sits with the
@@ -114,7 +124,79 @@ export type SubjectVehicle = {
   stingerAt?: number;
   /** Present from the first fail-to-stop onwards. */
   pursuit?: PursuitState;
+  /** The authored ending, when the run has one. */
+  ending?: "stops" | "crash" | "decamp";
+  /** It stopped by hitting something: the driver is a patient. */
+  crashed?: boolean;
+  /** It was dumped with the occupants away on foot — rather than simply
+   *  driven out of the cameras' reach. */
+  decamped?: boolean;
 };
+
+// ---- The chase --------------------------------------------------------------
+//
+// Police cars sent to a job with a live pursuit take it up: once they are
+// within reach of the track, or have reached the point it started from,
+// they are on the subject's road behind it, closing at the difference
+// between flat out and the subject's pace, and they hold the track from
+// there. The dashboard owns the gap per car; these are the rules.
+
+/** A car behind the subject: when it joined and how far back it is. */
+export type Chaser = { incidentId: string; joinedAt: number; gapM: number };
+
+/** Police cars that can take up a pursuit. Vans, dogs, the aircraft and
+ *  the search team go to wherever it ends. */
+export const CHASE_TYPES = new Set(["Police_Response", "Police_RPU", "Police_ARV", "Police_TraffMot"]);
+/** Flat out on blues, by what they drive. */
+export const CHASE_KPH: Record<string, number> = { Police_RPU: 140, Police_TraffMot: 140, Police_ARV: 130, Police_Response: 115 };
+/** A car this close to a live track is behind it. */
+export const CHASE_JOIN_M = 1500;
+/** Where the cars sit once they have caught up: the first close on its
+ *  boot, the rest spaced back along the road. */
+export const CHASE_SLOT_M = 55;
+export const CHASE_SLOT_GAP_M = 45;
+/** A car further back than this when the run ends was still closing: it
+ *  drives on to the scene rather than being there already. */
+export const CHASE_CATCH_UP_M = 400;
+
+/** A live pursuit the desk has not called off: cars can be behind it. */
+export function pursuable(s: SubjectVehicle): boolean {
+  return s.state === "pursuit" && s.trackLive && (s.pursuit?.authority === "sought" || s.pursuit?.authority === "authorised");
+}
+
+/** The run is over, one way or another. */
+export function concluded(s: SubjectVehicle): boolean {
+  return s.state === "stopped" || s.state === "contained" || s.state === "gone";
+}
+
+/** A point in the run a scenario's beats can wait for: the officer's
+ *  words about the stop, the crash or the dumped car land when the
+ *  engine makes it happen, not on the clock. */
+export type SubjectMilestone = "stopped" | "crashed" | "gone";
+
+export function subjectReached(s: SubjectVehicle, m: SubjectMilestone): boolean {
+  if (m === "crashed") return !!s.crashed;
+  if (m === "stopped") return (s.state === "stopped" && !s.crashed) || s.state === "contained";
+  return s.state === "gone";
+}
+
+/** Eight-point compass for a bearing, for plain words on the log. */
+export function compassPoint(deg: number): string {
+  const pts = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return pts[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+}
+
+/** Where a car that far behind the subject is on the road. */
+export function chaserPosition(s: SubjectVehicle, gapM: number): { pos: LatLng; heading: number } {
+  return positionAt(s.route, Math.max(0, s.progressM - gapM));
+}
+
+/** The gap closes at the difference between the car flat out and the
+ *  subject, never below the slot the car is due. */
+export function closeGap(gapM: number, slotM: number, carKph: number, subjectKph: number, dtSec: number): number {
+  const closingMps = Math.max(2, ((carKph - subjectKph) * 1000) / 3600);
+  return Math.max(slotM, gapM - closingMps * dtSec);
+}
 
 const NO_DECISION_MS = 60_000;
 
@@ -170,7 +252,8 @@ export function subjectPosition(s: SubjectVehicle): { pos: LatLng; heading: numb
 }
 
 export function createSubject(incidentId: string, spec: SubjectSpec, vehicle: VehicleRecord, now: number): SubjectVehicle {
-  const route: [number, number][] = [[spec.start.lat, spec.start.lng], [spec.destination.lat, spec.destination.lng]];
+  // Straight lines through the waypoints until the router answers.
+  const route: [number, number][] = [[spec.start.lat, spec.start.lng], ...(spec.via ?? []).map((v) => [v.lat, v.lng] as [number, number]), [spec.destination.lat, spec.destination.lng]];
   return {
     id: `subj:${incidentId}`,
     incidentId,
@@ -180,8 +263,9 @@ export function createSubject(incidentId: string, spec: SubjectSpec, vehicle: Ve
     compliance: spec.compliance ?? 0.7,
     route,
     routeReady: false,
-    totalM: cumulative(route)[1],
+    totalM: cumulative(route)[route.length - 1],
     progressM: 0,
+    ending: spec.ending,
     speedKph: spec.speedKph ?? 46,
     baseSpeedKph: spec.speedKph ?? 46,
     movesAt: now + (spec.headStartSec ?? 0) * 1000,
@@ -275,8 +359,23 @@ export function tickSubject(prev: SubjectVehicle, now: number, sensors: Sensor[]
     s.progressM = Math.min(s.totalM, s.progressM + (s.speedKph * 1000 / 3600) * dt);
     if (s.progressM >= s.totalM && s.routeReady && s.state !== "stopped") {
       const { pos, heading } = positionAt(s.route, s.progressM);
-      const decamp = s.state === "pursuit" || s.trackLive;
-      s = { ...s, state: "gone", stoppedAt: now, stoppedPos: pos, lastSeenPos: pos, lastSeenHeading: heading, lastSeenAt: now, trackLive: false, trackHeldBy: [], outcome: decamp ? "Abandoned — occupants decamped on foot" : "Parked up and gone — last read is all there is" };
+      // Whoever is actually on its tail: a car within a couple of hundred
+      // metres, else the story's following unit, else whoever holds the track.
+      const onTail = sensors.find((u) => u.police && u.attached && haversineMeters(pos, u.pos) < 200)?.callsign;
+      const holder = onTail ?? s.pursuit?.narrativeHolder ?? s.pursuit?.primary ?? s.trackHeldBy[0];
+      // The authored endings: he pulls over, or he puts it into something.
+      if (s.ending === "stops") {
+        s = { ...s, state: "stopped", stoppedAt: now, stoppedPos: pos, lastSeenHeading: heading, lastSeenPos: pos, lastSeenAt: now, trackLive: true, outcome: `Pulled over and stopped — driver detained at the roadside${holder ? ` by ${holder}` : ""}` };
+        events.push({ at: now, kind: "stopped", text: `${s.vrm} has PULLED OVER — engine off, hands on the wheel. ${holder ? `${holder} out with him: one male detained at the roadside` : "One male detained at the roadside"}` });
+        return { subject: s, events, hits, sensorsAttached: s.trackHeldBy };
+      }
+      if (s.ending === "crash") {
+        s = { ...s, state: "stopped", crashed: true, stoppedAt: now, stoppedPos: pos, lastSeenHeading: heading, lastSeenPos: pos, lastSeenAt: now, trackLive: true, outcome: "Crashed into a parked car — driver injured, still in the seat" };
+        events.push({ at: now, kind: "stopped", text: `${s.vrm} has CRASHED — into a parked car, front end gone, driver still in the seat. Ambulance required` });
+        return { subject: s, events, hits, sensorsAttached: s.trackHeldBy };
+      }
+      const decamp = s.ending === "decamp" || s.state === "pursuit" || s.trackLive;
+      s = { ...s, state: "gone", decamped: decamp, stoppedAt: now, stoppedPos: pos, lastSeenPos: pos, lastSeenHeading: heading, lastSeenAt: now, trackLive: false, trackHeldBy: [], outcome: decamp ? "Abandoned — occupants decamped on foot" : "Parked up and gone — last read is all there is" };
       events.push({ at: now, kind: "gone", text: decamp ? `${s.vrm} abandoned — occupants decamped on foot, area search for the driver` : `${s.vrm} has gone to ground — parked up beyond the cameras` });
       return { subject: s, events, hits, sensorsAttached: [] };
     }

@@ -34,6 +34,7 @@ export function EmbeddedMap({
   showBasemapToggle,
   subjects,
   holdingUnits,
+  chasers,
   now,
 }: {
   stations: StationWithAppliances[];
@@ -75,6 +76,7 @@ export function EmbeddedMap({
   showBasemapToggle?: boolean;
   subjects?: import("./subject-layer").SubjectView[];
   holdingUnits?: import("./subject-layer").HoldingUnit[];
+  chasers?: import("./subject-layer").ChaserView[];
   now?: number;
 }) {
   return (
@@ -97,6 +99,7 @@ export function EmbeddedMap({
         showBasemapToggle={showBasemapToggle}
         subjects={subjects}
         holdingUnits={holdingUnits}
+        chasers={chasers}
         now={now}
       />
     </div>

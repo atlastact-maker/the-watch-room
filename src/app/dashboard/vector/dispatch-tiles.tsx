@@ -181,6 +181,8 @@ export type IncidentRow = {
   resolved: boolean;
   /** Command handed over: who has it and the state. */
   command: { callsign: string; label: string } | null;
+  /** The crew dealing on a basic call: who, why, and how long they expect to be. */
+  dealing?: { callsign: string; label: string; clearInMs: number } | null;
   commandOptions: { applianceId: string; callsign: string; typeName: string; advice?: string; comfortable?: boolean }[];
   selected: boolean;
   grade: string;
@@ -250,7 +252,7 @@ export function LiveIncidentsTile({
                   }
                 }}
               >
-                <span className="bar" style={r.command ? { background: "var(--vec-go)" } : undefined} />
+                <span className="bar" style={r.command || r.dealing ? { background: "var(--vec-go)" } : undefined} />
                 <span className="body">
                   <span className="line1">
                     <span>{r.ref}{r.code && <span className="code" title={r.codeLabel ?? undefined}> · {r.code}</span>}</span>
@@ -274,8 +276,12 @@ export function LiveIncidentsTile({
                     <div><div className="k">MOBILE</div><div className="v">{r.mobile}</div></div>
                     <div><div className="k">SCENE</div><div className="v">{r.scene}</div></div>
                   </div>
-                  <div className={`cmd ${r.command ? "go" : ""}`}>
-                    {r.command ? `COMMAND · ${r.command.callsign} ${r.command.label}` : "COMMAND · this desk"}
+                  <div className={`cmd ${r.command || r.dealing ? "go" : ""}`}>
+                    {r.command
+                      ? `COMMAND · ${r.command.callsign} ${r.command.label}`
+                      : r.dealing
+                        ? `CREW DEALING · ${r.dealing.callsign} · ${r.dealing.label} · clear in ~${Math.max(1, Math.round(r.dealing.clearInMs / 60000))} min`
+                        : "COMMAND · this desk"}
                   </div>
                   {!r.command && (
                     <div className="hand">

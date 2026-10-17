@@ -209,6 +209,7 @@ function shiftDeployment(d: Deployment, offset: number): Deployment {
     crewEquipment,
     mobilisedAt: d.mobilisedAt + offset,
     arrivesAt: d.arrivesAt + offset,
+    pursuitJoinedAt: shift(d.pursuitJoinedAt, offset),
     baStagedAt: shift(d.baStagedAt, offset),
     hospitalLegStartedAt: shift(d.hospitalLegStartedAt, offset),
     hospitalArrivesAt: shift(d.hospitalArrivesAt, offset),

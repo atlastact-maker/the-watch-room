@@ -10,6 +10,7 @@ import type { Appliance, ApplianceTypeCode, AreaCode, ServiceCode, StatusCode } 
 import { STATUS_LABELS } from "@/lib/sim/types";
 import type { Handover } from "@/lib/sim/handover";
 import { slotCoverage } from "@/lib/sim/handover";
+import { CAUSE_WORDS, type Dealing } from "@/lib/sim/dealing";
 import { STANDARD_PDA, labelForType } from "@/lib/sim/pda";
 import { HOSPITALS, hasEd24, traumaTier } from "@/lib/sim/hospitals";
 import { haversineMeters, rescaleBlueLightSeconds } from "@/lib/sim/eta";
@@ -29,6 +30,8 @@ import type { MobRoad } from "./mob-screen";
 export type RuntimeLike = {
   outcome: IncidentOutcome | null;
   handover: Handover | null;
+  /** The crew dealing on a basic call: the clock to their clear. */
+  dealing?: Dealing | null;
   informantLog: { id: string; text: string; tone: "info" | "urgent" | "critical"; firedAt: number }[];
   informantOnCall: boolean;
   gradeOverride?: { grade: string; basis: string; atMs: number } | null;
@@ -149,6 +152,7 @@ export function useDeskModel(input: DeskInput) {
       scene: deps.filter((d) => now >= d.arrivesAt && !d.returnStartedAt && !d.hospitalLegStartedAt).length,
       resolved: !!rt?.outcome,
       command: h ? { callsign: h.callsign, label: now < h.effectiveAtMs ? "designated — takes command on arrival" : "has command · desk clear" } : null,
+      dealing: rt?.dealing ? { callsign: rt.dealing.callsign, label: CAUSE_WORDS[rt.dealing.cause], clearInMs: Math.max(0, rt.dealing.clearAtMs - now) } : null,
       commandOptions: rt?.outcome || h ? [] : commandOptionsFor(i.id),
       selected: i.id === selectedIncidentId,
       grade: rt?.gradeOverride?.grade ?? gradeShort(impliedGrade(i.scenario)),
@@ -167,7 +171,7 @@ export function useDeskModel(input: DeskInput) {
         return {
           ref: refOf(selected),
           title: s.title,
-          state: rt?.outcome ? "CLOSED" : rt?.handover ? "DELEGATED" : "OPEN",
+          state: rt?.outcome ? "CLOSED" : rt?.handover ? "DELEGATED" : rt?.dealing ? "CREW DEALING" : "OPEN",
           elapsedMs: now - selected.receivedAt,
           sinceUpdateMs: now - lastLog,
           address1: addr.line1,

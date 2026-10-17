@@ -209,8 +209,9 @@ import {
 import { LedsTerminal } from "./components/leds-terminal";
 import { AnprConsole } from "./components/anpr-console";
 import { hitsBetween, siteById, type AnprHit } from "@/lib/sim/anpr";
-import { createSubject, cumulative, decidePursuit as decidePursuitOn, destinationFor, subjectPosition, tickSubject, withRoute, type Sensor, type SubjectSpec, type SubjectVehicle } from "@/lib/sim/subject";
-import type { SubjectView, HoldingUnit } from "./components/subject-layer";
+import { CHASE_CATCH_UP_M, CHASE_JOIN_M, CHASE_KPH, CHASE_SLOT_GAP_M, CHASE_SLOT_M, CHASE_TYPES, bearing, chaserPosition, closeGap, compassPoint, concluded, createSubject, cumulative, decidePursuit as decidePursuitOn, destinationFor, pursuable, subjectPosition, subjectReached, tickSubject, withRoute, type Chaser, type LatLng, type Sensor, type SubjectSpec, type SubjectVehicle } from "@/lib/sim/subject";
+import { CAUSE_WORDS, conclusionRequests, dealingCause, dealingSeconds, planDealingRequests, resultLine, selfClearing, slotForRequest, type Dealing } from "@/lib/sim/dealing";
+import type { SubjectView, HoldingUnit, ChaserView } from "./components/subject-layer";
 import { SubjectTile } from "./vector/subject-tile";
 import { generateVehicle } from "@/lib/sim/leds-db";
 import { auditLine, type LedsCheck } from "@/lib/sim/leds";
@@ -503,6 +504,9 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
      *  than round by the junction behind. `safe` records whether the road
      *  was stopped when it was given. See road_closure.ts. */
     contraflow?: { authorisedAt: number; by: string; safe: boolean } | null;
+    /** The crew dealing: a basic call the first unit in attendance clears
+     *  by itself, on a clock. See dealing.ts. */
+    dealing?: Dealing | null;
   };
   const emptyRuntime = (): IncidentRuntime => ({
     tasks: [],
@@ -523,6 +527,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     baEmergencies: [],
     committedWithoutMode: false,
     injuredCrewIds: [],
+    dealing: null,
   });
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -740,6 +745,11 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   useEffect(() => {
     subjectsRef.current = subjects;
   }, [subjects]);
+  /** Police cars behind a subject, by appliance: when each joined and how
+   *  far back it is. The tick owns the ref; the copy in state is what the
+   *  map and the position helpers read. */
+  const chasersRef = useRef<Record<string, Chaser>>({});
+  const [chasers, setChasers] = useState<Record<string, Chaser>>({});
   /** Camera reads of subject vehicles, for the ANPR console's list. */
   const [subjectHits, setSubjectHits] = useState<AnprHit[]>([]);
   const outcome = runtime.outcome;
@@ -1356,7 +1366,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       }
     }
     // Assistance messages from the tablet: answered, or missed at three minutes.
-    if (rt.assistance.some((r) => r.metAtMs === undefined && !r.missed)) {
+    if (!rt.dealing && rt.assistance.some((r) => r.metAtMs === undefined && !r.missed)) {
       const typeOf = (id2: string) => applianceById.get(id2)?.type;
       const next = rt.assistance.map((req) => {
         if (req.metAtMs !== undefined || req.missed) return req;
@@ -1377,23 +1387,59 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
 
   // Subject vehicles drive, get read by cameras, get sighted and get
   // stopped — once a second, against where every unit on the job is.
+  // Police cars sent to a live pursuit take it up when they reach it and
+  // sit on the subject's road behind it (chasersRef; the rules are in
+  // subject.ts). When the run ends, or the desk calls it off, every car
+  // behind it pulls up where it is.
   useEffect(() => {
     const ids = Object.keys(subjectsRef.current);
     if (ids.length === 0) return;
     const next = { ...subjectsRef.current };
     const newLog: LogEntry[] = [];
     const newHits: AnprHit[] = [];
+    const patches: Record<string, Partial<Deployment>> = {};
+    const chase = chasersRef.current;
     let changed = false;
     for (const id of ids) {
       const s = next[id];
       const inc = incidents.find((i) => i.id === id);
-      if (!inc || inc.resolvedAt || s.state === "gone" || s.state === "contained" || s.state === "stopped") continue;
+      if (!inc || inc.resolvedAt || concluded(s)) continue;
       const jobTasks = tasks.filter((t) => deployments.some((d) => d.applianceId === t.applianceId && d.incidentId === id));
+      const live = pursuable(s);
+      const sPos = subjectPosition(s).pos;
+      const dtSec = Math.max(0, (now - s.lastTickAt) / 1000);
+      // Cars behind it close up; cars that have reached it join.
+      for (const d of deployments) {
+        if (d.incidentId !== id || d.returnStartedAt !== undefined) continue;
+        const a = applianceById.get(d.applianceId);
+        if (!a || !CHASE_TYPES.has(a.type)) continue;
+        const c = chase[d.applianceId];
+        if (c) {
+          const order = Object.values(chase).filter((x) => x.incidentId === id && x.joinedAt < c.joinedAt).length;
+          chase[d.applianceId] = { ...c, gapM: closeGap(c.gapM, CHASE_SLOT_M + order * CHASE_SLOT_GAP_M, CHASE_KPH[a.type] ?? 115, s.speedKph, dtSec) };
+          continue;
+        }
+        if (!live) continue;
+        const pos = unitPosAt(d, now);
+        if (!pos) continue;
+        const dist = haversineMeters(pos, sPos);
+        if (d.pursuitJoinedAt) {
+          // A restored shift: the car was behind it when the save was made.
+          chase[d.applianceId] = { incidentId: id, joinedAt: d.pursuitJoinedAt, gapM: Math.max(CHASE_SLOT_M, dist) };
+          continue;
+        }
+        if (dist <= CHASE_JOIN_M || now >= d.arrivesAt) {
+          chase[d.applianceId] = { incidentId: id, joinedAt: now, gapM: Math.max(CHASE_SLOT_M, dist) };
+          patches[d.applianceId] = { arrivesAt: Math.min(d.arrivesAt, now), pursuitJoinedAt: now, parkingPos: undefined, searchTarget: undefined };
+          newLog.push({ id: `chase:${d.applianceId}:${now}`, timestamp: now, kind: "annotation", message: `${a.callsign} up behind ${s.vrm} — taking up the pursuit` });
+        }
+      }
       const sensors: Sensor[] = [];
       for (const d of deployments) {
         if (d.incidentId !== id) continue;
         const a = applianceById.get(d.applianceId);
-        const pos = unitPosAt(d, now);
+        const c = chase[d.applianceId];
+        const pos = c ? chaserPosition(s, c.gapM).pos : unitPosAt(d, now);
         if (!a || !pos) continue;
         const mine = jobTasks.filter((t) => t.applianceId === a.id && t.state === "active");
         sensors.push({
@@ -1403,8 +1449,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           police: a.service === "Police",
           npas: a.type === "Police_NPAS" && now >= d.arrivesAt,
           searching: mine.some((t) => t.kind === "area_search"),
-          attached: mine.some((t) => t.kind === "follow_contain" || t.kind === "tpac_box"),
-          tpac: a.crewMembers.some((c) => c.quals.some((q) => /TPAC|Tactical Pursuit/.test(q))),
+          attached: !!c || mine.some((t) => t.kind === "follow_contain" || t.kind === "tpac_box"),
+          tpac: a.crewMembers.some((m) => m.quals.some((q) => /TPAC|Tactical Pursuit/.test(q))),
         });
       }
       const r = tickSubject(s, now, sensors, jobTasks);
@@ -1419,8 +1465,34 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         });
       }
       newHits.push(...r.hits);
+      // The chase ends — the car has stopped, or the desk has called it
+      // off. A car on its tail pulls up where it is; one still closing
+      // when the run ended finishes the drive to the scene as an ordinary
+      // run.
+      const ended = concluded(r.subject);
+      const behind = Object.entries(chase).filter(([, c]) => c.incidentId === id).sort((x, y) => x[1].joinedAt - y[1].joinedAt);
+      const stillClosing: { applianceId: string; from: LatLng }[] = [];
+      if (behind.length && !pursuable(r.subject)) {
+        for (const [aid, c] of behind) {
+          const dep = deployments.find((d) => d.applianceId === aid);
+          const p = chaserPosition(r.subject, c.gapM).pos;
+          const cs = applianceById.get(aid)?.callsign ?? aid;
+          delete chase[aid];
+          if (ended && c.gapM > CHASE_CATCH_UP_M) {
+            patches[aid] = { ...(patches[aid] ?? {}), pursuitJoinedAt: undefined, parkingPos: undefined, origin: p, mobilisedAt: now, etaSeconds: 60, arrivesAt: now + 60_000, routeCoords: undefined };
+            stillClosing.push({ applianceId: aid, from: p });
+            newLog.push({ id: `chase-on:${aid}:${now}`, timestamp: now, kind: "annotation", message: `${cs} — ${r.subject.vrm} has stopped ahead; running on to it` });
+          } else {
+            patches[aid] = { ...(patches[aid] ?? {}), arrivesAt: Math.min(dep?.arrivesAt ?? now, now), parkingPos: p, pursuitJoinedAt: undefined };
+            newLog.push({ id: `chase-end:${aid}:${now}`, timestamp: now, kind: "annotation", message: ended ? `${cs} with ${r.subject.vrm} where it stopped` : `${cs} dropped back — lights off, no longer behind ${r.subject.vrm}` });
+          }
+        }
+      }
+      if (ended) newLog.push(...concludePursuit(inc, r.subject, behind.map(([aid]) => aid), stillClosing, now));
     }
     if (changed) setSubjects(next);
+    if (Object.keys(chase).length || Object.keys(chasers).length) publishChasers();
+    if (Object.keys(patches).length) amendDeployments((prev) => prev.map((d) => (patches[d.applianceId] ? { ...d, ...patches[d.applianceId] } : d)));
     if (newLog.length) setLog((prev) => [...prev, ...newLog]);
     if (newHits.length) setSubjectHits((prev) => [...newHits, ...prev].slice(0, 80));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4250,6 +4322,93 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     }
   }, [now, incidents, runtimes]);
 
+  // Crews dealing. A basic call — nothing burning, nobody to treat, no car
+  // still running — is the crew's once they are there: the first unit in
+  // attendance starts the clear clock, the crew ask the desk for what they
+  // are short of, an unanswered ask stretches the job, and it closes with
+  // their result on the log. The desk can still work it, or stop it
+  // early. See dealing.ts.
+  useEffect(() => {
+    const typeOf = (id: string) => applianceById.get(id)?.type;
+    for (const inc of incidents) {
+      if (inc.resolvedAt) continue;
+      const rt = runtimes[inc.id];
+      if (rt?.outcome || rt?.handover) continue;
+      const subject = subjectsRef.current[inc.id];
+      const eligible = selfClearing(inc.scenario, new Set(rt?.absentCasualtyIds ?? []), subject, rt?.fireIgnition);
+      const ground = deployments.filter((d) => d.incidentId === inc.id && now >= d.arrivesAt && d.returnStartedAt === undefined && d.hospitalLegStartedAt === undefined && !d.pursuitJoinedAt);
+      const dealing = rt?.dealing ?? null;
+      if (!eligible || ground.length === 0) {
+        if (dealing && !dealing.clearedAt) {
+          amendRuntime(inc.id, (r) => ({ ...r, dealing: null }));
+          logAnnotation(eligible ? `${dealing.callsign} — nobody left on scene; the job is back with the desk` : `${dealing.callsign} — update from scene: no longer a job the crew clear on their own`);
+        }
+        continue;
+      }
+      const slots = [...(STANDARD_PDA[inc.scenario.type]?.slots ?? inc.scenario.pda), ...(rt?.extraSlots ?? [])];
+      if (!dealing) {
+        const first = [...ground].sort((a, b) => a.arrivesAt - b.arrivesAt)[0];
+        const a = applianceById.get(first.applianceId);
+        const callsign = a?.callsign ?? first.applianceId;
+        const cause = dealingCause(subject);
+        const since = Math.max(first.arrivesAt, subject?.stoppedAt ?? 0);
+        const rank = commandRank(a?.type ?? "");
+        const sec = dealingSeconds(inc, deployments, slots, rank, cause);
+        // The end of a pursuit asks for what it needs as it ends (concludePursuit);
+        // only a plain attendance plans the crew's shortfall asks.
+        const queue = cause === "attendance" ? planDealingRequests(inc, deployments, slots, rank, since, sec, typeOf, a?.service ?? "Police") : [];
+        amendRuntime(inc.id, (r) => ({ ...r, dealing: { applianceId: first.applianceId, callsign, sinceAt: since, clearAtMs: since + sec * 1000, requests: queue, penalised: [], cause } }));
+        logAnnotation(`${callsign} ${cause === "attendance" ? "in attendance — crew dealing" : `— ${CAUSE_WORDS[cause]}; crew dealing`}, expected clear in about ${Math.max(1, Math.round(sec / 60))} min`);
+        continue;
+      }
+      if (dealing.clearedAt) continue;
+      // Asks whose time has come go onto the job, announced; open asks are
+      // answered or missed, and a miss costs the clock.
+      const due = dealing.requests.filter((q) => now >= q.atMs);
+      const met: MakeUpRequest[] = [];
+      const missed: MakeUpRequest[] = [];
+      const penalised = [...dealing.penalised];
+      let extraMs = 0;
+      for (const req of rt?.assistance ?? []) {
+        if (req.metAtMs !== undefined || req.missed || req.atMs < dealing.sinceAt) continue;
+        if (requestMet(req, inc.id, deployments, typeOf)) met.push(req);
+        else if (now >= req.dueAtMs) {
+          missed.push(req);
+          if (!penalised.includes(req.id)) {
+            penalised.push(req.id);
+            extraMs += missPenaltyMs(inc, slots);
+          }
+        }
+      }
+      if (due.length || met.length || missed.length) {
+        amendRuntime(inc.id, (r) => {
+          const d = r.dealing;
+          if (!d) return r;
+          return {
+            ...r,
+            assistance: [
+              ...r.assistance.map((req) => (met.some((m) => m.id === req.id) ? { ...req, metAtMs: now } : missed.some((m) => m.id === req.id) ? { ...req, missed: true } : req)),
+              ...due.map((q) => ({ ...q, announced: true })),
+            ],
+            extraSlots: [...r.extraSlots, ...due.map((q) => slotForRequest(q, d.callsign))],
+            dealing: { ...d, requests: d.requests.filter((q) => !due.some((x) => x.id === q.id)), penalised, clearAtMs: d.clearAtMs + extraMs },
+          };
+        });
+        for (const q of due) logAnnotation(`ASSISTANCE MESSAGE from ${dealing.callsign} — ${q.label}. Three minutes to mobilise.`, "make_pumps", "mu-ask");
+        for (const m of met) logAnnotation(`${dealing.callsign} — assistance message answered: ${m.label}`, "annotation", "mu-met");
+        for (const m of missed) logAnnotation(`${dealing.callsign} — assistance message unanswered: ${m.label}. The crew are waiting on it; clear pushed back ${Math.max(1, Math.round(missPenaltyMs(inc, slots) / 60000))} min`, "hazard_confirmed", "mu-missed");
+        if (due.length) alertTone("med");
+        continue;
+      }
+      if (now >= dealing.clearAtMs) {
+        amendRuntime(inc.id, (r) => (r.dealing ? { ...r, dealing: { ...r.dealing, clearedAt: now } } : r));
+        logAnnotation(`${dealing.callsign} — ${resultLine(inc.scenario.type, dealing.cause, subject)}. Clear`, "task_completed");
+        void resolveByIdRef.current(inc.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
+
   /** Units on scene that could take command of a given incident. Empty
    *  for a job that is closed or already delegated, so the picker simply
    *  stops being offered rather than being offered and refused. */
@@ -5041,9 +5200,23 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }, [subjects, incidents]);
   const holdingUnits = useMemo<HoldingUnit[]>(() => {
     return deployments
-      .filter((d) => d.searchTarget && incidents.some((i) => i.id === d.incidentId && !i.resolvedAt))
+      .filter((d) => d.searchTarget && !d.pursuitJoinedAt && incidents.some((i) => i.id === d.incidentId && !i.resolvedAt))
       .map((d) => ({ applianceId: d.applianceId, callsign: applianceById.get(d.applianceId)?.callsign ?? d.applianceId, coords: { lat: d.searchTarget!.lat, lng: d.searchTarget!.lng }, label: d.searchTarget!.label, arrived: now >= d.arrivesAt }));
   }, [deployments, incidents, applianceById, now]);
+  // The police cars behind a subject, on its road.
+  const chaserViews = useMemo<ChaserView[]>(() => {
+    const out: ChaserView[] = [];
+    for (const d of deployments) {
+      if (!d.pursuitJoinedAt) continue;
+      const s = subjects[d.incidentId];
+      const c = chasers[d.applianceId];
+      if (!s || !c || concluded(s)) continue;
+      const a = applianceById.get(d.applianceId);
+      const p = chaserPosition(s, c.gapM);
+      out.push({ applianceId: d.applianceId, callsign: a?.callsign ?? d.applianceId, vrm: s.vrm, pos: p.pos, heading: p.heading, primary: !!a && s.pursuit?.primary === a.callsign });
+    }
+    return out;
+  }, [deployments, subjects, chasers, applianceById]);
 
   const selectedAppliance = useMemo<Appliance | null>(() => {
     if (!selectedApplianceId) return null;
@@ -5636,6 +5809,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             { id: update.id, text: "", tone: "info", firedAt: Date.now() },
           ]);
           continue;
+        }
+        // Subject-gated beats — the stop, the crash, the dumped car — wait
+        // for the engine's own ending rather than the clock.
+        if (update.onSubject) {
+          const sv = subjectsRef.current[activeIncident.id];
+          if (!sv || !subjectReached(sv, update.onSubject)) continue;
         }
         // Delay-gated beats: only fire if the response is actually slow.
         // Once a crew is on scene the response is no longer slow, so a
@@ -7236,19 +7415,103 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     const want = spec.vrm.replace(/\s/g, "").toUpperCase();
     const rec = recordIndex.vehicles.find((v) => v.vrm.replace(/\s/g, "").toUpperCase() === want) ?? generateVehicle(spec.vrm);
     setSubjects((prev) => ({ ...prev, [incidentId]: createSubject(incidentId, spec, rec, at) }));
-    void routeEta(spec.start, spec.destination).then((r) => {
+    // One leg per waypoint, joined into the road; a leg the router cannot
+    // answer stays a straight line.
+    const points = [spec.start, ...(spec.via ?? []), spec.destination];
+    void Promise.all(points.slice(1).map((to, i) => routeEta(points[i], to))).then((legs) => {
+      const coords: [number, number][] = [];
+      legs.forEach((r, i) => {
+        const leg: [number, number][] = r.coords && r.coords.length > 1 ? r.coords : [[points[i].lat, points[i].lng], [points[i + 1].lat, points[i + 1].lng]];
+        coords.push(...(coords.length ? leg.slice(1) : leg));
+      });
       setSubjects((prev) => {
         const cur = prev[incidentId];
         if (!cur) return prev;
-        return { ...prev, [incidentId]: r.coords && r.coords.length > 1 ? withRoute(cur, r.coords) : { ...cur, routeReady: true } };
+        return { ...prev, [incidentId]: coords.length > 1 ? withRoute(cur, coords) : { ...cur, routeReady: true } };
       });
     });
+  }
+
+  function publishChasers() {
+    setChasers({ ...chasersRef.current });
+  }
+  function amendRuntime(incidentId: string, fn: (rt: IncidentRuntime) => IncidentRuntime) {
+    updateRuntime(incidentId, fn);
+  }
+  function amendDeployments(fn: (prev: Deployment[]) => Deployment[]) {
+    setDeployments(fn);
+  }
+  function amendIncidents(fn: (prev: Incident[]) => Incident[]) {
+    setIncidents(fn);
+  }
+
+  /** The chase is over — the car has stopped, crashed, been boxed or been
+   *  dumped — and the job moves to where it ended: new units go there,
+   *  units still running in are turned toward it, and what the officer
+   *  needs now (a second unit and a van, an ambulance, the dog and the
+   *  aircraft) lands as assistance messages with the usual three minutes.
+   *  Returns the log lines for the caller to write. */
+  function concludePursuit(inc: Incident, subject: SubjectVehicle, chaserIds: string[], stillClosing: { applianceId: string; from: LatLng }[], at: number): LogEntry[] {
+    const out: LogEntry[] = [];
+    const typeOf = (id: string) => applianceById.get(id)?.type;
+    const by = chaserIds.map((id) => applianceById.get(id)?.callsign).find((cs): cs is string => !!cs) ?? subject.pursuit?.primary ?? subject.pursuit?.narrativeHolder ?? subject.trackHeldBy[0] ?? "the officer at the scene";
+    const pos = subject.stoppedPos;
+    if (pos) {
+      const from = inc.scenario.location.coords;
+      const dist = haversineMeters(from, pos);
+      if (dist > 120) {
+        const verb = subject.crashed ? "crashed" : subject.state === "gone" ? "abandoned" : "stopped";
+        const far = dist < 950 ? `${Math.round(dist / 10) * 10} m` : `${(dist / 1000).toFixed(1)} km`;
+        amendIncidents((prev) => prev.map((i) => (i.id === inc.id ? { ...i, scenario: { ...i.scenario, location: { ...i.scenario.location, coords: pos, address: `${i.scenario.location.address} · ${subject.vrm} ${verb} ${far} ${compassPoint(bearing(from, pos))}` } } } : i)));
+        out.push({ id: `chase-scene:${inc.id}:${at}`, timestamp: at, kind: "annotation", message: `Scene moved to where ${subject.vrm} ${verb} — ${far} ${compassPoint(bearing(from, pos))} of the address; units running in are re-routed to it` });
+      }
+      void redirectRunningUnits(inc.id, pos, stillClosing);
+    }
+    const { requests, slots, note } = conclusionRequests(inc, subject, deployments, typeOf, at, by);
+    if (requests.length) {
+      updateRuntime(inc.id, (r) => ({ ...r, assistance: [...r.assistance, ...requests], extraSlots: [...r.extraSlots, ...slots] }));
+      for (const req of requests) out.push({ id: `mu-ask:${req.id}`, timestamp: at, kind: "make_pumps", message: `ASSISTANCE MESSAGE from ${by} — ${req.label}. Three minutes to mobilise.` });
+      alertTone("med");
+    }
+    if (note) out.push({ id: `chase-note:${inc.id}:${at}`, timestamp: at, kind: "annotation", message: `${by} — ${note}` });
+    return out;
+  }
+
+  /** Units still running to a job whose scene has moved are turned toward
+   *  the new scene from where they are, on the blues. `extra` are cars
+   *  that were behind the subject and are now simply driving to it. */
+  async function redirectRunningUnits(incidentId: string, to: LatLng, extra: { applianceId: string; from: LatLng }[]) {
+    const at0 = Date.now();
+    const legs: { applianceId: string; from: LatLng }[] = [...extra];
+    for (const d of deployments) {
+      if (d.incidentId !== incidentId || at0 >= d.arrivesAt || d.pursuitJoinedAt || d.hemsFlight || d.searchTarget || d.hospitalLegStartedAt || d.returnStartedAt !== undefined) continue;
+      if (legs.some((l) => l.applianceId === d.applianceId)) continue;
+      const from = unitPosAt(d, at0);
+      if (from) legs.push({ applianceId: d.applianceId, from });
+    }
+    for (const leg of legs) {
+      const r = blueLight(await routeEta(leg.from, to));
+      const at = Date.now();
+      const secs = Math.max(15, Math.round(r.seconds));
+      amendDeployments((prev) =>
+        prev.map((x) =>
+          x.applianceId === leg.applianceId && x.incidentId === incidentId && x.returnStartedAt === undefined
+            ? { ...x, origin: leg.from, mobilisedAt: at, etaSeconds: secs, arrivesAt: at + secs * 1000, routeCoords: r.coords ?? undefined, routeMeters: r.meters, parkingPos: x.parkingPos && haversineMeters(x.parkingPos, to) > 400 ? undefined : x.parkingPos }
+            : x,
+        ),
+      );
+    }
   }
 
   /** Where a committed unit is at a moment: along its route while it is
    *  driving, else at the point it was sent to, its parking spot, or the
    *  incident address. */
   function unitPosAt(d: Deployment, at: number): { lat: number; lng: number } | null {
+    if (d.pursuitJoinedAt) {
+      const s = subjects[d.incidentId];
+      const c = chasers[d.applianceId];
+      if (s && c && !concluded(s)) return chaserPosition(s, c.gapM).pos;
+    }
     const inc = incidents.find((i) => i.id === d.incidentId);
     const to = d.searchTarget ? { lat: d.searchTarget.lat, lng: d.searchTarget.lng } : inc?.scenario.location.coords ?? null;
     if (at >= d.arrivesAt) return d.searchTarget ? { lat: d.searchTarget.lat, lng: d.searchTarget.lng } : d.parkingPos ?? to;
@@ -8069,6 +8332,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
           showBasemapToggle={false}
           subjects={subjectViews}
           holdingUnits={holdingUnits}
+          chasers={chaserViews}
           now={now}
           onZoomIntoGround={
             groundAvailable

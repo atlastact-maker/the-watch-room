@@ -2,8 +2,8 @@
 
 // The subject vehicle on the desk map: an amber car with its plate while
 // the track is live, a grey ghost at the last read when it is not, the
-// breadcrumb of camera reads behind it, and the units holding a point
-// on the patch waiting for it.
+// breadcrumb of camera reads behind it, the police cars behind it on the
+// same road, and the units holding a point on the patch waiting for it.
 
 import L from "leaflet";
 import { CircleMarker, Marker, Polyline, Tooltip } from "react-leaflet";
@@ -27,6 +27,9 @@ export type SubjectView = {
 
 export type HoldingUnit = { applianceId: string; callsign: string; coords: { lat: number; lng: number }; label: string; arrived: boolean };
 
+/** A police car behind the subject, on its road. */
+export type ChaserView = { applianceId: string; callsign: string; vrm: string; pos: { lat: number; lng: number }; heading: number; primary: boolean };
+
 function carIcon(v: SubjectView): L.DivIcon {
   const body = v.state === "stopped" || v.state === "contained" ? "#16a34a" : v.state === "pursuit" ? "#dc2626" : "#f59e0b";
   const ring = v.state === "pursuit" ? "#dc2626" : "#f59e0b";
@@ -43,6 +46,26 @@ function carIcon(v: SubjectView): L.DivIcon {
           <rect x="5" y="28" width="14" height="6" rx="1.5" fill="#1f2937" opacity="0.6"/>
         </svg>
         <div style="position:absolute;left:30px;top:50px;transform:translateX(-50%);background:#f5c400;color:#111;border:1.5px solid #111;border-radius:2px;padding:0 5px;font-size:9px;font-weight:700;letter-spacing:0.08em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5);">${v.vrm}${v.state === "pursuit" ? " · PURSUIT" : v.state === "stopped" ? " · STOPPED" : v.state === "contained" ? " · CONTAINED" : ""}</div>
+      </div>`,
+  });
+}
+
+function chaserIcon(c: ChaserView): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [60, 60],
+    iconAnchor: [30, 30],
+    html: `
+      <div style="position:relative;width:60px;height:60px;pointer-events:none;font-family:var(--vec-mono,monospace);">
+        <div style="position:absolute;left:30px;top:30px;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #2563eb;animation:vec-amber-pulse 0.9s ease-out infinite;"></div>
+        <svg viewBox="0 0 24 44" width="13" height="24" style="position:absolute;left:30px;top:30px;transform:translate(-50%,-50%) rotate(${c.heading}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.7));">
+          <rect x="3" y="2" width="18" height="40" rx="5" fill="#f8fafc" stroke="#111" stroke-width="1.4"/>
+          <rect x="3" y="14" width="18" height="6" fill="#facc15" opacity="0.95"/>
+          <rect x="3" y="20" width="18" height="6" fill="#2563eb" opacity="0.95"/>
+          <rect x="5" y="8" width="14" height="5" rx="1.5" fill="#1f2937" opacity="0.8"/>
+          <rect x="7" y="27" width="10" height="3" rx="1" fill="#1d4ed8"/>
+        </svg>
+        <div style="position:absolute;left:30px;top:48px;transform:translateX(-50%);background:#1d4ed8;color:#fff;border:1.5px solid #111;border-radius:2px;padding:0 5px;font-size:9px;font-weight:700;letter-spacing:0.08em;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5);">${c.callsign} · PURSUIT${c.primary ? " · PRIMARY" : ""}</div>
       </div>`,
   });
 }
@@ -78,11 +101,14 @@ function ago(ms: number): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
-export function SubjectLayer({ subjects, holding, now }: { subjects: SubjectView[]; holding: HoldingUnit[]; now: number }) {
+export function SubjectLayer({ subjects, holding, chasers = [], now }: { subjects: SubjectView[]; holding: HoldingUnit[]; chasers?: ChaserView[]; now: number }) {
   return (
     <>
       {holding.map((u) => (
         <Marker key={`hold-${u.applianceId}`} position={[u.coords.lat, u.coords.lng]} icon={holdIcon(u)} interactive={false} zIndexOffset={600} />
+      ))}
+      {chasers.map((c) => (
+        <Marker key={`chase-${c.applianceId}`} position={[c.pos.lat, c.pos.lng]} icon={chaserIcon(c)} interactive={false} zIndexOffset={945} />
       ))}
       {subjects.map((v) => (
         <div key={v.id}>

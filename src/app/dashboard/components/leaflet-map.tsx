@@ -14,7 +14,7 @@ import {
 } from "react-leaflet";
 import type { Deployment, Incident } from "@/lib/sim/incident_types";
 import { interpolateAlongRoute } from "@/lib/sim/eta";
-import { SubjectLayer, type SubjectView, type HoldingUnit } from "./subject-layer";
+import { SubjectLayer, type SubjectView, type HoldingUnit, type ChaserView } from "./subject-layer";
 import {
   bearingDeg,
   orbitPosition,
@@ -289,6 +289,8 @@ type Props = {
   /** Subject vehicles on the patch and the units holding points for them. */
   subjects?: SubjectView[];
   holdingUnits?: HoldingUnit[];
+  /** Police cars behind a subject, drawn on its road. */
+  chasers?: ChaserView[];
   /** Units on cover moves: on the road to a standby point, holding at it, or on the way home. */
   standbyUnits?: {
     applianceId: string;
@@ -350,6 +352,7 @@ export function LeafletMap({
   showBasemapToggle = true,
   subjects,
   holdingUnits,
+  chasers,
   now,
 }: Props) {
   const center: [number, number] = activeIncident
@@ -431,7 +434,7 @@ export function LeafletMap({
         selectedApplianceId={selectedApplianceId}
         onOpenStationBays={onOpenStationBays}
       />
-      {(subjects?.length || holdingUnits?.length) ? <SubjectLayer subjects={subjects ?? []} holding={holdingUnits ?? []} now={now ?? Date.now()} /> : null}
+      {(subjects?.length || holdingUnits?.length || chasers?.length) ? <SubjectLayer subjects={subjects ?? []} holding={holdingUnits ?? []} chasers={chasers ?? []} now={now ?? Date.now()} /> : null}
     </MapContainer>
     </div>
   );

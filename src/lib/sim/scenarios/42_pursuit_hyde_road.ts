@@ -44,14 +44,19 @@ import type { Scenario } from "../incident_types";
 //     wheel — a compliant stop, a wanted driver, and one officer at the
 //     roadside who needs a second unit and a van.
 //
-// Engine note: the informant stops when the first mobilised unit lands
-// at the CAD position, and the dog van at Openshaw is under a kilometre
-// away. So the branch is compressed to play out inside eighty seconds of
-// the job opening — before anything sent in the first minute can arrive —
-// and the subject vehicle is authored to reach the run's own end point at
-// the same moment. Nothing on the desk has eyes on it (the response car is
-// not the operator's unit), so it reads as 'gone' rather than 'sighted';
-// the A57 camera at Belle Vue (A13) reads it on the way past in every run.
+// Engine note: the Golf is live on the map from the moment the job opens
+// — AP214 is behind it, so the track is held and the desk can watch it
+// run. Police cars sent to the job take up the chase when they reach it
+// and sit on its tail, in view, until it ends. The road is a loop: east
+// along Hyde Road past the A13 camera at Belle Vue, south at Reddish
+// Lane into the estate, west through the grid and back up to Far Lane —
+// about three minutes at a pursuit pace, so a car sent in the first
+// minute is behind it well before the end. The beats are timed to the
+// road. The ending is authored on the run (scene.variants) and fires
+// when the car reaches the end of its line, whatever the desk did —
+// unless a tactic has stopped it first. What the officer needs at the
+// end (a second unit and a van, an ambulance, the dog and the aircraft)
+// lands as assistance messages when it does.
 //
 // FICTIONAL: the officer, the keeper, the driver, the Golf and its plate,
 // and every house number. Hyde Road, Belle Vue station, the Garratt Way
@@ -201,17 +206,27 @@ export const scenario42: Scenario = {
   },
 
   // The Golf, moving on the real road. This is the decamp run: Belle Vue
-  // east along Hyde Road, past the A13 camera, and south into the estate
-  // to Far Lane, where it goes to ground at roughly the decamp beat. The
-  // crash and stop runs override the end point (scene.variants). Nobody
-  // the desk controls has eyes on it — the response car is not the
-  // operator's unit — so it shows as 'not sighted' until it stops.
+  // east along Hyde Road past the A13 camera, right at Reddish Lane and
+  // south into the estate, west through the grid and back up to Far
+  // Lane, where it goes to ground at roughly the decamp beat. The loop
+  // (via) is what makes the pursuit last long enough to be worked; the
+  // crash and stop runs override the end point (scene.variants). AP214
+  // holds the track from the start, so it is live on the map; a car the
+  // desk sends takes over the moment it is behind it.
   // compliance 0: it has already failed to stop.
   subject: {
     vrm: "MK66 HZR",
     start: { lat: 53.4621, lng: -2.1785 },
+    via: [
+      { lat: 53.4597, lng: -2.1598 },
+      { lat: 53.4552, lng: -2.1628 },
+      { lat: 53.4568, lng: -2.1712 },
+    ],
     destination: { lat: 53.45896, lng: -2.16893 },
-    speedKph: 55,
+    // Dumped on Far Lane whatever the desk did: a discontinued pursuit
+    // still ends with the car in the road and the driver over the fences.
+    ending: "decamp",
+    speedKph: 50,
     compliance: 0,
     headStartSec: 0,
     // AP214 is already behind it, commentating, asking for authority.
@@ -327,17 +342,19 @@ export const scenario42: Scenario = {
         id: "crash",
         label: "Tonight it crashed — the Golf into a parked car at the mouth of Haworth Road, the driver a head injury still in the seat",
         probability: 0.35,
-        // Haworth Road is the first right past the camera; the Golf gets
-        // a couple of hundred metres in. Slow on purpose so the car and
-        // the crash beat arrive together.
-        subject: { destination: { lat: 53.4606, lng: -2.1731 }, speedKph: 28 },
+        // The same loop, ending at the mouth of Haworth Road — the Golf
+        // comes back up through the estate and puts it into a parked car
+        // at roughly the crash beat.
+        subject: { destination: { lat: 53.4606, lng: -2.1731 }, ending: "crash" },
       },
       {
         id: "stops",
         label: "Tonight he pulled over — the Golf into the lay-by past the retail park, hands on the wheel, a wanted driver arrested at the roadside",
         probability: 0.2,
         absent: ["cas-42-driver"],
-        subject: { destination: { lat: 53.4618, lng: -2.1715 }, compliance: 0.9 },
+        // No loop: he slows past the retail park and pulls in by the
+        // Haworth Road turn, hands on the wheel, inside the first minute.
+        subject: { destination: { lat: 53.4618, lng: -2.1715 }, via: [], speedKph: 30, compliance: 0.9, ending: "stops" },
       },
       {
         id: "decamp",
@@ -353,20 +370,26 @@ export const scenario42: Scenario = {
   // P = patrol, 2 = afternoon turn, unit 14 — it is early evening and
   // the estate is out on its doorsteps.
   //
-  // Compressed on purpose: the branch is done by eighty seconds so the
-  // dog from Openshaw cannot land on the CAD and cut it off mid-story.
-  // Beats gated on the run: "stops" leaves the road before the estate,
-  // so everything from the red light on is one run or the other.
+  // Timed to the road: the Golf's loop runs about three minutes at a
+  // pursuit pace and the beats land where the car is — the estate turn
+  // at two minutes, the crash or the decamp when the engine ends the run
+  // (onSubject: the beat waits for the car, not the clock). Every beat
+  // is radio traffic relayed by control, so a car of ours behind the
+  // Golf does not silence them (survivesArrival). Beats gated on the
+  // run: "stops" leaves the road before the estate, so everything from
+  // the red light on is one run or the other.
   informantScript: [
     {
       id: "tacad-authority",
       atSec: 12,
+      survivesArrival: true,
       text: "Pursuit tactical adviser is on the channel. Initial-phase authority given to AP214 — he follows and commentates, nothing more. No tactics until a tactical-phase car is behind it as primary. TacAd wants to know where your nearest RPU is and whether the aircraft is up.",
       tone: "urgent",
     },
     {
       id: "pnc-stolen",
       atSec: 25,
+      survivesArrival: true,
       text: "PNC's back on the Golf. STOLEN — taken in a burglary in Reddish two nights ago, keys off the hall table. ANPR marker's on it. So: a stolen car, one lad in it, and nothing else on it so far.",
       tone: "urgent",
     },
@@ -374,7 +397,7 @@ export const scenario42: Scenario = {
     // radio, so these outlive an early arrival at the CAD. --------------
     {
       id: "stopping",
-      atSec: 18,
+      atSec: 32,
       requiresVariantIds: ["stops"],
       survivesArrival: true,
       text: "AP214 — it's slowing. Indicating left past the retail park, pulling into the lay-by by the Haworth Road turn. He's staying back until it's stopped.",
@@ -382,7 +405,8 @@ export const scenario42: Scenario = {
     },
     {
       id: "stopped",
-      atSec: 30,
+      atSec: 36,
+      onSubject: "stopped",
       requiresVariantIds: ["stops"],
       requiresFiredIds: ["stopping"],
       survivesArrival: true,
@@ -391,7 +415,7 @@ export const scenario42: Scenario = {
     },
     {
       id: "arrested",
-      atSec: 60,
+      atSec: 95,
       requiresVariantIds: ["stops"],
       requiresFiredIds: ["stopped"],
       survivesArrival: true,
@@ -400,7 +424,8 @@ export const scenario42: Scenario = {
     },
     {
       id: "red-lights",
-      atSec: 40,
+      atSec: 45,
+      survivesArrival: true,
       probability: 0.7,
       excludesVariantIds: ["stops"],
       text: "Through a red at the crossing outside the retail park — sixty-five past the Tesco, wrong side of the island for the overtake. People on the crossing stepped back. He's still with it, but the commentary's getting quick.",
@@ -412,7 +437,8 @@ export const scenario42: Scenario = {
     // desk should have been saying at the same moment. ------------------
     {
       id: "estate",
-      atSec: 55,
+      atSec: 120,
+      survivesArrival: true,
       excludesVariantIds: ["stops"],
       text: "It's gone RIGHT off Hyde Road into the estate — Haworth Road, that grid — twenty limit, cars parked both sides, kids out on bikes. He's asking: do we continue? TacAd's advice is no and the pursuit commander agrees — for a stolen car with nobody hurt, this is where the risk outruns the offence. Discontinued. AP214 acknowledges: lights off, dropped back, stopped at the Hyde Road end. Authority withdrawn; he needs a new one to go again. Golf last seen still going south toward Far Lane, and still driving like that with nobody behind it.",
       tone: "critical",
@@ -421,7 +447,9 @@ export const scenario42: Scenario = {
     // --- The crash run. Roughly one night in three it crashes anyway. ---
     {
       id: "crash",
-      atSec: 75,
+      atSec: 150,
+      survivesArrival: true,
+      onSubject: "crashed",
       requiresVariantIds: ["crash"],
       requiresFiredIds: ["estate"],
       text: "It's crashed. A resident's rung it in and AP214 has gone back down — the Golf's into a parked car on Haworth Road, front end gone, driver still in the seat. One occupant. He's conscious but bleeding from the head, he's been sick and his breathing's noisy. Not trapped — the door opens. Officer's asking for an ambulance now.",
@@ -432,7 +460,9 @@ export const scenario42: Scenario = {
     // rounding remainder of the draw and plays the same night. ----------
     {
       id: "decamp",
-      atSec: 80,
+      atSec: 150,
+      survivesArrival: true,
+      onSubject: "gone",
       requiresVariantIds: ["decamp", "base"],
       requiresFiredIds: ["estate"],
       text: "Stopped dead on Far Lane and he's out — one male, grey hooded top, running, over the back fences toward the Fallowfield Loop, the old railway line. Golf left in the road with the engine running. AP214 is with the car. Dog and aircraft on the area, please — that path runs for miles both ways.",
@@ -441,7 +471,7 @@ export const scenario42: Scenario = {
     {
       id: "decamp-sighting",
       survivesArrival: true,
-      atSec: 120,
+      atSec: 225,
       probability: 0.6,
       requiresVariantIds: ["decamp", "base"],
       requiresFiredIds: ["decamp"],
@@ -454,8 +484,8 @@ export const scenario42: Scenario = {
     {
       id: "slow",
       survivesArrival: true,
-      atSec: 300,
-      delayThresholdSec: 300,
+      atSec: 330,
+      delayThresholdSec: 330,
       excludesVariantIds: ["stops"],
       text: "Five minutes and nothing of yours has arrived. One officer, on his own, with whatever the last message left him — a stolen car, an estate that's out on its doorsteps, and no RPU, no dog and no aircraft. He's asking where they are. So is the TacAd.",
       tone: "critical",

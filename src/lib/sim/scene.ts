@@ -357,7 +357,7 @@ export type ScenarioVariant = {
   fireSeat?: Partial<SceneFire>;
   hazards?: { add?: SceneHazard[]; remove?: string[] };
   /** Overrides on the subject vehicle spec, when the scenario has one. */
-  subject?: { start?: { lat: number; lng: number }; destination?: { lat: number; lng: number }; speedKph?: number; compliance?: number; headStartSec?: number };
+  subject?: { start?: { lat: number; lng: number }; destination?: { lat: number; lng: number }; speedKph?: number; compliance?: number; headStartSec?: number; via?: { lat: number; lng: number }[]; ending?: "stops" | "crash" | "decamp" };
 };
 
 export const BASE_VARIANT = "base";

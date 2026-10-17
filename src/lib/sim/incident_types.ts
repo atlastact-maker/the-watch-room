@@ -1059,6 +1059,11 @@ export type InformantUpdate = {
    *  store manager on the shop line, a site manager at the gate, a unit
    *  on the radio — and fires after arrival too. */
   survivesArrival?: boolean;
+  /** Fires only once the job's subject vehicle has reached this point —
+   *  the stop, the crash, the dumped car — so what the officer says lands
+   *  when the engine makes it happen, not on the clock. atSec is then a
+   *  floor, not the trigger. */
+  onSubject?: "stopped" | "crashed" | "gone";
   /** Only in these runs (variant ids; "base" is the un-varied run). */
   requiresVariantIds?: string[];
   /** Never in these runs. */
@@ -1152,6 +1157,9 @@ export type Deployment = {
    *  junction to contain. It routes there and holds; the incident's
    *  address is not where it is. */
   searchTarget?: { lat: number; lng: number; label: string };
+  /** Behind a subject vehicle in a pursuit since this moment; cleared when
+   *  the car drops back or the run ends. The position comes from the chase. */
+  pursuitJoinedAt?: number;
 
   /** Operator-chosen parking position on the ground scene. Until set, the
    *  appliance is not yet rendered on the scene — the operator must place it. */

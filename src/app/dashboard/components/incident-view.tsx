@@ -290,7 +290,7 @@ export function IncidentView({
                   <button type="button" className="unit" aria-pressed={selected} onClick={() => onVehicleSelect?.(selected ? null : id)} title={selected ? "Deselect" : "Select this unit"}>
                     <strong>{r.appliance.callsign}</strong>
                     <span>{r.appliance.typeName}</span>
-                    <small>{onScene ? (placed ? "On the ground" : "Arrived · not placed") : placed ? "Mobile · placed ahead" : "Mobile"}</small>
+                    <small>{r.deployment.pursuitJoinedAt ? "In pursuit" : onScene ? (placed ? "On the ground" : "Arrived · not placed") : placed ? "Mobile · placed ahead" : "Mobile"}</small>
                   </button>
                   <button
                     type="button"
