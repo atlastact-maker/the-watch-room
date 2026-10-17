@@ -461,3 +461,6 @@ end;
 $$;
 revoke all on function public.admin_revoke_award(uuid) from public, anon;
 grant execute on function public.admin_revoke_award(uuid) to authenticated;
+
+-- PostgREST picks the new functions up on the next request.
+notify pgrst, 'reload schema';

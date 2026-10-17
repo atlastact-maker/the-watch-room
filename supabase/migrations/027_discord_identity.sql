@@ -260,3 +260,6 @@ $$;
 
 revoke all on function public.admin_user_profile(uuid) from public, anon;
 grant execute on function public.admin_user_profile(uuid) to authenticated;
+
+-- PostgREST picks the new functions up on the next request.
+notify pgrst, 'reload schema';
