@@ -83,6 +83,10 @@ export type PersonRecord = {
   casualtyId?: string;
   applianceId?: string;
   vehicleIds?: string[];
+  /** What the roadside kit says about them tonight, when a scenario
+   *  knows: the screening breath test and the drug wipe. Absent, both
+   *  come back clear. */
+  roadside?: { breath?: "pass" | "fail" | "refused"; drugs?: "negative" | "cannabis" | "cocaine" | "refused" };
 };
 
 export type VehicleMarker =

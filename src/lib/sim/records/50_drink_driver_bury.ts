@@ -52,6 +52,8 @@ export const records50: RecordSet = {
       ],
       scenarioId: "50",
       vehicleIds: ["v50-focus"],
+      // Well over on the screening device; the wipe is clear.
+      roadside: { breath: "fail", drugs: "negative" },
     },
     {
       id: "p50-akhtar",

@@ -16,6 +16,10 @@
 //   ?lanes=1      (RTC, with ?police=1) the roads policing crew closing lane 1
 //                 at the scene; ?lanes=done once the closure is in force
 //   ?junction=1   (RTC, with ?police=1) the carriageway shut at the junction
+//   ?s=55         a police job: the patrol that called it in on scene, the
+//                 van nine minutes out (?van=1 puts it on scene), the
+//                 records behind the people and the car, and the PNC on the
+//                 tablet recording its checks
 //
 // Tasks started from the tablet (a CRS action on a vehicle, the
 // extrication) run here as local tasks that complete on their clock, so
@@ -32,6 +36,10 @@ import { resolveDeployments } from "../../dashboard/components/incident-view";
 import { SCENARIOS } from "@/lib/sim/scenarios";
 import { applyVariant } from "@/lib/sim/scene";
 import { STATIONS, getStationAppliances } from "@/lib/sim/data";
+import { HOSPITALS } from "@/lib/sim/hospitals";
+import { buildRecordIndex } from "@/lib/sim/records";
+import { SCENARIO_RECORDS } from "@/lib/sim/records/index";
+import { auditLine, type LedsCheck } from "@/lib/sim/leds";
 import { simulateIncident } from "@/lib/sim/incident_sim";
 import { busyOn, withCrewAssignment } from "@/lib/sim/crew_assign";
 import { advanceLiveVitals } from "@/lib/sim/vitals";
@@ -77,6 +85,31 @@ function buildWorld(scenarioId: string, minutesIn: number) {
   const nowMs = Date.now();
   const receivedAt = nowMs - minutesIn * 60_000;
   const stations: StationWithAppliances[] = STATIONS.map((s) => ({ ...s, appliances: getStationAppliances(s.id) }));
+  // A police job: the patrol that called it in on scene, a van on the way
+  // (or on scene with ?van=1), nothing of the fire brigade's. The unit
+  // is the car unless ?unit= says otherwise.
+  if (scenario.type.startsWith("police_") && !scenario.scene?.carriageway) {
+    const polStations = stations.filter((s) => s.service === "Police");
+    const home = polStations.find((s) => s.id === scenario.property.firstDueStationId && s.appliances.some((a) => a.type === "Police_Response")) ?? polStations.find((s) => s.appliances.some((a) => a.type === "Police_Response"))!;
+    const car = home.appliances.find((a) => a.type === "Police_Response")!;
+    const van = polStations.flatMap((s) => s.appliances).find((a) => a.type === "Police_Van") ?? null;
+    const incident: Incident = { id: "DEV-1", scenarioId: scenario.id, scenario: scenarioTonight, receivedAt };
+    const here = scenario.location.coords;
+    const vanHere = !!param("van");
+    const deployments: Deployment[] = [
+      { applianceId: car.id, incidentId: "DEV-1", slotId: scenario.pda[0]?.id ?? "extra", mobilisedAt: receivedAt, etaSeconds: 0, arrivesAt: receivedAt, lightState: "999", parkingPos: offset(here, -14, 0), parkingBearingDeg: 350, crewEquipment: {} } as Deployment,
+      ...(van
+        ? [{ applianceId: van.id, incidentId: "DEV-1", slotId: scenario.pda[1]?.id ?? "extra", mobilisedAt: nowMs - 4 * 60_000, etaSeconds: vanHere ? 60 : 9 * 60, arrivesAt: vanHere ? nowMs - 3 * 60_000 : nowMs + 5 * 60_000, lightState: "999", parkingPos: offset(here, 30, -10), parkingBearingDeg: 90, crewEquipment: {} } as Deployment]
+        : []),
+    ];
+    const log: LogEntry[] = [
+      { id: "l1", timestamp: receivedAt, kind: "incident_opened", message: `Incident opened — ${scenario.title}` },
+      { id: "l2", timestamp: receivedAt, kind: "in_attendance", message: `${car.callsign} in attendance — police generated: the unit that called the job in is on scene from the start` },
+      ...(van ? [{ id: "l3", timestamp: nowMs - 4 * 60_000, kind: "mobilised", message: `Mobilised ${van.callsign} · ETA 9 min` } as LogEntry] : []),
+    ];
+    const etas = Object.fromEntries(stations.map((s, i) => [s.id, { seconds: 240 + ((i * 37) % 400), meters: 3000 + ((i * 911) % 6000), coords: null }])) as unknown as Record<string, Eta>;
+    return { incident, stations, deployments, tasks: [] as Task[], crewAir: {} as Record<string, number>, log, informantLog: [] as unknown as NonNullable<Parameters<typeof DraggableIncidentMdt>[0]["informantLog"]>, etas, vehicleGauges: {} as Record<string, { fuelPct: number; waterPct: number; conditionPct: number }>, busyCrewIds: new Set<string>(), commanderId: car.id, unitId: car.id, rpuId: null as string | null, baCrews: {} as Record<string, number>, treatment: null as PatientTreatmentState | null, resus: null as ResusState | null };
+  }
   const firstDue =
     stations.find((s) => s.id === scenario.property.firstDueStationId && s.appliances.some((a) => FRONTLINE.has(a.type))) ??
     stations.find((s) => s.service === "Fire" && s.appliances.some((a) => FRONTLINE.has(a.type)))!;
@@ -331,6 +364,16 @@ export default function MdtHarnessPage() {
   // starts the ROC's clock the way it does on the desk.
   const [extraLog, setExtraLog] = useState<LogEntry[]>([]);
   const log = useMemo(() => [...world.log, ...extraLog], [world.log, extraLog]);
+  // The records behind the job, and the PNC audit the tablet's own PNC
+  // page writes to — so the people and the car are on the police page and
+  // a check made there counts.
+  const recordIndex = useMemo(() => buildRecordIndex({ sets: SCENARIO_RECORDS, stations: STATIONS, hospitals: HOSPITALS, scenarios: SCENARIOS, incidents: [world.incident], crews: [], fleet: [] }), [world]);
+  const [ledsChecks, setLedsChecks] = useState<LedsCheck[]>([]);
+  const onLedsCheck = (c: LedsCheck) => {
+    setLedsChecks((l) => [...l, c]);
+    setExtraLog((l) => [...l, { id: `leds:${c.id}`, timestamp: c.atMs, kind: "annotation", message: auditLine(c) }]);
+  };
+  const onNote = (text: string) => setExtraLog((l) => [...l, { id: `note:${Date.now()}:${l.length}`, timestamp: Date.now(), kind: "annotation", message: text }]);
   const requestSupport = (kind: string, applianceId: string) => {
     const at = Date.now();
     setExtraLog((l) => [...l, { id: kind === "highways" ? `hw-ask:DEV-1:${at}` : `vec:${at}:${l.length}`, timestamp: at, kind: "annotation", message: `${applianceId} → CONTROL: requests ${kind}` }]);
@@ -351,11 +394,13 @@ export default function MdtHarnessPage() {
   const cold = !!param("cold");
   const tasks = useMemo(() => [...world.tasks.filter((t) => !cold || (t.kind !== "hose_attack" && t.kind !== "ba_sar" && t.kind !== "gain_entry")), ...extra.map((t) => (t.state === "active" && t.completesAt && now >= t.completesAt ? { ...t, state: "completed" as const } : t))], [world.tasks, extra, now, cold]);
   const speed = param("fast") ? 20 : 1;
-  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string; lanes?: number[]; junction?: string; attackMode?: Task["attackMode"]; hoseType?: Task["hoseType"]; baMode?: Task["baMode"]; targetCompartmentId?: string; openingId?: string; ventMode?: Task["ventMode"] }) => {
+  // The police street work runs on the dashboard's clocks.
+  const POLICE_SEC: Partial<Record<Task["kind"], number>> = { request_details: 40, take_account: 90, stop_search: 150, arrest: 120, welfare_check: 75, vehicle_search: 150, convey_custody: 480, breath_test: 90, drug_wipe: 240, seize_vehicle: 120 };
+  const startTask = (args: { applianceId: string; kind: Task["kind"]; assignedCrewIds?: string[]; crsVehicleId?: string; crsActionId?: string; crsDurationSec?: number; crsLabel?: string; crsDoneMessage?: string; lanes?: number[]; junction?: string; attackMode?: Task["attackMode"]; hoseType?: Task["hoseType"]; baMode?: Task["baMode"]; targetCompartmentId?: string; openingId?: string; ventMode?: Task["ventMode"]; personId?: string; personLabel?: string; vehicleVrm?: string; searchFindings?: string; result?: string; carrierType?: string }) => {
     const t0 = Date.now();
-    const base = args.crsDurationSec ?? (args.kind === "rtc_extrication" ? 300 : args.kind === "fend_off" ? 45 : args.kind === "lane_closure" ? 90 + 45 * Math.max(1, args.lanes?.length ?? 1) : args.kind === "rolling_road_block" ? 240 : args.kind === "carriageway_closure" ? 420 : 120);
+    const base = args.crsDurationSec ?? POLICE_SEC[args.kind] ?? (args.kind === "rtc_extrication" ? 300 : args.kind === "fend_off" ? 45 : args.kind === "lane_closure" ? 90 + 45 * Math.max(1, args.lanes?.length ?? 1) : args.kind === "rolling_road_block" ? 240 : args.kind === "carriageway_closure" ? 420 : 120);
     const dur = Math.max(3, base / speed);
-    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage, lanes: args.lanes, junction: args.junction, attackMode: args.attackMode, hoseType: args.hoseType, baMode: args.baMode, baCrewIds: args.kind === "ba_sar" ? args.assignedCrewIds ?? [] : undefined, targetCompartmentId: args.targetCompartmentId, openingId: args.openingId, ventMode: args.ventMode } as unknown as Task]);
+    setExtra((e) => [...e, { id: `h-${e.length + 1}`, applianceId: args.applianceId, kind: args.kind, state: "active", startedAt: t0, durationSec: dur, completesAt: t0 + dur * 1000, assignedCrewIds: args.assignedCrewIds ?? [], crsVehicleId: args.crsVehicleId, crsActionId: args.crsActionId, crsLabel: args.crsLabel, crsDoneMessage: args.crsDoneMessage, lanes: args.lanes, junction: args.junction, attackMode: args.attackMode, hoseType: args.hoseType, baMode: args.baMode, baCrewIds: args.kind === "ba_sar" ? args.assignedCrewIds ?? [] : undefined, targetCompartmentId: args.targetCompartmentId, openingId: args.openingId, ventMode: args.ventMode, personId: args.personId, personLabel: args.personLabel, vehicleVrm: args.vehicleVrm, searchFindings: args.searchFindings, result: args.result, carrierType: args.carrierType } as unknown as Task]);
   };
   const abortTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id ? { ...t, state: "aborted" as const, endedAt: Date.now() } : t)));
   const completeTask = (id: string) => setExtra((e) => e.map((t) => (t.id === id && t.state === "active" ? { ...t, state: "completed" as const } : t)));
@@ -438,6 +483,10 @@ export default function MdtHarnessPage() {
           onCompleteTask={completeTask}
           onAssignCrewToCasualty={assignCrew}
           onRequestSupport={requestSupport}
+          recordIndex={recordIndex}
+          ledsChecks={ledsChecks}
+          onLedsCheck={onLedsCheck}
+          onNote={onNote}
           onSetLightState={() => {}}
           onSetPumpRunning={() => {}}
           onSetPumpOperator={() => {}}

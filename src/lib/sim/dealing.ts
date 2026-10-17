@@ -95,12 +95,23 @@ const RESULT: Partial<Record<IncidentTypeCode, string>> = {
   police_fail_to_stop_pursuit: "pursuit concluded",
 };
 
-export function resultLine(type: IncidentTypeCode, cause: DealingCause, subject?: SubjectVehicle): string {
+/** What the officers have done on a police job, from the tablet's own
+ *  record and the tasks: the result line is written from it rather than
+ *  from a canned line that might contradict the arrest they made. */
+export type PoliceDone = { arrests: { label: string; offence?: string }[]; conveyed: boolean; seized: string[]; searched: string[] };
+
+export function resultLine(type: IncidentTypeCode, cause: DealingCause, subject?: SubjectVehicle, done?: PoliceDone): string {
   const vrm = subject?.vrm ?? "the vehicle";
   if (cause === "stopped" || cause === "contained") return `driver detained and conveyed to custody, ${vrm} recovered`;
   if (cause === "crashed") return `crash scene cleared, ${vrm} recovered`;
   if (cause === "decamped") return `driver not found; ${vrm} recovered for forensics, enquiries continue`;
   if (cause === "lost") return `${vrm} not located — marker refreshed, enquiries continue`;
+  if (done && (done.arrests.length || done.seized.length)) {
+    const parts: string[] = [];
+    for (const a of done.arrests) parts.push(`${a.label} arrested${a.offence ? ` — ${a.offence.toLowerCase()}` : ""}${done.conveyed ? ", conveyed to custody" : ""}`);
+    if (done.seized.length) parts.push(`${done.seized.join(", ")} seized${done.searched.length ? " and searched" : ""}, recovered`);
+    return parts.join("; ");
+  }
   return RESULT[type] ?? "dealt with by the crew, no further action required";
 }
 

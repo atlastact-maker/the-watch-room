@@ -5,17 +5,21 @@ import type { Scenario } from "../incident_types";
 //
 // A test job built for the tablet: the whole thing happens on the MDT.
 // A Trafford patrol has a grey Astra in front of it on the A56 with an
-// ANPR flag for no insurance, and calls the stop. What the officer does
-// next is the exercise. Details from the driver — he gives his real
-// name, he always does — and the PNC turns up a warrant. The vehicle
-// check confirms the insurance. The car is seized under s165A and
-// recovery is requested; a search of it, with grounds, finds nothing
-// at all, which is the correct answer. The driver is arrested on the
-// warrant and the second unit, a double-crewed van, takes him to
-// custody.
+// ANPR flag for no insurance, and calls the stop. The patrol is the
+// operator's own unit, in attendance from the first second (attending),
+// so the MDT is live as the job opens. What the officer does next is
+// the exercise. Details from the driver — he gives his real name, he
+// always does — and the PNC turns up a warrant. The vehicle check
+// confirms the insurance. The car is seized under s165A and recovery is
+// requested; a search of it, with grounds, finds nothing at all, which
+// is the correct answer. The driver is arrested on the warrant and the
+// second unit, a double-crewed van, takes him to custody. Each of those
+// is a row on the debrief (evaluation.scored).
 //
 // Police generated: the patrol's own stop, not a 999 call. The
-// informant is the patrol on the air.
+// informant is the patrol on the air, and because the patrol is the
+// operator's unit the beats are requests to control, not a commentary
+// on work the operator has not done.
 //
 // FICTIONAL: the driver, the car and the parade. Washway Road is real.
 
@@ -26,6 +30,9 @@ export const scenario55: Scenario = {
   type: "police_vehicle_stop_no_insurance",
   patch: "Southern",
   severity: "low",
+  // Police generated: the patrol that called it in is on scene from the
+  // first second, filling the first slot — the job opens on its MDT.
+  attending: [{ slotId: "police1" }],
   trigger:
     "Trafford patrol calling a vehicle stop on Washway Road, Sale: grey Vauxhall Astra MV15 UKZ, ANPR showing no insurance, one male up. Stopped in the bus lay-by outside the parade. Requesting a second unit for transport",
 
@@ -99,6 +106,15 @@ export const scenario55: Scenario = {
       { metric: "Search", target: "vehicle searched with a reason, grounds and a power recorded — nothing found is the right answer, and it still goes on the record" },
       { metric: "Arrest and transport", target: "driver arrested on the warrant and conveyed to custody in the van, not the car" },
     ],
+    // The stop, scored from the PNC audit and the officer's own record.
+    scored: [
+      { kind: "person_check", surname: "Deakin", label: "Driver identified — PNC person check with the date of birth" },
+      { kind: "vehicle_check", vrm: "MV15 UKZ", label: "Vehicle checked on the PNC — no insurance confirmed" },
+      { kind: "vehicle_seized", vrm: "MV15 UKZ", label: "Vehicle seized under s165A, recovery requested" },
+      { kind: "vehicle_searched", vrm: "MV15 UKZ", label: "Vehicle searched with a reason, grounds and a power recorded" },
+      { kind: "arrested_for", surname: "Deakin", offence: "warrant", label: "Driver arrested on the warrant" },
+      { kind: "conveyed_in_van", surname: "Deakin", label: "Driver to custody in the van, not the car" },
+    ],
     lesson:
       "A no-insurance stop is the most ordinary job on the roads and it is where the wanted turn up, because they drive and they do not insure. Do the stop properly. Details, then the PNC with the date of birth he gives you; the warrant changes everything after that. The car is seized because the law says so, not because you think he is bad, and the search is with grounds and a power and it is recorded even when — especially when — it finds nothing. He goes to custody in the van, with two officers, and the car crew stay with the car until recovery has it.",
   },
@@ -151,31 +167,36 @@ export const scenario55: Scenario = {
     ],
   },
 
-  // The patrol on the air, not a caller. It runs until the second unit
-  // lands; the driver stays compliant throughout.
+  // The patrol on the air, not a caller — and the patrol is the operator's
+  // own unit, so every beat survives its arrival and reads as a request
+  // to control. The driver stays compliant throughout.
   informantScript: [
     {
       id: "stop-called",
       atSec: 5,
+      survivesArrival: true,
       text: "Trafford patrol — vehicle stop complete, Washway Road northbound, lay-by outside the parade. Grey Astra, Mike Victor one five, Uniform Kilo Zulu. ANPR's given us no insurance. One male driver, he's stayed in the car, he's compliant. Can we have a second unit for transport if this goes the way it looks?",
       tone: "info",
     },
     {
       id: "details",
       atSec: 90,
-      text: "Driver's given his details — Callum Deakin, D-E-A-K-I-N, fourth of the third, nineteen ninety-five, Wood Lane, Partington. No licence on him, says he's got one. Running him now on the tablet.",
+      survivesArrival: true,
+      text: "Driver's given his details — Callum Deakin, D-E-A-K-I-N, fourth of the third, nineteen ninety-five, Wood Lane, Partington. No licence on him, says he's got one. Can you run him with that date of birth while we do the car.",
       tone: "info",
     },
     {
       id: "wanted",
       atSec: 240,
-      text: "He's showing wanted — warrant, fail to appear, not backed for bail. And a violence marker. He's still sat in the car and he's still being polite. We'll take him on the warrant when the van's here — where's the second unit?",
+      survivesArrival: true,
+      text: "Anything back on Deakin? If he's showing wanted we'll take him on the warrant when the van's here — and where is the second unit? He's still sat in the car and he's still being polite.",
       tone: "urgent",
     },
     {
       id: "insurance",
       atSec: 330,
-      text: "Vehicle check's back: no policy on the MID since June. We're seizing it under one-six-five-A. Can control put recovery on for us, one grey Astra from the Washway Road lay-by.",
+      survivesArrival: true,
+      text: "ANPR says no insurance and he can't show us a certificate. That's a one-six-five-A seizure unless the vehicle check says otherwise — can you confirm the MID for us and get recovery lined up, one grey Astra from the Washway Road lay-by.",
       tone: "info",
     },
     {
@@ -184,14 +205,15 @@ export const scenario55: Scenario = {
       id: "girlfriend",
       atSec: 150,
       probability: 0.45,
+      survivesArrival: true,
       text: "He's asking if his girlfriend can come and collect the car rather than us lifting it. We've told him it's going on the back of a truck whatever happens — no policy, no drive-away. He's taken it. Still polite.",
       tone: "info",
     },
     {
       id: "bus",
       atSec: 600,
-      delayThresholdSec: 600,
-      text: "We've had two buses go past us with the driver making his feelings known. We're fine for now but the sooner the van's here the sooner we're out of the lay-by.",
+      survivesArrival: true,
+      text: "Two buses have come past wanting their lay-by back. Once the van's here and he's in it we're away; until then we're the obstruction.",
       tone: "info",
     },
   ],

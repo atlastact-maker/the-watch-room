@@ -29,6 +29,8 @@ export const records47: RecordSet = {
       postcode: "M31",
       roles: ["suspect"],
       markers: ["WANTED", "VIOLENT"],
+      // Sober on both of his jobs: the warrant is the point, not the kit.
+      roadside: { breath: "pass", drugs: "negative" },
       notes: [
         "WANTED — warrant for fail to appear at the magistrates', theft from shop. Issued June 2026, not backed for bail.",
         "VIOLENT — assaulted a security officer who challenged him at a retail park in Altrincham, November 2024. Community order.",

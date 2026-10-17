@@ -85,7 +85,7 @@ export const SCENARIO_META: ScenarioMeta[] = [
       "knownHazards": [
         "Gas meter inside cupboard under stairs",
         "No asbestos register (residential)",
-        "Loft converted to bedroom (non-conforming, single staircase)"
+        "Loft converted to bedroom (non-conforming: single staircase, boxed in behind an ordinary door at its foot)"
       ],
       "vulnerabilities": [
         "Child (5) has a hearing impairment — slower to wake to alarm"

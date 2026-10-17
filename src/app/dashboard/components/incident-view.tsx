@@ -1943,6 +1943,9 @@ function taskLabelShort(kind: TaskKind): string {
     case "welfare_check": return "Welfare";
     case "vehicle_search": return "Veh Search";
     case "convey_custody": return "To Custody";
+    case "breath_test": return "Breath test";
+    case "drug_wipe": return "Drug wipe";
+    case "seize_vehicle": return "Seize vehicle";
     case "area_search": return "Area Search";
     case "ventilate": return "Ventilate";
     case "bridgehead": return "Bridgehead";

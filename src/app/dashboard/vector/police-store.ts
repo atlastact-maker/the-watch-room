@@ -33,6 +33,8 @@ export type FirearmsRecord = {
 };
 
 export type VehicleState = {
+  /** The plate, so the debrief can find the car without the record id. */
+  vrm?: string;
   /** The search form as it was begun. */
   reason?: string;
   grounds?: string;
@@ -40,6 +42,9 @@ export type VehicleState = {
   searchedAt?: number;
   findings?: string[];
   recoveryAt?: number;
+  /** Seized at the roadside, and under what. */
+  seizedAt?: number;
+  seizurePower?: string;
 };
 
 /** A control the crew has put on the road that the simulator does not

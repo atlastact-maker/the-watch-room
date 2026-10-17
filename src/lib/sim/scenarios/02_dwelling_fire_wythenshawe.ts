@@ -29,7 +29,7 @@ export const scenario02: Scenario = {
     knownHazards: [
       "Gas meter inside cupboard under stairs",
       "No asbestos register (residential)",
-      "Loft converted to bedroom (non-conforming, single staircase)",
+      "Loft converted to bedroom (non-conforming: single staircase, boxed in behind an ordinary door at its foot)",
     ],
     firstDueStationId: "G15",
     // Council retrofit stock — uPVC multi-point front door. Snap the
@@ -127,13 +127,16 @@ export const scenario02: Scenario = {
     // The house as the fire engine has it: a 1950s semi, front door and
     // lounge to the road (south), kitchen and dining room at the back,
     // the stairs off the hall up to a landing with three bedrooms and the
-    // bathroom, the loft done out as a bedroom up a single stair, the roof
-    // void over it all, and no. 287 through the party wall. Kelly pulled
-    // the kitchen door to as they ran — a solid 1950s panel door, and it
-    // is what keeps the hall passable until it burns through; the lounge
-    // door was left open. The children's doors are shut, which is what
-    // keeps them alive. The front door latched behind the parents — hence
-    // the forcible entry. The pan went up three minutes before the call.
+    // bathroom, the loft done out as a bedroom up a single stair boxed in
+    // behind an ordinary door at its foot — pulled to, as it is every
+    // night, which is what keeps the loft breathable for minutes after
+    // the landing has gone black — the roof void over it all, and no. 287
+    // through the party wall. Kelly pulled the kitchen door to as they ran
+    // — a solid 1950s panel door, and it is what keeps the hall passable
+    // until it burns through; the lounge door was left open. The
+    // children's doors are shut, which is what keeps them alive. The
+    // front door latched behind the parents — hence the forcible entry.
+    // The pan went up three minutes before the call.
     plan: {
       headStartSec: 180,
       originId: "kitchen",
@@ -142,7 +145,9 @@ export const scenario02: Scenario = {
         { id: "lounge", label: "Lounge", floor: 0, shape: { x: -3.5, y: -0.5, w: 4, h: 3.5 }, fuel: "domestic" },
         { id: "kitchen", label: "Kitchen", floor: 0, shape: { x: -3.5, y: -5, w: 4, h: 4.5 }, fuel: "kitchen" },
         { id: "dining", label: "Dining room", floor: 0, shape: { x: 0.5, y: -5, w: 3, h: 4 }, fuel: "domestic" },
-        { id: "landing", label: "Landing", floor: 1, shape: { x: 0.5, y: -2, w: 3, h: 2.5 }, fuel: "corridor", route: true },
+        { id: "landing", label: "Landing", floor: 1, shape: { x: 0.5, y: -2, w: 2.3, h: 2.5 }, fuel: "corridor", route: true },
+        // The boxed-in stair to the loft, a door at its foot.
+        { id: "loft-stairs", label: "Loft stair", floor: 1, shape: { x: 2.8, y: -2, w: 0.7, h: 1.2 }, fuel: "stair", route: true },
         { id: "bed-front", label: "Front bedroom", floor: 1, shape: { x: -3.5, y: 0, w: 4, h: 3 }, fuel: "bedroom" },
         { id: "bed-back", label: "Back bedroom", floor: 1, shape: { x: 0.5, y: -5, w: 3, h: 3 }, fuel: "bedroom" },
         { id: "bed-rear", label: "Rear bedroom", floor: 1, shape: { x: -3.5, y: -5, w: 4, h: 5 }, fuel: "bedroom" },
@@ -170,7 +175,8 @@ export const scenario02: Scenario = {
         { id: "bed-back-window", kind: "window", between: ["bed-back", "outside"], label: "Back bedroom window", at: { x: 2, y: -5 }, face: "N" },
         { id: "bed-rear-window", kind: "window", between: ["bed-rear", "outside"], label: "Rear bedroom window", at: { x: -1.5, y: -5 }, face: "N" },
         { id: "bathroom-window", kind: "window", between: ["bathroom", "outside"], label: "Bathroom window", widthM: 0.6, heightM: 0.6, at: { x: 2, y: 3 }, face: "S" },
-        { id: "loft-stair", kind: "stair", between: ["landing", "loft"], label: "Loft stair", widthM: 0.7, at: { x: 1, y: -1 } },
+        { id: "loft-door", kind: "door", between: ["landing", "loft-stairs"], label: "Door to the loft stair", widthM: 0.7, at: { x: 2.8, y: -1.4 } },
+        { id: "loft-stair", kind: "stair", between: ["loft-stairs", "loft"], label: "Loft stair", widthM: 0.7, at: { x: 3.15, y: -2 } },
         { id: "loft-window", kind: "window", between: ["loft", "outside"], label: "Loft window", widthM: 0.8, heightM: 1.0, at: { x: -2, y: -4 }, face: "N" },
         { id: "loft-partition", kind: "partition", between: ["loft", "roof"], label: "Loft partition", fireResistanceMin: 15 },
         { id: "ceiling-front", kind: "wall", between: ["bed-front", "roof"], label: "Ceiling", fireResistanceMin: 20 },
@@ -521,10 +527,12 @@ export const scenario02: Scenario = {
       effect: { accelerateGrowthSec: 60, pulseCritical: true },
     },
     {
-      // The loft run's escalation: smoke at the roof, where she is.
+      // The loft run's escalation: smoke at the roof, where she is. Later
+      // than the flames below, because the door at the foot of her stair
+      // holds the landing's smoke back for minutes.
       id: "smoke-loft",
-      atSec: 90,
-      delayThresholdSec: 270,
+      atSec: 480,
+      delayThresholdSec: 480,
       probability: 0.8,
       requiresVariantIds: ["loft"],
       text: "There's smoke coming out of the roof now — the loft window, the skylight — that's where Ella is.",
@@ -532,13 +540,14 @@ export const scenario02: Scenario = {
       effect: { accelerateGrowthSec: 60, pulseCritical: true },
     },
     {
-      // Slow response consequence: the father goes back in after his son.
-      // This beat CREATES the second casualty (cas-2 is absent until it
-      // fires) — fast attendances never generate him. On the back-in run
-      // he has already gone (dan-back-in), so it never plays there.
+      // Slow response consequence: the father goes back in after his son,
+      // but only when nothing of ours has landed by seven minutes — a
+      // decent attendance never sees it. This beat CREATES the second
+      // casualty (cas-2 is absent until it fires). On the back-in run he
+      // has already gone (dan-back-in), so it never plays there.
       id: "second-casualty",
-      atSec: 140,
-      delayThresholdSec: 330,
+      atSec: 420,
+      delayThresholdSec: 420,
       probability: 0.45,
       requiresCasualtyIds: ["cas-1"],
       excludesVariantIds: ["back-in"],

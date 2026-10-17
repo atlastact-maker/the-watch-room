@@ -362,6 +362,11 @@ export type Scenario = {
    *  carries this is scored as correct; answering it and mobilising is
    *  the mistake, and the log says so. */
   disposal?: Disposal;
+  /** Units already on scene as the job opens — a police-generated stop,
+   *  where the patrol that called it in is in attendance from the first
+   *  second, filling the named slot, its MDT live at once. Grade P has
+   *  no attendance target for exactly this reason. */
+  attending?: { slotId: string }[];
 };
 
 /** The light face of a scenario: what the menus, the county board, the
@@ -1015,10 +1020,27 @@ export type PatientTreatmentState = {
  *    arrived, after the named beat fired (the victim's cancel call, the
  *    security guard letting him go). Not scored if the beat never fired.
  *  - pnc_before_arrival: passes when a person check naming the surname
- *    was run before the first unit arrived. */
+ *    was run before the first unit arrived.
+ *  The roadside stop, read from the PNC audit and the officer's record:
+ *  - person_check: a PNC person check naming the surname, with a date of
+ *    birth in the query (by name alone is partial).
+ *  - vehicle_check: a PNC vehicle check on the plate.
+ *  - vehicle_seized: the plate seized on the tablet; without recovery
+ *    requested it is partial.
+ *  - vehicle_searched: a vehicle search with grounds and a power recorded.
+ *  - arrested_for: an arrest of the surname whose recorded offence
+ *    contains the fragment ("warrant"); another offence is partial.
+ *  - conveyed_in_van: the surname conveyed to custody in a van; in the
+ *    back of a car is partial. */
 export type ScoredCheck =
   | { kind: "hold_after_beat"; beatId: string; label: string }
-  | { kind: "pnc_before_arrival"; surname: string; label: string };
+  | { kind: "pnc_before_arrival"; surname: string; label: string }
+  | { kind: "person_check"; surname: string; label: string }
+  | { kind: "vehicle_check"; vrm: string; label: string }
+  | { kind: "vehicle_seized"; vrm: string; label: string }
+  | { kind: "vehicle_searched"; vrm: string; label: string }
+  | { kind: "arrested_for"; surname: string; offence: string; label: string }
+  | { kind: "conveyed_in_van"; surname: string; label: string };
 
 export type InformantUpdate = {
   id: string;
@@ -1373,6 +1395,9 @@ export type TaskKind =
   | "welfare_check"       // timed — welfare and safeguarding check
   | "vehicle_search"      // timed — a search of a vehicle with grounds and a power
   | "convey_custody"      // timed — a detained person to custody in the van
+  | "breath_test"         // timed — roadside screening breath test
+  | "drug_wipe"           // timed — roadside drug wipe, cannabis and cocaine
+  | "seize_vehicle"       // timed — the vehicle seized under s165A or s59, recovery to follow
   | "area_search"         // ongoing — driving the ground looking for a subject vehicle
   // Fire tactics beyond the jet
   | "ventilate"           // timed — PPV or opening up: clears smoke with water on, feeds the fire without
@@ -1736,6 +1761,11 @@ export type Task = {
    *  fixed from the record when the search starts so the log can say. */
   vehicleVrm?: string;
   searchFindings?: string;
+  /** For breath_test, drug_wipe and seize_vehicle: what came back, or the
+   *  power used — fixed when the task starts so the log can say. */
+  result?: string;
+  /** For convey_custody: what the person went to custody in. */
+  carrierType?: string;
   /** For gain_entry: which forcible-entry tool the crew is using —
    *  duration and success odds come from ENTRY_TABLE vs the door type. */
   entryTool?: EntryTool;
@@ -1822,6 +1852,9 @@ export const TASK_MIN_CREW: Record<TaskKind, number> = {
   welfare_check: 1,
   vehicle_search: 1,
   convey_custody: 1,
+  breath_test: 1,
+  drug_wipe: 1,
+  seize_vehicle: 1,
   area_search: 1,
   ventilate: 2,
   bridgehead: 2,
@@ -1878,6 +1911,9 @@ export const TASK_SERVICES: Record<TaskKind, import("./types").ServiceCode[]> = 
   welfare_check: ["Police"],
   vehicle_search: ["Police"],
   convey_custody: ["Police"],
+  breath_test: ["Police"],
+  drug_wipe: ["Police"],
+  seize_vehicle: ["Police"],
   area_search: ["Police"],
   ventilate: ["Fire"],
   bridgehead: ["Fire"],

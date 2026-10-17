@@ -96,7 +96,17 @@ for (const s of police) {
   // twice either.
   const branches = beats.some((b) => (b.probability ?? 1) < 1 || (b.requiresVariantIds?.length ?? 0) > 0 || (b.excludesVariantIds?.length ?? 0) > 0);
   if (!branches && !(s.scene?.variants?.length)) note(s, "NO PROBABILISTIC BRANCH", "every beat fires every time");
-  if (!beats.some((b) => b.delayThresholdSec !== undefined)) note(s, "NO SLOW-RESPONSE ESCALATION", "nothing punishes a late attendance");
+  // A police-generated job has its first unit there as it opens, so there
+  // is no late attendance to punish.
+  if (g?.grade !== "P" && !beats.some((b) => b.delayThresholdSec !== undefined)) note(s, "NO SLOW-RESPONSE ESCALATION", "nothing punishes a late attendance");
+  // -- Units on scene as the job opens ------------------------------------
+  for (const a of s.attending ?? []) {
+    const slot = s.pda.find((p) => p.id === a.slotId);
+    if (!slot) note(s, "ATTENDING SLOT NOT ON PDA", a.slotId);
+    else if (slot.service !== "Police") note(s, "ATTENDING SLOT NOT POLICE", a.slotId);
+  }
+  if (g?.grade === "P" && !(s.attending?.length)) note(s, "POLICE GENERATED WITHOUT A UNIT ON SCENE", "Grade P means the first unit is already there — name its slot in attending");
+  if (s.attending?.length && !beats.every((b) => b.survivesArrival)) note(s, "BEAT SILENCED BY THE UNIT ON SCENE", "with a unit in attendance from the start, a beat without survivesArrival never fires");
 
   // -- Records -------------------------------------------------------------
   const rec = SCENARIO_RECORDS.find((r) => r.scenarioId === s.id);

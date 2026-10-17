@@ -100,6 +100,8 @@ export type StartTaskFn = (args: {
   personLabel?: string;
   vehicleVrm?: string;
   searchFindings?: string;
+  result?: string;
+  carrierType?: string;
   entryTool?: EntryTool;
   closurePos?: { lat: number; lng: number };
   closureBearingDeg?: number;
@@ -3213,6 +3215,12 @@ function taskShortLabel(k: TaskKind): string {
       return "Veh Search";
     case "convey_custody":
       return "To Custody";
+    case "breath_test":
+      return "Breath test";
+    case "drug_wipe":
+      return "Drug wipe";
+    case "seize_vehicle":
+      return "Seize";
     case "area_search":
       return "Area Search";
     case "ventilate":

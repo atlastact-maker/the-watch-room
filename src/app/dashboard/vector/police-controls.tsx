@@ -105,6 +105,9 @@ const I = {
   map: <Icon d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14m6-12v14" />,
   clockI: <Icon d="M12 8v5l3 2m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />,
   info: <Icon d="M12 8h.01M12 11v5m9-4a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />,
+  breath: <Icon d="M3 8h8a2.5 2.5 0 1 0-2.5-2.5M3 12h13a3 3 0 1 1-3 3M3 16h7a2.5 2.5 0 1 1-2.5 2.5" />,
+  wipe: <Icon d="M8 2h8v20H8zM11 6h2M11 10h2M11 14h2M8 18h8" />,
+  lock: <Icon d="M6 11h12v9H6zM9 11V7a3 3 0 0 1 6 0v4M12 15v2" />,
 };
 
 const A: Record<string, ActionDef> = {
@@ -138,6 +141,9 @@ const A: Record<string, ActionDef> = {
   place_barrier: { key: "place_barrier", label: "Place barrier", icon: I.barrier, target: "none", control: "Barrier placed" },
   place_sign: { key: "place_sign", label: "Place sign", icon: I.sign, target: "none", control: "Sign placed" },
   custody_transport: { key: "custody_transport", label: "Custody transport", sub: "Van to custody", icon: I.van, target: "person", kind: "convey_custody", support: "custody", requiresArrest: true },
+  breath_test: { key: "breath_test", label: "Roadside breath test", sub: "Screening device", icon: I.breath, target: "person", kind: "breath_test" },
+  drug_wipe: { key: "drug_wipe", label: "Drug wipe", sub: "Cannabis · cocaine", icon: I.wipe, target: "person", kind: "drug_wipe" },
+  seize_vehicle: { key: "seize_vehicle", label: "Seize vehicle", sub: "s165A · s59", icon: I.lock, target: "vehicle", kind: "seize_vehicle" },
   request_ambulance: { key: "request_ambulance", label: "Request ambulance", icon: I.plus, target: "none", support: "ambulance" },
   // The live carriageway — see src/lib/sim/traffic.ts.
   fend_off: { key: "fend_off", label: "Fend-off position", sub: "Car across the live lanes", icon: I.car, target: "none", kind: "fend_off" },
@@ -162,7 +168,9 @@ const GENERAL_GROUPS: Group[] = [
 ];
 
 const SEARCH_REASONS = ["Reported stolen property", "Reported prohibited item", "Linked incident information", "Other — enter reason"];
-const SEARCH_POWERS = ["Section 1 PACE 1984 — stolen or prohibited articles", "Section 23 Misuse of Drugs Act 1971", "Section 60 CJPOA 1994 — authorised area", "Section 163 Road Traffic Act 1988 — stop", "Section 32 PACE 1984 — on arrest", "Section 165A RTA 1988 — no insurance, seize"];
+const SEARCH_POWERS = ["Section 1 PACE 1984 — stolen or prohibited articles", "Section 23 Misuse of Drugs Act 1971", "Section 32 PACE 1984 — on arrest", "Section 60 CJPOA 1994 — authorised area"];
+/** The powers a car is taken under at the roadside. */
+const SEIZURE_POWERS = ["Section 165A Road Traffic Act 1988 — no insurance, or no licence", "Section 59 Police Reform Act 2002 — antisocial use, after a warning"];
 const DIRECTIONS = ["Both directions", "Northbound", "Southbound", "Eastbound", "Westbound"];
 
 const SUPPORT: { kind: SupportKind; label: string; icon: ReactNode; wording: string }[] = [
@@ -183,7 +191,7 @@ const GENERAL_SUPPORT: SupportKind[] = ["unit", "supervisor", "ambulance", "cust
 const TRAFFIC_SUPPORT: SupportKind[] = ["roads", "highways", "contraflow", "recovery", "unit"];
 const MORE_SUPPORT: SupportKind[] = ["arv", "dog", "npas"];
 
-const OFFENCES = ["Theft from shop", "Robbery", "Burglary", "Assault", "Affray / public order", "Possession of an offensive weapon", "Possession of drugs", "Drink / drug driving", "Fail to stop", "Taking a vehicle without consent", "Breach of the peace", "On warrant", "Section 136 — mental health"];
+const OFFENCES = ["Theft from shop", "Robbery", "Burglary", "Assault", "Affray / public order", "Possession of an offensive weapon", "Possession of drugs", "Drink / drug driving", "Failing to provide a specimen", "Fail to stop", "Taking a vehicle without consent", "Breach of the peace", "On warrant", "Section 136 — mental health"];
 const WELFARE: { key: WelfareOutcome; label: string }[] = [
   { key: "ok", label: "No concerns" },
   { key: "concern", label: "Safeguarding concern — refer" },
@@ -277,8 +285,12 @@ function vehiclesOnJob(incident: Incident, index?: RecordIndex): VehicleRecord[]
   return m ? [{ ...generateVehicle(m[0]), id: `vrm:${m[0]}`, scenarioId: incident.scenarioId }] : [];
 }
 
+/** Does a PNC query name this person? The terminal's structured form
+ *  ("DEAKIN/CALLUM:04031995:M:W") carries the date of birth, the sex and
+ *  the ethnic appearance as well as the names, so only the name tokens
+ *  are matched — a single letter is a code, not a name. */
 function nameMatches(query: string, name: string): boolean {
-  const q = query.toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean);
+  const q = query.toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter((t) => t.length > 1);
   const n = name.toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean);
   return q.length > 0 && q.every((t) => n.includes(t));
 }
@@ -306,6 +318,31 @@ function findingsFor(v: VehicleRecord, persons: Person[]): string[] {
   const keeper = persons.find((p) => p.record && (p.record.id === v.keeperId || p.record.vehicleIds?.includes(v.id)));
   if (out.length === 0) out.push(`Nothing found. Cabin, boot and glovebox clear; vehicle in order${keeper ? ` — keeper ${keeper.record!.name}` : ""}. Search recorded.`);
   return out;
+}
+
+function hashOf(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
+  return h % 10_000;
+}
+
+/** What the screening device says: the record's authored result, or
+ *  clear. A pass still reads a number; a fail is well over the 35 µg
+ *  limit; a refusal is an offence in itself. Fixed when the test starts
+ *  so the log can say when it comes back. */
+function breathResult(p: Person): string {
+  const r = p.record?.roadside?.breath ?? "pass";
+  const h = hashOf(p.id);
+  if (r === "refused") return "REFUSED — failing to provide a specimen, s6(6) RTA 1988";
+  if (r === "fail") return `FAIL — ${56 + (h % 50)} µg per 100 ml of breath, over the 35 µg limit`;
+  return `PASS — ${h % 9} µg per 100 ml of breath`;
+}
+function wipeResult(p: Person): string {
+  const r = p.record?.roadside?.drugs ?? "negative";
+  if (r === "refused") return "REFUSED — failing to co-operate with a preliminary drug test";
+  if (r === "cannabis") return "POSITIVE — cannabis; evidential blood sample required at the station";
+  if (r === "cocaine") return "POSITIVE — cocaine; evidential blood sample required at the station";
+  return "NEGATIVE — cannabis and cocaine not indicated";
 }
 
 /** A page the desk or the tablet asks the module to open, and a tab of
@@ -350,7 +387,7 @@ export type PoliceSelection = {
   driver?: { label: string; dob?: string; identity: string; identityTone: "go" | "warn" | "stop"; status: string; markers: string[] };
 };
 
-const TAB_DEFAULT: Record<ActionTab, string> = { general: "take_account", traffic: "close_road", people: "request_details", vehicles: "search_vehicle" };
+const TAB_DEFAULT: Record<ActionTab, string> = { general: "take_account", traffic: "close_road", people: "request_details", vehicles: "vehicle_check" };
 
 export function PoliceControlsScreen(props: PoliceControlsProps) {
   const { incident, incidentRef, appliance, unit, resolved, tasks, log, now, sim, resolvedIncident } = props;
@@ -367,6 +404,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   const [personId, setPersonId] = useState<string>("");
   const [vehicleId, setVehicleId] = useState<string>("");
   const [offence, setOffence] = useState(OFFENCES[0]);
+  const [seizePower, setSeizePower] = useState(SEIZURE_POWERS[0]);
   const [welfare, setWelfare] = useState<WelfareOutcome>("ok");
   const [searchReason, setSearchReason] = useState("");
   const [searchOther, setSearchOther] = useState("");
@@ -452,10 +490,15 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     return accountTask(p) ? accountFor(p) : null;
   };
   const isArrested = (p: Person) => done.some((t) => t.kind === "arrest" && t.personId === p.id);
+  const breathOf = (p: Person) => done.find((t) => t.kind === "breath_test" && t.personId === p.id)?.result;
+  const wipeOf = (p: Person) => done.find((t) => t.kind === "drug_wipe" && t.personId === p.id)?.result;
+  const roadsideBad = (p: Person) => /^(FAIL|POSITIVE|REFUSED)/.test(breathOf(p) ?? "") || /^(FAIL|POSITIVE|REFUSED)/.test(wipeOf(p) ?? "");
   const personStatus = (p: Person): string => {
     if (done.some((t) => t.kind === "convey_custody" && t.personId === p.id)) return "In custody";
     if (active.some((t) => t.kind === "convey_custody" && t.personId === p.id)) return "To custody";
     if (isArrested(p)) return "Arrested";
+    if (/^(FAIL|REFUSED)/.test(breathOf(p) ?? "")) return `Breath test ${breathOf(p)!.split(" ")[0].toLowerCase()} — arrest`;
+    if (/^(POSITIVE|REFUSED)/.test(wipeOf(p) ?? "")) return "Drug wipe positive — arrest";
     const busy = mine.find((t) => t.personId === p.id);
     if (busy) return `${A[busy.kind]?.label ?? busy.kind} in progress`;
     if (accountTask(p)) return "Account available";
@@ -466,6 +509,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
 
   // ---- Vehicles ------------------------------------------------------------------
   const searchTask = (v: VehicleRecord) => tasks.find((t) => t.kind === "vehicle_search" && t.vehicleVrm === v.vrm && t.state !== "aborted");
+  const seizedState = (v: VehicleRecord) => (record.vehicles[v.id]?.seizedAt ? record.vehicles[v.id] : undefined);
+  const vehicleChecked = (v: VehicleRecord) => (props.ledsChecks ?? []).some((c) => c.kind === "vehicle" && c.query.replace(/\s/g, "").toUpperCase().includes(v.vrm.replace(/\s/g, "").toUpperCase()));
   const subject = props.subject && vehicles.some((v) => v.vrm.replace(/\s/g, "") === props.subject!.vrm.replace(/\s/g, "")) ? props.subject : null;
   const isSubject = (v: VehicleRecord) => !!subject && v.vrm.replace(/\s/g, "") === subject.vrm.replace(/\s/g, "");
   const subjectLoose = !!subject && (subject.state === "moving" || subject.state === "pursuit");
@@ -476,6 +521,8 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       if (subject.state === "gone") return "Gone — abandoned or parked up";
       if (subject.state === "contained") return "Contained";
     }
+    const sz = seizedState(v);
+    if (sz) return `Seized · ${(sz.seizurePower ?? "").split(" — ")[0] || "power recorded"}${sz.recoveryAt ? " · recovery requested" : " · awaiting recovery"}${searchTask(v)?.state === "completed" ? " · searched" : ""}`;
     const t = searchTask(v);
     if (t?.state === "active") return "Search in progress";
     if (t?.state === "completed") return "Searched";
@@ -563,7 +610,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
   function requestSupport(kind: SupportKind) {
     const def = SUPPORT.find((s) => s.kind === kind)!;
     set((r) => ({ ...r, support: [...r.support, { kind, at: now, by: appliance.callsign }] }));
-    if (kind === "recovery" && vehicle) set((r) => ({ ...r, vehicles: { ...r.vehicles, [vehicle.id]: { ...r.vehicles[vehicle.id], recoveryAt: now } } }));
+    if (kind === "recovery" && vehicle) set((r) => ({ ...r, vehicles: { ...r.vehicles, [vehicle.id]: { ...r.vehicles[vehicle.id], vrm: vehicle.vrm, recoveryAt: now } } }));
     props.onRequestSupport?.(kind, appliance.id);
     if (!props.onRequestSupport) note(def.wording);
   }
@@ -578,7 +625,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     if (action.kind === "convey_custody" && person) {
       if (!carrier || carrierFree.length === 0) return requestSupport("custody");
       const label = displayNameDob(person);
-      props.onStartTask?.({ applianceId: carrier.appliance.id, kind: "convey_custody", assignedCrewIds: carrierFree.slice(0, Math.min(2, carrierFree.length)).map((c) => c.id), personId: person.id, personLabel: label });
+      props.onStartTask?.({ applianceId: carrier.appliance.id, kind: "convey_custody", assignedCrewIds: carrierFree.slice(0, Math.min(2, carrierFree.length)).map((c) => c.id), personId: person.id, personLabel: label, carrierType: carrier.appliance.type });
       note(`${label} conveyed to custody by ${carrier.appliance.callsign}${carrier.appliance.type === "Police_Van" ? " — in the van" : " — in the car, two up"}`);
       return;
     }
@@ -626,6 +673,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     if (!action.kind) return;
     const label = needsPerson && person ? displayNameDob(person) : undefined;
     const findings = isSearch && vehicle ? findingsFor(vehicle, persons) : undefined;
+    const result = action.kind === "breath_test" && person ? breathResult(person) : action.kind === "drug_wipe" && person ? wipeResult(person) : action.kind === "seize_vehicle" ? seizePower : undefined;
     const id = props.onStartTask?.({
       applianceId: appliance.id,
       kind: action.kind,
@@ -634,6 +682,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       personLabel: label,
       vehicleVrm: needsVehicle ? vehicle?.vrm : undefined,
       searchFindings: findings?.join("; "),
+      result,
       lanes: action.kind === "lane_closure" ? lanePick : undefined,
       junction: action.kind === "rolling_road_block" || action.kind === "carriageway_closure" ? carriageway?.upstream : undefined,
     });
@@ -650,8 +699,15 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
     } else if (action.kind === "stop_search" && person) {
       note(`stop and search on ${label} — grounds recorded`);
     } else if (isSearch && vehicle) {
-      set((r) => ({ ...r, vehicles: { ...r.vehicles, [vehicle.id]: { ...r.vehicles[vehicle.id], reason: searchReasonText, grounds: searchGrounds.trim(), power: searchPower, searchedAt: now, findings } } }));
+      set((r) => ({ ...r, vehicles: { ...r.vehicles, [vehicle.id]: { ...r.vehicles[vehicle.id], vrm: vehicle.vrm, reason: searchReasonText, grounds: searchGrounds.trim(), power: searchPower, searchedAt: now, findings } } }));
       note(`search of ${vehicle.vrm} begun — ${searchReasonText.toLowerCase()} · ${searchPower.split(" — ")[0]} · grounds: ${searchGrounds.trim()}`);
+    } else if (action.kind === "seize_vehicle" && vehicle) {
+      set((r) => ({ ...r, vehicles: { ...r.vehicles, [vehicle.id]: { ...r.vehicles[vehicle.id], vrm: vehicle.vrm, seizedAt: now, seizurePower: seizePower } } }));
+      note(`${vehicle.vrm} seized — ${seizePower.split(" — ")[0]}, ${seizePower.split(" — ")[1] ?? "power recorded"}; seizure notice to the driver, recovery to be requested`);
+    } else if (action.kind === "breath_test" && person) {
+      note(`roadside breath test on ${label} — specimen required on the screening device, reading to follow`);
+    } else if (action.kind === "drug_wipe" && person) {
+      note(`drug wipe on ${label} — cannabis and cocaine, result in a few minutes`);
     } else if (action.target === "vehicle" && vehicle) {
       note(`${action.label.toLowerCase()} — ${vehicle.vrm} ${describe(vehicle)}`);
     } else if (action.control) {
@@ -820,6 +876,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
               <dt>Identity</dt><dd><i className={`badge ${identity(person).tone}`}>{identity(person).tone === "go" ? "✓" : "!"}</i><span className={identity(person).tone}>{identity(person).text}</span></dd>
               <dt>Welfare</dt><dd><i className={`badge ${welfareOf(person).tone}`}>{welfareOf(person).tone === "off" ? "?" : welfareOf(person).tone === "go" ? "✓" : "!"}</i>{welfareOf(person).text}</dd>
               {isArrested(person) && (<><dt>Custody</dt><dd className="stop">ARRESTED · {record.persons[person.id]?.offence ?? "offence recorded"}</dd></>)}
+              {(breathOf(person) || wipeOf(person)) && (<><dt>Roadside</dt><dd className={roadsideBad(person) ? "stop" : "go"}>{[breathOf(person) ? `Breath ${breathOf(person)!.split(" — ")[0]}` : null, wipeOf(person) ? `Wipe ${wipeOf(person)!.split(" — ")[0]}` : null].filter(Boolean).join(" · ")}</dd></>)}
             </dl>
           </div>
           {pncChecked(person) && person.record?.markers?.length ? <div className="pc-markers">{person.record.markers.map((m) => <span key={m} className="pc-marker">{m}</span>)}</div> : null}
@@ -922,6 +979,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           })()}
         </span></div>
       </div>
+      <div className="pc-status-cell wide">{I.lock}<span><b>SEIZURE</b><small>{vehicle && seizedState(vehicle) ? `Seized ${wall(seizedState(vehicle)!.seizedAt!)} — ${(seizedState(vehicle)!.seizurePower ?? "").split(" — ")[0]}. Notice issued.` : "Not seized."}</small></span></div>
       <div className="pc-status-cell wide">{I.tow}<span><b>RECOVERY STATUS</b><small>{vehicle && record.vehicles[vehicle.id]?.recoveryAt ? `Recovery requested ${wall(record.vehicles[vehicle.id].recoveryAt!)} — awaiting the truck.` : "No recovery requested."}</small></span></div>
     </section>
   );
@@ -933,7 +991,9 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       {tab === "people" && (
         <>
           {peopleTable}
-          {group("Person actions", I.person, [A.request_details, A.take_account, A.person_check, A.arrest, A.stop_search, A.welfare_check])}
+          {group("Identify", I.card, [A.request_details, A.take_account, A.person_check], 3)}
+          {(vehicles.length > 0 || /vehicle|drink|rtc|anpr|pursuit/.test(sc.type)) && group("Roadside", I.breath, [A.breath_test, A.drug_wipe])}
+          {group("Deal", I.cuffs, [A.arrest, A.stop_search, A.welfare_check], 3)}
           {group("Transport", I.van, [A.custody_transport, A.request_ambulance], 2, undefined)}
           {infoLine(active.some((t) => t.kind === "convey_custody") ? `${callsignOf(active.find((t) => t.kind === "convey_custody")!.applianceId)} conveying ${active.find((t) => t.kind === "convey_custody")!.personLabel ?? "the detained person"} to custody.` : done.some((t) => t.kind === "convey_custody") ? "Detained person booked in at custody." : lastSupport("custody") ? `Custody transport requested ${wall(lastSupport("custody")!.at)}.` : lastSupport("ambulance") ? `Ambulance requested ${wall(lastSupport("ambulance")!.at)}.` : vanOnScene ? `${vanOnScene.appliance.callsign} (van) on scene for transport.` : "No transport assigned.")}
         </>
@@ -941,7 +1001,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
       {tab === "vehicles" && (
         <>
           {vehiclesTable}
-          {group("Vehicle actions", I.car, [A.vehicle_check, A.search_vehicle, A.view_occupants, A.request_recovery])}
+          {group("Vehicle actions", I.car, [A.vehicle_check, A.seize_vehicle, A.search_vehicle, A.request_recovery, A.view_occupants], 3)}
           {(sc.type.includes("pursuit") || sc.type.includes("anpr") || sc.type.includes("drink") || tpacTrained) && group("Stop & tactics", I.box, [A.vehicle_stop, A.follow_contain, ...(tpacTrained ? [A.tpac_box, A.stinger, A.tactical_contact] : [])], tpacTrained ? 3 : 2, !tpacTrained ? <em>crew not TPAC trained</em> : undefined)}
           {searchStatusCard}
         </>
@@ -992,6 +1052,14 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
           <select value={offence} onChange={(e) => setOffence(e.target.value)}>{OFFENCES.map((o) => <option key={o} value={o}>{o}</option>)}</select>
         </label>
       )}
+      {action.kind === "seize_vehicle" && (
+        <label className="pc-field inline"><span>Power</span>
+          <select value={seizePower} onChange={(e) => setSeizePower(e.target.value)}>{SEIZURE_POWERS.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+        </label>
+      )}
+      {action.kind === "seize_vehicle" && vehicle && !vehicleChecked(vehicle) && infoLine("Run the vehicle check first — the seizure stands on what the PNC and the insurance database say.", "warn")}
+      {action.kind === "breath_test" && infoLine("Screening device at the roadside. A fail or a refusal is an arrest; the evidential test is at the station.")}
+      {action.kind === "drug_wipe" && infoLine("Saliva wipe for cannabis and cocaine. A positive is an arrest for the evidential blood sample.")}
       {action.kind === "welfare_check" && (
         <label className="pc-field inline"><span>Outcome</span>
           <select value={welfare} onChange={(e) => setWelfare(e.target.value as WelfareOutcome)}>{WELFARE.map((w) => <option key={w.key} value={w.key}>{w.label}</option>)}</select>
@@ -1087,6 +1155,7 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
             <dt>Address</dt><dd>{detailsTask(person) && person.record ? person.record.address ?? "No fixed address" : "Not provided"}</dd>
             <dt>Identity status</dt><dd><i className={`badge ${identity(person).tone}`}>{identity(person).tone === "go" ? "✓" : "!"}</i><span className={identity(person).tone}>{identity(person).text}</span></dd>
             {isArrested(person) && (<><dt>Custody</dt><dd className="stop">ARRESTED · {record.persons[person.id]?.offence ?? "offence recorded"}</dd></>)}
+              {(breathOf(person) || wipeOf(person)) && (<><dt>Roadside</dt><dd className={roadsideBad(person) ? "stop" : "go"}>{[breathOf(person) ? `Breath ${breathOf(person)!.split(" — ")[0]}` : null, wipeOf(person) ? `Wipe ${wipeOf(person)!.split(" — ")[0]}` : null].filter(Boolean).join(" · ")}</dd></>)}
           </dl>
           {pncChecked(person) && person.record?.markers?.length ? <div className="pc-markers">{person.record.markers.map((m) => <span key={m} className="pc-marker">{m}</span>)}</div> : null}
           {!detailsTask(person) && infoLine(mine.some((t) => t.kind === "request_details" && t.personId === person.id) ? "Details appear after the person responds." : "Request details to identify the person.")}
@@ -1147,7 +1216,6 @@ export function PoliceControlsScreen(props: PoliceControlsProps) {
 
   // The strip above the modules shows what is in hand. Reported as a
   // string-keyed snapshot so the tablet re-renders only when it changes.
-  const vehicleChecked = (v: VehicleRecord) => (props.ledsChecks ?? []).some((c) => c.kind === "vehicle" && c.query.replace(/\s/g, "").toUpperCase() === v.vrm.replace(/\s/g, "").toUpperCase());
   const selection: PoliceSelection | null = vehicle || person
     ? {
         vehicle: vehicle ? { vrm: vehicle.vrm, description: describe(vehicle), make: vehicle.make, model: vehicle.model, colour: vehicle.colour ?? "", markers: vehicleChecked(vehicle) ? (vehicle.markers ?? []) : [], checked: vehicleChecked(vehicle), status: vehicleStatus(vehicle) } : undefined,

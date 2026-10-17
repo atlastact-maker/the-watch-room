@@ -210,7 +210,7 @@ import { LedsTerminal } from "./components/leds-terminal";
 import { AnprConsole } from "./components/anpr-console";
 import { hitsBetween, siteById, type AnprHit } from "@/lib/sim/anpr";
 import { CHASE_CATCH_UP_M, CHASE_JOIN_M, CHASE_KPH, CHASE_SLOT_GAP_M, CHASE_SLOT_M, CHASE_TYPES, bearing, chaserPosition, closeGap, compassPoint, concluded, createSubject, cumulative, decidePursuit as decidePursuitOn, destinationFor, pursuable, subjectPosition, subjectReached, tickSubject, withRoute, type Chaser, type LatLng, type Sensor, type SubjectSpec, type SubjectVehicle } from "@/lib/sim/subject";
-import { CAUSE_WORDS, conclusionRequests, dealingCause, dealingSeconds, planDealingRequests, resultLine, selfClearing, slotForRequest, type Dealing } from "@/lib/sim/dealing";
+import { CAUSE_WORDS, conclusionRequests, dealingCause, dealingSeconds, planDealingRequests, resultLine, selfClearing, slotForRequest, type Dealing, type PoliceDone } from "@/lib/sim/dealing";
 import type { SubjectView, HoldingUnit, ChaserView } from "./components/subject-layer";
 import { SubjectTile } from "./vector/subject-tile";
 import { generateVehicle } from "@/lib/sim/leds-db";
@@ -2409,11 +2409,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         // The caller stays on the line from answering until the first
         // crew lands. Seeded here rather than through the shadowed setter
         // below, which would still be writing to the previous selection.
-        informantOnCall: true,
+        informantOnCall: !liveScenario.attending?.length,
       },
     }));
     setSelectedIncidentId(newId);
     if (liveScenario.subject) openSubject(newId, liveScenario.subject, t);
+    if (liveScenario.attending?.length) attendAtOpen(newId, liveScenario, t);
     // The log belongs to the SHIFT, not the job — a control room keeps one.
     setLog((prev) => [
       ...prev,
@@ -4400,9 +4401,12 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         if (due.length) alertTone("med");
         continue;
       }
-      if (now >= dealing.clearAtMs) {
+      // Nobody books clear with a job half done: the clock holds while a
+      // task is running on the ground.
+      const working = tasks.some((t) => t.state === "active" && ground.some((d) => d.applianceId === t.applianceId));
+      if (now >= dealing.clearAtMs && !working) {
         amendRuntime(inc.id, (r) => (r.dealing ? { ...r, dealing: { ...r.dealing, clearedAt: now } } : r));
-        logAnnotation(`${dealing.callsign} — ${resultLine(inc.scenario.type, dealing.cause, subject)}. Clear`, "task_completed");
+        logAnnotation(`${dealing.callsign} — ${resultLine(inc.scenario.type, dealing.cause, subject, policeDoneFor(inc.id))}. Clear`, "task_completed");
         void resolveByIdRef.current(inc.id);
       }
     }
@@ -4799,7 +4803,7 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
         const all = [...(handover?.requests ?? []), ...mine];
         return all.length ? { asked: all.length, met: all.filter((r) => r.metAtMs !== undefined).length } : null;
       })(),
-      { informantLog: runtimes[incidentId]?.informantLog, ledsChecks },
+      { informantLog: runtimes[incidentId]?.informantLog, ledsChecks, police: readPoliceRecord(incidentId) },
     );
     updateRuntime(incidentId, (r) => (r.outcome ? r : { ...r, outcome: scored }));
     resolvingRef.current.delete(incidentId);
@@ -5571,7 +5575,21 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
             id,
             timestamp: t.completesAt ?? Date.now(),
             kind: "task_completed",
-            message: `${applianceLabel(t.applianceId)} — ${t.personLabel ?? "detained person"} conveyed to custody and booked in`,
+            message: `${applianceLabel(t.applianceId)} — ${t.personLabel ?? "detained person"} conveyed to custody${t.carrierType === "Police_Van" ? " in the van" : t.carrierType ? " in the car" : ""} and booked in`,
+          });
+        } else if (t.kind === "breath_test" || t.kind === "drug_wipe") {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: /^(FAIL|POSITIVE|REFUSED)/.test(t.result ?? "") ? "hazard_confirmed" : "task_completed",
+            message: `${applianceLabel(t.applianceId)} — ${t.kind === "breath_test" ? "roadside breath test" : "drug wipe"} on ${t.personLabel ?? "the person"}: ${t.result ?? "no reading"}`,
+          });
+        } else if (t.kind === "seize_vehicle") {
+          toAppend.push({
+            id,
+            timestamp: t.completesAt ?? Date.now(),
+            kind: "task_completed",
+            message: `${applianceLabel(t.applianceId)} — ${t.vehicleVrm ?? "vehicle"} SEIZED — ${t.result ?? "power recorded"}; seizure notice issued, recovery required`,
           });
         } else if (t.kind === "vehicle_search") {
           toAppend.push({
@@ -6480,6 +6498,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
     personLabel?: string;
     vehicleVrm?: string;
     searchFindings?: string;
+    result?: string;
+    carrierType?: string;
     entryTool?: import("@/lib/sim/incident_types").EntryTool;
     closurePos?: { lat: number; lng: number };
     closureBearingDeg?: number;
@@ -6651,6 +6671,8 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
       personLabel: args.personLabel,
       vehicleVrm: args.vehicleVrm,
       searchFindings: args.searchFindings,
+      result: args.result,
+      carrierType: args.carrierType,
       entryTool: args.entryTool,
       closurePos: args.closurePos,
       closureBearingDeg: args.closureBearingDeg,
@@ -7443,6 +7465,47 @@ export function DashboardClient({ userEmail, stationsByArea, releasedScenarioIds
   }
   function amendIncidents(fn: (prev: Incident[]) => Incident[]) {
     setIncidents(fn);
+  }
+
+  /** A police-generated job opens with the patrol already there: the unit
+   *  that called it in fills its slot, in attendance from the first second,
+   *  its MDT live at once. Grade P has no attendance target for this. */
+  function attendAtOpen(incidentId: string, scenario: Scenario, at: number) {
+    const taken = new Set(deployments.map((d) => d.applianceId));
+    const picked: { applianceId: string; slotId: string }[] = [];
+    for (const want of scenario.attending ?? []) {
+      const slot = scenario.pda.find((s) => s.id === want.slotId);
+      if (!slot) continue;
+      const pool = allDeployableStations
+        .filter((s) => s.service === slot.service)
+        .sort((a, b) => (a.id === slot.preferredStationId ? -1 : b.id === slot.preferredStationId ? 1 : 0))
+        .flatMap((s) => s.appliances);
+      const a = pool.find((x) => slot.requiredApplianceTypes.includes(x.type) && !taken.has(x.id) && !picked.some((p) => p.applianceId === x.id) && !dispatchReservationRef.current.has(x.id));
+      if (a) picked.push({ applianceId: a.id, slotId: slot.id });
+    }
+    if (!picked.length) return;
+    setDeployments((prev) => [
+      ...prev,
+      ...picked.map(({ applianceId, slotId }): Deployment => ({ applianceId, incidentId, slotId, mobilisedAt: at, etaSeconds: 0, arrivesAt: at, lightState: "999", crewEquipment: {} })),
+    ]);
+    setStatusOverrides((prev) => ({ ...prev, ...Object.fromEntries(picked.map((p) => [p.applianceId, 1 as StatusCode])) }));
+    setLog((prev) => [
+      ...prev,
+      ...picked.map((p): LogEntry => ({ id: `attend:${p.applianceId}:${at}`, timestamp: at, kind: "in_attendance", message: `${applianceLabel(p.applianceId)} in attendance — police generated: the unit that called the job in is on scene from the start` })),
+    ]);
+  }
+
+  /** What the officers have on the record for a police job, for the
+   *  result line when the crew book clear. */
+  function policeDoneFor(incidentId: string): PoliceDone {
+    const rec = readPoliceRecord(incidentId);
+    const mine = tasks.filter((t) => t.state !== "aborted" && deployments.some((d) => d.applianceId === t.applianceId && d.incidentId === incidentId));
+    return {
+      arrests: mine.filter((t) => t.kind === "arrest" && t.state === "completed").map((t) => ({ label: t.personLabel ?? "one person", offence: t.personId ? rec.persons[t.personId]?.offence : undefined })),
+      conveyed: mine.some((t) => t.kind === "convey_custody"),
+      seized: Object.values(rec.vehicles).filter((v) => v.seizedAt).map((v) => v.vrm ?? "the vehicle"),
+      searched: Object.values(rec.vehicles).filter((v) => v.searchedAt).map((v) => v.vrm ?? "the vehicle"),
+    };
   }
 
   /** The chase is over — the car has stopped, crashed, been boxed or been
@@ -9170,6 +9233,12 @@ function taskDurationSecFor(
       return 150; // boot, cabin, under the seats and the record
     case "convey_custody":
       return 480; // to the custody suite and booked in
+    case "breath_test":
+      return 90; // the specimen and the device's reading
+    case "drug_wipe":
+      return 240; // the swab and the wait for the lines
+    case "seize_vehicle":
+      return 120; // the power, the notice, the keys
     case "crs_action":
       return args.crsDurationSec ?? 120; // authored per-action on the datasheet
   }
@@ -9217,6 +9286,9 @@ function taskLabel(kind: TaskKind): string {
     case "welfare_check": return "Welfare check";
     case "vehicle_search": return "Vehicle search";
     case "convey_custody": return "Convey to custody";
+    case "breath_test": return "Roadside breath test";
+    case "drug_wipe": return "Drug wipe";
+    case "seize_vehicle": return "Seize vehicle";
     case "area_search": return "Area search";
     case "ventilate": return "Ventilation";
     case "bridgehead": return "BA bridgehead";

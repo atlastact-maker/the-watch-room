@@ -22,6 +22,22 @@ function fmtSecs(s: number | null | undefined): string {
   return `${m}m ${r}s`;
 }
 
+/** The officer's own record of the job, as the tablet keeps it — what the
+ *  roadside checks read for a seizure, a search or an arrest. Structurally
+ *  the police store's record, without the app layer imported here. */
+export type PoliceRunRecord = {
+  persons: Record<string, { offence?: string }>;
+  vehicles: Record<string, { vrm?: string; reason?: string; grounds?: string; power?: string; searchedAt?: number; seizedAt?: number; seizurePower?: string; recoveryAt?: number }>;
+};
+
+function vehicleRecordFor(police: PoliceRunRecord | null | undefined, vrm: string) {
+  const want = vrm.replace(/\s/g, "").toUpperCase();
+  return Object.values(police?.vehicles ?? {}).find((v) => (v.vrm ?? "").replace(/\s/g, "").toUpperCase() === want);
+}
+function shortPower(p: string | undefined): string {
+  return p ? p.split(" — ")[0] : "power not recorded";
+}
+
 export function scoreIncident(
   incident: Incident,
   deployments: Deployment[],
@@ -40,6 +56,7 @@ export function scoreIncident(
   runtime?: {
     informantLog?: { id: string; text: string; firedAt: number }[];
     ledsChecks?: { kind: string; query: string; atMs: number }[];
+    police?: PoliceRunRecord | null;
   } | null,
 ): IncidentOutcome {
   const metrics: OutcomeMetric[] = [];
@@ -127,6 +144,60 @@ export function scoreIncident(
         target: `${check.surname} checked before the first unit arrived`,
         actual: ran ? "checked in time" : late ? "checked after arrival" : "not checked",
         passed: ran ? true : late ? "partial" : false,
+      });
+    } else if (check.kind === "person_check") {
+      const want = check.surname.toUpperCase();
+      const runs = (runtime?.ledsChecks ?? []).filter((c) => c.kind === "person" && c.query.toUpperCase().includes(want));
+      const withDob = runs.some((c) => /\d{8}|\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2}/.test(c.query));
+      metrics.push({
+        label: check.label,
+        target: `${check.surname} checked on the PNC with a date of birth`,
+        actual: withDob ? "checked with the date of birth" : runs.length ? "checked by name alone" : "not checked",
+        passed: withDob ? true : runs.length ? "partial" : false,
+      });
+    } else if (check.kind === "vehicle_check") {
+      const want = check.vrm.replace(/\s/g, "").toUpperCase();
+      const ran = (runtime?.ledsChecks ?? []).some((c) => c.kind === "vehicle" && c.query.replace(/\s/g, "").toUpperCase().includes(want));
+      metrics.push({ label: check.label, target: `${check.vrm} checked on the PNC`, actual: ran ? "checked" : "not checked", passed: ran });
+    } else if (check.kind === "vehicle_seized") {
+      const v = vehicleRecordFor(runtime?.police, check.vrm);
+      const seized = !!v?.seizedAt;
+      metrics.push({
+        label: check.label,
+        target: `${check.vrm} seized and recovery requested`,
+        actual: seized ? `seized — ${shortPower(v?.seizurePower)}${v?.recoveryAt ? ", recovery requested" : ", no recovery requested"}` : "not seized",
+        passed: seized ? (v?.recoveryAt ? true : "partial") : false,
+      });
+    } else if (check.kind === "vehicle_searched") {
+      const v = vehicleRecordFor(runtime?.police, check.vrm);
+      const searched = !!v?.searchedAt;
+      const recorded = searched && !!v?.grounds && !!v?.power;
+      metrics.push({
+        label: check.label,
+        target: `${check.vrm} searched with grounds and a power recorded`,
+        actual: recorded ? `searched — ${shortPower(v?.power)}, grounds recorded` : searched ? "searched without the record" : "not searched",
+        passed: recorded ? true : searched ? "partial" : false,
+      });
+    } else if (check.kind === "arrested_for") {
+      const want = check.surname.toUpperCase();
+      const arrest = (tasks ?? []).find((t) => t.kind === "arrest" && t.state === "completed" && (t.personLabel ?? "").toUpperCase().includes(want));
+      const offence = arrest?.personId ? runtime?.police?.persons[arrest.personId]?.offence : undefined;
+      const right = !!offence && offence.toLowerCase().includes(check.offence.toLowerCase());
+      metrics.push({
+        label: check.label,
+        target: `${check.surname} arrested — ${check.offence}`,
+        actual: arrest ? `arrested — ${offence ?? "offence not recorded"}` : "not arrested",
+        passed: arrest ? (right ? true : "partial") : false,
+      });
+    } else if (check.kind === "conveyed_in_van") {
+      const want = check.surname.toUpperCase();
+      const convey = (tasks ?? []).find((t) => t.kind === "convey_custody" && t.state !== "aborted" && (t.personLabel ?? "").toUpperCase().includes(want));
+      const van = convey?.carrierType === "Police_Van";
+      metrics.push({
+        label: check.label,
+        target: `${check.surname} to custody in the van`,
+        actual: convey ? (van ? "conveyed in the van" : "conveyed in the back of a car") : "no custody transport",
+        passed: convey ? (van ? true : "partial") : false,
       });
     }
   }
